@@ -374,6 +374,7 @@ export class TimelineViewController {
   pendingViewportEmit = false;
   interactionSurfaceRect: DOMRect | null = null;
   layoutCorrectionAnimations = new Set<Animation>();
+  pendingSideCorrections: Array<{ node: HTMLElement; terminal: HTMLElement }> = [];
   wheelCommitTimer: ReturnType<typeof globalThis.setTimeout> | 0 = 0;
   viewportInitialized = false;
   reducedMotionQuery: MediaQueryList | null =
@@ -1753,6 +1754,24 @@ export class TimelineViewController {
     });
   }
 
+  /**
+   * A label side flip mirrors the terminal around its zero-size anchor node, so
+   * its previous box is the reflection of the new one. Measuring every flipped
+   * card in one read pass after all writes costs a single layout instead of a
+   * forced layout per card.
+   */
+  animatePendingSideCorrections(): void {
+    if (this.pendingSideCorrections.length === 0) return;
+    const corrections = this.pendingSideCorrections.splice(0).map(({ node, terminal }) => {
+      const anchor = node.getBoundingClientRect().left;
+      const end = terminal.getBoundingClientRect();
+      return { terminal, deltaX: 2 * anchor - end.left - end.right };
+    });
+    for (const { terminal, deltaX } of corrections) {
+      this.animateLayoutCorrection(terminal, deltaX, 0);
+    }
+  }
+
   animateLayoutCorrection(target: HTMLElement, deltaX: number, deltaY: number): void {
     if (
       this.reducedMotionQuery?.matches ||
@@ -2317,6 +2336,7 @@ export class TimelineViewController {
       }
       this.positionRecord(record, padding, usable, axisCross, crossLength);
     }
+    this.animatePendingSideCorrections();
 
     this.positionCommittedClusters(padding, usable, axisCross);
 
@@ -2486,13 +2506,11 @@ export class TimelineViewController {
             this.retention.active,
           )
         : lane < 0;
-    const sideCorrectionStart =
+    const sideFlipped =
       !this.retention.active &&
       this.orientation === "horizontal" &&
       previousLabelBefore !== null &&
-      previousLabelBefore !== labelBefore
-        ? terminal.getBoundingClientRect()
-        : null;
+      previousLabelBefore !== labelBefore;
     record.labelBefore = labelBefore;
     record.crossPosition = shiftedCross;
     node.dataset.side = labelBefore ? "before" : "after";
@@ -2516,10 +2534,7 @@ export class TimelineViewController {
         this.orientation === "horizontal" ? crossDelta : 0,
       );
     }
-    if (sideCorrectionStart) {
-      const sideCorrectionEnd = terminal.getBoundingClientRect();
-      this.animateLayoutCorrection(terminal, sideCorrectionStart.left - sideCorrectionEnd.left, 0);
-    }
+    if (sideFlipped) this.pendingSideCorrections.push({ node, terminal });
 
     terminal.tabIndex = itemOverlapsWindow(item, this.viewport) ? 0 : -1;
 

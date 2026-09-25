@@ -82,16 +82,24 @@ test("focused events expose three distinct grid composition variants and evidenc
 });
 
 test("item editor exposes reusable PDF/image evidence with extraction controls", async () => {
-  const html = await readFile(new URL("../site/index.html", import.meta.url), "utf8");
+  const [html, app] = await Promise.all([
+    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
+  ]);
   assert.match(html, /id="item-evidence-details"/);
   assert.match(html, /value="article"/);
   assert.match(html, /value="pdf"/);
   assert.match(html, /value="image"/);
   assert.match(html, /value="note"/);
-  assert.match(html, /accept="application\/pdf,.pdf,image\/png,image\/jpeg,image\/webp,image\/gif"/);
+  assert.match(
+    html,
+    /accept="application\/pdf,.pdf,image\/png,image\/jpeg,image\/webp,image\/gif"/,
+  );
   assert.match(html, /class="button secondary evidence-extract-text"/);
   assert.match(html, /class="evidence-extraction-preview field-wide"/);
-  assert.match(html, /evidence-extraction\.bundle\.js/);
+  // Extraction is an on-demand native ESM chunk, not a classic script.
+  assert.match(app, /import\("\.\.\/src\/evidence-extraction-entry\.js"\)/);
+  assert.doesNotMatch(html, /evidence-extraction\.bundle\.js/);
   assert.match(html, /id="item-layout-variant"/);
 });
 

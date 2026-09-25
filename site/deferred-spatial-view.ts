@@ -31,14 +31,16 @@ export function createDeferredSpatialViewFactory(
   let factoryPromise: Promise<DeferredSpatialViewFactory> | null = null;
 
   function loadFactory(): Promise<DeferredSpatialViewFactory> {
-    factoryPromise ??= Promise.resolve()
-      .then(loader)
-      .catch(async (error) => {
-        options.onError?.(error);
-        const fallback = await options.fallback?.();
-        if (fallback) return fallback;
-        throw error;
-      });
+    // The executor runs the loader synchronously, so loading starts with the
+    // first view while a synchronous throw still becomes a rejection.
+    factoryPromise ??= new Promise<DeferredSpatialViewFactory>((resolve) =>
+      resolve(loader()),
+    ).catch(async (error) => {
+      options.onError?.(error);
+      const fallback = await options.fallback?.();
+      if (fallback) return fallback;
+      throw error;
+    });
     return factoryPromise;
   }
 

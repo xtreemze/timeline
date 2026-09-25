@@ -160,6 +160,16 @@ function projection() {
   });
 }
 
+// Past the overview clustering tier, where individual entities, their
+// relationships and tethers render instead of place clusters.
+const DETAIL_CAMERA = Object.freeze({
+  longitude: 18.0686,
+  latitude: 59.3293,
+  zoom: 7,
+  bearing: 0,
+  pitch: 20,
+});
+
 test("world graph label scale matches sidebar reading typography", () => {
   assert.equal(worldGraphLabelSize({ kind: "entity-label", emphasized: false }), 18);
   assert.equal(worldGraphLabelSize({ kind: "place-label", emphasized: false }), 18);
@@ -249,7 +259,7 @@ test("temporal relationship joins and disconnects remain perceptible for at leas
   assert.ok(WORLD_TEMPORAL_RELATION_TRANSITION_MS >= 3_000);
 
   const { calls, runtime, setPickResult } = harness();
-  const surface = new DeckWorldSurface({}, runtime);
+  const surface = new DeckWorldSurface({}, runtime, DETAIL_CAMERA);
   surface.setProjection(projection());
 
   const joinedLayer = calls.setProps
@@ -313,7 +323,7 @@ test("reduced motion keeps the three-second temporal fade without line-width mot
   });
 
   const { calls, runtime } = harness();
-  const surface = new DeckWorldSurface({}, runtime);
+  const surface = new DeckWorldSurface({}, runtime, DETAIL_CAMERA);
   surface.setProjection(projection());
 
   const joinedLayer = calls.setProps
@@ -340,7 +350,7 @@ test("reduced motion keeps the three-second temporal fade without line-width mot
 
 test("DeckWorldSurface renders places, globe-visible paths, and elevated entity instances", () => {
   const { calls, runtime } = harness();
-  const surface = new DeckWorldSurface({}, runtime);
+  const surface = new DeckWorldSurface({}, runtime, DETAIL_CAMERA);
 
   surface.setProjection(projection());
 
@@ -363,8 +373,10 @@ test("DeckWorldSurface renders places, globe-visible paths, and elevated entity 
   // Places sit on the terrain (20 m); entities float clearly above it at a
   // constant on-screen height, with only a damped share of their simulated
   // altitude (1000 m vs 1200 m) so heights stay similar.
-  const [alice, bob] = entities.props.data;
-  assert.deepEqual(alice.position.slice(0, 2), [18.0686, 59.3293]);
+  // The layer also carries the place-cluster datum it cross-fades with.
+  const [alice, bob] = entities.props.data.filter((datum) => datum.kind === "entity");
+  assert.ok(Math.abs(alice.position[0] - 18.0686) < 1e-9);
+  assert.ok(Math.abs(alice.position[1] - 59.3293) < 1e-9);
   assert.ok(alice.position[2] > 1020, `entity floats above the place (${alice.position[2]})`);
   assert.ok(bob.position[0] > 18.0686);
   assert.ok(bob.position[2] > alice.position[2], "higher simulated altitude stays higher");
@@ -372,7 +384,13 @@ test("DeckWorldSurface renders places, globe-visible paths, and elevated entity 
 
   assert.equal(relationships.props.data.length, 1);
   assert.equal(relationships.props.parameters.cullMode, "none");
-  assert.equal(relationships.props.data[0].path.length, 2);
+  // Paths come through the accessor (layer data are temporal slots) and keep a
+  // fixed point count so straight and curved lanes can morph; they join the
+  // two floating entities.
+  const path = relationships.props.getPath(relationships.props.data[0]);
+  assert.ok(path.length > 2);
+  const ends = [path[0], path.at(-1)].sort((left, right) => left[0] - right[0]);
+  assert.deepEqual(ends, [alice.position, bob.position]);
 });
 
 test("unplaced instances remain outside globe layers rather than receiving invented coordinates", () => {
@@ -446,7 +464,10 @@ test("WorldSurface applies force deltas without reframing and skips unchanged la
       instance.canonicalId === "bob"
         ? createProjectedWorldInstance({
             ...instance,
-            localOffset: { eastMeters: 600, northMeters: 0 },
+            // Same magnitude, new direction: offsets render relative to the
+            // scene's typical offset, so a pure rescale of the only offset
+            // would legitimately draw in the same place.
+            localOffset: { eastMeters: 0, northMeters: 150 },
           })
         : instance,
     ),
@@ -496,7 +517,7 @@ test("selection updates presentation data while preserving canonical IDs", () =>
 test("hover and selection emphasize without changing graph geometry, and repeated click toggles selection", () => {
   const { calls, runtime } = harness();
   const container = { style: {} };
-  const surface = new DeckWorldSurface(container, runtime);
+  const surface = new DeckWorldSurface(container, runtime, DETAIL_CAMERA);
   surface.setProjection(projection());
 
   const initial = calls.setProps.at(-1);
@@ -603,24 +624,33 @@ test("hover and selection emphasize without changing graph geometry, and repeate
   entities = render.layers.find((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entities).props
     .data;
   assert.equal(container.style.cursor, "");
-  assert.ok(entities.every((datum) => datum.emphasized === false));
+  assert.ok(
+    entities
+      .filter((datum) => datum.kind === "entity")
+      .every((datum) => datum.emphasized === false),
+  );
 });
 test("relationship and place selection are also reflected in their render datums (issue #445 Priority 4)", () => {
   const { calls, runtime } = harness();
-  const surface = new DeckWorldSurface({}, runtime);
+  const surface = new DeckWorldSurface({}, runtime, DETAIL_CAMERA);
   surface.setProjection(projection());
 
   surface.setSelection({ kind: "relationship", id: "meeting" });
   const relationshipRender = calls.setProps.at(-1);
-  const relationships = relationshipRender.layers[1].props.data;
-  assert.equal(relationships.find((datum) => datum.relationshipId === "meeting").selected, true);
+  const relationshipLayer = relationshipRender.layers[1];
+  const meeting = relationshipLayer.props.data.find((datum) => datum.relationshipId === "meeting");
+  assert.equal(relationshipSelected(relationshipLayer, meeting), true);
 
   surface.setSelection({ kind: "place", id: "stockholm" });
   const placeRender = calls.setProps.at(-1);
   const places = placeRender.layers[0].props.data;
   assert.equal(places.find((datum) => datum.placeId === "stockholm").selected, true);
   const entitiesAfterPlaceSelection = placeRender.layers[2].props.data;
-  assert.ok(entitiesAfterPlaceSelection.every((datum) => datum.selected === false));
+  assert.ok(
+    entitiesAfterPlaceSelection
+      .filter((datum) => datum.kind === "entity")
+      .every((datum) => datum.selected === false),
+  );
 });
 
 test("deck viewport project/unproject stays behind renderer-neutral world coordinates", () => {
@@ -697,6 +727,7 @@ test("deck picking translates directly to canonical world hits with a touch-size
       DECK_WORLD_LAYER_IDS.entities,
       DECK_WORLD_LAYER_IDS.relationshipDirections,
       DECK_WORLD_LAYER_IDS.relationships,
+      DECK_WORLD_LAYER_IDS.placeIcons,
       DECK_WORLD_LAYER_IDS.places,
     ],
   });
@@ -761,6 +792,7 @@ test("double-click/double-tap focuses the canonical entity picked under the poin
       DECK_WORLD_LAYER_IDS.entities,
       DECK_WORLD_LAYER_IDS.relationshipDirections,
       DECK_WORLD_LAYER_IDS.relationships,
+      DECK_WORLD_LAYER_IDS.placeIcons,
       DECK_WORLD_LAYER_IDS.places,
     ],
   });
@@ -810,7 +842,7 @@ test("destroying the surface removes the double-click listener", () => {
   assert.ok(!listeners.has("dblclick"));
 });
 
-function keyboardHarness(runtime) {
+function keyboardHarness(runtime, camera) {
   const listeners = new Map();
   const container = {
     addEventListener(type, listener) {
@@ -820,7 +852,7 @@ function keyboardHarness(runtime) {
       if (listeners.get(type) === listener) listeners.delete(type);
     },
   };
-  const surface = new DeckWorldSurface(container, runtime);
+  const surface = new DeckWorldSurface(container, runtime, camera);
   return { surface, listeners };
 }
 
@@ -839,18 +871,26 @@ function keyEvent(key, extra = {}) {
   };
 }
 
+// Relationship layer data are stable temporal slots; selection is render
+// state read through the accessors, where a selected edge is fully opaque.
+function relationshipSelected(layer, datum) {
+  return layer.props.getColor(datum)[3] === 255;
+}
+
 function selectedIds(render) {
   const [places, relationships, entities] = render.layers;
   return {
     place: places.props.data.find((datum) => datum.selected)?.placeId ?? null,
-    relationship: relationships.props.data.find((datum) => datum.selected)?.relationshipId ?? null,
+    relationship:
+      relationships.props.data.find((datum) => relationshipSelected(relationships, datum))
+        ?.relationshipId ?? null,
     entity: entities.props.data.find((datum) => datum.selected)?.entityId ?? null,
   };
 }
 
 test("Tab cycles selection through places, then relationships, then entities (issue #445 Priority 4)", () => {
   const { calls, runtime } = harness();
-  const { surface, listeners } = keyboardHarness(runtime);
+  const { surface, listeners } = keyboardHarness(runtime, DETAIL_CAMERA);
   surface.setProjection(projection());
   const onKeyDown = listeners.get("keydown");
 
@@ -893,7 +933,7 @@ test("Tab cycles selection through places, then relationships, then entities (is
 
 test("Shift+Tab cycles backward and wraps to the last candidate", () => {
   const { calls, runtime } = harness();
-  const { surface, listeners } = keyboardHarness(runtime);
+  const { surface, listeners } = keyboardHarness(runtime, DETAIL_CAMERA);
   surface.setProjection(projection());
   const onKeyDown = listeners.get("keydown");
 
@@ -1286,6 +1326,11 @@ test("removing the world drag sink disables direct-node-drag capability", () => 
   assert.equal(surface.getCapabilities().directNodeDrag, false);
 });
 
+// Entity-layer rows: place clusters are keyed by cluster, members by instance.
+function entityRowKey(datum) {
+  return datum.kind === "cluster" ? datum.clusterId : datum.worldInstanceId;
+}
+
 function largeProjection(count, overrides = {}) {
   const instances = [];
   const edges = [];
@@ -1350,12 +1395,15 @@ test("incremental render reuses prior datum object references for unchanged rows
 
   assert.equal(secondEntities.length, firstEntities.length);
 
-  const byId = new Map(firstEntities.map((datum) => [datum.worldInstanceId, datum]));
+  const byId = new Map(firstEntities.map((datum) => [entityRowKey(datum), datum]));
   let sameReference = 0;
   let changedReference = 0;
+  let changedClusters = 0;
   for (const datum of secondEntities) {
-    const prior = byId.get(datum.worldInstanceId);
-    if (datum === prior) {
+    const prior = byId.get(entityRowKey(datum));
+    if (datum.kind === "cluster") {
+      if (datum !== prior) changedClusters += 1;
+    } else if (datum === prior) {
       sameReference += 1;
     } else {
       changedReference += 1;
@@ -1363,12 +1411,15 @@ test("incremental render reuses prior datum object references for unchanged rows
   }
 
   // Only the perturbed instance (and the edges touching it) should get a new
-  // datum object; the vast majority must be the exact same reference.
+  // datum object; the vast majority must be the exact same reference. At the
+  // overview its place cluster is the only other row that may change.
+  const entityRows = secondEntities.filter((datum) => datum.kind === "entity").length;
   assert.ok(
-    sameReference >= firstEntities.length - 1,
+    changedReference <= 1 && sameReference >= entityRows - 1,
     `expected at most 1 changed entity datum reference, saw ${changedReference}`,
   );
   assert.ok(changedReference >= 1, "expected the perturbed instance to receive a new datum object");
+  assert.ok(changedClusters <= 1, `expected at most 1 changed cluster, saw ${changedClusters}`);
 
   const relByIdFirst = new Map(firstRelationships.map((datum) => [datum.relationshipId, datum]));
   let relSame = 0;
@@ -1402,12 +1453,18 @@ test("incremental render only replaces datums whose selection actually changed",
   const secondRender = calls.setProps.at(-1);
   const secondEntities = secondRender.layers[2].props.data;
 
-  const byId = new Map(firstEntities.map((datum) => [datum.worldInstanceId, datum]));
-  let changed = 0;
-  for (const datum of secondEntities) {
-    if (datum !== byId.get(datum.worldInstanceId)) changed += 1;
-  }
-  assert.equal(changed, 1);
+  const byId = new Map(firstEntities.map((datum) => [entityRowKey(datum), datum]));
+  const changed = secondEntities
+    .filter((datum) => datum !== byId.get(entityRowKey(datum)))
+    .map((datum) => datum.entityId)
+    .sort();
+  // The selected entity plus its chain neighbours, which selection emphasises.
+  assert.deepEqual(changed, ["entity-10", "entity-11", "entity-9"]);
+  assert.ok(
+    secondEntities
+      .filter((datum) => changed.includes(datum.entityId))
+      .every((datum) => datum.emphasized === true),
+  );
   assert.equal(secondEntities.find((datum) => datum.entityId === "entity-10").selected, true);
 });
 
@@ -1446,7 +1503,8 @@ test("zooming out groups nearby entities without losing canonical identity", () 
   surface.setProjection(projection());
   surface.setCamera({ longitude: 0, latitude: 0, zoom: 0, bearing: 0, pitch: 0 });
 
-  const render = calls.setProps.at(-1);
+  // Camera-only updates carry no layers; read the latest layer render.
+  const render = calls.setProps.findLast((props) => props.layers);
   const layer = render.layers.find(
     (candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.entities,
   );
@@ -1462,7 +1520,8 @@ test("picking a cluster resolves to one of its real canonical member entities", 
   surface.setProjection(projection());
   surface.setCamera({ longitude: 0, latitude: 0, zoom: 0, bearing: 0, pitch: 0 });
 
-  const render = calls.setProps.at(-1);
+  // Camera-only updates carry no layers; read the latest layer render.
+  const render = calls.setProps.findLast((props) => props.layers);
   const layer = render.layers.find(
     (candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.entities,
   );
@@ -1612,7 +1671,10 @@ test("a spatial-mode crossing alone does not re-render or invalidate memoized da
     .entities.map((entry) => entry.worldInstanceId);
   assert.deepEqual(
     afterEntities.sort(),
-    beforeEntities.map((datum) => datum.worldInstanceId).sort(),
+    beforeEntities
+      .filter((datum) => datum.kind === "entity")
+      .map((datum) => datum.worldInstanceId)
+      .sort(),
   );
   assert.equal(
     calls.setProps.filter((props) => props.layers).at(-1).layers[2].props.data,

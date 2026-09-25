@@ -2,19 +2,23 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("retained timeline preserves weighted drag response and decaying release inertia", async () => {
+test("retained timeline tracks drags directly and keeps decaying release inertia", async () => {
   const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
 
   assert.match(source, /TimelineMotion as motion/);
   assert.match(source, /samples:\s*Array<\{ coordinate: number; time: number \}>/);
-  assert.match(source, /motion\.appendPointerSamples\(this\.pointerDrag\.samples, event, this\.orientation\)/);
-  assert.match(source, /motion\.responseForElapsed\(now - drag\.lastTime\)/);
+  assert.match(
+    source,
+    /motion\.appendPointerSamples\(this\.pointerDrag\.samples, event, this\.orientation\)/,
+  );
+  // The viewport follows the pointer 1:1; weighting applies only to release inertia.
+  assert.match(source, /start: drag\.viewport\.start \+ temporalDelta/);
   assert.match(source, /motion\.estimatePointerVelocity\(drag\.samples\)/);
   assert.match(
     source,
-    /Math\.abs\(releaseVelocity\) >= motion\.STOP_VELOCITY_PX_PER_MS[\s\S]*this\.startInertia\(releaseVelocity, length\)/,
+    /Math\.abs\(releaseVelocity\) >= motion\.STOP_VELOCITY_PX_PER_MS[\s\S]*this\.startInertia\(releaseVelocity, drag\.usableLength\)/,
   );
-  assert.match(source, /startInertia\(initialVelocityPxPerMs: number, pixelLength: number\)/);
+  assert.match(source, /startInertia\(initialVelocityPxPerMs: number, usableLength: number\)/);
   assert.match(source, /motion\.decayVelocity\(velocity, elapsed\)/);
   assert.match(source, /this\.emitViewport\(false\)/);
   assert.match(source, /this\.inertiaAnimationFrame = requestAnimationFrame\(step\)/);
@@ -40,7 +44,6 @@ test("focused popover emits the surviving rich presentation contract", async () 
   assert.match(source, /timelinefocusrender/);
 });
 
-
 test("empty timeline resets retained camera authority before later content loads", async () => {
   const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
 
@@ -48,10 +51,7 @@ test("empty timeline resets retained camera authority before later content loads
     source,
     /setItems\(items:[\s\S]*if \(!this\.items\.length\) \{[\s\S]{0,900}this\.viewportInitialized = false/,
   );
-  assert.match(
-    source,
-    /if \(!this\.items\.length\) \{[\s\S]{0,900}this\.cancelInertia\(\)/,
-  );
+  assert.match(source, /if \(!this\.items\.length\) \{[\s\S]{0,900}this\.cancelInertia\(\)/);
   assert.match(
     source,
     /if \(!this\.items\.length\) \{[\s\S]{0,900}this\.expandedClusterItemIds\.clear\(\)/,

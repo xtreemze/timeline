@@ -400,15 +400,38 @@ export function clusterEntityDatums(
   );
 }
 
+function clusterDatumUnchanged(
+  prior: DeckWorldClusterDatum,
+  position: WorldRenderPosition,
+  members: readonly DeckWorldEntityDatum[],
+  visualWeight: number,
+): boolean {
+  return (
+    prior.visualWeight === visualWeight &&
+    positionEquals(prior.position, position) &&
+    prior.clusterMembers.length === members.length &&
+    prior.clusterMembers.every((member, index) => {
+      const next = members[index];
+      return (
+        next !== undefined &&
+        member.entityId === next.entityId &&
+        member.worldInstanceId === next.worldInstanceId
+      );
+    })
+  );
+}
+
 /**
  * One cluster bubble per anchor place (Sigma-style cluster labelling: the
  * place label names the group). Used when local graphs are too small on
- * screen to tell entities apart. Membership stays canonical.
+ * screen to tell entities apart. Membership stays canonical. An unchanged
+ * cluster reuses its `previous` datum by reference.
  */
 export function clusterEntityDatumsByPlace(
   entities: readonly DeckWorldEntityDatum[],
   instances: readonly ProjectedWorldInstance[],
   mergeCellDegrees = 0,
+  previous: ReadonlyMap<string, DeckWorldClusterDatum> = new Map(),
 ): readonly DeckWorldEntityRenderDatum[] {
   const anchorOf = new Map<WorldInstanceId, ProjectedWorldInstance["geographicAnchors"][number]>();
   for (const instance of instances) {
@@ -442,27 +465,39 @@ export function clusterEntityDatumsByPlace(
       result.push(only);
       continue;
     }
+    const clusterId = `cluster:place:${placeId}`;
+    const position = Object.freeze([
+      anchor.longitude,
+      anchor.latitude,
+      anchor.sourceAltitude ?? 0,
+    ]) as WorldRenderPosition;
+    const visualWeight =
+      members.reduce((sum, member) => sum + member.visualWeight, 0) / members.length;
+    const prior = previous.get(clusterId);
     result.push(
-      Object.freeze({
-        kind: "cluster",
-        clusterId: `cluster:place:${placeId}`,
-        position: Object.freeze([
-          anchor.longitude,
-          anchor.latitude,
-          anchor.sourceAltitude ?? 0,
-        ]) as WorldRenderPosition,
-        clusterMembers: Object.freeze(
-          members.map((member) =>
-            Object.freeze({ entityId: member.entityId, worldInstanceId: member.worldInstanceId }),
-          ),
-        ),
-        visualWeight:
-          members.reduce((sum, member) => sum + member.visualWeight, 0) / members.length,
-      }),
+      prior && clusterDatumUnchanged(prior, position, members, visualWeight)
+        ? prior
+        : Object.freeze({
+            kind: "cluster",
+            clusterId,
+            position,
+            clusterMembers: Object.freeze(
+              members.map((member) =>
+                Object.freeze({
+                  entityId: member.entityId,
+                  worldInstanceId: member.worldInstanceId,
+                }),
+              ),
+            ),
+            visualWeight,
+          }),
     );
   }
   return Object.freeze(result);
 }
+
+/** The canonical entity datum each interpolated cluster-member datum was derived from. */
+const transitionSources = new WeakMap<DeckWorldEntityDatum, DeckWorldEntityDatum>();
 
 interface PlaceClusterTransitionDatums {
   readonly clusters: readonly DeckWorldClusterDatum[];
@@ -480,6 +515,7 @@ function placeClusterTransitionDatums(
   entities: readonly DeckWorldEntityDatum[],
   clustered: readonly DeckWorldEntityRenderDatum[],
   expansion: number,
+  previous: ReadonlyMap<WorldInstanceId, DeckWorldEntityDatum>,
 ): PlaceClusterTransitionDatums {
   const originByMember = new Map<WorldInstanceId, WorldRenderPosition>();
   const clusters: DeckWorldClusterDatum[] = [];
@@ -500,14 +536,21 @@ function placeClusterTransitionDatums(
       continue;
     }
     const position = interpolateClusterPosition(origin, entity.position, expansion);
-    members.push(
-      positionEquals(position, entity.position)
-        ? entity
-        : Object.freeze({
-            ...entity,
-            position,
-          }),
-    );
+    if (positionEquals(position, entity.position)) {
+      members.push(entity);
+      continue;
+    }
+    // Reuse the prior in-flight datum while its source row and interpolated
+    // position are unchanged, so collapsed members keep their identity.
+    const prior = previous.get(entity.worldInstanceId);
+    const priorSource = prior ? transitionSources.get(prior) : undefined;
+    if (prior && priorSource === entity && positionEquals(prior.position, position)) {
+      members.push(prior);
+      continue;
+    }
+    const moved: DeckWorldEntityDatum = Object.freeze({ ...entity, position });
+    transitionSources.set(moved, entity);
+    members.push(moved);
   }
 
   return Object.freeze({
@@ -1739,6 +1782,8 @@ export class DeckWorldSurface implements WorldSurface {
   // #render can reuse unchanged datum object references across frames.
   #placeDatumCache: ReadonlyMap<PlaceId, DeckWorldPlaceDatum> = new Map();
   #entityDatumCache: ReadonlyMap<WorldInstanceId, DeckWorldEntityDatum> = new Map();
+  #placeClusterDatumCache: ReadonlyMap<string, DeckWorldClusterDatum> = new Map();
+  #clusterMemberDatumCache: ReadonlyMap<WorldInstanceId, DeckWorldEntityDatum> = new Map();
   #relationshipDatumCache: ReadonlyMap<RelationshipId, DeckWorldRelationshipDatum> = new Map();
   // Stable slots preserve row identity across temporal activation changes so
   // deck.gl interpolates a relation against itself instead of another edge
@@ -2974,6 +3019,7 @@ export class DeckWorldSurface implements WorldSurface {
       entityResult.datums,
       this.#projection.instances,
       worldPixelsToDegrees(WORLD_CLUSTER_MERGE_PX, this.#camera.zoom),
+      this.#placeClusterDatumCache,
     );
     const hasPlaceClusters = placeClusterCandidates.some((datum) => datum.kind === "cluster");
     const placeExpansion = hasPlaceClusters ? rawPlaceExpansion : 1;
@@ -2981,6 +3027,7 @@ export class DeckWorldSurface implements WorldSurface {
       entityResult.datums,
       placeClusterCandidates,
       placeExpansion,
+      this.#clusterMemberDatumCache,
     );
     const transitionEntities = Object.freeze([
       ...placeTransition.members,
@@ -3019,6 +3066,12 @@ export class DeckWorldSurface implements WorldSurface {
     this.#placeDatumCache = placeResult.byId;
     this.#relationshipDatumCache = relationshipResult.byId;
     this.#entityDatumCache = entityResult.byId;
+    this.#placeClusterDatumCache = new Map(
+      placeTransition.clusters.map((cluster) => [cluster.clusterId, cluster]),
+    );
+    this.#clusterMemberDatumCache = new Map(
+      placeTransition.members.map((member) => [member.worldInstanceId, member]),
+    );
     this.#clusteredLastRender = placeExpansion < 1 || gridClustered;
     this.#clusterExpansionLastRender = rawPlaceExpansion;
     this.#labelBudgetLastRender = worldLabelBudget(this.#camera.zoom);

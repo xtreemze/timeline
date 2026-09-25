@@ -92,7 +92,7 @@ test("retained event cards use Lit for semantic content but not interaction geom
     view,
     /if \(record\.contentRevision !== revision\)[\s\S]*node\.setSemanticItem\(item\)/,
   );
-  const positionStart = view.indexOf("  positionRecord(record: SceneRecord");
+  const positionStart = view.search(/\n {2}positionRecord\(\s*record: SceneRecord/);
   const positionEnd = view.indexOf("\n  animateEntry(", positionStart);
   const positionBody = view.slice(positionStart, positionEnd);
   assert.match(positionBody, /node\.style\.transform/);

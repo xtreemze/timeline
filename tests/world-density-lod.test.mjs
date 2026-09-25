@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
+  CLUSTER_ZOOM_THRESHOLD,
   clusterEntityDatums,
   shouldClusterEntityDatums,
 } from "../site/world/deck-world-surface.ts";
@@ -41,13 +42,23 @@ test("working zoom restores the exact individual datum array for dense scenes", 
   assert.equal(clusterEntityDatums(entities, 5), entities);
 });
 
-test("sparse scenes retain individual detail at the default globe camera", () => {
+test("sparse scenes cluster at the default globe camera and restore exact detail at working zoom", () => {
   const entities = Object.freeze([entityDatum(0), entityDatum(1)]);
 
-  assert.equal(shouldClusterEntityDatums(entities.length, 1), false);
-  assert.equal(clusterEntityDatums(entities, 1), entities);
-});
+  // The overview clusters regardless of count; membership stays canonical.
+  assert.equal(shouldClusterEntityDatums(entities.length, 1), true);
+  const overview = clusterEntityDatums(entities, 1);
+  const [cluster] = overview;
+  assert.equal(overview.length, 1);
+  assert.equal(cluster.kind, "cluster");
+  assert.deepEqual(
+    cluster.clusterMembers.map((member) => member.entityId),
+    ["entity-0", "entity-1"],
+  );
 
+  assert.equal(shouldClusterEntityDatums(entities.length, CLUSTER_ZOOM_THRESHOLD), false);
+  assert.equal(clusterEntityDatums(entities, CLUSTER_ZOOM_THRESHOLD), entities);
+});
 
 test("cluster transition keeps force targets retained and animates topology from the place origin", async () => {
   const source = await readFile(
@@ -59,6 +70,9 @@ test("cluster transition keeps force targets retained and animates topology from
   assert.match(source, /interpolateClusterPosition\(origin, entity\.position, expansion\)/);
   assert.match(source, /\.\.\.placeTransition\.clusters,[\s\S]*\.\.\.placeTransition\.members/);
   assert.match(source, /temporalWidth \* edgeExpansion\(state\.edge\)/);
-  assert.match(source, /worldNodeMarker\(this\.#entityStyle\(datum\)\)\.size \* entityExpansion\(datum\)/);
+  assert.match(
+    source,
+    /worldNodeMarker\(this\.#entityStyle\(datum\)\)\.size \* entityExpansion\(datum\)/,
+  );
   assert.match(source, /WORLD_CLUSTER_FORCE_TRANSITION_MS/);
 });

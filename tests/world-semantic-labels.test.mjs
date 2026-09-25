@@ -152,10 +152,31 @@ function parallelProjection() {
   });
 }
 
-function denseProjection(count) {
+// One place per instance: nothing shares a place, so no place cluster hides
+// members and the scene shows individual labels past the overview tier.
+function ownPlace(index) {
+  return {
+    geographicAnchors: [
+      {
+        placeId: `own-place-${index}`,
+        label: `Own place ${index}`,
+        longitude: 10 + (index % 50) * 0.5,
+        latitude: 40 + Math.floor(index / 50) * 0.5,
+        influence: 1,
+      },
+    ],
+  };
+}
+
+function denseProjection(count, { distinctPlaces = false } = {}) {
   const instances = [];
   for (let index = 0; index < count; index += 1) {
-    instances.push(instance(index, index === 0 ? { visualWeight: 1 } : {}));
+    instances.push(
+      instance(index, {
+        ...(distinctPlaces ? ownPlace(index) : {}),
+        ...(index === 0 ? { visualWeight: 1 } : {}),
+      }),
+    );
   }
   return createWorldProjection({ instances, edges: [] });
 }
@@ -299,6 +320,9 @@ test("detail zoom repositions co-located semantic labels before hiding them", ()
         influence: 1,
       },
     ],
+    // Force-solved local displacement: until the backend emits one, members
+    // stay collapsed at their place origin and have no individual labels.
+    localOffset: { eastMeters: 4, northMeters: 0 },
   });
   const target = instance(1, {
     geographicAnchors: [
@@ -310,8 +334,14 @@ test("detail zoom repositions co-located semantic labels before hiding them", ()
         influence: 1,
       },
     ],
+    localOffset: { eastMeters: -4, northMeters: 0 },
   });
-  const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, longitude: 10, latitude: 50, zoom: 9 });
+  const surface = new DeckWorldSurface({}, h.runtime, {
+    ...WORKING_CAMERA,
+    longitude: 10,
+    latitude: 50,
+    zoom: 9,
+  });
   surface.setProjection(
     createWorldProjection({
       instances: [source, target],
@@ -348,10 +378,10 @@ test("clustered overview shows only place labels", () => {
   const labels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
   assert.ok(labels.props.data.length > 0);
   assert.ok(labels.props.data.every((datum) => datum.kind === "place-label"));
-  assert.deepEqual(
-    labels.props.data.map((datum) => labels.props.getText(datum)).sort(),
-    ["Place 0", "Place 1"],
-  );
+  assert.deepEqual(labels.props.data.map((datum) => labels.props.getText(datum)).sort(), [
+    "Place 0",
+    "Place 1",
+  ]);
 });
 
 test("same-place overview retains members at the cluster origin while hiding member topology", () => {
@@ -423,9 +453,18 @@ test("same-place overview retains members at the cluster origin while hiding mem
   assert.deepEqual(path[0], path.at(-1), "edge endpoints collapse to the shared place origin");
 
   const labels = layer(layers, DECK_WORLD_LAYER_IDS.labels).props.data;
-  assert.equal(labels.some((datum) => datum.kind === "entity-label"), false);
-  assert.equal(labels.some((datum) => datum.kind === "relationship-label"), false);
-  assert.equal(labels.some((datum) => datum.kind === "place-label"), true);
+  assert.equal(
+    labels.some((datum) => datum.kind === "entity-label"),
+    false,
+  );
+  assert.equal(
+    labels.some((datum) => datum.kind === "relationship-label"),
+    false,
+  );
+  assert.equal(
+    labels.some((datum) => datum.kind === "place-label"),
+    true,
+  );
 });
 
 test("a lone relationship remains visually straight on fixed sampled path topology", () => {
@@ -448,81 +487,65 @@ test("a lone relationship remains visually straight on fixed sampled path topolo
   assert.ok(Math.abs(midpoint[1] - (source[1] + target[1]) / 2) < 1e-9);
 });
 
-test(
-  "parallel and reciprocal relationships fan into distinct curved paths with labels and arrows",
-  () => {
-    const h = harness();
-    const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 9 });
-    surface.setProjection(parallelProjection());
+test("parallel and reciprocal relationships fan into distinct curved paths with labels and arrows", () => {
+  const h = harness();
+  const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 9 });
+  surface.setProjection(parallelProjection());
 
-    const layers = h.lastLayers();
-    const relationships = layer(layers, DECK_WORLD_LAYER_IDS.relationships);
-    const paths = new Map(
-      relationships.props.data.map((datum) => [
-        datum.relationshipId,
-        relationships.props.getPath(datum),
-      ]),
-    );
-    assert.equal(paths.size, 3);
-    assert.equal(new Set([...paths.values()].map((path) => path.length)).size, 1);
-    assert.equal(paths.get("alpha").length, 9);
+  const layers = h.lastLayers();
+  const relationships = layer(layers, DECK_WORLD_LAYER_IDS.relationships);
+  const paths = new Map(
+    relationships.props.data.map((datum) => [
+      datum.relationshipId,
+      relationships.props.getPath(datum),
+    ]),
+  );
+  assert.equal(paths.size, 3);
+  assert.equal(new Set([...paths.values()].map((path) => path.length)).size, 1);
+  assert.equal(paths.get("alpha").length, 9);
 
-    const alpha = paths.get("alpha");
-    const beta = paths.get("beta");
-    const gamma = paths.get("gamma");
-    assert.ok(alpha && beta && gamma);
-    assert.deepEqual(
-      gamma[0],
-      alpha.at(-1),
-      "reciprocal edge starts at its canonical source",
-    );
-    assert.deepEqual(
-      gamma.at(-1),
-      alpha[0],
-      "reciprocal edge ends at its canonical target",
-    );
+  const alpha = paths.get("alpha");
+  const beta = paths.get("beta");
+  const gamma = paths.get("gamma");
+  assert.ok(alpha && beta && gamma);
+  assert.deepEqual(gamma[0], alpha.at(-1), "reciprocal edge starts at its canonical source");
+  assert.deepEqual(gamma.at(-1), alpha[0], "reciprocal edge ends at its canonical target");
 
-    const straightMidpoint = [
-      (alpha[0][0] + alpha.at(-1)[0]) / 2,
-      (alpha[0][1] + alpha.at(-1)[1]) / 2,
-    ];
-    const midpoints = [alpha[4], beta[4], gamma[4]];
-    assert.equal(
-      new Set(midpoints.map((point) => `${point[0].toFixed(9)}:${point[1].toFixed(9)}`)).size,
-      3,
-      "every parallel relationship owns a distinct curve lane",
+  const straightMidpoint = [
+    (alpha[0][0] + alpha.at(-1)[0]) / 2,
+    (alpha[0][1] + alpha.at(-1)[1]) / 2,
+  ];
+  const midpoints = [alpha[4], beta[4], gamma[4]];
+  assert.equal(
+    new Set(midpoints.map((point) => `${point[0].toFixed(9)}:${point[1].toFixed(9)}`)).size,
+    3,
+    "every parallel relationship owns a distinct curve lane",
+  );
+  for (const midpoint of midpoints) {
+    assert.ok(
+      Math.hypot(midpoint[0] - straightMidpoint[0], midpoint[1] - straightMidpoint[1]) > 1e-9,
+      "no relationship remains on the overlapping straight centre line",
     );
-    for (const midpoint of midpoints) {
-      assert.ok(
-        Math.hypot(midpoint[0] - straightMidpoint[0], midpoint[1] - straightMidpoint[1]) >
-          1e-9,
-        "no relationship remains on the overlapping straight centre line",
-      );
-    }
+  }
 
-    const labels = layer(layers, DECK_WORLD_LAYER_IDS.labels).props.data.filter(
-      (datum) => datum.kind === "relationship-label",
-    );
-    for (const labelDatum of labels) {
-      const path = paths.get(labelDatum.relationshipId);
-      assert.ok(path);
-      assert.deepEqual(
-        labelDatum.position,
-        path[4],
-        "label follows its own curved edge midpoint",
-      );
-    }
+  const labels = layer(layers, DECK_WORLD_LAYER_IDS.labels).props.data.filter(
+    (datum) => datum.kind === "relationship-label",
+  );
+  for (const labelDatum of labels) {
+    const path = paths.get(labelDatum.relationshipId);
+    assert.ok(path);
+    assert.deepEqual(labelDatum.position, path[4], "label follows its own curved edge midpoint");
+  }
 
-    const directions = layer(layers, DECK_WORLD_LAYER_IDS.relationshipDirections);
-    const arrowApexes = directions.props.data.map((datum) => directions.props.getPath(datum)[1]);
-    assert.equal(
-      new Set(arrowApexes.map((point) => `${point[0].toFixed(9)}:${point[1].toFixed(9)}`)).size,
-      3,
-      "direction markers follow the separate curve tangents",
-    );
-    assert.equal(relationships.props.transitions.getPath.duration, 600);
-  },
-);
+  const directions = layer(layers, DECK_WORLD_LAYER_IDS.relationshipDirections);
+  const arrowApexes = directions.props.data.map((datum) => directions.props.getPath(datum)[1]);
+  assert.equal(
+    new Set(arrowApexes.map((point) => `${point[0].toFixed(9)}:${point[1].toFixed(9)}`)).size,
+    3,
+    "direction markers follow the separate curve tangents",
+  );
+  assert.equal(relationships.props.transitions.getPath.duration, 600);
+});
 
 test("each rendered directed relationship has a visible marker preserving source/target identity", () => {
   const h = harness();
@@ -573,8 +596,8 @@ test("picking a direction marker resolves to its canonical relationship", () => 
 
 test("selection leaves dense label LOD geometry stable while focus can still pin a label", () => {
   const h = harness();
-  const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 2 });
-  surface.setProjection(denseProjection(1_000));
+  const surface = new DeckWorldSurface({}, h.runtime, WORKING_CAMERA);
+  surface.setProjection(denseProjection(1_000, { distinctPlaces: true }));
 
   const before = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
   const beforeGeometry = before.map((datum) => ({
@@ -607,8 +630,14 @@ test("clustered overview suppresses member labels even when a member is selected
   surface.setSelection({ kind: "entity", id: "entity-150" });
 
   const labels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
-  assert.equal(labels.some((datum) => datum.kind === "entity-label"), false);
-  assert.equal(labels.some((datum) => datum.kind === "relationship-label"), false);
+  assert.equal(
+    labels.some((datum) => datum.kind === "entity-label"),
+    false,
+  );
+  assert.equal(
+    labels.some((datum) => datum.kind === "relationship-label"),
+    false,
+  );
   assert.ok(labels.length > 0);
   assert.ok(labels.every((datum) => datum.kind === "place-label"));
 });
@@ -775,11 +804,11 @@ test("the live region announces the selected object's projection label", () => {
   assert.match(region.textContent, /Selected relationship meeting \(met\)\./);
 });
 
-function chainProjection(count) {
+function chainProjection(count, { distinctPlaces = false } = {}) {
   const instances = [];
   const edges = [];
   for (let index = 0; index < count; index += 1) {
-    instances.push(instance(index));
+    instances.push(instance(index, distinctPlaces ? ownPlace(index) : {}));
     if (index > 0) {
       edges.push(
         createProjectedWorldEdge({
@@ -799,8 +828,8 @@ function chainProjection(count) {
 
 test("selection changes label color without changing label membership or placement", () => {
   const h = harness();
-  const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 1 });
-  surface.setProjection(chainProjection(2_000));
+  const surface = new DeckWorldSurface({}, h.runtime, WORKING_CAMERA);
+  surface.setProjection(chainProjection(2_000, { distinctPlaces: true }));
 
   const beforeLayer = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
   const before = beforeLayer.props.data;
@@ -848,8 +877,8 @@ test("selection changes label color without changing label membership or placeme
 
 test("dense direction-marker LOD is selection-stable while explicit focus may pin an edge", () => {
   const h = harness();
-  const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 1 });
-  surface.setProjection(chainProjection(2_000));
+  const surface = new DeckWorldSurface({}, h.runtime, WORKING_CAMERA);
+  surface.setProjection(chainProjection(2_000, { distinctPlaces: true }));
 
   const before = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.relationshipDirections).props.data;
   const beforeIds = before.map((marker) => marker.relationshipId);

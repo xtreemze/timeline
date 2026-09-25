@@ -44,10 +44,18 @@ test("image evidence and extraction provenance survive normalization", () => {
 });
 
 test("deployed build recreates evidence extraction bundle and PDF worker", async () => {
-  const pkg = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
-  assert.match(pkg.scripts["build:evidence"], /evidence-extraction-entry\.js/);
-  assert.match(pkg.scripts["build:evidence"], /pdf\.worker\.mjs/);
-  assert.match(pkg.scripts.build, /build:evidence/);
+  const [pkg, app, entry, viteConfig] = await Promise.all([
+    readFile(new URL("../package.json", import.meta.url), "utf8").then(JSON.parse),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
+    readFile(new URL("../src/evidence-extraction-entry.js", import.meta.url), "utf8"),
+    readFile(new URL("../vite.config.ts", import.meta.url), "utf8"),
+  ]);
+  // The Vite build emits extraction as a lazy chunk and the PDF worker as an asset.
+  assert.match(pkg.scripts.build, /vite build/);
+  assert.match(app, /import\("\.\.\/src\/evidence-extraction-entry\.js"\)/);
+  assert.match(entry, /from "pdfjs-dist\/build\/pdf\.worker\.mjs\?url"/);
+  assert.match(entry, /GlobalWorkerOptions/);
+  assert.match(viteConfig, /name: "pdf-runtime"/);
 });
 
 test("visible extraction and inference controls are wired to application handlers", async () => {
@@ -58,7 +66,10 @@ test("visible extraction and inference controls are wired to application handler
 
   assert.match(html, /id="item-inference-run"/);
   assert.match(html, /class="button secondary evidence-extract-text"/);
-  assert.match(app, /itemInferenceRun:\s*requiredElement<HTMLButtonElement>\("#item-inference-run"\)/);
+  assert.match(
+    app,
+    /itemInferenceRun:\s*requiredElement<HTMLButtonElement>\("#item-inference-run"\)/,
+  );
   assert.match(app, /extractText:\s*row\.querySelector\("\.evidence-extract-text"\)/);
   assert.match(app, /parts\.extractText\?\.addEventListener\("click"/);
   assert.match(app, /itemInferenceRun\?\.addEventListener\("click"/);
@@ -76,12 +87,8 @@ test("inference remains reviewable and stale proposals cannot mutate canonical s
   assert.match(app, /itemInferenceDraft\.fingerprint !== currentFingerprint/);
   assert.match(app, /graphInference\.applyProposal\(/);
   assert.match(app, /state = normalizeTimeline\(draft, \{ strictGraph: true \}\)/);
-  assert.doesNotMatch(
-    app,
-    /graphInference\.infer[\s\S]{0,1800}state\.relationships\.push/,
-  );
+  assert.doesNotMatch(app, /graphInference\.infer[\s\S]{0,1800}state\.relationships\.push/);
 });
-
 
 test("app migration preserves the established default category fallback", async () => {
   const app = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");

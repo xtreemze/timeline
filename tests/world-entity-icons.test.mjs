@@ -131,19 +131,30 @@ test("every entity renders as a styled node marker that picks as the entity", ()
   assert.ok(h.pickOptions().layerIds.includes(DECK_WORLD_LAYER_IDS.entityIcons));
 });
 
-test("dense marker load follows the LOD budget but keeps the selected entity", () => {
+test("dense marker load follows the LOD budget; selection is stable and focus pins a marker", () => {
   const h = harness();
   // Dense (clustering) scale: markers fall back to the label budget there.
   const count = 26_000;
+  const target = `entity-${count - 1}`;
   const surface = new DeckWorldSurface({}, h.runtime, { ...CAMERA, zoom: 5 });
   const instances = Array.from({ length: count }, (_, index) => entity(index, "person"));
   surface.setProjection(createWorldProjection({ instances, edges: [] }));
-  surface.setSelection({ kind: "entity", id: `entity-${count - 1}` });
+  const iconIds = () =>
+    h
+      .lastLayers()
+      .find((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entityIcons)
+      .props.data.map((datum) => datum.entityId);
 
-  const icons = h.lastLayers().find((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entityIcons);
-  const ids = icons.props.data.map((datum) => datum.entityId);
-  assert.ok(ids.length < count);
-  assert.ok(ids.includes(`entity-${count - 1}`));
+  const before = iconIds();
+  assert.ok(before.length < count);
+
+  // Selection recolours but never changes which markers the LOD shows.
+  surface.setSelection({ kind: "entity", id: target });
+  assert.deepEqual(iconIds(), before);
+
+  // Explicit focus may pin its marker through the budget.
+  surface.focusEntity(target);
+  assert.ok(iconIds().includes(target));
 });
 
 test("a runtime without icon support renders no icon layer", () => {

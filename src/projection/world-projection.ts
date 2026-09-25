@@ -140,9 +140,15 @@ export function createSpatialAnchor(anchor: SpatialAnchor): SpatialAnchor {
   });
 }
 
+/** Instances this factory already validated and froze. */
+const projectedWorldInstances = new WeakSet<object>();
+
 export function createProjectedWorldInstance(
   instance: Omit<ProjectedWorldInstance, "id"> & { readonly id?: WorldInstanceId },
 ): ProjectedWorldInstance {
+  // Re-projecting a validated, frozen instance keeps its identity, so unchanged
+  // rows survive layout passes and diff by reference downstream.
+  if (projectedWorldInstances.has(instance)) return instance as ProjectedWorldInstance;
   const canonicalId = nonEmpty(instance.canonicalId, "Canonical entity ID") as EntityId;
   const occurrenceId =
     instance.occurrenceId === undefined
@@ -152,8 +158,11 @@ export function createProjectedWorldInstance(
     instance.occurrenceIds === undefined
       ? undefined
       : Object.freeze(
-          [...new Set(instance.occurrenceIds.map((id) => nonEmpty(id, "Occurrence ID") as RelationshipId))]
-            .sort((left, right) => String(left).localeCompare(String(right))),
+          [
+            ...new Set(
+              instance.occurrenceIds.map((id) => nonEmpty(id, "Occurrence ID") as RelationshipId),
+            ),
+          ].sort((left, right) => String(left).localeCompare(String(right))),
         );
   const id = instance.id ?? worldInstanceId(canonicalId, occurrenceId);
   const label = optionalText(instance.label, 180);
@@ -172,7 +181,7 @@ export function createProjectedWorldInstance(
       ? undefined
       : nonNegative(instance.visualAltitude, "Visual altitude");
 
-  return Object.freeze({
+  const projected: ProjectedWorldInstance = Object.freeze({
     id: nonEmpty(id, "World instance ID") as WorldInstanceId,
     canonicalId,
     ...(label === undefined ? {} : { label }),
@@ -187,6 +196,8 @@ export function createProjectedWorldInstance(
     ...(visualAltitude === undefined ? {} : { visualAltitude }),
     ...(localOffset === undefined ? {} : { localOffset }),
   });
+  projectedWorldInstances.add(projected);
+  return projected;
 }
 
 export function createProjectedWorldEdge(edge: ProjectedWorldEdge): ProjectedWorldEdge {

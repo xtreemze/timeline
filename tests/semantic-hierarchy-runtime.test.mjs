@@ -2,15 +2,19 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("retained timeline pre-materializes the incoming semantic tick hierarchy", async () => {
+test("retained timeline keeps the committed tick hierarchy authoritative until commit", async () => {
   const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
 
+  // One hierarchy renders during a gesture; the selected one is adopted atomically on
+  // commit instead of drawing two overlapping year/month/date label systems.
   assert.match(source, /generateTicksForSpec\(extent, spec, 240\)/);
-  assert.match(source, /incomingHierarchy =\s*this\.retention\.active/);
   assert.match(source, /selectedKey !== committedKey/);
-  assert.match(source, /materializeTickHierarchy\([\s\S]*selectedSpec/);
-  assert.match(source, /dataset\.incomingTickHierarchy = selectedKey/);
-  assert.match(source, /dataset\.committedTickHierarchy = committedKey/);
+  assert.match(
+    source,
+    /const authoritativeSpec = this\.retention\.active\s*\?\s*this\.committedTickSpec \|\| selectedSpec\s*:\s*selectedSpec/,
+  );
+  assert.match(source, /materializeTickHierarchy\(\s*authoritativeSpec/);
+  assert.match(source, /dataset\.committedTickHierarchy = this\.tickSpecKey\(authoritativeSpec\)/);
 });
 
 test("incoming temporal context stays materialized and subdued until commit", async () => {

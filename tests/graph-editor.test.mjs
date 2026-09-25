@@ -396,7 +396,8 @@ test("touch graph uses forgiving node and edge hit targets with visible long-pre
 
 test("graph camera release reuses Timeline weighted inertia without changing node force physics", async () => {
   const bridge = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
-  assert.match(bridge, /const motion = globalThis\.TimelineMotion/);
+  assert.match(bridge, /import \{ TimelineMotion \} from "\.\.\/site\/timeline-motion\.ts"/);
+  assert.match(bridge, /const motion = TimelineMotion/);
   assert.match(bridge, /let cameraGesture = null/);
   assert.match(bridge, /let cameraInertiaAnimationFrame = 0/);
   assert.match(bridge, /motion\?\.appendPointerVectorSamples/);

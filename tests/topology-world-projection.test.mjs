@@ -75,7 +75,9 @@ test("topology edges define canonical relationships materialized into the world"
   assert.deepEqual(
     world.instances
       .filter((instance) => instance.canonicalId === "b")
-      .map((instance) => String(instance.occurrenceId)),
+      // One instance per spatial context; instance IDs, not occurrences, set the order.
+      .map((instance) => String(instance.occurrenceId))
+      .sort(),
     ["ab", "bc"],
   );
 });
