@@ -262,56 +262,75 @@ function stronglyConnectedComponentIndex(
   nodeIds: ReadonlySet<WorldInstanceId>,
   candidates: readonly ProjectedWorldEdge[],
 ): ReadonlyMap<WorldInstanceId, number> {
+  const orderedNodes = [...nodeIds].sort((left, right) =>
+    String(left).localeCompare(String(right)),
+  );
   const adjacency = new Map<WorldInstanceId, WorldInstanceId[]>(
-    [...nodeIds].map((id) => [id, []] as const),
+    orderedNodes.map((id) => [id, []] as const),
+  );
+  const reverseAdjacency = new Map<WorldInstanceId, WorldInstanceId[]>(
+    orderedNodes.map((id) => [id, []] as const),
   );
   for (const edge of candidates) {
     if (!nodeIds.has(edge.sourceInstanceId) || !nodeIds.has(edge.targetInstanceId)) continue;
     adjacency.get(edge.sourceInstanceId)?.push(edge.targetInstanceId);
+    reverseAdjacency.get(edge.targetInstanceId)?.push(edge.sourceInstanceId);
   }
-  for (const entries of adjacency.values()) {
+  const sortEntries = (entries: WorldInstanceId[]): void => {
     entries.sort((left, right) => String(left).localeCompare(String(right)));
+  };
+  for (const entries of adjacency.values()) sortEntries(entries);
+  for (const entries of reverseAdjacency.values()) sortEntries(entries);
+
+  // Iterative Kosaraju traversal avoids recursion depth limits on long or dense
+  // local graphs while preserving deterministic component membership.
+  const visited = new Set<WorldInstanceId>();
+  const finishOrder: WorldInstanceId[] = [];
+  for (const root of orderedNodes) {
+    if (visited.has(root)) continue;
+    visited.add(root);
+    const frames: Array<{ node: WorldInstanceId; nextChild: number }> = [
+      { node: root, nextChild: 0 },
+    ];
+    while (frames.length) {
+      const frame = frames[frames.length - 1];
+      if (!frame) break;
+      const children = adjacency.get(frame.node) ?? [];
+      const child = children[frame.nextChild];
+      if (child !== undefined) {
+        frame.nextChild += 1;
+        if (!visited.has(child)) {
+          visited.add(child);
+          frames.push({ node: child, nextChild: 0 });
+        }
+        continue;
+      }
+      finishOrder.push(frame.node);
+      frames.pop();
+    }
   }
 
-  let nextIndex = 0;
-  let nextComponent = 0;
-  const indexes = new Map<WorldInstanceId, number>();
-  const lowLinks = new Map<WorldInstanceId, number>();
-  const stack: WorldInstanceId[] = [];
-  const stacked = new Set<WorldInstanceId>();
   const componentByNode = new Map<WorldInstanceId, number>();
-
-  const visit = (node: WorldInstanceId): void => {
-    indexes.set(node, nextIndex);
-    lowLinks.set(node, nextIndex);
-    nextIndex += 1;
-    stack.push(node);
-    stacked.add(node);
-
-    for (const child of adjacency.get(node) ?? []) {
-      if (!indexes.has(child)) {
-        visit(child);
-        lowLinks.set(node, Math.min(lowLinks.get(node) ?? 0, lowLinks.get(child) ?? 0));
-      } else if (stacked.has(child)) {
-        lowLinks.set(node, Math.min(lowLinks.get(node) ?? 0, indexes.get(child) ?? 0));
+  let nextComponent = 0;
+  for (let index = finishOrder.length - 1; index >= 0; index -= 1) {
+    const root = finishOrder[index];
+    if (root === undefined || componentByNode.has(root)) continue;
+    componentByNode.set(root, nextComponent);
+    const pending = [root];
+    while (pending.length) {
+      const node = pending.pop();
+      if (node === undefined) break;
+      const parents = reverseAdjacency.get(node) ?? [];
+      // Reverse push order so traversal remains deterministic relative to the
+      // ascending adjacency lists.
+      for (let parentIndex = parents.length - 1; parentIndex >= 0; parentIndex -= 1) {
+        const parent = parents[parentIndex];
+        if (parent === undefined || componentByNode.has(parent)) continue;
+        componentByNode.set(parent, nextComponent);
+        pending.push(parent);
       }
     }
-
-    if (lowLinks.get(node) !== indexes.get(node)) return;
-    while (stack.length) {
-      const member = stack.pop();
-      if (member === undefined) break;
-      stacked.delete(member);
-      componentByNode.set(member, nextComponent);
-      if (member === node) break;
-    }
     nextComponent += 1;
-  };
-
-  for (const node of [...nodeIds].sort((left, right) =>
-    String(left).localeCompare(String(right)),
-  )) {
-    if (!indexes.has(node)) visit(node);
   }
 
   return componentByNode;
