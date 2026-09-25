@@ -181,6 +181,7 @@ function projection() {
 test("world graph label scale matches sidebar reading typography", () => {
   assert.equal(worldGraphLabelSize({ kind: "entity-label", emphasized: false }), 18);
   assert.equal(worldGraphLabelSize({ kind: "place-label", emphasized: false }), 18);
+  assert.equal(worldGraphLabelSize({ kind: "cluster-label", emphasized: false }), 18);
   assert.equal(worldGraphLabelSize({ kind: "relationship-label", emphasized: false }), 18);
   assert.equal(worldGraphLabelSize({ kind: "entity-label", emphasized: true }), 18);
 });
@@ -192,14 +193,16 @@ test("world label collision priority preserves semantic order and interaction em
   });
   const entity = worldLabelCollisionPriority({ kind: "entity-label", emphasized: false });
   const place = worldLabelCollisionPriority({ kind: "place-label", emphasized: false });
+  const cluster = worldLabelCollisionPriority({ kind: "cluster-label", emphasized: false });
   const emphasizedRelationship = worldLabelCollisionPriority({
     kind: "relationship-label",
     emphasized: true,
   });
 
+  assert.ok(cluster > place);
   assert.ok(place > entity);
   assert.ok(entity > relationship);
-  assert.ok(emphasizedRelationship > place);
+  assert.ok(emphasizedRelationship > cluster);
 });
 
 test("optional deck collision filtering is attached only to the text label layer", () => {
