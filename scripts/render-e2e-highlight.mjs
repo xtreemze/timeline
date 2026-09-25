@@ -77,7 +77,11 @@ function numericFrameRate(value) {
   const [numerator, denominator = "1"] = value.split("/");
   const numeratorValue = Number(numerator);
   const denominatorValue = Number(denominator);
-  if (!Number.isFinite(numeratorValue) || !Number.isFinite(denominatorValue) || denominatorValue <= 0) {
+  if (
+    !Number.isFinite(numeratorValue) ||
+    !Number.isFinite(denominatorValue) ||
+    denominatorValue <= 0
+  ) {
     return Number.NaN;
   }
   return numeratorValue / denominatorValue;
@@ -86,14 +90,18 @@ function numericFrameRate(value) {
 function assertHighFrameRate(value, label) {
   const fps = numericFrameRate(value);
   if (!Number.isFinite(fps) || fps < MIN_CAPTURE_FPS) {
-    throw new Error(`${label} reports ${String(value)} fps; expected at least ${MIN_CAPTURE_FPS} fps.`);
+    throw new Error(
+      `${label} reports ${String(value)} fps; expected at least ${MIN_CAPTURE_FPS} fps.`,
+    );
   }
 }
 
 function assertMeasuredCapture(segment, formFactor) {
   const capture = segment.capture;
   if (!capture || capture.targetFps !== SHOWCASE_FPS) {
-    throw new Error(`${formFactor}/${segment.name} is missing the ${SHOWCASE_FPS} fps source-capture contract.`);
+    throw new Error(
+      `${formFactor}/${segment.name} is missing the ${SHOWCASE_FPS} fps source-capture contract.`,
+    );
   }
   const timestamps = capture.frameTimestampsMs;
   if (!Array.isArray(timestamps) || timestamps.length < 2) {
@@ -160,7 +168,9 @@ function assertManifest(manifest, formFactor) {
     manifest.minimumMeasuredCaptureFps !== MIN_CAPTURE_FPS ||
     manifest.activeFrameGapThresholdMs !== ACTIVE_FRAME_GAP_MS
   ) {
-    throw new Error(`${formFactor} manifest does not certify measured ${SHOWCASE_FPS} fps capture.`);
+    throw new Error(
+      `${formFactor} manifest does not certify measured ${SHOWCASE_FPS} fps capture.`,
+    );
   }
   if (!Array.isArray(manifest.segments) || manifest.segments.length !== 5) {
     throw new Error(`${formFactor} manifest must contain exactly five showcase scenes`);
@@ -196,7 +206,9 @@ async function renderFormFactor(formFactor, manifest) {
       if (!video.fps) throw new Error(`Could not determine source FPS for ${videoPath}`);
       assertHighFrameRate(video.fps, `${formFactor}/${segment.name} normalized WebM`);
       if (video.codec !== "vp8") {
-        throw new Error(`${formFactor}/${segment.name} raw WebM must use VP8, found ${String(video.codec)}.`);
+        throw new Error(
+          `${formFactor}/${segment.name} raw WebM must use VP8, found ${String(video.codec)}.`,
+        );
       }
       sources.push({ segment, screenshotPath, screenshot, videoPath, video });
     } else {
