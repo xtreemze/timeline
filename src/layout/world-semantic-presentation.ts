@@ -510,9 +510,9 @@ export const WORLD_LOCAL_GRAPH_MAX_PLACE_SHARE = 3;
 /** Clusters closer than this on screen merge into one bubble. */
 export const WORLD_CLUSTER_MERGE_PX = 96;
 /**
- * Local graphs at least this large on screen count as readable. The compact
- * 30-34px marker baseline needs less empty radius than the former 44-52px
- * marker scale, so place-local topology can resolve sooner while remaining legible.
+ * Local graphs at least this large on screen count as readable. The current
+ * node baseline is the same >=44px physical footprint used for touch and
+ * collision, so this radius must leave room for those full-size markers.
  */
 export const WORLD_READABLE_LOCAL_RADIUS_PX = 160;
 
