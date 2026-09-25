@@ -16,6 +16,7 @@ import {
   storyIdsForItem,
 } from "./story-authoring.js";
 // Import ESM modules
+import { createInteractionCoordinator } from "../src/interaction/interaction-coordinator.ts";
 import { TimelineTemporal } from "./temporal-standards.ts";
 import { createSettledTemporalWindowSink } from "./world/settled-temporal-window.ts";
 import { selectPrimarySpatialViewFactory } from "./world/world-view-selection.ts";
@@ -628,10 +629,16 @@ function setSemanticControlIcon(element, iconName, label) {
 
 decorateSemanticControls();
 
-const timelineView = globalThis.TimelineView?.create(els.timelineViewRoot) || null;
+const surfaceInteractionCoordinator = createInteractionCoordinator();
+const timelineView =
+  globalThis.TimelineView?.create(els.timelineViewRoot, {
+    interaction: surfaceInteractionCoordinator,
+  }) || null;
 let temporalGraphView: ReturnType<typeof temporalGraphFactory.create> | null = null;
 try {
-  temporalGraphView = temporalGraphFactory.create(els.graphViewRoot);
+  temporalGraphView = temporalGraphFactory.create(els.graphViewRoot, {
+    interaction: surfaceInteractionCoordinator,
+  });
 } catch (error) {
   console.error("Failed to initialize TemporalGraphView:", error);
 }
