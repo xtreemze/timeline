@@ -221,7 +221,7 @@ const STORY_SPECS =
     media: [
       "https://commons.wikimedia.org/wiki/Special:FilePath/Walter%20Crane%20The%20Frog%20Prince.jpg",
       "https://commons.wikimedia.org/wiki/Special:FilePath/The%20Frog%20Prince%20and%20Other%20Stories-illus010%2011s.jpg",
-      "https://commons.wikimedia.org/wiki/Special:FilePath/The%20Frog%20Turns%20Into%20A%20Prince%20-%20Illustration%20For%20The%20Frog%20Prince%20by%20Walter%20Crane%20-%20Walter%20Crane%20-%20ABDAG003357.jpg",
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Walter%20Crane-The%20Frog%20Prince.jpg",
     ],
     entities: [
       ["frog-princess", "person", "Princess"],
