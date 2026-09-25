@@ -12,6 +12,8 @@ const manifestPath = path.join(outputRoot, "manifest.json");
 const ffmpeg = process.env.FFMPEG_BIN ?? "ffmpeg";
 const ffprobe = process.env.FFPROBE_BIN ?? "ffprobe";
 const formFactors = ["desktop", "mobile"];
+const SHOWCASE_FPS = 60;
+const MIN_CAPTURE_FPS = 59;
 
 function run(command, args) {
   return new Promise((resolve, reject) => {
@@ -68,6 +70,44 @@ function usableFrameRate(value) {
   return typeof value === "string" && value.length > 0 && value !== "0/0";
 }
 
+function numericFrameRate(value) {
+  if (!usableFrameRate(value)) return Number.NaN;
+  const [numerator, denominator = "1"] = value.split("/");
+  const numeratorValue = Number(numerator);
+  const denominatorValue = Number(denominator);
+  if (!Number.isFinite(numeratorValue) || !Number.isFinite(denominatorValue) || denominatorValue <= 0) {
+    return Number.NaN;
+  }
+  return numeratorValue / denominatorValue;
+}
+
+function assertHighFrameRate(value, label) {
+  const fps = numericFrameRate(value);
+  if (!Number.isFinite(fps) || fps < MIN_CAPTURE_FPS) {
+    throw new Error(`${label} reports ${String(value)} fps; expected at least ${MIN_CAPTURE_FPS} fps.`);
+  }
+}
+
+function assertMeasuredCapture(segment, formFactor) {
+  const capture = segment.capture;
+  if (!capture || capture.requestedFps !== SHOWCASE_FPS) {
+    throw new Error(`${formFactor}/${segment.name} is missing the ${SHOWCASE_FPS} fps source-capture contract.`);
+  }
+  const timestamps = capture.frameTimestampsMs;
+  if (!Array.isArray(timestamps) || timestamps.length < 2) {
+    throw new Error(`${formFactor}/${segment.name} is missing source frame timestamps.`);
+  }
+  const first = timestamps[0];
+  const last = timestamps.at(-1);
+  const durationSeconds = (last - first) / 1_000;
+  const measuredFps = (timestamps.length - 1) / durationSeconds;
+  if (!Number.isFinite(measuredFps) || measuredFps < MIN_CAPTURE_FPS) {
+    throw new Error(
+      `${formFactor}/${segment.name} measured ${measuredFps.toFixed(2)} actual source fps; expected at least ${MIN_CAPTURE_FPS}.`,
+    );
+  }
+}
+
 async function probeVisualSource(filePath) {
   const stdout = await capture(ffprobe, [
     "-v",
@@ -99,6 +139,9 @@ async function probeVisualSource(filePath) {
 
 function assertManifest(manifest, formFactor) {
   if (manifest.formFactor !== formFactor) throw new Error(`Expected ${formFactor} manifest`);
+  if (manifest.captureFps !== SHOWCASE_FPS || manifest.minimumMeasuredCaptureFps !== MIN_CAPTURE_FPS) {
+    throw new Error(`${formFactor} manifest does not certify measured ${SHOWCASE_FPS} fps capture.`);
+  }
   if (!Array.isArray(manifest.segments) || manifest.segments.length !== 5) {
     throw new Error(`${formFactor} manifest must contain exactly five showcase scenes`);
   }
@@ -112,6 +155,7 @@ function assertManifest(manifest, formFactor) {
   }
   for (const segment of motion) {
     if (!segment.video) throw new Error(`Motion scene ${segment.name} is missing its WebM source`);
+    assertMeasuredCapture(segment, formFactor);
   }
 }
 
@@ -130,6 +174,7 @@ async function renderFormFactor(formFactor, manifest) {
       const videoPath = path.resolve(workspace, segment.video);
       const video = await probeVisualSource(videoPath);
       if (!video.fps) throw new Error(`Could not determine source FPS for ${videoPath}`);
+      assertHighFrameRate(video.fps, `${formFactor}/${segment.name} normalized WebM`);
       sources.push({ segment, screenshotPath, screenshot, videoPath, video });
     } else {
       sources.push({ segment, screenshotPath, screenshot, videoPath: null, video: null });
@@ -141,7 +186,7 @@ async function renderFormFactor(formFactor, manifest) {
   const reelProfile = {
     width: firstMotion.video.width,
     height: firstMotion.video.height,
-    fps: firstMotion.video.fps,
+    fps: String(SHOWCASE_FPS),
   };
 
   const sequence = [];
@@ -218,10 +263,15 @@ async function renderFormFactor(formFactor, manifest) {
       "-loop",
       "0",
       "-r",
-      video.fps,
+      String(SHOWCASE_FPS),
       webpOutput,
     ]);
 
+    const webp = await probeVisualSource(webpOutput);
+    assertHighFrameRate(webp.fps, `${formFactor}/${segment.name} animated WebP`);
+    if (webp.width !== video.width || webp.height !== video.height) {
+      throw new Error(`${formFactor}/${segment.name} animated WebP changed source dimensions.`);
+    }
     const webpStat = await stat(webpOutput);
     mediaRecords.push({
       name: segment.name,
@@ -231,7 +281,7 @@ async function renderFormFactor(formFactor, manifest) {
       source: {
         width: video.width,
         height: video.height,
-        fps: video.fps,
+        fps: String(SHOWCASE_FPS),
       },
     });
 
@@ -303,6 +353,11 @@ async function renderFormFactor(formFactor, manifest) {
     reelPath,
   );
   await run(ffmpeg, args);
+  const reel = await probeVisualSource(reelPath);
+  assertHighFrameRate(reel.fps, `${formFactor} highlight reel`);
+  if (reel.width !== reelProfile.width || reel.height !== reelProfile.height) {
+    throw new Error(`${formFactor} highlight reel changed source dimensions.`);
+  }
 
   const mediaByName = new Map(mediaRecords.map((record) => [record.name, record]));
   return {
@@ -362,7 +417,7 @@ const pagesBase = process.env.SHOWCASE_BASE_URL ?? "https://xtreemze.github.io/t
 const markdown = [
   "## Lūm showcase",
   "",
-  "These assets are generated from the real Chromium application exercised by CI. Motion stays at the source recording dimensions and frame rate as animated WebP; static states use source-resolution PNG screenshots.",
+  "These assets are generated from the real Chromium application exercised by CI. Motion is captured and independently measured at 60 fps before encoding, then published at source dimensions as 60 fps animated WebP; static states use source-resolution PNG screenshots.",
   "",
   ...formFactors.flatMap((formFactor) => [
     `### ${formFactor === "desktop" ? "Desktop" : "Mobile"}`,
