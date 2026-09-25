@@ -629,7 +629,6 @@ async function recordSegment(
       const captureStartedAt = Date.now();
 
       await body();
-      await page.waitForTimeout(450);
       const browserFrameClock = await stopCaptureHeartbeat(page);
       const captureStoppedAt = Date.now();
       const source = await stopTabCapture(page, videoPath);
@@ -654,6 +653,7 @@ async function recordSegment(
         );
       }
 
+      await page.waitForTimeout(250);
       await captureX11Still(screenshotPath, captureSize);
       capture = {
         targetFps: SHOWCASE_FPS,
