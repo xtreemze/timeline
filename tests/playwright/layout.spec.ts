@@ -216,9 +216,7 @@ test.describe("Mobile-first Timeline layout contracts", () => {
       }
       expect(worldZoneBox.x).toBeLessThan(actionsZoneBox.x);
       expect(worldZoneBox.x + worldZoneBox.width).toBeLessThanOrEqual(actionsZoneBox.x + 2);
-      expect(timelineZoneBox.x).toBeGreaterThanOrEqual(
-        actionsZoneBox.x + actionsZoneBox.width - 2,
-      );
+      expect(timelineZoneBox.x).toBeGreaterThanOrEqual(actionsZoneBox.x + actionsZoneBox.width - 2);
       expect(
         Math.abs(actionsZoneBox.x + actionsZoneBox.width / 2 - viewport.width / 2),
       ).toBeLessThanOrEqual(2);
