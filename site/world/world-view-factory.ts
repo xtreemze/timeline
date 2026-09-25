@@ -242,8 +242,8 @@ export function createWorldViewFactory(options: WorldViewFactoryOptions): WorldV
       }
 
       surface.setClusterForceSink({
-        setClusteredPlaceIds(placeIds) {
-          runtime.setClusteredPlaceIds(placeIds);
+        setClusteredPlaceIds(placeIds, detachedLinkPlaceIds) {
+          runtime.setClusteredPlaceIds(placeIds, detachedLinkPlaceIds);
           scheduledView.wake();
         },
       });
