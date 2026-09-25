@@ -114,6 +114,10 @@ test("interactive maps use the timeline weighted drag response and shared releas
   assert.match(source, /pointers\.size > 1[\s\S]*cancelDrag\(\)/);
   assert.match(source, /pointers\.size === 1[\s\S]*beginDrag\(remaining\.pointerId, remaining\)/);
   assert.match(source, /prefersReducedMotion\(\)/);
+  assert.match(source, /createSurfaceInteractionController\([\s\S]*"map"/);
+  assert.match(source, /surfaceInteraction\.beginPointer\(pointerId, "pan"\)/);
+  assert.match(source, /surfaceInteraction\.releasePointer\(event\.pointerId\)/);
+  assert.match(source, /surfaceInteraction\.cancel\("lostpointercapture"\)/);
 });
 
 test("map touch targets match the coarse-pointer interaction floor and editing has non-drag alternatives", async () => {
