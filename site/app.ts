@@ -9,6 +9,12 @@ import { TimelineEvidence } from "./evidence-store.ts";
 import { TimelineGraphInference } from "./graph-inference.ts";
 import { TimelineInterchangeAdapter } from "./interchange-adapter.ts";
 import { TimelineSpatial } from "./spatial.ts";
+import {
+  addItemToStory,
+  auditStoryAuthoring,
+  reconcileStoryContext,
+  storyIdsForItem,
+} from "./story-authoring.js";
 // Import ESM modules
 import { TimelineTemporal } from "./temporal-standards.ts";
 import { createSettledTemporalWindowSink } from "./world/settled-temporal-window.ts";
@@ -386,6 +392,7 @@ const els = {
   itemId: requiredElement<HTMLInputElement>("#item-id"),
   itemKind: requiredElement<HTMLSelectElement>("#item-kind"),
   itemCategory: requiredElement<HTMLSelectElement>("#item-category"),
+  itemStoryContext: requiredElement<HTMLSelectElement>("#item-story-context"),
   itemLayoutVariant: requiredElement<HTMLSelectElement>("#item-layout-variant"),
   itemTerminalShape: requiredElement<HTMLSelectElement>("#item-terminal-shape"),
   itemConnectorStyle: requiredElement<HTMLSelectElement>("#item-connector-style"),
@@ -1879,6 +1886,31 @@ function renderCategoryOptions() {
   fillCategorySelect(els.categoryFilter, true, ui.categoryFilter);
 }
 
+function fillItemStoryContext(selectedStoryId = "") {
+  const options = [document.createElement("option")];
+  options[0].value = "";
+  options[0].textContent = "No story";
+  for (const story of state.stories) {
+    const option = document.createElement("option");
+    option.value = story.id;
+    option.textContent = story.title;
+    options.push(option);
+  }
+  els.itemStoryContext.replaceChildren(...options);
+  const preferred =
+    selectedStoryId ||
+    (!els.itemId.value && state.stories.some((story) => story.id === ui.activeStoryId)
+      ? ui.activeStoryId
+      : "");
+  els.itemStoryContext.value = state.stories.some((story) => story.id === preferred)
+    ? preferred
+    : "";
+}
+
+function renderItemStoryContext() {
+  fillItemStoryContext(els.itemStoryContext.value);
+}
+
 function renderBrowserStories() {
   if (!els.browserStoryList) return;
   if (els.browserStoryCount) els.browserStoryCount.textContent = String(state.stories.length);
@@ -2787,10 +2819,16 @@ function fillEvidenceForm(item) {
 }
 
 function inferenceStoryIds(itemId) {
-  if (!itemId) return [];
-  return state.stories
-    .filter((story) => (story.itemIds || []).some((id) => String(id) === String(itemId)))
-    .map((story) => story.id);
+  const storyIds = storyIdsForItem(state.stories, itemId);
+  const selectedStoryId = els.itemStoryContext.value;
+  if (
+    selectedStoryId &&
+    state.stories.some((story) => story.id === selectedStoryId) &&
+    !storyIds.includes(selectedStoryId)
+  ) {
+    storyIds.push(selectedStoryId);
+  }
+  return storyIds;
 }
 
 function inferenceEventTime() {
@@ -3211,6 +3249,7 @@ function resetItemForm() {
   els.itemLane.value = "";
   resetLocationForm();
   fillCategorySelect(els.itemCategory, false, state.categories[0]?.id || "");
+  fillItemStoryContext(ui.activeStoryId || "");
   els.saveItem.textContent = "Add item";
   els.cancelItemEdit.hidden = true;
   els.deleteItemEdit.hidden = true;
@@ -3232,6 +3271,14 @@ function beginItemEdit(id) {
   dateRangePicker.setRange(startParts.date, item.kind === "range" ? endParts.date : "");
   els.endField.hidden = item.kind !== "range";
   fillCategorySelect(els.itemCategory, false, item.categoryId);
+  const storyIds = storyIdsForItem(state.stories, item.id);
+  const preferredStoryId =
+    ui.activeStoryId && storyIds.includes(ui.activeStoryId)
+      ? ui.activeStoryId
+      : storyIds.length === 1
+        ? storyIds[0]
+        : "";
+  fillItemStoryContext(preferredStoryId);
   els.itemTitle.value = item.title;
   els.itemDescription.value = item.description;
   fillMediaForm(item.media || []);
@@ -3441,7 +3488,12 @@ function renderStories() {
     const meta = document.createElement("div");
     meta.className = "story-meta";
     const placeCount = story.placeIds?.length || 0;
-    meta.textContent = `${story.itemIds.length} ${story.itemIds.length === 1 ? "step" : "steps"} · ${placeCount} ${placeCount === 1 ? "place" : "places"} · ${storySpanLabel(story)}`;
+    const health = auditStoryAuthoring(story, state.relationships, state.places);
+    const healthLabel = health.healthy
+      ? "context complete"
+      : `${health.issueCount} context ${health.issueCount === 1 ? "gap" : "gaps"}`;
+    meta.textContent = `${story.itemIds.length} ${story.itemIds.length === 1 ? "step" : "steps"} · ${placeCount} ${placeCount === 1 ? "place" : "places"} · ${storySpanLabel(story)} · ${healthLabel}`;
+    if (!health.healthy) meta.title = health.issues.map((issue) => issue.message).join("\n");
     card.append(top, meta);
     return card;
   });
@@ -4128,6 +4180,7 @@ function collapseAllCategories() {
 function renderAll() {
   renderProjectMeta();
   renderCategoryOptions();
+  renderItemStoryContext();
   renderStoryBuilder();
   renderStories();
   renderCategories();
@@ -4983,6 +5036,10 @@ els.itemForm.addEventListener("submit", async (event) => {
     return;
   }
 
+  const selectedStoryId = state.stories.some((story) => story.id === els.itemStoryContext.value)
+    ? els.itemStoryContext.value
+    : "";
+
   const item: TimelineItemRecord = {
     id: els.itemId.value || newId("item"),
     kind,
@@ -5053,6 +5110,16 @@ els.itemForm.addEventListener("submit", async (event) => {
       );
     }
     state = normalizeTimeline(draft, { strictGraph: true });
+    if (selectedStoryId) {
+      state.stories = addItemToStory(
+        state.stories,
+        selectedStoryId,
+        item.id,
+        state.relationships,
+        state.places,
+      );
+      state = normalizeTimeline(state, { strictGraph: true });
+    }
   } catch (error) {
     setError(
       els.itemFormError,
@@ -5180,13 +5247,17 @@ els.storyForm.addEventListener("submit", (event) => {
     setError(els.storyFormError, "Select at least one timeline item for this story.");
     return;
   }
-  const story = {
-    id: els.storyId.value || newId("story"),
-    title: title.slice(0, 160),
-    description: els.storyDescription.value.trim().slice(0, 1500),
-    itemIds: [...storyDraftIds],
-    placeIds: [...storyDraftPlaceIds],
-  };
+  const story = reconcileStoryContext(
+    {
+      id: els.storyId.value || newId("story"),
+      title: title.slice(0, 160),
+      description: els.storyDescription.value.trim().slice(0, 1500),
+      itemIds: [...storyDraftIds],
+      placeIds: [...storyDraftPlaceIds],
+    },
+    state.relationships,
+    state.places,
+  );
   const index = state.stories.findIndex((candidate) => candidate.id === story.id);
   if (index >= 0) {
     state.stories[index] = story;
