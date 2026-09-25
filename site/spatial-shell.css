@@ -433,3 +433,244 @@
     inset-inline-end: max(0.5rem, env(safe-area-inset-right));
   }
 }
+
+
+/* Persistent footer control plane: application center, world left, timeline view right. */
+#app-shell {
+  --workspace-footer-base-content-block-size: 64px;
+  --workspace-footer-base-block-size: calc(
+    var(--workspace-footer-base-content-block-size) + env(safe-area-inset-bottom)
+  );
+}
+
+#app-shell[data-view-controls-open="true"] {
+  --workspace-footer-content-block-size: 120px;
+}
+
+#app-shell > .timeline-panel {
+  inset-block-end: var(--workspace-footer-block-size);
+  block-size: auto;
+  height: auto;
+}
+
+/* Utility sheets own only the workspace above the footer. They never occlude application chrome. */
+#app-shell[data-browser-open="true"] > .app-browser-sheet {
+  inset-block-start: 0;
+  inset-inline: 0;
+  inset-block-end: var(--workspace-footer-block-size);
+  block-size: auto;
+}
+
+#app-shell[data-editor-open="true"] > .app-editor-sheet {
+  inset-block-end: calc(var(--workspace-footer-block-size) + 0.35rem);
+}
+
+#app-shell .app-tool-dock.app-footer-bar,
+#app-shell:has(#timeline-view[data-orientation="landscape"]) .app-tool-dock.app-footer-bar,
+#app-shell:has(#timeline-view[data-orientation="portrait"]) .app-tool-dock.app-footer-bar {
+  z-index: 1500;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) var(--workspace-footer-base-content-block-size);
+  align-items: stretch;
+  inline-size: 100%;
+  block-size: var(--workspace-footer-block-size);
+  min-block-size: var(--workspace-footer-block-size);
+  max-block-size: none;
+  overflow: visible;
+  box-sizing: border-box;
+}
+
+.app-footer-world,
+.app-footer-primary,
+.app-footer-view-tool {
+  grid-row: 2;
+  align-self: stretch;
+}
+
+.app-footer-world {
+  grid-column: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-inline-size: 0;
+  overflow: hidden;
+}
+
+.app-footer-primary {
+  grid-column: 2;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 0.12rem;
+  min-inline-size: 0;
+}
+
+.app-footer-view-tool {
+  grid-column: 3;
+  justify-self: end;
+  align-self: center;
+}
+
+.app-footer-primary > .app-tool,
+.app-footer-view-tool {
+  flex: 0 0 auto;
+}
+
+.app-footer-world .world-camera-controls {
+  position: static;
+  inset: auto;
+  z-index: auto;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  max-inline-size: 100%;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.app-footer-world .world-camera-control {
+  inline-size: 44px;
+  block-size: 44px;
+  min-inline-size: 44px;
+  min-block-size: 44px;
+  border: 0;
+  border-radius: 0.58rem;
+  font-size: 1rem;
+  touch-action: manipulation;
+}
+
+.app-footer-world .world-camera-control + .world-camera-control {
+  border-block-start: 0;
+}
+
+/* View remains a native popover for focus/keyboard semantics, but the open surface is physically
+   contained by the footer tier. Opening it reserves space instead of obscuring the timeline. */
+#app-shell .timeline-view-toolbar[popover]:popover-open {
+  position: fixed;
+  z-index: 1510;
+  inset-inline-start: max(0.35rem, env(safe-area-inset-left));
+  inset-inline-end: max(0.35rem, env(safe-area-inset-right));
+  inset-block-start: auto;
+  inset-block-end: var(--workspace-footer-base-block-size);
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-end;
+  inline-size: auto;
+  width: auto;
+  min-inline-size: 0;
+  max-inline-size: none;
+  block-size: calc(
+    var(--workspace-footer-block-size) - var(--workspace-footer-base-block-size)
+  );
+  max-block-size: none;
+  margin: 0;
+  padding: 0.3rem 0.45rem;
+  gap: clamp(0.28rem, 1vw, 0.65rem);
+  overflow: hidden;
+  border: 0;
+  border-block-start: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
+  border-radius: 0;
+  background: color-mix(in srgb, var(--paper) 96%, transparent);
+  box-shadow: none;
+  backdrop-filter: blur(18px);
+}
+
+#app-shell .timeline-view-toolbar[popover]:popover-open > * {
+  flex: 0 0 auto;
+}
+
+#app-shell .timeline-view-toolbar[popover]:popover-open .timeline-zoom-control {
+  inline-size: clamp(96px, 18vw, 180px);
+}
+
+#app-shell .timeline-view-toolbar[popover]:popover-open .timeline-window-readout {
+  min-inline-size: 0;
+  max-inline-size: min(18rem, 24vw);
+}
+
+/* Focus is layered over the graph; selecting an occurrence never changes timeline geometry. */
+#app-shell.is-event-focused
+  #presentation-stage[data-timeline-orientation="horizontal"]
+  > .timeline-view,
+#app-shell.is-event-focused
+  #presentation-stage[data-timeline-orientation="vertical"]
+  > .timeline-view {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  width: 100%;
+  height: 100%;
+  max-inline-size: none;
+  max-block-size: none;
+}
+
+#app-shell.is-event-focused
+  #presentation-stage[data-timeline-orientation="horizontal"]
+  > .graph-lens:not([hidden]),
+#app-shell.is-event-focused
+  #presentation-stage[data-timeline-orientation="vertical"]
+  > .graph-lens:not([hidden]) {
+  inset: 0;
+  inline-size: auto;
+  block-size: auto;
+}
+
+/* Fullscreen uses the same reserved footer plane after the dock is reparented into the stage. */
+#presentation-stage:fullscreen {
+  box-sizing: border-box;
+  padding-block-end: var(--workspace-footer-block-size);
+}
+
+@media (max-width: 700px) {
+  .app-footer-primary > .app-tool,
+  .app-footer-view-tool {
+    min-inline-size: 44px;
+    padding-inline: 0.28rem;
+  }
+
+  .app-footer-primary .app-tool-label,
+  .app-footer-view-tool .app-tool-label {
+    font-size: 0.58rem;
+  }
+
+  #app-shell .timeline-view-toolbar[popover]:popover-open {
+    justify-content: space-between;
+    gap: 0.25rem;
+    padding-inline: max(0.25rem, env(safe-area-inset-left))
+      max(0.25rem, env(safe-area-inset-right));
+  }
+
+  #app-shell .timeline-view-toolbar[popover]:popover-open .timeline-window-readout,
+  #app-shell .timeline-view-toolbar[popover]:popover-open .timeline-auto-timer {
+    display: none;
+  }
+
+  #app-shell .timeline-view-toolbar[popover]:popover-open .timeline-zoom-control {
+    inline-size: clamp(84px, 28vw, 132px);
+  }
+}
+
+@media (max-width: 520px) {
+  .app-footer-world .world-camera-control[aria-label="Show whole globe"] {
+    display: none;
+  }
+}
+
+@media (max-width: 360px) {
+  .app-footer-world .world-camera-control {
+    inline-size: 40px;
+    min-inline-size: 40px;
+  }
+
+  .app-footer-primary > .app-tool,
+  .app-footer-view-tool {
+    min-inline-size: 40px;
+  }
+}
