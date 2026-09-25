@@ -826,6 +826,8 @@ type Rgba = [number, number, number, number];
 /** Theme-derived colours for the non-graph layers (basemap, labels, clusters). */
 const WORLD_TETHER_WIDTH_PX = 0.6;
 const WORLD_TETHER_ALPHA = 48;
+/** Extra deck picking tolerance keeps compact edges and markers easy to acquire. */
+export const WORLD_PICKING_RADIUS_PX = 8;
 const WORLD_INACTIVE_EDGE_ALPHA = 72;
 const WORLD_EMPHASIZED_EDGE_ALPHA = 242;
 const WORLD_CAMERA_FACING_FADE_END = 0.08;
@@ -934,10 +936,8 @@ function prefersReducedMotion(): boolean {
  * pointer-anchored wheel/pinch zoom (`zoomAround: "pointer"` is deck.gl's
  * default), and keyboard pan/zoom (`keyboard: true` is deck.gl's default) —
  * this file does not reimplement that gesture handling. What deck.gl
- * does *not* default to "on" is inertia, so its decay horizon is explicitly
- * shared with the timeline motion model. Wheel zoom is smoothed for the same
- * weighted feel, and both behaviors are tied to the platform's reduced-motion
- * preference. `doubleClickZoom` is
+ * does *not* default to "on" is inertia, so it is set explicitly here and
+ * tied to the platform's reduced-motion preference. `doubleClickZoom` is
  * left off (deck.gl's own default) because this surface wires its own
  * double-tap/double-click focus gesture (see `#handleDoubleClick`) instead.
  */
@@ -977,6 +977,19 @@ function sameDatumSequence(next: unknown, previous: unknown): boolean {
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isNativeInteractiveKeyboardTarget(target: EventTarget | null): boolean {
+  if (!isRecord(target)) return false;
+  const tagName = typeof target.tagName === "string" ? target.tagName.toLowerCase() : "";
+  return (
+    tagName === "button" ||
+    tagName === "a" ||
+    tagName === "input" ||
+    tagName === "select" ||
+    tagName === "textarea" ||
+    target.isContentEditable === true
+  );
 }
 
 function numberField(
@@ -2036,24 +2049,29 @@ function worldHitFromPicking(info: DeckRuntimePickingInfo | null): WorldHit | nu
     });
   }
 
-  if (object.kind === "cluster" && Array.isArray(object.clusterMembers)) {
-    // Clusters are a presentation-only grouping (issue #445 Priority 2):
-    // picking one resolves back to its first real canonical member rather
-    // than exposing the cluster as its own selectable identity, so the
-    // renderer-neutral WorldHit contract never needs a "cluster" variant.
-    const first = object.clusterMembers[0] as
-      | { readonly entityId?: unknown; readonly worldInstanceId?: unknown }
-      | undefined;
-    if (first && typeof first.entityId === "string" && typeof first.worldInstanceId === "string") {
-      return Object.freeze({
-        kind: "entity",
-        entityId: first.entityId as EntityId,
-        worldInstanceId: first.worldInstanceId as WorldInstanceId,
-      });
-    }
-  }
-
   return null;
+}
+
+function clusterPositionFromPicking(
+  info: DeckRuntimePickingInfo | null,
+): WorldRenderPosition | null {
+  if (!info || !isRecord(info.object) || info.object.kind !== "cluster") return null;
+  const position = info.object.position;
+  if (!Array.isArray(position) || position.length < 2) return null;
+  const longitude = position[0];
+  const latitude = position[1];
+  const altitude = position[2] ?? 0;
+  if (
+    typeof longitude !== "number" ||
+    typeof latitude !== "number" ||
+    typeof altitude !== "number" ||
+    !Number.isFinite(longitude) ||
+    !Number.isFinite(latitude) ||
+    !Number.isFinite(altitude)
+  ) {
+    return null;
+  }
+  return Object.freeze([longitude, latitude, altitude]) as WorldRenderPosition;
 }
 
 export class DeckWorldSurface implements WorldSurface {
@@ -2244,11 +2262,16 @@ export class DeckWorldSurface implements WorldSurface {
     this.#setPointerCursor(this.#hoverSelection);
   };
 
-  #setPointerCursor(selection: WorldSelection | null): void {
+  #setPointerCursor(selection: WorldSelection | null, cluster = false): void {
     const style = (this.#container as HTMLElement).style;
     if (!style) return;
-    style.cursor =
-      selection?.kind === "entity" && this.#nodeDragSink ? "grab" : selection ? "pointer" : "";
+    style.cursor = cluster
+      ? "zoom-in"
+      : selection?.kind === "entity" && this.#nodeDragSink
+        ? "grab"
+        : selection
+          ? "pointer"
+          : "";
   }
 
   #selectionFromPickingInfo(info: DeckRuntimePickingInfo): WorldSelection | null {
@@ -2264,10 +2287,11 @@ export class DeckWorldSurface implements WorldSurface {
 
   readonly #handleDeckHover = (info: DeckRuntimePickingInfo): void => {
     if (this.#activeDragPointerId !== null) return;
-    const next = this.#selectionFromPickingInfo(info);
+    const cluster = clusterPositionFromPicking(info);
+    const next = cluster ? null : this.#selectionFromPickingInfo(info);
     const unchanged =
       next === null ? this.#hoverSelection === null : selectionEquals(next, this.#hoverSelection);
-    this.#setPointerCursor(next);
+    this.#setPointerCursor(next, cluster !== null);
     if (unchanged) return;
     this.#hoverSelection = next;
     this.#render();
@@ -2277,6 +2301,12 @@ export class DeckWorldSurface implements WorldSurface {
     if (this.#activeDragPointerId !== null) return;
     if (this.#suppressNextDeckClick) {
       this.#suppressNextDeckClick = false;
+      return;
+    }
+    const cluster = clusterPositionFromPicking(info);
+    if (cluster) {
+      this.#focusCluster(cluster);
+      void pulseHaptic("selection");
       return;
     }
     const next = this.#selectionFromPickingInfo(info);
@@ -2306,32 +2336,20 @@ export class DeckWorldSurface implements WorldSurface {
     else if (hit.kind === "place") this.focusPlace(hit.placeId);
   };
 
-  // Keyboard selection-cycling equivalent (issue #445 Priority 4). deck.gl's
-  // controller already provides keyboard camera pan (arrow keys) and zoom
-  // (+/-) as a `keyboard: true` Controller default (see
-  // `deckControllerOptions`), so this handler does not reimplement camera
-  // movement. What deck.gl has no notion of is canonical selection, so
-  // Tab/Shift+Tab cycle through renderable places/relationships/entities and
-  // Enter "confirms" the current selection by focusing the camera on it.
+  // deck.gl's controller already provides keyboard camera pan (arrow keys)
+  // and zoom (+/-). Keep Tab/Shift+Tab native so focus can leave the canvas
+  // and reach the camera toolbar and accessible object outline; Enter focuses
+  // an object only after pointer/outline interaction has selected it.
   readonly #handleKeyDown = (event: KeyboardEvent): void => {
-    // The accessible outline owns its own keyboard semantics (native button
-    // activation and Tab order); globe selection cycling must not hijack it.
-    if (this.#accessibleMirror?.contains(event.target)) return;
-    if (event.key === "Tab") {
-      const candidates = this.#selectionCandidates();
-      if (candidates.length === 0) return;
-      event.preventDefault?.();
-
-      const currentIndex = this.#selection
-        ? candidates.findIndex((candidate) => selectionEquals(candidate, this.#selection))
-        : -1;
-      const delta = event.shiftKey ? -1 : 1;
-      const nextIndex =
-        (((currentIndex + delta) % candidates.length) + candidates.length) % candidates.length;
-      this.setSelection(candidates[nextIndex] ?? null);
+    // Native controls and the accessible outline own their own keyboard
+    // semantics. Surface-level selection cycling must never trap Tab inside
+    // the graph or prevent users from reaching the camera toolbar.
+    if (
+      isNativeInteractiveKeyboardTarget(event.target) ||
+      this.#accessibleMirror?.contains(event.target)
+    ) {
       return;
     }
-
     if (event.key === "Enter" && this.#selection) {
       event.preventDefault?.();
       const selection = this.#selection;
@@ -2357,6 +2375,7 @@ export class DeckWorldSurface implements WorldSurface {
       views: [this.#globeView],
       controller: deckControllerOptions(this.#spatialMode),
       initialViewState: this.#camera,
+      pickingRadius: WORLD_PICKING_RADIUS_PX,
       layers: [],
       onHover: (info: DeckRuntimePickingInfo) => this.#handleDeckHover(info),
       onClick: (info: DeckRuntimePickingInfo) => this.#handleDeckClick(info),
@@ -2718,7 +2737,7 @@ export class DeckWorldSurface implements WorldSurface {
     this.#setLabelFocus("entity", id);
     // Aim at where the entity is drawn at the destination zoom, using the
     // same anchor-local presentation metrics as ordinary rendering.
-    const destinationZoom = focusZoom(this.#camera.zoom);
+    const destinationZoom = this.#detailFocusZoom();
     const instance = this.#projection.instances.find((candidate) => candidate.canonicalId === id);
     this.#focusPosition(
       instance
@@ -2728,6 +2747,7 @@ export class DeckWorldSurface implements WorldSurface {
             this.#floatMetersForInstance(instance, destinationZoom),
           )
         : null,
+      destinationZoom,
     );
   }
 
@@ -3363,41 +3383,6 @@ export class DeckWorldSurface implements WorldSurface {
     );
     this.#typicalOffsetCache = { projection, meters };
     return meters;
-  }
-
-  #selectionCandidates(): readonly WorldSelection[] {
-    const entities = entityDatums(
-      this.#projection.instances,
-      this.#selection,
-      this.#entityDatumCache,
-      (instance) => this.#offsetScaleForInstance(instance),
-      (instance) => this.#floatMetersForInstance(instance),
-    ).datums;
-    const relationships = relationshipDatums(
-      this.#projection,
-      this.#instanceIndex(),
-      this.#selection,
-      this.#relationshipDatumCache,
-    ).datums;
-    const places = placeDatums(
-      this.#projection.instances,
-      this.#selection,
-      this.#placeDatumCache,
-    ).datums;
-
-    const candidates: WorldSelection[] = [];
-    for (const place of places) {
-      candidates.push(Object.freeze({ kind: "place" as const, id: place.placeId }));
-    }
-    for (const relationship of relationships) {
-      candidates.push(
-        Object.freeze({ kind: "relationship" as const, id: relationship.relationshipId }),
-      );
-    }
-    for (const entity of entities) {
-      candidates.push(Object.freeze({ kind: "entity" as const, id: entity.entityId }));
-    }
-    return Object.freeze(candidates);
   }
 
   #instanceIndex(): WorldInstanceIndex {
@@ -4226,7 +4211,23 @@ export class DeckWorldSurface implements WorldSurface {
     this.#accessibleMirror?.sync(buildWorldAccessibleOutline(snapshot));
   }
 
-  #focusPosition(position: WorldRenderPosition | null): void {
+  #detailFocusZoom(minimumZoom = focusZoom(this.#camera.zoom)): number {
+    const markerThreshold =
+      this.#projection.instances.length >= OVERVIEW_CLUSTER_MIN_ENTITY_COUNT
+        ? clusterZoomThresholdForNodeRadius(this.#clusterEntityFootprintRadiusPx())
+        : 0;
+    const denseThreshold =
+      this.#projection.instances.length >= DENSE_CLUSTER_ENTITY_THRESHOLD
+        ? DENSE_CLUSTER_ZOOM_THRESHOLD
+        : 0;
+    return Math.max(
+      minimumZoom,
+      markerThreshold > 0 ? markerThreshold + 0.25 : 0,
+      denseThreshold > 0 ? denseThreshold + 0.25 : 0,
+    );
+  }
+
+  #focusPosition(position: WorldRenderPosition | null, zoom = this.#detailFocusZoom()): void {
     this.#assertAlive();
     if (!position) return;
 
@@ -4234,8 +4235,12 @@ export class DeckWorldSurface implements WorldSurface {
       ...this.#camera,
       longitude: position[0],
       latitude: position[1],
-      zoom: focusZoom(this.#camera.zoom),
+      zoom,
     });
+  }
+
+  #focusCluster(position: WorldRenderPosition): void {
+    this.#focusPosition(position, this.#detailFocusZoom(this.#camera.zoom + 1));
   }
 
   /**
