@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Locator, Page, TestInfo } from "@playwright/test";
 import { expect, test } from "@playwright/test";
@@ -22,6 +22,26 @@ type SceneIntent = {
   mediaMode: ShowcaseMediaMode;
 };
 
+type BrowserCaptureState = {
+  recorder: MediaRecorder;
+  stream: MediaStream;
+  processorTrack: MediaStreamTrack;
+  reader: ReadableStreamDefaultReader<VideoFrame>;
+  processorDone: Promise<void>;
+  chunks: Blob[];
+  frameTimestampsMs: number[];
+  mimeType: string;
+};
+
+type ShowcaseWindow = Window &
+  typeof globalThis & {
+    MediaStreamTrackProcessor?: new (options: { track: MediaStreamTrack }) => {
+      readable: ReadableStream<VideoFrame>;
+    };
+    __lumShowcaseCapture?: BrowserCaptureState;
+    __lumShowcaseCaptureError?: string;
+  };
+
 type ShowcaseSegment = SceneIntent & {
   video: string | null;
   screenshot: string;
@@ -34,8 +54,10 @@ type ShowcaseSegment = SceneIntent & {
     durationSeconds: number;
     recordingWindowSeconds: number;
     frameTimestampsMs: number[];
-    method: "ffmpeg-x11grab-rawvideo-nut";
+    method: "get-display-media-current-tab-vp8";
     browserFrameClockFps: number;
+    mimeType: string;
+    trackSettings: MediaTrackSettings;
   } | null;
 };
 
@@ -186,11 +208,6 @@ async function waitForBrowserFrameBudget(page: Page) {
   );
 }
 
-type X11Capture = {
-  child: ReturnType<typeof spawn>;
-  exited: Promise<void>;
-};
-
 function capture(command: string, args: string[]) {
   return new Promise<string>((resolve, reject) => {
     const child = spawn(command, args, {
@@ -209,68 +226,201 @@ function capture(command: string, args: string[]) {
   });
 }
 
-async function startX11Capture(
-  sourcePath: string,
+
+async function startTabCapture(
+  page: Page,
+  formFactor: FormFactor,
   captureSize: { width: number; height: number },
-): Promise<X11Capture> {
-  const display = process.env.DISPLAY;
-  if (!display) throw new Error("DISPLAY is required for the showcase framebuffer recorder.");
+) {
+  await page.evaluate(
+    ({ width, height, targetFps, formFactorName }) => {
+      const showcaseWindow = window as ShowcaseWindow;
+      delete showcaseWindow.__lumShowcaseCapture;
+      delete showcaseWindow.__lumShowcaseCaptureError;
 
-  const ffmpegBin = process.env.FFMPEG_BIN ?? "ffmpeg";
-  const captureArgs = [
-      "-y",
-      "-f",
-      "x11grab",
-      "-draw_mouse",
-      "0",
-      "-framerate",
-      String(SHOWCASE_FPS),
-      "-video_size",
-      `${String(captureSize.width)}x${String(captureSize.height)}`,
-      "-i",
-      `${display}+0,0`,
-      "-an",
-      "-pix_fmt",
-      "bgr24",
-      "-c:v",
-      "rawvideo",
-      "-fps_mode",
-      "passthrough",
-      "-f",
-      "nut",
-      sourcePath,
-    ];
-  const child =
-    process.platform === "linux"
-      ? spawn("nice", ["-n", "10", ffmpegBin, ...captureArgs], {
-          stdio: ["pipe", "inherit", "inherit"],
-          env: process.env,
-        })
-      : spawn(ffmpegBin, captureArgs, {
-          stdio: ["pipe", "inherit", "inherit"],
-          env: process.env,
-        });
+      const trigger = document.createElement("button");
+      trigger.id = "__lum-showcase-capture-start";
+      trigger.type = "button";
+      trigger.textContent = "Start showcase capture";
+      Object.assign(trigger.style, {
+        position: "fixed",
+        inset: "0 auto auto 0",
+        zIndex: "2147483647",
+        width: "1px",
+        height: "1px",
+        padding: "0",
+        border: "0",
+        opacity: "0.01",
+      });
+      document.body.append(trigger);
 
-  const exited = new Promise<void>((resolve, reject) => {
-    child.on("error", reject);
-    child.on("exit", (code, signal) => {
-      if (code === 0 || signal === "SIGINT") resolve();
-      else reject(new Error(`ffmpeg exited with ${String(code ?? signal)}`));
-    });
-  });
-  await new Promise<void>((resolve, reject) => {
-    child.once("spawn", () => resolve());
-    child.once("error", reject);
-  });
-  await new Promise((resolve) => setTimeout(resolve, 80));
-  return { child, exited };
+      trigger.addEventListener(
+        "click",
+        () => {
+          void (async () => {
+            try {
+              const stream = await navigator.mediaDevices.getDisplayMedia({
+                video: {
+                  frameRate: { ideal: targetFps, max: targetFps },
+                  width: { ideal: width },
+                  height: { ideal: height },
+                },
+                audio: false,
+                preferCurrentTab: true,
+                selfBrowserSurface: "include",
+                surfaceSwitching: "exclude",
+                systemAudio: "exclude",
+              } as DisplayMediaStreamOptions);
+
+              const track = stream.getVideoTracks()[0];
+              if (!track) throw new Error("Current-tab capture did not return a video track.");
+              track.contentHint = "detail";
+              await track
+                .applyConstraints({
+                  frameRate: { ideal: targetFps, max: targetFps },
+                  width: { ideal: width },
+                  height: { ideal: height },
+                })
+                .catch(() => {});
+
+              const Processor = showcaseWindow.MediaStreamTrackProcessor;
+              if (!Processor) {
+                throw new Error("MediaStreamTrackProcessor is required for source-frame evidence.");
+              }
+
+              const mimeType = "video/webm;codecs=vp8";
+              if (!MediaRecorder.isTypeSupported(mimeType)) {
+                throw new Error("VP8 MediaRecorder support is required for showcase capture.");
+              }
+
+              const processorTrack = track.clone();
+              const reader = new Processor({ track: processorTrack }).readable.getReader();
+              const frameTimestampsMs: number[] = [];
+              const processorDone = (async () => {
+                while (true) {
+                  const result = await reader.read();
+                  if (result.done) break;
+                  frameTimestampsMs.push(result.value.timestamp / 1_000);
+                  result.value.close();
+                }
+              })();
+
+              const chunks: Blob[] = [];
+              const recorder = new MediaRecorder(stream, {
+                mimeType,
+                videoBitsPerSecond: formFactorName === "desktop" ? 12_000_000 : 6_000_000,
+              });
+              recorder.addEventListener("dataavailable", (event) => {
+                if (event.data.size > 0) chunks.push(event.data);
+              });
+
+              const started = new Promise<void>((resolve, reject) => {
+                recorder.addEventListener("start", () => resolve(), { once: true });
+                recorder.addEventListener(
+                  "error",
+                  (event) => reject(new Error(`MediaRecorder failed: ${event.error.name}`)),
+                  { once: true },
+                );
+              });
+
+              showcaseWindow.__lumShowcaseCapture = {
+                recorder,
+                stream,
+                processorTrack,
+                reader,
+                processorDone,
+                chunks,
+                frameTimestampsMs,
+                mimeType,
+              };
+              recorder.start(250);
+              await started;
+            } catch (error) {
+              showcaseWindow.__lumShowcaseCaptureError =
+                error instanceof Error ? error.message : String(error);
+            }
+          })();
+        },
+        { once: true },
+      );
+    },
+    {
+      width: captureSize.width,
+      height: captureSize.height,
+      targetFps: SHOWCASE_FPS,
+      formFactorName: formFactor,
+    },
+  );
+
+  await page.locator("#__lum-showcase-capture-start").click();
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const showcaseWindow = window as ShowcaseWindow;
+          if (showcaseWindow.__lumShowcaseCaptureError) {
+            return `error:${showcaseWindow.__lumShowcaseCaptureError}`;
+          }
+          return showcaseWindow.__lumShowcaseCapture?.recorder.state === "recording"
+            ? "ready"
+            : "pending";
+        }),
+      { timeout: 15_000 },
+    )
+    .toBe("ready");
+  await page.evaluate(() => document.querySelector("#__lum-showcase-capture-start")?.remove());
 }
 
-async function stopX11Capture(captureState: X11Capture) {
-  if (captureState.child.exitCode === null && !captureState.child.killed) {
-    captureState.child.stdin?.write("q\n");
-  }
-  await captureState.exited;
+async function stopTabCapture(page: Page, videoPath: string) {
+  const downloadPromise = page.waitForEvent("download", { timeout: 30_000 });
+  const metadata = await page.evaluate(async (downloadName) => {
+    const showcaseWindow = window as ShowcaseWindow;
+    const state = showcaseWindow.__lumShowcaseCapture;
+    if (!state) throw new Error("No active current-tab showcase capture exists.");
+
+    const trackSettings = state.stream.getVideoTracks()[0]?.getSettings() ?? {};
+    const stopped = new Promise<void>((resolve, reject) => {
+      state.recorder.addEventListener("stop", () => resolve(), { once: true });
+      state.recorder.addEventListener(
+        "error",
+        (event) => reject(new Error(`MediaRecorder failed: ${event.error.name}`)),
+        { once: true },
+      );
+    });
+    state.recorder.stop();
+    await stopped;
+
+    await state.reader.cancel().catch(() => {});
+    state.processorTrack.stop();
+    for (const track of state.stream.getTracks()) track.stop();
+    await state.processorDone.catch(() => {});
+
+    const blob = new Blob(state.chunks, { type: state.mimeType });
+    if (blob.size === 0) throw new Error("Current-tab capture produced an empty WebM.");
+
+    const frameTimestampsMs = [...state.frameTimestampsMs];
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = downloadName;
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5_000);
+
+    delete showcaseWindow.__lumShowcaseCapture;
+    delete showcaseWindow.__lumShowcaseCaptureError;
+
+    return {
+      frameTimestampsMs,
+      mimeType: state.mimeType,
+      trackSettings,
+    };
+  }, path.basename(videoPath));
+
+  const download = await downloadPromise;
+  await download.saveAs(videoPath);
+  return metadata;
 }
 
 async function captureX11Still(
@@ -338,55 +488,6 @@ async function probeDecodedFrameTimestamps(videoPath: string) {
     throw new Error(`Unable to decode source frame timestamps from ${videoPath}.`);
   }
   return timestamps;
-}
-
-async function encodeSourceCapture(
-  sourcePath: string,
-  videoPath: string,
-  captureSize: { width: number; height: number },
-) {
-  const bitrate = captureSize.width >= 1_000 ? "20M" : "8M";
-  await new Promise<void>((resolve, reject) => {
-    const child = spawn(
-      process.env.FFMPEG_BIN ?? "ffmpeg",
-      [
-        "-y",
-        "-i",
-        sourcePath,
-        "-an",
-        "-c:v",
-        "libvpx",
-        "-deadline",
-        "realtime",
-        "-cpu-used",
-        "6",
-        "-threads",
-        "4",
-        "-b:v",
-        bitrate,
-        "-crf",
-        "10",
-        "-lag-in-frames",
-        "0",
-        "-auto-alt-ref",
-        "0",
-        "-pix_fmt",
-        "yuv420p",
-        "-fps_mode",
-        "passthrough",
-        videoPath,
-      ],
-      {
-        stdio: ["ignore", "inherit", "inherit"],
-        env: process.env,
-      },
-    );
-    child.on("error", reject);
-    child.on("exit", (code, signal) => {
-      if (code === 0) resolve();
-      else reject(new Error(`ffmpeg exited with ${String(code ?? signal)}`));
-    });
-  });
 }
 
 async function installCaptureBrand(page: Page, formFactor: FormFactor) {
@@ -492,12 +593,6 @@ async function recordSegment(
   const rawDir = path.join(OUTPUT_ROOT, "raw", formFactor);
   await mkdir(rawDir, { recursive: true });
   const videoPath = path.join(rawDir, `${scene.name}.webm`);
-  const captureTempDir = process.env.SHOWCASE_CAPTURE_TMPDIR ?? rawDir;
-  await mkdir(captureTempDir, { recursive: true });
-  const sourcePath = path.join(
-    captureTempDir,
-    `${formFactor}-${scene.name}.source.nut`,
-  );
   const screenshotPath = path.join(rawDir, `${scene.name}.png`);
   const captureSize =
     formFactor === "desktop" ? PROJECTS["Desktop Showcase"].size : PROJECTS["Mobile Showcase"].size;
@@ -525,25 +620,27 @@ async function recordSegment(
     await page.waitForTimeout(250);
     await waitForBrowserFrameBudget(page);
 
-    let screenCapture: X11Capture | null = null;
+    let tabCaptureStarted = false;
     try {
+      await startTabCapture(page, formFactor, captureSize);
+      tabCaptureStarted = true;
       await startCaptureHeartbeat(page);
-      screenCapture = await startX11Capture(sourcePath, captureSize);
       const captureStartedAt = Date.now();
 
       await body();
       await page.waitForTimeout(450);
       const browserFrameClock = await stopCaptureHeartbeat(page);
       const captureStoppedAt = Date.now();
-      await stopX11Capture(screenCapture);
-      screenCapture = null;
-      const frameTimestampsMs = await probeDecodedFrameTimestamps(sourcePath);
+      const source = await stopTabCapture(page, videoPath);
+      tabCaptureStarted = false;
+
+      const frameTimestampsMs = source.frameTimestampsMs;
       const cadence = measureFrameCadence(frameTimestampsMs);
       const expectedDurationSeconds = (captureStoppedAt - captureStartedAt) / 1_000;
       const minimumDurationSeconds = expectedDurationSeconds * MIN_CAPTURE_COVERAGE;
       if (cadence.durationSeconds < minimumDurationSeconds) {
         throw new Error(
-          `${formFactor}/${scene.name} framebuffer samples cover only ${cadence.durationSeconds.toFixed(3)}s of a ${expectedDurationSeconds.toFixed(3)}s recording window; expected at least ${minimumDurationSeconds.toFixed(3)}s.`,
+          `${formFactor}/${scene.name} source frames cover only ${cadence.durationSeconds.toFixed(3)}s of a ${expectedDurationSeconds.toFixed(3)}s recording window; expected at least ${minimumDurationSeconds.toFixed(3)}s.`,
         );
       }
       if (
@@ -552,13 +649,11 @@ async function recordSegment(
         browserFrameClock.fps < MIN_CAPTURE_FPS
       ) {
         throw new Error(
-          `${formFactor}/${scene.name} measured ${cadence.fps.toFixed(2)} actual framebuffer fps and ${browserFrameClock.fps.toFixed(2)} browser fps; expected both to be at least ${MIN_CAPTURE_FPS}.`,
+          `${formFactor}/${scene.name} measured ${cadence.fps.toFixed(2)} actual tab-capture fps and ${browserFrameClock.fps.toFixed(2)} browser fps; expected both to be at least ${MIN_CAPTURE_FPS}.`,
         );
       }
 
       await captureX11Still(screenshotPath, captureSize);
-      await encodeSourceCapture(sourcePath, videoPath, captureSize);
-
       capture = {
         targetFps: SHOWCASE_FPS,
         measuredFps: cadence.fps,
@@ -566,15 +661,21 @@ async function recordSegment(
         durationSeconds: cadence.durationSeconds,
         recordingWindowSeconds: expectedDurationSeconds,
         frameTimestampsMs,
-        method: "ffmpeg-x11grab-rawvideo-nut",
+        method: "get-display-media-current-tab-vp8",
         browserFrameClockFps: browserFrameClock.fps,
+        mimeType: source.mimeType,
+        trackSettings: source.trackSettings,
       };
     } finally {
       await stopCaptureHeartbeat(page).catch(() => {});
-      if (screenCapture) await stopX11Capture(screenCapture).catch(() => {});
-      await rm(sourcePath, { force: true }).catch(() => {});
+      if (tabCaptureStarted && !page.isClosed()) {
+        await stopTabCapture(page, videoPath).catch(() => {});
+      }
       await page
-        .evaluate(() => document.querySelector("#lum-showcase-capture-brand")?.remove())
+        .evaluate(() => {
+          document.querySelector("#__lum-showcase-capture-start")?.remove();
+          document.querySelector("#lum-showcase-capture-brand")?.remove();
+        })
         .catch(() => {});
     }
   } else {
