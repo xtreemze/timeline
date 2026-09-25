@@ -290,27 +290,27 @@ test("fullscreen restores the focused event popover after the browser changes to
   assert.match(app, /active && timelineView\?\.hasFocusedItem\?\.\(\)[\s\S]*ensureFocusPopover/);
 });
 
-test("utility surfaces stay coordinated without dismissing focused viewing for Browse or View", async () => {
-  const app = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
-  assert.match(app, /closeLargeUtilitySurfaces\(except = ""\)[\s\S]*closeViewControls\(\)/);
+test("persistent View controls stay available while Browse remains focus-safe", async () => {
+  const [app, html] = await Promise.all([
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
+  ]);
   assert.match(
     app,
     /function setBrowserSurfaceOpen[\s\S]*closeLargeUtilitySurfaces\("browser"\)[\s\S]*syncApplicationSurfaces/,
-  );
-  assert.match(
-    app,
-    /viewControlsToggle\?\.addEventListener\("click",[\s\S]*closeLargeUtilitySurfaces\("view"\)[\s\S]*syncApplicationSurfaces/,
   );
   assert.doesNotMatch(
     app,
     /function setBrowserSurfaceOpen[\s\S]{0,700}closeFocusedEventForUtility/,
   );
-  assert.doesNotMatch(
-    app,
-    /viewControlsToggle\?\.addEventListener\("click",[\s\S]{0,500}closeFocusedEventForUtility/,
-  );
+  assert.doesNotMatch(app, /closeViewControls|viewControlsToggle|viewControlsAreOpen/);
   assert.match(app, /timelinefocuschange[\s\S]*closeLargeUtilitySurfaces\("focus"\)/);
   assert.match(app, /function syncTimelineContextControls\(\)/);
+  assert.match(
+    html,
+    /app-footer-timeline timeline-local-toolbar"[\s\S]*id="timeline-view-toolbar"/,
+  );
+  assert.doesNotMatch(html, /timeline-view-controls-toggle/);
   assert.match(app, /els\.graphLens\.hidden = false/);
   assert.doesNotMatch(app, /setGraphSurfaceOpen|ui\.graphOpen/);
 });
