@@ -155,13 +155,15 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightConfig, /--kiosk/);
   assert.match(highlightConfig, /screen:\s*\{\s*width:\s*1440,\s*height:\s*900\s*\}/);
   assert.match(highlightConfig, /screen:\s*\{\s*width:\s*390,\s*height:\s*844\s*\}/);
-  assert.match(highlightConfig, /headless:\\s*false/);
+  assert.match(highlightConfig, /headless:\s*false/);
 
   assert.match(highlightSpec, /records source-native Lūm showcase media per form factor/);
   assert.match(highlightSpec, /const SHOWCASE_FPS = 60/);
   assert.match(highlightSpec, /const MIN_CAPTURE_FPS = 59/);
   assert.match(highlightSpec, /const MIN_CAPTURE_COVERAGE = 0\.95/);
-  assert.match(highlightSpec, /ffmpeg-x11grab-vp8/);\n  assert.match(highlightSpec, /screenWidth/);\n  assert.match(highlightSpec, /screenHeight/);
+  assert.match(highlightSpec, /ffmpeg-x11grab-vp8/);
+  assert.match(highlightSpec, /screenWidth/);
+  assert.match(highlightSpec, /screenHeight/);
   assert.match(highlightSpec, /"-f",\s*"x11grab"/);
   assert.match(highlightSpec, /"-framerate",\s*String\(SHOWCASE_FPS\)/);
   assert.match(highlightSpec, /"-fps_mode",\s*"passthrough"/);
@@ -218,7 +220,7 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
 
   assert.match(mediaWorkflow, /Record source-native showcase media/);
   assert.match(mediaWorkflow, /pnpm exec playwright install --with-deps chrome/);
-  assert.match(mediaWorkflow, /pnpm test:e2e:showcase/);
+  assert.match(mediaWorkflow, /playwright test --config=playwright\.highlight\.config\.ts/);
   assert.match(mediaWorkflow, /xvfb-run/);
   assert.match(mediaWorkflow, /-screen 0 1440x900x24/);
   assert.match(mediaWorkflow, /-screen 0 390x844x24/);
@@ -264,7 +266,7 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
 
   assert.match(showcaseDocs, /five desktop scenes/i);
   assert.match(showcaseDocs, /five mobile scenes/i);
-  assert.match(showcaseDocs, /minimum 59 fps source cadence/i);
+  assert.match(showcaseDocs, /minimum 59 fps framebuffer cadence/i);
   assert.match(showcaseDocs, /raw VP8 WebM/i);
   assert.match(showcaseDocs, /95% recording-window coverage/i);
   assert.match(showcaseDocs, /60 fps animated WebP/i);
