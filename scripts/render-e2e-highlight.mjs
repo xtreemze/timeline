@@ -377,11 +377,14 @@ async function renderFormFactor(formFactor, manifest) {
   }
 
   const reelPath = path.join(reelsDir, `lum-${formFactor}-highlight.mp4`);
+  const normalizedLabel = "out60";
+  filters.push(`[${currentLabel}]fps=${showcaseFpsArg}[${normalizedLabel}]`);
+
   args.push(
     "-filter_complex",
     filters.join(";"),
     "-map",
-    `[${currentLabel}]`,
+    `[${normalizedLabel}]`,
     "-an",
     "-c:v",
     "libx264",
