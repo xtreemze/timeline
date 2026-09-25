@@ -459,15 +459,6 @@ function topologyKey(
       ];
       return [String(id), Math.round(width), Math.round(height)];
     }),
-    // Layout invalidation follows the accepted DAG structure, not continuously
-    // changing temporal weights or their candidate ordering. Weight/retained
-    // changes that alter cycle priority still invalidate by changing this set.
-    [...new Set(nodeIds.map((id) => places.get(id)).filter((id): id is PlaceId => id !== undefined))]
-      .sort((left, right) => String(left).localeCompare(String(right)))
-      .map((placeId) => {
-        const [width, height] = finitePositiveSize(placeSizes?.get(placeId));
-        return [String(placeId), Math.round(width), Math.round(height)];
-      }),
     edges
       .map((edge) => [String(edge.relationshipId), String(edge.sourceId), String(edge.targetId)])
       .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right))),
@@ -1233,6 +1224,14 @@ function crossPlaceTopologyKey(
   places: ReadonlyMap<WorldInstanceId, PlaceId>,
   placeSizes: ReadonlyMap<PlaceId, WorldDagLayoutNodeSize> | undefined,
 ): string {
+  const usedPlaces = [
+    ...new Set(
+      nodeIds
+        .map((id) => places.get(id))
+        .filter((id): id is PlaceId => id !== undefined),
+    ),
+  ].sort((left, right) => String(left).localeCompare(String(right)));
+
   return JSON.stringify([
     "cross-place",
     nodeIds.map((id) => {
@@ -1241,6 +1240,10 @@ function crossPlaceTopologyKey(
         DAG_FALLBACK_NODE_SIZE_METERS,
       ];
       return [String(id), String(places.get(id) ?? ""), Math.round(width), Math.round(height)];
+    }),
+    usedPlaces.map((placeId) => {
+      const [width, height] = finitePositiveSize(placeSizes?.get(placeId));
+      return [String(placeId), Math.round(width), Math.round(height)];
     }),
     edges
       .map((edge) => [String(edge.relationshipId), String(edge.sourceId), String(edge.targetId)])
