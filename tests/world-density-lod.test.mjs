@@ -108,20 +108,38 @@ test("overview place merging uses proximity across cell boundaries and the datel
   );
 });
 
-test("cluster presentation keeps positions force-resolved without interpolation", async () => {
+test("cluster lifecycle is discrete, force-resolved, and cleans clustered topology", async () => {
   const source = await readFile(
     new URL("../site/world/deck-world-surface.ts", import.meta.url),
     "utf8",
   );
 
-  assert.match(source, /instanceIndexFromEntities\(transitionEntities\)/);
-  assert.match(source, /members\.push\(entity\)/);
+  assert.doesNotMatch(source, /worldClusterExpansionProgress/);
   assert.doesNotMatch(source, /interpolateClusterPosition/);
   assert.doesNotMatch(source, /transitions:/);
-  assert.match(source, /\.\.\.placeTransition\.clusters,[\s\S]*\.\.\.placeTransition\.members/);
-  assert.match(source, /\(state\.temporalActive \? width : 0\) \* edgeExpansion\(state\.edge\)/);
+  assert.doesNotMatch(source, /placeClusterTransitionDatums/);
+
+  assert.match(source, /#clusterPhase = "releasing"/);
+  assert.match(source, /releasingRelationships/);
+  assert.match(source, /WORLD_CLUSTER_EDGE_RELEASE_MS/);
+  assert.match(source, /#clusterPhase = "collapsing"/);
   assert.match(
     source,
-    /worldNodeMarker\(this\.#entityStyle\(datum\)\)\.size \* entityExpansion\(datum\)/,
+    /setClusteredPlaceIds\(\s*this\.#clusterPlaceIds,\s*this\.#clusterPlaceIds,?\s*\)/,
   );
+
+  assert.match(source, /#clusterPhase = "expanding"/);
+  assert.match(
+    source,
+    /setClusteredPlaceIds\(\s*Object\.freeze\(\[\] as PlaceId\[\]\),\s*this\.#clusterPlaceIds,?\s*\)/,
+  );
+  assert.match(
+    source,
+    /setClusteredPlaceIds\(\s*Object\.freeze\(\[\] as PlaceId\[\]\),\s*Object\.freeze\(\[\] as PlaceId\[\]\),?\s*\)/,
+  );
+
+  assert.match(source, /clusterPhase === "collapsed"[\s\S]*placeClusters\.filter/);
+  assert.match(source, /activeTemporalRelationships = temporalRelationships\.filter/);
+  assert.match(source, /visibleDirectionRelationships = relationships\.filter/);
+  assert.match(source, /tetherEntities =[\s\S]*!memberIds\.has\(entity\.worldInstanceId\)/);
 });
