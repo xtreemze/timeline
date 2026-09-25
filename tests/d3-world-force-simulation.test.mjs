@@ -122,7 +122,6 @@ test("D3 DAG targets remain soft guidance outside collapsed clusters", () => {
   assert.ok(simulation.getSnapshot()[0].eastMeters > before);
 });
 
-
 test("D3 drag and post-drop stay local and publish sparse changed positions", () => {
   const simulation = new D3WorldForceSimulation();
   const dragged = '["alice","stockholm"]';
@@ -175,7 +174,10 @@ test("D3 drag and post-drop stay local and publish sparse changed positions", ()
   simulation.apply({ reason: "drag", excitation: 0.2, reheat: true });
   simulation.step(1000 / 60);
   assert.deepEqual(
-    simulation.getChangedSnapshot().map((entry) => entry.instanceId).sort(),
+    simulation
+      .getChangedSnapshot()
+      .map((entry) => entry.instanceId)
+      .sort(),
     [dragged, peer].sort(),
     "direct manipulation should publish only the affected place group",
   );
@@ -184,7 +186,10 @@ test("D3 drag and post-drop stay local and publish sparse changed positions", ()
   simulation.apply({ reason: "post-drop", excitation: 0.035, reheat: true });
   simulation.step(1000 / 60);
   assert.deepEqual(
-    simulation.getChangedSnapshot().map((entry) => entry.instanceId).sort(),
+    simulation
+      .getChangedSnapshot()
+      .map((entry) => entry.instanceId)
+      .sort(),
     [dragged, peer].sort(),
     "post-drop settling should keep unrelated places asleep",
   );
