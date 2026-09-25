@@ -7,6 +7,9 @@ import {
   forceSimulation,
   forceX,
   forceY,
+  type ForceLink,
+  type ForceX,
+  type ForceY,
   type Simulation,
   type SimulationLinkDatum,
   type SimulationNodeDatum,
@@ -35,6 +38,11 @@ const ALTITUDE_DAMPING = 0.82;
 const DEFAULT_ALPHA = 0.14;
 const ALPHA_MIN = 0.003;
 const ALPHA_DECAY = 0.018;
+/** Match the reference solver's bounded long-link interaction contract. */
+const INTERACTION_EDGE_MAX_STRETCH_SCALE = 8;
+/** Bound post-drop target error so a distant release cannot inject a one-frame force spike. */
+const INTERACTION_FORCE_MAX_ERROR_METERS = 6_000;
+const DRAG_MOVE_ALPHA_FLOOR = 0.04;
 
 interface D3WorldNodeState extends SimulationNodeDatum {
   readonly id: WorldInstanceId;
@@ -54,6 +62,12 @@ interface D3WorldGroup {
   readonly key: string;
   readonly placeId: PlaceId | null;
   readonly nodes: readonly D3WorldNodeState[];
+  readonly maximumRadiusMeters: number;
+  readonly linkForce: ForceLink<D3WorldNodeState, D3WorldLink> | null;
+  readonly anchorXForce: ForceX<D3WorldNodeState>;
+  readonly anchorYForce: ForceY<D3WorldNodeState>;
+  readonly dagXForce: ForceX<D3WorldNodeState>;
+  readonly dagYForce: ForceY<D3WorldNodeState>;
   readonly simulation: Simulation<D3WorldNodeState, SimulationLinkDatum<D3WorldNodeState>>;
 }
 
@@ -130,6 +144,9 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
   #clusteredPlaces = new Set<string>();
   #detachedLinkPlaces = new Set<string>();
   #pin: WorldForcePin | null = null;
+  #interactionGroupKey: string | null = null;
+  #requestReason: WorldSimulationRequest["reason"] = "idle";
+  #dirtyStateIds = new Set<WorldInstanceId>();
   #running = false;
   #settled = true;
   #iteration = 0;
@@ -168,7 +185,16 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
 
     this.#scene = scene;
     this.#states = next;
+    this.#dirtyStateIds = new Set(next.keys());
     if (this.#pin && !this.#states.has(this.#pin.instanceId)) this.#pin = null;
+    if (this.#pin) {
+      this.#interactionGroupKey = this.#states.get(this.#pin.instanceId)?.group ?? null;
+    } else if (
+      this.#interactionGroupKey !== null &&
+      ![...this.#states.values()].some((state) => state.group === this.#interactionGroupKey)
+    ) {
+      this.#interactionGroupKey = null;
+    }
     this.#rebuildGroups(true);
     this.#settled = false;
     this.#iteration = 0;
@@ -176,34 +202,64 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
 
   setPin(pin: WorldForcePin | null): void {
     this.#assertAlive();
-    if (pin && !this.#states.has(pin.instanceId)) {
+    const nextState = pin ? this.#states.get(pin.instanceId) : null;
+    if (pin && !nextState) {
       throw new Error(`Cannot pin unknown world instance ${String(pin.instanceId)}.`);
     }
 
-    if (this.#pin) {
-      const previous = this.#states.get(this.#pin.instanceId);
-      if (previous) {
-        previous.fx = null;
-        previous.fy = null;
-      }
+    const previousPin = this.#pin;
+    const previousState = previousPin ? this.#states.get(previousPin.instanceId) : null;
+    const previousInstanceId = previousPin?.instanceId ?? null;
+    const nextInstanceId = pin?.instanceId ?? null;
+
+    if (previousState && previousInstanceId !== nextInstanceId) {
+      previousState.fx = null;
+      previousState.fy = null;
     }
 
     this.#pin = pin ? Object.freeze({ ...pin }) : null;
-    if (pin) {
-      const state = this.#states.get(pin.instanceId);
-      if (state) {
-        state.x = pin.eastMeters;
-        state.y = pin.northMeters;
-        state.z = pin.visualAltitudeMeters;
-        state.vx = 0;
-        state.vy = 0;
-        state.vz = 0;
-        state.fx = pin.eastMeters;
-        state.fy = pin.northMeters;
+    if (pin && nextState) {
+      const changed =
+        nextState.x !== pin.eastMeters ||
+        nextState.y !== pin.northMeters ||
+        nextState.z !== pin.visualAltitudeMeters;
+      nextState.x = pin.eastMeters;
+      nextState.y = pin.northMeters;
+      nextState.z = pin.visualAltitudeMeters;
+      nextState.vx = 0;
+      nextState.vy = 0;
+      nextState.vz = 0;
+      nextState.fx = pin.eastMeters;
+      nextState.fy = pin.northMeters;
+      if (changed) this.#dirtyStateIds.add(nextState.id);
+      this.#interactionGroupKey = nextState.group;
+
+      // A pointer update must not reconstruct every D3 simulation. Keep the
+      // existing group alive and only ensure a settled group can respond to
+      // the new direct-manipulation position.
+      const group = this.#groups.get(nextState.group);
+      if (group) {
+        group.simulation.alpha(Math.max(group.simulation.alpha(), DRAG_MOVE_ALPHA_FLOOR));
+      }
+      this.#running = true;
+    } else if (previousState) {
+      // Preserve the released group through post-drop settling so unrelated
+      // places stay asleep.
+      this.#interactionGroupKey = previousState.group;
+    }
+
+    if (previousInstanceId !== nextInstanceId) {
+      const affectedGroups = new Set(
+        [previousState?.group, nextState?.group].filter(
+          (groupKey): groupKey is string => typeof groupKey === "string",
+        ),
+      );
+      for (const groupKey of affectedGroups) {
+        const group = this.#groups.get(groupKey);
+        if (group) this.#refreshGroupForceStrengths(group);
       }
     }
 
-    this.#rebuildGroups(true);
     this.#settled = false;
   }
 
@@ -231,6 +287,17 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
   apply(request: WorldSimulationRequest): void {
     this.#assertAlive();
     finiteNonNegative(request.excitation, "World simulation excitation");
+
+    const interactionReason = request.reason === "drag" || request.reason === "post-drop";
+    const previousInteractionGroupKey = this.#interactionGroupKey;
+    this.#requestReason = request.reason;
+
+    if (!interactionReason && previousInteractionGroupKey !== null) {
+      const previousInteractionGroup = this.#groups.get(previousInteractionGroupKey);
+      if (previousInteractionGroup) this.#refreshGroupForceStrengths(previousInteractionGroup);
+      if (!this.#pin) this.#interactionGroupKey = null;
+    }
+
     if (request.reason === "idle") {
       this.stop();
       this.#settled = true;
@@ -239,8 +306,14 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
 
     this.#running = true;
     this.#settled = false;
-    const alpha = Math.max(request.excitation, request.reheat ? DEFAULT_ALPHA : 0.04);
-    for (const group of this.#groups.values()) {
+    const alpha = Math.max(request.excitation, request.reheat ? DEFAULT_ALPHA : DRAG_MOVE_ALPHA_FLOOR);
+    const interactionGroup =
+      interactionReason && this.#interactionGroupKey !== null
+        ? (this.#groups.get(this.#interactionGroupKey) ?? null)
+        : null;
+    const groups = interactionGroup ? [interactionGroup] : [...this.#groups.values()];
+    for (const group of groups) {
+      if (interactionReason) this.#refreshGroupForceStrengths(group);
       group.simulation.alpha(Math.max(group.simulation.alpha(), alpha)).alphaTarget(0);
     }
   }
@@ -257,15 +330,20 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     finiteNonNegative(deltaMs, "D3 world force delta");
 
     const ticks = Math.max(1, Math.min(2, Math.round(deltaMs / (1000 / 60)) || 1));
-    const activePinGroup = this.#pin
-      ? (this.#states.get(this.#pin.instanceId)?.group ?? null)
-      : null;
+    const interactionReason =
+      this.#requestReason === "drag" || this.#requestReason === "post-drop";
+    const interactionGroup =
+      interactionReason && this.#interactionGroupKey !== null
+        ? (this.#groups.get(this.#interactionGroupKey) ?? null)
+        : null;
+    const groups = interactionGroup ? [interactionGroup] : [...this.#groups.values()];
 
     let settled = true;
-    for (const group of this.#groups.values()) {
-      if (activePinGroup && group.key !== activePinGroup) continue;
+    for (const group of groups) {
+      if (interactionReason) this.#refreshGroupForceStrengths(group);
       group.simulation.tick(ticks);
       this.#stepAltitude(group.nodes, ticks);
+      for (const state of group.nodes) this.#dirtyStateIds.add(state.id);
       if (group.simulation.alpha() > group.simulation.alphaMin()) settled = false;
     }
 
@@ -290,6 +368,29 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     );
   }
 
+  getChangedSnapshot(): readonly D3WorldForcePosition[] {
+    this.#assertAlive();
+    const changedIds = [...this.#dirtyStateIds].sort((left, right) =>
+      String(left).localeCompare(String(right)),
+    );
+    this.#dirtyStateIds.clear();
+    return Object.freeze(
+      changedIds.flatMap((instanceId) => {
+        const state = this.#states.get(instanceId);
+        return state
+          ? [
+              Object.freeze({
+                instanceId: state.id,
+                eastMeters: state.x ?? 0,
+                northMeters: state.y ?? 0,
+                visualAltitudeMeters: state.z,
+              }),
+            ]
+          : [];
+      }),
+    );
+  }
+
   getDiagnostics(): WorldSimulationDiagnostics {
     this.#assertAlive();
     const alpha =
@@ -309,6 +410,10 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     for (const group of this.#groups.values()) group.simulation.stop();
     this.#groups.clear();
     this.#states.clear();
+    this.#dirtyStateIds.clear();
+    this.#pin = null;
+    this.#interactionGroupKey = null;
+    this.#requestReason = "idle";
     this.#destroyed = true;
   }
 
@@ -354,15 +459,14 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
         .alphaDecay(ALPHA_DECAY)
         .alphaTarget(0);
 
-      if (links.length > 0) {
-        const linkForce = forceLink<D3WorldNodeState, D3WorldLink>(links)
-          .id((node) => node.id)
-          .distance((link) => Math.max(link.edge.restLengthMeters, maximumRadius * 2))
-          .strength((link) => link.edge.strength);
-        simulation.force("link", linkForce);
-      } else {
-        simulation.force("link", null);
-      }
+      const linkForce =
+        links.length > 0
+          ? forceLink<D3WorldNodeState, D3WorldLink>(links)
+              .id((node) => node.id)
+              .distance((link) => Math.max(link.edge.restLengthMeters, maximumRadius * 2))
+              .strength((link) => this.#linkStrength(key, maximumRadius, link))
+          : null;
+      simulation.force("link", linkForce);
 
       simulation.force(
         "charge",
@@ -379,32 +483,26 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
           .iterations(COLLISION_ITERATIONS),
       );
 
-      const anchorStrength = (node: D3WorldNodeState) => {
-        if (activeDragGroup) return 0;
-        if (!node.anchor) return 0;
-        if (collapsed) return COLLAPSE_ANCHOR_STRENGTH;
-        return NORMAL_ANCHOR_STRENGTH * Math.max(0, Math.min(1, node.anchor.influence));
-      };
-      simulation.force("anchor-x", forceX<D3WorldNodeState>(0).strength(anchorStrength));
-      simulation.force("anchor-y", forceY<D3WorldNodeState>(0).strength(anchorStrength));
+      const anchorXForce = forceX<D3WorldNodeState>(0).strength((node) =>
+        this.#anchorStrength(key, collapsed, node),
+      );
+      const anchorYForce = forceY<D3WorldNodeState>(0).strength((node) =>
+        this.#anchorStrength(key, collapsed, node),
+      );
+      simulation.force("anchor-x", anchorXForce);
+      simulation.force("anchor-y", anchorYForce);
 
       // Preserve the current d3-dag organizational targets as soft forces.
       // They guide expanded topology without snapping and are disabled while
       // the place is collapsing into its geographic anchor.
-      const dagStrength = (state: D3WorldNodeState) =>
-        collapsed ? 0 : Math.max(0, state.node.layoutTargetStrength ?? 0);
-      simulation.force(
-        "dag-x",
-        forceX<D3WorldNodeState>(
-          (state) => state.node.layoutTargetEastMeters ?? state.x ?? 0,
-        ).strength(dagStrength),
-      );
-      simulation.force(
-        "dag-y",
-        forceY<D3WorldNodeState>(
-          (state) => state.node.layoutTargetNorthMeters ?? state.y ?? 0,
-        ).strength(dagStrength),
-      );
+      const dagXForce = forceX<D3WorldNodeState>(
+        (state) => state.node.layoutTargetEastMeters ?? state.x ?? 0,
+      ).strength((state) => this.#dagStrength(key, collapsed, state));
+      const dagYForce = forceY<D3WorldNodeState>(
+        (state) => state.node.layoutTargetNorthMeters ?? state.y ?? 0,
+      ).strength((state) => this.#dagStrength(key, collapsed, state));
+      simulation.force("dag-x", dagXForce);
+      simulation.force("dag-y", dagYForce);
 
       if (reheat) simulation.alpha(DEFAULT_ALPHA);
       nextGroups.set(
@@ -413,12 +511,88 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
           key,
           placeId,
           nodes: Object.freeze(nodes),
+          maximumRadiusMeters: maximumRadius,
+          linkForce,
+          anchorXForce,
+          anchorYForce,
+          dagXForce,
+          dagYForce,
           simulation,
         }),
       );
     }
 
     this.#groups = nextGroups;
+  }
+
+  #linkStrength(
+    groupKey: string,
+    maximumRadiusMeters: number,
+    link: D3WorldLink,
+  ): number {
+    const baseStrength = Math.max(0, link.edge.strength);
+    const interactionLimited =
+      this.#interactionGroupKey === groupKey &&
+      (this.#requestReason === "drag" || this.#requestReason === "post-drop");
+    if (!interactionLimited || typeof link.source !== "object" || typeof link.target !== "object") {
+      return baseStrength;
+    }
+
+    const source = link.source;
+    const target = link.target;
+    const dx = (target.x ?? 0) - (source.x ?? 0);
+    const dy = (target.y ?? 0) - (source.y ?? 0);
+    const distance = Math.hypot(dx, dy);
+    const restLength = Math.max(link.edge.restLengthMeters, maximumRadiusMeters * 2);
+    const extension = distance - restLength;
+    const maximumStretch = Math.max(1, restLength) * INTERACTION_EDGE_MAX_STRETCH_SCALE;
+    if (extension <= maximumStretch) return baseStrength;
+    return baseStrength * (maximumStretch / extension);
+  }
+
+  #anchorStrength(groupKey: string, collapsed: boolean, state: D3WorldNodeState): number {
+    const activePinGroup =
+      this.#pin !== null && this.#states.get(this.#pin.instanceId)?.group === groupKey;
+    if (activePinGroup || !state.anchor) return 0;
+
+    const baseStrength = collapsed
+      ? COLLAPSE_ANCHOR_STRENGTH
+      : NORMAL_ANCHOR_STRENGTH * Math.max(0, Math.min(1, state.anchor.influence));
+    const postDropLimited =
+      this.#requestReason === "post-drop" && this.#interactionGroupKey === groupKey;
+    if (!postDropLimited) return baseStrength;
+
+    const error = Math.hypot(state.x ?? 0, state.y ?? 0);
+    if (error <= INTERACTION_FORCE_MAX_ERROR_METERS) return baseStrength;
+    return baseStrength * (INTERACTION_FORCE_MAX_ERROR_METERS / error);
+  }
+
+  #dagStrength(groupKey: string, collapsed: boolean, state: D3WorldNodeState): number {
+    if (collapsed) return 0;
+    const baseStrength = Math.max(0, state.node.layoutTargetStrength ?? 0);
+    const postDropLimited =
+      this.#requestReason === "post-drop" && this.#interactionGroupKey === groupKey;
+    if (!postDropLimited || baseStrength === 0) return baseStrength;
+
+    const targetX = state.node.layoutTargetEastMeters ?? state.x ?? 0;
+    const targetY = state.node.layoutTargetNorthMeters ?? state.y ?? 0;
+    const error = Math.hypot(targetX - (state.x ?? 0), targetY - (state.y ?? 0));
+    if (error <= INTERACTION_FORCE_MAX_ERROR_METERS) return baseStrength;
+    return baseStrength * (INTERACTION_FORCE_MAX_ERROR_METERS / error);
+  }
+
+  #refreshGroupForceStrengths(group: D3WorldGroup): void {
+    if (group.linkForce) {
+      group.linkForce.strength((link) =>
+        this.#linkStrength(group.key, group.maximumRadiusMeters, link),
+      );
+    }
+    const collapsed =
+      group.placeId !== null && this.#clusteredPlaces.has(String(group.placeId));
+    group.anchorXForce.strength((state) => this.#anchorStrength(group.key, collapsed, state));
+    group.anchorYForce.strength((state) => this.#anchorStrength(group.key, collapsed, state));
+    group.dagXForce.strength((state) => this.#dagStrength(group.key, collapsed, state));
+    group.dagYForce.strength((state) => this.#dagStrength(group.key, collapsed, state));
   }
 
   #stepAltitude(nodes: readonly D3WorldNodeState[], ticks: number): void {
