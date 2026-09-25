@@ -11,6 +11,7 @@ import {
   graphComponentTopologySignature,
   packComponentRects,
 } from "./graph-component-packing.js";
+import { surfacePointerMayStartDirectManipulation } from "./interaction/surface-input-policy.ts";
 import { createGraphSimulationCoordinator } from "./layout/graph-simulation-coordinator.ts";
 
 const LARGE_GRAPH_NODE_THRESHOLD = 1200;
@@ -558,7 +559,7 @@ function create(container, handlers = {}) {
     cancelCameraInertia();
     const transform = orb.canvas?.__zoom || orb?._renderer?.transform;
     if (
-      event.button !== 0 ||
+      !surfacePointerMayStartDirectManipulation(event) ||
       target?.object ||
       !transform ||
       typeof transform.translate !== "function" ||
@@ -924,7 +925,7 @@ function create(container, handlers = {}) {
   }
 
   function onPointerDown(event) {
-    if (event.pointerType !== "touch" && event.button !== 0) return;
+    if (!surfacePointerMayStartDirectManipulation(event)) return;
     const target = touchTargetPayload(event);
     if (event.pointerType !== "touch") {
       if (target?.kind === "node") {

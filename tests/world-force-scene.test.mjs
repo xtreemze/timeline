@@ -7,6 +7,7 @@ import {
   DEFAULT_WORLD_FORCE_SCENE_POLICY,
   worldForceComponentCollisionRadiusPx,
 } from "../src/layout/world-force-scene.ts";
+import { worldNodeVisualFootprintRadiusPx } from "../src/layout/world-graph-style.ts";
 import {
   createProjectedWorldEdge,
   createProjectedWorldInstance,
@@ -101,7 +102,7 @@ test("temporal weight modulates edge and anchor influence without changing topol
   );
 });
 
-test("force collision keeps the mobile acquisition footprint for compact default markers", () => {
+test("force collision matches the visible/touch footprint for default markers", () => {
   const scene = createWorldForceScene(sampleProjection());
   const alice = scene.nodes.find((node) => node.canonicalId === "alice");
   const bob = scene.nodes.find((node) => node.canonicalId === "bob");
@@ -109,13 +110,15 @@ test("force collision keeps the mobile acquisition footprint for compact default
   assert.ok(alice);
   assert.ok(bob);
   assert.ok(alice.mass > bob.mass);
+  assert.equal(alice.collisionRadiusPx, worldNodeVisualFootprintRadiusPx({ visualWeight: 1 }));
+  assert.equal(bob.collisionRadiusPx, worldNodeVisualFootprintRadiusPx({ visualWeight: 0.25 }));
   assert.equal(alice.collisionRadiusPx, 22);
   assert.equal(bob.collisionRadiusPx, 22);
   assert.equal(alice.collisionRadiusMeters, bob.collisionRadiusMeters);
   assert.equal(
     bob.collisionRadiusMeters,
     DEFAULT_WORLD_FORCE_SCENE_POLICY.baseCollisionRadiusMeters,
-    "compact visual markers retain the established physical collision floor",
+    "the default visible 44px node footprint maps to the established physical collision floor",
   );
 });
 
@@ -389,3 +392,33 @@ test("force scenes keep current offsets while exposing soft DAG targets", () => 
   assert.ok((alice.layoutTargetStrength ?? 0) > 0);
   assert.notEqual(alice.initialNorthMeters, alice.layoutTargetNorthMeters);
 });
+
+test("manual DAG rebuild preserves geographic anchors and keeps places out of the force graph", () => {
+  const projection = dagProjection();
+  const baseline = createWorldForceScene(projection);
+  const reorganized = createWorldForceScene(
+    projection,
+    DEFAULT_WORLD_FORCE_SCENE_POLICY,
+    { reorganizeDag: true },
+  );
+
+  assert.deepEqual(reorganized.anchors, baseline.anchors);
+  assert.deepEqual(
+    reorganized.nodes.map((node) => node.id),
+    baseline.nodes.map((node) => node.id),
+  );
+  assert.equal(
+    reorganized.nodes.some((node) => node.canonicalId === "stockholm"),
+    false,
+    "geographic places remain anchors rather than movable force nodes",
+  );
+  assert.ok(
+    reorganized.nodes.every(
+      (node) =>
+        node.layoutTargetEastMeters === undefined ||
+        (Number.isFinite(node.layoutTargetEastMeters) &&
+          Number.isFinite(node.layoutTargetNorthMeters)),
+    ),
+  );
+});
+

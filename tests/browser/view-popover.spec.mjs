@@ -1,103 +1,95 @@
 import { expect, test } from "@playwright/test";
 
-const viewToggle = "#timeline-view-controls-toggle";
 const viewToolbar = "#timeline-view-toolbar";
-const appShell = "#app-shell";
-
-async function expectViewState(page, open) {
-  await expect(page.locator(viewToggle)).toHaveAttribute("aria-expanded", String(open));
-  await expect(page.locator(appShell)).toHaveAttribute("data-view-controls-open", String(open));
-  await expect
-    .poll(() => page.locator(viewToolbar).evaluate((element) => element.matches(":popover-open")))
-    .toBe(open);
-}
 
 test.beforeEach(async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator(viewToggle)).toBeVisible();
+  await expect(page.locator(viewToolbar)).toBeVisible();
 });
 
-test("View popover opens, closes, and reopens without stale state", async ({ page }) => {
-  await expectViewState(page, false);
+test("View controls are persistent toolbar content rather than a popover", async ({ page }) => {
+  const toolbar = page.locator(viewToolbar);
 
-  await page.locator(viewToggle).click();
-  await expectViewState(page, true);
+  await expect(toolbar).not.toHaveAttribute("popover", /.+/);
+  await expect(page.locator("#timeline-view-controls-toggle")).toHaveCount(0);
+  await expect
+    .poll(() => toolbar.evaluate((element) => element.matches(":popover-open")))
+    .toBe(false);
 
-  await page.locator(viewToggle).click();
-  await expectViewState(page, false);
-
-  await page.locator(viewToggle).click();
-  await expectViewState(page, true);
+  await expect(toolbar.locator("#timeline-orientation-toggle")).toBeVisible();
+  await expect(toolbar.locator("#presentation-fullscreen-toggle")).toBeVisible();
+  await expect(toolbar.locator("#timeline-zoom-level")).toBeVisible();
+  await expect(toolbar.locator("#timeline-auto-toggle")).toBeVisible();
+  await expect(toolbar.locator("#timeline-auto-seconds")).toBeVisible();
 });
 
-test("Browse and Edit close View and leave the next View click usable", async ({ page }) => {
-  await page.locator(viewToggle).click();
-  await expectViewState(page, true);
+test("Browse keeps persistent View controls available", async ({ page }) => {
+  const toolbar = page.locator(viewToolbar);
 
   await page.locator("#timeline-browser-toggle").click();
-  await expectViewState(page, false);
   await expect(page.locator("#timeline-browser-toggle")).toHaveAttribute("aria-expanded", "true");
   await expect(page.locator("#presentation-stage")).toHaveAttribute("inert", "");
-  await expect(page.locator(".app-tool-dock")).toHaveAttribute("inert", "");
+  await expect(page.locator(".app-tool-dock")).not.toHaveAttribute("inert", "");
+  await expect(toolbar).toBeVisible();
 
   await page.locator("#timeline-browser-close").click();
   await expect(page.locator("#timeline-browser-toggle")).toHaveAttribute("aria-expanded", "false");
   await expect(page.locator("#presentation-stage")).not.toHaveAttribute("inert", "");
+  await expect(toolbar.locator("#timeline-orientation-toggle")).toBeEnabled();
+});
 
-  await page.locator(viewToggle).click();
-  await expectViewState(page, true);
+test("Edit leaves View in the toolbar but disables conflicting View controls", async ({ page }) => {
+  const toolbar = page.locator(viewToolbar);
 
   await page.locator("#editor-toggle").click();
-  await expectViewState(page, false);
   await expect(page.locator("#editor-toggle")).toHaveAttribute("aria-expanded", "true");
-  await expect(page.locator(viewToggle)).toBeDisabled();
-});
-
-test("Escape closes View outside fullscreen", async ({ page }) => {
-  await page.locator(viewToggle).click();
-  await expectViewState(page, true);
+  await expect(toolbar).toBeVisible();
+  await expect(toolbar.locator("#timeline-orientation-toggle")).toBeDisabled();
+  await expect(toolbar.locator("#presentation-fullscreen-toggle")).toBeDisabled();
+  await expect(toolbar.locator("#timeline-zoom-level")).toBeDisabled();
+  await expect(toolbar.locator("#timeline-auto-toggle")).toBeDisabled();
+  await expect(toolbar.locator("#timeline-auto-seconds")).toBeDisabled();
 
   await page.keyboard.press("Escape");
-  await expectViewState(page, false);
+  await expect(page.locator("#editor-toggle")).toHaveAttribute("aria-expanded", "false");
+  await expect(toolbar).toBeVisible();
+  await expect(toolbar.locator("#timeline-orientation-toggle")).toBeEnabled();
 });
 
-test("View remains inside the viewport in landscape and portrait", async ({ page }) => {
-  async function expectInsideViewport() {
-    const box = await page.locator(viewToolbar).boundingBox();
-    const viewport = page.viewportSize();
-    expect(box).not.toBeNull();
-    expect(viewport).not.toBeNull();
-    expect(box.x).toBeGreaterThanOrEqual(0);
-    expect(box.y).toBeGreaterThanOrEqual(0);
-    expect(box.x + box.width).toBeLessThanOrEqual(viewport.width + 1);
-    expect(box.y + box.height).toBeLessThanOrEqual(viewport.height + 1);
+test("View controls remain inside the footer across landscape and portrait", async ({ page }) => {
+  const toolbar = page.locator(viewToolbar);
+  const footer = page.locator(".app-footer-bar");
+
+  async function expectInsideFooter() {
+    const [toolbarBox, footerBox] = await Promise.all([toolbar.boundingBox(), footer.boundingBox()]);
+    expect(toolbarBox).not.toBeNull();
+    expect(footerBox).not.toBeNull();
+    if (!toolbarBox || !footerBox) return;
+    expect(toolbarBox.y).toBeGreaterThanOrEqual(footerBox.y - 1);
+    expect(toolbarBox.y + toolbarBox.height).toBeLessThanOrEqual(
+      footerBox.y + footerBox.height + 1,
+    );
   }
 
-  await page.locator(viewToggle).click();
-  await expectViewState(page, true);
-  await expectInsideViewport();
-
+  await expectInsideFooter();
   await page.locator("#timeline-orientation-toggle").click();
   await expect(page.locator("#timeline-view")).toHaveAttribute("data-orientation", "portrait");
-  await expectInsideViewport();
-
+  await expectInsideFooter();
   await expect(page.locator("#timeline-zoom-level")).toHaveAttribute(
     "aria-orientation",
-    "vertical",
+    "horizontal",
   );
 });
 
-test("resize while open keeps View attached and state synchronized", async ({ page }) => {
-  await page.locator(viewToggle).click();
-  await expectViewState(page, true);
+test("resize keeps the inline View group mounted in the persistent footer", async ({ page }) => {
+  const toolbar = page.locator(viewToolbar);
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await expectViewState(page, true);
+  await expect(toolbar).toBeVisible();
+  const parentClass = await toolbar.evaluate((element) => element.parentElement?.className || "");
+  expect(parentClass).toContain("app-footer-timeline");
 
-  const box = await page.locator(viewToolbar).boundingBox();
+  const box = await toolbar.boundingBox();
   expect(box).not.toBeNull();
-  expect(box.x).toBeGreaterThanOrEqual(0);
-  expect(box.y).toBeGreaterThanOrEqual(0);
-  expect(box.x + box.width).toBeLessThanOrEqual(391);
-  expect(box.y + box.height).toBeLessThanOrEqual(845);
+  expect(box?.height).toBeLessThanOrEqual(46);
 });

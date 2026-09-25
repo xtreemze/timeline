@@ -1,7 +1,9 @@
+import type { PlaceId } from "../domain/ids.ts";
 import type { ProjectedWorldInstance, WorldProjection } from "../projection/world-projection.ts";
 import {
   createWorldDagLayout,
   WORLD_DAG_TARGET_STRENGTH,
+  type WorldDagLayoutNodeSize,
   type WorldDagLayoutTarget,
 } from "./world-dag-layout.ts";
 import type {
@@ -10,7 +12,11 @@ import type {
   WorldForceNode,
   WorldForceScene,
 } from "./world-force-simulation.ts";
-import { WORLD_ENTITY_MIN_HIT_RADIUS_PX, worldNodeFootprintRadiusPx } from "./world-graph-style.ts";
+import {
+  WORLD_ENTITY_MIN_HIT_RADIUS_PX,
+  worldNodeFootprintRadiusPx,
+  worldPlaceFootprintRadiusPx,
+} from "./world-graph-style.ts";
 
 export interface WorldForceScenePolicy {
   readonly baseMass: number;
@@ -19,6 +25,14 @@ export interface WorldForceScenePolicy {
   readonly edgeStrength: number;
   readonly edgeRestLengthMeters: number;
   readonly anchorInfluenceScale: number;
+}
+
+export interface WorldForceSceneBuildOptions {
+  /**
+   * Recompute local d3-dag targets without cached stability hysteresis.
+   * Anchors remain geographic constraints and never become force nodes.
+   */
+  readonly reorganizeDag?: boolean;
 }
 
 /**
@@ -127,6 +141,7 @@ function anchorsFromInstance(
 export function createWorldForceScene(
   projection: WorldProjection,
   inputPolicy: WorldForceScenePolicy = DEFAULT_WORLD_FORCE_SCENE_POLICY,
+  options: WorldForceSceneBuildOptions = {},
 ): WorldForceScene {
   const policy = validatePolicy(inputPolicy);
 
@@ -143,7 +158,31 @@ export function createWorldForceScene(
         ] as const,
     ),
   );
-  const dagLayout = createWorldDagLayout(projection, { nodeSizes });
+  const placeSizes = new Map<PlaceId, WorldDagLayoutNodeSize>();
+  for (const instance of projection.instances) {
+    for (const anchor of instance.geographicAnchors) {
+      const footprintPx = worldPlaceFootprintRadiusPx(anchor.style);
+      const radiusMeters =
+        policy.baseCollisionRadiusMeters * (footprintPx / WORLD_ENTITY_MIN_HIT_RADIUS_PX);
+      const diameterMeters = radiusMeters * 2;
+      const previous = placeSizes.get(anchor.placeId);
+      if (!previous || previous.widthMeters < diameterMeters) {
+        placeSizes.set(
+          anchor.placeId,
+          Object.freeze({
+            widthMeters: diameterMeters,
+            heightMeters: diameterMeters,
+          }),
+        );
+      }
+    }
+  }
+
+  const dagLayout = createWorldDagLayout(projection, {
+    nodeSizes,
+    placeSizes,
+    reorganize: options.reorganizeDag === true,
+  });
   const dagTargets = new Map(
     dagLayout.targets.map((target) => [target.instanceId, target] as const),
   );

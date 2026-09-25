@@ -164,6 +164,36 @@ export class WorldViewRuntimeController {
     });
   }
 
+  /**
+   * Rebuild local Sugiyama targets and route hints for the current projection.
+   * Geographic anchors are retained verbatim; only the entity layout around
+   * each anchor is reorganized, then D3 force moves toward the new soft targets.
+   */
+  reorganizeDag(): boolean {
+    this.#assertAlive();
+    if (!this.#sourceProjection) return false;
+
+    const forceScene = this.#forcePolicy
+      ? createWorldForceScene(this.#sourceProjection, this.#forcePolicy, {
+          reorganizeDag: true,
+        })
+      : createWorldForceScene(this.#sourceProjection, undefined, {
+          reorganizeDag: true,
+        });
+    this.#forceBackend.setScene(forceScene);
+    this.#surface.setRelationshipRoutes?.(forceScene.relationshipRoutes ?? Object.freeze([]));
+    this.#reheatTopology(0.18);
+    return true;
+  }
+
+  /** Reheat the existing D3 force scene without recomputing DAG targets. */
+  relaxForce(): boolean {
+    this.#assertAlive();
+    if (!this.#sourceProjection) return false;
+    this.#reheatTopology(0.14);
+    return true;
+  }
+
   setSelection(selection: WorldSelection | null): void {
     this.#assertAlive();
     this.#surface.setSelection(selection);
@@ -368,6 +398,17 @@ export class WorldViewRuntimeController {
     });
     this.#renderProjectionDirty = false;
     return this.#renderProjection;
+  }
+
+  #reheatTopology(excitation: number): void {
+    // Releasing first makes repeated operator commands meaningful even while a
+    // previous topology run is still active.
+    this.#simulation.release("topology");
+    this.#simulation.request({
+      reason: "topology",
+      excitation,
+      reheat: true,
+    });
   }
 
   #assertAlive(): void {

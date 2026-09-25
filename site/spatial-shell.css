@@ -65,24 +65,11 @@
 
 #app-shell:has(#timeline-view[data-orientation="landscape"]) .app-browser-sheet,
 #app-shell:has(#timeline-view[data-orientation="portrait"]) .app-browser-sheet {
-  inset: 0;
+  inset: 0 0 var(--workspace-footer-block-size, 64px);
   inline-size: 100%;
-  block-size: 100%;
+  block-size: auto;
   max-inline-size: none;
   max-block-size: none;
-}
-
-#app-shell:has(#timeline-view[data-orientation="landscape"]) .app-tool-dock,
-#app-shell:has(#timeline-view[data-orientation="portrait"]) .app-tool-dock {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-@media (min-width: 700px) {
-  .app-tool-dock,
-  #app-shell:has(#timeline-view[data-orientation="landscape"]) .app-tool-dock,
-  #app-shell:has(#timeline-view[data-orientation="portrait"]) .app-tool-dock {
-    grid-template-columns: repeat(3, minmax(72px, 112px));
-  }
 }
 
 @media (min-width: 760px) {
@@ -119,30 +106,15 @@
   }
 }
 
-/* Spatial timeline chrome and content-first focused detail. */
-#presentation-stage > .timeline-local-toolbar {
-  position: absolute;
-  z-index: 1100;
-  display: flex;
-  align-items: center;
-  gap: 0.18rem;
-  padding: 0.22rem;
-  pointer-events: auto;
-  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
-  border-radius: 0.78rem;
-  background: color-mix(in srgb, var(--paper) 90%, transparent);
-  box-shadow: 0 3px 12px color-mix(in srgb, var(--ink) 7%, transparent);
-  backdrop-filter: blur(14px);
-}
-
+/* Timeline control buttons and content-first focused detail. */
 .timeline-local-button {
   appearance: none;
   display: grid;
   place-items: center;
-  inline-size: 40px;
-  block-size: 40px;
-  min-inline-size: 40px;
-  min-block-size: 40px;
+  inline-size: 44px;
+  block-size: 44px;
+  min-inline-size: 44px;
+  min-block-size: 44px;
   padding: 0;
   border: 0;
   border-radius: 0.58rem;
@@ -153,8 +125,7 @@
 }
 
 .timeline-local-button:hover,
-.timeline-local-button:focus-visible,
-#app-shell[data-view-controls-open="true"] .timeline-local-button.app-view-tool {
+.timeline-local-button:focus-visible {
   background: var(--paper-2);
   color: var(--ink);
   outline: none;
@@ -175,22 +146,15 @@
   stroke-width: 1.9;
 }
 
-#presentation-stage[data-timeline-orientation="horizontal"] > .timeline-local-toolbar {
-  inset-block-start: auto;
-  inset-block-end: calc(var(--workspace-footer-block-size, 64px) + 0.35rem);
-  inset-inline-end: max(0.35rem, env(safe-area-inset-right));
-}
-
-#presentation-stage[data-timeline-orientation="vertical"] > .timeline-local-toolbar {
-  inset-block-start: 50%;
-  inset-inline-end: max(0.25rem, env(safe-area-inset-right));
-  flex-direction: column;
-  transform: translateY(-50%);
-}
-
 #app-shell.is-event-focused #presentation-stage {
-  --focus-timeline-block-size: clamp(104px, 22%, 144px);
-  --focus-timeline-inline-size: clamp(84px, 22%, 104px);
+  --focus-timeline-block-size: var(
+    --relations-block-rail,
+    var(--mobile-relations-block-rail, clamp(156px, 42dvh, 320px))
+  );
+  --focus-timeline-inline-size: var(
+    --relations-inline-rail,
+    var(--mobile-relations-inline-rail, clamp(136px, 38dvw, 280px))
+  );
   position: relative;
   display: block;
   min-inline-size: 0;
@@ -242,24 +206,10 @@
   transform: translateY(-50%);
 }
 
-#app-shell.is-event-focused
-  #presentation-stage[data-timeline-orientation="horizontal"]
-  > .timeline-view {
+#app-shell.is-event-focused #presentation-stage > .timeline-view {
   position: absolute;
-  inset: auto 0 0;
+  inset: 0;
   inline-size: 100%;
-  block-size: var(--focus-timeline-block-size);
-  min-inline-size: 0;
-  min-block-size: 0;
-  margin: 0;
-}
-
-#app-shell.is-event-focused
-  #presentation-stage[data-timeline-orientation="vertical"]
-  > .timeline-view {
-  position: absolute;
-  inset: 0 0 0 auto;
-  inline-size: var(--focus-timeline-inline-size);
   block-size: 100%;
   min-inline-size: 0;
   min-block-size: 0;
@@ -404,11 +354,6 @@
 }
 
 @media (min-width: 700px) {
-  #app-shell.is-event-focused #presentation-stage {
-    --focus-timeline-block-size: clamp(112px, 24%, 184px);
-    --focus-timeline-inline-size: clamp(92px, 18%, 132px);
-  }
-
   #app-shell.is-event-focused
     #presentation-stage[data-timeline-orientation="horizontal"]
     > .timeline-focus-sidebar:not([hidden]) {
@@ -426,10 +371,428 @@
     max-inline-size: calc(100% - var(--focus-timeline-inline-size) - 1.1rem);
     max-block-size: calc(100% - 1.1rem);
   }
+}
 
-  #presentation-stage[data-timeline-orientation="horizontal"] > .timeline-local-toolbar {
-    inset-block-start: auto;
-    inset-block-end: calc(var(--workspace-footer-block-size, 64px) + 0.5rem);
-    inset-inline-end: max(0.5rem, env(safe-area-inset-right));
+/* Persistent footer control plane.
+   World camera controls live on the physical left, application actions stay centered,
+   and chronology controls live on the physical right. Utility panels end above this
+   plane instead of covering or displacing it. */
+#app-shell > .app-tool-dock.app-footer-bar,
+#presentation-stage:fullscreen > .app-tool-dock.app-footer-bar,
+#app-shell:has(#timeline-view[data-orientation="landscape"]) > .app-tool-dock.app-footer-bar,
+#app-shell:has(#timeline-view[data-orientation="portrait"]) > .app-tool-dock.app-footer-bar {
+  z-index: 1600;
+  display: grid;
+  pointer-events: auto;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: stretch;
+  justify-content: stretch;
+  inline-size: 100%;
+  max-inline-size: none;
+}
+
+.app-footer-zone {
+  display: flex;
+  align-items: center;
+  min-inline-size: 0;
+  min-block-size: 0;
+}
+
+.app-footer-world {
+  justify-content: flex-start;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: none;
+}
+
+.app-footer-world::-webkit-scrollbar,
+.app-footer-timeline::-webkit-scrollbar {
+  display: none;
+}
+
+.app-footer-actions {
+  justify-content: center;
+  min-inline-size: 132px;
+  max-inline-size: 264px;
+}
+
+.app-footer-actions > .app-tool {
+  flex: 0 1 clamp(44px, 7vw, 88px);
+  min-inline-size: 44px;
+  padding-inline: clamp(0.18rem, 0.5vw, 0.3rem);
+}
+
+.app-footer-actions .app-tool-label {
+  font-size: clamp(0.58rem, calc(0.54rem + 0.12vw), 0.68rem);
+}
+
+.app-footer-timeline.timeline-local-toolbar {
+  justify-content: flex-start;
+  gap: 0.12rem;
+  padding: 0;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.app-footer-timeline .app-view-tool {
+  margin-inline-start: auto;
+}
+
+.app-footer-world .world-camera-controls {
+  position: static;
+  inset: auto;
+  z-index: auto;
+  display: flex;
+  flex-direction: row;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0.62rem;
+  background: transparent;
+  box-shadow: none;
+}
+
+.app-footer-world .world-camera-control {
+  inline-size: 44px;
+  block-size: 44px;
+  min-inline-size: 44px;
+  min-block-size: 44px;
+  border-radius: 0.5rem;
+}
+
+.app-footer-world .world-camera-control + .world-camera-control {
+  border-block-start: 0;
+  border-inline-start: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+}
+
+#app-shell[data-browser-open="true"] > .app-browser-sheet > .app-browser-panel {
+  padding-block-end: max(0.7rem, env(safe-area-inset-bottom));
+}
+
+#app-shell[data-editor-open="true"] > .app-editor-sheet {
+  inset-block-end: calc(var(--workspace-footer-block-size) + 0.35rem);
+}
+
+/* Selection is an overlay state, never a chronology resize. Focused detail stays in
+   the complementary world region while the timeline root retains its normal geometry. */
+#app-shell.is-event-focused
+  #presentation-stage[data-timeline-orientation="horizontal"]
+  > .graph-lens:not([hidden]) {
+  inset-block-end: calc(
+    var(--relations-bottom-safe, var(--workspace-footer-block-size, 64px)) +
+    var(--focus-timeline-block-size)
+  );
+}
+
+#app-shell.is-event-focused
+  #presentation-stage[data-timeline-orientation="vertical"]
+  > .graph-lens:not([hidden]) {
+  inset-inline-end: calc(
+    var(--relations-right-safe, max(0.25rem, env(safe-area-inset-right))) +
+    var(--focus-timeline-inline-size)
+  );
+}
+
+/* Canonical persistent toolbar contract.
+   Every toolbar action uses .toolbar-control; compound inputs use the same
+   size, radius, border, interaction, and focus language. */
+.app-footer-bar {
+  --toolbar-control-size: 44px;
+  --toolbar-control-radius: 0.58rem;
+  --toolbar-control-gap: 0.14rem;
+}
+
+.app-footer-zone {
+  gap: var(--toolbar-control-gap);
+  padding-inline: 0.12rem;
+}
+
+.app-footer-actions {
+  gap: var(--toolbar-control-gap);
+}
+
+.app-footer-bar .toolbar-control {
+  appearance: none;
+  display: grid;
+  place-items: center;
+  flex: 0 0 var(--toolbar-control-size);
+  inline-size: var(--toolbar-control-size);
+  block-size: var(--toolbar-control-size);
+  min-inline-size: var(--toolbar-control-size);
+  min-block-size: var(--toolbar-control-size);
+  margin: 0;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--toolbar-control-radius);
+  background: transparent;
+  color: var(--muted);
+  box-shadow: none;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.app-footer-actions > .app-tool.toolbar-control {
+  flex: 0 0 var(--toolbar-control-size);
+  inline-size: var(--toolbar-control-size);
+  min-inline-size: var(--toolbar-control-size);
+  min-block-size: var(--toolbar-control-size);
+  padding: 0;
+}
+
+.app-footer-bar .toolbar-control :is(.semantic-icon, img),
+.app-footer-bar .toolbar-control > .semantic-icon {
+  inline-size: 20px;
+  block-size: 20px;
+}
+
+.app-footer-bar .toolbar-control > .semantic-icon {
+  stroke-width: 1.9;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .app-footer-bar .toolbar-control:hover,
+  .app-footer-bar :is(.toolbar-range-control, .toolbar-number-control):hover {
+    border-color: color-mix(in srgb, var(--line-strong) 70%, transparent);
+    background: var(--paper-2);
+    color: var(--ink);
+  }
+}
+
+.app-footer-bar .toolbar-control:focus-visible,
+.app-footer-bar :is(.toolbar-range-control, .toolbar-number-control):focus-within {
+  border-color: transparent;
+  background: var(--paper-2);
+  color: var(--ink);
+  outline: 2px solid var(--focus);
+  outline-offset: -3px;
+  box-shadow: none;
+}
+
+#app-shell[data-editor-open="true"] .app-footer-bar #editor-toggle,
+#app-shell[data-browser-open="true"] .app-footer-bar #timeline-browser-toggle,
+.app-footer-bar #project-menu-toggle[aria-expanded="true"],
+.app-footer-bar .toolbar-control[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--line-strong) 82%, transparent);
+  background: var(--paper-2);
+  color: var(--ink);
+}
+
+.app-footer-bar .toolbar-control:disabled,
+.app-footer-bar :is(.toolbar-range-control, .toolbar-number-control):has(:disabled) {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.app-footer-world {
+  gap: var(--toolbar-control-gap);
+}
+
+.app-footer-world .world-camera-controls,
+.app-footer-world .world-layout-controls {
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--toolbar-control-gap);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  overflow: visible;
+}
+
+.app-footer-world .world-layout-controls {
+  margin-inline-start: 0.12rem;
+  padding-inline-start: 0.12rem;
+  border-inline-start: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+}
+
+.app-footer-world .world-camera-control + .world-camera-control {
+  border-block-start-color: transparent;
+  border-inline-start-color: transparent;
+}
+
+.app-footer-timeline.timeline-local-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--toolbar-control-gap);
+  min-inline-size: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: none;
+}
+
+.app-footer-timeline.timeline-local-toolbar::-webkit-scrollbar,
+.app-footer-context-actions::-webkit-scrollbar,
+.app-footer-view-controls::-webkit-scrollbar {
+  display: none;
+}
+
+.app-footer-context-actions,
+.app-footer-view-controls,
+.toolbar-control-group {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: var(--toolbar-control-gap);
+  min-inline-size: 0;
+}
+
+.app-footer-bar :is(.toolbar-range-control, .toolbar-number-control) {
+  flex-wrap: nowrap;
+}
+
+.app-footer-context-actions {
+  overflow: visible;
+}
+
+.app-footer-view-controls.timeline-view-toolbar {
+  position: static;
+  inset: auto;
+  z-index: auto;
+  width: auto;
+  min-width: max-content;
+  max-width: none;
+  min-height: 0;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+}
+
+.app-footer-bar .toolbar-range-control,
+.app-footer-bar .toolbar-number-control {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  min-block-size: var(--toolbar-control-size);
+  block-size: var(--toolbar-control-size);
+  margin: 0;
+  border: 1px solid transparent;
+  border-radius: var(--toolbar-control-radius);
+  background: transparent;
+  color: var(--muted);
+  box-shadow: none;
+}
+
+.app-footer-bar .toolbar-range-control {
+  inline-size: clamp(104px, 10vw, 148px);
+  padding-inline: 0.34rem;
+}
+
+.app-footer-bar .timeline-zoom-control {
+  display: grid;
+  grid-template-columns: 16px minmax(64px, 1fr) 16px;
+  align-items: center;
+  gap: 0.22rem;
+  inline-size: 100%;
+  min-inline-size: 0;
+  block-size: 100%;
+}
+
+.app-footer-bar .timeline-zoom-endpoint {
+  display: grid;
+  place-items: center;
+  inline-size: 16px;
+  block-size: 16px;
+  color: var(--muted);
+}
+
+.app-footer-bar .timeline-zoom-endpoint .semantic-icon {
+  inline-size: 16px;
+  block-size: 16px;
+  stroke-width: 1.8;
+}
+
+.app-footer-bar .timeline-zoom-control input[type="range"] {
+  inline-size: 100%;
+  min-inline-size: 0;
+  block-size: var(--toolbar-control-size);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  accent-color: var(--ink);
+  cursor: ew-resize;
+  touch-action: pan-y;
+}
+
+.app-footer-bar .timeline-zoom-control input[type="range"]:focus-visible {
+  outline: 0;
+}
+
+.app-footer-bar .toolbar-number-control {
+  gap: 0.18rem;
+  min-inline-size: 58px;
+  padding-inline: 0.34rem;
+  font-size: 0.62rem;
+}
+
+.app-footer-bar .toolbar-number-control input {
+  inline-size: 2.6rem;
+  min-inline-size: 0;
+  min-block-size: 32px;
+  padding: 0.2rem 0.24rem;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--ink);
+  font:
+    700 0.72rem / 1 "Monaspace Krypton Timeline",
+    ui-monospace,
+    monospace;
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+.app-footer-bar .timeline-auto-controls {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.app-footer-bar .timeline-auto-timer > span[aria-hidden="true"] {
+  color: var(--muted);
+  font-size: 0.62rem;
+}
+
+@media (max-width: 420px) {
+  .app-footer-zone {
+    padding-inline: 0.06rem;
+  }
+
+  .app-footer-bar .toolbar-range-control {
+    inline-size: 104px;
+  }
+
+  .app-footer-bar .toolbar-number-control {
+    min-inline-size: 54px;
+    padding-inline: 0.24rem;
+  }
+
+  .app-footer-bar .toolbar-number-control input {
+    inline-size: 2.35rem;
+  }
+}
+
+@media (forced-colors: active) {
+  .app-footer-bar .toolbar-control:focus-visible,
+  .app-footer-bar :is(.toolbar-range-control, .toolbar-number-control):focus-within {
+    outline-color: Highlight;
+  }
+
+  .app-footer-world .world-layout-controls {
+    border-inline-start-color: CanvasText;
   }
 }

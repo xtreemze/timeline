@@ -6,6 +6,7 @@
  * alive across pan/zoom so rendering does not become a destructive per-frame rebuild.
  */
 
+import { surfacePointerMayStartDirectManipulation } from "../src/interaction/surface-input-policy.ts";
 import {
   geometryMeasurementKey,
   planCommittedTemporalLayout,
@@ -468,12 +469,22 @@ export class TimelineViewController {
       root.parentElement?.querySelector("#timeline-focus-view") ||
       root.parentElement?.querySelector(".timeline-focus-view") ||
       root;
+    // View controls are footer-owned rather than children of the timeline
+    // surface. Prefer legacy/local controls for isolated fixtures, then resolve
+    // the persistent controls from the owning application shell.
+    const controlsRoot = root.closest("#app-shell") ?? root.ownerDocument;
     this.readout =
       root.querySelector("#timeline-window-readout") ||
       root.querySelector(".timeline-window-readout") ||
+      controlsRoot.querySelector("#timeline-window-readout") ||
+      controlsRoot.querySelector(".timeline-window-readout") ||
       root;
-    this.orientationToggle = root.querySelector("#timeline-orientation-toggle");
-    this.zoomSlider = root.querySelector("#timeline-zoom-level");
+    this.orientationToggle =
+      root.querySelector("#timeline-orientation-toggle") ||
+      controlsRoot.querySelector("#timeline-orientation-toggle");
+    this.zoomSlider =
+      root.querySelector("#timeline-zoom-level") ||
+      controlsRoot.querySelector("#timeline-zoom-level");
 
     this.stage = document.createElement("div");
     this.stage.className = "timeline-stage timeline-retained-scene";
@@ -706,8 +717,7 @@ export class TimelineViewController {
     );
 
     this.surface.addEventListener("pointerdown", (event) => {
-      const isPrimaryPointer = event.pointerType === "touch" || event.button === 0;
-      if (!this.items.length || !isPrimaryPointer) return;
+      if (!this.items.length || !surfacePointerMayStartDirectManipulation(event)) return;
       const interactiveTarget =
         event.target instanceof Element
           ? event.target.closest("button, a, input, select, textarea")
@@ -1261,9 +1271,10 @@ export class TimelineViewController {
     const disabled = !this.items.length;
     if (this.zoomSlider.disabled !== disabled) this.zoomSlider.disabled = disabled;
 
-    const orientation = this.orientation === "vertical" ? "vertical" : "horizontal";
-    if (this.zoomSlider.getAttribute("aria-orientation") !== orientation) {
-      this.zoomSlider.setAttribute("aria-orientation", orientation);
+    // View controls live in the persistent horizontal footer. The slider's
+    // own physical orientation no longer follows the timeline axis.
+    if (this.zoomSlider.getAttribute("aria-orientation") !== "horizontal") {
+      this.zoomSlider.setAttribute("aria-orientation", "horizontal");
     }
 
     if (disabled) return;
