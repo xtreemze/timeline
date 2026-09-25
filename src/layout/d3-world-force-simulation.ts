@@ -322,19 +322,14 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       const links: D3WorldLink[] = collapsed
         ? []
         : this.#scene.edges
-            .filter(
-              (edge) => memberIds.has(edge.sourceId) && memberIds.has(edge.targetId),
-            )
+            .filter((edge) => memberIds.has(edge.sourceId) && memberIds.has(edge.targetId))
             .map((edge) => ({
               edge,
               source: edge.sourceId,
               target: edge.targetId,
             }));
 
-      const maximumRadius = Math.max(
-        1,
-        ...nodes.map((node) => node.node.collisionRadiusMeters),
-      );
+      const maximumRadius = Math.max(1, ...nodes.map((node) => node.node.collisionRadiusMeters));
       const maximumRestLength = Math.max(
         maximumRadius * 4,
         ...links.map((link) => link.edge.restLengthMeters),
@@ -387,13 +382,15 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
         collapsed ? 0 : Math.max(0, state.node.layoutTargetStrength ?? 0);
       simulation.force(
         "dag-x",
-        forceX<D3WorldNodeState>((state) => state.node.layoutTargetEastMeters ?? (state.x ?? 0))
-          .strength(dagStrength),
+        forceX<D3WorldNodeState>(
+          (state) => state.node.layoutTargetEastMeters ?? state.x ?? 0,
+        ).strength(dagStrength),
       );
       simulation.force(
         "dag-y",
-        forceY<D3WorldNodeState>((state) => state.node.layoutTargetNorthMeters ?? (state.y ?? 0))
-          .strength(dagStrength),
+        forceY<D3WorldNodeState>(
+          (state) => state.node.layoutTargetNorthMeters ?? state.y ?? 0,
+        ).strength(dagStrength),
       );
 
       if (reheat) simulation.alpha(DEFAULT_ALPHA);
@@ -422,8 +419,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
         const collapsed =
           state.placeId !== null && this.#clusteredPlaces.has(String(state.placeId));
         const target = collapsed ? 0 : state.node.targetVisualAltitudeMeters;
-        state.vz =
-          (state.vz + (target - state.z) * ALTITUDE_STRENGTH) * ALTITUDE_DAMPING;
+        state.vz = (state.vz + (target - state.z) * ALTITUDE_STRENGTH) * ALTITUDE_DAMPING;
         state.z = Math.max(0, state.z + state.vz);
       }
     }
