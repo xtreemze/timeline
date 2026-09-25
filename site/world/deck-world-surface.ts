@@ -2206,7 +2206,6 @@ function labelDatums(input: {
       placeIds.some(
         (placeId) =>
           (input.selection?.kind === "place" && input.selection.id === placeId) ||
-          (input.hoverSelection?.kind === "place" && input.hoverSelection.id === placeId) ||
           (input.focus?.kind === "place" && input.focus.id === placeId),
       )
     ) {
@@ -2215,7 +2214,6 @@ function labelDatums(input: {
     return cluster.clusterMembers.some(
       (member) =>
         (input.selection?.kind === "entity" && input.selection.id === member.entityId) ||
-        (input.hoverSelection?.kind === "entity" && input.hoverSelection.id === member.entityId) ||
         (input.focus?.kind === "entity" && input.focus.id === member.entityId),
     );
   };
