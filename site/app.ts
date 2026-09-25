@@ -895,7 +895,6 @@ function syncPresentationFullscreenState() {
       else els.presentationFullscreenToggle.prepend(icon);
     }
     syncContextualPresentationPanels();
-    syncViewControlsChrome();
     temporalGraphView?.setPresentationMode?.(presentationModeActive());
   });
   if (active && timelineView?.hasFocusedItem?.()) {
@@ -1547,6 +1546,7 @@ function syncApplicationSurfaces() {
   if (els.editorToggle) {
     els.editorToggle.setAttribute("aria-expanded", String(ui.editorOpen));
   }
+  timelineView?.setControlsDisabled?.(editing);
   for (const control of els.viewControls.querySelectorAll<HTMLButtonElement | HTMLInputElement>(
     "button, input",
   )) {

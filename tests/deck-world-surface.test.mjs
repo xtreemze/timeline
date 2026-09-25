@@ -555,6 +555,9 @@ test("temporal relationship joins and disconnects update immediately without ren
     .layers.find((candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.relationships);
   assert.ok(joinedLayer);
   assert.equal(joinedLayer.props.transitions, undefined);
+  assert.equal(joinedLayer.props.widthMinPixels, 0.75);
+  assert.equal(joinedLayer.props.jointRounded, true);
+  assert.equal(joinedLayer.props.capRounded, true);
   const joined = joinedLayer.props.data[0];
   assert.equal(joined.kind, "relationship");
   assert.equal(joined.relationshipId, "meeting");
@@ -630,14 +633,8 @@ test("d3-dag route hints guide relationship geometry while preserving live endpo
   const path = relationshipLayer.props.getPath(relationship);
   assert.equal(path.length, 3);
   assert.deepEqual(path[0].slice(0, 2), [18.0686, 59.3293]);
-  assert.ok(
-    path[1][1] > path[0][1],
-    "intermediate route point follows the DAG northing hint",
-  );
-  assert.ok(
-    path.at(-1)[0] > path[0][0],
-    "live target endpoint remains force/geography-derived",
-  );
+  assert.ok(path[1][1] > path[0][1], "intermediate route point follows the DAG northing hint");
+  assert.ok(path.at(-1)[0] > path[0][0], "live target endpoint remains force/geography-derived");
 });
 
 test("reduced motion uses the same immediate relationship geometry", (t) => {
@@ -694,10 +691,14 @@ test("DeckWorldSurface renders places, globe-visible paths, and elevated entity 
   assert.equal(render.layers.length, 5);
 
   const places = render.layers.find((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.places);
-  const relationships = render.layers.find((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.relationships);
+  const relationships = render.layers.find(
+    (layer) => layer.props.id === DECK_WORLD_LAYER_IDS.relationships,
+  );
   const entities = render.layers.find((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entities);
   const tethers = render.layers.find((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.tethers);
-  const directions = render.layers.find((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.relationshipDirections);
+  const directions = render.layers.find(
+    (layer) => layer.props.id === DECK_WORLD_LAYER_IDS.relationshipDirections,
+  );
 
   assert.ok(places);
   assert.ok(relationships);
@@ -709,12 +710,14 @@ test("DeckWorldSurface renders places, globe-visible paths, and elevated entity 
   const relationship = relationships.props.data[0];
   // The fake runtime provides basic getColor for path layers
   // Note: tether layer accessors may not be functions in the fake runtime
-  const tetherColor = typeof tethers.props.getColor === "function" 
-    ? tethers.props.getColor(tethers.props.data[0]) 
-    : [0, 0, 0, 20];
-  const relationshipColor = typeof relationships.props.getColor === "function"
-    ? relationships.props.getColor(relationship)
-    : [0, 0, 0, 100];
+  const tetherColor =
+    typeof tethers.props.getColor === "function"
+      ? tethers.props.getColor(tethers.props.data[0])
+      : [0, 0, 0, 20];
+  const relationshipColor =
+    typeof relationships.props.getColor === "function"
+      ? relationships.props.getColor(relationship)
+      : [0, 0, 0, 100];
   assert.ok(
     tetherColor[3] < relationshipColor[3],
     "geographic tethers are lower-alpha than semantic relationship edges",
@@ -832,7 +835,11 @@ test("WorldSurface applies force deltas without reframing and skips unchanged la
     afterEntities.props.data,
     beforeEntities.props.data,
   );
-  assert.equal(entityDataChanged, true, "entity geometry changes invalidate the dynamic topology layer");
+  assert.equal(
+    entityDataChanged,
+    true,
+    "entity geometry changes invalidate the dynamic topology layer",
+  );
 
   // Place data should remain GPU-stable (same references)
   assert.equal(typeof afterPlaces.props.dataComparator, "function");
@@ -892,7 +899,8 @@ test("selection updates presentation data while preserving canonical IDs", () =>
   surface.setSelection({ kind: "entity", id: "alice" });
 
   const render = calls.setProps.at(-1);
-  const entities = render.layers.find((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entities).props.data;
+  const entities = render.layers.find((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entities)
+    .props.data;
 
   assert.equal(entities.find((datum) => datum.entityId === "alice").selected, true);
   assert.equal(entities.find((datum) => datum.entityId === "bob").selected, false);
@@ -2240,7 +2248,10 @@ test("default overview keeps a same-place pair fully unclustered", () => {
     (candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.entities,
   );
   assert.ok(layer);
-  assert.equal(layer.props.data.some((datum) => datum.kind === "cluster"), false);
+  assert.equal(
+    layer.props.data.some((datum) => datum.kind === "cluster"),
+    false,
+  );
 
   const members = layer.props.data.filter((datum) => datum.kind === "entity");
   assert.equal(members.length, 2);

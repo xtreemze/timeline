@@ -43,7 +43,8 @@ async function installContinuityFixture(page: Page) {
     root.append(surface, readout, focus);
     document.body.append(root);
 
-    const { TimelineView } = await import(/* @vite-ignore */ "/timeline-view.ts");
+    const timelineViewModuleUrl = "/timeline-view.ts";
+    const { TimelineView } = await import(/* @vite-ignore */ timelineViewModuleUrl);
     const controller = TimelineView.create(root);
     if (!controller) throw new Error("Timeline continuity fixture did not initialize.");
 

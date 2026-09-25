@@ -72,6 +72,9 @@ jobs:
           sudo apt-get install -y ffmpeg
 
       - name: Record source-native showcase media
+        env:
+          SHOWCASE_X11_WIDTH: 1920
+          SHOWCASE_X11_HEIGHT: 1080
         run: xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" pnpm test:e2e:showcase
 
       - name: Render desktop and mobile reels and showcase assets

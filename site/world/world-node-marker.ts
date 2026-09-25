@@ -17,13 +17,14 @@ export interface WorldNodeMarker {
   readonly url: string;
   readonly width: number;
   readonly height: number;
-  readonly mask: false;
+  readonly mask: boolean;
   /** On-screen marker size (pixels) for IconLayer `getSize`. */
   readonly size: number;
 }
 
 const SUPERSAMPLE = 2;
 const markers = new Map<string, WorldNodeMarker>();
+const borderMarkers = new Map<string, WorldNodeMarker>();
 
 function escapeAttribute(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
@@ -104,5 +105,34 @@ export function worldNodeMarker(style: WorldNodeStyle): WorldNodeMarker {
     size,
   });
   markers.set(key, marker);
+  return marker;
+}
+
+/**
+ * White mask containing only the marker outline. A separate IconLayer can tint
+ * this mask per frame, allowing temporal border colour interpolation without
+ * regenerating/uploading a new full marker texture on every animation frame.
+ */
+export function worldNodeBorderMarker(style: WorldNodeStyle): WorldNodeMarker {
+  const key = [style.shape, style.borderWidth, style.radius].join("|");
+  const cached = borderMarkers.get(key);
+  if (cached) return cached;
+
+  const bodyRadius = style.radius * worldNodeShapeVisualRadiusScale(style.shape);
+  const size = Math.ceil((bodyRadius + style.borderWidth) * 2 + 2);
+  const pixels = size * SUPERSAMPLE;
+  const center = size / 2;
+  const body = shapePath(style.shape, center, bodyRadius);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${pixels}" height="${pixels}"><g fill="none" stroke="#ffffff" stroke-width="${style.borderWidth}">${body}</g></svg>`;
+
+  const marker: WorldNodeMarker = Object.freeze({
+    id: `lum-node-border:${key}`,
+    url: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
+    width: pixels,
+    height: pixels,
+    mask: true,
+    size,
+  });
+  borderMarkers.set(key, marker);
   return marker;
 }

@@ -5,7 +5,7 @@ import test from "node:test";
 import { createDeckWorldRuntime } from "../site/world/deck-world-runtime.ts";
 import { DECK_WORLD_LAYER_IDS, DeckWorldSurface } from "../site/world/deck-world-surface.ts";
 import { worldEntityIconName } from "../site/world/world-entity-icon.ts";
-import { worldNodeMarker } from "../site/world/world-node-marker.ts";
+import { worldNodeBorderMarker, worldNodeMarker } from "../site/world/world-node-marker.ts";
 import { WORLD_LIGHT_PALETTE, worldPlaceStyle } from "../src/layout/world-graph-style.ts";
 import {
   createProjectedWorldInstance,
@@ -78,6 +78,17 @@ test("entity kinds map to the app's semantic icon vocabulary; unknown kinds get 
   assert.equal(worldEntityIconName("pdf"), "evidence");
   assert.equal(worldEntityIconName("spaceship"), null);
   assert.equal(worldEntityIconName(undefined), null);
+});
+
+test("node borders expose a tintable mask for temporal colour interpolation", () => {
+  const style = worldPlaceStyle({}, false, WORLD_LIGHT_PALETTE);
+  const border = worldNodeBorderMarker(style);
+  const svg = decodeURIComponent(border.url);
+  assert.equal(border.mask, true);
+  assert.match(border.id, /^lum-node-border:/);
+  assert.match(svg, /fill="none"/);
+  assert.match(svg, /stroke="#ffffff"/);
+  assert.equal(border.size, worldNodeMarker(style).size);
 });
 
 test("production bindings supply a real deck.gl IconLayer", async () => {

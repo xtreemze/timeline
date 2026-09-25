@@ -162,7 +162,13 @@ test.describe("Timeline interaction contracts", () => {
         ".timeline-event:not(.timeline-cluster):not(.is-buffered) .timeline-event-terminal:visible",
       )
       .first();
+    for (let attempt = 0; attempt < 8 && (await terminal.count()) === 0; attempt += 1) {
+      await page.keyboard.press("+");
+      await waitForViewportEvents(page);
+      await settleTimeline(page);
+    }
     await expect(terminal).toBeVisible();
+    await clearViewportEvents(page);
     const [box, surfaceBox] = await Promise.all([terminal.boundingBox(), surface.boundingBox()]);
     if (!box || !surfaceBox) throw new Error("Timeline card or surface has no layout box.");
 

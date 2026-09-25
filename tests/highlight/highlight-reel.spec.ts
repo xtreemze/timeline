@@ -181,17 +181,15 @@ async function probeFrameTimestamps(filePath: string) {
 }
 
 function measureTimestamps(timestamps: number[], scale = 1) {
-  if (timestamps.length < 2) {
-    throw new Error("Showcase motion capture produced fewer than two timing samples");
+  const samples = [...new Set(timestamps.filter((timestamp) => Number.isFinite(timestamp)))].sort(
+    (left, right) => left - right,
+  );
+  if (samples.length < 2) {
+    throw new Error("Showcase motion capture produced fewer than two distinct timing samples");
   }
-  const firstTimestamp = timestamps[0];
-  const lastTimestamp = timestamps.at(-1);
-  if (
-    firstTimestamp === undefined ||
-    lastTimestamp === undefined ||
-    !Number.isFinite(firstTimestamp) ||
-    !Number.isFinite(lastTimestamp)
-  ) {
+  const firstTimestamp = samples[0];
+  const lastTimestamp = samples.at(-1);
+  if (firstTimestamp === undefined || lastTimestamp === undefined) {
     throw new Error("Showcase motion capture did not provide usable timestamps");
   }
   const durationSeconds = (lastTimestamp - firstTimestamp) / scale;
@@ -199,9 +197,9 @@ function measureTimestamps(timestamps: number[], scale = 1) {
     throw new Error("Showcase motion capture duration is invalid");
   }
   return {
-    frames: timestamps.length,
+    frames: samples.length,
     durationSeconds,
-    fps: (timestamps.length - 1) / durationSeconds,
+    fps: (samples.length - 1) / durationSeconds,
   };
 }
 
@@ -231,22 +229,39 @@ async function captureGeometry(
     };
   });
 
-  if (geometry.innerWidth !== captureSize.width || geometry.innerHeight !== captureSize.height) {
+  const configuredDisplayWidth = Number(process.env.SHOWCASE_X11_WIDTH);
+  const configuredDisplayHeight = Number(process.env.SHOWCASE_X11_HEIGHT);
+  const boundedGeometry = {
+    ...geometry,
+    screenWidth:
+      Number.isFinite(configuredDisplayWidth) && configuredDisplayWidth > 0
+        ? configuredDisplayWidth
+        : geometry.screenWidth,
+    screenHeight:
+      Number.isFinite(configuredDisplayHeight) && configuredDisplayHeight > 0
+        ? configuredDisplayHeight
+        : geometry.screenHeight,
+  };
+
+  if (
+    boundedGeometry.innerWidth !== captureSize.width ||
+    boundedGeometry.innerHeight !== captureSize.height
+  ) {
     throw new Error(
-      `Showcase viewport is ${String(geometry.innerWidth)}x${String(geometry.innerHeight)}; expected ${String(captureSize.width)}x${String(captureSize.height)}`,
+      `Showcase viewport is ${String(boundedGeometry.innerWidth)}x${String(boundedGeometry.innerHeight)}; expected ${String(captureSize.width)}x${String(captureSize.height)}`,
     );
   }
   if (
-    geometry.x < 0 ||
-    geometry.y < 0 ||
-    geometry.x + geometry.width > geometry.screenWidth ||
-    geometry.y + geometry.height > geometry.screenHeight
+    boundedGeometry.x < 0 ||
+    boundedGeometry.y < 0 ||
+    boundedGeometry.x + boundedGeometry.width > boundedGeometry.screenWidth ||
+    boundedGeometry.y + boundedGeometry.height > boundedGeometry.screenHeight
   ) {
     throw new Error(
-      `Showcase X11 capture region ${String(geometry.x)},${String(geometry.y)} ${String(geometry.width)}x${String(geometry.height)} exceeds ${String(geometry.screenWidth)}x${String(geometry.screenHeight)} display`,
+      `Showcase X11 capture region ${String(boundedGeometry.x)},${String(boundedGeometry.y)} ${String(boundedGeometry.width)}x${String(boundedGeometry.height)} exceeds ${String(boundedGeometry.screenWidth)}x${String(boundedGeometry.screenHeight)} display`,
     );
   }
-  return geometry;
+  return boundedGeometry;
 }
 
 async function startBrowserFrameClock(page: Page) {
@@ -288,6 +303,8 @@ async function startX11Capture(videoPath: string, geometry: CaptureGeometry) {
     "-hide_banner",
     "-loglevel",
     "warning",
+    "-thread_queue_size",
+    "4096",
     "-f",
     "x11grab",
     "-framerate",
@@ -306,13 +323,15 @@ async function startX11Capture(videoPath: string, geometry: CaptureGeometry) {
     "-deadline",
     "realtime",
     "-cpu-used",
-    "8",
+    "16",
     "-threads",
-    "4",
-    "-crf",
-    "12",
-    "-b:v",
+    "8",
+    "-lag-in-frames",
     "0",
+    "-crf",
+    "24",
+    "-b:v",
+    "4M",
     "-pix_fmt",
     "yuv420p",
     "-fps_mode",
@@ -356,7 +375,7 @@ async function persistMeasuredCapture(
   const captured = measureTimestamps(timestamps);
   if (captured.fps < MIN_CAPTURE_FPS) {
     throw new Error(
-      `Showcase raw X11 WebM decoded ${String(captured.frames)} actual frames across ${captured.durationSeconds.toFixed(3)}s (${captured.fps.toFixed(2)} fps); expected at least ${MIN_CAPTURE_FPS.toFixed(2)} fps before publication encoding.`,
+      `Showcase raw X11 WebM decoded only ${String(captured.frames)} distinct frame timestamps across ${captured.durationSeconds.toFixed(3)}s (${captured.fps.toFixed(2)} fps); expected at least ${MIN_CAPTURE_FPS.toFixed(2)} actual captures per second before publication encoding.`,
     );
   }
 

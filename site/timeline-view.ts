@@ -454,6 +454,7 @@ export class TimelineViewController {
   >();
   wheelCommitTimer: ReturnType<typeof globalThis.setTimeout> | 0 = 0;
   viewportInitialized = false;
+  controlsDisabled = false;
   reducedMotionQuery: MediaQueryList | null =
     typeof globalThis.matchMedia === "function"
       ? globalThis.matchMedia("(prefers-reduced-motion: reduce)")
@@ -1268,7 +1269,7 @@ export class TimelineViewController {
   syncZoomSlider(): void {
     if (!this.zoomSlider || this.retention.active) return;
 
-    const disabled = !this.items.length;
+    const disabled = this.controlsDisabled || !this.items.length;
     if (this.zoomSlider.disabled !== disabled) this.zoomSlider.disabled = disabled;
 
     // View controls live in the persistent horizontal footer. The slider's
@@ -2984,6 +2985,12 @@ export class TimelineViewController {
 
   getViewport(): TemporalWindow {
     return { ...this.viewport };
+  }
+
+  setControlsDisabled(disabled: boolean): void {
+    this.controlsDisabled = Boolean(disabled);
+    if (this.orientationToggle) this.orientationToggle.disabled = this.controlsDisabled;
+    if (this.zoomSlider) this.zoomSlider.disabled = this.controlsDisabled || !this.items.length;
   }
 
   hasFocusedItem(): boolean {
