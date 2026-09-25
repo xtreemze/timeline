@@ -34,19 +34,21 @@ export function storyIdsForItem(stories, itemId) {
 export function deriveStoryPlaceIds(story, relationships, places) {
   const storyId = stringId(story?.id);
   const validPlaceIds = new Set((places || []).map((place) => stringId(place?.id)).filter(Boolean));
+  const explicitPlaceIds = (story?.placeIds || []).filter((placeId) =>
+    validPlaceIds.has(stringId(placeId)),
+  );
   const contextualPlaceIds = contextualRelationships(story, relationships)
     .map((relationship) => stringId(relationship?.placeId))
     .filter((placeId) => placeId && validPlaceIds.has(placeId));
-  const attributedPlaceIds = (places || [])
-    .filter((place) => stringId(place?.attributes?.storyId) === storyId)
-    .map((place) => stringId(place?.id))
-    .filter(Boolean);
+  const attributedPlaceIds =
+    explicitPlaceIds.length || contextualPlaceIds.length
+      ? []
+      : (places || [])
+          .filter((place) => stringId(place?.attributes?.storyId) === storyId)
+          .map((place) => stringId(place?.id))
+          .filter(Boolean);
 
-  return uniqueIds([
-    ...(story?.placeIds || []).filter((placeId) => validPlaceIds.has(stringId(placeId))),
-    ...contextualPlaceIds,
-    ...attributedPlaceIds,
-  ]);
+  return uniqueIds([...explicitPlaceIds, ...contextualPlaceIds, ...attributedPlaceIds]);
 }
 
 export function reconcileStoryContext(story, relationships, places) {
