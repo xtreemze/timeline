@@ -47,6 +47,8 @@ The schema enforces:
 
 `surrealdb/kernel-v0.surql` uses schema-full normal records plus an enforced relation table. It keeps project revision snapshots separate from the graph relation records so the repository contract can still expose revision/load/recover semantics.
 
+Live certification targets SurrealDB **3.3.0 or newer**. SurrealDB documents an export/restore defect in versions before 3.3.0 where an `ENFORCED` relation table could lose edges when restored before its endpoint tables. Every live run must record the exact server version and verify relationship counts after an export/restore round trip before recovery results are accepted.
+
 The graph-native shape is a useful benchmark advantage, but it must beat PostgreSQL on real Lūm workloads enough to justify the younger operational ecosystem and a second persistence model.
 
 ## Adoption gate
