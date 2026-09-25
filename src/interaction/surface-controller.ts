@@ -39,9 +39,7 @@ export interface SurfaceInteractionController {
   beginDiscrete(gesture: GestureKind): boolean;
   finishDiscrete(options?: SurfaceFinishOptions): boolean;
   commit(): boolean;
-  cancel(
-    reason: Exclude<InteractionCompletionReason, "release">,
-  ): InteractionSnapshot;
+  cancel(reason: Exclude<InteractionCompletionReason, "release">): InteractionSnapshot;
 }
 
 export function createSurfaceInteractionController(
