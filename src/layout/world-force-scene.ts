@@ -1,7 +1,9 @@
+import type { PlaceId } from "../domain/ids.ts";
 import type { ProjectedWorldInstance, WorldProjection } from "../projection/world-projection.ts";
 import {
   createWorldDagLayout,
   WORLD_DAG_TARGET_STRENGTH,
+  type WorldDagLayoutNodeSize,
   type WorldDagLayoutTarget,
 } from "./world-dag-layout.ts";
 import type {
@@ -156,7 +158,7 @@ export function createWorldForceScene(
         ] as const,
     ),
   );
-  const placeSizes = new Map();
+  const placeSizes = new Map<PlaceId, WorldDagLayoutNodeSize>();
   for (const instance of projection.instances) {
     for (const anchor of instance.geographicAnchors) {
       const footprintPx = worldPlaceFootprintRadiusPx(anchor.style);
