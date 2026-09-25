@@ -2071,10 +2071,10 @@ function labelDatums(input: {
   );
   const placedByKey = new Map(placed.map((datum) => [datum.key, datum] as const));
 
-  // Hovered and selected entities are an explicit interaction exception to
-  // ordinary label LOD. Append only labels that the stable base pass omitted,
-  // so labels that were already visible keep their datum identity and
-  // placement while an interacted node can always identify itself.
+  // Interaction is an explicit exception to ordinary label LOD. Append only
+  // labels that the stable base pass omitted, so labels already visible keep
+  // their datum identity and placement while the active object can identify
+  // itself without forcing the whole dense scene back into view.
   const interactionLabels: DeckWorldLabelDatum[] = [];
   const interactionPlaceIds = new Set<PlaceId>();
   if (input.selection?.kind === "place") interactionPlaceIds.add(input.selection.id);
@@ -2146,6 +2146,45 @@ function labelDatums(input: {
           footprint.height,
           input.entityMarkerRadiusPx(entity.worldInstanceId),
         )[0] ?? [0, 0];
+      const interactionDatum = withLabelPixelOffset(datum, offset);
+      interactionLabels.push(interactionDatum);
+      placedByKey.set(key, interactionDatum);
+      byKey.set(key, interactionDatum);
+    }
+  }
+
+  const interactionRelationshipIds = new Set<RelationshipId>();
+  if (input.selection?.kind === "relationship") interactionRelationshipIds.add(input.selection.id);
+  if (input.hoverSelection?.kind === "relationship") {
+    interactionRelationshipIds.add(input.hoverSelection.id);
+  }
+  if (input.focus?.kind === "relationship") interactionRelationshipIds.add(input.focus.id);
+  if (!input.clustered && interactionRelationshipIds.size > 0) {
+    for (const relationship of input.relationships) {
+      if (!relationship.label || !interactionRelationshipIds.has(relationship.relationshipId)) {
+        continue;
+      }
+      const key = `relationship:${relationship.relationshipId}`;
+      if (placedByKey.has(key)) continue;
+      const text = relationship.label;
+      const position = edgePathMidpoint(relationship.path);
+      const prior = input.previous.get(key);
+      const datum =
+        prior && labelDatumUnchanged(prior, text, position, true)
+          ? prior
+          : Object.freeze({
+              kind: "relationship-label",
+              key,
+              relationshipId: relationship.relationshipId,
+              sourceInstanceId: relationship.sourceInstanceId,
+              targetInstanceId: relationship.targetInstanceId,
+              text,
+              position,
+              emphasized: true,
+            });
+      const footprint = labelFootprint(datum);
+      const offset =
+        labelOffsetCandidates(datum, footprint.width, footprint.height, 0)[0] ?? [0, 0];
       const interactionDatum = withLabelPixelOffset(datum, offset);
       interactionLabels.push(interactionDatum);
       placedByKey.set(key, interactionDatum);
