@@ -35,7 +35,7 @@ async function boxes(page: Page, focus: Locator) {
   const [focusBox, graphBox, timelineBox, stageBox] = await Promise.all([
     focus.boundingBox(),
     page.locator("#graph-lens").boundingBox(),
-    page.locator("#timeline-view").boundingBox(),
+    page.locator(".timeline-surface").boundingBox(),
     page.locator("#presentation-stage").boundingBox(),
   ]);
   expect(focusBox).not.toBeNull();
@@ -86,7 +86,7 @@ test("focused detail is shell-owned while contextual actions stay on the timelin
   await expect(focus).toBeHidden();
 });
 
-test("landscape keeps the timeline as a bottom rail and layers detail over the graph canvas", async ({
+test("landscape keeps the timeline surface as a bottom rail and layers detail over the graph canvas", async ({
   page,
 }) => {
   await ensureOrientation(page, "landscape");
@@ -101,7 +101,7 @@ test("landscape keeps the timeline as a bottom rail and layers detail over the g
   expect(overlapArea(focusBox, graphBox)).toBeGreaterThan(100);
 });
 
-test("portrait keeps the timeline as a right rail and layers detail inside the graph region", async ({
+test("portrait keeps the timeline surface as a right rail and layers detail inside the graph region", async ({
   page,
 }) => {
   await ensureOrientation(page, "portrait");
