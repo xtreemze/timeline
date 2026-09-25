@@ -15,6 +15,15 @@ export default defineConfig({
     screenshot: "off",
     video: "off",
     actionTimeout: 10_000,
+    launchOptions: {
+      args: [
+        "--disable-background-timer-throttling",
+        "--disable-renderer-backgrounding",
+        "--disable-backgrounding-occluded-windows",
+        "--disable-frame-rate-limit",
+        "--disable-gpu-vsync",
+      ],
+    },
   },
   expect: { timeout: 7_500 },
   outputDir: "artifacts/e2e-media/playwright",
