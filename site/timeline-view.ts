@@ -484,7 +484,8 @@ export class TimelineViewController {
       root.querySelector("#timeline-orientation-toggle") ||
       controlsRoot.querySelector("#timeline-orientation-toggle");
     this.zoomSlider =
-      root.querySelector("#timeline-zoom-level") || controlsRoot.querySelector("#timeline-zoom-level");
+      root.querySelector("#timeline-zoom-level") ||
+      controlsRoot.querySelector("#timeline-zoom-level");
 
     this.stage = document.createElement("div");
     this.stage.className = "timeline-stage timeline-retained-scene";
