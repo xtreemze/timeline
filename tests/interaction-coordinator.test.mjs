@@ -6,6 +6,7 @@ import { createSurfaceInteractionController } from "../src/interaction/surface-c
 import {
   surfaceActivationFromKeyboard,
   surfaceCursor,
+  surfaceInteractionRoleFromTarget,
   surfaceKeyboardMayNavigate,
   surfaceKeyboardTargetOwnsNavigation,
   surfaceNavigationFromKeyboard,
@@ -206,6 +207,10 @@ test("shared keyboard navigation ignores controls and platform shortcuts", () =>
     false,
   );
   assert.equal(
+    surfaceKeyboardMayNavigate({ key: "Enter", target: { tagName: "button" } }),
+    false,
+  );
+  assert.equal(
     surfaceKeyboardMayNavigate({
       key: "ArrowLeft",
       target: { tagName: "DIV", isContentEditable: true },
@@ -217,11 +222,11 @@ test("shared keyboard navigation ignores controls and platform shortcuts", () =>
   assert.equal(surfaceKeyboardMayNavigate({ key: "ArrowLeft", target: { tagName: "DIV" } }), true);
 });
 
-test("application navigation yields to a focused camera surface", () => {
-  const cameraSurface = {};
+test("application navigation yields to a focused local-navigation surface", () => {
+  const navigationSurface = {};
   const target = {
     closest(selector) {
-      return selector === '[data-surface-keyboard-navigation="camera"]' ? cameraSurface : null;
+      return selector === "[data-surface-keyboard-navigation]" ? navigationSurface : null;
     },
   };
   assert.equal(surfaceKeyboardTargetOwnsNavigation({ key: "ArrowRight", target }), true);
@@ -232,6 +237,28 @@ test("application navigation yields to a focused camera surface", () => {
     }),
     false,
   );
+});
+
+test("embedded event actions and focused detail use shared semantic roles", () => {
+  const action = {
+    getAttribute(name) {
+      return name === "data-surface-interaction" ? "action" : null;
+    },
+  };
+  const detail = {
+    getAttribute(name) {
+      return name === "data-surface-interaction" ? "detail" : null;
+    },
+  };
+  assert.equal(
+    surfaceInteractionRoleFromTarget({ closest: () => action }),
+    "action",
+  );
+  assert.equal(
+    surfaceInteractionRoleFromTarget({ closest: () => detail }),
+    "detail",
+  );
+  assert.equal(surfaceInteractionRoleFromTarget({ closest: () => null }), null);
 });
 
 test("retained surfaces use the same renderer-style keyboard camera vocabulary", () => {
