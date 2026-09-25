@@ -58,7 +58,7 @@ The default anthology keeps **The Three Little Pigs**, **Snow White**, **Cindere
 
 ## Parallel stories
 
-Multiple stories may coexist in one timeline. The recommended pattern is:
+Multiple stories may coexist in one timeline. For showcase/demo datasets, synthetic story bands should normally be separated enough that the combined timeline remains readable unless overlap is itself the behavior being demonstrated. The recommended pattern is:
 
 - every chronology item belongs to exactly one story unless a deliberate crossover is represented;
 - each story explicitly declares its reusable place set through `story.placeIds[]`;
@@ -67,4 +67,4 @@ Multiple stories may coexist in one timeline. The recommended pattern is:
 - stories remain narrative metadata rather than graph nodes or synthetic container topology;
 - with story focus off, the timeline shows all items together; selecting a story uses the existing focus path to inspect only that narrative sequence.
 
-The default sample uses nine classic tales. The first three retain their overlapping Storybook Cycle 1000 action, while **Little Red Riding Hood**, **Hansel and Gretel**, **Jack and the Beanstalk**, **Rapunzel**, **The Frog Prince**, and **Rumpelstiltskin** occupy separate synthetic cycles and distinct map regions. This exercises overlapping and separated chronology, minute-scale action, ranges, media, reusable story place registries, graph relationships, relation lifecycle changes, and all three focused-event compositions.
+The default sample uses nine classic tales arranged into deliberately separated presentation bands. **The Three Little Pigs**, **Snow White**, and **Cinderella** now occupy Storybook Cycles 976, 988, and 1000; the remaining tales continue through Cycles 1012, 1027, 1043, 1061, 1078, and 1096. Each story also occupies a distinct fictional atlas region while preserving compact local routes within the story. This keeps the all-stories timeline and world legible without implying historical dates or Earth locations, while still exercising minute-scale action, ranges, media, reusable story place registries, graph relationships, relation lifecycle changes, and all three focused-event compositions.
