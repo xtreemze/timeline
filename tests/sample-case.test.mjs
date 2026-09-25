@@ -129,16 +129,8 @@ test("added stories use ranges for sustained narrative actions and states", () =
         (candidate) => candidate.id === `rel-${item.id}`,
       );
       assert.equal(relationship?.time?.type, "interval", `${item.id}: interval edge time`);
-      assert.equal(
-        relationship?.time?.start?.value,
-        item.start,
-        `${item.id}: edge interval start`,
-      );
-      assert.equal(
-        relationship?.time?.end?.value,
-        item.end,
-        `${item.id}: edge interval end`,
-      );
+      assert.equal(relationship?.time?.start?.value, item.start, `${item.id}: edge interval start`);
+      assert.equal(relationship?.time?.end?.value, item.end, `${item.id}: edge interval end`);
     }
   }
 });
