@@ -7,6 +7,8 @@ const outputRoot = path.resolve(process.env.E2E_MEDIA_DIR ?? "artifacts/e2e-medi
 const ffprobe = process.env.FFPROBE_BIN ?? "ffprobe";
 const SHOWCASE_FPS = 60;
 const MIN_CAPTURE_FPS = 59;
+const ACTIVE_FRAME_GAP_MS = 100;
+const MIN_ACTIVE_FRAME_INTERVALS = Math.ceil(SHOWCASE_FPS / 2);
 const dimensions = {
   desktop: { width: 1440, height: 900 },
   mobile: { width: 390, height: 844 },
@@ -70,16 +72,26 @@ function measureSourceCadence(segment, formFactor) {
   if (!Array.isArray(timestamps) || timestamps.length < 2) {
     throw new Error(`${formFactor}/${segment.name} has no source frame timing evidence.`);
   }
-  const first = timestamps[0];
-  const last = timestamps.at(-1);
-  const duration = (last - first) / 1_000;
-  const rate = (timestamps.length - 1) / duration;
-  if (!Number.isFinite(duration) || duration <= 0 || !Number.isFinite(rate)) {
-    throw new Error(`${formFactor}/${segment.name} has invalid source frame timing evidence.`);
+  const activeIntervals = [];
+  for (let index = 1; index < timestamps.length; index += 1) {
+    const previous = timestamps[index - 1];
+    const current = timestamps[index];
+    const interval = current - previous;
+    if (Number.isFinite(interval) && interval > 0 && interval <= ACTIVE_FRAME_GAP_MS) {
+      activeIntervals.push(interval);
+    }
   }
-  if (rate < MIN_CAPTURE_FPS) {
+  if (activeIntervals.length < MIN_ACTIVE_FRAME_INTERVALS) {
     throw new Error(
-      `${formFactor}/${segment.name} contains ${String(timestamps.length)} browser-presented source frames across ${duration.toFixed(3)}s (${rate.toFixed(2)} fps); expected at least ${MIN_CAPTURE_FPS} fps before encoding.`,
+      `${formFactor}/${segment.name} contains only ${String(activeIntervals.length)} active source-frame intervals; expected at least ${String(MIN_ACTIVE_FRAME_INTERVALS)}.`,
+    );
+  }
+  const activeDuration =
+    activeIntervals.reduce((sum, interval) => sum + interval, 0) / 1_000;
+  const rate = activeIntervals.length / activeDuration;
+  if (!Number.isFinite(rate) || rate < MIN_CAPTURE_FPS) {
+    throw new Error(
+      `${formFactor}/${segment.name} measures ${rate.toFixed(2)} browser-presented source fps during active motion; expected at least ${MIN_CAPTURE_FPS} fps before encoding.`,
     );
   }
   return rate;
@@ -92,7 +104,8 @@ for (const formFactor of ["desktop", "mobile"]) {
   const sourceManifest = readJson(path.join(outputRoot, "raw", formFactor, "manifest.json"));
   if (
     sourceManifest.captureFps !== SHOWCASE_FPS ||
-    sourceManifest.minimumMeasuredCaptureFps !== MIN_CAPTURE_FPS
+    sourceManifest.minimumMeasuredCaptureFps !== MIN_CAPTURE_FPS ||
+    sourceManifest.activeFrameGapThresholdMs !== ACTIVE_FRAME_GAP_MS
   ) {
     throw new Error(`${formFactor} manifest does not declare the measured 60 fps contract.`);
   }
