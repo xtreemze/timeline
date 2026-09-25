@@ -64,6 +64,62 @@ async function probeDuration(filePath) {
   return duration;
 }
 
+async function probeFrameStats(filePath) {
+  const stdout = await capture(ffprobe, [
+    "-v",
+    "error",
+    "-select_streams",
+    "v:0",
+    "-show_frames",
+    "-show_entries",
+    "frame=best_effort_timestamp_time",
+    "-of",
+    "csv=p=0",
+    filePath,
+  ]);
+  const timestamps = stdout
+    .split(/\r?\n/u)
+    .map((value) => Number(value.trim()))
+    .filter((value) => Number.isFinite(value));
+  if (timestamps.length < 2) {
+    throw new Error(`Could not measure decoded frame cadence for ${filePath}`);
+  }
+  const firstTimestamp = timestamps[0];
+  const lastTimestamp = timestamps.at(-1);
+  if (firstTimestamp === undefined || lastTimestamp === undefined) {
+    throw new Error(`Could not measure decoded frame timestamps for ${filePath}`);
+  }
+  const duration = lastTimestamp - firstTimestamp;
+  if (!Number.isFinite(duration) || duration <= 0) {
+    throw new Error(`Invalid decoded frame duration for ${filePath}`);
+  }
+  return {
+    frames: timestamps.length,
+    duration,
+    fps: (timestamps.length - 1) / duration,
+  };
+}
+
+async function assertCapturedFrameCadence(filePath, minimumFps) {
+  const stats = await probeFrameStats(filePath);
+  if (stats.fps < minimumFps) {
+    throw new Error(
+      `${filePath} contains ${String(stats.frames)} decoded source frames across ${stats.duration.toFixed(3)}s (${stats.fps.toFixed(2)} fps); expected at least ${Number(minimumFps).toFixed(2)} fps before 60 fps normalization.`,
+    );
+  }
+  return stats;
+}
+
+async function assertRenderedFrameRate(filePath, expectedFps, label) {
+  const stats = await probeFrameStats(filePath);
+  if (Math.abs(stats.fps - expectedFps) > 0.75) {
+    throw new Error(
+      `${label} ${filePath} decoded at ${stats.fps.toFixed(2)} fps; expected ${Number(expectedFps).toFixed(2)} fps.`,
+    );
+  }
+  return stats;
+}
+
 function usableFrameRate(value) {
   return typeof value === "string" && value.length > 0 && value !== "0/0";
 }
@@ -103,6 +159,13 @@ function assertManifest(manifest, formFactor) {
     throw new Error(`${formFactor} manifest must contain exactly five showcase scenes`);
   }
 
+  if (manifest.captureFps !== 60) {
+    throw new Error(`${formFactor} manifest must target exactly 60 fps`);
+  }
+  if (manifest.minimumCapturedFps !== 59) {
+    throw new Error(`${formFactor} manifest must require at least 59 actual captured fps`);
+  }
+
   const motion = manifest.segments.filter((segment) => segment.mediaMode === "motion");
   const still = manifest.segments.filter((segment) => segment.mediaMode === "static");
   if (motion.length !== 2 || still.length !== 3) {
@@ -111,7 +174,17 @@ function assertManifest(manifest, formFactor) {
     );
   }
   for (const segment of motion) {
-    if (!segment.video) throw new Error(`Motion scene ${segment.name} is missing its WebM source`);
+    if (!segment.video)
+      throw new Error(`Motion scene ${segment.name} is missing its native Chromium recording`);
+    if (segment.requestedFps !== manifest.captureFps) {
+      throw new Error(`Motion scene ${segment.name} did not request the showcase capture cadence`);
+    }
+    if (
+      !Number.isFinite(segment.capturedFps) ||
+      segment.capturedFps < manifest.minimumCapturedFps
+    ) {
+      throw new Error(`Motion scene ${segment.name} did not measure the required source cadence`);
+    }
   }
 }
 
@@ -123,32 +196,55 @@ async function renderFormFactor(formFactor, manifest) {
   await mkdir(reelsDir, { recursive: true });
 
   const sources = [];
+  const expectedWidth = manifest.captureViewport?.width;
+  const expectedHeight = manifest.captureViewport?.height;
+  const showcaseFps = Number(manifest.captureFps);
+  const showcaseFpsArg = String(showcaseFps);
+
   for (const segment of manifest.segments) {
     const screenshotPath = path.resolve(workspace, segment.screenshot);
     const screenshot = await probeVisualSource(screenshotPath);
+    if (screenshot.width !== expectedWidth || screenshot.height !== expectedHeight) {
+      throw new Error(
+        `${screenshotPath} is ${String(screenshot.width)}x${String(screenshot.height)}; expected ${String(expectedWidth)}x${String(expectedHeight)}.`,
+      );
+    }
+
     if (segment.mediaMode === "motion") {
       const videoPath = path.resolve(workspace, segment.video);
       const video = await probeVisualSource(videoPath);
-      if (!video.fps) throw new Error(`Could not determine source FPS for ${videoPath}`);
-      sources.push({ segment, screenshotPath, screenshot, videoPath, video });
+      if (video.width !== expectedWidth || video.height !== expectedHeight) {
+        throw new Error(
+          `${videoPath} is ${String(video.width)}x${String(video.height)}; expected ${String(expectedWidth)}x${String(expectedHeight)}.`,
+        );
+      }
+      const cadence = await assertCapturedFrameCadence(videoPath, manifest.minimumCapturedFps);
+      sources.push({ segment, screenshotPath, screenshot, videoPath, video, cadence });
     } else {
-      sources.push({ segment, screenshotPath, screenshot, videoPath: null, video: null });
+      sources.push({
+        segment,
+        screenshotPath,
+        screenshot,
+        videoPath: null,
+        video: null,
+        cadence: null,
+      });
     }
   }
 
   const firstMotion = sources.find((entry) => entry.video);
   if (!firstMotion) throw new Error(`${formFactor} showcase has no motion source`);
   const reelProfile = {
-    width: firstMotion.video.width,
-    height: firstMotion.video.height,
-    fps: firstMotion.video.fps,
+    width: expectedWidth,
+    height: expectedHeight,
+    fps: showcaseFpsArg,
   };
 
   const sequence = [];
   const mediaRecords = [];
 
   for (const [index, entry] of sources.entries()) {
-    const { segment, screenshotPath, screenshot, videoPath, video } = entry;
+    const { segment, screenshotPath, screenshot, videoPath, video, cadence } = entry;
     const stem = `${String(index).padStart(2, "0")}-${segment.name}`;
 
     if (segment.mediaMode === "static") {
@@ -207,6 +303,8 @@ async function renderFormFactor(formFactor, manifest) {
       "-i",
       videoPath,
       "-an",
+      "-vf",
+      `fps=${showcaseFpsArg}`,
       "-c:v",
       "libwebp_anim",
       "-lossless",
@@ -217,10 +315,9 @@ async function renderFormFactor(formFactor, manifest) {
       "4",
       "-loop",
       "0",
-      "-r",
-      video.fps,
       webpOutput,
     ]);
+    await assertRenderedFrameRate(webpOutput, showcaseFps, "animated WebP");
 
     const webpStat = await stat(webpOutput);
     mediaRecords.push({
@@ -231,7 +328,7 @@ async function renderFormFactor(formFactor, manifest) {
       source: {
         width: video.width,
         height: video.height,
-        fps: video.fps,
+        fps: cadence ? Number(cadence.fps.toFixed(3)) : null,
       },
     });
 
@@ -284,11 +381,14 @@ async function renderFormFactor(formFactor, manifest) {
   }
 
   const reelPath = path.join(reelsDir, `lum-${formFactor}-highlight.mp4`);
+  const normalizedLabel = "out60";
+  filters.push(`[${currentLabel}]fps=${showcaseFpsArg}[${normalizedLabel}]`);
+
   args.push(
     "-filter_complex",
     filters.join(";"),
     "-map",
-    `[${currentLabel}]`,
+    `[${normalizedLabel}]`,
     "-an",
     "-c:v",
     "libx264",
@@ -303,6 +403,7 @@ async function renderFormFactor(formFactor, manifest) {
     reelPath,
   );
   await run(ffmpeg, args);
+  await assertRenderedFrameRate(reelPath, showcaseFps, "highlight reel");
 
   const mediaByName = new Map(mediaRecords.map((record) => [record.name, record]));
   return {
@@ -362,7 +463,7 @@ const pagesBase = process.env.SHOWCASE_BASE_URL ?? "https://xtreemze.github.io/t
 const markdown = [
   "## Lūm showcase",
   "",
-  "These assets are generated from the real Chromium application exercised by CI. Motion stays at the source recording dimensions and frame rate as animated WebP; static states use source-resolution PNG screenshots.",
+  "These assets are generated from the real Chromium application exercised by CI. Motion uses the source viewport dimensions and is published at verified 60 fps only after the raw browser-presented capture sustains at least 59 actual decoded frames per second; static states use source-resolution PNG screenshots.",
   "",
   ...formFactors.flatMap((formFactor) => [
     `### ${formFactor === "desktop" ? "Desktop" : "Mobile"}`,
