@@ -2589,7 +2589,9 @@ export class DeckWorldSurface implements WorldSurface {
     this.#dragCameraLock = null;
   };
 
-  #deckCursor(state: Readonly<{ readonly isDragging?: boolean }>): "grab" | "grabbing" | "pointer" | "zoom-in" {
+  #deckCursor(
+    state: Readonly<{ readonly isDragging?: boolean }>,
+  ): "grab" | "grabbing" | "pointer" | "zoom-in" {
     const intent =
       this.#hoverClusterId !== null
         ? "cluster"
