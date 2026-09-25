@@ -1,3 +1,5 @@
+import type { InteractionCoordinator } from "../src/interaction/interaction-coordinator.ts";
+
 export interface DeferredSpatialView {
   setModel(model: unknown): void;
   setWindow(viewport: unknown): void;
@@ -9,8 +11,15 @@ export interface DeferredSpatialView {
   destroy?(): void;
 }
 
+export interface DeferredSpatialViewCreateOptions {
+  readonly interaction?: InteractionCoordinator;
+}
+
 export interface DeferredSpatialViewFactory {
-  create(root: HTMLElement | null): DeferredSpatialView | null;
+  create(
+    root: HTMLElement | null,
+    options?: DeferredSpatialViewCreateOptions,
+  ): DeferredSpatialView | null;
 }
 
 export interface DeferredSpatialViewFactoryOptions {
@@ -44,7 +53,10 @@ export function createDeferredSpatialViewFactory(
   }
 
   return Object.freeze({
-    create(root: HTMLElement | null): DeferredSpatialView | null {
+    create(
+      root: HTMLElement | null,
+      createOptions: DeferredSpatialViewCreateOptions = {},
+    ): DeferredSpatialView | null {
       if (!root) return null;
 
       let delegate: DeferredSpatialView | null = null;
@@ -77,7 +89,7 @@ export function createDeferredSpatialViewFactory(
       void loadFactory()
         .then((factory) => {
           try {
-            attach(factory.create(root));
+            attach(factory.create(root, createOptions));
           } catch (error) {
             // Loading succeeded, but constructing the renderer or replaying
             // buffered startup state failed. Report this separately so a
