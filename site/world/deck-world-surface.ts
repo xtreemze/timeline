@@ -385,7 +385,6 @@ const WORLD_CLUSTER_BASE_NODE_RADIUS_PX = 16;
 /** Bound cluster bubbles so membership does not linearly inflate overview geometry. */
 const WORLD_CLUSTER_MARKER_MIN_RADIUS_PX = 22;
 const WORLD_CLUSTER_MARKER_MAX_RADIUS_PX = 30;
-const WORLD_CLUSTER_MERGE_HYSTERESIS_PX = 24;
 
 function worldClusterMarkerRadiusPx(memberRadiusPx: number, memberCount: number): number {
   const radius = Number.isFinite(memberRadiusPx) && memberRadiusPx > 0 ? memberRadiusPx : 0;
@@ -3845,11 +3844,9 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   #clusterMergeRadiusPx(): number {
-    const readableNeighbourhood = Math.max(WORLD_CLUSTER_MERGE_PX, this.#clusterRadiusPx());
-    return (
-      readableNeighbourhood +
-      (this.#clusterPhase === "expanded" ? 0 : WORLD_CLUSTER_MERGE_HYSTERESIS_PX)
-    );
+    // If two place anchors are closer than one readable local-graph radius,
+    // resolving them independently still produces overlapping topology.
+    return Math.max(WORLD_CLUSTER_MERGE_PX, this.#clusterRadiusPx());
   }
 
   /**
