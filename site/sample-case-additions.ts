@@ -324,24 +324,24 @@ function temporalInterval(start, end) {
 const LEGACY_STORY_LAYOUTS = [
   {
     storyId: "story-three-little-pigs",
-    yearOffset: 0,
-    cycle: "Storybook Cycle 1000",
+    yearOffset: -24,
+    cycle: "Storybook Cycle 976",
     spatialFrame: "Pigwood Realm",
     longitudeOffset: -80,
     latitudeOffset: -20,
   },
   {
     storyId: "story-snow-white",
-    yearOffset: -24,
-    cycle: "Storybook Cycle 976",
+    yearOffset: -12,
+    cycle: "Storybook Cycle 988",
     spatialFrame: "Mirrorwood Realm",
     longitudeOffset: -10,
     latitudeOffset: -30,
   },
   {
     storyId: "story-cinderella",
-    yearOffset: -12,
-    cycle: "Storybook Cycle 988",
+    yearOffset: 0,
+    cycle: "Storybook Cycle 1000",
     spatialFrame: "Ashenvale Realm",
     longitudeOffset: 32,
     latitudeOffset: -42,
@@ -645,16 +645,16 @@ export function extendSampleCase(sample) {
   );
 
   patchRelationship(sample, "rel-pigs-wolf-threat", {
-    time: temporalInterval("1000-04-20T08:00Z", "1000-04-30T08:00Z"),
+    time: temporalInterval("0976-04-20T08:00Z", "0976-04-30T08:00Z"),
     placeId: "place-three-little-pigs-pursuit-corridor",
     itemIds: ["pigs-wolf-straw", "pigs-brick-siege", "pigs-safe"],
   });
   patchRelationship(sample, "rel-snow-queen-threat", {
-    time: temporalInterval("0976-04-05T09:00Z", "0976-05-22T12:00Z"),
+    time: temporalInterval("0988-04-05T09:00Z", "0988-05-22T12:00Z"),
     placeId: "place-snow-white-threat-corridor",
   });
   patchRelationship(sample, "rel-cinderella-prince-search", {
-    time: temporalInterval("0988-05-07T00:02Z", "0988-06-02T14:00Z"),
+    time: temporalInterval("1000-05-07T00:02Z", "1000-06-02T14:00Z"),
     placeId: "place-cinderella-ashenvale-village-search-route",
   });
   patchRelationship(sample, "rel-cinderella-stepsisters", {
