@@ -37,6 +37,8 @@ test("built Pages shell boots application runtime on mobile", async ({ page }) =
   await expect(page.locator("#item-count")).toHaveText("0 items");
   await expect(shell).toHaveAttribute("data-mode", "view");
 
+  await project.click();
+  await expect(page.locator("#project-menu:popover-open")).toBeVisible();
   await page.locator("#load-sample").click();
   await expect(page.locator("#timeline-title")).toHaveValue(
     "Nine classic tales — distributed fictional casebook",
