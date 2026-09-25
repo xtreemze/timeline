@@ -145,8 +145,8 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightConfig, /--disable-background-timer-throttling/);
   assert.match(highlightConfig, /--disable-renderer-backgrounding/);
   assert.match(highlightConfig, /--disable-backgrounding-occluded-windows/);
-  assert.match(highlightConfig, /--disable-frame-rate-limit/);
-  assert.match(highlightConfig, /--disable-gpu-vsync/);
+  assert.doesNotMatch(highlightConfig, /--disable-frame-rate-limit/);
+  assert.doesNotMatch(highlightConfig, /--disable-gpu-vsync/);
   assert.match(highlightConfig, /--window-position=0,0/);
   assert.doesNotMatch(highlightConfig, /auto-accept-this-tab-capture/);
 
@@ -159,8 +159,11 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightSpec, /requestAnimationFrame/);
   assert.match(highlightSpec, /CAPTURE_FPS\s*=\s*60/);
   assert.match(highlightSpec, /MIN_CAPTURE_FPS\s*=\s*CAPTURE_FPS\s*-\s*1/);
+  assert.match(highlightSpec, /MAX_CAPTURE_FPS\s*=\s*CAPTURE_FPS\s*\+\s*1/);
   assert.match(highlightSpec, /captured\.fps\s*<\s*MIN_CAPTURE_FPS/);
+  assert.match(highlightSpec, /captured\.fps\s*>\s*MAX_CAPTURE_FPS/);
   assert.match(highlightSpec, /browser\.fps\s*<\s*MIN_CAPTURE_FPS/);
+  assert.match(highlightSpec, /browser\.fps\s*>\s*MAX_CAPTURE_FPS/);
   assert.match(highlightSpec, /\.frames\.json/);
   assert.doesNotMatch(highlightSpec, /getDisplayMedia|MediaRecorder/);
   assert.match(highlightSpec, /page\.screencast\.showChapter/);
@@ -187,7 +190,18 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightRenderer, /browser animation clock is only/);
   assert.match(highlightRenderer, /video\.codec !== "vp8"/);
   assert.match(highlightRenderer, /minimumMeasuredCaptureFps/);
+  assert.match(highlightRenderer, /maximumMeasuredCaptureFps/);
   assert.match(highlightRenderer, /libwebp_anim/);
+  assert.doesNotMatch(highlightRenderer, /"-r",\s*String\(manifest\.captureFps\)/);
+  assert.ok(
+    [...highlightRenderer.matchAll(/"-fps_mode",\s*"passthrough"/g)].length >= 3,
+    "motion derivatives and reel output must preserve source timestamps",
+  );
+  assert.equal(
+    [...highlightRenderer.matchAll(/fps=\$\{reelProfile\.fps\}/g)].length,
+    1,
+    "only synthetic still segments may be generated at the reel cadence",
+  );
   assert.match(highlightRenderer, /copyFile/);
   assert.match(highlightRenderer, /mediaMode === "static"/);
   assert.match(highlightRenderer, /combinedShowcaseBytes/);
