@@ -2321,3 +2321,74 @@ test("user camera moves are handed back to the controlled deck so the globe rota
   assert.equal(pushed.viewState.longitude, 40);
   assert.equal(surface.getCamera().longitude, 40);
 });
+
+
+test("deck native camera lifecycle is forwarded without re-recognizing raw mjolnir events", () => {
+  const { calls, runtime } = harness();
+  const surface = new DeckWorldSurface({}, runtime);
+  const lifecycle = [];
+  surface.setCameraInteractionSink({
+    begin(gesture) {
+      lifecycle.push(["begin", gesture]);
+      return true;
+    },
+    update(gesture) {
+      lifecycle.push(["update", gesture]);
+      return true;
+    },
+    finish() {
+      lifecycle.push(["finish"]);
+    },
+    commit() {
+      lifecycle.push(["commit"]);
+    },
+    cancel() {
+      lifecycle.push(["cancel"]);
+    },
+  });
+
+  calls.deckProps.onInteractionStateChange({ isDragging: true, isPanning: true });
+  calls.deckProps.onInteractionStateChange({ isDragging: true, isZooming: true });
+  calls.deckProps.onInteractionStateChange({ inTransition: true });
+  calls.deckProps.onInteractionStateChange({ inTransition: false });
+
+  assert.deepEqual(lifecycle, [
+    ["begin", "pan"],
+    ["update", "pinch"],
+    ["finish"],
+    ["commit"],
+  ]);
+});
+
+test("a camera gesture rejected by shared ownership cannot move the controlled deck camera", () => {
+  const { calls, runtime } = harness();
+  const surface = new DeckWorldSurface({}, runtime, {
+    longitude: 18,
+    latitude: 59,
+    zoom: 4,
+    bearing: 0,
+    pitch: 0,
+  });
+  surface.setCameraInteractionSink({
+    begin: () => false,
+    update: () => false,
+    finish() {},
+    commit() {},
+    cancel() {},
+  });
+
+  calls.deckProps.onInteractionStateChange({ isDragging: true, isPanning: true });
+  calls.deckProps.onViewStateChange({
+    viewState: { longitude: 40, latitude: 10, zoom: 5, bearing: 0, pitch: 0 },
+  });
+
+  assert.equal(surface.getCamera().longitude, 18);
+  assert.equal(surface.getCamera().latitude, 59);
+  assert.deepEqual(calls.setProps.at(-1).viewState, {
+    longitude: 18,
+    latitude: 59,
+    zoom: 4,
+    bearing: 0,
+    pitch: 0,
+  });
+});
