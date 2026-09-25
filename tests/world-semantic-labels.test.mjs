@@ -10,6 +10,7 @@ import {
   createWorldProjection,
   worldInstanceId,
 } from "../src/projection/world-projection.ts";
+import { diffWorldProjection } from "../src/projection/world-projection-delta.ts";
 
 function harness() {
   const setProps = [];
@@ -167,6 +168,102 @@ const WORKING_CAMERA = Object.freeze({
   zoom: 5,
   bearing: 0,
   pitch: 20,
+});
+
+test("temporal topology reveals edges before nodes and interpolates border colour", () => {
+  const originalNow = Date.now;
+  const originalSetTimeout = globalThis.setTimeout;
+  const originalClearTimeout = globalThis.clearTimeout;
+  let now = 10_000;
+  const timers = [];
+
+  Date.now = () => now;
+  globalThis.setTimeout = (callback) => {
+    timers.push(callback);
+    return timers.length;
+  };
+  globalThis.clearTimeout = () => {};
+
+  try {
+    const h = harness();
+    const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 9 });
+    const source = instance(0, { visualWeight: 1 });
+    const target = instance(1);
+    const previous = createWorldProjection({ instances: [source], edges: [] });
+    const next = createWorldProjection({
+      instances: [source, target],
+      edges: [
+        createProjectedWorldEdge({
+          id: "temporal-entry",
+          label: "met",
+          sourceInstanceId: source.id,
+          targetInstanceId: target.id,
+          temporalWeight: 1,
+          visible: true,
+          retained: false,
+        }),
+      ],
+    });
+
+    surface.setProjection(previous);
+    surface.applyProjectionDelta(diffWorldProjection(previous, next));
+
+    const metrics = () => {
+      const layers = h.lastLayers();
+      const relationships = layer(layers, DECK_WORLD_LAYER_IDS.relationships);
+      const edge = relationships.props.data.find(
+        (datum) => datum.relationshipId === "temporal-entry",
+      );
+      const icons = layer(layers, DECK_WORLD_LAYER_IDS.entityIcons);
+      const node = icons.props.data.find((datum) => datum.worldInstanceId === target.id);
+      const borders = layer(layers, DECK_WORLD_LAYER_IDS.entityBorderTransitions);
+      const border = borders?.props.data.find((datum) => datum.worldInstanceId === target.id);
+      return {
+        edgeColor: relationships.props.getColor(edge),
+        nodeColor: icons.props.getColor(node),
+        borderColor: border ? borders.props.getColor(border) : null,
+      };
+    };
+
+    const initial = metrics();
+    assert.equal(initial.edgeColor[3], 0, "entering edge starts latent");
+    assert.equal(initial.nodeColor[3], 0, "entering node does not pop into the first frame");
+    assert.equal(initial.borderColor?.[3], 0, "node border stays latent with the node");
+
+    now += 210;
+    timers.shift()?.();
+    const edgeMidpoint = metrics();
+    assert.ok(edgeMidpoint.edgeColor[3] > 0, "relationship colour starts revealing first");
+    assert.notDeepEqual(
+      edgeMidpoint.edgeColor.slice(0, 3),
+      initial.edgeColor.slice(0, 3),
+      "edge RGB interpolates away from the muted temporal colour",
+    );
+    assert.equal(edgeMidpoint.nodeColor[3], 0, "node remains hidden during edge reveal");
+
+    now = 10_420;
+    timers.shift()?.();
+    const edgeComplete = metrics();
+    assert.ok(edgeComplete.edgeColor[3] > edgeMidpoint.edgeColor[3]);
+    assert.equal(edgeComplete.nodeColor[3], 0, "node waits for the complete edge phase");
+
+    now = 10_630;
+    timers.shift()?.();
+    const nodeMidpoint = metrics();
+    assert.ok(nodeMidpoint.nodeColor[3] > 0, "node body reveals only in the second phase");
+    assert.ok(nodeMidpoint.borderColor?.[3] > 0, "node border participates in the reveal");
+    assert.notDeepEqual(
+      nodeMidpoint.borderColor?.slice(0, 3),
+      initial.borderColor?.slice(0, 3),
+      "border RGB interpolates from muted toward its authored colour",
+    );
+
+    surface.destroy();
+  } finally {
+    Date.now = originalNow;
+    globalThis.setTimeout = originalSetTimeout;
+    globalThis.clearTimeout = originalClearTimeout;
+  }
 });
 
 test("empty world skips the deck.gl text atlas", () => {
