@@ -1751,7 +1751,9 @@ function syncApplicationSurfaces() {
     els.browserSheet.setAttribute("aria-hidden", String(!ui.browserOpen));
   }
   if (els.presentationStage) els.presentationStage.inert = Boolean(ui.browserOpen || editing);
-  if (els.appToolDock) els.appToolDock.inert = Boolean(ui.browserOpen);
+  // The persistent footer is the application control plane. Utility sheets stop above it,
+  // so it remains visible and operable while Browse is open.
+  if (els.appToolDock) els.appToolDock.inert = false;
   if (els.title) {
     els.title.readOnly = !editing;
     els.title.tabIndex = editing ? 0 : -1;
