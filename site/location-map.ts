@@ -507,6 +507,7 @@ function installWeightedMapDragging(
     if (drag?.pointerId !== pe.pointerId) return;
     drag = null;
     pointers.delete(pe.pointerId);
+    surfaceInteraction.cancel("lostpointercapture");
   };
 
   const onClickCapture = (event: MouseEvent) => {
