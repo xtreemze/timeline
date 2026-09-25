@@ -439,9 +439,6 @@
   backdrop-filter: none;
 }
 
-.app-footer-timeline .app-view-tool {
-  margin-inline-start: auto;
-}
 
 .app-footer-world .world-camera-controls {
   position: static;
