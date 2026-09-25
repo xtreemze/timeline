@@ -99,7 +99,10 @@ test.describe("production WorldSurface in the app", () => {
       .poll(async () => (await entityPixels(page, clip)).count, {
         message: "entity marks must be drawn in a colour visible on the app background",
       })
-      .toBeGreaterThan(40);
+      // Compact markers deliberately decouple visible geometry from the >=44px
+      // hit target. Certify that rendered semantic colour is present without
+      // encoding the previous, larger marker area into the browser test.
+      .toBeGreaterThan(20);
     const fitted = await entityPixels(page, clip);
     expect(
       Math.max(fitted.spreadX, fitted.spreadY),
