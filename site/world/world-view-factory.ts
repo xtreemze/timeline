@@ -36,10 +36,7 @@ export interface WorldViewCreateOptions {
 }
 
 export interface WorldViewFactory {
-  create(
-    root: HTMLElement | null,
-    options?: WorldViewCreateOptions,
-  ): WorldApplicationView | null;
+  create(root: HTMLElement | null, options?: WorldViewCreateOptions): WorldApplicationView | null;
 }
 
 export interface WorldViewFactoryForceBackend extends WorldForceSimulationBackend {
