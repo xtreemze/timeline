@@ -876,9 +876,10 @@ export class TimelineViewController {
         motion.appendPointerSamples(drag.samples, event, this.orientation);
         const releaseVelocity =
           event.type === "pointercancel" ? 0 : motion.estimatePointerVelocity(drag.samples);
+        const length = drag.usableLength;
         this.pointerDrag = null;
         if (Math.abs(releaseVelocity) >= motion.STOP_VELOCITY_PX_PER_MS) {
-          this.startInertia(releaseVelocity, drag.usableLength);
+          this.startInertia(releaseVelocity, length);
           startedInertia = true;
           void motion.pulseHaptic("release");
         }
