@@ -17,7 +17,7 @@ function node(id, east, collisionRadiusMeters = 300, overrides = {}) {
   };
 }
 
-function anchor(instanceId, placeId, influence = 1) {
+function anchor(instanceId, placeId, influence = 1, overrides = {}) {
   return {
     instanceId,
     placeId,
@@ -26,6 +26,7 @@ function anchor(instanceId, placeId, influence = 1) {
     sourceAltitudeMeters: 0,
     influence,
     precisionRadiusMeters: 0,
+    ...overrides,
   };
 }
 
@@ -198,6 +199,45 @@ test("D3 drag and post-drop stay local and publish sparse changed positions", ()
     .getSnapshot()
     .filter((entry) => entry.instanceId === remoteA || entry.instanceId === remoteB);
   assert.deepEqual(remoteAfter, remoteBefore);
+});
+
+test("D3 drag collides with nodes registered to a different place", () => {
+  const simulation = new D3WorldForceSimulation();
+  const dragged = '["alice","stockholm"]';
+  const foreign = '["bob","nearby-place"]';
+
+  simulation.setScene({
+    nodes: [node(dragged, -500, 240), node(foreign, 1, 240)],
+    edges: [],
+    anchors: [
+      anchor(dragged, "stockholm", 0, { longitude: 18, latitude: 59 }),
+      anchor(foreign, "nearby-place", 0, { longitude: 18.001, latitude: 59 }),
+    ],
+  });
+  simulation.getChangedSnapshot();
+
+  simulation.setPin({
+    instanceId: dragged,
+    eastMeters: 58,
+    northMeters: 0,
+    visualAltitudeMeters: 1_000,
+  });
+  simulation.apply({ reason: "drag", excitation: 0.2, reheat: true });
+  for (let index = 0; index < 4; index += 1) simulation.step(1000 / 60);
+
+  const snapshot = simulation.getSnapshot();
+  const draggedPosition = snapshot.find((entry) => entry.instanceId === dragged);
+  const foreignPosition = snapshot.find((entry) => entry.instanceId === foreign);
+  assert.ok(draggedPosition && foreignPosition);
+  assert.equal(draggedPosition.eastMeters, 58, "the pointer-owned node must remain pinned");
+  assert.ok(
+    Math.abs(foreignPosition.eastMeters - 1) > 100,
+    "cross-place collision must displace the foreign node instead of allowing overlap",
+  );
+  assert.ok(
+    simulation.getChangedSnapshot().some((entry) => entry.instanceId === foreign),
+    "the collided foreign place must be published as changed",
+  );
 });
 
 test("D3 long-distance release bounds the first post-drop force step", () => {
