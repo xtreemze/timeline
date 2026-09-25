@@ -141,14 +141,8 @@ test("application injects the workspace interaction coordinator into embedded ma
   ]);
 
   assert.match(mapSource, /interaction\?: InteractionCoordinator/);
-  assert.match(
-    mapSource,
-    /installWeightedMapDragging\([\s\S]*this\.interaction/,
-  );
-  assert.match(
-    appSource,
-    /createReadOnly\?\.\([\s\S]*interaction: surfaceInteractionCoordinator/,
-  );
+  assert.match(mapSource, /installWeightedMapDragging\([\s\S]*this\.interaction/);
+  assert.match(appSource, /createReadOnly\?\.\([\s\S]*interaction: surfaceInteractionCoordinator/);
   assert.match(
     appSource,
     /TimelineLocationMap\?\.create\([\s\S]*interaction: surfaceInteractionCoordinator/,
