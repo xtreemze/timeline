@@ -433,8 +433,6 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       const collapsed = placeId !== null && this.#clusteredPlaces.has(String(placeId));
       const linksDetached =
         placeId !== null && this.#detachedLinkPlaces.has(String(placeId));
-      const activeDragGroup =
-        this.#pin !== null && this.#states.get(this.#pin.instanceId)?.group === key;
 
       const memberIds = new Set(nodes.map((node) => node.id));
       const links: D3WorldLink[] = linksDetached
