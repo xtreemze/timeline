@@ -592,7 +592,7 @@
   flex-direction: row;
   flex-wrap: nowrap;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   inline-size: auto;
   width: auto;
   min-inline-size: 0;
@@ -603,8 +603,8 @@
   max-block-size: none;
   margin: 0;
   padding: 0.3rem 0.45rem;
-  gap: clamp(0.28rem, 1vw, 0.65rem);
-  overflow: hidden;
+  gap: 0.25rem;
+  overflow: visible;
   border: 0;
   border-block-start: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
   border-radius: 0;
@@ -618,12 +618,17 @@
 }
 
 #app-shell .timeline-view-toolbar[popover]:popover-open .timeline-zoom-control {
-  inline-size: clamp(96px, 18vw, 180px);
+  inline-size: 8rem;
+}
+
+#app-shell .timeline-view-toolbar[popover]:popover-open .timeline-window-readout,
+#app-shell .timeline-view-toolbar[popover]:popover-open .timeline-auto-timer {
+  display: none;
 }
 
 #app-shell .timeline-view-toolbar[popover]:popover-open .timeline-window-readout {
   min-inline-size: 0;
-  max-inline-size: min(18rem, 24vw);
+  max-inline-size: 18rem;
 }
 
 /* Focus is layered over the graph; selecting an occurrence never changes timeline geometry. */
@@ -660,37 +665,61 @@
   padding-block-end: var(--workspace-footer-block-size);
 }
 
-@media (max-width: 700px) {
+.app-footer-primary > .app-tool,
+.app-footer-view-tool {
+  min-inline-size: 44px;
+  padding-inline: 0.28rem;
+}
+
+.app-footer-primary .app-tool-label,
+.app-footer-view-tool .app-tool-label {
+  font-size: 0.58rem;
+}
+
+#app-shell .timeline-view-toolbar[popover]:popover-open {
+  padding-inline: max(0.25rem, env(safe-area-inset-left))
+    max(0.25rem, env(safe-area-inset-right));
+}
+
+/* Compact baseline: two camera actions fit beside the centered application group.
+   Wider viewports progressively restore the full world and timeline toolsets. */
+.app-footer-world
+  .world-camera-control:is([aria-label="Fit to content"], [aria-label="Show whole globe"]) {
+  display: none;
+}
+
+@media (min-width: 521px) {
+  .app-footer-world
+    .world-camera-control:is([aria-label="Fit to content"], [aria-label="Show whole globe"]) {
+    display: grid;
+  }
+}
+
+@media (min-width: 701px) {
   .app-footer-primary > .app-tool,
   .app-footer-view-tool {
-    min-inline-size: 44px;
-    padding-inline: 0.28rem;
+    min-inline-size: 62px;
+    padding-inline: 0.55rem;
   }
 
   .app-footer-primary .app-tool-label,
   .app-footer-view-tool .app-tool-label {
-    font-size: 0.58rem;
+    font-size: 0.68rem;
   }
 
   #app-shell .timeline-view-toolbar[popover]:popover-open {
-    justify-content: space-between;
-    gap: 0.25rem;
-    padding-inline: max(0.25rem, env(safe-area-inset-left))
-      max(0.25rem, env(safe-area-inset-right));
+    justify-content: flex-end;
+    gap: 0.65rem;
+    padding-inline: max(0.45rem, env(safe-area-inset-left))
+      max(0.45rem, env(safe-area-inset-right));
+  }
+
+  #app-shell .timeline-view-toolbar[popover]:popover-open .timeline-zoom-control {
+    inline-size: 11rem;
   }
 
   #app-shell .timeline-view-toolbar[popover]:popover-open .timeline-window-readout,
   #app-shell .timeline-view-toolbar[popover]:popover-open .timeline-auto-timer {
-    display: none;
-  }
-
-  #app-shell .timeline-view-toolbar[popover]:popover-open .timeline-zoom-control {
-    inline-size: clamp(84px, 28vw, 132px);
-  }
-}
-
-@media (max-width: 520px) {
-  .app-footer-world .world-camera-control[aria-label="Show whole globe"] {
-    display: none;
+    display: inline-flex;
   }
 }
