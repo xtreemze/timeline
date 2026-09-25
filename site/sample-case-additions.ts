@@ -362,20 +362,14 @@ function shiftTemporalExtent(time, yearOffset) {
 
 function translateGeometryCoordinates(value, longitudeOffset, latitudeOffset) {
   if (!Array.isArray(value)) return value;
-  if (
-    value.length >= 2 &&
-    Number.isFinite(Number(value[0])) &&
-    Number.isFinite(Number(value[1]))
-  ) {
+  if (value.length >= 2 && Number.isFinite(Number(value[0])) && Number.isFinite(Number(value[1]))) {
     return [
       Number(value[0]) + longitudeOffset,
       Number(value[1]) + latitudeOffset,
       ...value.slice(2),
     ];
   }
-  return value.map((entry) =>
-    translateGeometryCoordinates(entry, longitudeOffset, latitudeOffset),
-  );
+  return value.map((entry) => translateGeometryCoordinates(entry, longitudeOffset, latitudeOffset));
 }
 
 function repositionLegacyStory(sample, layout) {
