@@ -57,7 +57,6 @@ import {
   worldLocalRadiusPx,
   worldNodeClearanceDegreesForRadius,
   worldPixelsToDegrees,
-  worldPlaceClusterRadiusPx,
   worldPresentationOffsetScale,
 } from "../../src/layout/world-semantic-presentation.ts";
 import {
@@ -365,8 +364,6 @@ const WORLD_CLUSTER_BASE_NODE_RADIUS_PX = 16;
 /** Bound cluster bubbles so membership does not linearly inflate overview geometry. */
 const WORLD_CLUSTER_MARKER_MIN_RADIUS_PX = 22;
 const WORLD_CLUSTER_MARKER_MAX_RADIUS_PX = 30;
-/** Zoom distance used to resolve from cluster origins into the floating local graph. */
-const WORLD_LOCAL_GRAPH_RESOLVE_ZOOM_SPAN = 1.25;
 
 function worldClusterMarkerRadiusPx(memberRadiusPx: number, memberCount: number): number {
   const radius = Number.isFinite(memberRadiusPx) && memberRadiusPx > 0 ? memberRadiusPx : 0;
@@ -3436,45 +3433,23 @@ export class DeckWorldSurface implements WorldSurface {
     return radiusPx;
   }
 
-  #clusterRadiusPx(): number {
-    return worldPlaceClusterRadiusPx(
-      this.#clusterEntityFootprintRadiusPx(),
-      this.#viewportGraphRadiusLimitPx(),
-    );
-  }
-
   /**
    * Presentation magnification of local offsets for the current zoom (see
    * `worldPresentationOffsetScale`). Scenes without local offsets keep 1 so
    * zooming them never invalidates memoized datums.
    */
   #nextOffsetScale(zoom = this.#camera.zoom, latitude = 0): number {
-    const instances = this.#projection.instances;
-    const footprintRadiusPx = this.#clusterEntityFootprintRadiusPx();
-    const clusterThreshold = clusterZoomThresholdForNodeRadius(footprintRadiusPx);
-    // Clustered overviews group true geography; magnifying offsets there
-    // would scatter one place's entities across cluster cells.
-    if (shouldClusterEntityDatums(instances.length, zoom, footprintRadiusPx)) return 1;
-
     const typical = this.#typicalOffsetMeters();
-    const targetScale = worldPresentationOffsetScale(
+    const scale = worldPresentationOffsetScale(
       zoom,
-      instances.length,
+      this.#projection.instances.length,
       typical,
       latitude,
       this.#viewportGraphRadiusLimitPx(),
     );
-    // Resolve magnification from 1x over a zoom band after the global cluster
-    // tier ends. Motion remains camera-driven and preserves anchor-local
-    // latitude scaling; no time-based interpolation is introduced.
-    const rawProgress = Math.max(
-      0,
-      Math.min(1, (zoom - clusterThreshold) / WORLD_LOCAL_GRAPH_RESOLVE_ZOOM_SPAN),
-    );
-    const progress = rawProgress * rawProgress * (3 - 2 * rawProgress);
-    const scale = 1 + (targetScale - 1) * progress;
 
-    // Never let a place's magnified graph reach into its neighbours'.
+    // Keep presentation scale continuous while D3 gathers/scatters the actual
+    // local offsets. Crossing a cluster threshold must never snap offsets to 1x.
     const nearest = this.#nearestPlaceMeters();
     if (nearest <= 0 || typical <= 0) return scale;
     const cap = Math.max(1, (WORLD_LOCAL_GRAPH_MAX_PLACE_SHARE * nearest) / typical);
@@ -3482,25 +3457,14 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   /**
-   * Continuous place-cluster expansion. At 0 only the place cluster is
-   * visible; at 1 the active force backend owns the full node positions.
-   * Intermediate zooms blend between those endpoints instead of swapping
-   * representations at a threshold.
-   */
-  /**
    * Entities float a constant on-screen height above the terrain (places
    * stay on it). Screen-space conversion is continuous; render throttling
    * controls update frequency without introducing quarter-zoom position jumps.
-   * Returns 0 while entities cluster or in scenes without local layout.
+   * D3 owns cluster gather/scatter altitude; camera zoom only converts the
+   * stable screen-space float target into metres.
    */
   #nextFloatMeters(zoom = this.#camera.zoom, latitude = 0): number {
-    const instances = this.#projection.instances;
-    if (
-      instances.length === 0 ||
-      shouldClusterEntityDatums(instances.length, zoom, this.#clusterEntityFootprintRadiusPx())
-    )
-      return 0;
-    if (this.#typicalOffsetMeters() <= 0) return 0;
+    if (this.#projection.instances.length === 0 || this.#typicalOffsetMeters() <= 0) return 0;
     return worldLocalRadiusPx(1, zoom, latitude) ** -1 * WORLD_ENTITY_FLOAT_PX;
   }
 
@@ -3884,8 +3848,8 @@ export class DeckWorldSurface implements WorldSurface {
     this.#labelDatumCache = labelResult?.byKey ?? new Map();
     const visibleLabels = labelResult ? this.#cameraFacingLabels(labelResult.datums) : [];
 
-    // Tethers remain in the retained data set during collapse so their width
-    // and alpha can reach zero at the exact place origin before disappearing.
+    // Tethers follow force-resolved member positions and are removed only at
+    // final cluster cleanup; their geometry is never renderer-interpolated.
     const tethers =
       clusterPhase === "collapsed"
         ? []
@@ -4021,7 +3985,7 @@ export class DeckWorldSurface implements WorldSurface {
         id: DECK_WORLD_LAYER_IDS.relationships,
         data: activeTemporalRelationships,
         dataComparator: sameDatumSequence,
-        pickable: clusterPhase === "expanded",
+        pickable: true,
         widthUnits: "pixels",
         getPath: (datum: DeckWorldTemporalRelationshipDatum) =>
           this.#temporalRelationshipStateFor(datum).edge.path,
@@ -4049,13 +4013,11 @@ export class DeckWorldSurface implements WorldSurface {
             this.#temporalRelationshipRevision,
             this.#relationshipStyleRevision,
             clusterPhase,
-            clusterPhase,
           ],
           getColor: [
             this.#palette,
             this.#temporalRelationshipRevision,
             this.#relationshipStyleRevision,
-            clusterPhase,
             clusterPhase,
           ],
         },
@@ -4173,7 +4135,7 @@ export class DeckWorldSurface implements WorldSurface {
               id: DECK_WORLD_LAYER_IDS.entityIcons,
               data: this.#cameraFacingEntities(iconDatums),
               dataComparator: sameDatumSequence,
-              pickable: clusterPhase === "expanded",
+              pickable: true,
               billboard: true,
               sizeUnits: "pixels",
               getPosition: (datum: DeckWorldEntityDatum) =>
@@ -4227,7 +4189,7 @@ export class DeckWorldSurface implements WorldSurface {
                   clusterPhase,
                   this.#dragPresentationRevision,
                 ],
-                getColor: [clusterPhase, clusterPhase, cameraFacingStep(this.#camera)],
+                getColor: [clusterPhase, cameraFacingStep(this.#camera)],
               },
               // GlobeView culls back faces; billboarded icon quads vanish
               // without this (same as the label TextLayer). Markers draw
@@ -4253,7 +4215,7 @@ export class DeckWorldSurface implements WorldSurface {
           (datum) => this.#edgeStyle(datum.edge, edgeFallbackColor(datum.edge)).arrow,
         ),
         dataComparator: sameDatumSequence,
-        pickable: clusterPhase === "expanded",
+        pickable: true,
         widthUnits: "pixels",
         widthMinPixels: 0,
         jointRounded: true,
