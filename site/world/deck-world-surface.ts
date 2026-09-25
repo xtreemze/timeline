@@ -629,10 +629,7 @@ export function clusterTargetPlaceIds(
     if (!sourcePlace || !targetPlace) continue;
     const sourceComponent = componentIndexByPlace.get(sourcePlace);
     const targetComponent = componentIndexByPlace.get(targetPlace);
-    if (
-      sourceComponent !== undefined &&
-      sourceComponent === targetComponent
-    ) {
+    if (sourceComponent !== undefined && sourceComponent === targetComponent) {
       componentEdgeCounts[sourceComponent] = (componentEdgeCounts[sourceComponent] ?? 0) + 1;
     }
   }
@@ -818,9 +815,7 @@ export function clusterEntityDatumsByPlace(
   minimumPlaceCount = 0,
 ): readonly DeckWorldEntityRenderDatum[] {
   const requiredPlaceCount =
-    Number.isFinite(minimumPlaceCount) && minimumPlaceCount > 0
-      ? Math.floor(minimumPlaceCount)
-      : 0;
+    Number.isFinite(minimumPlaceCount) && minimumPlaceCount > 0 ? Math.floor(minimumPlaceCount) : 0;
   type Anchor = ProjectedWorldInstance["geographicAnchors"][number];
   interface PlaceGroup {
     readonly placeId: PlaceId;
@@ -2608,8 +2603,10 @@ function interactionNeighborhood(
       const target = entityByInstance.get(edge.targetInstanceId);
       if (source) entityIds.add(source);
       if (target) entityIds.add(target);
-      for (const placeId of placesByInstance.get(edge.sourceInstanceId) ?? []) placeIds.add(placeId);
-      for (const placeId of placesByInstance.get(edge.targetInstanceId) ?? []) placeIds.add(placeId);
+      for (const placeId of placesByInstance.get(edge.sourceInstanceId) ?? [])
+        placeIds.add(placeId);
+      for (const placeId of placesByInstance.get(edge.targetInstanceId) ?? [])
+        placeIds.add(placeId);
       continue;
     }
 
@@ -4077,7 +4074,10 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   #availableLocalGraphRadiusPx(): number {
-    return Math.min(worldFloatingGraphRadiusPx(this.#camera.zoom), this.#viewportGraphRadiusLimitPx());
+    return Math.min(
+      worldFloatingGraphRadiusPx(this.#camera.zoom),
+      this.#viewportGraphRadiusLimitPx(),
+    );
   }
 
   #clusterMergeRadiusPx(): number {

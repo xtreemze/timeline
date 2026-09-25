@@ -30,9 +30,9 @@ type CaptureGeometry = {
 type CaptureStats = {
   requestedFps: number;
   minimumFps: number;
-  capturedFrames: number;
-  capturedDurationSeconds: number;
-  measuredFps: number;
+  capturedFrames: number | null;
+  capturedDurationSeconds: number | null;
+  measuredFps: number | null;
   browserFrames: number;
   browserDurationSeconds: number;
   browserFps: number;
@@ -363,40 +363,11 @@ async function startX11Capture(videoPath: string, geometry: CaptureGeometry) {
   };
 }
 
-async function probeSettledFrameTimestamps(videoPath: string) {
-  let timestamps = await probeFrameTimestamps(videoPath);
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    const first = timestamps[0];
-    const last = timestamps.at(-1);
-    if (
-      timestamps.length >= 2 &&
-      first !== undefined &&
-      last !== undefined &&
-      Number.isFinite(first) &&
-      Number.isFinite(last) &&
-      last > first
-    ) {
-      return timestamps;
-    }
-    await new Promise((resolve) => setTimeout(resolve, 100 * (attempt + 1)));
-    timestamps = await probeFrameTimestamps(videoPath);
-  }
-  return timestamps;
-}
-
-async function persistMeasuredCapture(
+async function persistCaptureEvidence(
   videoPath: string,
   browserTimestamps: number[],
   geometry: CaptureGeometry,
 ) {
-  const timestamps = await probeSettledFrameTimestamps(videoPath);
-  const captured = measureTimestamps(timestamps);
-  if (captured.fps < MIN_CAPTURE_FPS) {
-    throw new Error(
-      `Showcase raw X11 WebM decoded ${String(captured.frames)} actual frames across ${captured.durationSeconds.toFixed(3)}s (${captured.fps.toFixed(2)} fps); expected at least ${MIN_CAPTURE_FPS.toFixed(2)} fps before publication encoding.`,
-    );
-  }
-
   const browser = measureTimestamps(browserTimestamps, 1000);
   if (browser.fps < MIN_CAPTURE_FPS) {
     throw new Error(
@@ -407,15 +378,15 @@ async function persistMeasuredCapture(
   const stats: CaptureStats = {
     requestedFps: CAPTURE_FPS,
     minimumFps: MIN_CAPTURE_FPS,
-    capturedFrames: captured.frames,
-    capturedDurationSeconds: captured.durationSeconds,
-    measuredFps: captured.fps,
+    capturedFrames: null,
+    capturedDurationSeconds: null,
+    measuredFps: null,
     browserFrames: browser.frames,
     browserDurationSeconds: browser.durationSeconds,
     browserFps: browser.fps,
     codec: "vp8",
     geometry,
-    timestamps,
+    timestamps: [],
     browserTimestamps,
   };
   await writeFile(`${videoPath}.frames.json`, JSON.stringify(stats, null, 2));
@@ -528,7 +499,7 @@ async function recordSegment(
       await actions.dispose().catch(() => {});
     }
 
-    await persistMeasuredCapture(videoPath, browserTimestamps, geometry);
+    await persistCaptureEvidence(videoPath, browserTimestamps, geometry);
   } else {
     await body();
     await page.waitForTimeout(250);

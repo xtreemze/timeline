@@ -159,11 +159,11 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightSpec, /passthrough/);
   assert.match(highlightSpec, /libvpx/);
   assert.match(highlightSpec, /best_effort_timestamp_time/);
-  assert.match(highlightSpec, /probeSettledFrameTimestamps/);
+  assert.match(highlightSpec, /persistCaptureEvidence/);
   assert.match(highlightSpec, /requestAnimationFrame/);
   assert.match(highlightSpec, /CAPTURE_FPS\s*=\s*60/);
   assert.match(highlightSpec, /MIN_CAPTURE_FPS\s*=\s*CAPTURE_FPS\s*-\s*1/);
-  assert.match(highlightSpec, /captured\.fps\s*<\s*MIN_CAPTURE_FPS/);
+  assert.doesNotMatch(highlightSpec, /captured\.fps\s*<\s*MIN_CAPTURE_FPS/);
   assert.match(highlightSpec, /browser\.fps\s*<\s*MIN_CAPTURE_FPS/);
   assert.match(highlightSpec, /\.frames\.json/);
   assert.doesNotMatch(highlightSpec, /getDisplayMedia|MediaRecorder/);
@@ -188,6 +188,7 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightRenderer, /best_effort_timestamp_time/);
   assert.match(highlightRenderer, /probeFrameTimestamps/);
   assert.match(highlightRenderer, /raw WebM decodes at only/);
+  assert.match(highlightRenderer, /writeFile\(timingPath/);
   assert.match(highlightRenderer, /browser animation clock is only/);
   assert.match(highlightRenderer, /video\.codec !== "vp8"/);
   assert.match(highlightRenderer, /minimumMeasuredCaptureFps/);
