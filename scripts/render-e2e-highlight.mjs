@@ -247,7 +247,7 @@ async function renderFormFactor(formFactor, manifest) {
       );
       if (decoded.frameCount !== segment.capture.frameCount) {
         throw new Error(
-          `${formFactor}/${segment.name} encoded ${String(decoded.frameCount)} frames from ${String(segment.capture.frameCount)} captured compositor frames.`,
+          `${formFactor}/${segment.name} encoded ${String(decoded.frameCount)} frames from ${String(segment.capture.frameCount)} captured framebuffer samples.`,
         );
       }
       if (video.codec !== "vp8") {
