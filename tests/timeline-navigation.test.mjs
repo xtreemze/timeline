@@ -2,12 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 class FakeElement {
-  constructor(camera = false) {
-    this.camera = camera;
+  constructor(navigation = false, tagName = "DIV") {
+    this.navigation = navigation;
+    this.tagName = tagName;
   }
 
   closest(selector) {
-    if (this.camera && selector === '[data-surface-keyboard-navigation="camera"]') {
+    if (this.navigation && selector === "[data-surface-keyboard-navigation]") {
       return this;
     }
     return null;
@@ -27,6 +28,14 @@ test("keyboard maps TV remote, media and focused D-pad keys to presentation comm
   assert.equal(navigation.commandFromKeyboard(event("ArrowRight"), true), "next");
   assert.equal(navigation.commandFromKeyboard(event("ArrowUp"), true), "previous-media");
   assert.equal(navigation.commandFromKeyboard(event("ArrowRight"), false), null);
+});
+
+test("presentation commands yield to native detail controls while Escape remains global", () => {
+  const button = new FakeElement(false, "BUTTON");
+  assert.equal(navigation.commandFromKeyboard({ key: "Enter", target: button }, true), null);
+  assert.equal(navigation.commandFromKeyboard({ key: " ", target: button }, true), null);
+  assert.equal(navigation.commandFromKeyboard({ key: "ArrowRight", target: button }, true), null);
+  assert.equal(navigation.commandFromKeyboard({ key: "Escape", target: button }, true), "back");
 });
 
 test("presentation D-pad commands yield to focused camera surfaces", () => {
