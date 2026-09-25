@@ -208,7 +208,7 @@
           "lod": 0,
           "triangleCount": 84,
           "byteLength": 9872,
-          "materialCount": 0,
+          "materialCount": 4,
           "dimensionsMeters": [
             12,
             8.5,
@@ -220,7 +220,7 @@
           "lod": 1,
           "triangleCount": 60,
           "byteLength": 7192,
-          "materialCount": 0,
+          "materialCount": 3,
           "dimensionsMeters": [
             12,
             8.5,
@@ -232,7 +232,7 @@
           "lod": 2,
           "triangleCount": 36,
           "byteLength": 4532,
-          "materialCount": 0,
+          "materialCount": 2,
           "dimensionsMeters": [
             12,
             8.5,
@@ -244,7 +244,7 @@
           "lod": 3,
           "triangleCount": 12,
           "byteLength": 1844,
-          "materialCount": 0,
+          "materialCount": 1,
           "dimensionsMeters": [
             12,
             8.5,
@@ -310,7 +310,7 @@
           "lod": 0,
           "triangleCount": 60,
           "byteLength": 7160,
-          "materialCount": 0,
+          "materialCount": 3,
           "dimensionsMeters": [
             8.5,
             6.8,
@@ -322,7 +322,7 @@
           "lod": 1,
           "triangleCount": 48,
           "byteLength": 5752,
-          "materialCount": 0,
+          "materialCount": 2,
           "dimensionsMeters": [
             8.5,
             6.8,
@@ -334,7 +334,7 @@
           "lod": 2,
           "triangleCount": 36,
           "byteLength": 4380,
-          "materialCount": 0,
+          "materialCount": 1,
           "dimensionsMeters": [
             8.5,
             6.8,
@@ -346,7 +346,7 @@
           "lod": 3,
           "triangleCount": 12,
           "byteLength": 1840,
-          "materialCount": 0,
+          "materialCount": 1,
           "dimensionsMeters": [
             8.5,
             6.8,
@@ -412,7 +412,7 @@
           "lod": 0,
           "triangleCount": 72,
           "byteLength": 8436,
-          "materialCount": 0,
+          "materialCount": 3,
           "dimensionsMeters": [
             9.5,
             7.3,
@@ -424,7 +424,7 @@
           "lod": 1,
           "triangleCount": 48,
           "byteLength": 5752,
-          "materialCount": 0,
+          "materialCount": 2,
           "dimensionsMeters": [
             9.5,
             7.3,
@@ -436,7 +436,7 @@
           "lod": 2,
           "triangleCount": 36,
           "byteLength": 4540,
-          "materialCount": 0,
+          "materialCount": 2,
           "dimensionsMeters": [
             9.5,
             7.3,
@@ -448,7 +448,7 @@
           "lod": 3,
           "triangleCount": 12,
           "byteLength": 1844,
-          "materialCount": 0,
+          "materialCount": 1,
           "dimensionsMeters": [
             9.5,
             7.3,
@@ -523,7 +523,7 @@
           "lod": 0,
           "triangleCount": 84,
           "byteLength": 9892,
-          "materialCount": 0,
+          "materialCount": 5,
           "dimensionsMeters": [
             11,
             8.8,
@@ -535,7 +535,7 @@
           "lod": 1,
           "triangleCount": 60,
           "byteLength": 7296,
-          "materialCount": 0,
+          "materialCount": 4,
           "dimensionsMeters": [
             11,
             8.8,
@@ -547,7 +547,7 @@
           "lod": 2,
           "triangleCount": 36,
           "byteLength": 4516,
-          "materialCount": 0,
+          "materialCount": 2,
           "dimensionsMeters": [
             11,
             8.8,
@@ -559,7 +559,7 @@
           "lod": 3,
           "triangleCount": 12,
           "byteLength": 1816,
-          "materialCount": 0,
+          "materialCount": 1,
           "dimensionsMeters": [
             11,
             8.8,
