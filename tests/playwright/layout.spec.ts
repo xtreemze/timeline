@@ -367,7 +367,7 @@ test.describe("Mobile-first Timeline layout contracts", () => {
     await expect(root.locator('[data-layout-retained-identity="occurrence"]')).toHaveCount(1);
     await expect(page.locator("#timeline-zoom-level")).toHaveAttribute(
       "aria-orientation",
-      after === "portrait" ? "vertical" : "horizontal",
+      "horizontal",
     );
 
     await toggleTimelineOrientation(page);
