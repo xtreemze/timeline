@@ -9,6 +9,7 @@ import {
   sourceId,
   storyId,
   validateCategory,
+  validatePlace,
   validateChronology,
   validateOccurrence,
   validateStory,
@@ -103,4 +104,39 @@ test("chronology validation reports broken category and story occurrence referen
 test("canonical IDs reject blank occurrence and category identifiers", () => {
   assert.throws(() => occurrenceId("   "), /Occurrence ID/);
   assert.throws(() => categoryId("   "), /Category ID/);
+});
+
+
+test("canonical places preserve geographic meaning without renderer styling", () => {
+  const place = {
+    id: placeId("office"),
+    name: "Office",
+    geographicIdentifier: "",
+    address: "Example Street",
+    geometry: { type: "Point", coordinates: [18.0686, 59.3293] },
+    crs: "OGC:CRS84",
+    radiusMeters: 25,
+    sourceIds: [sourceId("source-a")],
+    attributes: {},
+  };
+
+  assert.equal(validatePlace(place).valid, true);
+  assert.equal(
+    validatePlace({
+      ...place,
+      geometry: {
+        type: "Polygon",
+        coordinates: [
+          [
+            [18, 59],
+            [18.1, 59],
+            [18.1, 59.1],
+            [18, 59],
+          ],
+        ],
+      },
+      radiusMeters: 25,
+    }).valid,
+    false,
+  );
 });
