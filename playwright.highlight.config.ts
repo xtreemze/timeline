@@ -15,6 +15,7 @@ export default defineConfig({
     screenshot: "off",
     video: "off",
     actionTimeout: 10_000,
+    headless: false,
     channel: "chrome",
     launchOptions: {
       args: [
@@ -23,6 +24,9 @@ export default defineConfig({
         "--disable-backgrounding-occluded-windows",
         "--disable-frame-rate-limit",
         "--disable-gpu-vsync",
+        "--kiosk",
+        "--start-maximized",
+        "--window-position=0,0",
       ],
     },
   },
@@ -34,6 +38,7 @@ export default defineConfig({
       use: {
         ...devices["Desktop Chrome"],
         viewport: { width: 1440, height: 900 },
+        screen: { width: 1440, height: 900 },
       },
     },
     {
@@ -41,6 +46,7 @@ export default defineConfig({
       use: {
         ...devices["Pixel 5"],
         viewport: { width: 390, height: 844 },
+        screen: { width: 390, height: 844 },
         hasTouch: true,
         isMobile: true,
       },
