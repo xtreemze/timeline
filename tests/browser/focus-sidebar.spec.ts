@@ -86,6 +86,32 @@ test("focused detail is shell-owned while contextual actions stay on the timelin
   await expect(focus).toBeHidden();
 });
 
+test("focused detail owns local keyboard controls and restores the invoking card", async ({
+  page,
+}) => {
+  const terminal = await ensureSample(page);
+  await terminal.focus();
+  await terminal.press("Enter");
+
+  const focus = page.locator("#timeline-focus-view");
+  await expect(focus).toBeVisible();
+  await expect(focus).toBeFocused();
+
+  await page.keyboard.press("Tab");
+  const contextTab = focus.getByRole("tab", { name: "Context" });
+  const evidenceTab = focus.getByRole("tab", { name: "Evidence" });
+  await expect(contextTab).toBeFocused();
+
+  await contextTab.press("ArrowRight");
+  await expect(evidenceTab).toBeFocused();
+  await expect(evidenceTab).toHaveAttribute("aria-selected", "true");
+  await expect(focus.locator("#timeline-focus-evidence-panel")).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(focus).toBeHidden();
+  await expect(terminal).toBeFocused();
+});
+
 test("landscape keeps the timeline as a bottom rail and layers detail over the graph canvas", async ({
   page,
 }) => {
