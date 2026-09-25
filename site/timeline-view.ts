@@ -832,8 +832,7 @@ export class TimelineViewController {
       this.viewport = target;
       const pointerVelocity = motion.estimatePointerVelocity(drag.samples);
       const instantaneousVelocity = -((pointerVelocity / usable) * span);
-      this.interactionVelocity +=
-        (instantaneousVelocity - this.interactionVelocity) * response;
+      this.interactionVelocity += (instantaneousVelocity - this.interactionVelocity) * response;
       this.markInputForNextRender();
       this.scheduleInteractionRender();
     });
@@ -2803,7 +2802,9 @@ export class TimelineViewController {
     record.range?.classList.toggle("is-selected", selected);
   }
 
-  positionRecord(record: SceneRecord,
+  positionRecord(record: SceneRecord, ...args: [number, number, number, number, number]): void;
+  positionRecord(
+    record: SceneRecord,
     _primaryLength: number,
     axisCross: number,
     padding: number,
