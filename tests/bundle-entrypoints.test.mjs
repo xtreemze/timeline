@@ -22,6 +22,7 @@ test("deferred spatial view replays state after its renderer loads", async () =>
   view.setPresentationMode?.(true);
   view.refreshLayout?.();
 
+  await Promise.resolve();
   resolveFactory({
     create() {
       return {

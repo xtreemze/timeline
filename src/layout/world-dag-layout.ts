@@ -172,9 +172,12 @@ function primaryAnchor(instance: ProjectedWorldInstance): SpatialAnchor | null {
   );
 }
 
-function buildLayoutIndex(projection: WorldProjection): LayoutIndex {
+function buildLayoutIndex(projection: WorldProjection): LayoutIndex & {
+  readonly crossPlaceInstanceIds: ReadonlySet<WorldInstanceId>;
+} {
   const mutableInstancesByPlace = new Map<PlaceId, ProjectedWorldInstance[]>();
   const primaryPlaceByInstance = new Map<WorldInstanceId, PlaceId>();
+  const crossPlaceInstanceIds = new Set<WorldInstanceId>();
 
   for (const instance of projection.instances) {
     const anchor = primaryAnchor(instance);
@@ -196,7 +199,11 @@ function buildLayoutIndex(projection: WorldProjection): LayoutIndex {
     }
     const sourcePlace = primaryPlaceByInstance.get(edge.sourceInstanceId);
     const targetPlace = primaryPlaceByInstance.get(edge.targetInstanceId);
-    if (!sourcePlace || sourcePlace !== targetPlace) continue;
+    if (!sourcePlace || sourcePlace !== targetPlace) {
+      crossPlaceInstanceIds.add(edge.sourceInstanceId);
+      crossPlaceInstanceIds.add(edge.targetInstanceId);
+      continue;
+    }
     const group = mutableEdgesByPlace.get(sourcePlace);
     if (group) group.push(edge);
     else mutableEdgesByPlace.set(sourcePlace, [edge]);
@@ -227,7 +234,11 @@ function buildLayoutIndex(projection: WorldProjection): LayoutIndex {
     );
   }
 
-  return { instancesByPlace, edgesByPlace };
+  return {
+    instancesByPlace,
+    edgesByPlace,
+    crossPlaceInstanceIds: Object.freeze(crossPlaceInstanceIds),
+  };
 }
 
 function reaches(
@@ -901,7 +912,7 @@ function chooseCandidate(
   const gap = layoutGap(sizes);
   const previousName = stableAlgorithmName(previousAlgorithm);
 
-  if (nodeIds.length === 0 || edges.length === 0) {
+  if (nodeIds.length === 0) {
     return Object.freeze({
       name: "sparse-force-only",
       targets: Object.freeze([]),
@@ -1035,6 +1046,7 @@ function layoutPlace(
   candidateEdges: readonly ProjectedWorldEdge[],
   options: WorldDagLayoutOptions,
   revision: number,
+  crossPlaceInstanceIds: ReadonlySet<WorldInstanceId>,
 ): PlaceLayoutCache["result"] {
   const nodeIds = instances.map((instance) => instance.id);
   const nodeIdSet = new Set(nodeIds);
@@ -1044,6 +1056,9 @@ function layoutPlace(
   for (const edge of edges) {
     structuredNodeSet.add(edge.sourceId);
     structuredNodeSet.add(edge.targetId);
+  }
+  for (const id of crossPlaceInstanceIds) {
+    if (nodeIdSet.has(id)) structuredNodeSet.add(id);
   }
   const structuredNodeIds = nodeIds.filter((id) => structuredNodeSet.has(id));
   const key = topologyKey(placeId, nodeIds, edges, sizes);
@@ -1160,6 +1175,7 @@ export function createWorldDagLayout(
       index.edgesByPlace.get(placeId) ?? Object.freeze([]),
       options,
       revision,
+      index.crossPlaceInstanceIds,
     );
     targets.push(...result.targets);
     routes.push(...result.routes);
