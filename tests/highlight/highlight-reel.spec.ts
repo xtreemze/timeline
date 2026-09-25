@@ -7,6 +7,7 @@ import { expect, test } from "@playwright/test";
 const OUTPUT_ROOT = path.resolve(process.env.E2E_MEDIA_DIR ?? "artifacts/e2e-media");
 const CAPTURE_FPS = 60;
 const MIN_CAPTURE_FPS = CAPTURE_FPS - 1;
+const MAX_CAPTURE_FPS = CAPTURE_FPS + 1;
 const FFMPEG = process.env.FFMPEG_BIN ?? "ffmpeg";
 const FFPROBE = process.env.FFPROBE_BIN ?? "ffprobe";
 
@@ -30,6 +31,7 @@ type CaptureGeometry = {
 type CaptureStats = {
   requestedFps: number;
   minimumFps: number;
+  maximumFps: number;
   capturedFrames: number;
   capturedDurationSeconds: number;
   measuredFps: number;
@@ -354,22 +356,23 @@ async function persistMeasuredCapture(
 ) {
   const timestamps = await probeFrameTimestamps(videoPath);
   const captured = measureTimestamps(timestamps);
-  if (captured.fps < MIN_CAPTURE_FPS) {
+  if (captured.fps < MIN_CAPTURE_FPS || captured.fps > MAX_CAPTURE_FPS) {
     throw new Error(
-      `Showcase raw X11 WebM decoded ${String(captured.frames)} actual frames across ${captured.durationSeconds.toFixed(3)}s (${captured.fps.toFixed(2)} fps); expected at least ${MIN_CAPTURE_FPS.toFixed(2)} fps before publication encoding.`,
+      `Showcase raw X11 WebM decoded ${String(captured.frames)} actual frames across ${captured.durationSeconds.toFixed(3)}s (${captured.fps.toFixed(2)} fps); expected native ${MIN_CAPTURE_FPS.toFixed(2)}-${MAX_CAPTURE_FPS.toFixed(2)} fps before publication encoding.`,
     );
   }
 
   const browser = measureTimestamps(browserTimestamps, 1000);
-  if (browser.fps < MIN_CAPTURE_FPS) {
+  if (browser.fps < MIN_CAPTURE_FPS || browser.fps > MAX_CAPTURE_FPS) {
     throw new Error(
-      `Showcase browser scheduled ${String(browser.frames)} animation frames across ${browser.durationSeconds.toFixed(3)}s (${browser.fps.toFixed(2)} fps); expected at least ${MIN_CAPTURE_FPS.toFixed(2)} fps while recording.`,
+      `Showcase browser scheduled ${String(browser.frames)} animation frames across ${browser.durationSeconds.toFixed(3)}s (${browser.fps.toFixed(2)} fps); expected display-paced ${MIN_CAPTURE_FPS.toFixed(2)}-${MAX_CAPTURE_FPS.toFixed(2)} fps while recording.`,
     );
   }
 
   const stats: CaptureStats = {
     requestedFps: CAPTURE_FPS,
     minimumFps: MIN_CAPTURE_FPS,
+    maximumFps: MAX_CAPTURE_FPS,
     capturedFrames: captured.frames,
     capturedDurationSeconds: captured.durationSeconds,
     measuredFps: captured.fps,
@@ -658,6 +661,7 @@ test("records source-native Lūm showcase media per form factor", async ({ page 
         captureViewport: settings.size,
         captureFps: CAPTURE_FPS,
         minimumMeasuredCaptureFps: MIN_CAPTURE_FPS,
+        maximumMeasuredCaptureFps: MAX_CAPTURE_FPS,
         transitionSeconds: 0.28,
         stillSeconds: 0.9,
         motionSceneCount: segments.filter((segment) => segment.mediaMode === "motion").length,
