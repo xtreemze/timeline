@@ -9,6 +9,7 @@
  */
 
 export type SurfacePointerType = "mouse" | "touch" | "pen" | "unknown";
+export type SurfaceInteractionRole = "action" | "detail";
 export type SurfaceActivation = "activate" | "cancel" | null;
 export type SurfaceCursorIntent = "background" | "action" | "draggable" | "cluster";
 export type SurfaceNavigationAxis = "horizontal" | "vertical";
@@ -24,6 +25,7 @@ interface SurfaceKeyboardTargetLike {
   readonly tagName?: unknown;
   readonly isContentEditable?: unknown;
   readonly closest?: unknown;
+  readonly getAttribute?: unknown;
 }
 
 interface SurfaceKeyboardEventLike {
@@ -55,6 +57,31 @@ export function surfacePointerType(event: unknown): SurfacePointerType {
     return pointerType;
   }
   return "unknown";
+}
+
+/**
+ * Semantic role of an embedded interaction target.
+ *
+ * "action" identifies a retained-scene target that can begin as a tap and
+ * later promote to its parent surface's direct manipulation. "detail"
+ * identifies focused/detail UI that is locally interactive and must not be
+ * mistaken for background camera input.
+ */
+export function surfaceInteractionRoleFromTarget(target: unknown): SurfaceInteractionRole | null {
+  const candidate = record(target) as SurfaceKeyboardTargetLike | null;
+  const closest = candidate?.closest;
+  if (typeof closest !== "function") return null;
+
+  try {
+    const boundary = closest.call(candidate, "[data-surface-interaction]");
+    const boundaryRecord = record(boundary) as SurfaceKeyboardTargetLike | null;
+    const getAttribute = boundaryRecord?.getAttribute;
+    if (typeof getAttribute !== "function") return null;
+    const role = getAttribute.call(boundaryRecord, "data-surface-interaction");
+    return role === "action" || role === "detail" ? role : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -123,8 +150,9 @@ export function surfaceKeyboardMayNavigate(event: SurfaceKeyboardEventLike): boo
 /**
  * True when the keyboard event originated inside a renderer/custom surface
  * that owns local navigation. Application-level presentation shortcuts use
- * this to avoid competing with deck.gl/mjolnir, Leaflet, or the retained
- * timeline while focus is inside one of those surfaces.
+ * this to avoid competing with deck.gl/mjolnir, Leaflet, the retained
+ * timeline, or local detail/tab navigation while focus is inside one of those
+ * surfaces.
  */
 export function surfaceKeyboardTargetOwnsNavigation(event: unknown): boolean {
   const keyboardEvent = record(event);
@@ -132,7 +160,7 @@ export function surfaceKeyboardTargetOwnsNavigation(event: unknown): boolean {
   const closest = target?.closest;
   if (typeof closest !== "function") return false;
   try {
-    return Boolean(closest.call(target, '[data-surface-keyboard-navigation="camera"]'));
+    return Boolean(closest.call(target, "[data-surface-keyboard-navigation]"));
   } catch {
     return false;
   }
