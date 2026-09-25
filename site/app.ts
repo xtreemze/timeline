@@ -1589,7 +1589,7 @@ function syncTimelineContextControls() {
       : editableFocus
         ? "Edit focused event"
         : "Edit timeline";
-    els.editorToggle.disabled = focused && !editableFocus && !ui.editorOpen;
+    els.editorToggle.disabled = false;
     els.editorToggle.setAttribute("aria-label", label);
     els.editorToggle.title = label;
     const visibleLabel = els.editorToggle.querySelector(".app-tool-label");
@@ -4361,9 +4361,9 @@ els.editorToggle?.addEventListener("click", () => {
   }
   const focusedId = timelineView?.focusedItemId?.() || null;
   const navigation = focusedId ? timelineView?.focusNavigationState?.() : null;
-  if (focusedId && navigation?.editable !== true) return;
+  const focusedEditableId = focusedId && navigation?.editable === true ? focusedId : null;
   setEditorSurfaceOpen(true);
-  if (focusedId) beginItemEdit(focusedId);
+  if (focusedEditableId) beginItemEdit(focusedEditableId);
 });
 els.panelOpeners.forEach((button) => {
   button.addEventListener("click", () => setActivePanel(button.dataset.openPanel));
