@@ -115,7 +115,7 @@ test("cycle breaking preserves higher-temporal-weight relationships for hierarch
   assert.equal(layout.metrics.localEdgeCount, 2);
 });
 
-test("layout quality adapts operators to neighborhood size", () => {
+test("layout quality keeps greedy coordinate assignment across neighborhood sizes", () => {
   const smallInstances = Array.from({ length: 6 }, (_, index) => instance(`small-${index}`));
   const small = createWorldProjection({
     instances: smallInstances,
@@ -124,7 +124,7 @@ test("layout quality adapts operators to neighborhood size", () => {
       .map((item, index) => edge(`small-edge-${index}`, smallInstances[index], item)),
   });
   const smallLayout = createWorldDagLayout(small);
-  assert.equal(smallLayout.metrics.algorithmCounts["longest-opt-simplex"], 1);
+  assert.equal(smallLayout.metrics.algorithmCounts["longest-opt-greedy"], 1);
 
   const largeInstances = Array.from({ length: 70 }, (_, index) => instance(`large-${index}`));
   const large = createWorldProjection({
