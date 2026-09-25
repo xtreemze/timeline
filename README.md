@@ -66,7 +66,7 @@ The product is browser-first and backend-free. Hosting the application does not 
 
 ## Product showcase
 
-The showcase media is generated from the real application in headed Chromium CI. Static states use source-resolution PNG screenshots. Motion is sampled from an exact-size Xvfb framebuffer at 60 Hz with FFmpeg `x11grab` into an ephemeral uncompressed rawvideo NUT stream using timestamp passthrough; compression is deferred until after capture so the recorder does not steal encode CPU from Chromium. That pre-encode source must decode at at least 59 fps across 95% of the recording window while the browser's own frame clock independently sustains at least 59 fps. Only after both gates pass is the captured sequence compressed one-frame-for-one-frame to VP8 WebM for retained evidence. Only then are 60 fps animated WebP and highlight reels produced and decoded again for verification.
+The showcase media is generated from the real application in headed Chromium CI. Static states use source-resolution PNG framebuffer captures. Motion uses Chromium current-tab capture constrained to 60 fps and VP8, while `MediaStreamTrackProcessor` records source-frame timestamps independently of the encoder. The source evidence must measure at least 59 fps across 95% of the recording window while the browser's own `requestAnimationFrame` clock independently sustains at least 59 fps. The retained VP8 WebM is then decoded with FFprobe and must independently clear the same cadence and coverage checks before 60 fps animated WebP and highlight reels are emitted and decoded again for verification.
 
 | Flow | Desktop | Mobile |
 | --- | --- | --- |
