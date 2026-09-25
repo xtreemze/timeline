@@ -1,4 +1,7 @@
-import { createInteractionCoordinator } from "../src/interaction/interaction-coordinator.ts";
+import {
+  createInteractionCoordinator,
+  type InteractionCoordinator,
+} from "../src/interaction/interaction-coordinator.ts";
 import { createSurfaceInteractionController } from "../src/interaction/surface-controller.ts";
 import { surfacePointerMayStartDirectManipulation } from "../src/interaction/surface-input-policy.ts";
 import { Leaflet } from "../src/leaflet-entry.js";
@@ -112,6 +115,7 @@ interface ReadOnlyLocationMapOptions {
   interactive?: boolean;
   countryContextIntro?: boolean;
   fictionalReferenceFrame?: boolean;
+  interaction?: InteractionCoordinator;
 }
 
 interface LocationMapControllerOptions {
@@ -123,6 +127,7 @@ interface LocationMapControllerOptions {
   source?: HTMLInputElement;
   geolocation?: HTMLElement;
   clearButton?: HTMLElement;
+  interaction?: InteractionCoordinator;
 }
 
 function loadLeaflet(): Promise<any> {
@@ -289,14 +294,12 @@ function installWeightedMapDragging(
   map: any,
   container: HTMLElement,
   interactive = true,
+  interaction: InteractionCoordinator = createInteractionCoordinator(),
 ): () => void {
   if (!interactive || !map || !container || !weightedMapDragAvailable()) return () => {};
 
   const pointers = new Map<number, PointerState>();
-  const surfaceInteraction = createSurfaceInteractionController(
-    "map",
-    createInteractionCoordinator(),
-  );
+  const surfaceInteraction = createSurfaceInteractionController("map", interaction);
   let drag: DragState | null = null;
   let inertiaAnimationFrame = 0;
   let suppressClickUntil = 0;
@@ -781,6 +784,7 @@ class ReadOnlyLocationMap {
   interactive: boolean;
   countryContextIntro: boolean;
   fictionalReferenceFrame: boolean;
+  interaction: InteractionCoordinator;
   map: any;
   placePlaceholder: HTMLElement | null;
   layers: any[];
@@ -812,6 +816,7 @@ class ReadOnlyLocationMap {
     this.interactive = options.interactive === true;
     this.countryContextIntro = options.countryContextIntro === true;
     this.fictionalReferenceFrame = options.fictionalReferenceFrame === true;
+    this.interaction = options.interaction ?? createInteractionCoordinator();
     this.map = null;
     this.placePlaceholder = null;
     this.layers = [];
@@ -913,10 +918,12 @@ class ReadOnlyLocationMap {
         touchZoom: true,
         ...mapMotionOptions(this.interactive),
       });
+      if (this.interactive) this.container.dataset.surfaceKeyboardNavigation = "camera";
       this.weightedDragCleanup = installWeightedMapDragging(
         this.map,
         this.container,
         this.interactive,
+        this.interaction,
       );
       this.resizeCleanup = observeMapSize(this.map, this.container, () => {
         this.confirmGeometryVisible();
@@ -1187,7 +1194,10 @@ class ReadOnlyLocationMap {
     this.basemapCleanup = null;
     this.clearPlacePlaceholder();
     this.container?.classList.remove("is-fictional-map");
-    if (this.container) delete this.container.dataset.referenceFrame;
+    if (this.container) {
+      delete this.container.dataset.referenceFrame;
+      delete this.container.dataset.surfaceKeyboardNavigation;
+    }
     this.layers = [];
     this.map?.remove();
     this.map = null;
@@ -1210,6 +1220,7 @@ class LocationMapController {
   resizeCleanup: (() => void) | null;
   basemapCleanup: (() => void) | null;
   providers: MapProvider[];
+  interaction: InteractionCoordinator;
 
   constructor(options: LocationMapControllerOptions) {
     this.container = options.container;
@@ -1220,6 +1231,7 @@ class LocationMapController {
     this.source = options.source;
     this.geolocation = options.geolocation;
     this.clearButton = options.clearButton;
+    this.interaction = options.interaction ?? createInteractionCoordinator();
     this.map = null;
     this.marker = null;
     this.weightedDragCleanup = null;
@@ -1277,7 +1289,13 @@ class LocationMapController {
         dragging: !weightedDrag,
         ...mapMotionOptions(true),
       }).setView([20, 0], 2);
-      this.weightedDragCleanup = installWeightedMapDragging(this.map, this.container, true);
+      this.container.dataset.surfaceKeyboardNavigation = "camera";
+      this.weightedDragCleanup = installWeightedMapDragging(
+        this.map,
+        this.container,
+        true,
+        this.interaction,
+      );
       this.resizeCleanup = observeMapSize(this.map, this.container, () => {
         this.updateFromInputs(false);
       });
@@ -1371,6 +1389,7 @@ class LocationMapController {
     this.marker = null;
     this.map?.remove();
     this.map = null;
+    delete this.container.dataset.surfaceKeyboardNavigation;
   }
 }
 
