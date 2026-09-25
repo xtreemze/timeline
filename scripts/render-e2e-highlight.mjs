@@ -78,7 +78,8 @@ async function probeFrameStats(filePath) {
     filePath,
   ]);
   const timestamps = stdout
-    .split(/\r?\n/u)
+    .split(/\r?
+/u)
     .map((value) => Number(value.trim()))
     .filter((value) => Number.isFinite(value));
   if (timestamps.length < 2) {
@@ -174,7 +175,8 @@ function assertManifest(manifest, formFactor) {
     );
   }
   for (const segment of motion) {
-    if (!segment.video)\n      throw new Error(`Motion scene ${segment.name} is missing its native Chromium recording`);
+    if (!segment.video)
+      throw new Error(`Motion scene ${segment.name} is missing its native Chromium recording`);
     if (segment.requestedFps !== manifest.captureFps) {
       throw new Error(`Motion scene ${segment.name} did not request the showcase capture cadence`);
     }
@@ -476,13 +478,15 @@ const markdown = [
       "",
     ]),
   ]),
-].join("\n");
+].join("
+");
 
 await writeFile(markdownPath, markdown);
 await rm(workDir, { recursive: true, force: true });
 
 for (const formFactor of formFactors) {
-  console.log(`\n${formFactor.toUpperCase()} showcase sizes`);
+  console.log(`
+${formFactor.toUpperCase()} showcase sizes`);
   for (const media of rendered[formFactor].media) {
     const dimensions = `${media.source.width}x${media.source.height}`;
     const rate = media.source.fps ? ` @ ${media.source.fps} fps` : "";
