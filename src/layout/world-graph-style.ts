@@ -225,6 +225,38 @@ export function worldNodeStyle(
   });
 }
 
+interface WorldPlaceMarkerMetrics {
+  readonly radius: number;
+  readonly borderWidth: number;
+  readonly shape: WorldNodeShape;
+}
+
+function worldPlaceMarkerMetrics(placeStyle: unknown): WorldPlaceMarkerMetrics {
+  const own = record(placeStyle) ?? {};
+  const marker = record(own["marker"]) ?? {};
+  const metrics = worldPlaceMarkerMetrics(placeStyle);
+  return Object.freeze({
+    radius: metrics.radius,
+    borderWidth: metrics.borderWidth,
+    shape: metrics.shape,
+  });
+}
+
+/** Full visible footprint of a place marker, including shape extent and border. */
+export function worldPlaceVisualFootprintRadiusPx(placeStyle: unknown): number {
+  const metrics = worldPlaceMarkerMetrics(placeStyle);
+  return metrics.radius * worldNodeShapeVisualRadiusScale(metrics.shape) + metrics.borderWidth;
+}
+
+/**
+ * Layout/picking footprint for a place anchor. Like entity nodes, an anchor
+ * reserves at least the 44px interaction footprint even when its marker is
+ * visually smaller.
+ */
+export function worldPlaceFootprintRadiusPx(placeStyle: unknown): number {
+  return Math.max(WORLD_ENTITY_MIN_HIT_RADIUS_PX, worldPlaceVisualFootprintRadiusPx(placeStyle));
+}
+
 /** Place anchors use the same marker grammar as graph nodes without becoming semantic graph nodes. */
 export function worldPlaceStyle(
   placeStyle: unknown,
