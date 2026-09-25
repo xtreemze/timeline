@@ -21,6 +21,11 @@ import {
   worldClusterShowsReleasingEdges,
   worldClusterWantsCollapsed,
 } from "../../src/layout/world-cluster-transition.ts";
+import {
+  WORLD_TEMPORAL_REVEAL_MS,
+  worldTemporalRevealProgress,
+  type WorldTemporalRevealProgress,
+} from "../../src/layout/world-temporal-reveal.ts";
 import type { WorldRelationshipRouteHint } from "../../src/layout/world-force-simulation.ts";
 import {
   resolveWorldLocalLayoutPosition,
@@ -85,6 +90,7 @@ import {
   worldSelectionFromHit,
 } from "../../src/layout/world-surface.ts";
 import type {
+  ProjectedWorldEdge,
   ProjectedWorldInstance,
   WorldInstanceId,
   WorldPresentationStyle,
@@ -102,7 +108,7 @@ import {
   type WorldLineBounds,
   worldGraticule,
 } from "./world-basemap.ts";
-import { worldNodeMarker } from "./world-node-marker.ts";
+import { worldNodeBorderMarker, worldNodeMarker } from "./world-node-marker.ts";
 
 export const DECK_WORLD_LAYER_IDS = Object.freeze({
   places: "lum-world-places",
@@ -113,6 +119,7 @@ export const DECK_WORLD_LAYER_IDS = Object.freeze({
   relationshipDirections: "lum-world-relationship-directions",
   labels: "lum-world-labels",
   entityIcons: "lum-world-entity-icons",
+  entityBorderTransitions: "lum-world-entity-border-transitions",
   earth: "lum-world-earth",
   tethers: "lum-world-tethers",
   graticule: "lum-world-graticule",
@@ -232,6 +239,16 @@ interface DeckWorldTemporalRelationshipDatum {
 interface DeckWorldTemporalRelationshipState {
   readonly edge: DeckWorldRelationshipDatum;
   readonly temporalActive: boolean;
+}
+
+interface DeckWorldTemporalRevealState {
+  readonly startedAt: number;
+  readonly enteringInstanceIds: ReadonlySet<WorldInstanceId>;
+  readonly exitingInstanceIds: ReadonlySet<WorldInstanceId>;
+  readonly enteringRelationshipIds: ReadonlySet<RelationshipId>;
+  readonly exitingRelationshipIds: ReadonlySet<RelationshipId>;
+  readonly outgoingInstances: readonly ProjectedWorldInstance[];
+  readonly outgoingEdges: readonly ProjectedWorldEdge[];
 }
 
 interface DeckWorldTether {
@@ -1096,6 +1113,23 @@ const BASE_CAPABILITIES = Object.freeze({
 });
 
 type Rgba = [number, number, number, number];
+
+function mixWorldColorBytes(
+  from: string,
+  to: string,
+  progress: number,
+  alpha = 255,
+): Rgba {
+  const t = Math.min(1, Math.max(0, progress));
+  const left = worldColorBytes(from);
+  const right = worldColorBytes(to);
+  const channel = (index: 0 | 1 | 2) =>
+    Math.round(left[index] + (right[index] - left[index]) * t);
+  const mixedAlpha = Math.round(
+    (left[3] + (right[3] - left[3]) * t) * (Math.min(255, Math.max(0, alpha)) / 255),
+  );
+  return [channel(0), channel(1), channel(2), mixedAlpha];
+}
 
 /** Theme-derived colours for the non-graph layers (basemap, labels, clusters). */
 const WORLD_TETHER_WIDTH_PX = 0.6;
@@ -2787,6 +2821,9 @@ export class DeckWorldSurface implements WorldSurface {
   #clusterPlaceIds: readonly PlaceId[] = Object.freeze([]);
   #clusterEdgeReleaseTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
   #clusterSettleTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
+  #temporalReveal: DeckWorldTemporalRevealState | null = null;
+  #temporalRevealTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
+  #temporalRevealRevision = 0;
   #activeDragPointerId: number | null = null;
   #activeDragInstanceId: WorldInstanceId | null = null;
   #dragFlashInstanceId: WorldInstanceId | null = null;
