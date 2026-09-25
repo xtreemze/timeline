@@ -22,32 +22,6 @@ type SceneIntent = {
   mediaMode: ShowcaseMediaMode;
 };
 
-type ScreencastFrame = {
-  data: string;
-  timestampSeconds: number;
-};
-
-type ScreencastFrameEvent = {
-  data?: unknown;
-  metadata?: { timestamp?: unknown };
-  sessionId?: unknown;
-};
-
-type RawCdpSession = {
-  send(method: string, params?: Record<string, unknown>): Promise<unknown>;
-  on(event: string, listener: (payload: ScreencastFrameEvent) => void): void;
-  off(event: string, listener: (payload: ScreencastFrameEvent) => void): void;
-  detach(): Promise<void>;
-};
-
-type DirectScreencast = {
-  session: CDPSession;
-  raw: RawCdpSession;
-  frames: ScreencastFrame[];
-  pendingAcks: Set<Promise<void>>;
-  onFrame: (payload: ScreencastFrameEvent) => void;
-};
-
 type ShowcaseSegment = SceneIntent & {
   video: string | null;
   screenshot: string;
@@ -60,9 +34,7 @@ type ShowcaseSegment = SceneIntent & {
     durationSeconds: number;
     recordingWindowSeconds: number;
     frameTimestampsMs: number[];
-    method: "cdp-screencast-source-frames";
-    jpegQuality: number;
-    maxFramesInFlight: number;
+    method: "ffmpeg-x11grab-vp8";
     browserFrameClockFps: number;
   } | null;
 };
@@ -199,117 +171,125 @@ async function stopCaptureHeartbeat(page: Page) {
   });
 }
 
-const SCREENCAST_JPEG_QUALITY = 70;
-const SCREENCAST_MAX_FRAMES_IN_FLIGHT = 12;
+type X11Capture = {
+  child: ReturnType<typeof spawn>;
+  exited: Promise<void>;
+};
 
-function run(command: string, args: string[]) {
-  return new Promise<void>((resolve, reject) => {
+function capture(command: string, args: string[]) {
+  return new Promise<string>((resolve, reject) => {
     const child = spawn(command, args, {
-      stdio: ["ignore", "inherit", "inherit"],
+      stdio: ["ignore", "pipe", "inherit"],
       env: process.env,
+    });
+    let stdout = "";
+    child.stdout?.on("data", (chunk) => {
+      stdout += String(chunk);
     });
     child.on("error", reject);
     child.on("exit", (code, signal) => {
-      if (code === 0) resolve();
+      if (code === 0) resolve(stdout);
       else reject(new Error(`${command} exited with ${String(code ?? signal)}`));
     });
   });
 }
 
-async function startDirectScreencast(
-  page: Page,
+async function startX11Capture(
+  videoPath: string,
   captureSize: { width: number; height: number },
-): Promise<DirectScreencast> {
-  const session = await page.context().newCDPSession(page);
-  const raw = session as unknown as RawCdpSession;
-  const frames: ScreencastFrame[] = [];
-  const pendingAcks = new Set<Promise<void>>();
+): Promise<X11Capture> {
+  const display = process.env.DISPLAY;
+  if (!display) throw new Error("DISPLAY is required for the showcase framebuffer recorder.");
 
-  const onFrame = (payload: ScreencastFrameEvent) => {
-    const sessionId = Number(payload?.sessionId);
-    const data = typeof payload?.data === "string" ? payload.data : "";
-    const timestampSeconds = Number(payload?.metadata?.timestamp);
-
-    if (data && Number.isFinite(timestampSeconds)) {
-      frames.push({ data, timestampSeconds });
-    }
-
-    if (Number.isFinite(sessionId)) {
-      const ack = raw
-        .send("Page.screencastFrameAck", { sessionId })
-        .then(() => undefined)
-        .catch(() => undefined)
-        .finally(() => pendingAcks.delete(ack));
-      pendingAcks.add(ack);
-    }
-  };
-
-  raw.on("Page.screencastFrame", onFrame);
-  await raw.send("Page.startScreencast", {
-    format: "jpeg",
-    quality: SCREENCAST_JPEG_QUALITY,
-    maxWidth: captureSize.width,
-    maxHeight: captureSize.height,
-    everyNthFrame: 1,
-    maxFramesInFlight: SCREENCAST_MAX_FRAMES_IN_FLIGHT,
-    sendLastFrame: true,
-  });
-
-  return { session, raw, frames, pendingAcks, onFrame };
-}
-
-async function stopDirectScreencast(capture: DirectScreencast) {
-  await capture.raw.send("Page.stopScreencast").catch(() => undefined);
-  await new Promise((resolve) => setTimeout(resolve, 120));
-  await Promise.allSettled([...capture.pendingAcks]);
-  capture.raw.off("Page.screencastFrame", capture.onFrame);
-  await capture.session.detach().catch(() => {});
-  return capture.frames;
-}
-
-async function encodeCapturedFrames(frames: readonly ScreencastFrame[], videoPath: string) {
-  const frameDir = `${videoPath}.frames`;
-  await rm(frameDir, { recursive: true, force: true });
-  await mkdir(frameDir, { recursive: true });
-  try {
-    for (let offset = 0; offset < frames.length; offset += 32) {
-      const batch = frames.slice(offset, offset + 32);
-      await Promise.all(
-        batch.map((frame, batchIndex) =>
-          writeFile(
-            path.join(frameDir, `${String(offset + batchIndex).padStart(6, "0")}.jpg`),
-            Buffer.from(frame.data, "base64"),
-          ),
-        ),
-      );
-    }
-
-    await run(process.env.FFMPEG_BIN ?? "ffmpeg", [
+  const bitrate = captureSize.width >= 1_000 ? "20M" : "8M";
+  const child = spawn(
+    process.env.FFMPEG_BIN ?? "ffmpeg",
+    [
       "-y",
+      "-f",
+      "x11grab",
+      "-draw_mouse",
+      "0",
       "-framerate",
       String(SHOWCASE_FPS),
-      "-start_number",
-      "0",
+      "-video_size",
+      `${String(captureSize.width)}x${String(captureSize.height)}`,
       "-i",
-      path.join(frameDir, "%06d.jpg"),
+      `${display}+0,0`,
       "-an",
       "-c:v",
       "libvpx",
       "-deadline",
       "realtime",
       "-cpu-used",
-      "6",
+      "8",
+      "-threads",
+      "4",
       "-b:v",
-      "0",
+      bitrate,
       "-crf",
-      "14",
+      "10",
+      "-lag-in-frames",
+      "0",
+      "-auto-alt-ref",
+      "0",
       "-pix_fmt",
       "yuv420p",
+      "-fps_mode",
+      "passthrough",
       videoPath,
-    ]);
-  } finally {
-    await rm(frameDir, { recursive: true, force: true });
+    ],
+    {
+      stdio: ["pipe", "inherit", "inherit"],
+      env: process.env,
+    },
+  );
+
+  const exited = new Promise<void>((resolve, reject) => {
+    child.on("error", reject);
+    child.on("exit", (code, signal) => {
+      if (code === 0 || signal === "SIGINT") resolve();
+      else reject(new Error(`ffmpeg exited with ${String(code ?? signal)}`));
+    });
+  });
+  await new Promise<void>((resolve, reject) => {
+    child.once("spawn", () => resolve());
+    child.once("error", reject);
+  });
+  // Let x11grab initialize before the certified recording window begins.
+  await new Promise((resolve) => setTimeout(resolve, 120));
+  return { child, exited };
+}
+
+async function stopX11Capture(captureState: X11Capture) {
+  if (captureState.child.exitCode === null && !captureState.child.killed) {
+    captureState.child.stdin?.write("q\n");
   }
+  await captureState.exited;
+}
+
+async function probeDecodedFrameTimestamps(videoPath: string) {
+  const stdout = await capture(process.env.FFPROBE_BIN ?? "ffprobe", [
+    "-v",
+    "error",
+    "-select_streams",
+    "v:0",
+    "-show_frames",
+    "-show_entries",
+    "frame=best_effort_timestamp_time",
+    "-of",
+    "csv=p=0",
+    videoPath,
+  ]);
+  const timestamps = stdout
+    .split(/\r?\n/u)
+    .map((value) => Number.parseFloat(value.trim()))
+    .filter(Number.isFinite)
+    .map((value) => value * 1_000);
+  if (timestamps.length < 2) {
+    throw new Error(`Unable to decode source frame timestamps from ${videoPath}.`);
+  }
+  return timestamps;
 }
 
 async function installCaptureBrand(page: Page, formFactor: FormFactor) {
@@ -318,7 +298,11 @@ async function installCaptureBrand(page: Page, formFactor: FormFactor) {
     const brand = document.createElement("div");
     brand.id = "lum-showcase-capture-brand";
     brand.setAttribute("aria-hidden", "true");
-    brand.innerHTML = `<strong>Lūm</strong><span>${factor}</span>`;
+    const strong = document.createElement("strong");
+    strong.textContent = "Lūm";
+    const label = document.createElement("span");
+    label.textContent = factor;
+    brand.append(strong, label);
     Object.assign(brand.style, {
       position: "fixed",
       top: "18px",
@@ -337,8 +321,7 @@ async function installCaptureBrand(page: Page, formFactor: FormFactor) {
       boxShadow: "0 8px 30px rgba(0,0,0,.2)",
       pointerEvents: "none",
     });
-    const strong = brand.querySelector("strong") as HTMLElement | null;
-    const label = brand.querySelector("span") as HTMLElement | null;
+
     if (strong) {
       strong.style.fontSize = "15px";
       strong.style.letterSpacing = ".06em";
@@ -425,10 +408,10 @@ async function recordSegment(
     await installCaptureBrand(page, formFactor);
     await page.waitForTimeout(250);
 
-    let directCapture: DirectScreencast | null = null;
+    let screenCapture: X11Capture | null = null;
     try {
       await startCaptureHeartbeat(page);
-      directCapture = await startDirectScreencast(page, captureSize);
+      screenCapture = await startX11Capture(videoPath, captureSize);
       const captureStartedAt = Date.now();
 
       await body();
@@ -440,7 +423,6 @@ async function recordSegment(
         timeout: 30_000,
       });
 
-      const captureStoppedAt = Date.now();
       const browserFrameClock = await stopCaptureHeartbeat(page);
       if (!Number.isFinite(browserFrameClock.fps) || browserFrameClock.fps < MIN_CAPTURE_FPS) {
         throw new Error(
@@ -448,9 +430,10 @@ async function recordSegment(
         );
       }
 
-      const frames = await stopDirectScreencast(directCapture);
-      directCapture = null;
-      const frameTimestampsMs = frames.map((frame) => frame.timestampSeconds * 1_000);
+      const captureStoppedAt = Date.now();
+      await stopX11Capture(screenCapture);
+      screenCapture = null;
+      const frameTimestampsMs = await probeDecodedFrameTimestamps(videoPath);
       const cadence = measureFrameCadence(frameTimestampsMs);
       const expectedDurationSeconds = (captureStoppedAt - captureStartedAt) / 1_000;
       const minimumDurationSeconds = expectedDurationSeconds * MIN_CAPTURE_COVERAGE;
@@ -465,7 +448,6 @@ async function recordSegment(
         );
       }
 
-      await encodeCapturedFrames(frames, videoPath);
       capture = {
         targetFps: SHOWCASE_FPS,
         measuredFps: cadence.fps,
@@ -473,14 +455,12 @@ async function recordSegment(
         durationSeconds: cadence.durationSeconds,
         recordingWindowSeconds: expectedDurationSeconds,
         frameTimestampsMs,
-        method: "cdp-screencast-source-frames",
-        jpegQuality: SCREENCAST_JPEG_QUALITY,
-        maxFramesInFlight: SCREENCAST_MAX_FRAMES_IN_FLIGHT,
+        method: "ffmpeg-x11grab-vp8",
         browserFrameClockFps: browserFrameClock.fps,
       };
     } finally {
       await stopCaptureHeartbeat(page).catch(() => {});
-      if (directCapture) await stopDirectScreencast(directCapture).catch(() => {});
+      if (screenCapture) await stopX11Capture(screenCapture).catch(() => {});
       await page.evaluate(() => document.querySelector("#lum-showcase-capture-brand")?.remove()).catch(() => {});
     }
   } else {
