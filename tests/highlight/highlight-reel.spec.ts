@@ -179,7 +179,9 @@ async function probeCapturedVideo(
     lastTimestamp === undefined ||
     lastTimestamp <= firstTimestamp
   ) {
-    throw new Error(\n      `${sceneName} does not contain enough decoded source frames to certify cadence.`,\n    );
+    throw new Error(
+      `${sceneName} does not contain enough decoded source frames to certify cadence.`,
+    );
   }
 
   const durationSeconds = lastTimestamp - firstTimestamp;
