@@ -17,6 +17,9 @@ import {
   createRetainedTimelineMetrics,
   type RetainedTimelineSummary,
 } from "../src/performance/retained-timeline-metrics.ts";
+import {
+  surfacePointerMayStartDirectManipulation,
+} from "../src/interaction/surface-input-policy.ts";
 import { activeOccurrenceIds } from "../src/projection/spatiotemporal-projection.ts";
 import {
   beginRetention,
@@ -706,8 +709,7 @@ export class TimelineViewController {
     );
 
     this.surface.addEventListener("pointerdown", (event) => {
-      const isPrimaryPointer = event.pointerType === "touch" || event.button === 0;
-      if (!this.items.length || !isPrimaryPointer) return;
+      if (!this.items.length || !surfacePointerMayStartDirectManipulation(event)) return;
       const interactiveTarget =
         event.target instanceof Element
           ? event.target.closest("button, a, input, select, textarea")
