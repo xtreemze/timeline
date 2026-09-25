@@ -16,6 +16,7 @@ import {
   type SurfaceInteractionController,
 } from "../src/interaction/surface-controller.ts";
 import {
+  surfaceInteractionRoleFromTarget,
   surfaceNavigationFromKeyboard,
   surfacePointerMayStartDirectManipulation,
 } from "../src/interaction/surface-input-policy.ts";
@@ -412,6 +413,7 @@ export class TimelineViewController {
   retention: TemporalRetentionState = commitRetention(this.renderWindow);
   focusedId: string | null = null;
   focusMediaIndex = 0;
+  focusReturnTarget: HTMLElement | null = null;
   orientation: Orientation = loadViewPreferences().orientation;
   scene = new Map<string, SceneRecord>();
   tickScene = new Map<string, HTMLDivElement>();
@@ -489,6 +491,7 @@ export class TimelineViewController {
       root.parentElement?.querySelector("#timeline-focus-view") ||
       root.parentElement?.querySelector(".timeline-focus-view") ||
       root;
+    this.focusView.dataset.surfaceInteraction = "detail";
     this.readout =
       root.querySelector("#timeline-window-readout") ||
       root.querySelector(".timeline-window-readout") ||
@@ -784,9 +787,7 @@ export class TimelineViewController {
           : null;
       const timelineInteractionTarget =
         interactiveTarget instanceof HTMLElement &&
-        interactiveTarget.matches(
-          ".timeline-event-terminal, .timeline-range-segment, .timeline-cluster-terminal",
-        )
+        surfaceInteractionRoleFromTarget(interactiveTarget) === "action"
           ? interactiveTarget
           : null;
 
@@ -826,9 +827,7 @@ export class TimelineViewController {
       const keyboardTarget =
         document.activeElement instanceof HTMLElement &&
         this.surface.contains(document.activeElement) &&
-        document.activeElement.matches(
-          ".timeline-event-terminal, .timeline-range-segment, .timeline-cluster-terminal",
-        );
+        surfaceInteractionRoleFromTarget(document.activeElement) === "action";
       if (keyboardTarget) {
         // Background camera gestures must not steal the user's keyboard position.
         event.preventDefault();
@@ -1160,6 +1159,7 @@ export class TimelineViewController {
       button.type = "button";
       button.className = "timeline-semantic-occurrence";
       button.dataset.id = item.id;
+      button.dataset.surfaceInteraction = "action";
       button.textContent = this.semanticChronologyLabel(item);
       button.setAttribute("aria-current", String(item.id === this.focusedId));
       button.addEventListener("click", () => {
@@ -2410,6 +2410,7 @@ export class TimelineViewController {
     const terminal = document.createElement("button");
     terminal.type = "button";
     terminal.className = "timeline-event-terminal timeline-cluster-terminal";
+    terminal.dataset.surfaceInteraction = "action";
     node.append(connector, connectorTurn, terminal);
     this.stage.append(node);
     this.frameCreatedObjects += 1;
@@ -2794,6 +2795,7 @@ export class TimelineViewController {
       range.type = "button";
       range.className = "timeline-range-segment";
       range.dataset.id = item.id;
+      range.dataset.surfaceInteraction = "action";
       range.addEventListener("click", () => {
         if (this.focusedId === item.id) {
           this.closeFocus();
@@ -3424,6 +3426,7 @@ export class TimelineViewController {
     tabs.className = "timeline-focus-tabs";
     tabs.setAttribute("role", "tablist");
     tabs.setAttribute("aria-label", "Focused event views");
+    tabs.dataset.surfaceKeyboardNavigation = "local";
     const overviewTab = document.createElement("button");
     overviewTab.type = "button";
     overviewTab.className = "timeline-focus-tab is-active";
@@ -3483,6 +3486,24 @@ export class TimelineViewController {
     };
     overviewTab.addEventListener("click", () => setFocusTab("overview"));
     evidenceTab.addEventListener("click", () => setFocusTab("evidence"));
+    tabs.addEventListener("keydown", (event) => {
+      if (!(event.target instanceof HTMLButtonElement)) return;
+      const tabButtons = [overviewTab, evidenceTab];
+      const currentIndex = tabButtons.indexOf(event.target);
+      if (currentIndex < 0) return;
+
+      let nextIndex = currentIndex;
+      if (event.key === "ArrowLeft") nextIndex = (currentIndex + tabButtons.length - 1) % tabButtons.length;
+      else if (event.key === "ArrowRight") nextIndex = (currentIndex + 1) % tabButtons.length;
+      else if (event.key === "Home") nextIndex = 0;
+      else if (event.key === "End") nextIndex = tabButtons.length - 1;
+      else return;
+
+      event.preventDefault();
+      const nextTab = tabButtons[nextIndex];
+      nextTab?.focus({ preventScroll: true });
+      setFocusTab(nextTab === evidenceTab ? "evidence" : "overview");
+    });
     tabs.append(overviewTab, evidenceTab, close);
 
     this.focusView.replaceChildren(tabs, hero, summary, place, evidence);
@@ -3528,6 +3549,10 @@ export class TimelineViewController {
     const item = this.items.find((candidate) => candidate.id === id);
     if (!item) return false;
     const moveViewport = options.moveViewport !== false;
+    const enteringFocus = this.focusedId === null;
+    if (enteringFocus && document.activeElement instanceof HTMLElement) {
+      this.focusReturnTarget = document.activeElement;
+    }
     if (this.focusedId !== id) this.focusMediaIndex = 0;
 
     const update = () => {
@@ -3570,6 +3595,13 @@ export class TimelineViewController {
     };
 
     this.runStructuralTransaction(update);
+    if (enteringFocus) {
+      requestAnimationFrame(() => {
+        if (this.focusedId === id && !this.focusView.hidden) {
+          this.focusView.focus({ preventScroll: true });
+        }
+      });
+    }
     return true;
   }
 
@@ -3606,6 +3638,16 @@ export class TimelineViewController {
       );
     };
     this.runStructuralTransaction(update);
+    const returnTarget = this.focusReturnTarget;
+    this.focusReturnTarget = null;
+    requestAnimationFrame(() => {
+      if (this.focusedId !== null) return;
+      if (returnTarget?.isConnected) {
+        returnTarget.focus({ preventScroll: true });
+      } else {
+        this.surface.focus({ preventScroll: true });
+      }
+    });
   }
 
   unfocus(): void {
