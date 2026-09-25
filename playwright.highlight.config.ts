@@ -21,8 +21,6 @@ export default defineConfig({
         "--disable-background-timer-throttling",
         "--disable-renderer-backgrounding",
         "--disable-backgrounding-occluded-windows",
-        "--disable-frame-rate-limit",
-        "--disable-gpu-vsync",
         "--window-position=0,0",
       ],
     },
