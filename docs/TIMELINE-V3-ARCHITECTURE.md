@@ -484,9 +484,10 @@ Physical screen orientation never rewrites the timeline orientation.
 
 Normal application mode separates persistent application actions, timeline-owned controls, and temporary utility surfaces. None of these may silently resize the presentation merely because a panel opens.
 
-- The global bottom app bar contains Project, Edit and Browse. These are application-level actions and remain in a stable physical footer regardless of chronology orientation.
-- View belongs to the timeline because orientation, semantic zoom, auto-advance and fullscreen primarily modify chronology/presentation behavior. Its invoker lives in a timeline-local toolbar and its popover is positioned from that invoker, not from the footer.
-- Focused Previous, Next and Edit actions join the timeline-local toolbar. They appear only while an occurrence is focused and remain outside the Context/Evidence detail surface.
+- The global bottom app bar is the persistent control plane and remains anchored to the physical bottom edge regardless of chronology orientation or utility-panel state. World camera controls occupy the left zone, Project/Edit/Browse occupy the centered application zone, and timeline controls occupy the right zone.
+- View belongs to the timeline because orientation, semantic zoom, auto-advance and fullscreen primarily modify chronology/presentation behavior. Its invoker lives in the footer's timeline zone and its popover opens above that trigger so it never covers the chronology rail.
+- Focused Previous, Next and Edit actions join the footer's timeline zone. They appear only while an occurrence is focused and remain outside the Context/Evidence detail surface.
+- Selecting an occurrence must not resize, move, or otherwise reflow the timeline in either portrait or landscape. Focused detail layers over the complementary world/graph region while chronology geometry remains identical to the unfocused state.
 - Browse is always an overlay utility surface. Opening it never reserves a sidebar column or changes timeline/graph geometry. On phones it occupies the reachable viewport; on wider screens it provides a constrained right-side panel over a scrim. The overlay owns its stacking context and pointer interactions so content beneath cannot intercept input.
 - Edit is fullscreen on compact/mobile viewports because form density benefits from the available area. On wider viewports it becomes a bounded right-side sheet over the unchanged presentation rather than a full-width workspace or a layout-reserving column.
 - Utility content scrolls vertically inside its own surface. Horizontal overflow is a layout defect: descendants must shrink, wrap, or switch to a narrower internal grid.
