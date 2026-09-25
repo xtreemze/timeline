@@ -241,7 +241,15 @@ async function renderFormFactor(formFactor, manifest) {
         );
       }
       if (!video.fps) throw new Error(`Could not determine source FPS for ${videoPath}`);
-      await assertDecodedFrameRate(videoPath, `${formFactor}/${segment.name} raw VP8 WebM`);
+      const decoded = await assertDecodedFrameRate(
+        videoPath,
+        `${formFactor}/${segment.name} source-frame VP8 WebM`,
+      );
+      if (decoded.frameCount !== segment.capture.frameCount) {
+        throw new Error(
+          `${formFactor}/${segment.name} encoded ${String(decoded.frameCount)} frames from ${String(segment.capture.frameCount)} captured compositor frames.`,
+        );
+      }
       if (video.codec !== "vp8") {
         throw new Error(
           `${formFactor}/${segment.name} raw WebM must use VP8, found ${String(video.codec)}.`,
