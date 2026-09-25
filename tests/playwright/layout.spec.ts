@@ -216,7 +216,12 @@ test.describe("Mobile-first Timeline layout contracts", () => {
       }
 
       expect(worldBox.x).toBeLessThan(dockBox.x + dockBox.width / 2);
+      expect(worldBox.y).toBeGreaterThanOrEqual(dockBox.y - 1);
+      expect(worldBox.y + worldBox.height).toBeLessThanOrEqual(dockBox.y + dockBox.height + 1);
       expect(viewButtonBox.x + viewButtonBox.width).toBeGreaterThan(dockBox.x + dockBox.width / 2);
+      expect(viewButtonBox.y + viewButtonBox.height).toBeLessThanOrEqual(
+        dockBox.y + dockBox.height + 1,
+      );
       expect(dockBox.x).toBeLessThanOrEqual(2);
       expect(dockBox.width).toBeGreaterThanOrEqual(viewport.width - 4);
       expect(dockBox.height).toBeGreaterThanOrEqual(56);
