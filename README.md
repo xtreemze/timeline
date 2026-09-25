@@ -66,7 +66,7 @@ The product is browser-first and backend-free. Hosting the application does not 
 
 ## Product showcase
 
-The showcase media is generated from the real application in Chromium CI. Static states use source-resolution PNG screenshots; motion uses animated WebP at the source recording dimensions and frame rate.
+The showcase media is generated from the real application in Chromium CI. Static states use source-resolution PNG screenshots. Motion targets 60 fps: CI samples the headed Xvfb framebuffer directly, requires at least 59 decoded raw WebM frames per second and at least 59 browser animation frames per second before publication encoding, then independently verifies animated WebP and highlight-reel cadence so a slower source cannot pass merely because a downstream encoder reports 60 fps.
 
 | Flow | Desktop | Mobile |
 | --- | --- | --- |
