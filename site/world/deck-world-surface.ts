@@ -4311,7 +4311,7 @@ export class DeckWorldSurface implements WorldSurface {
 
     const clusterPlaces = new Set(this.#clusterPlaceIds);
     const placeReveal = placeInteractionReveal(this.#projection, this.#selection);
-    const memberIds = new Set<WorldInstanceId>(
+    const candidateMemberIds = new Set<WorldInstanceId>(
       this.#projection.instances
         .filter((instance) => {
           const placeId = instance.geographicAnchors[0]?.placeId;
@@ -4319,15 +4319,6 @@ export class DeckWorldSurface implements WorldSurface {
         })
         .map((instance) => instance.id),
     );
-    const clusterPhase: WorldClusterLifecyclePhase =
-      memberIds.size > 0 ? this.#clusterPhase : "expanded";
-    const showMembers = worldClusterShowsMembers(clusterPhase);
-    const muteMembers = worldClusterMutesMembers(clusterPhase);
-    const showActiveClusterEdges = worldClusterShowsActiveEdges(clusterPhase);
-    const showReleasingClusterEdges = worldClusterShowsReleasingEdges(clusterPhase);
-    const edgeIsClusterAffected = (
-      edge: Pick<DeckWorldRelationshipDatum, "sourceInstanceId" | "targetInstanceId">,
-    ): boolean => memberIds.has(edge.sourceInstanceId) || memberIds.has(edge.targetInstanceId);
 
     // Relationship geometry always consumes the exact force-resolved positions.
     // Cluster lifecycle never interpolates endpoints in the renderer.
@@ -4347,6 +4338,45 @@ export class DeckWorldSurface implements WorldSurface {
     const places = placeResult.datums;
     const relationships = relationshipResult.datums;
     const temporalRelationships = this.#temporalRelationshipDatums(relationships);
+
+    // Only topology that exceeds the shared readability budget belongs to the
+    // collapsed representation. Very-near place pins are handled separately,
+    // so sparse nodes can use surrounding whitespace without losing location
+    // aggregation. Interaction reveal is applied before cardinality so a
+    // three-member cluster dissolves immediately when only a pair remains.
+    const clusteredEntitySource = entityResult.datums.filter(
+      (entity) =>
+        candidateMemberIds.has(entity.worldInstanceId) &&
+        !placeReveal.instanceIds.has(entity.worldInstanceId),
+    );
+    const unclusteredEntities = entityResult.datums.filter(
+      (entity) =>
+        !candidateMemberIds.has(entity.worldInstanceId) ||
+        placeReveal.instanceIds.has(entity.worldInstanceId),
+    );
+    const placeClusters = clusterEntityDatumsByPlace(
+      clusteredEntitySource,
+      this.#projection.instances,
+      worldPixelsToDegrees(this.#clusterMergeRadiusPx(), this.#camera.zoom),
+    );
+    const topologyClusters = placeClusters.filter(
+      (datum): datum is DeckWorldClusterDatum => datum.kind === "cluster",
+    );
+    const memberIds = new Set<WorldInstanceId>(
+      topologyClusters.flatMap((cluster) =>
+        cluster.clusterMembers.map((member) => member.worldInstanceId),
+      ),
+    );
+    const clusterPhase: WorldClusterLifecyclePhase =
+      memberIds.size > 0 ? this.#clusterPhase : "expanded";
+    const showMembers = worldClusterShowsMembers(clusterPhase);
+    const muteMembers = worldClusterMutesMembers(clusterPhase);
+    const showActiveClusterEdges = worldClusterShowsActiveEdges(clusterPhase);
+    const showReleasingClusterEdges = worldClusterShowsReleasingEdges(clusterPhase);
+    const edgeIsClusterAffected = (
+      edge: Pick<DeckWorldRelationshipDatum, "sourceInstanceId" | "targetInstanceId">,
+    ): boolean => memberIds.has(edge.sourceInstanceId) || memberIds.has(edge.targetInstanceId);
+
     const activeTemporalRelationships = temporalRelationships.filter((datum) => {
       const edge = this.#temporalRelationshipStateFor(datum).edge;
       return (
@@ -4363,29 +4393,6 @@ export class DeckWorldSurface implements WorldSurface {
         )
       : Object.freeze([] as DeckWorldRelationshipDatum[]);
     const releasingSegments = releasingRelationshipSegments(releasingRelationships);
-
-    // Only topology that exceeds the shared readability budget belongs to the
-    // collapsed representation. Very-near place pins are handled separately,
-    // so sparse nodes can use surrounding whitespace without losing location
-    // aggregation.
-    const clusteredEntitySource = entityResult.datums.filter(
-      (entity) =>
-        memberIds.has(entity.worldInstanceId) &&
-        !placeReveal.instanceIds.has(entity.worldInstanceId),
-    );
-    const unclusteredEntities = entityResult.datums.filter(
-      (entity) =>
-        !memberIds.has(entity.worldInstanceId) ||
-        placeReveal.instanceIds.has(entity.worldInstanceId),
-    );
-    const placeClusters = clusterEntityDatumsByPlace(
-      clusteredEntitySource,
-      this.#projection.instances,
-      worldPixelsToDegrees(this.#clusterMergeRadiusPx(), this.#camera.zoom),
-    );
-    const topologyClusters = placeClusters.filter(
-      (datum): datum is DeckWorldClusterDatum => datum.kind === "cluster",
-    );
     const placeMarkerClusters =
       clusterPhase === "expanded"
         ? Object.freeze(
