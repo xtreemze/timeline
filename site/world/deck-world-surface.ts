@@ -2161,13 +2161,12 @@ function labelDatums(input: {
             emphasized: true,
           });
     const footprint = labelFootprint(datum);
-    const offset =
-      labelOffsetCandidates(
-        datum,
-        footprint.width,
-        footprint.height,
-        input.placeMarkerRadiusPx(place.placeId),
-      )[0] ?? [0, 0];
+    const offset = labelOffsetCandidates(
+      datum,
+      footprint.width,
+      footprint.height,
+      input.placeMarkerRadiusPx(place.placeId),
+    )[0] ?? [0, 0];
     const interactionDatum = withLabelPixelOffset(datum, offset);
     interactionLabels.push(interactionDatum);
     placedByKey.set(key, interactionDatum);
@@ -2199,13 +2198,12 @@ function labelDatums(input: {
               emphasized,
             });
       const footprint = labelFootprint(datum);
-      const offset =
-        labelOffsetCandidates(
-          datum,
-          footprint.width,
-          footprint.height,
-          input.entityMarkerRadiusPx(entity.worldInstanceId),
-        )[0] ?? [0, 0];
+      const offset = labelOffsetCandidates(
+        datum,
+        footprint.width,
+        footprint.height,
+        input.entityMarkerRadiusPx(entity.worldInstanceId),
+      )[0] ?? [0, 0];
       const interactionDatum = withLabelPixelOffset(datum, offset);
       interactionLabels.push(interactionDatum);
       placedByKey.set(key, interactionDatum);
@@ -2243,8 +2241,9 @@ function labelDatums(input: {
               emphasized: true,
             });
       const footprint = labelFootprint(datum);
-      const offset =
-        labelOffsetCandidates(datum, footprint.width, footprint.height, 0)[0] ?? [0, 0];
+      const offset = labelOffsetCandidates(datum, footprint.width, footprint.height, 0)[0] ?? [
+        0, 0,
+      ];
       const interactionDatum = withLabelPixelOffset(datum, offset);
       interactionLabels.push(interactionDatum);
       placedByKey.set(key, interactionDatum);
@@ -2258,9 +2257,7 @@ function labelDatums(input: {
     else byKey.delete(key);
   }
   const datums =
-    interactionLabels.length === 0
-      ? placed
-      : Object.freeze([...placed, ...interactionLabels]);
+    interactionLabels.length === 0 ? placed : Object.freeze([...placed, ...interactionLabels]);
   return { datums, byKey };
 }
 
@@ -3069,10 +3066,7 @@ export class DeckWorldSurface implements WorldSurface {
       this.#clusterEdgeReleaseTimer = null;
       if (this.#destroyed || this.#clusterPhase !== "releasing") return;
       this.#clusterPhase = "collapsing";
-      this.#clusterForceSink?.setClusteredPlaceIds(
-        this.#clusterPlaceIds,
-        this.#clusterPlaceIds,
-      );
+      this.#clusterForceSink?.setClusteredPlaceIds(this.#clusterPlaceIds, this.#clusterPlaceIds);
       this.#render();
       this.#clusterSettleTimer = globalThis.setTimeout(
         () => {
@@ -3133,10 +3127,7 @@ export class DeckWorldSurface implements WorldSurface {
     if (!this.#sameClusterPlaces(placeIds)) {
       this.#clusterPlaceIds = Object.freeze([...placeIds]);
       if (this.#clusterPhase === "collapsing" || this.#clusterPhase === "collapsed") {
-        this.#clusterForceSink?.setClusteredPlaceIds(
-          this.#clusterPlaceIds,
-          this.#clusterPlaceIds,
-        );
+        this.#clusterForceSink?.setClusteredPlaceIds(this.#clusterPlaceIds, this.#clusterPlaceIds);
       }
     }
   }
@@ -3288,10 +3279,8 @@ export class DeckWorldSurface implements WorldSurface {
     ).length;
     const destinationZoom = Math.max(
       this.#detailFocusZoom(),
-      clusterZoomThresholdForPlaceDensity(
-        this.#clusterEntityFootprintRadiusPx(),
-        memberCount,
-      ) + 0.25,
+      clusterZoomThresholdForPlaceDensity(this.#clusterEntityFootprintRadiusPx(), memberCount) +
+        0.25,
     );
     this.#focusPosition(
       placeDatums(this.#projection.instances, this.#selection, this.#placeDatumCache).datums.find(
