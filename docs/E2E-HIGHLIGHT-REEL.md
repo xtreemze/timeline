@@ -16,7 +16,7 @@ Desktop uses the 1440×900 product layout. Mobile uses the explicit touch-capabl
 
 The showcase distinguishes motion from static presentation. Timeline navigation and relation-graph navigation are motion scenes. Focused context, evidence, and story browsing are static scenes.
 
-Static scenes hold the demonstrated state open and capture a PNG screenshot. Motion scenes target 60 fps by sampling the headed Chromium window directly from the Xvfb framebuffer with FFmpeg `x11grab`. Raw capture uses a 60 fps input cadence, VP8, and `-fps_mode passthrough` with no output-rate padding. After each scene, FFprobe decodes the raw WebM timestamps and requires at least 59 actual frames per second before publication encoding. A separate browser `requestAnimationFrame()` clock must also sustain at least 59 fps during the recording.
+Static scenes hold the demonstrated state open and capture a PNG screenshot. Motion scenes must be display-paced at native 60 fps. Chromium keeps its normal frame limiter and vsync scheduling; only background/occlusion throttling is disabled. FFmpeg samples the headed Xvfb framebuffer at 60 fps into VP8 with `-fps_mode passthrough`, and both the decoded raw WebM cadence and the browser `requestAnimationFrame()` clock must remain within 59–61 fps. This rejects both slow capture and an uncapped browser that is later sampled or normalized back to a nominal 60 fps.
 
 ## Output contract
 
@@ -58,7 +58,7 @@ artifacts/e2e-media/
 └── playwright/
 ```
 
-Each form factor publishes two 60 fps animated WebP motion assets and three PNG stills. Raw WebM exists only for motion scenes; every motion WebM has a `.frames.json` timing sidecar containing decoded raw-frame timestamps, browser animation timestamps, capture geometry, codec, measured raw cadence, measured browser cadence, and frame counts. Every scene also keeps a raw PNG capture.
+Each form factor publishes two native-cadence animated WebP motion assets and three PNG stills. Raw WebM exists only for motion scenes; every motion WebM has a `.frames.json` timing sidecar containing decoded raw-frame timestamps, browser animation timestamps, capture geometry, codec, measured raw cadence, measured browser cadence, and frame counts. Every scene also keeps a raw PNG capture.
 
 ## Capture architecture
 
@@ -71,7 +71,7 @@ The showcase config contains two structural projects:
 
 The shared scene metadata defines feature title, explanation, expected state, alt text, stable output stem, and whether the scene is `motion` or `static`. Desktop and mobile interaction routines remain separate so touch UI is not forced to mimic desktop input mechanics.
 
-Motion capture does not use Playwright 1.63's built-in screencast file recorder, which hard-codes its video output to 25 fps. It also does not depend on Chromium's DevTools screencast or tab-media capture transports: CI measurements showed those transports could not sustain the required cadence. The dedicated media workflow runs headed Chromium inside a fixed 1920×1080 Xvfb display, anchors the browser window at the display origin, derives the CSS viewport's framebuffer region, and records that region directly with FFmpeg `x11grab`. Chromium background/frame-rate throttling is disabled. The raw WebM uses VP8 in realtime mode and `-fps_mode passthrough`; a browser `requestAnimationFrame()` clock independently verifies that the application itself is scheduled at at least 59 fps.
+Motion capture does not use Playwright 1.63's built-in screencast file recorder, which hard-codes its video output to 25 fps. It also does not depend on Chromium's DevTools screencast or tab-media capture transports: CI measurements showed those transports could not sustain the required cadence. The dedicated media workflow runs headed Chromium inside a fixed 1920×1080 Xvfb display, anchors the browser window at the display origin, derives the CSS viewport's framebuffer region, and records that region directly with FFmpeg `x11grab`. Chromium background and occlusion throttling are disabled, but `--disable-frame-rate-limit` and `--disable-gpu-vsync` are intentionally forbidden because they would uncap the browser instead of certifying native 60 Hz pacing. The raw WebM uses VP8 in realtime mode and `-fps_mode passthrough`; the browser animation clock and raw decoded cadence must both remain within 59–61 fps.
 
 Playwright native screencast overlays provide restrained Lūm branding and feature chapters for motion capture without modifying production UI only for recording. Static screenshots remain product-state captures rather than chapter cards.
 
@@ -79,20 +79,20 @@ Playwright native screencast overlays provide restrained Lūm branding and featu
 
 `scripts/render-e2e-highlight.mjs` uses FFmpeg rather than adding a second browser/video framework. It:
 
-- requires at least 59 browser `requestAnimationFrame()` callbacks per second while recording;
-- decodes raw X11 WebM frame timestamps with FFprobe and requires at least 59 actual decoded frames per second before publication encoding;
+- requires the browser `requestAnimationFrame()` clock to remain within 59–61 fps while recording;
+- decodes raw X11 WebM frame timestamps with FFprobe and requires the raw source to remain within the same 59–61 fps native window before publication encoding;
 - verifies the raw WebM codec is VP8 and that decoded frame counts exactly match the timing evidence;
 - probes every visual source with FFprobe;
 - preserves each published asset independently at its own source dimensions;
 - copies static PNG captures directly into the published showcase;
-- renders motion scenes as 60 fps animated WebP;
+- renders motion scenes as animated WebP with source timestamps preserved via `-fps_mode passthrough`;
 - keeps the mobile showcase portrait;
-- composes separate 60 fps H.264 desktop and mobile reels;
-- uses the explicit 60 fps capture contract for reel composition instead of trusting reported stream metadata;
+- composes separate H.264 desktop and mobile reels without an output `-r` override;
+- generates synthetic still segments at the 60 fps reel cadence, while motion segments retain their measured source cadence;
 - emits README-ready markup from the same manifest metadata;
 - measures individual and aggregate showcase payloads.
 
-There is no GIF palette stage, no reduced presentation frame rate, and no fixed GIF width. A nominal 60 fps output is not sufficient by itself: CI must prove both that the browser animation clock sustained at least 59 fps and that the raw X11 WebM independently decodes at least 59 actual frames per second before any WebP or MP4 publication derivative can pass.
+There is no GIF palette stage, no reduced presentation frame rate, and no fixed GIF width. A nominal 60 fps output is not sufficient by itself: CI must prove a display-paced 59–61 fps browser clock and a matching 59–61 fps raw X11 source, and downstream WebP/MP4 encoding is not allowed to manufacture cadence with `-r` or motion `fps=` filters.
 
 ## CI and publication
 
