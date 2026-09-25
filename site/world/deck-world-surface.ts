@@ -57,6 +57,7 @@ import {
   worldLocalRadiusPx,
   worldNodeClearanceDegreesForRadius,
   worldPixelsToDegrees,
+  worldPlaceClusterRadiusPx,
   worldPresentationOffsetScale,
 } from "../../src/layout/world-semantic-presentation.ts";
 import {
@@ -747,52 +748,6 @@ export function clusterEntityDatumsByPlace(
       return String(leftId).localeCompare(String(rightId));
     }),
   );
-}
-
-interface PlaceClusterTransitionDatums {
-  readonly clusters: readonly DeckWorldClusterDatum[];
-  readonly members: readonly DeckWorldEntityDatum[];
-  readonly loose: readonly DeckWorldEntityDatum[];
-  readonly memberIds: ReadonlySet<WorldInstanceId>;
-}
-
-/**
- * Retains force-resolved member positions while deriving cluster membership.
- * Clustering may change visibility and topology, but it must never synthesize
- * positional motion: node, edge, label, and tether coordinates come directly
- * from the force simulation.
- */
-function placeClusterTransitionDatums(
-  entities: readonly DeckWorldEntityDatum[],
-  clustered: readonly DeckWorldEntityRenderDatum[],
-): PlaceClusterTransitionDatums {
-  const originByMember = new Map<WorldInstanceId, WorldRenderPosition>();
-  const clusters: DeckWorldClusterDatum[] = [];
-  for (const datum of clustered) {
-    if (datum.kind !== "cluster") continue;
-    clusters.push(datum);
-    for (const member of datum.clusterMembers) {
-      originByMember.set(member.worldInstanceId, datum.position);
-    }
-  }
-
-  const members: DeckWorldEntityDatum[] = [];
-  const loose: DeckWorldEntityDatum[] = [];
-  for (const entity of entities) {
-    const origin = originByMember.get(entity.worldInstanceId);
-    if (!origin) {
-      loose.push(entity);
-      continue;
-    }
-    members.push(entity);
-  }
-
-  return Object.freeze({
-    clusters: Object.freeze(clusters),
-    members: Object.freeze(members),
-    loose: Object.freeze(loose),
-    memberIds: new Set(originByMember.keys()),
-  });
 }
 
 function instanceIndexFromEntities(entities: readonly DeckWorldEntityDatum[]): WorldInstanceIndex {
@@ -3430,6 +3385,13 @@ export class DeckWorldSurface implements WorldSurface {
     const radiusPx = Math.max(1, representativeWorldNodeRadiusPx(radii));
     this.#clusterEntityFootprintCache = { projection, radiusPx };
     return radiusPx;
+  }
+
+  #clusterRadiusPx(): number {
+    return worldPlaceClusterRadiusPx(
+      this.#clusterEntityFootprintRadiusPx(),
+      this.#viewportGraphRadiusLimitPx(),
+    );
   }
 
   /**
