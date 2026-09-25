@@ -3392,8 +3392,7 @@ export class DeckWorldSurface implements WorldSurface {
       Math.min(budget, this.#labelBudgetLastRender) < this.#lodCandidateCountLastRender;
     const screenScaleChanged =
       screenScaleZoomStep(this.#camera.zoom) !== this.#screenScaleZoomLastRender;
-    const cameraFacingChanged =
-      cameraFacingStep(this.#camera) !== this.#cameraFacingStepLastRender;
+    const cameraFacingChanged = cameraFacingStep(this.#camera) !== this.#cameraFacingStepLastRender;
     return (
       this.#clusterPhase !== this.#clusterPhaseLastRender ||
       lodChanged ||
@@ -3668,8 +3667,7 @@ export class DeckWorldSurface implements WorldSurface {
     const showReleasingClusterEdges = worldClusterShowsReleasingEdges(clusterPhase);
     const edgeIsClusterAffected = (
       edge: Pick<DeckWorldRelationshipDatum, "sourceInstanceId" | "targetInstanceId">,
-    ): boolean =>
-      memberIds.has(edge.sourceInstanceId) || memberIds.has(edge.targetInstanceId);
+    ): boolean => memberIds.has(edge.sourceInstanceId) || memberIds.has(edge.targetInstanceId);
 
     // Relationship geometry always consumes the exact force-resolved positions.
     // Cluster lifecycle never interpolates endpoints in the renderer.
@@ -3707,8 +3705,7 @@ export class DeckWorldSurface implements WorldSurface {
       clusterPhase === "collapsed"
         ? Object.freeze(
             placeClusters.filter(
-              (datum) =>
-                datum.kind === "cluster" || !memberIds.has(datum.worldInstanceId),
+              (datum) => datum.kind === "cluster" || !memberIds.has(datum.worldInstanceId),
             ),
           )
         : Object.freeze(
@@ -3830,9 +3827,7 @@ export class DeckWorldSurface implements WorldSurface {
     const labelEntities = iconSource;
     const labelRelationships = relationships.filter(
       (relationship) =>
-        !edgeIsClusterAffected(relationship) ||
-        showActiveClusterEdges ||
-        showReleasingClusterEdges,
+        !edgeIsClusterAffected(relationship) || showActiveClusterEdges || showReleasingClusterEdges,
     );
     const labelResult = this.#runtime.createTextLayer
       ? labelDatums({
@@ -3855,10 +3850,7 @@ export class DeckWorldSurface implements WorldSurface {
 
     // Tethers follow force-resolved member positions and are removed only at
     // final cluster cleanup; their geometry is never renderer-interpolated.
-    const tethers =
-      clusterPhase === "collapsed"
-        ? []
-        : this.#tethers(entityResult.datums);
+    const tethers = clusterPhase === "collapsed" ? [] : this.#tethers(entityResult.datums);
     const layers = [
       // Earth base: orientation on light and dark hosts, and depth-occludes
       // the far side of the globe. Never pickable.
@@ -4153,17 +4145,11 @@ export class DeckWorldSurface implements WorldSurface {
               // the entity's own style or the type default.
               getIcon: (datum: DeckWorldEntityDatum) =>
                 worldNodeMarker(
-                  this.#entityStyle(
-                    datum,
-                    muteMembers && memberIds.has(datum.worldInstanceId),
-                  ),
+                  this.#entityStyle(datum, muteMembers && memberIds.has(datum.worldInstanceId)),
                 ),
               getSize: (datum: DeckWorldEntityDatum) =>
                 worldNodeMarker(
-                  this.#entityStyle(
-                    datum,
-                    muteMembers && memberIds.has(datum.worldInstanceId),
-                  ),
+                  this.#entityStyle(datum, muteMembers && memberIds.has(datum.worldInstanceId)),
                 ).size *
                 entityExpansion(datum) *
                 (this.#dragFlashInstanceId === datum.worldInstanceId
@@ -4177,9 +4163,7 @@ export class DeckWorldSurface implements WorldSurface {
                   255,
                   255,
                   255,
-                  Math.round(
-                    emphasisAlpha * this.#cameraFacingOpacity(datum.position),
-                  ),
+                  Math.round(emphasisAlpha * this.#cameraFacingOpacity(datum.position)),
                 ] as Rgba;
               },
               updateTriggers: {
