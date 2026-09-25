@@ -76,10 +76,12 @@ Pointer Events are the baseline for Lūm-owned direct manipulation. The shared p
 Across surfaces:
 - primary mouse, pen, and touch are first-class; Ctrl-modified and secondary-button gestures are not captured for direct manipulation;
 - background direct manipulation uses `grab`/`grabbing`; actionable objects use `pointer`; expandable clusters use `zoom-in`;
+- retained event cards/ranges/clusters declare `data-surface-interaction="action"`, so touch can begin as activation intent and promote to timeline pan only after the shared movement threshold;
+- focused event detail declares `data-surface-interaction="detail"`; entering detail moves keyboard focus into it, closing restores the invoking control when possible, and its tablist declares local keyboard ownership so Left/Right/Home/End cannot leak into presentation or camera navigation;
 - click/tap selects or activates the surface object; Enter and Space are equivalent object-activation keys when the surface itself owns activation;
 - Tab/Shift+Tab remain native and must never be trapped by a camera surface;
 - arrow keys and +/- stay with the active renderer/navigation controller; the retained timeline maps them through the shared navigation vocabulary, while deck/Leaflet keep their native keyboard controller;
-- focused native controls/content-editable regions and Ctrl/Meta/Alt platform shortcuts are never stolen by surface camera navigation;
+- focused native controls/content-editable regions and Ctrl/Meta/Alt platform shortcuts are never stolen by surface or presentation navigation; Escape/Browser Back remain application-level dismissal commands;
 - Home fits the visible timeline context and Shift+Home fits all timeline content; these are timeline-only commands, not global shortcuts;
 - one-finger world/graph touch pans unless a stationary long-press arms node dragging; a second touch cancels that exclusive node drag and yields immediately to multi-touch camera control;
 - pinch/multi-touch gestures stay renderer-owned; node/object dragging must stop propagation only after it has actually claimed the gesture;
