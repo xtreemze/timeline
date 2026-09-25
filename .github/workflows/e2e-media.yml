@@ -12,6 +12,8 @@ on:
       - 'playwright.highlight.config.ts'
       - 'tests/highlight/**'
       - 'scripts/render-e2e-highlight.mjs'
+      - 'scripts/verify-e2e-highlight.mjs'
+      - 'scripts/verify-e2e-highlight.mjs'
       - 'tests/playwright-certification-config.test.mjs'
       - 'docs/E2E-HIGHLIGHT-REEL.md'
       - 'docs/FORMAL-PRESENTATION.md'
@@ -79,12 +81,13 @@ jobs:
 
       - name: Verify media evidence
         run: |
+          pnpm verify:e2e:showcase
           test -s artifacts/e2e-media/manifest.json
           test -s artifacts/e2e-media/README-showcase.md
           test -s artifacts/e2e-media/reels/lum-desktop-highlight.mp4
           test -s artifacts/e2e-media/reels/lum-mobile-highlight.mp4
-          test "$(find artifacts/e2e-media/raw/desktop -type f -name '*.webm' | wc -l)" -eq 2
-          test "$(find artifacts/e2e-media/raw/mobile -type f -name '*.webm' | wc -l)" -eq 2
+          test "$(find artifacts/e2e-media/raw/desktop -type f -name '*.mp4' | wc -l)" -eq 2
+          test "$(find artifacts/e2e-media/raw/mobile -type f -name '*.mp4' | wc -l)" -eq 2
           test "$(find artifacts/e2e-media/raw/desktop -type f -name '*.png' | wc -l)" -eq 5
           test "$(find artifacts/e2e-media/raw/mobile -type f -name '*.png' | wc -l)" -eq 5
           test "$(find artifacts/e2e-media/showcase/desktop -type f -name '*.webp' | wc -l)" -eq 2
