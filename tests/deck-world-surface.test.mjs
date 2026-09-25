@@ -205,6 +205,7 @@ test("retained world topology survives position-only projection deltas", () => {
   const topology = new WorldRenderTopologyIndex(before);
   const lanes = topology.lanes;
   const adjacency = topology.edgesByEntity;
+  const placeCounts = topology.placeMemberCounts;
 
   const alice = before.instances.find((instance) => instance.canonicalId === "alice");
   assert.ok(alice);
@@ -225,6 +226,12 @@ test("retained world topology survives position-only projection deltas", () => {
 
   assert.equal(topology.lanes, lanes, "position-only deltas retain relationship lane topology");
   assert.equal(topology.edgesByEntity, adjacency, "position-only deltas retain entity adjacency");
+  assert.equal(
+    topology.placeMemberCounts,
+    placeCounts,
+    "position-only deltas retain place-density counts",
+  );
+  assert.equal(topology.placeMemberCounts.get("stockholm"), 2);
   const movedAlice = after.instances.find((instance) => instance.canonicalId === "alice");
   assert.ok(movedAlice);
   assert.equal(topology.instanceById.get(movedAlice.id), movedAlice);
@@ -236,6 +243,41 @@ test("retained world topology survives position-only projection deltas", () => {
   assert.deepEqual([...neighborhood.entityIds].sort(), ["alice", "bob"]);
   assert.deepEqual([...neighborhood.relationshipIds], ["meeting"]);
   assert.deepEqual([...neighborhood.placeIds], ["stockholm"]);
+});
+
+test("retained world topology rebuilds place density when primary geography changes", () => {
+  const before = projection();
+  const topology = new WorldRenderTopologyIndex(before);
+  const previousCounts = topology.placeMemberCounts;
+  const alice = before.instances.find((instance) => instance.canonicalId === "alice");
+  assert.ok(alice);
+  const [primaryAnchor] = alice.geographicAnchors;
+  assert.ok(primaryAnchor);
+
+  const after = createWorldProjection({
+    instances: before.instances.map((instance) =>
+      instance === alice
+        ? createProjectedWorldInstance({
+            ...instance,
+            geographicAnchors: [
+              {
+                ...primaryAnchor,
+                placeId: "copenhagen",
+                longitude: 12.5683,
+                latitude: 55.6761,
+              },
+            ],
+          })
+        : instance,
+    ),
+    edges: before.edges,
+  });
+
+  topology.applyDelta(diffWorldProjection(before, after), after);
+
+  assert.notEqual(topology.placeMemberCounts, previousCounts);
+  assert.equal(topology.placeMemberCounts.get("stockholm"), 1);
+  assert.equal(topology.placeMemberCounts.get("copenhagen"), 1);
 });
 
 test("retained world topology rebuilds lanes when relationship structure changes", () => {
