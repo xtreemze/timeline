@@ -99,8 +99,9 @@ function instance(index, overrides = {}) {
 function directedProjection() {
   const source = instance(0, { visualWeight: 1 });
   const target = instance(1);
+  const other = instance(2);
   return createWorldProjection({
-    instances: [source, target],
+    instances: [source, target, other],
     edges: [
       createProjectedWorldEdge({
         id: "meeting",
@@ -291,12 +292,14 @@ test("entity and place labels come from renderer-neutral WorldProjection metadat
   assert.deepEqual(entityLabels.map((datum) => labels.props.getText(datum)).sort(), [
     "Entity 0",
     "Entity 1",
+    "Entity 2",
   ]);
   assert.deepEqual(
     entityLabels.map((datum) => datum.worldInstanceId).sort(),
     [
       worldInstanceId("entity-0", "occurrence-0"),
       worldInstanceId("entity-1", "occurrence-0"),
+      worldInstanceId("entity-2", "occurrence-1"),
     ].sort(),
   );
 
@@ -304,6 +307,7 @@ test("entity and place labels come from renderer-neutral WorldProjection metadat
   assert.deepEqual(placeLabels.map((datum) => labels.props.getText(datum)).sort(), [
     "Place 0",
     "Place 1",
+    "Place 2",
   ]);
 
   const relationshipLabels = labels.props.data.filter(
@@ -427,7 +431,15 @@ test("large marker labels clear the rendered node footprint", () => {
   const h = harness();
   const large = instance(0, {
     style: { radius: 32 },
-    geographicAnchors: [],
+    geographicAnchors: [
+      {
+        placeId: "large-place",
+        label: "Large place",
+        longitude: 10,
+        latitude: 50,
+        influence: 1,
+      },
+    ],
   });
   const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 9 });
   surface.setProjection(createWorldProjection({ instances: [large], edges: [] }));
@@ -451,34 +463,37 @@ test("clustered overview replaces nearby place markers and member labels with ag
   const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 0.2 });
   surface.setProjection(directedProjection());
 
-  const layers = h.lastLayers();
-  const labels = layer(layers, DECK_WORLD_LAYER_IDS.labels);
-  assert.ok(labels.props.data.length > 0);
-  assert.ok(
-    labels.props.data.every((datum) => datum.kind === "cluster-label"),
-    "collapsed nearby places expose aggregate context instead of duplicating member labels",
-  );
-  assert.ok(
-    labels.props.data.some(
-      (datum) => datum.text.includes("2 places") && datum.text.includes("2 nodes"),
-    ),
-  );
+  // Wait for cluster lifecycle to complete
+  return new Promise((resolve) => setTimeout(resolve, 2000)).then(() => {
+    const layers = h.lastLayers();
+    const labels = layer(layers, DECK_WORLD_LAYER_IDS.labels);
+    assert.ok(labels.props.data.length > 0);
+    assert.ok(
+      labels.props.data.every((datum) => datum.kind === "cluster-label"),
+      "collapsed nearby places expose aggregate context instead of duplicating member labels",
+    );
+    assert.ok(
+      labels.props.data.some(
+        (datum) => datum.text.includes("3 places") && datum.text.includes("3 nodes"),
+      ),
+    );
 
-  const entityCluster = layer(layers, DECK_WORLD_LAYER_IDS.entities).props.data.find(
-    (datum) => datum.kind === "cluster",
-  );
-  assert.ok(entityCluster);
-  assert.equal(entityCluster.placeIds.length, 2, "the aggregate preserves both canonical places");
-  assert.equal(
-    layer(layers, DECK_WORLD_LAYER_IDS.places).props.data.length,
-    0,
-    "represented place hit bodies are folded into the aggregate cluster",
-  );
-  assert.equal(
-    layer(layers, DECK_WORLD_LAYER_IDS.placeIcons).props.data.length,
-    0,
-    "nearby place pins do not remain visibly stacked underneath the cluster",
-  );
+    const entityCluster = layer(layers, DECK_WORLD_LAYER_IDS.entities).props.data.find(
+      (datum) => datum.kind === "cluster",
+    );
+    assert.ok(entityCluster);
+    assert.equal(entityCluster.placeIds.length, 3, "the aggregate preserves all canonical places");
+    assert.equal(
+      layer(layers, DECK_WORLD_LAYER_IDS.places).props.data.length,
+      0,
+      "represented place hit bodies are folded into the aggregate cluster",
+    );
+    assert.equal(
+      layer(layers, DECK_WORLD_LAYER_IDS.placeIcons).props.data.length,
+      0,
+      "nearby place pins do not remain visibly stacked underneath the cluster",
+    );
+  });
 });
 
 test("same-place overview retains members at the cluster origin while hiding member topology", () => {
@@ -1083,8 +1098,9 @@ test("the non-WebGL accessibility snapshot carries the same labels and directed 
   assert.deepEqual(snapshot.entities.map((entity) => entity.label).sort(), [
     "Entity 0",
     "Entity 1",
+    "Entity 2",
   ]);
-  assert.deepEqual(snapshot.places.map((place) => place.label).sort(), ["Place 0", "Place 1"]);
+  assert.deepEqual(snapshot.places.map((place) => place.label).sort(), ["Place 0", "Place 1", "Place 2"]);
   assert.deepEqual(snapshot.relationships, [
     {
       relationshipId: "meeting",
