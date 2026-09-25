@@ -5112,14 +5112,19 @@ els.itemForm.addEventListener("submit", async (event) => {
     }
     state = normalizeTimeline(draft, { strictGraph: true });
     if (selectedStoryId) {
-      state.stories = addItemToStory(
-        state.stories,
-        selectedStoryId,
-        item.id,
-        state.relationships,
-        state.places,
+      state = normalizeTimeline(
+        {
+          ...state,
+          stories: addItemToStory(
+            state.stories,
+            selectedStoryId,
+            item.id,
+            state.relationships,
+            state.places,
+          ),
+        },
+        { strictGraph: true },
       );
-      state = normalizeTimeline(state, { strictGraph: true });
     }
   } catch (error) {
     setError(
