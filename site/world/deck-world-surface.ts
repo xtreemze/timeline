@@ -2546,10 +2546,7 @@ export class DeckWorldSurface implements WorldSurface {
     // Multi-touch is camera-owned. If a stationary long-press had already
     // promoted the first contact to node drag, the second contact cancels
     // that exclusive gesture before mjolnir begins pinch/multipan handling.
-    if (
-      this.#activeDragPointerId !== null &&
-      touch.pointerId !== this.#activeDragPointerId
-    ) {
+    if (this.#activeDragPointerId !== null && touch.pointerId !== this.#activeDragPointerId) {
       this.#nodeDragSink?.cancel("pointercancel");
       this.#activeDragPointerId = null;
       this.#clearDragFlash({ render: false });
@@ -2755,8 +2752,7 @@ export class DeckWorldSurface implements WorldSurface {
       if (!this.#cameraInteractionActive) {
         this.#cameraInteractionActive = true;
         this.#cameraInteractionBlocked =
-          this.#cameraInteractionSink !== null &&
-          !this.#cameraInteractionSink.begin(gesture);
+          this.#cameraInteractionSink !== null && !this.#cameraInteractionSink.begin(gesture);
         return;
       }
       if (!this.#cameraInteractionBlocked && this.#cameraInteractionSink) {
