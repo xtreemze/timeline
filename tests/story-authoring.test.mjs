@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
@@ -78,4 +79,21 @@ test("story health reports only concrete context integrity gaps", () => {
       "story-place-registry",
     ].sort(),
   );
+});
+
+
+test("item editor exposes contextual story authoring and health feedback", async () => {
+  const [html, app] = await Promise.all([
+    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(html, /id="item-story-context"/);
+  assert.match(html, /saving this scene also appends it to that story/);
+  assert.match(app, /storyIdsForItem\(state\.stories, itemId\)/);
+  assert.match(app, /addItemToStory\([\s\S]*selectedStoryId[\s\S]*item\.id/);
+  assert.match(app, /reconcileStoryContext\([\s\S]*storyDraftPlaceIds/);
+  assert.match(app, /auditStoryAuthoring\(story, state\.relationships, state\.places\)/);
+  assert.match(app, /context complete/);
+  assert.match(app, /context \$\{health\.issueCount === 1 \? "gap" : "gaps"\}/);
 });
