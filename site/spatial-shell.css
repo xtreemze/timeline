@@ -662,15 +662,3 @@
     display: none;
   }
 }
-
-@media (max-width: 360px) {
-  .app-footer-world .world-camera-control {
-    inline-size: 40px;
-    min-inline-size: 40px;
-  }
-
-  .app-footer-primary > .app-tool,
-  .app-footer-view-tool {
-    min-inline-size: 40px;
-  }
-}
