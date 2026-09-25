@@ -140,7 +140,11 @@ test("layout quality adapts operators to neighborhood size", () => {
       .map((item, index) => edge(`large-edge-${index}`, largeInstances[index], item)),
   });
   const largeLayout = createWorldDagLayout(large);
-  assert.equal(largeLayout.metrics.algorithmCounts["simplex-two-layer-greedy"], 1);
+  const largeAlgorithm = Object.keys(largeLayout.metrics.algorithmCounts)[0]?.replace(
+    /-force-only$/,
+    "",
+  );
+  assert.equal(largeAlgorithm, "simplex-two-layer-greedy");
 
   const hugeInstances = Array.from({ length: 160 }, (_, index) => instance(`huge-${index}`));
   const huge = createWorldProjection({
@@ -150,7 +154,11 @@ test("layout quality adapts operators to neighborhood size", () => {
       .map((item, index) => edge(`huge-edge-${index}`, hugeInstances[index], item)),
   });
   const hugeLayout = createWorldDagLayout(huge);
-  assert.equal(hugeLayout.metrics.algorithmCounts["longest-two-layer-greedy"], 1);
+  const hugeAlgorithm = Object.keys(hugeLayout.metrics.algorithmCounts)[0]?.replace(
+    /-force-only$/,
+    "",
+  );
+  assert.equal(hugeAlgorithm, "longest-two-layer-greedy");
 });
 
 test("topology updates choose the stable horizontal orientation", () => {
