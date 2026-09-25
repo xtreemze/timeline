@@ -150,10 +150,15 @@ function measureCapturedFrames(timestamps: number[]) {
   }
   const firstTimestamp = timestamps[0];
   const lastTimestamp = timestamps.at(-1);
-  if (!Number.isFinite(firstTimestamp) || !Number.isFinite(lastTimestamp)) {
+  if (
+    firstTimestamp === undefined ||
+    lastTimestamp === undefined ||
+    !Number.isFinite(firstTimestamp) ||
+    !Number.isFinite(lastTimestamp)
+  ) {
     throw new Error("Showcase motion capture did not provide usable browser timestamps");
   }
-  const durationSeconds = (lastTimestamp! - firstTimestamp!) / 1000;
+  const durationSeconds = (lastTimestamp - firstTimestamp) / 1000;
   if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) {
     throw new Error("Showcase motion capture duration is invalid");
   }
