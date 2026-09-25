@@ -1,33 +1,44 @@
-export const WORLD_CLUSTER_COLLAPSED_RADIUS_RATIO = 0.7;
-export const WORLD_CLUSTER_EXPANDED_RADIUS_RATIO = 1.35;
+export const WORLD_CLUSTER_EDGE_RELEASE_MS = 420;
+export const WORLD_CLUSTER_SETTLE_MS = 1_500;
+export const WORLD_CLUSTER_ZOOM_HYSTERESIS = 0.2;
 
-function clampUnit(value: number): number {
-  return Math.max(0, Math.min(1, value));
-}
-
-function smoothstep(value: number): number {
-  const t = clampUnit(value);
-  return t * t * (3 - 2 * t);
-}
+export type WorldClusterLifecyclePhase =
+  | "expanded"
+  | "releasing"
+  | "collapsing"
+  | "collapsed"
+  | "expanding";
 
 /**
- * Continuous semantic-zoom progress for a place-local graph.
- *
- * 0 means the place owns a fully collapsed cluster. 1 means the active force
- * layout owns the full node presentation. This value may control visibility
- * and scale, but it must never interpolate node, edge, label, or tether
- * positions: spatial motion is owned exclusively by the force simulation.
+ * Hysteretic semantic-zoom decision only. It never returns interpolated
+ * geometry or presentation progress: all cluster/member movement belongs to
+ * the force simulation.
  */
-export function worldClusterExpansionProgress(
-  localRadiusPx: number,
-  clusterRadiusPx: number,
-): number {
-  if (!Number.isFinite(localRadiusPx) || localRadiusPx <= 0) return 0;
-  if (!Number.isFinite(clusterRadiusPx) || clusterRadiusPx <= 0) return 1;
+export function worldClusterWantsCollapsed(
+  zoom: number,
+  threshold: number,
+  phase: WorldClusterLifecyclePhase,
+): boolean {
+  if (!Number.isFinite(zoom) || !Number.isFinite(threshold)) return false;
+  const clustered =
+    phase === "releasing" || phase === "collapsing" || phase === "collapsed";
+  return clustered
+    ? zoom < threshold + WORLD_CLUSTER_ZOOM_HYSTERESIS
+    : zoom < threshold - WORLD_CLUSTER_ZOOM_HYSTERESIS;
+}
 
-  const collapsed = clusterRadiusPx * WORLD_CLUSTER_COLLAPSED_RADIUS_RATIO;
-  const expanded = clusterRadiusPx * WORLD_CLUSTER_EXPANDED_RADIUS_RATIO;
-  if (localRadiusPx <= collapsed) return 0;
-  if (localRadiusPx >= expanded) return 1;
-  return smoothstep((localRadiusPx - collapsed) / (expanded - collapsed));
+export function worldClusterShowsMembers(phase: WorldClusterLifecyclePhase): boolean {
+  return phase !== "collapsed";
+}
+
+export function worldClusterMutesMembers(phase: WorldClusterLifecyclePhase): boolean {
+  return phase === "releasing" || phase === "collapsing" || phase === "expanding";
+}
+
+export function worldClusterShowsActiveEdges(phase: WorldClusterLifecyclePhase): boolean {
+  return phase === "expanded";
+}
+
+export function worldClusterShowsReleasingEdges(phase: WorldClusterLifecyclePhase): boolean {
+  return phase === "releasing";
 }
