@@ -5,6 +5,7 @@ import { TimelineMotion } from "../site/timeline-motion.ts";
 import {
   CLUSTER_ZOOM_THRESHOLD,
   clusterZoomThresholdForNodeRadius,
+  clusterZoomThresholdForPlaceDensity,
   DECK_WORLD_LAYER_IDS,
   DeckWorldSurface,
   shouldClusterEntityDatums,
@@ -35,6 +36,26 @@ test("cluster zoom responds to visible marker size within bounded limits", () =>
   assert.equal(clusterZoomThresholdForNodeRadius(56), CLUSTER_ZOOM_THRESHOLD + 1.5);
   assert.equal(shouldClusterEntityDatums(100, 5, 32), true);
   assert.equal(shouldClusterEntityDatums(100, 5.25, 32), false);
+});
+
+test("dense local places stay clustered longer and resolve progressively", () => {
+  const base = clusterZoomThresholdForPlaceDensity(16, 2);
+  const smallGroup = clusterZoomThresholdForPlaceDensity(16, 4);
+  const storyGroup = clusterZoomThresholdForPlaceDensity(16, 16);
+  const veryDenseGroup = clusterZoomThresholdForPlaceDensity(16, 64);
+
+  assert.equal(base, CLUSTER_ZOOM_THRESHOLD);
+  assert.ok(smallGroup > base);
+  assert.ok(storyGroup > smallGroup);
+  assert.ok(veryDenseGroup > storyGroup);
+  assert.ok(
+    storyGroup > 6,
+    "a dense story location must not explode into member topology at the old overview threshold",
+  );
+  assert.ok(
+    veryDenseGroup <= CLUSTER_ZOOM_THRESHOLD + 2.75,
+    "density adjustment remains bounded so zoom can always resolve the cluster",
+  );
 });
 
 test("world camera controls meet the 44px touch-target floor", async () => {
@@ -178,12 +199,16 @@ function projection() {
   });
 }
 
-test("world graph label scale matches sidebar reading typography", () => {
-  assert.equal(worldGraphLabelSize({ kind: "entity-label", emphasized: false }), 18);
-  assert.equal(worldGraphLabelSize({ kind: "place-label", emphasized: false }), 18);
-  assert.equal(worldGraphLabelSize({ kind: "cluster-label", emphasized: false }), 18);
-  assert.equal(worldGraphLabelSize({ kind: "relationship-label", emphasized: false }), 18);
-  assert.equal(worldGraphLabelSize({ kind: "entity-label", emphasized: true }), 18);
+test("world graph label scale matches the compact interface hierarchy", () => {
+  assert.equal(worldGraphLabelSize({ kind: "place-label", emphasized: false }), 14);
+  assert.equal(worldGraphLabelSize({ kind: "cluster-label", emphasized: false }), 14);
+  assert.equal(worldGraphLabelSize({ kind: "entity-label", emphasized: false }), 13);
+  assert.equal(worldGraphLabelSize({ kind: "relationship-label", emphasized: false }), 12);
+  assert.equal(
+    worldGraphLabelSize({ kind: "entity-label", emphasized: true }),
+    13,
+    "interaction must not resize labels and destabilize declutter placement",
+  );
 });
 
 test("world label collision priority preserves semantic order and interaction emphasis", () => {
@@ -909,6 +934,36 @@ test("canonical focus crosses the active cluster threshold before framing an ent
   assert.ok(
     entityLayer.props.data.some((datum) => datum.kind === "entity" && datum.entityId === "alice"),
     "focused entity must be exposed rather than left inside a cluster",
+  );
+});
+
+
+test("canonical focus crosses density threshold for a crowded place", () => {
+  const { runtime } = harness();
+  const surface = new DeckWorldSurface({}, runtime, {
+    longitude: 18.0686,
+    latitude: 59.3293,
+    zoom: 3,
+    bearing: 0,
+    pitch: 20,
+  });
+  const template = projection().instances[0];
+  const instances = Array.from({ length: 16 }, (_, index) =>
+    createProjectedWorldInstance({
+      ...template,
+      id: worldInstanceId(`dense-${index}`, `occ-${index}`),
+      canonicalId: `dense-${index}`,
+      occurrenceId: `occ-${index}`,
+      localOffset: { eastMeters: index * 20, northMeters: 0 },
+    }),
+  );
+  surface.setProjection(createWorldProjection({ instances, edges: [] }));
+
+  surface.focusEntity("dense-0");
+
+  assert.ok(
+    surface.getCamera().zoom > clusterZoomThresholdForPlaceDensity(16, instances.length),
+    "explicit focus must zoom past the density threshold that keeps the place clustered",
   );
 });
 

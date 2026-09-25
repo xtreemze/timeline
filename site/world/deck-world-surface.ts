@@ -422,6 +422,23 @@ export function clusterZoomThresholdForNodeRadius(nodeRadiusPx: number): number 
 }
 
 /**
+ * Dense local groups must stay collapsed longer than two-node groups. The
+ * threshold grows logarithmically with canonical place membership so zooming
+ * progressively resolves readable groups instead of releasing an entire dense
+ * place as soon as the compact-marker threshold is crossed.
+ */
+export function clusterZoomThresholdForPlaceDensity(
+  nodeRadiusPx: number,
+  memberCount: number,
+): number {
+  const base = clusterZoomThresholdForNodeRadius(nodeRadiusPx);
+  const count = Number.isFinite(memberCount) ? Math.max(1, Math.floor(memberCount)) : 1;
+  if (count <= 3) return base;
+  const densityAdjustment = Math.min(2.75, Math.log2(count / 3) * 0.8);
+  return base + densityAdjustment;
+}
+
+/**
  * Dense projections need semantic LOD earlier than sparse scenes: drawing
  * tens of thousands of individually pickable glyphs at a globe overview is
  * both unreadable and needlessly expensive. This threshold is presentation
@@ -1603,11 +1620,14 @@ const LABEL_MARKER_GAP_PX = 8;
 export const WORLD_CLOSE_DRAG_CAMERA_LOCK_ZOOM = 6;
 
 export function worldGraphLabelSize(
-  _datum: Pick<DeckWorldLabelDatum, "kind" | "emphasized">,
+  datum: Pick<DeckWorldLabelDatum, "kind" | "emphasized">,
 ): number {
-  // Interaction state may change color/opacity only. Text metrics stay stable
+  // Match the surrounding interface's compact 10–15px type scale. Semantic
+  // kind may establish hierarchy, but interaction state never changes metrics,
   // so hover/selection cannot trigger declutter relocation.
-  return 18;
+  if (datum.kind === "place-label" || datum.kind === "cluster-label") return 14;
+  if (datum.kind === "entity-label") return 13;
+  return 12;
 }
 
 export function worldLabelCollisionPriority(
@@ -1626,7 +1646,6 @@ export function worldLabelCollisionPriority(
 
 const LABEL_PLACEMENT_CELL_PX = 128;
 const LABEL_PLACEMENT_PADDING_PX = 4;
-const LABEL_DETAIL_KEEP_ALL_ZOOM = 5;
 
 function labelFootprint(datum: DeckWorldLabelDatum): {
   readonly width: number;
@@ -1727,10 +1746,10 @@ function withLabelPixelOffset(
 }
 
 /**
- * Collision-aware screen-space placement. At working/overview zoom, labels
- * that cannot fit after trying eight positions may still be suppressed. At
- * detail zoom the semantic labels remain visible even when the scene is
- * intrinsically too dense to find a collision-free slot.
+ * Collision-aware screen-space placement. Labels that cannot fit after eight
+ * deterministic positions are suppressed at every zoom level. Zoom itself
+ * increases physical separation, so labels naturally reappear as the topology
+ * becomes readable; hover/selection overrides are appended separately.
  */
 function placeWorldLabelDatums(
   datums: readonly DeckWorldLabelDatum[],
@@ -1801,18 +1820,7 @@ function placeWorldLabelDatums(
       }
     }
 
-    if (!chosen || !chosenBox) {
-      if (zoom < LABEL_DETAIL_KEEP_ALL_ZOOM) continue;
-      chosen = candidates[0] ?? [0, 0];
-      const centerX = anchorX + chosen[0];
-      const centerY = anchorY + chosen[1];
-      chosenBox = {
-        left: centerX - footprint.width / 2,
-        right: centerX + footprint.width / 2,
-        top: centerY - footprint.height / 2,
-        bottom: centerY + footprint.height / 2,
-      };
-    }
+    if (!chosen || !chosenBox) continue;
 
     const placedDatum = withLabelPixelOffset(datum, chosen);
     placed.push(placedDatum);
@@ -2019,10 +2027,10 @@ function labelDatums(input: {
   const relationships = selectPrioritizedLabels(
     input.relationships.filter((relationship) => relationship.label && !input.clustered),
     {
-      // Relationship predicates are semantic graph content, but a fully
-      // collapsed place cluster has no visible edge geometry. Hide ordinary
-      // predicates with those edges; selected/focused context may remain.
-      budget: input.zoom >= LABEL_DETAIL_KEEP_ALL_ZOOM ? Number.POSITIVE_INFINITY : budget,
+      // Relationship predicates are semantic graph content, but they must
+      // obey the same zoom budget at every scale. Dense local graphs otherwise
+      // become unreadable as soon as detail zoom is reached.
+      budget,
       isPinned: (relationship) => focused("relationship", relationship.relationshipId),
       importance: (relationship) => relationship.temporalWeight,
       key: (relationship) => relationship.relationshipId,
@@ -2066,10 +2074,10 @@ function labelDatums(input: {
   );
   const placedByKey = new Map(placed.map((datum) => [datum.key, datum] as const));
 
-  // Hovered and selected entities are an explicit interaction exception to
-  // ordinary label LOD. Append only labels that the stable base pass omitted,
-  // so labels that were already visible keep their datum identity and
-  // placement while an interacted node can always identify itself.
+  // Interaction is an explicit exception to ordinary label LOD. Append only
+  // labels that the stable base pass omitted, so labels already visible keep
+  // their datum identity and placement while the active object can identify
+  // itself without forcing the whole dense scene back into view.
   const interactionLabels: DeckWorldLabelDatum[] = [];
   const interactionPlaceIds = new Set<PlaceId>();
   if (input.selection?.kind === "place") interactionPlaceIds.add(input.selection.id);
@@ -2141,6 +2149,45 @@ function labelDatums(input: {
           footprint.height,
           input.entityMarkerRadiusPx(entity.worldInstanceId),
         )[0] ?? [0, 0];
+      const interactionDatum = withLabelPixelOffset(datum, offset);
+      interactionLabels.push(interactionDatum);
+      placedByKey.set(key, interactionDatum);
+      byKey.set(key, interactionDatum);
+    }
+  }
+
+  const interactionRelationshipIds = new Set<RelationshipId>();
+  if (input.selection?.kind === "relationship") interactionRelationshipIds.add(input.selection.id);
+  if (input.hoverSelection?.kind === "relationship") {
+    interactionRelationshipIds.add(input.hoverSelection.id);
+  }
+  if (input.focus?.kind === "relationship") interactionRelationshipIds.add(input.focus.id);
+  if (!input.clustered && interactionRelationshipIds.size > 0) {
+    for (const relationship of input.relationships) {
+      if (!relationship.label || !interactionRelationshipIds.has(relationship.relationshipId)) {
+        continue;
+      }
+      const key = `relationship:${relationship.relationshipId}`;
+      if (placedByKey.has(key)) continue;
+      const text = relationship.label;
+      const position = edgePathMidpoint(relationship.path);
+      const prior = input.previous.get(key);
+      const datum =
+        prior && labelDatumUnchanged(prior, text, position, true)
+          ? prior
+          : Object.freeze({
+              kind: "relationship-label",
+              key,
+              relationshipId: relationship.relationshipId,
+              sourceInstanceId: relationship.sourceInstanceId,
+              targetInstanceId: relationship.targetInstanceId,
+              text,
+              position,
+              emphasized: true,
+            });
+      const footprint = labelFootprint(datum);
+      const offset =
+        labelOffsetCandidates(datum, footprint.width, footprint.height, 0)[0] ?? [0, 0];
       const interactionDatum = withLabelPixelOffset(datum, offset);
       interactionLabels.push(interactionDatum);
       placedByKey.set(key, interactionDatum);
@@ -2267,6 +2314,12 @@ function worldHitFromPicking(info: DeckRuntimePickingInfo | null): WorldHit | nu
 function clusterIdFromPicking(info: DeckRuntimePickingInfo | null): string | null {
   if (!info || !isRecord(info.object) || info.object.kind !== "cluster") return null;
   return typeof info.object.clusterId === "string" ? info.object.clusterId : null;
+}
+
+function clusterMemberCountFromPicking(info: DeckRuntimePickingInfo | null): number {
+  if (!info || !isRecord(info.object) || info.object.kind !== "cluster") return 1;
+  const members = info.object.clusterMembers;
+  return Array.isArray(members) ? Math.max(1, members.length) : 1;
 }
 
 function clusterPositionFromPicking(
@@ -2531,7 +2584,7 @@ export class DeckWorldSurface implements WorldSurface {
     }
     const cluster = clusterPositionFromPicking(info);
     if (cluster) {
-      this.#focusCluster(cluster);
+      this.#focusCluster(cluster, clusterMemberCountFromPicking(info));
       void pulseHaptic("selection");
       return;
     }
@@ -2916,14 +2969,25 @@ export class DeckWorldSurface implements WorldSurface {
       if (!placeId) continue;
       counts.set(placeId, (counts.get(placeId) ?? 0) + 1);
     }
+
+    const footprintRadiusPx = this.#clusterEntityFootprintRadiusPx();
     const globalOverview = shouldClusterEntityDatums(
       this.#projection.instances.length,
       this.#camera.zoom,
-      this.#clusterEntityFootprintRadiusPx(),
+      footprintRadiusPx,
     );
+
     return Object.freeze(
       [...counts]
-        .filter(([, count]) => globalOverview || count > 1)
+        .filter(([, count]) => {
+          if (globalOverview) return true;
+          if (count <= 1) return false;
+          return worldClusterWantsCollapsed(
+            this.#camera.zoom,
+            clusterZoomThresholdForPlaceDensity(footprintRadiusPx, count),
+            this.#clusterPhase,
+          );
+        })
         .map(([placeId]) => placeId)
         .sort((left, right) => String(left).localeCompare(String(right))),
     );
@@ -3004,36 +3068,20 @@ export class DeckWorldSurface implements WorldSurface {
       if (this.#clusterPhase !== "expanded") this.#beginClusterExpansion();
       return;
     }
-    const markerThreshold = clusterZoomThresholdForNodeRadius(
-      this.#clusterEntityFootprintRadiusPx(),
-    );
-    const threshold =
-      this.#projection.instances.length >= DENSE_CLUSTER_ENTITY_THRESHOLD
-        ? Math.max(markerThreshold, DENSE_CLUSTER_ZOOM_THRESHOLD)
-        : markerThreshold;
-    const wantsCollapsed = worldClusterWantsCollapsed(
-      this.#camera.zoom,
-      threshold,
-      this.#clusterPhase,
-    );
 
-    if (wantsCollapsed) {
-      if (this.#clusterPhase === "expanded" || this.#clusterPhase === "expanding") {
-        this.#beginClusterCollapse(placeIds);
-        return;
-      }
-      if (!this.#sameClusterPlaces(placeIds)) {
-        this.#clusterPlaceIds = Object.freeze([...placeIds]);
-        if (this.#clusterPhase === "collapsing" || this.#clusterPhase === "collapsed") {
-          this.#clusterForceSink?.setClusteredPlaceIds(
-            this.#clusterPlaceIds,
-            this.#clusterPlaceIds,
-          );
-        }
-      }
+    if (this.#clusterPhase === "expanded" || this.#clusterPhase === "expanding") {
+      this.#beginClusterCollapse(placeIds);
       return;
     }
-    if (this.#clusterPhase !== "expanded") this.#beginClusterExpansion();
+    if (!this.#sameClusterPlaces(placeIds)) {
+      this.#clusterPlaceIds = Object.freeze([...placeIds]);
+      if (this.#clusterPhase === "collapsing" || this.#clusterPhase === "collapsed") {
+        this.#clusterForceSink?.setClusteredPlaceIds(
+          this.#clusterPlaceIds,
+          this.#clusterPlaceIds,
+        );
+      }
+    }
   }
 
   setNodeDragSink(sink: DeckWorldNodeDragSink | null): void {
@@ -3133,10 +3181,25 @@ export class DeckWorldSurface implements WorldSurface {
 
   focusEntity(id: EntityId): void {
     this.#setLabelFocus("entity", id);
-    // Aim at where the entity is drawn at the destination zoom, using the
-    // same anchor-local presentation metrics as ordinary rendering.
-    const destinationZoom = this.#detailFocusZoom();
     const instance = this.#projection.instances.find((candidate) => candidate.canonicalId === id);
+    const placeId = instance?.geographicAnchors[0]?.placeId;
+    const placeMemberCount = placeId
+      ? this.#projection.instances.filter(
+          (candidate) => candidate.geographicAnchors[0]?.placeId === placeId,
+        ).length
+      : 1;
+    // Explicit focus must cross the same density threshold that keeps a dense
+    // local group clustered; otherwise the camera can center a hidden member
+    // while leaving its cluster intact.
+    const destinationZoom = Math.max(
+      this.#detailFocusZoom(),
+      placeId
+        ? clusterZoomThresholdForPlaceDensity(
+            this.#clusterEntityFootprintRadiusPx(),
+            placeMemberCount,
+          ) + 0.25
+        : 0,
+    );
     this.#focusPosition(
       instance
         ? anchorPosition(
@@ -3163,10 +3226,21 @@ export class DeckWorldSurface implements WorldSurface {
 
   focusPlace(id: PlaceId): void {
     this.#setLabelFocus("place", id);
+    const memberCount = this.#projection.instances.filter(
+      (instance) => instance.geographicAnchors[0]?.placeId === id,
+    ).length;
+    const destinationZoom = Math.max(
+      this.#detailFocusZoom(),
+      clusterZoomThresholdForPlaceDensity(
+        this.#clusterEntityFootprintRadiusPx(),
+        memberCount,
+      ) + 0.25,
+    );
     this.#focusPosition(
       placeDatums(this.#projection.instances, this.#selection, this.#placeDatumCache).datums.find(
         (datum) => datum.placeId === id,
       )?.position ?? null,
+      destinationZoom,
     );
   }
 
@@ -3905,18 +3979,24 @@ export class DeckWorldSurface implements WorldSurface {
       : Object.freeze([] as DeckWorldRelationshipDatum[]);
     const releasingSegments = releasingRelationshipSegments(releasingRelationships);
 
+    // Only the places selected by semantic density belong to the collapsed
+    // representation. This matters above the global overview tier: a dense
+    // story location may stay clustered while nearby sparse/singleton places
+    // are already readable as ordinary nodes.
+    const clusteredEntitySource = entityResult.datums.filter((entity) =>
+      memberIds.has(entity.worldInstanceId),
+    );
+    const unclusteredEntities = entityResult.datums.filter(
+      (entity) => !memberIds.has(entity.worldInstanceId),
+    );
     const placeClusters = clusterEntityDatumsByPlace(
-      entityResult.datums,
+      clusteredEntitySource,
       this.#projection.instances,
       worldPixelsToDegrees(WORLD_CLUSTER_MERGE_PX, this.#camera.zoom),
     );
     const entities: readonly DeckWorldEntityRenderDatum[] =
       clusterPhase === "collapsed"
-        ? Object.freeze(
-            placeClusters.filter(
-              (datum) => datum.kind === "cluster" || !memberIds.has(datum.worldInstanceId),
-            ),
-          )
+        ? Object.freeze([...placeClusters, ...unclusteredEntities])
         : Object.freeze(
             entityResult.datums.filter(
               (entity) => !memberIds.has(entity.worldInstanceId) || showMembers,
@@ -4602,8 +4682,15 @@ export class DeckWorldSurface implements WorldSurface {
     });
   }
 
-  #focusCluster(position: WorldRenderPosition): void {
-    this.#focusPosition(position, this.#detailFocusZoom(this.#camera.zoom + 1));
+  #focusCluster(position: WorldRenderPosition, memberCount = 1): void {
+    const densityThreshold = clusterZoomThresholdForPlaceDensity(
+      this.#clusterEntityFootprintRadiusPx(),
+      memberCount,
+    );
+    this.#focusPosition(
+      position,
+      Math.max(this.#detailFocusZoom(this.#camera.zoom + 1), densityThreshold + 0.25),
+    );
   }
 
   /**
