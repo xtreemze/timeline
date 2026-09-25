@@ -235,6 +235,7 @@ function worldPlaceMarkerMetrics(placeStyle: unknown): WorldPlaceMarkerMetrics {
   const own = record(placeStyle) ?? {};
   const marker = record(own["marker"]) ?? {};
   const metrics = worldPlaceMarkerMetrics(placeStyle);
+
   return Object.freeze({
     radius: metrics.radius,
     borderWidth: metrics.borderWidth,
