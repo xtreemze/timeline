@@ -66,7 +66,7 @@ The product is browser-first and backend-free. Hosting the application does not 
 
 ## Product showcase
 
-The showcase media is generated from the real application in headed Chrome CI. Static states use source-resolution PNG screenshots. Motion is sampled from an exact-size Xvfb framebuffer at 60 Hz with FFmpeg `x11grab`, encoded to raw VP8 WebM with timestamp passthrough, and independently requires both a browser frame clock of at least 59 fps and decoded raw-source cadence of at least 59 fps across 95% of the recording window before any presentation encoding. Only then are 60 fps animated WebP and highlight reels produced and decoded again for verification.
+The showcase media is generated from the real application in headed Chrome CI. Static states use source-resolution PNG screenshots. Motion is sampled from an exact-size Xvfb framebuffer at 60 Hz with FFmpeg `x11grab` into an ephemeral uncompressed NUT stream using timestamp passthrough. That pre-encode source must decode at at least 59 fps across 95% of the recording window while the browser's own frame clock independently sustains at least 59 fps. Only after both gates pass is the captured sequence compressed one-frame-for-one-frame to VP8 WebM for retained evidence. Only then are 60 fps animated WebP and highlight reels produced and decoded again for verification.
 
 | Flow | Desktop | Mobile |
 | --- | --- | --- |
