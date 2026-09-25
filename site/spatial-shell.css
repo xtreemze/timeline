@@ -439,7 +439,8 @@
   --workspace-footer-base-content-block-size: 96px;
   --workspace-footer-content-block-size: 96px;
   --workspace-footer-base-block-size: calc(
-    var(--workspace-footer-base-content-block-size) + env(safe-area-inset-bottom)
+    var(--workspace-footer-base-content-block-size) +
+    env(safe-area-inset-bottom)
   );
 }
 
