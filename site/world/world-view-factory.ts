@@ -1,4 +1,4 @@
-import { ReferenceWorldForceSimulation } from "../../src/layout/reference-world-force-simulation.ts";
+import { D3WorldForceSimulation } from "../../src/layout/d3-world-force-simulation.ts";
 import type { WorldForceLayoutSample } from "../../src/layout/world-force-layout.ts";
 import type { WorldForceSimulationBackend } from "../../src/layout/world-force-simulation.ts";
 import { LuumWorldSurfaceElement } from "../components/world-surface-element.ts";
@@ -217,7 +217,8 @@ export function createWorldViewFactory(options: WorldViewFactoryOptions): WorldV
           }
         })
         .catch(() => {});
-      const forceBackend = options.createForceBackend?.() ?? new ReferenceWorldForceSimulation();
+      const forceBackend: WorldViewFactoryForceBackend =
+        options.createForceBackend?.() ?? new D3WorldForceSimulation();
       const runtime = new WorldViewRuntimeController({
         surface,
         forceBackend,
@@ -239,6 +240,13 @@ export function createWorldViewFactory(options: WorldViewFactoryOptions): WorldV
       if (root instanceof LuumWorldSurfaceElement) {
         root.adoptView(scheduledView);
       }
+
+      surface.setClusterForceSink({
+        setClusteredPlaceIds(placeIds, detachedLinkPlaceIds) {
+          runtime.setClusteredPlaceIds(placeIds, detachedLinkPlaceIds);
+          scheduledView.wake();
+        },
+      });
 
       surface.setNodeDragSink({
         begin(pointerId, instanceId, position) {
