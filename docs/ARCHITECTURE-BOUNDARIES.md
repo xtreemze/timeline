@@ -240,7 +240,7 @@ CSS remains authoritative for ordinary intrinsic layout. Prefer Grid/Flexbox, lo
 
 ## 7. Interaction ownership
 
-Lūm owns gesture semantics across the timeline and world surface. Legacy graph/map adapters participate through the same coordinator during migration.
+Lūm owns gesture semantics across the timeline and world surface. The composition root injects one coordinator into both primary surfaces. Legacy graph/map adapters consume the same surface-controller contract during migration and must use the workspace coordinator when they coexist as interaction peers.
 
 Required state model:
 
@@ -263,7 +263,9 @@ Required vocabulary:
 - weighted/inertial release;
 - keyboard/D-pad equivalents where applicable.
 
-Continuous direct manipulation uses Pointer Events, coalesced samples when available, and requestAnimationFrame.
+Continuous direct manipulation uses Pointer Events, coalesced samples when available, and requestAnimationFrame. The pure `InteractionCoordinator` owns epochs; `SurfaceInteractionController` adapts a named surface to that epoch; input policy maps raw pointer/keyboard affordances without importing DOM constructors.
+
+Renderer-native camera recognizers remain authoritative. deck.gl/mjolnir interaction state is bridged into the epoch, including its post-release transition/inertia period; Leaflet retains native pinch/wheel/keyboard mechanics; the retained timeline implements its temporal pan/pinch/wheel physics against the same lifecycle. A renderer adapter reports recognized intent and lifecycle state—it does not duplicate the renderer's recognizer.
 
 WAAPI is appropriate for cancelable local/discrete animation. View Transitions are appropriate for structural state transitions. Neither owns continuous gesture physics.
 
