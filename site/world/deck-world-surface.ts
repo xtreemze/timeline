@@ -21,10 +21,6 @@ import {
   worldClusterShowsReleasingEdges,
   worldClusterWantsCollapsed,
 } from "../../src/layout/world-cluster-transition.ts";
-import {
-  worldTemporalRevealProgress,
-  type WorldTemporalRevealProgress,
-} from "../../src/layout/world-temporal-reveal.ts";
 import type { WorldRelationshipRouteHint } from "../../src/layout/world-force-simulation.ts";
 import {
   resolveWorldLocalLayoutPosition,
@@ -88,6 +84,10 @@ import {
   type WorldTemporalWindow,
   worldSelectionFromHit,
 } from "../../src/layout/world-surface.ts";
+import {
+  worldTemporalRevealProgress,
+  type WorldTemporalRevealProgress,
+} from "../../src/layout/world-temporal-reveal.ts";
 import type {
   ProjectedWorldEdge,
   ProjectedWorldInstance,
@@ -646,10 +646,7 @@ export function clusterTargetPlaceIds(
     if (!sourcePlace || !targetPlace) continue;
     const sourceComponent = componentIndexByPlace.get(sourcePlace);
     const targetComponent = componentIndexByPlace.get(targetPlace);
-    if (
-      sourceComponent !== undefined &&
-      sourceComponent === targetComponent
-    ) {
+    if (sourceComponent !== undefined && sourceComponent === targetComponent) {
       componentEdgeCounts[sourceComponent] = (componentEdgeCounts[sourceComponent] ?? 0) + 1;
     }
   }
@@ -835,9 +832,7 @@ export function clusterEntityDatumsByPlace(
   minimumPlaceCount = 0,
 ): readonly DeckWorldEntityRenderDatum[] {
   const requiredPlaceCount =
-    Number.isFinite(minimumPlaceCount) && minimumPlaceCount > 0
-      ? Math.floor(minimumPlaceCount)
-      : 0;
+    Number.isFinite(minimumPlaceCount) && minimumPlaceCount > 0 ? Math.floor(minimumPlaceCount) : 0;
   type Anchor = ProjectedWorldInstance["geographicAnchors"][number];
   interface PlaceGroup {
     readonly placeId: PlaceId;
@@ -1113,17 +1108,11 @@ const BASE_CAPABILITIES = Object.freeze({
 
 type Rgba = [number, number, number, number];
 
-function mixWorldColorBytes(
-  from: string,
-  to: string,
-  progress: number,
-  alpha = 255,
-): Rgba {
+function mixWorldColorBytes(from: string, to: string, progress: number, alpha = 255): Rgba {
   const t = Math.min(1, Math.max(0, progress));
   const left = worldColorBytes(from);
   const right = worldColorBytes(to);
-  const channel = (index: 0 | 1 | 2) =>
-    Math.round(left[index] + (right[index] - left[index]) * t);
+  const channel = (index: 0 | 1 | 2) => Math.round(left[index] + (right[index] - left[index]) * t);
   const mixedAlpha = Math.round(
     (left[3] + (right[3] - left[3]) * t) * (Math.min(255, Math.max(0, alpha)) / 255),
   );
@@ -2647,8 +2636,10 @@ function interactionNeighborhood(
       const target = entityByInstance.get(edge.targetInstanceId);
       if (source) entityIds.add(source);
       if (target) entityIds.add(target);
-      for (const placeId of placesByInstance.get(edge.sourceInstanceId) ?? []) placeIds.add(placeId);
-      for (const placeId of placesByInstance.get(edge.targetInstanceId) ?? []) placeIds.add(placeId);
+      for (const placeId of placesByInstance.get(edge.sourceInstanceId) ?? [])
+        placeIds.add(placeId);
+      for (const placeId of placesByInstance.get(edge.targetInstanceId) ?? [])
+        placeIds.add(placeId);
       continue;
     }
 
@@ -4267,7 +4258,10 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   #availableLocalGraphRadiusPx(): number {
-    return Math.min(worldFloatingGraphRadiusPx(this.#camera.zoom), this.#viewportGraphRadiusLimitPx());
+    return Math.min(
+      worldFloatingGraphRadiusPx(this.#camera.zoom),
+      this.#viewportGraphRadiusLimitPx(),
+    );
   }
 
   #clusterMergeRadiusPx(): number {
@@ -4708,10 +4702,7 @@ export class DeckWorldSurface implements WorldSurface {
       );
     };
     const entityMarkerStyle = (datum: DeckWorldEntityDatum): WorldNodeStyle => {
-      const style = this.#entityStyle(
-        datum,
-        muteMembers && memberIds.has(datum.worldInstanceId),
-      );
+      const style = this.#entityStyle(datum, muteMembers && memberIds.has(datum.worldInstanceId));
       // The tintable border layer owns the border while a node is entering or
       // leaving. Removing it from the body marker prevents a final-colour
       // border from leaking through the interpolation.
@@ -5126,8 +5117,7 @@ export class DeckWorldSurface implements WorldSurface {
                 ),
               // Styled node markers: shape, fill, border and icon/image from
               // the entity's own style or the type default.
-              getIcon: (datum: DeckWorldEntityDatum) =>
-                worldNodeMarker(entityMarkerStyle(datum)),
+              getIcon: (datum: DeckWorldEntityDatum) => worldNodeMarker(entityMarkerStyle(datum)),
               getSize: (datum: DeckWorldEntityDatum) =>
                 worldNodeMarker(entityMarkerStyle(datum)).size *
                 entityExpansion(datum) *
@@ -5202,17 +5192,11 @@ export class DeckWorldSurface implements WorldSurface {
                 ),
               getIcon: (datum: DeckWorldEntityDatum) =>
                 worldNodeBorderMarker(
-                  this.#entityStyle(
-                    datum,
-                    muteMembers && memberIds.has(datum.worldInstanceId),
-                  ),
+                  this.#entityStyle(datum, muteMembers && memberIds.has(datum.worldInstanceId)),
                 ),
               getSize: (datum: DeckWorldEntityDatum) =>
                 worldNodeBorderMarker(
-                  this.#entityStyle(
-                    datum,
-                    muteMembers && memberIds.has(datum.worldInstanceId),
-                  ),
+                  this.#entityStyle(datum, muteMembers && memberIds.has(datum.worldInstanceId)),
                 ).size * entityExpansion(datum),
               getColor: (datum: DeckWorldEntityDatum) => {
                 const style = this.#entityStyle(
@@ -5333,8 +5317,8 @@ export class DeckWorldSurface implements WorldSurface {
                     : datum.kind === "place-label"
                       ? this.#theme.labelPlace
                       : datum.kind === "relationship-label"
-                      ? this.#theme.labelRelationship
-                      : this.#theme.labelText;
+                        ? this.#theme.labelRelationship
+                        : this.#theme.labelText;
                 const facing = this.#cameraFacingOpacity(datum.position);
                 if (datum.kind === "place-label") return scaleAlpha(base, facing);
                 if (datum.kind === "cluster-label") {
