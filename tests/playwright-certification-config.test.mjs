@@ -161,7 +161,7 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightSpec, /const SHOWCASE_FPS = 60/);
   assert.match(highlightSpec, /const MIN_CAPTURE_FPS = 59/);
   assert.match(highlightSpec, /const MIN_CAPTURE_COVERAGE = 0\.95/);
-  assert.match(highlightSpec, /ffmpeg-x11grab-vp8/);
+  assert.match(highlightSpec, /ffmpeg-x11grab-vp8/);\n  assert.match(highlightSpec, /screenWidth/);\n  assert.match(highlightSpec, /screenHeight/);
   assert.match(highlightSpec, /"-f",\s*"x11grab"/);
   assert.match(highlightSpec, /"-framerate",\s*String\(SHOWCASE_FPS\)/);
   assert.match(highlightSpec, /"-fps_mode",\s*"passthrough"/);
