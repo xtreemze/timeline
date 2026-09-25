@@ -153,10 +153,15 @@ for (const formFactor of ["desktop", "mobile"]) {
     const measured = measureSourceCadence(segment, formFactor);
     const rawWebm = probeVisual(path.resolve(workspace, segment.video));
     assertDimensions(rawWebm, expected, `${formFactor}/${segment.name} raw WebM`);
-    assertDecodedFrameRate(
+    const rawDecoded = assertDecodedFrameRate(
       path.resolve(workspace, segment.video),
-      `${formFactor}/${segment.name} raw VP8 WebM`,
+      `${formFactor}/${segment.name} source-frame VP8 WebM`,
     );
+    if (rawDecoded.frameCount !== segment.capture.frameCount) {
+      throw new Error(
+        `${formFactor}/${segment.name} source-frame WebM contains ${String(rawDecoded.frameCount)} frames but the Chromium capture reported ${String(segment.capture.frameCount)}.`,
+      );
+    }
     if (rawWebm.codec_name !== "vp8") {
       throw new Error(
         `${formFactor}/${segment.name} raw VP8 WebM uses ${String(rawWebm.codec_name)}; expected VP8.`,
