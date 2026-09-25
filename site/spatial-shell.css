@@ -390,7 +390,6 @@
   justify-content: stretch;
   inline-size: 100%;
   max-inline-size: none;
-  overflow: hidden;
 }
 
 .app-footer-zone {
@@ -414,7 +413,7 @@
 
 .app-footer-actions {
   justify-content: center;
-  inline-size: clamp(132px, 33vw, 264px);
+  inline-size: clamp(132px, 33%, 264px);
   min-inline-size: 0;
   max-inline-size: 100%;
 }
