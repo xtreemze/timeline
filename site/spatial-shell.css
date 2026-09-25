@@ -436,14 +436,15 @@
 
 /* Persistent footer control plane: application center, world left, timeline view right. */
 #app-shell {
-  --workspace-footer-base-content-block-size: 64px;
+  --workspace-footer-base-content-block-size: 96px;
+  --workspace-footer-content-block-size: 96px;
   --workspace-footer-base-block-size: calc(
     var(--workspace-footer-base-content-block-size) + env(safe-area-inset-bottom)
   );
 }
 
 #app-shell[data-view-controls-open="true"] {
-  --workspace-footer-content-block-size: 120px;
+  --workspace-footer-content-block-size: 152px;
 }
 
 #app-shell > .timeline-panel {
@@ -517,22 +518,31 @@
 .app-footer-primary,
 .app-footer-view-tool {
   grid-row: 2;
-  align-self: stretch;
+}
+
+.app-footer-world {
+  align-self: end;
+}
+
+.app-footer-primary,
+.app-footer-view-tool {
+  align-self: end;
+  min-block-size: 64px;
 }
 
 .app-footer-world {
   grid-column: 1;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: flex-start;
   min-inline-size: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .app-footer-primary {
   grid-column: 2;
   display: flex;
-  align-items: stretch;
+  align-items: center;
   justify-content: center;
   gap: 0.12rem;
   min-inline-size: 0;
@@ -541,7 +551,6 @@
 .app-footer-view-tool {
   grid-column: 3;
   justify-self: end;
-  align-self: center;
 }
 
 .app-footer-primary > .app-tool,
@@ -553,11 +562,12 @@
   position: static;
   inset: auto;
   z-index: auto;
-  display: flex;
-  flex-direction: row;
+  display: grid;
+  grid-template-columns: repeat(2, 44px);
+  grid-template-rows: repeat(2, 44px);
   align-items: center;
   max-inline-size: 100%;
-  overflow: hidden;
+  overflow: visible;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -597,9 +607,7 @@
   width: auto;
   min-inline-size: 0;
   max-inline-size: none;
-  block-size: calc(
-    var(--workspace-footer-block-size) - var(--workspace-footer-base-block-size)
-  );
+  block-size: calc(var(--workspace-footer-block-size) - var(--workspace-footer-base-block-size));
   max-block-size: none;
   margin: 0;
   padding: 0.3rem 0.45rem;
@@ -677,21 +685,23 @@
 }
 
 #app-shell .timeline-view-toolbar[popover]:popover-open {
-  padding-inline: max(0.25rem, env(safe-area-inset-left))
-    max(0.25rem, env(safe-area-inset-right));
+  padding-inline: max(0.25rem, env(safe-area-inset-left)) max(0.25rem, env(safe-area-inset-right));
 }
 
-/* Compact baseline: two camera actions fit beside the centered application group.
-   Wider viewports progressively restore the full world and timeline toolsets. */
-.app-footer-world
-  .world-camera-control:is([aria-label="Fit to content"], [aria-label="Show whole globe"]) {
-  display: none;
-}
-
+/* Compact baseline uses a 2x2 world-control cluster. Wider viewports restore one row. */
 @media (min-width: 521px) {
-  .app-footer-world
-    .world-camera-control:is([aria-label="Fit to content"], [aria-label="Show whole globe"]) {
-    display: grid;
+  #app-shell {
+    --workspace-footer-base-content-block-size: 64px;
+    --workspace-footer-content-block-size: 64px;
+  }
+
+  #app-shell[data-view-controls-open="true"] {
+    --workspace-footer-content-block-size: 120px;
+  }
+
+  .app-footer-world .world-camera-controls {
+    display: flex;
+    flex-direction: row;
   }
 }
 
@@ -710,8 +720,7 @@
   #app-shell .timeline-view-toolbar[popover]:popover-open {
     justify-content: flex-end;
     gap: 0.65rem;
-    padding-inline: max(0.45rem, env(safe-area-inset-left))
-      max(0.45rem, env(safe-area-inset-right));
+    padding-inline: max(0.45rem, env(safe-area-inset-left)) max(0.45rem, env(safe-area-inset-right));
   }
 
   #app-shell .timeline-view-toolbar[popover]:popover-open .timeline-zoom-control {
