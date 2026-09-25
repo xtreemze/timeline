@@ -134,7 +134,11 @@ function normalizeFramesToTargetRate(
   if (frames.length < 2) throw new Error("At least two source frames are required.");
   const firstTimestamp = frames[0]?.timestamp;
   const lastTimestamp = frames.at(-1)?.timestamp;
-  if (firstTimestamp === undefined || lastTimestamp === undefined || lastTimestamp <= firstTimestamp) {
+  if (
+    firstTimestamp === undefined ||
+    lastTimestamp === undefined ||
+    lastTimestamp <= firstTimestamp
+  ) {
     throw new Error("Source frame timestamps are invalid.");
   }
 
@@ -148,8 +152,9 @@ function normalizeFramesToTargetRate(
   ) {
     while (
       sourceIndex + 1 < frames.length &&
-      Math.abs((frames[sourceIndex + 1]?.timestamp ?? Number.POSITIVE_INFINITY) - targetTimestamp) <=
-        Math.abs((frames[sourceIndex]?.timestamp ?? Number.NEGATIVE_INFINITY) - targetTimestamp)
+      Math.abs(
+        (frames[sourceIndex + 1]?.timestamp ?? Number.POSITIVE_INFINITY) - targetTimestamp,
+      ) <= Math.abs((frames[sourceIndex]?.timestamp ?? Number.NEGATIVE_INFINITY) - targetTimestamp)
     ) {
       sourceIndex += 1;
     }
@@ -270,9 +275,7 @@ async function recordSegment(
   const videoPath = path.join(rawDir, `${scene.name}.webm`);
   const screenshotPath = path.join(rawDir, `${scene.name}.png`);
   const captureSize =
-    formFactor === "desktop"
-      ? PROJECTS["Desktop Showcase"].size
-      : PROJECTS["Mobile Showcase"].size;
+    formFactor === "desktop" ? PROJECTS["Desktop Showcase"].size : PROJECTS["Mobile Showcase"].size;
   let capture: ShowcaseSegment["capture"] = null;
 
   if (scene.mediaMode === "motion") {
