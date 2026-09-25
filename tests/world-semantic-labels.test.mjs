@@ -278,7 +278,7 @@ test("place marker rendering uses the authored icon, fill, border, width, and sh
 });
 
 
-test("very near places share one aggregate marker while readable nodes remain expanded", () => {
+test("three very near places share one aggregate marker while readable nodes remain expanded", () => {
   const h = harness();
   const left = instance(0, {
     geographicAnchors: [
@@ -291,11 +291,22 @@ test("very near places share one aggregate marker while readable nodes remain ex
       },
     ],
   });
-  const right = instance(1, {
+  const middle = instance(1, {
     geographicAnchors: [
       {
         placeId: "near-b",
         label: "Near B",
+        longitude: 12.01,
+        latitude: 41,
+        influence: 1,
+      },
+    ],
+  });
+  const right = instance(2, {
+    geographicAnchors: [
+      {
+        placeId: "near-c",
+        label: "Near C",
         longitude: 12.02,
         latitude: 41,
         influence: 1,
@@ -303,16 +314,16 @@ test("very near places share one aggregate marker while readable nodes remain ex
     ],
   });
   const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 8 });
-  surface.setProjection(createWorldProjection({ instances: [left, right], edges: [] }));
+  surface.setProjection(createWorldProjection({ instances: [left, middle, right], edges: [] }));
 
   const layers = h.lastLayers();
   const entities = layer(layers, DECK_WORLD_LAYER_IDS.entities);
   const aggregate = entities.props.data.find((datum) => datum.kind === "cluster");
-  assert.ok(aggregate, "very near place pins use one aggregate marker");
-  assert.deepEqual([...aggregate.placeIds].sort(), ["near-a", "near-b"]);
+  assert.ok(aggregate, "three very near place pins use one aggregate marker");
+  assert.deepEqual([...aggregate.placeIds].sort(), ["near-a", "near-b", "near-c"]);
   assert.equal(
     entities.props.data.filter((datum) => datum.kind === "entity").length,
-    2,
+    3,
     "node topology stays expanded because the sparse component fits",
   );
   assert.ok(
@@ -326,11 +337,48 @@ test("very near places share one aggregate marker while readable nodes remain ex
     layer(layers, DECK_WORLD_LAYER_IDS.labels).props.data.some(
       (datum) =>
         datum.kind === "cluster-label" &&
-        datum.text.includes("2 places") &&
-        datum.text.includes("2 nodes"),
+        datum.text.includes("3 places") &&
+        datum.text.includes("3 nodes"),
     ),
     "the aggregate marker communicates that nearby locations contain nodes",
   );
+});
+
+test("two very near places remain separate markers", () => {
+  const h = harness();
+  const left = instance(0, {
+    geographicAnchors: [
+      {
+        placeId: "pair-a",
+        label: "Pair A",
+        longitude: 12,
+        latitude: 41,
+        influence: 1,
+      },
+    ],
+  });
+  const right = instance(1, {
+    geographicAnchors: [
+      {
+        placeId: "pair-b",
+        label: "Pair B",
+        longitude: 12.02,
+        latitude: 41,
+        influence: 1,
+      },
+    ],
+  });
+  const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 8 });
+  surface.setProjection(createWorldProjection({ instances: [left, right], edges: [] }));
+
+  const layers = h.lastLayers();
+  const entities = layer(layers, DECK_WORLD_LAYER_IDS.entities);
+  assert.equal(entities.props.data.some((datum) => datum.kind === "cluster"), false);
+  assert.equal(
+    entities.props.data.filter((datum) => datum.kind === "entity").length,
+    2,
+  );
+  assert.equal(layer(layers, DECK_WORLD_LAYER_IDS.placeIcons).props.data.length, 2);
 });
 
 test("selecting a clustered place reveals its incident nodes and edges without opening neighbors", () => {
@@ -398,15 +446,24 @@ test("selecting a clustered place reveals its incident nodes and edges without o
       visibleEntityIds.includes(b1.canonicalId),
       "the one-hop node connected from the selected location is revealed from its cluster",
     );
-    assert.ok(
+    assert.equal(
       entities.props.data.some(
-        (datum) =>
-          datum.kind === "cluster" &&
-          datum.placeIds?.includes("place-b") &&
-          datum.clusterMembers.length === 2,
+        (datum) => datum.kind === "cluster" && datum.placeIds?.includes("place-b"),
       ),
-      "unrelated members of the neighboring place stay aggregated",
+      false,
+      "revealing one member of a three-node cluster dissolves the remaining pair",
     );
+    for (const member of [b2, b3]) {
+      const datum = entities.props.data.find(
+        (candidate) =>
+          candidate.kind === "entity" && candidate.worldInstanceId === member.id,
+      );
+      assert.ok(datum, "sub-three cluster remnants stay as individual node datums");
+      assert.ok(
+        entities.props.getRadius(datum) > 0,
+        "sub-three cluster remnants stay visibly pickable",
+      );
+    }
 
     const relationships = layer(layers, DECK_WORLD_LAYER_IDS.relationships);
     const cross = relationships.props.data.find(
@@ -1163,7 +1220,7 @@ test("clustered overview reveals aggregate and location context on interaction",
   );
 
   surface.setSelection({ kind: "entity", id: "entity-150" });
-  let interactionLayers = h.lastLayers();
+  const interactionLayers = h.lastLayers();
   labels = layer(interactionLayers, DECK_WORLD_LAYER_IDS.labels).props.data;
   assert.equal(
     labels.some((datum) => datum.kind === "entity-label"),

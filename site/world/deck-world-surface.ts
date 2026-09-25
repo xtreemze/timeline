@@ -524,10 +524,7 @@ export function clusterTargetPlaceIds(
     })
     .sort((left, right) => String(left.placeId).localeCompare(String(right.placeId)));
 
-  if (shouldClusterEntityDatums(instances.length, zoom, nodeRadiusPx)) {
-    return Object.freeze(groups.map((group) => group.placeId));
-  }
-
+  const overviewClustering = shouldClusterEntityDatums(instances.length, zoom, nodeRadiusPx);
   const hysteresis = phase === "expanded" ? 1 : 1.08;
   const available =
     Number.isFinite(availableLocalRadiusPx) && availableLocalRadiusPx > 0
@@ -644,13 +641,15 @@ export function clusterTargetPlaceIds(
   const targets = new Set<PlaceId>();
   for (const [index, component] of components.entries()) {
     const memberCount = component.reduce((sum, group) => sum + group.count, 0);
+    if (memberCount < WORLD_CLUSTER_MIN_MEMBER_COUNT) continue;
     const edgeCount = componentEdgeCounts[index] ?? 0;
     const required = clusterRequiredLocalRadiusPx(nodeRadiusPx, memberCount, edgeCount);
 
     // Nearby places share one local graph region. Proximity alone is not a
     // reason to hide topology: if their combined semantic load fits, let D3
     // use the available whitespace and reserve clustering for the place pins.
-    if (required * hysteresis <= available) continue;
+    // Globe overview still obeys the hard three-member minimum.
+    if (!overviewClustering && required * hysteresis <= available) continue;
 
     for (const group of component) {
       if (component.length > 1 || group.count > 1) targets.add(group.placeId);
@@ -669,7 +668,7 @@ export function clusterTargetPlaceIds(
  * only; canonical membership remains in each cluster and zooming to a
  * working scale restores the original world instances.
  */
-const OVERVIEW_CLUSTER_MIN_ENTITY_COUNT = 3;
+export const WORLD_CLUSTER_MIN_MEMBER_COUNT = 3;
 const DENSE_CLUSTER_ENTITY_THRESHOLD = 25_000;
 const DENSE_CLUSTER_ZOOM_THRESHOLD = 5.5;
 
@@ -714,7 +713,7 @@ export function shouldClusterEntityDatums(
   zoom: number,
   nodeRadiusPx = WORLD_CLUSTER_BASE_NODE_RADIUS_PX,
 ): boolean {
-  if (entityCount < OVERVIEW_CLUSTER_MIN_ENTITY_COUNT) return false;
+  if (entityCount < WORLD_CLUSTER_MIN_MEMBER_COUNT) return false;
   const threshold = clusterZoomThresholdForNodeRadius(nodeRadiusPx);
   return (
     zoom < threshold ||
@@ -737,10 +736,10 @@ function clusterCellKey(position: WorldRenderPosition): string {
  * (approximated here via a lon/lat grid, since actual pixel projection would
  * require a live viewport). Fully bypassed at/above `CLUSTER_ZOOM_THRESHOLD`
  * so per-entity picking/dragging is unaffected at working zoom levels, and
- * a place-anchor's own entities are only grouped when more than one entity
- * shares proximity — a lone entity is returned unchanged (same reference),
- * preserving the Priority 3 incremental-memoization guarantee for the
- * common case.
+ * a place-anchor's own entities are grouped only when at least three entities
+ * share proximity. One- and two-member buckets are returned as their original
+ * datum references, preserving the Priority 3 incremental-memoization guarantee
+ * and keeping pairs directly selectable.
  */
 export function clusterEntityDatums(
   entities: readonly DeckWorldEntityDatum[],
@@ -762,9 +761,8 @@ export function clusterEntityDatums(
 
   const result: DeckWorldEntityRenderDatum[] = [];
   for (const [key, members] of cells) {
-    const [onlyMember] = members;
-    if (members.length === 1 && onlyMember) {
-      result.push(onlyMember);
+    if (members.length < WORLD_CLUSTER_MIN_MEMBER_COUNT) {
+      result.push(...members);
       continue;
     }
 
@@ -818,7 +816,12 @@ export function clusterEntityDatumsByPlace(
   entities: readonly DeckWorldEntityDatum[],
   instances: readonly ProjectedWorldInstance[],
   mergeCellDegrees = 0,
+  minimumPlaceCount = 0,
 ): readonly DeckWorldEntityRenderDatum[] {
+  const requiredPlaceCount =
+    Number.isFinite(minimumPlaceCount) && minimumPlaceCount > 0
+      ? Math.floor(minimumPlaceCount)
+      : 0;
   type Anchor = ProjectedWorldInstance["geographicAnchors"][number];
   interface PlaceGroup {
     readonly placeId: PlaceId;
@@ -942,9 +945,11 @@ export function clusterEntityDatumsByPlace(
   const result: DeckWorldEntityRenderDatum[] = [...loose];
   for (const component of components) {
     const members = component.flatMap((group) => group.members);
-    const [only] = members;
-    if (members.length === 1 && only) {
-      result.push(only);
+    if (
+      members.length < WORLD_CLUSTER_MIN_MEMBER_COUNT ||
+      (requiredPlaceCount > 0 && component.length < requiredPlaceCount)
+    ) {
+      result.push(...members);
       continue;
     }
 
@@ -4306,7 +4311,7 @@ export class DeckWorldSurface implements WorldSurface {
 
     const clusterPlaces = new Set(this.#clusterPlaceIds);
     const placeReveal = placeInteractionReveal(this.#projection, this.#selection);
-    const memberIds = new Set<WorldInstanceId>(
+    const candidateMemberIds = new Set<WorldInstanceId>(
       this.#projection.instances
         .filter((instance) => {
           const placeId = instance.geographicAnchors[0]?.placeId;
@@ -4314,15 +4319,6 @@ export class DeckWorldSurface implements WorldSurface {
         })
         .map((instance) => instance.id),
     );
-    const clusterPhase: WorldClusterLifecyclePhase =
-      memberIds.size > 0 ? this.#clusterPhase : "expanded";
-    const showMembers = worldClusterShowsMembers(clusterPhase);
-    const muteMembers = worldClusterMutesMembers(clusterPhase);
-    const showActiveClusterEdges = worldClusterShowsActiveEdges(clusterPhase);
-    const showReleasingClusterEdges = worldClusterShowsReleasingEdges(clusterPhase);
-    const edgeIsClusterAffected = (
-      edge: Pick<DeckWorldRelationshipDatum, "sourceInstanceId" | "targetInstanceId">,
-    ): boolean => memberIds.has(edge.sourceInstanceId) || memberIds.has(edge.targetInstanceId);
 
     // Relationship geometry always consumes the exact force-resolved positions.
     // Cluster lifecycle never interpolates endpoints in the renderer.
@@ -4342,6 +4338,45 @@ export class DeckWorldSurface implements WorldSurface {
     const places = placeResult.datums;
     const relationships = relationshipResult.datums;
     const temporalRelationships = this.#temporalRelationshipDatums(relationships);
+
+    // Only topology that exceeds the shared readability budget belongs to the
+    // collapsed representation. Very-near place pins are handled separately,
+    // so sparse nodes can use surrounding whitespace without losing location
+    // aggregation. Interaction reveal is applied before cardinality so a
+    // three-member cluster dissolves immediately when only a pair remains.
+    const clusteredEntitySource = entityResult.datums.filter(
+      (entity) =>
+        candidateMemberIds.has(entity.worldInstanceId) &&
+        !placeReveal.instanceIds.has(entity.worldInstanceId),
+    );
+    const unclusteredEntities = entityResult.datums.filter(
+      (entity) =>
+        !candidateMemberIds.has(entity.worldInstanceId) ||
+        placeReveal.instanceIds.has(entity.worldInstanceId),
+    );
+    const placeClusters = clusterEntityDatumsByPlace(
+      clusteredEntitySource,
+      this.#projection.instances,
+      worldPixelsToDegrees(this.#clusterMergeRadiusPx(), this.#camera.zoom),
+    );
+    const topologyClusters = placeClusters.filter(
+      (datum): datum is DeckWorldClusterDatum => datum.kind === "cluster",
+    );
+    const memberIds = new Set<WorldInstanceId>(
+      topologyClusters.flatMap((cluster) =>
+        cluster.clusterMembers.map((member) => member.worldInstanceId),
+      ),
+    );
+    const clusterPhase: WorldClusterLifecyclePhase =
+      memberIds.size > 0 ? this.#clusterPhase : "expanded";
+    const showMembers = worldClusterShowsMembers(clusterPhase);
+    const muteMembers = worldClusterMutesMembers(clusterPhase);
+    const showActiveClusterEdges = worldClusterShowsActiveEdges(clusterPhase);
+    const showReleasingClusterEdges = worldClusterShowsReleasingEdges(clusterPhase);
+    const edgeIsClusterAffected = (
+      edge: Pick<DeckWorldRelationshipDatum, "sourceInstanceId" | "targetInstanceId">,
+    ): boolean => memberIds.has(edge.sourceInstanceId) || memberIds.has(edge.targetInstanceId);
+
     const activeTemporalRelationships = temporalRelationships.filter((datum) => {
       const edge = this.#temporalRelationshipStateFor(datum).edge;
       return (
@@ -4358,29 +4393,6 @@ export class DeckWorldSurface implements WorldSurface {
         )
       : Object.freeze([] as DeckWorldRelationshipDatum[]);
     const releasingSegments = releasingRelationshipSegments(releasingRelationships);
-
-    // Only topology that exceeds the shared readability budget belongs to the
-    // collapsed representation. Very-near place pins are handled separately,
-    // so sparse nodes can use surrounding whitespace without losing location
-    // aggregation.
-    const clusteredEntitySource = entityResult.datums.filter(
-      (entity) =>
-        memberIds.has(entity.worldInstanceId) &&
-        !placeReveal.instanceIds.has(entity.worldInstanceId),
-    );
-    const unclusteredEntities = entityResult.datums.filter(
-      (entity) =>
-        !memberIds.has(entity.worldInstanceId) ||
-        placeReveal.instanceIds.has(entity.worldInstanceId),
-    );
-    const placeClusters = clusterEntityDatumsByPlace(
-      clusteredEntitySource,
-      this.#projection.instances,
-      worldPixelsToDegrees(this.#clusterMergeRadiusPx(), this.#camera.zoom),
-    );
-    const topologyClusters = placeClusters.filter(
-      (datum): datum is DeckWorldClusterDatum => datum.kind === "cluster",
-    );
     const placeMarkerClusters =
       clusterPhase === "expanded"
         ? Object.freeze(
@@ -4388,6 +4400,7 @@ export class DeckWorldSurface implements WorldSurface {
               entityResult.datums,
               this.#projection.instances,
               worldPixelsToDegrees(WORLD_PLACE_MARKER_CLUSTER_MERGE_PX, this.#camera.zoom),
+              WORLD_CLUSTER_MIN_MEMBER_COUNT,
             ).filter((datum): datum is DeckWorldClusterDatum => datum.kind === "cluster"),
           )
         : Object.freeze([] as DeckWorldClusterDatum[]);
@@ -5087,7 +5100,7 @@ export class DeckWorldSurface implements WorldSurface {
 
   #detailFocusZoom(minimumZoom = focusZoom(this.#camera.zoom)): number {
     const markerThreshold =
-      this.#projection.instances.length >= OVERVIEW_CLUSTER_MIN_ENTITY_COUNT
+      this.#projection.instances.length >= WORLD_CLUSTER_MIN_MEMBER_COUNT
         ? clusterZoomThresholdForNodeRadius(this.#clusterEntityFootprintRadiusPx())
         : 0;
     const denseThreshold =
