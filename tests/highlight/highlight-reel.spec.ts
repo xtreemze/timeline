@@ -216,9 +216,8 @@ async function startX11Capture(
   const display = process.env.DISPLAY;
   if (!display) throw new Error("DISPLAY is required for the showcase framebuffer recorder.");
 
-  const child = spawn(
-    process.env.FFMPEG_BIN ?? "ffmpeg",
-    [
+  const ffmpegBin = process.env.FFMPEG_BIN ?? "ffmpeg";
+  const captureArgs = [
       "-y",
       "-f",
       "x11grab",
@@ -240,12 +239,17 @@ async function startX11Capture(
       "-f",
       "nut",
       sourcePath,
-    ],
-    {
-      stdio: ["pipe", "inherit", "inherit"],
-      env: process.env,
-    },
-  );
+    ];
+  const child =
+    process.platform === "linux"
+      ? spawn("nice", ["-n", "10", ffmpegBin, ...captureArgs], {
+          stdio: ["pipe", "inherit", "inherit"],
+          env: process.env,
+        })
+      : spawn(ffmpegBin, captureArgs, {
+          stdio: ["pipe", "inherit", "inherit"],
+          env: process.env,
+        });
 
   const exited = new Promise<void>((resolve, reject) => {
     child.on("error", reject);
