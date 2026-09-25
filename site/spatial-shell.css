@@ -6,17 +6,22 @@
 /* Spatial shell utility surfaces: Browse overlays without reflow; Edit is full-screen only on compact viewports. */
 #app-shell[data-browser-open="true"] > .timeline-panel,
 #app-shell[data-browser-open="false"] > .timeline-panel {
+  inset-block-end: var(--workspace-footer-block-size);
   display: block;
+  block-size: auto;
+  height: auto;
 }
 
 #app-shell[data-browser-open="true"] > .app-browser-sheet {
   position: fixed;
   z-index: 1450;
-  inset: 0;
+  inset-block-start: 0;
+  inset-inline: 0;
+  inset-block-end: var(--workspace-footer-block-size);
   display: grid;
   place-items: stretch end;
   inline-size: 100%;
-  block-size: 100%;
+  block-size: auto;
   max-inline-size: none;
   max-block-size: none;
   margin: 0;
@@ -65,9 +70,11 @@
 
 #app-shell:has(#timeline-view[data-orientation="landscape"]) .app-browser-sheet,
 #app-shell:has(#timeline-view[data-orientation="portrait"]) .app-browser-sheet {
-  inset: 0;
+  inset-block-start: 0;
+  inset-inline: 0;
+  inset-block-end: var(--workspace-footer-block-size);
   inline-size: 100%;
-  block-size: 100%;
+  block-size: auto;
   max-inline-size: none;
   max-block-size: none;
 }
@@ -448,12 +455,6 @@
   --workspace-footer-content-block-size: 152px;
 }
 
-#app-shell > .timeline-panel {
-  inset-block-end: var(--workspace-footer-block-size);
-  block-size: auto;
-  height: auto;
-}
-
 /* The stage already terminates at the footer edge, so chronology/graph rails must not reserve
    the footer a second time internally. */
 #app-shell[data-graph-open="true"] #presentation-stage {
@@ -488,13 +489,6 @@
 }
 
 /* Utility sheets own only the workspace above the footer. They never occlude application chrome. */
-#app-shell[data-browser-open="true"] > .app-browser-sheet {
-  inset-block-start: 0;
-  inset-inline: 0;
-  inset-block-end: var(--workspace-footer-block-size);
-  block-size: auto;
-}
-
 #app-shell[data-editor-open="true"] > .app-editor-sheet {
   inset-block-end: calc(var(--workspace-footer-block-size) + 0.35rem);
 }
@@ -657,11 +651,15 @@
   max-block-size: none;
 }
 
-#app-shell.is-event-focused
-  #presentation-stage[data-timeline-orientation="horizontal"]
+#app-shell.is-event-focused[data-graph-open="true"]
+  #presentation-stage[data-timeline-orientation="horizontal"]:has(
+    > #timeline-view[data-orientation="landscape"]
+  )
   > .graph-lens:not([hidden]),
-#app-shell.is-event-focused
-  #presentation-stage[data-timeline-orientation="vertical"]
+#app-shell.is-event-focused[data-graph-open="true"]
+  #presentation-stage[data-timeline-orientation="vertical"]:has(
+    > #timeline-view[data-orientation="portrait"]
+  )
   > .graph-lens:not([hidden]) {
   inset: 0;
   inline-size: auto;
