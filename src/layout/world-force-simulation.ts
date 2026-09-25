@@ -92,8 +92,15 @@ export interface WorldSimulationDiagnostics {
 
 export interface WorldForceSimulationBackend {
   setScene(scene: WorldForceScene): void;
-  /** Presentation-only place clustering: detach local links and gather members at their anchor. */
-  setClusteredPlaceIds?(placeIds: readonly PlaceId[]): void;
+  /**
+   * Presentation-only place clustering. `placeIds` controls anchor gathering;
+   * `detachedLinkPlaceIds` may remain populated during expansion so D3
+   * rejection can scatter members before relationship springs are restored.
+   */
+  setClusteredPlaceIds?(
+    placeIds: readonly PlaceId[],
+    detachedLinkPlaceIds?: readonly PlaceId[],
+  ): void;
   setPin(pin: WorldForcePin | null): void;
   apply(request: WorldSimulationRequest): void;
   stop(): void;
