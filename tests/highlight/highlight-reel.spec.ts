@@ -27,10 +27,16 @@ type ScreencastFrame = {
   timestampSeconds: number;
 };
 
+type ScreencastFrameEvent = {
+  data?: unknown;
+  metadata?: { timestamp?: unknown };
+  sessionId?: unknown;
+};
+
 type RawCdpSession = {
   send(method: string, params?: Record<string, unknown>): Promise<unknown>;
-  on(event: string, listener: (payload: any) => void): void;
-  off(event: string, listener: (payload: any) => void): void;
+  on(event: string, listener: (payload: ScreencastFrameEvent) => void): void;
+  off(event: string, listener: (payload: ScreencastFrameEvent) => void): void;
   detach(): Promise<void>;
 };
 
@@ -39,7 +45,7 @@ type DirectScreencast = {
   raw: RawCdpSession;
   frames: ScreencastFrame[];
   pendingAcks: Set<Promise<void>>;
-  onFrame: (payload: any) => void;
+  onFrame: (payload: ScreencastFrameEvent) => void;
 };
 
 type ShowcaseSegment = SceneIntent & {
@@ -193,8 +199,8 @@ async function stopCaptureHeartbeat(page: Page) {
   });
 }
 
-const SCREencast_JPEG_QUALITY = 70;
-const SCREencast_MAX_FRAMES_IN_FLIGHT = 12;
+const SCREENCAST_JPEG_QUALITY = 70;
+const SCREENCAST_MAX_FRAMES_IN_FLIGHT = 12;
 
 function run(command: string, args: string[]) {
   return new Promise<void>((resolve, reject) => {
@@ -219,7 +225,7 @@ async function startDirectScreencast(
   const frames: ScreencastFrame[] = [];
   const pendingAcks = new Set<Promise<void>>();
 
-  const onFrame = (payload: any) => {
+  const onFrame = (payload: ScreencastFrameEvent) => {
     const sessionId = Number(payload?.sessionId);
     const data = typeof payload?.data === "string" ? payload.data : "";
     const timestampSeconds = Number(payload?.metadata?.timestamp);
@@ -241,11 +247,11 @@ async function startDirectScreencast(
   raw.on("Page.screencastFrame", onFrame);
   await raw.send("Page.startScreencast", {
     format: "jpeg",
-    quality: SCREencast_JPEG_QUALITY,
+    quality: SCREENCAST_JPEG_QUALITY,
     maxWidth: captureSize.width,
     maxHeight: captureSize.height,
     everyNthFrame: 1,
-    maxFramesInFlight: SCREencast_MAX_FRAMES_IN_FLIGHT,
+    maxFramesInFlight: SCREENCAST_MAX_FRAMES_IN_FLIGHT,
     sendLastFrame: true,
   });
 
@@ -468,8 +474,8 @@ async function recordSegment(
         recordingWindowSeconds: expectedDurationSeconds,
         frameTimestampsMs,
         method: "cdp-screencast-source-frames",
-        jpegQuality: SCREencast_JPEG_QUALITY,
-        maxFramesInFlight: SCREencast_MAX_FRAMES_IN_FLIGHT,
+        jpegQuality: SCREENCAST_JPEG_QUALITY,
+        maxFramesInFlight: SCREENCAST_MAX_FRAMES_IN_FLIGHT,
         browserFrameClockFps: browserFrameClock.fps,
       };
     } finally {
