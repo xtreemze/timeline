@@ -1,6 +1,5 @@
 import {
   coordGreedy,
-  coordSimplex,
   type Decross,
   decrossOpt,
   decrossTwoLayer,
@@ -93,8 +92,6 @@ const EXACT_DECROSS_MAX_NODES = 8;
 const EXACT_DECROSS_MAX_EDGES = 32;
 const COMPARE_LAYERING_MAX_NODES = 24;
 const COMPARE_LAYERING_MAX_EDGES = 96;
-const SIMPLEX_COORD_MAX_NODES = 64;
-const SIMPLEX_COORD_MAX_EDGES = 384;
 const SIMPLEX_LAYER_MAX_NODES = 128;
 const SIMPLEX_LAYER_MAX_EDGES = 384;
 const PAIRWISE_METRIC_MAX_NODES = 256;
@@ -102,8 +99,6 @@ const ROUTE_METRIC_MAX_SEGMENTS = 512;
 const LAYOUT_HYSTERESIS_SCORE_RATIO = 1.12;
 const COMPARE_LAYERING_HYSTERESIS_NODES = 4;
 const COMPARE_LAYERING_HYSTERESIS_EDGES = 16;
-const SIMPLEX_COORD_HYSTERESIS_NODES = 8;
-const SIMPLEX_COORD_HYSTERESIS_EDGES = 64;
 const SIMPLEX_LAYER_HYSTERESIS_NODES = 16;
 const SIMPLEX_LAYER_HYSTERESIS_EDGES = 64;
 
@@ -778,7 +773,6 @@ function runLayoutCandidate(
   previousTargets: ReadonlyMap<string, WorldDagLayoutTarget>,
   layering: "longest" | "simplex",
   decross: "opt" | "two-layer",
-  coord: "simplex" | "greedy",
 ): CandidateLayout {
   const rootId = "__lum-place-root__";
   const indegree = new Map<WorldInstanceId, number>(nodeIds.map((id) => [id, 0] as const));
@@ -802,7 +796,7 @@ function runLayoutCandidate(
   const layout = sugiyama()
     .layering(layering === "longest" ? layeringLongestPath() : layeringSimplex())
     .decross(decross === "opt" ? decrossOpt() : twoLayer)
-    .coord(coord === "simplex" ? coordSimplex() : coordGreedy())
+    .coord(coordGreedy())
     .nodeSize((node: GraphNode<string, DagLinkData>) => sizes.get(node.data) ?? [1, 1])
     .gap(gap);
   const dimensions = layout(graph);
@@ -938,7 +932,7 @@ function chooseCandidate(
     try {
       candidates.push(
         runLayoutCandidate(
-          "longest-opt-simplex",
+          "longest-opt-greedy",
           nodeIds,
           edges,
           sizes,
@@ -946,7 +940,6 @@ function chooseCandidate(
           previousTargets,
           "longest",
           "opt",
-          "simplex",
         ),
       );
     } catch {
@@ -954,7 +947,7 @@ function chooseCandidate(
     }
     candidates.push(
       runLayoutCandidate(
-        "longest-two-layer-simplex",
+        "longest-two-layer-greedy",
         nodeIds,
         edges,
         sizes,
@@ -962,10 +955,9 @@ function chooseCandidate(
         previousTargets,
         "longest",
         "two-layer",
-        "simplex",
       ),
       runLayoutCandidate(
-        "simplex-two-layer-simplex",
+        "simplex-two-layer-greedy",
         nodeIds,
         edges,
         sizes,
@@ -973,7 +965,6 @@ function chooseCandidate(
         previousTargets,
         "simplex",
         "two-layer",
-        "simplex",
       ),
     );
     return preferPreviousCandidate(previousAlgorithm, candidates);
@@ -981,15 +972,15 @@ function chooseCandidate(
 
   const compareLayering =
     (nodeIds.length <= COMPARE_LAYERING_MAX_NODES && edges.length <= COMPARE_LAYERING_MAX_EDGES) ||
-    ((previousName === "longest-two-layer-simplex" ||
-      previousName === "simplex-two-layer-simplex") &&
+    ((previousName === "longest-two-layer-greedy" ||
+      previousName === "simplex-two-layer-greedy") &&
       nodeIds.length <= COMPARE_LAYERING_MAX_NODES + COMPARE_LAYERING_HYSTERESIS_NODES &&
       edges.length <= COMPARE_LAYERING_MAX_EDGES + COMPARE_LAYERING_HYSTERESIS_EDGES);
 
   if (compareLayering) {
     return preferPreviousCandidate(previousAlgorithm, [
       runLayoutCandidate(
-        "longest-two-layer-simplex",
+        "longest-two-layer-greedy",
         nodeIds,
         edges,
         sizes,
@@ -997,10 +988,9 @@ function chooseCandidate(
         previousTargets,
         "longest",
         "two-layer",
-        "simplex",
       ),
       runLayoutCandidate(
-        "simplex-two-layer-simplex",
+        "simplex-two-layer-greedy",
         nodeIds,
         edges,
         sizes,
@@ -1008,34 +998,18 @@ function chooseCandidate(
         previousTargets,
         "simplex",
         "two-layer",
-        "simplex",
       ),
     ]);
   }
 
-  const previousUsedSimplexLayering =
-    previousName === "simplex-two-layer-simplex" || previousName === "simplex-two-layer-greedy";
-  const previousUsedSimplexCoord =
-    previousName === "simplex-two-layer-simplex" || previousName === "longest-two-layer-simplex";
+  const previousUsedSimplexLayering = previousName === "simplex-two-layer-greedy";
   const useSimplexLayering =
     (nodeIds.length <= SIMPLEX_LAYER_MAX_NODES && edges.length <= SIMPLEX_LAYER_MAX_EDGES) ||
     (previousUsedSimplexLayering &&
       nodeIds.length <= SIMPLEX_LAYER_MAX_NODES + SIMPLEX_LAYER_HYSTERESIS_NODES &&
       edges.length <= SIMPLEX_LAYER_MAX_EDGES + SIMPLEX_LAYER_HYSTERESIS_EDGES);
-  const useSimplexCoord =
-    (nodeIds.length <= SIMPLEX_COORD_MAX_NODES && edges.length <= SIMPLEX_COORD_MAX_EDGES) ||
-    (previousUsedSimplexCoord &&
-      nodeIds.length <= SIMPLEX_COORD_MAX_NODES + SIMPLEX_COORD_HYSTERESIS_NODES &&
-      edges.length <= SIMPLEX_COORD_MAX_EDGES + SIMPLEX_COORD_HYSTERESIS_EDGES);
-
   return runLayoutCandidate(
-    useSimplexCoord
-      ? useSimplexLayering
-        ? "simplex-two-layer-simplex"
-        : "longest-two-layer-simplex"
-      : useSimplexLayering
-        ? "simplex-two-layer-greedy"
-        : "longest-two-layer-greedy",
+    useSimplexLayering ? "simplex-two-layer-greedy" : "longest-two-layer-greedy",
     nodeIds,
     edges,
     sizes,
@@ -1043,7 +1017,6 @@ function chooseCandidate(
     previousTargets,
     useSimplexLayering ? "simplex" : "longest",
     "two-layer",
-    useSimplexCoord ? "simplex" : "greedy",
   );
 }
 
