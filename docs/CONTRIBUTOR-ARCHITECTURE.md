@@ -69,17 +69,19 @@ Workspace placement uses `src/layout/workspace-layout.ts`. Measure real rectangl
 
 ## Interaction rules
 
-One interaction epoch has one owner: timeline or world surface; legacy graph/map adapters use the same coordinator during migration. The shared contract in `src/interaction/interaction-coordinator.ts` owns acquisition, classification, ownership, settling, and completion semantics.
+One interaction epoch has one owner. The primary timeline and world surface receive the same application-scoped coordinator; migration/embedded surfaces consume the same controller contract and must share that coordinator whenever they participate in the same workspace interaction. `src/interaction/interaction-coordinator.ts` owns acquisition, classification, ownership, settling, and completion. `src/interaction/surface-controller.ts` is the renderer-neutral per-surface adapter; it does not recognize gestures or move cameras.
 
-Pointer Events are the baseline direct-manipulation model. The shared acquisition/affordance policy in `src/interaction/surface-input-policy.ts` defines primary-pointer eligibility, activation keys, and cursor intent. Renderer-native controllers still own camera mechanics: deck.gl 9.4/mjolnir owns world pan/rotate/pinch/wheel/keyboard camera input, Leaflet owns map zoom and keyboard camera input, and the retained timeline owns its weighted temporal camera. Do not add a second recognizer for a gesture the renderer already owns.
+Pointer Events are the baseline for Lūm-owned direct manipulation. The shared policy in `src/interaction/surface-input-policy.ts` defines primary-pointer eligibility, activation, camera-navigation keyboard commands for custom surfaces, and cursor intent. Renderer-native controllers still own their camera mechanics: deck.gl 9.4/mjolnir owns world pan/rotate/pinch/wheel/keyboard camera input, Leaflet owns map pinch/wheel/keyboard zoom/navigation, and the retained timeline owns its weighted temporal camera. Native renderer state is forwarded into the shared lifecycle (for deck via interaction state) rather than re-recognized from raw events. Do not add a second recognizer for a gesture the renderer already owns.
 
 Across surfaces:
 - primary mouse, pen, and touch are first-class; Ctrl-modified and secondary-button gestures are not captured for direct manipulation;
 - background direct manipulation uses `grab`/`grabbing`; actionable objects use `pointer`; expandable clusters use `zoom-in`;
 - click/tap selects or activates the surface object; Enter and Space are equivalent object-activation keys when the surface itself owns activation;
 - Tab/Shift+Tab remain native and must never be trapped by a camera surface;
-- arrow keys and +/- stay with the active renderer/navigation controller rather than being reinterpreted by a parallel listener;
-- one-finger world touch pans unless a stationary long-press arms node dragging; a second touch yields immediately to multi-touch camera control;
+- arrow keys and +/- stay with the active renderer/navigation controller; the retained timeline maps them through the shared navigation vocabulary, while deck/Leaflet keep their native keyboard controller;
+- focused native controls/content-editable regions and Ctrl/Meta/Alt platform shortcuts are never stolen by surface camera navigation;
+- Home fits the visible timeline context and Shift+Home fits all timeline content; these are timeline-only commands, not global shortcuts;
+- one-finger world touch pans unless a stationary long-press arms node dragging; a second touch cancels that exclusive node drag and yields immediately to multi-touch camera control;
 - pinch/multi-touch gestures stay renderer-owned; node/object dragging must stop propagation only after it has actually claimed the gesture;
 - every pointer-capture path must handle `pointercancel` and `lostpointercapture`; Escape/cancel/back is resolved at the owning surface or application-navigation layer.
 
