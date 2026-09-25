@@ -116,8 +116,17 @@ test("interactive maps use the timeline weighted drag response and shared releas
   assert.match(source, /prefersReducedMotion\(\)/);
   assert.match(source, /createSurfaceInteractionController\([\s\S]*"map"/);
   assert.match(source, /surfaceInteraction\.beginPointer\(pointerId, "pan"\)/);
+  assert.match(source, /surfaceInteraction\.beginPointer\(event\.pointerId, "pinch"\)/);
+  assert.match(source, /surfaceInteraction\.claimGesture\("pinch"\)/);
   assert.match(source, /surfaceInteraction\.releasePointer\(event\.pointerId\)/);
+  assert.match(source, /surfaceInteraction\.beginDiscrete\("wheel"\)/);
+  assert.match(source, /surfaceInteraction\.beginDiscrete\("keyboard"\)/);
   assert.match(source, /surfaceInteraction\.cancel\("lostpointercapture"\)/);
+  assert.match(
+    source,
+    /addEventListener\("wheel", onWheelCapture, \{ capture: true, passive: false \}\)/,
+  );
+  assert.match(source, /addEventListener\("keydown", onKeyDownCapture, true\)/);
   assert.match(
     source,
     /installWeightedMapDragging\([\s\S]*interaction: InteractionCoordinator = createInteractionCoordinator\(\)/,
