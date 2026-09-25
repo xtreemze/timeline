@@ -32,20 +32,22 @@ async function ensureOrientation(page: Page, orientation: "landscape" | "portrai
 }
 
 async function boxes(page: Page, focus: Locator) {
-  const [focusBox, graphBox, timelineBox, stageBox] = await Promise.all([
+  const [focusBox, graphBox, timelineBox, stageBox, footerBox] = await Promise.all([
     focus.boundingBox(),
     page.locator("#graph-lens").boundingBox(),
     page.locator(".timeline-surface").boundingBox(),
     page.locator("#presentation-stage").boundingBox(),
+    page.locator(".app-footer-bar").boundingBox(),
   ]);
   expect(focusBox).not.toBeNull();
   expect(graphBox).not.toBeNull();
   expect(timelineBox).not.toBeNull();
   expect(stageBox).not.toBeNull();
-  if (!focusBox || !graphBox || !timelineBox || !stageBox) {
+  expect(footerBox).not.toBeNull();
+  if (!focusBox || !graphBox || !timelineBox || !stageBox || !footerBox) {
     throw new Error("Focused presentation surfaces must all have layout bounds.");
   }
-  return { focusBox, graphBox, timelineBox, stageBox };
+  return { focusBox, graphBox, timelineBox, stageBox, footerBox };
 }
 
 function overlapArea(
@@ -116,7 +118,7 @@ test("portrait preserves the right timeline rail while focused detail layers ins
   expect(before).not.toBeNull();
 
   const focus = await focusOccurrence(page);
-  const { focusBox, graphBox, timelineBox, stageBox } = await boxes(page, focus);
+  const { focusBox, graphBox, timelineBox, stageBox, footerBox } = await boxes(page, focus);
   if (!before) throw new Error("Portrait timeline surface has no baseline bounds.");
 
   expect(Math.abs(timelineBox.x - before.x)).toBeLessThanOrEqual(2);
@@ -124,9 +126,7 @@ test("portrait preserves the right timeline rail while focused detail layers ins
   expect(Math.abs(timelineBox.width - before.width)).toBeLessThanOrEqual(2);
   expect(Math.abs(timelineBox.height - before.height)).toBeLessThanOrEqual(2);
   expect(timelineBox.y).toBeLessThanOrEqual(stageBox.y + 2);
-  expect(timelineBox.y + timelineBox.height).toBeGreaterThanOrEqual(
-    stageBox.y + stageBox.height - 2,
-  );
+  expect(Math.abs(timelineBox.y + timelineBox.height - footerBox.y)).toBeLessThanOrEqual(2);
   expect(graphBox.x + graphBox.width).toBeLessThanOrEqual(timelineBox.x + 3);
   expect(focusBox.x + focusBox.width).toBeLessThanOrEqual(timelineBox.x + 3);
   expect(overlapArea(focusBox, graphBox)).toBeGreaterThan(100);
