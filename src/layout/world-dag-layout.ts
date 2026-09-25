@@ -115,6 +115,9 @@ type DagLinkData = readonly [source: string, target: string, relationshipId: Rel
 interface LayoutIndex {
   readonly instancesByPlace: ReadonlyMap<PlaceId, readonly ProjectedWorldInstance[]>;
   readonly edgesByPlace: ReadonlyMap<PlaceId, readonly ProjectedWorldEdge[]>;
+  readonly primaryPlaceByInstance: ReadonlyMap<WorldInstanceId, PlaceId>;
+  readonly structuralEdges: readonly ProjectedWorldEdge[];
+  readonly crossPlaceInstanceIds: ReadonlySet<WorldInstanceId>;
 }
 
 interface RawTarget {
@@ -159,6 +162,14 @@ interface PlaceLayoutCache {
 }
 
 const placeCache = new Map<string, PlaceLayoutCache>();
+interface CrossPlaceLayoutCache {
+  readonly topologyKey: string;
+  readonly targets: readonly WorldDagLayoutTarget[];
+  readonly routes: readonly WorldDagLayoutRoute[];
+  readonly algorithm: string;
+  readonly lastSeenRevision: number;
+}
+let crossPlaceCache: CrossPlaceLayoutCache | null = null;
 let layoutRevision = 0;
 
 function primaryAnchor(instance: ProjectedWorldInstance): SpatialAnchor | null {
@@ -174,9 +185,7 @@ function primaryAnchor(instance: ProjectedWorldInstance): SpatialAnchor | null {
   );
 }
 
-function buildLayoutIndex(projection: WorldProjection): LayoutIndex & {
-  readonly crossPlaceInstanceIds: ReadonlySet<WorldInstanceId>;
-} {
+function buildLayoutIndex(projection: WorldProjection): LayoutIndex {
   const mutableInstancesByPlace = new Map<PlaceId, ProjectedWorldInstance[]>();
   const primaryPlaceByInstance = new Map<WorldInstanceId, PlaceId>();
   const crossPlaceInstanceIds = new Set<WorldInstanceId>();
@@ -191,6 +200,7 @@ function buildLayoutIndex(projection: WorldProjection): LayoutIndex & {
   }
 
   const mutableEdgesByPlace = new Map<PlaceId, ProjectedWorldEdge[]>();
+  const structuralEdges: ProjectedWorldEdge[] = [];
   for (const edge of projection.edges) {
     if (
       !edge.visible ||
@@ -201,7 +211,9 @@ function buildLayoutIndex(projection: WorldProjection): LayoutIndex & {
     }
     const sourcePlace = primaryPlaceByInstance.get(edge.sourceInstanceId);
     const targetPlace = primaryPlaceByInstance.get(edge.targetInstanceId);
-    if (!sourcePlace || sourcePlace !== targetPlace) {
+    if (!sourcePlace || !targetPlace) continue;
+    structuralEdges.push(edge);
+    if (sourcePlace !== targetPlace) {
       crossPlaceInstanceIds.add(edge.sourceInstanceId);
       crossPlaceInstanceIds.add(edge.targetInstanceId);
       continue;
@@ -239,6 +251,15 @@ function buildLayoutIndex(projection: WorldProjection): LayoutIndex & {
   return {
     instancesByPlace,
     edgesByPlace,
+    primaryPlaceByInstance,
+    structuralEdges: Object.freeze(
+      structuralEdges.sort(
+        (left, right) =>
+          right.temporalWeight - left.temporalWeight ||
+          Number(right.retained) - Number(left.retained) ||
+          String(left.id).localeCompare(String(right.id)),
+      ),
+    ),
     crossPlaceInstanceIds: Object.freeze(crossPlaceInstanceIds),
   };
 }
@@ -1114,6 +1135,179 @@ function layoutPlace(
   return result;
 }
 
+
+function crossPlaceConnectedNodeIds(index: LayoutIndex): ReadonlySet<WorldInstanceId> {
+  if (index.crossPlaceInstanceIds.size === 0) return new Set();
+
+  const adjacency = new Map<WorldInstanceId, Set<WorldInstanceId>>();
+  for (const edge of index.structuralEdges) {
+    const source = adjacency.get(edge.sourceInstanceId);
+    if (source) source.add(edge.targetInstanceId);
+    else adjacency.set(edge.sourceInstanceId, new Set([edge.targetInstanceId]));
+
+    const target = adjacency.get(edge.targetInstanceId);
+    if (target) target.add(edge.sourceInstanceId);
+    else adjacency.set(edge.targetInstanceId, new Set([edge.sourceInstanceId]));
+  }
+
+  const connected = new Set<WorldInstanceId>();
+  const pending = [...index.crossPlaceInstanceIds];
+  while (pending.length > 0) {
+    const current = pending.pop();
+    if (current === undefined || connected.has(current)) continue;
+    connected.add(current);
+    for (const neighbor of adjacency.get(current) ?? []) {
+      if (!connected.has(neighbor)) pending.push(neighbor);
+    }
+  }
+  return connected;
+}
+
+function crossPlaceTopologyKey(
+  nodeIds: readonly WorldInstanceId[],
+  edges: readonly LocalDagEdge[],
+  sizes: ReadonlyMap<string, readonly [number, number]>,
+  places: ReadonlyMap<WorldInstanceId, PlaceId>,
+): string {
+  return JSON.stringify([
+    "cross-place",
+    nodeIds.map((id) => {
+      const [width, height] = sizes.get(String(id)) ?? [
+        DAG_FALLBACK_NODE_SIZE_METERS,
+        DAG_FALLBACK_NODE_SIZE_METERS,
+      ];
+      return [String(id), String(places.get(id) ?? ""), Math.round(width), Math.round(height)];
+    }),
+    edges
+      .map((edge) => [String(edge.relationshipId), String(edge.sourceId), String(edge.targetId)])
+      .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right))),
+  ]);
+}
+
+function layoutCrossPlaceTopology(
+  projection: WorldProjection,
+  index: LayoutIndex,
+  options: WorldDagLayoutOptions,
+  revision: number,
+): CrossPlaceLayoutCache | null {
+  const connectedIds = crossPlaceConnectedNodeIds(index);
+  if (connectedIds.size === 0) {
+    crossPlaceCache = null;
+    return null;
+  }
+
+  const nodeIds = projection.instances
+    .map((instance) => instance.id)
+    .filter((id) => connectedIds.has(id) && index.primaryPlaceByInstance.has(id));
+  if (nodeIds.length === 0) return null;
+
+  const nodeIdSet = new Set(nodeIds);
+  const candidateEdges = index.structuralEdges.filter(
+    (edge) => nodeIdSet.has(edge.sourceInstanceId) && nodeIdSet.has(edge.targetInstanceId),
+  );
+  const edges = localAcyclicEdges(nodeIdSet, candidateEdges);
+  const sizes = nodeSizeMap(nodeIds, options.nodeSizes);
+  const key = crossPlaceTopologyKey(nodeIds, edges, sizes, index.primaryPlaceByInstance);
+
+  if (!options.reorganize && crossPlaceCache?.topologyKey === key) {
+    crossPlaceCache = { ...crossPlaceCache, lastSeenRevision: revision };
+    return crossPlaceCache;
+  }
+
+  const previousTargets = new Map(
+    (options.reorganize ? [] : (crossPlaceCache?.targets ?? [])).map(
+      (target) => [String(target.instanceId), target] as const,
+    ),
+  );
+  const candidate = chooseCandidate(
+    nodeIds,
+    edges,
+    sizes,
+    previousTargets,
+    options.reorganize ? undefined : crossPlaceCache?.algorithm,
+  );
+  if (candidate.targets.length === 0) {
+    crossPlaceCache = {
+      topologyKey: key,
+      targets: Object.freeze([]),
+      routes: Object.freeze([]),
+      algorithm: candidate.name,
+      lastSeenRevision: revision,
+    };
+    return crossPlaceCache;
+  }
+
+  const rawById = new Map(candidate.targets.map((target) => [target.id, target] as const));
+  const centers = new Map<PlaceId, { east: number; north: number; count: number }>();
+  for (const id of nodeIds) {
+    const raw = rawById.get(String(id));
+    const placeId = index.primaryPlaceByInstance.get(id);
+    if (!raw || !placeId) continue;
+    const center = centers.get(placeId);
+    if (center) {
+      center.east += raw.eastMeters;
+      center.north += raw.northMeters;
+      center.count += 1;
+    } else {
+      centers.set(placeId, { east: raw.eastMeters, north: raw.northMeters, count: 1 });
+    }
+  }
+
+  const centeredTargets = Object.freeze(
+    nodeIds.flatMap((instanceId) => {
+      const raw = rawById.get(String(instanceId));
+      const placeId = index.primaryPlaceByInstance.get(instanceId);
+      const center = placeId ? centers.get(placeId) : undefined;
+      if (!raw || !placeId || !center) return [];
+      return [
+        Object.freeze({
+          instanceId,
+          placeId,
+          eastMeters: raw.eastMeters - center.east / center.count,
+          northMeters: raw.northMeters - center.north / center.count,
+        }),
+      ];
+    }),
+  );
+
+  const centeredRoutes = Object.freeze(
+    candidate.routes.flatMap((route): readonly WorldDagLayoutRoute[] => {
+      const sourcePlace = index.primaryPlaceByInstance.get(route.sourceId);
+      const targetPlace = index.primaryPlaceByInstance.get(route.targetId);
+      if (!sourcePlace || sourcePlace !== targetPlace) return [];
+      const center = centers.get(sourcePlace);
+      if (!center) return [];
+      const centerEast = center.east / center.count;
+      const centerNorth = center.north / center.count;
+      return [
+        Object.freeze({
+          relationshipId: route.relationshipId,
+          placeId: sourcePlace,
+          sourceId: route.sourceId,
+          targetId: route.targetId,
+          points: Object.freeze(
+            route.points.map((point) =>
+              Object.freeze({
+                eastMeters: point.eastMeters - centerEast,
+                northMeters: point.northMeters - centerNorth,
+              }),
+            ),
+          ),
+        }),
+      ];
+    }),
+  );
+
+  crossPlaceCache = {
+    topologyKey: key,
+    targets: centeredTargets,
+    routes: centeredRoutes,
+    algorithm: candidate.name,
+    lastSeenRevision: revision,
+  };
+  return crossPlaceCache;
+}
+
 function prunePlaceCache(revision: number): void {
   for (const [key, cached] of placeCache) {
     if (revision - cached.lastSeenRevision > DAG_CACHE_RETENTION_REVISIONS) {
@@ -1123,10 +1317,12 @@ function prunePlaceCache(revision: number): void {
 }
 
 /**
- * Derive deterministic, size-aware local Sugiyama organization around each
- * primary geographic anchor. The semantic graph itself is never rewritten:
- * cross-place edges remain semantic/force edges, and lower-priority
- * cycle-closing edges are omitted only from the temporary layout DAG.
+ * Derive deterministic, size-aware Sugiyama organization while keeping each
+ * primary geographic anchor authoritative. Local-only neighborhoods are laid
+ * out per place. Any connected component that crosses a place boundary is
+ * additionally laid out as one structural DAG, then recentered into each
+ * node's own place-local frame so topology can propagate through geography
+ * without relocating authored anchors.
  */
 export function createWorldDagLayout(
   projection: WorldProjection,
@@ -1179,7 +1375,35 @@ export function createWorldDagLayout(
     algorithms[result.metrics.algorithm] = (algorithms[result.metrics.algorithm] ?? 0) + 1;
   }
 
+  const crossPlace = layoutCrossPlaceTopology(projection, index, options, revision);
+  if (crossPlace) {
+    const crossTargetIds = new Set(crossPlace.targets.map((target) => target.instanceId));
+    const crossRouteIds = new Set(crossPlace.routes.map((route) => route.relationshipId));
+    for (let index = targets.length - 1; index >= 0; index -= 1) {
+      const target = targets[index];
+      if (target && crossTargetIds.has(target.instanceId)) targets.splice(index, 1);
+    }
+    for (let index = routes.length - 1; index >= 0; index -= 1) {
+      const route = routes[index];
+      if (
+        route &&
+        (crossTargetIds.has(route.sourceId) ||
+          crossTargetIds.has(route.targetId) ||
+          crossRouteIds.has(route.relationshipId))
+      ) {
+        routes.splice(index, 1);
+      }
+    }
+    targets.push(...crossPlace.targets);
+    routes.push(...crossPlace.routes);
+    algorithms[`cross-place:${crossPlace.algorithm}`] =
+      (algorithms[`cross-place:${crossPlace.algorithm}`] ?? 0) + 1;
+  }
+
   prunePlaceCache(revision);
+  if (crossPlaceCache && revision - crossPlaceCache.lastSeenRevision > DAG_CACHE_RETENTION_REVISIONS) {
+    crossPlaceCache = null;
+  }
 
   return Object.freeze({
     targets: Object.freeze(
