@@ -198,12 +198,17 @@ test("story realms are spatially separated while preserving compact internal geo
     assert.ok(points.length >= 5, `${story.title}: enough spatial anchors`);
     const longitude = points.reduce((sum, point) => sum + point[0], 0) / points.length;
     const latitude = points.reduce((sum, point) => sum + point[1], 0) / points.length;
-    const longitudeSpan = Math.max(...points.map((point) => point[0])) - Math.min(...points.map((point) => point[0]));
-    const latitudeSpan = Math.max(...points.map((point) => point[1])) - Math.min(...points.map((point) => point[1]));
+    const longitudeSpan =
+      Math.max(...points.map((point) => point[0])) - Math.min(...points.map((point) => point[0]));
+    const latitudeSpan =
+      Math.max(...points.map((point) => point[1])) - Math.min(...points.map((point) => point[1]));
 
     assert.ok(longitudeSpan <= 3, `${story.title}: local geography should remain compact`);
     assert.ok(latitudeSpan <= 3, `${story.title}: local geography should remain compact`);
-    assert.ok(Math.abs(latitude) <= 60, `${story.title}: avoid extreme-latitude staging distortion`);
+    assert.ok(
+      Math.abs(latitude) <= 60,
+      `${story.title}: avoid extreme-latitude staging distortion`,
+    );
     return { story, longitude, latitude };
   });
 
