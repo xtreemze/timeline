@@ -15,6 +15,7 @@ export default defineConfig({
     screenshot: "off",
     video: "off",
     actionTimeout: 10_000,
+    headless: false,
     launchOptions: {
       args: [
         "--disable-background-timer-throttling",
