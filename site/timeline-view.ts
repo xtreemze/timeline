@@ -18,6 +18,16 @@ import {
   type RetainedTimelineSummary,
 } from "../src/performance/retained-timeline-metrics.ts";
 import {
+  createInteractionCoordinator,
+  type InteractionCompletionReason,
+  type InteractionCoordinator,
+} from "../src/interaction/interaction-coordinator.ts";
+import {
+  createSurfaceInteractionController,
+  type SurfaceInteractionController,
+} from "../src/interaction/surface-controller.ts";
+import {
+  surfaceNavigationFromKeyboard,
   surfacePointerMayStartDirectManipulation,
 } from "../src/interaction/surface-input-policy.ts";
 import { activeOccurrenceIds } from "../src/projection/spatiotemporal-projection.ts";
@@ -455,14 +465,21 @@ export class TimelineViewController {
     { animation: Animation; deltaX: number; deltaY: number }
   >();
   wheelCommitTimer: ReturnType<typeof globalThis.setTimeout> | 0 = 0;
+  interactionCoordinator: InteractionCoordinator;
+  surfaceInteraction: SurfaceInteractionController;
   viewportInitialized = false;
   reducedMotionQuery: MediaQueryList | null =
     typeof globalThis.matchMedia === "function"
       ? globalThis.matchMedia("(prefers-reduced-motion: reduce)")
       : null;
 
-  constructor(root: HTMLElement) {
+  constructor(
+    root: HTMLElement,
+    interaction: InteractionCoordinator = createInteractionCoordinator(),
+  ) {
     this.root = root;
+    this.interactionCoordinator = interaction;
+    this.surfaceInteraction = createSurfaceInteractionController("timeline", interaction);
     this.surface =
       root.querySelector("#timeline-surface") || root.querySelector(".timeline-surface") || root;
     this.focusView =
@@ -495,6 +512,16 @@ export class TimelineViewController {
     this.installGeometryObserver();
     this.bind();
     this.applyOrientation();
+  }
+
+  setInteractionCoordinator(interaction: InteractionCoordinator): void {
+    if (interaction === this.interactionCoordinator) return;
+    const phase = this.surfaceInteraction.snapshot().phase;
+    if (phase !== "idle" && phase !== "committed") {
+      throw new Error("Cannot replace timeline interaction coordinator during an active gesture.");
+    }
+    this.interactionCoordinator = interaction;
+    this.surfaceInteraction = createSurfaceInteractionController("timeline", interaction);
   }
 
   bind(): void {
@@ -3543,13 +3570,16 @@ export class TimelineViewController {
 }
 
 export const TimelineView = Object.freeze({
-  create(root: HTMLElement): TimelineViewController | null {
+  create(
+    root: HTMLElement,
+    options: Readonly<{ interaction?: InteractionCoordinator }> = {},
+  ): TimelineViewController | null {
     if (!(root instanceof HTMLElement)) return null;
     const ensureController = Reflect.get(root, "ensureTimelineController");
     if (typeof ensureController === "function") {
-      return ensureController.call(root) as TimelineViewController;
+      return ensureController.call(root, options.interaction) as TimelineViewController;
     }
-    return new TimelineViewController(root);
+    return new TimelineViewController(root, options.interaction);
   },
   geometry: Object.freeze({
     connectorSegment,
