@@ -2477,7 +2477,10 @@ export class DeckWorldSurface implements WorldSurface {
       button("Fit to content", "\u2922", () => this.fitToContent()),
       button("Show whole globe", "\u25CB", () => this.showWholeGlobe()),
     );
-    const footerSlot = doc.querySelector<HTMLElement>("[data-world-controls-slot]");
+    const footerSlot =
+      typeof doc.querySelector === "function"
+        ? doc.querySelector<HTMLElement>("[data-world-controls-slot]")
+        : null;
     if (footerSlot) {
       bar.classList.add("is-footer-control");
       footerSlot.appendChild(bar);
