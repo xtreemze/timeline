@@ -43,6 +43,9 @@ const INTERACTION_EDGE_MAX_STRETCH_SCALE = 8;
 /** Bound post-drop target error so a distant release cannot inject a one-frame force spike. */
 const INTERACTION_FORCE_MAX_ERROR_METERS = 6_000;
 const DRAG_MOVE_ALPHA_FLOOR = 0.04;
+const CROSS_PLACE_COLLISION_TICKS = 3;
+const EARTH_RADIUS_METERS = 6_371_008.8;
+const POLAR_COSINE_EPSILON = 1e-9;
 
 interface D3WorldNodeState extends SimulationNodeDatum {
   readonly id: WorldInstanceId;
@@ -56,6 +59,11 @@ interface D3WorldNodeState extends SimulationNodeDatum {
 
 interface D3WorldLink extends SimulationLinkDatum<D3WorldNodeState> {
   readonly edge: WorldForceEdge;
+}
+
+interface D3CrossPlaceCollisionProbe extends SimulationNodeDatum {
+  readonly state: D3WorldNodeState;
+  readonly collisionRadiusMeters: number;
 }
 
 interface D3WorldGroup {
@@ -113,6 +121,105 @@ function groupKey(anchor: WorldForceAnchor | null): string {
   return anchor ? `place:${String(anchor.placeId)}` : "unplaced";
 }
 
+function radians(value: number): number {
+  return (value * Math.PI) / 180;
+}
+
+function degrees(value: number): number {
+  return (value * 180) / Math.PI;
+}
+
+function wrapLongitude(value: number): number {
+  if (value >= -180 && value <= 180) return Object.is(value, -0) ? 0 : value;
+  const wrapped = ((((value + 180) % 360) + 360) % 360) - 180;
+  return Object.is(wrapped, -0) ? 0 : wrapped;
+}
+
+function shortestLongitudeDelta(from: number, to: number): number {
+  return wrapLongitude(to - from);
+}
+
+function geographicPosition(
+  state: D3WorldNodeState,
+): readonly [longitude: number, latitude: number] | null {
+  const anchor = state.anchor;
+  if (!anchor) return null;
+
+  const northMeters = state.y ?? 0;
+  const latitude = Math.max(
+    -90,
+    Math.min(90, anchor.latitude + degrees(northMeters / EARTH_RADIUS_METERS)),
+  );
+  const cosine = Math.cos(radians(anchor.latitude));
+  const longitudeDelta =
+    Math.abs(cosine) <= POLAR_COSINE_EPSILON
+      ? 0
+      : degrees((state.x ?? 0) / (EARTH_RADIUS_METERS * cosine));
+
+  return Object.freeze([wrapLongitude(anchor.longitude + longitudeDelta), latitude]);
+}
+
+function surfaceDistanceMeters(
+  left: readonly [number, number],
+  right: readonly [number, number],
+): number {
+  const leftLatitude = radians(left[1]);
+  const rightLatitude = radians(right[1]);
+  const deltaLatitude = rightLatitude - leftLatitude;
+  const deltaLongitude = radians(shortestLongitudeDelta(left[0], right[0]));
+  const sinLatitude = Math.sin(deltaLatitude / 2);
+  const sinLongitude = Math.sin(deltaLongitude / 2);
+  const a =
+    sinLatitude * sinLatitude +
+    Math.cos(leftLatitude) * Math.cos(rightLatitude) * sinLongitude * sinLongitude;
+  return 2 * EARTH_RADIUS_METERS * Math.asin(Math.min(1, Math.sqrt(Math.max(0, a))));
+}
+
+function tangentOffsetMeters(
+  origin: readonly [number, number],
+  position: readonly [number, number],
+): readonly [eastMeters: number, northMeters: number] {
+  const meanLatitude = radians((origin[1] + position[1]) / 2);
+  return Object.freeze([
+    radians(shortestLongitudeDelta(origin[0], position[0])) *
+      EARTH_RADIUS_METERS *
+      Math.cos(meanLatitude),
+    radians(position[1] - origin[1]) * EARTH_RADIUS_METERS,
+  ]);
+}
+
+function geographicFromTangentOffset(
+  origin: readonly [number, number],
+  eastMeters: number,
+  northMeters: number,
+): readonly [longitude: number, latitude: number] {
+  const latitude = Math.max(
+    -90,
+    Math.min(90, origin[1] + degrees(northMeters / EARTH_RADIUS_METERS)),
+  );
+  const cosine = Math.cos(radians(origin[1]));
+  const longitudeDelta =
+    Math.abs(cosine) <= POLAR_COSINE_EPSILON
+      ? 0
+      : degrees(eastMeters / (EARTH_RADIUS_METERS * cosine));
+  return Object.freeze([wrapLongitude(origin[0] + longitudeDelta), latitude]);
+}
+
+function localOffsetForGeographicPosition(
+  anchor: WorldForceAnchor,
+  position: readonly [number, number],
+): readonly [eastMeters: number, northMeters: number] {
+  const cosine = Math.cos(radians(anchor.latitude));
+  const eastMeters =
+    Math.abs(cosine) <= POLAR_COSINE_EPSILON
+      ? 0
+      : radians(shortestLongitudeDelta(anchor.longitude, position[0])) *
+        EARTH_RADIUS_METERS *
+        cosine;
+  const northMeters = radians(position[1] - anchor.latitude) * EARTH_RADIUS_METERS;
+  return Object.freeze([eastMeters, northMeters]);
+}
+
 function finiteNonNegative(value: number, label: string): number {
   if (!Number.isFinite(value) || value < 0) {
     throw new Error(`${label} must be a finite non-negative number.`);
@@ -145,6 +252,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
   #detachedLinkPlaces = new Set<string>();
   #pin: WorldForcePin | null = null;
   #interactionGroupKey: string | null = null;
+  #interactionCollisionGroupKeys = new Set<string>();
   #requestReason: WorldSimulationRequest["reason"] = "idle";
   #dirtyStateIds = new Set<WorldInstanceId>();
   #running = false;
@@ -211,6 +319,10 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     const previousState = previousPin ? this.#states.get(previousPin.instanceId) : null;
     const previousInstanceId = previousPin?.instanceId ?? null;
     const nextInstanceId = pin?.instanceId ?? null;
+
+    if (nextInstanceId !== null && previousInstanceId !== nextInstanceId) {
+      this.#interactionCollisionGroupKeys.clear();
+    }
 
     if (previousState && previousInstanceId !== nextInstanceId) {
       previousState.fx = null;
@@ -296,6 +408,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       const previousInteractionGroup = this.#groups.get(previousInteractionGroupKey);
       if (previousInteractionGroup) this.#refreshGroupForceStrengths(previousInteractionGroup);
       if (!this.#pin) this.#interactionGroupKey = null;
+      this.#interactionCollisionGroupKeys.clear();
     }
 
     if (request.reason === "idle") {
@@ -310,11 +423,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       request.excitation,
       request.reheat ? DEFAULT_ALPHA : DRAG_MOVE_ALPHA_FLOOR,
     );
-    const interactionGroup =
-      interactionReason && this.#interactionGroupKey !== null
-        ? (this.#groups.get(this.#interactionGroupKey) ?? null)
-        : null;
-    const groups = interactionGroup ? [interactionGroup] : [...this.#groups.values()];
+    const groups = this.#groupsForRequest(interactionReason);
     for (const group of groups) {
       if (interactionReason) this.#refreshGroupForceStrengths(group);
       group.simulation.alpha(Math.max(group.simulation.alpha(), alpha)).alphaTarget(0);
@@ -334,11 +443,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
 
     const ticks = Math.max(1, Math.min(2, Math.round(deltaMs / (1000 / 60)) || 1));
     const interactionReason = this.#requestReason === "drag" || this.#requestReason === "post-drop";
-    const interactionGroup =
-      interactionReason && this.#interactionGroupKey !== null
-        ? (this.#groups.get(this.#interactionGroupKey) ?? null)
-        : null;
-    const groups = interactionGroup ? [interactionGroup] : [...this.#groups.values()];
+    const groups = this.#groupsForRequest(interactionReason);
 
     let settled = true;
     for (const group of groups) {
@@ -347,6 +452,10 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       this.#stepAltitude(group.nodes, ticks);
       for (const state of group.nodes) this.#dirtyStateIds.add(state.id);
       if (group.simulation.alpha() > group.simulation.alphaMin()) settled = false;
+    }
+
+    if (this.#requestReason === "drag" && this.#stepCrossPlaceDragCollision()) {
+      settled = false;
     }
 
     this.#iteration += ticks;
@@ -415,6 +524,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     this.#dirtyStateIds.clear();
     this.#pin = null;
     this.#interactionGroupKey = null;
+    this.#interactionCollisionGroupKeys.clear();
     this.#requestReason = "idle";
     this.#destroyed = true;
   }
@@ -522,6 +632,124 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     }
 
     this.#groups = nextGroups;
+    this.#interactionCollisionGroupKeys = new Set(
+      [...this.#interactionCollisionGroupKeys].filter((groupKey) => nextGroups.has(groupKey)),
+    );
+  }
+
+  #groupsForRequest(interactionReason: boolean): D3WorldGroup[] {
+    if (!interactionReason || this.#interactionGroupKey === null) {
+      return [...this.#groups.values()];
+    }
+
+    const keys = new Set([this.#interactionGroupKey, ...this.#interactionCollisionGroupKeys]);
+    return [...keys].flatMap((groupKey) => {
+      const group = this.#groups.get(groupKey);
+      return group ? [group] : [];
+    });
+  }
+
+  #stepCrossPlaceDragCollision(): boolean {
+    if (!this.#pin) return false;
+    const pinnedState = this.#states.get(this.#pin.instanceId);
+    if (!pinnedState?.anchor) return false;
+    const pinnedPosition = geographicPosition(pinnedState);
+    if (!pinnedPosition) return false;
+
+    const partners = [...this.#states.values()].flatMap((state) => {
+      if (state.group === pinnedState.group || !state.anchor) return [];
+      const position = geographicPosition(state);
+      if (!position) return [];
+      const collisionDistance =
+        pinnedState.node.collisionRadiusMeters + state.node.collisionRadiusMeters;
+      if (surfaceDistanceMeters(pinnedPosition, position) >= collisionDistance) return [];
+      const [eastMeters, northMeters] = tangentOffsetMeters(pinnedPosition, position);
+      return [
+        {
+          state,
+          position,
+          eastMeters,
+          northMeters,
+        },
+      ];
+    });
+    if (partners.length === 0) return false;
+
+    const probes: D3CrossPlaceCollisionProbe[] = [
+      {
+        state: pinnedState,
+        collisionRadiusMeters: pinnedState.node.collisionRadiusMeters,
+        x: 0,
+        y: 0,
+        vx: 0,
+        vy: 0,
+        fx: 0,
+        fy: 0,
+      },
+      ...partners.map(({ state, eastMeters, northMeters }) => ({
+        state,
+        collisionRadiusMeters: state.node.collisionRadiusMeters,
+        x: eastMeters,
+        y: northMeters,
+        vx: 0,
+        vy: 0,
+      })),
+    ];
+
+    const collisionSimulation = forceSimulation<D3CrossPlaceCollisionProbe>(probes)
+      .stop()
+      .alphaMin(ALPHA_MIN)
+      .alphaDecay(ALPHA_DECAY)
+      .alphaTarget(0);
+    collisionSimulation.force(
+      "collision",
+      forceCollide<D3CrossPlaceCollisionProbe>()
+        .radius((probe) => probe.collisionRadiusMeters)
+        .strength(COLLISION_STRENGTH)
+        .iterations(COLLISION_ITERATIONS),
+    );
+    collisionSimulation.tick(CROSS_PLACE_COLLISION_TICKS);
+    collisionSimulation.stop();
+
+    let moved = false;
+    for (let index = 1; index < probes.length; index += 1) {
+      const probe = probes[index];
+      if (!probe?.state.anchor) continue;
+      const partner = partners[index - 1];
+      if (!partner) continue;
+
+      const nextEast = probe.x ?? partner.eastMeters;
+      const nextNorth = probe.y ?? partner.northMeters;
+      if (
+        Math.abs(nextEast - partner.eastMeters) <= Number.EPSILON &&
+        Math.abs(nextNorth - partner.northMeters) <= Number.EPSILON
+      ) {
+        continue;
+      }
+
+      const nextGeographic = geographicFromTangentOffset(
+        pinnedPosition,
+        nextEast,
+        nextNorth,
+      );
+      const [localEast, localNorth] = localOffsetForGeographicPosition(
+        probe.state.anchor,
+        nextGeographic,
+      );
+      probe.state.x = localEast;
+      probe.state.y = localNorth;
+      probe.state.vx = 0;
+      probe.state.vy = 0;
+      this.#dirtyStateIds.add(probe.state.id);
+      this.#interactionCollisionGroupKeys.add(probe.state.group);
+      const group = this.#groups.get(probe.state.group);
+      if (group) {
+        group.simulation.alpha(Math.max(group.simulation.alpha(), DRAG_MOVE_ALPHA_FLOOR));
+      }
+      moved = true;
+    }
+
+    return moved;
   }
 
   #linkStrength(groupKey: string, maximumRadiusMeters: number, link: D3WorldLink): number {
