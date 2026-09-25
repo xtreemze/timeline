@@ -1,8 +1,6 @@
 import { createInteractionCoordinator } from "../src/interaction/interaction-coordinator.ts";
 import { createSurfaceInteractionController } from "../src/interaction/surface-controller.ts";
-import {
-  surfacePointerMayStartDirectManipulation,
-} from "../src/interaction/surface-input-policy.ts";
+import { surfacePointerMayStartDirectManipulation } from "../src/interaction/surface-input-policy.ts";
 import { Leaflet } from "../src/leaflet-entry.js";
 
 /**
