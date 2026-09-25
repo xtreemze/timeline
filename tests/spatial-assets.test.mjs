@@ -32,6 +32,25 @@ test("Pigwood models are true-scale, canonical-place-backed and deterministic", 
   }
 });
 
+test("committed Pigwood GLBs exactly match deterministic regeneration", async () => {
+  for (const asset of source.assets) {
+    const lods = buildAssetLods(asset);
+    for (const generated of lods) {
+      const committed = await readFile(
+        new URL(
+          `../public/assets-3d/pigwood/${asset.assetId}/lod${generated.report.lod}.glb`,
+          import.meta.url,
+        ),
+      );
+      assert.deepEqual(
+        committed,
+        generated.buffer,
+        `${asset.assetId}: committed LOD${generated.report.lod} must match source generation`,
+      );
+    }
+  }
+});
+
 test("Pigwood LODs reduce geometry without changing authored dimensions", () => {
   for (const asset of source.assets) {
     const lods = buildAssetLods(asset);
