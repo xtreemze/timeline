@@ -113,6 +113,36 @@ test("sample exercises years, days, ranges, and minute-level action", () => {
   assert.ok(sample.items.filter((item) => item.kind === "range").length >= 6);
 });
 
+test("added stories use ranges for sustained narrative actions and states", () => {
+  const addedStories = sample.stories.slice(3);
+  for (const story of addedStories) {
+    const ranges = storyItems(story).filter((item) => item.kind === "range");
+    assert.ok(ranges.length >= 2, `${story.title}: sustained scenes should include ranges`);
+
+    for (const item of ranges) {
+      assert.ok(item.end, `${item.id}: range end`);
+      assert.equal(item.time?.type, "interval", `${item.id}: interval item time`);
+      assert.equal(item.time?.start?.value, item.start, `${item.id}: interval start`);
+      assert.equal(item.time?.end?.value, item.end, `${item.id}: interval end`);
+
+      const relationship = sample.relationships.find(
+        (candidate) => candidate.id === `rel-${item.id}`,
+      );
+      assert.equal(relationship?.time?.type, "interval", `${item.id}: interval edge time`);
+      assert.equal(
+        relationship?.time?.start?.value,
+        item.start,
+        `${item.id}: edge interval start`,
+      );
+      assert.equal(
+        relationship?.time?.end?.value,
+        item.end,
+        `${item.id}: edge interval end`,
+      );
+    }
+  }
+});
+
 test("fictional chronology is explicitly marked instead of weakening ISO validation", () => {
   const storyById = new Map(sample.stories.map((story) => [story.id, story]));
   for (const item of sample.items) {
