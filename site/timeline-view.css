@@ -3816,9 +3816,9 @@
   }
 }
 
-/* Utility chrome is not part of the fullscreen presentation. */
-#presentation-stage:fullscreen ~ *,
-#presentation-stage:fullscreen .app-tool-dock {
+/* Sibling utility sheets are excluded from fullscreen. The persistent footer
+   itself is moved into the fullscreen stage and remains interactive. */
+#presentation-stage:fullscreen ~ * {
   pointer-events: none;
 }
 
