@@ -175,6 +175,8 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightSpec, /frameTimestampsMs/);
   assert.match(highlightSpec, /recordingWindowSeconds/);
   assert.match(highlightSpec, /startCaptureHeartbeat/);
+  assert.match(highlightSpec, /waitForBrowserFrameBudget/);
+  assert.match(highlightSpec, /SHOWCASE_CAPTURE_TMPDIR/);
   assert.match(highlightSpec, /lum-showcase-capture-heartbeat/);
   assert.match(highlightSpec, /requestAnimationFrame/);
   assert.match(highlightSpec, /measureFrameCadence/);
@@ -227,6 +229,7 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(mediaWorkflow, /pnpm exec playwright install --with-deps chromium/);
   assert.match(mediaWorkflow, /playwright test --config=playwright\.highlight\.config\.ts/);
   assert.match(mediaWorkflow, /xvfb-run/);
+  assert.match(mediaWorkflow, /SHOWCASE_CAPTURE_TMPDIR:\s*\/dev\/shm\/lum-showcase/);
   assert.match(mediaWorkflow, /-screen 0 1440x900x24/);
   assert.match(mediaWorkflow, /-screen 0 390x844x24/);
   assert.match(mediaWorkflow, /--project="Desktop Showcase"/);
