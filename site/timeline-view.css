@@ -1351,13 +1351,6 @@
   .timeline-focus-hero {
     min-height: 460px;
   }
-  .timeline-view.is-event-focused .timeline-surface,
-  .timeline-view.is-event-focused[data-orientation="portrait"] .timeline-surface {
-    height: 250px;
-    min-height: 250px;
-    border-left: 0;
-    border-top: 1px solid var(--line);
-  }
   .timeline-focus-title {
     font-size: clamp(2.8rem, 15vw, 5.8rem);
   }
@@ -4945,10 +4938,9 @@
   border: 0;
 }
 
-#app-shell #timeline-view .timeline-surface,
-#app-shell #timeline-view.is-event-focused .timeline-surface,
-#app-shell #timeline-view.is-event-focused[data-orientation="portrait"] .timeline-surface,
-#app-shell #timeline-view.is-event-focused[data-orientation="landscape"] .timeline-surface {
+/* This base reset deliberately does not add focus-state specificity.
+   Relation-docking rules own the chronology rail geometry in every selection state. */
+#app-shell #timeline-view .timeline-surface {
   position: absolute;
   inset: 0;
   width: 100%;
