@@ -39,6 +39,108 @@ function edge(id, source, target, temporalWeight = 1, retained = false) {
   });
 }
 
+test("cross-place relationships participate in one DAG and influence nodes back in the original place", () => {
+  const forest = {
+    placeId: "forest",
+    longitude: 18,
+    latitude: 59,
+    influence: 1,
+  };
+  const village = {
+    placeId: "village",
+    longitude: 18.2,
+    latitude: 59.1,
+    influence: 1,
+  };
+  const make = (name, geographicAnchor) =>
+    createProjectedWorldInstance({
+      id: worldInstanceId(name, `occ-${name}`),
+      canonicalId: name,
+      occurrenceId: `occ-${name}`,
+      geographicAnchors: [geographicAnchor],
+      temporalWeight: 1,
+      visualWeight: 0.5,
+      retained: false,
+    });
+
+  const departure = make("cross-departure", forest);
+  const encounter = make("cross-encounter", village);
+  const returnHome = make("cross-return", forest);
+  const layout = createWorldDagLayout(
+    createWorldProjection({
+      instances: [departure, encounter, returnHome],
+      edges: [
+        edge("cross-out", departure, encounter),
+        edge("cross-back", encounter, returnHome),
+      ],
+    }),
+    {
+      reorganize: true,
+      nodeSizes: new Map([
+        [departure.id, { widthMeters: 720, heightMeters: 720 }],
+        [encounter.id, { widthMeters: 720, heightMeters: 720 }],
+        [returnHome.id, { widthMeters: 720, heightMeters: 720 }],
+      ]),
+      placeSizes: new Map([
+        ["forest", { widthMeters: 1_200, heightMeters: 1_200 }],
+        ["village", { widthMeters: 2_000, heightMeters: 2_000 }],
+      ]),
+    },
+  );
+
+  const departureTarget = layout.targets.find((target) => target.instanceId === departure.id);
+  const encounterTarget = layout.targets.find((target) => target.instanceId === encounter.id);
+  const returnTarget = layout.targets.find((target) => target.instanceId === returnHome.id);
+
+  assert.ok(departureTarget);
+  assert.ok(encounterTarget);
+  assert.ok(returnTarget);
+  assert.equal(departureTarget.placeId, "forest");
+  assert.equal(encounterTarget.placeId, "village");
+  assert.equal(returnTarget.placeId, "forest");
+  assert.ok(
+    Math.hypot(encounterTarget.eastMeters, encounterTarget.northMeters) >= 1_300,
+    "the village place obstacle must reserve its footprint before placing the anchored entity",
+  );
+  assert.ok(
+    Math.abs(departureTarget.northMeters - returnTarget.northMeters) > 500,
+    "a path that leaves and returns to a place must preserve its cross-place DAG rank locally",
+  );
+  assert.deepEqual(
+    layout.routes.map((route) => route.relationshipId),
+    [],
+    "cross-place routes remain endpoint-driven because one local route frame cannot span two anchors",
+  );
+  assert.ok(
+    Object.keys(layout.metrics.algorithmCounts).some((name) => name.startsWith("cross-place:")),
+    "diagnostics should expose the cross-place DAG pass",
+  );
+});
+
+test("anchored place footprint participates in local DAG spacing", () => {
+  const a = instance("place-clearance-a");
+  const b = instance("place-clearance-b");
+  const projection = createWorldProjection({
+    instances: [a, b],
+    edges: [edge("place-clearance", a, b)],
+  });
+  const layout = createWorldDagLayout(projection, {
+    reorganize: true,
+    nodeSizes: new Map([
+      [a.id, { widthMeters: 720, heightMeters: 720 }],
+      [b.id, { widthMeters: 720, heightMeters: 720 }],
+    ]),
+    placeSizes: new Map([["place", { widthMeters: 2_000, heightMeters: 2_000 }]]),
+  });
+
+  const rootTarget = layout.targets.find((target) => target.instanceId === a.id);
+  assert.ok(rootTarget);
+  assert.ok(
+    Math.hypot(rootTarget.eastMeters, rootTarget.northMeters) >= 1_300,
+    "the first DAG node must clear the anchored place obstacle instead of crowding its marker",
+  );
+});
+
 test("size-aware DAG layout separates large node footprints", () => {
   const root = instance("root");
   const left = instance("left");

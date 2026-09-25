@@ -11,7 +11,9 @@ import {
   worldNodeShapeVisualRadiusScale,
   worldNodeStyle,
   worldNodeVisualFootprintRadiusPx,
+  worldPlaceFootprintRadiusPx,
   worldPlaceStyle,
+  worldPlaceVisualFootprintRadiusPx,
 } from "../src/layout/world-graph-style.ts";
 
 test("node defaults follow the Orb type language", () => {
@@ -182,6 +184,16 @@ test("places use node-like shape, icon, border, fill, and readable footprint", (
   assert.equal(fallback.icon, "place");
   assert.equal(fallback.radius, 12);
   assert.ok(fallback.radius < WORLD_ENTITY_MIN_HIT_RADIUS_PX);
+});
+
+test("place footprint reserves rendered geometry and the mobile interaction minimum", () => {
+  const compact = { marker: { radius: 12, borderWidth: 2 } };
+  assert.equal(worldPlaceVisualFootprintRadiusPx(compact), 14);
+  assert.equal(worldPlaceFootprintRadiusPx(compact), WORLD_ENTITY_MIN_HIT_RADIUS_PX);
+
+  const large = { marker: { radius: 30, borderWidth: 4, shape: "square" } };
+  assert.ok(worldPlaceVisualFootprintRadiusPx(large) > 30);
+  assert.equal(worldPlaceFootprintRadiusPx(large), worldPlaceVisualFootprintRadiusPx(large));
 });
 
 test("marker shape scales normalize filled area and collision extent", () => {

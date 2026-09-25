@@ -225,33 +225,19 @@ export function worldNodeStyle(
   });
 }
 
-/** Place anchors use the same marker grammar as graph nodes without becoming semantic graph nodes. */
-export function worldPlaceStyle(
-  placeStyle: unknown,
-  _selected: boolean,
-  palette: WorldGraphPalette,
-  _emphasized = false,
-): WorldNodeStyle {
+interface WorldPlaceMarkerMetrics {
+  readonly radius: number;
+  readonly borderWidth: number;
+  readonly shape: WorldNodeShape;
+}
+
+function worldPlaceMarkerMetrics(placeStyle: unknown): WorldPlaceMarkerMetrics {
   const own = record(placeStyle) ?? {};
   const marker = record(own["marker"]) ?? {};
   const ownShape = text(
     marker["shape"] ?? marker["markerShape"] ?? own["markerShape"] ?? own["shape"],
     16,
   )?.toLowerCase();
-  const fill =
-    color(marker["fillColor"]) ??
-    color(marker["fill"]) ??
-    color(own["fillColor"]) ??
-    color(own["fill"]) ??
-    color(marker["color"]) ??
-    defaultNodeFill("place", palette);
-  const border =
-    color(marker["borderColor"]) ??
-    color(marker["stroke"]) ??
-    color(own["borderColor"]) ??
-    color(own["stroke"]) ??
-    color(marker["color"]) ??
-    palette.paper;
   const borderWidth =
     number(marker["borderWidth"], 0, 8) ??
     number(marker["strokeWidth"], 0, 8) ??
@@ -267,17 +253,64 @@ export function worldPlaceStyle(
     number(marker["radius"], 4, 32) ??
     number(own["radius"], 4, 32) ??
     (authoredDiameter === null ? 12 : authoredDiameter / 2);
+
+  return Object.freeze({
+    radius: Math.round(authoredRadius),
+    borderWidth,
+    shape: SHAPES.includes(ownShape as WorldNodeShape) ? (ownShape as WorldNodeShape) : "pin",
+  });
+}
+
+/** Full visible footprint of a place marker, including shape extent and border. */
+export function worldPlaceVisualFootprintRadiusPx(placeStyle: unknown): number {
+  const metrics = worldPlaceMarkerMetrics(placeStyle);
+  return metrics.radius * worldNodeShapeVisualRadiusScale(metrics.shape) + metrics.borderWidth;
+}
+
+/**
+ * Layout/picking footprint for a place anchor. Like entity nodes, an anchor
+ * reserves at least the 44px interaction footprint even when its marker is
+ * visually smaller.
+ */
+export function worldPlaceFootprintRadiusPx(placeStyle: unknown): number {
+  return Math.max(WORLD_ENTITY_MIN_HIT_RADIUS_PX, worldPlaceVisualFootprintRadiusPx(placeStyle));
+}
+
+/** Place anchors use the same marker grammar as graph nodes without becoming semantic graph nodes. */
+export function worldPlaceStyle(
+  placeStyle: unknown,
+  _selected: boolean,
+  palette: WorldGraphPalette,
+  _emphasized = false,
+): WorldNodeStyle {
+  const own = record(placeStyle) ?? {};
+  const marker = record(own["marker"]) ?? {};
+  const metrics = worldPlaceMarkerMetrics(placeStyle);
+  const fill =
+    color(marker["fillColor"]) ??
+    color(marker["fill"]) ??
+    color(own["fillColor"]) ??
+    color(own["fill"]) ??
+    color(marker["color"]) ??
+    defaultNodeFill("place", palette);
+  const border =
+    color(marker["borderColor"]) ??
+    color(marker["stroke"]) ??
+    color(own["borderColor"]) ??
+    color(own["stroke"]) ??
+    color(marker["color"]) ??
+    palette.paper;
   return Object.freeze({
     fill,
     border,
-    borderWidth,
-    shape: SHAPES.includes(ownShape as WorldNodeShape) ? (ownShape as WorldNodeShape) : "pin",
+    borderWidth: metrics.borderWidth,
+    shape: metrics.shape,
     icon: text(marker["icon"] ?? own["icon"], 48) ?? "place",
     image: text(marker["image"] ?? marker["imageUrl"] ?? own["image"] ?? own["imageUrl"], 2048),
     // The visible marker respects authored geometry. The renderer maintains
     // the separate >=44px acquisition target, so a deliberately small marker
     // does not have to be visually inflated for touch accessibility.
-    radius: Math.round(authoredRadius),
+    radius: metrics.radius,
   });
 }
 
