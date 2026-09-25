@@ -142,7 +142,10 @@ interface DoubleClickEvent {
 }
 
 export interface DeckWorldClusterForceSink {
-  setClusteredPlaceIds(placeIds: readonly PlaceId[]): void;
+  setClusteredPlaceIds(
+    placeIds: readonly PlaceId[],
+    detachedLinkPlaceIds?: readonly PlaceId[],
+  ): void;
 }
 
 export interface DeckWorldNodeDragSink {
@@ -2660,11 +2663,17 @@ export class DeckWorldSurface implements WorldSurface {
     this.#clusterForceSink = sink;
     this.#syncClusterLifecycle();
     if (!sink) return;
-    sink.setClusteredPlaceIds(
+    const clustered =
       this.#clusterPhase === "collapsing" || this.#clusterPhase === "collapsed"
         ? this.#clusterPlaceIds
-        : Object.freeze([]),
-    );
+        : Object.freeze([] as PlaceId[]);
+    const detached =
+      this.#clusterPhase === "collapsing" ||
+      this.#clusterPhase === "collapsed" ||
+      this.#clusterPhase === "expanding"
+        ? this.#clusterPlaceIds
+        : Object.freeze([] as PlaceId[]);
+    sink.setClusteredPlaceIds(clustered, detached);
   }
 
   #clearClusterTimers(): void {
@@ -2717,7 +2726,10 @@ export class DeckWorldSurface implements WorldSurface {
       this.#clusterEdgeReleaseTimer = null;
       if (this.#destroyed || this.#clusterPhase !== "releasing") return;
       this.#clusterPhase = "collapsing";
-      this.#clusterForceSink?.setClusteredPlaceIds(this.#clusterPlaceIds);
+      this.#clusterForceSink?.setClusteredPlaceIds(
+        this.#clusterPlaceIds,
+        this.#clusterPlaceIds,
+      );
       this.#render();
       this.#clusterSettleTimer = globalThis.setTimeout(
         () => {
@@ -2742,13 +2754,22 @@ export class DeckWorldSurface implements WorldSurface {
       return;
     }
     this.#clusterPhase = "expanding";
-    // Members are retained at their gathered place origin. Restoring D3 links
-    // and rejection is the only mechanism that spreads them back out.
-    this.#clusterForceSink?.setClusteredPlaceIds(Object.freeze([]));
+    // Members are retained at their gathered place origin. Remove the inward
+    // anchor directive, but keep relationship springs detached while D3
+    // many-body/collision rejection scatters them. Links return only after
+    // this free expansion phase completes.
+    this.#clusterForceSink?.setClusteredPlaceIds(
+      Object.freeze([] as PlaceId[]),
+      this.#clusterPlaceIds,
+    );
     this.#render();
     this.#clusterSettleTimer = globalThis.setTimeout(() => {
       this.#clusterSettleTimer = null;
       if (this.#destroyed || this.#clusterPhase !== "expanding") return;
+      this.#clusterForceSink?.setClusteredPlaceIds(
+        Object.freeze([] as PlaceId[]),
+        Object.freeze([] as PlaceId[]),
+      );
       this.#clusterPhase = "expanded";
       this.#clusterPlaceIds = Object.freeze([]);
       this.#render();
@@ -2782,7 +2803,10 @@ export class DeckWorldSurface implements WorldSurface {
       if (!this.#sameClusterPlaces(placeIds)) {
         this.#clusterPlaceIds = Object.freeze([...placeIds]);
         if (this.#clusterPhase === "collapsing" || this.#clusterPhase === "collapsed") {
-          this.#clusterForceSink?.setClusteredPlaceIds(this.#clusterPlaceIds);
+          this.#clusterForceSink?.setClusteredPlaceIds(
+            this.#clusterPlaceIds,
+            this.#clusterPlaceIds,
+          );
         }
       }
       return;
@@ -3812,7 +3836,11 @@ export class DeckWorldSurface implements WorldSurface {
 
     // Tethers follow force-resolved member positions and are removed only at
     // final cluster cleanup; their geometry is never renderer-interpolated.
-    const tethers = clusterPhase === "collapsed" ? [] : this.#tethers(entityResult.datums);
+    const tetherEntities =
+      clusterPhase === "collapsed"
+        ? entityResult.datums.filter((entity) => !memberIds.has(entity.worldInstanceId))
+        : entityResult.datums;
+    const tethers = this.#tethers(tetherEntities);
     const layers = [
       // Earth base: orientation on light and dark hosts, and depth-occludes
       // the far side of the globe. Never pickable.
