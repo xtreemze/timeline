@@ -125,8 +125,7 @@
 }
 
 .timeline-local-button:hover,
-.timeline-local-button:focus-visible,
-#app-shell[data-view-controls-open="true"] .timeline-local-button.app-view-tool {
+.timeline-local-button:focus-visible {
   background: var(--paper-2);
   color: var(--ink);
   outline: none;
