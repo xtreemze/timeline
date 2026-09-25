@@ -17,18 +17,6 @@ function storyItems(story) {
   return story.itemIds.map((id) => sample.items.find((item) => item.id === id)).filter(Boolean);
 }
 
-function storySpan(story) {
-  const items = storyItems(story);
-  return {
-    start: Math.min(...items.map((item) => temporal.sortKey(item.time?.start || item.start))),
-    end: Math.max(
-      ...items.map((item) =>
-        temporal.sortKey(item.time?.end || item.end || item.time?.start || item.start),
-      ),
-    ),
-  };
-}
-
 test("sample is a nine-story fictional anthology with strict logical consistency", () => {
   assert.deepEqual(
     sample.stories.map((story) => story.title),
