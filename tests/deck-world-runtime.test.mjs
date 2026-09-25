@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { createInteractionCoordinator } from "../src/interaction/interaction-coordinator.ts";
 import { createDeckWorldRuntime } from "../site/world/deck-world-runtime.ts";
 import { createWorldViewFactory } from "../site/world/world-view-factory.ts";
 import { registerTimelineWorldView } from "../site/world/world-view-registration.ts";
@@ -376,4 +377,33 @@ test("deck world runtime exposes MapView only when the binding is supplied", () 
     props: { id: "local" },
   });
   assert.deepEqual(calls, [{ id: "local" }]);
+});
+
+
+test("world factory uses an injected coordinator for deck camera ownership", () => {
+  const harness = compositionHarness();
+  const interaction = createInteractionCoordinator();
+  const view = createWorldViewFactory({
+    bindings: harness.bindings,
+    scheduler: harness.scheduler,
+    createForceBackend: () => harness.forceBackend,
+  }).create(harness.root, { interaction });
+
+  assert.ok(view);
+  const deckCreation = harness.deckCalls.find(([name]) => name === "deck");
+  const deckProps = deckCreation[1];
+
+  deckProps.onInteractionStateChange({ isDragging: true, isPanning: true });
+  assert.equal(interaction.snapshot().owner, "world");
+  assert.equal(interaction.snapshot().gesture, "pan");
+  assert.equal(interaction.snapshot().phase, "owned");
+  assert.equal(interaction.begin("timeline", 91), false);
+
+  deckProps.onInteractionStateChange({ inTransition: true });
+  assert.equal(interaction.snapshot().phase, "settling");
+  assert.equal(interaction.snapshot().owner, "world");
+
+  deckProps.onInteractionStateChange({ inTransition: false });
+  assert.equal(interaction.snapshot().phase, "committed");
+  assert.equal(interaction.snapshot().owner, null);
 });
