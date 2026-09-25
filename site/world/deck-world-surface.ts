@@ -1892,7 +1892,8 @@ function labelDatums(input: {
     const memberCount = cluster.clusterMembers.length;
     if (!input.overviewClustered) return `${memberCount} node${memberCount === 1 ? "" : "s"}`;
     if (placeIds.length === 1) {
-      const place = placeById.get(placeIds[0]);
+      const [placeId] = placeIds;
+      const place = placeId ? placeById.get(placeId) : undefined;
       if (place?.label) {
         return `${place.label} · ${memberCount} node${memberCount === 1 ? "" : "s"}`;
       }
@@ -4383,13 +4384,16 @@ export class DeckWorldSurface implements WorldSurface {
               getColor: (datum: DeckWorldLabelDatum) => {
                 const base = labelInteractionEmphasized(datum)
                   ? this.#theme.labelEmphasis
-                  : datum.kind === "place-label"
+                  : datum.kind === "place-label" || datum.kind === "cluster-label"
                     ? this.#theme.labelPlace
                     : datum.kind === "relationship-label"
                       ? this.#theme.labelRelationship
                       : this.#theme.labelText;
                 const facing = this.#cameraFacingOpacity(datum.position);
                 if (datum.kind === "place-label") return scaleAlpha(base, facing);
+                if (datum.kind === "cluster-label") {
+                  return scaleAlpha(base, facing * clusterVisibility);
+                }
                 if (datum.kind === "relationship-label") {
                   const edge = relationshipResult.byId.get(datum.relationshipId);
                   return scaleAlpha(base, facing * (edge ? edgeExpansion(edge) : 0));
