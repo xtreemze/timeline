@@ -2394,9 +2394,10 @@ function labelDatums(input: {
   if (input.selection?.kind === "place") interactionPlaceIds.add(input.selection.id);
   if (input.hoverSelection?.kind === "place") interactionPlaceIds.add(input.hoverSelection.id);
   if (input.focus?.kind === "place") interactionPlaceIds.add(input.focus.id);
-  for (const place of input.places) {
-    if (place.emphasized) interactionPlaceIds.add(place.placeId);
-  }
+  // Place labels are revealed only by direct place interaction. Neighborhood
+  // emphasis from hovering/selecting nodes or relationships may style an
+  // already-visible place label, but it must not resurrect one suppressed by
+  // the ordinary LOD/declutter pass.
   for (const place of input.places) {
     if (!place.label || !interactionPlaceIds.has(place.placeId)) continue;
     const key = `place:${place.placeId}`;
@@ -2430,6 +2431,17 @@ function labelDatums(input: {
   const interactionEntityIds = new Set<EntityId>(input.contextEntityIds);
   if (input.selection?.kind === "entity") interactionEntityIds.add(input.selection.id);
   if (input.hoverSelection?.kind === "entity") interactionEntityIds.add(input.hoverSelection.id);
+  const addRelationshipEndpointEntities = (selection: WorldSelection | null) => {
+    if (selection?.kind !== "relationship") return;
+    const relationship = input.relationships.find(
+      (candidate) => candidate.relationshipId === selection.id,
+    );
+    if (!relationship) return;
+    interactionEntityIds.add(relationship.sourceEntityId);
+    interactionEntityIds.add(relationship.targetEntityId);
+  };
+  addRelationshipEndpointEntities(input.selection);
+  addRelationshipEndpointEntities(input.hoverSelection);
   if (interactionEntityIds.size > 0) {
     for (const entity of input.entities) {
       if (!entity.label || !interactionEntityIds.has(entity.entityId)) continue;
