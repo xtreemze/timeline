@@ -86,39 +86,41 @@ test("focused detail is shell-owned while contextual actions stay on the timelin
   await expect(focus).toBeHidden();
 });
 
-test("landscape keeps the timeline as a bottom rail and layers detail over the graph canvas", async ({
+test("landscape selection preserves timeline geometry while detail layers over the graph", async ({
   page,
 }) => {
   await ensureOrientation(page, "landscape");
+  const before = await page.locator("#timeline-view").boundingBox();
+  expect(before).not.toBeNull();
+
   const focus = await focusOccurrence(page);
-
   const { focusBox, graphBox, timelineBox, stageBox } = await boxes(page, focus);
-  expect(timelineBox.x).toBeLessThanOrEqual(stageBox.x + 2);
-  expect(timelineBox.x + timelineBox.width).toBeGreaterThanOrEqual(stageBox.x + stageBox.width - 2);
-  expect(timelineBox.y).toBeGreaterThan(stageBox.y + stageBox.height * 0.55);
-  expect(graphBox.y + graphBox.height).toBeLessThanOrEqual(timelineBox.y + 3);
-  expect(focusBox.y + focusBox.height).toBeLessThanOrEqual(timelineBox.y + 3);
-  expect(overlapArea(focusBox, graphBox)).toBeGreaterThan(100);
-});
 
-test("portrait keeps the timeline as a right rail and layers detail inside the graph region", async ({
+  expect(Math.abs(timelineBox.x - before.x)).toBeLessThanOrEqual(2);
+  expect(Math.abs(timelineBox.y - before.y)).toBeLessThanOrEqual(2);
+  expect(Math.abs(timelineBox.width - before.width)).toBeLessThanOrEqual(2);
+  expect(Math.abs(timelineBox.height - before.height)).toBeLessThanOrEqual(2);
+  expect(graphBox.x).toBeLessThanOrEqual(stageBox.x + 2);
+  expect(graphBox.y).toBeLessThanOrEqual(stageBox.y + 2);
+  expect(overlapArea(focusBox, graphBox)).toBeGreaterThan(100);
+});test("portrait selection preserves timeline geometry while detail layers over the graph", async ({
   page,
 }) => {
   await ensureOrientation(page, "portrait");
+  const before = await page.locator("#timeline-view").boundingBox();
+  expect(before).not.toBeNull();
+
   const focus = await focusOccurrence(page);
-
   const { focusBox, graphBox, timelineBox, stageBox } = await boxes(page, focus);
-  expect(timelineBox.y).toBeLessThanOrEqual(stageBox.y + 2);
-  expect(timelineBox.y + timelineBox.height).toBeGreaterThanOrEqual(
-    stageBox.y + stageBox.height - 2,
-  );
-  expect(timelineBox.x).toBeGreaterThan(stageBox.x + stageBox.width * 0.55);
-  expect(graphBox.x + graphBox.width).toBeLessThanOrEqual(timelineBox.x + 3);
-  expect(focusBox.x + focusBox.width).toBeLessThanOrEqual(timelineBox.x + 3);
-  expect(overlapArea(focusBox, graphBox)).toBeGreaterThan(100);
-});
 
-test("opening Browse or View does not discard the focused occurrence", async ({ page }) => {
+  expect(Math.abs(timelineBox.x - before.x)).toBeLessThanOrEqual(2);
+  expect(Math.abs(timelineBox.y - before.y)).toBeLessThanOrEqual(2);
+  expect(Math.abs(timelineBox.width - before.width)).toBeLessThanOrEqual(2);
+  expect(Math.abs(timelineBox.height - before.height)).toBeLessThanOrEqual(2);
+  expect(graphBox.x).toBeLessThanOrEqual(stageBox.x + 2);
+  expect(graphBox.y).toBeLessThanOrEqual(stageBox.y + 2);
+  expect(overlapArea(focusBox, graphBox)).toBeGreaterThan(100);
+});test("opening Browse or View does not discard the focused occurrence", async ({ page }) => {
   await focusOccurrence(page);
 
   await page.locator("#timeline-browser-toggle").click();
