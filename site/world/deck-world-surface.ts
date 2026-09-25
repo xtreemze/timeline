@@ -3705,7 +3705,12 @@ export class DeckWorldSurface implements WorldSurface {
     );
     const entities: readonly DeckWorldEntityRenderDatum[] =
       clusterPhase === "collapsed"
-        ? placeClusters
+        ? Object.freeze(
+            placeClusters.filter(
+              (datum) =>
+                datum.kind === "cluster" || !memberIds.has(datum.worldInstanceId),
+            ),
+          )
         : Object.freeze(
             entityResult.datums.filter(
               (entity) => !memberIds.has(entity.worldInstanceId) || showMembers,
