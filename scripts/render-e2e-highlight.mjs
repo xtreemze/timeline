@@ -421,7 +421,7 @@ const pagesBase = process.env.SHOWCASE_BASE_URL ?? "https://xtreemze.github.io/t
 const markdown = [
   "## Lūm showcase",
   "",
-  "These assets are generated from the real Chromium application exercised by CI. Motion is captured and independently measured at 60 fps before encoding, then published at source dimensions as 60 fps animated WebP; static states use source-resolution PNG screenshots.",
+  "These assets are generated from the real Chromium application exercised by CI. Motion targets 60 fps and must measure at least 59 actual browser-presented source frames per second before encoding, then publishes at source dimensions as 60 fps animated WebP; static states use source-resolution PNG screenshots.",
   "",
   ...formFactors.flatMap((formFactor) => [
     `### ${formFactor === "desktop" ? "Desktop" : "Mobile"}`,
