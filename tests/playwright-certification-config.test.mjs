@@ -141,6 +141,7 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightConfig, /viewport:\s*\{\s*width:\s*1440,\s*height:\s*900\s*\}/);
   assert.match(highlightConfig, /viewport:\s*\{\s*width:\s*390,\s*height:\s*844\s*\}/);
   assert.match(highlightConfig, /hasTouch:\s*true/);
+  assert.match(highlightConfig, /headless:\s*false/);
   assert.match(highlightConfig, /--disable-background-timer-throttling/);
   assert.match(highlightConfig, /--disable-renderer-backgrounding/);
   assert.match(highlightConfig, /--disable-backgrounding-occluded-windows/);
@@ -191,6 +192,8 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightRenderer, /mobile/);
 
   assert.match(mediaWorkflow, /Record source-native showcase media/);
+  assert.match(mediaWorkflow, /xvfb-run/);
+  assert.match(mediaWorkflow, /-screen 0 1920x1080x24/);
   assert.match(mediaWorkflow, /pnpm test:e2e:showcase/);
   assert.match(mediaWorkflow, /pnpm render:e2e:showcase/);
   assert.match(mediaWorkflow, /raw\/desktop/);
