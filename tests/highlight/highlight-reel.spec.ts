@@ -103,6 +103,38 @@ function projectSettings(testInfo: TestInfo) {
   return settings;
 }
 
+function normalizeFramesToTargetRate(
+  frames: readonly { data: Buffer; timestamp: number }[],
+): Buffer[] {
+  if (frames.length < 2) throw new Error("At least two source frames are required.");
+  const firstTimestamp = frames[0]?.timestamp;
+  const lastTimestamp = frames.at(-1)?.timestamp;
+  if (firstTimestamp === undefined || lastTimestamp === undefined || lastTimestamp <= firstTimestamp) {
+    throw new Error("Source frame timestamps are invalid.");
+  }
+
+  const frameIntervalMs = 1_000 / SHOWCASE_FPS;
+  const normalized: Buffer[] = [];
+  let sourceIndex = 0;
+  for (
+    let targetTimestamp = firstTimestamp;
+    targetTimestamp <= lastTimestamp + frameIntervalMs / 2;
+    targetTimestamp += frameIntervalMs
+  ) {
+    while (
+      sourceIndex + 1 < frames.length &&
+      Math.abs((frames[sourceIndex + 1]?.timestamp ?? Number.POSITIVE_INFINITY) - targetTimestamp) <=
+        Math.abs((frames[sourceIndex]?.timestamp ?? Number.NEGATIVE_INFINITY) - targetTimestamp)
+    ) {
+      sourceIndex += 1;
+    }
+    const frame = frames[sourceIndex];
+    if (!frame) throw new Error("Could not select a source frame for 60 fps normalization.");
+    normalized.push(frame.data);
+  }
+  return normalized;
+}
+
 async function encodeCapturedFrames(frames: readonly Buffer[], videoPath: string) {
   const ffmpeg = process.env.FFMPEG_BIN ?? "ffmpeg";
   const child = spawn(
@@ -282,9 +314,8 @@ async function recordSegment(
       if (!page.isClosed()) await page.screencast.stop().catch(() => {});
     }
 
-    const frameTimestampsMs = sourceFrames
-      .slice(motionFrameStartIndex, motionFrameEndIndex)
-      .map((frame) => frame.timestamp);
+    const motionFrames = sourceFrames.slice(motionFrameStartIndex, motionFrameEndIndex);
+    const frameTimestampsMs = motionFrames.map((frame) => frame.timestamp);
     if (frameTimestampsMs.length < 2) {
       throw new Error(`${formFactor}/${scene.name} did not expose enough source frames.`);
     }
@@ -310,10 +341,7 @@ async function recordSegment(
       durationSeconds,
       frameTimestampsMs,
     };
-    await encodeCapturedFrames(
-      sourceFrames.map((frame) => frame.data),
-      videoPath,
-    );
+    await encodeCapturedFrames(normalizeFramesToTargetRate(motionFrames), videoPath);
   } else {
     await body();
     await page.waitForTimeout(250);
@@ -328,9 +356,11 @@ async function recordSegment(
     ...scene,
     video: scene.mediaMode === "motion" ? path.relative(process.cwd(), videoPath) : null,
     screenshot: path.relative(process.cwd(), screenshotPath),
-    motionStartSeconds: scene.mediaMode === "motion" ? 1.05 : null,
+    motionStartSeconds: scene.mediaMode === "motion" ? 0 : null,
     motionDurationSeconds:
-      scene.mediaMode === "motion" ? (formFactor === "mobile" ? 5.2 : 4.8) : null,
+      scene.mediaMode === "motion" && capture
+        ? Math.max(2 / SHOWCASE_FPS, capture.durationSeconds)
+        : null,
     capture,
   };
 }
