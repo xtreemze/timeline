@@ -3494,8 +3494,36 @@ function renderStories() {
       ? "context valid"
       : `${health.issueCount} context ${health.issueCount === 1 ? "gap" : "gaps"}`;
     meta.textContent = `${story.itemIds.length} ${story.itemIds.length === 1 ? "step" : "steps"} · ${placeCount} ${placeCount === 1 ? "place" : "places"} · ${storySpanLabel(story)} · ${healthLabel}`;
-    if (!health.healthy) meta.title = health.issues.map((issue) => issue.message).join("\n");
     card.append(top, meta);
+
+    if (!health.healthy) {
+      const inspector = document.createElement("details");
+      inspector.className = "story-health-inspector";
+      const summary = document.createElement("summary");
+      summary.textContent = `Review ${health.issueCount} context ${health.issueCount === 1 ? "gap" : "gaps"}`;
+      const list = document.createElement("ul");
+      list.className = "story-health-list";
+      for (const issue of health.issues) {
+        const row = document.createElement("li");
+        row.className = "story-health-row";
+        const message = document.createElement("span");
+        message.className = "story-health-message";
+        message.textContent = issue.message;
+        const action = actionButton(
+          issue.relationshipId ? "Edit relation" : "Edit story",
+          issue.relationshipId ? "edit-story-health-edge" : "edit-story-health-story",
+          issue.relationshipId
+            ? `Edit relation ${issue.relationshipId} for story ${story.title}`
+            : `Edit story ${story.title} to repair its place registry`,
+        );
+        action.classList.add("story-health-action");
+        if (issue.relationshipId) action.dataset.relationshipId = issue.relationshipId;
+        row.append(message, action);
+        list.append(row);
+      }
+      inspector.append(summary, list);
+      card.append(inspector);
+    }
     return card;
   });
   if (!cards.length) {
@@ -5288,6 +5316,13 @@ els.storyList.addEventListener("click", (event) => {
   if (button.dataset.action === "focus-story") focusStory(storyId);
   if (button.dataset.action === "edit-story") beginStoryEdit(storyId);
   if (button.dataset.action === "delete-story") removeStory(storyId);
+  if (button.dataset.action === "edit-story-health-story") beginStoryEdit(storyId);
+  if (button.dataset.action === "edit-story-health-edge") {
+    const relationshipId = button.dataset.relationshipId;
+    if (!relationshipId) return;
+    setActivePanel("graph");
+    beginGraphEdgeEdit(relationshipId);
+  }
 });
 
 els.browserStoryList?.addEventListener("click", (event) => {
