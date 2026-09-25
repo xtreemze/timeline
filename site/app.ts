@@ -1900,7 +1900,9 @@ function fillItemStoryContext(selectedStoryId = "") {
   els.itemStoryContext.replaceChildren(...options);
   const preferred =
     selectedStoryId ||
-    (!els.itemId.value && state.stories.some((story) => story.id === ui.activeStoryId)
+    (!els.itemId.value &&
+    ui.activeStoryId &&
+    state.stories.some((story) => story.id === ui.activeStoryId)
       ? ui.activeStoryId
       : "");
   els.itemStoryContext.value = state.stories.some((story) => story.id === preferred)

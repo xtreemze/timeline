@@ -32,14 +32,22 @@ export function createDeferredSpatialViewFactory(
   let factoryPromise: Promise<DeferredSpatialViewFactory> | null = null;
 
   function loadFactory(): Promise<DeferredSpatialViewFactory> {
-    factoryPromise ??= Promise.resolve()
-      .then(loader)
-      .catch(async (error) => {
-        options.onError?.(error);
-        const fallback = await options.fallback?.();
-        if (fallback) return fallback;
-        throw error;
-      });
+    if (factoryPromise) return factoryPromise;
+
+    // Invoke the loader synchronously so import/promise setup happens during
+    // create(), while still attaching the renderer asynchronously. This lets
+    // callers wire an externally resolved loader before the first microtask.
+    try {
+      factoryPromise = Promise.resolve(loader());
+    } catch (error) {
+      factoryPromise = Promise.reject(error);
+    }
+    factoryPromise = factoryPromise.catch(async (error) => {
+      options.onError?.(error);
+      const fallback = await options.fallback?.();
+      if (fallback) return fallback;
+      throw error;
+    });
     return factoryPromise;
   }
 

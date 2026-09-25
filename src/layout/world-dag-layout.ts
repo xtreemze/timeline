@@ -113,6 +113,7 @@ type DagLinkData = readonly [source: string, target: string, relationshipId: Rel
 interface LayoutIndex {
   readonly instancesByPlace: ReadonlyMap<PlaceId, readonly ProjectedWorldInstance[]>;
   readonly edgesByPlace: ReadonlyMap<PlaceId, readonly ProjectedWorldEdge[]>;
+  readonly connectedInstanceIds: ReadonlySet<WorldInstanceId>;
 }
 
 interface RawTarget {
@@ -186,6 +187,7 @@ function buildLayoutIndex(projection: WorldProjection): LayoutIndex {
   }
 
   const mutableEdgesByPlace = new Map<PlaceId, ProjectedWorldEdge[]>();
+  const connectedInstanceIds = new Set<WorldInstanceId>();
   for (const edge of projection.edges) {
     if (
       !edge.visible ||
@@ -194,6 +196,8 @@ function buildLayoutIndex(projection: WorldProjection): LayoutIndex {
     ) {
       continue;
     }
+    connectedInstanceIds.add(edge.sourceInstanceId);
+    connectedInstanceIds.add(edge.targetInstanceId);
     const sourcePlace = primaryPlaceByInstance.get(edge.sourceInstanceId);
     const targetPlace = primaryPlaceByInstance.get(edge.targetInstanceId);
     if (!sourcePlace || sourcePlace !== targetPlace) continue;
@@ -227,7 +231,7 @@ function buildLayoutIndex(projection: WorldProjection): LayoutIndex {
     );
   }
 
-  return { instancesByPlace, edgesByPlace };
+  return { instancesByPlace, edgesByPlace, connectedInstanceIds };
 }
 
 function reaches(
@@ -916,49 +920,48 @@ function chooseCandidate(
   }
 
   if (nodeIds.length <= EXACT_DECROSS_MAX_NODES && edges.length <= EXACT_DECROSS_MAX_EDGES) {
-    const candidates: CandidateLayout[] = [];
     try {
-      candidates.push(
-        runLayoutCandidate(
-          "longest-opt-simplex",
-          nodeIds,
-          edges,
-          sizes,
-          gap,
-          previousTargets,
-          "longest",
-          "opt",
-          "simplex",
-        ),
-      );
-    } catch {
-      // Exact decross can reject pathological tiny graphs; bounded heuristics remain available.
-    }
-    candidates.push(
-      runLayoutCandidate(
-        "longest-two-layer-simplex",
+      // Tiny neighborhoods are exactly the case where the optimal decross
+      // operator is affordable; do not let secondary compactness scoring
+      // replace it with a heuristic layout after paying that exact cost.
+      return runLayoutCandidate(
+        "longest-opt-simplex",
         nodeIds,
         edges,
         sizes,
         gap,
         previousTargets,
         "longest",
-        "two-layer",
+        "opt",
         "simplex",
-      ),
-      runLayoutCandidate(
-        "simplex-two-layer-simplex",
-        nodeIds,
-        edges,
-        sizes,
-        gap,
-        previousTargets,
-        "simplex",
-        "two-layer",
-        "simplex",
-      ),
-    );
-    return preferPreviousCandidate(previousAlgorithm, candidates);
+      );
+    } catch {
+      // Exact decross can reject pathological tiny graphs; bounded heuristics remain available.
+      return preferPreviousCandidate(previousAlgorithm, [
+        runLayoutCandidate(
+          "longest-two-layer-simplex",
+          nodeIds,
+          edges,
+          sizes,
+          gap,
+          previousTargets,
+          "longest",
+          "two-layer",
+          "simplex",
+        ),
+        runLayoutCandidate(
+          "simplex-two-layer-simplex",
+          nodeIds,
+          edges,
+          sizes,
+          gap,
+          previousTargets,
+          "simplex",
+          "two-layer",
+          "simplex",
+        ),
+      ]);
+    }
   }
 
   const compareLayering =
@@ -1033,6 +1036,7 @@ function layoutPlace(
   placeId: PlaceId,
   instances: readonly ProjectedWorldInstance[],
   candidateEdges: readonly ProjectedWorldEdge[],
+  connectedInstanceIds: ReadonlySet<WorldInstanceId>,
   options: WorldDagLayoutOptions,
   revision: number,
 ): PlaceLayoutCache["result"] {
@@ -1067,20 +1071,35 @@ function layoutPlace(
   );
   const originalIds = new Map(nodeIds.map((id) => [String(id), id] as const));
 
+  const structuredTargets = candidate.targets
+    .map((target): WorldDagLayoutTarget | null => {
+      const instanceId = originalIds.get(target.id);
+      if (!instanceId) return null;
+      return Object.freeze({
+        instanceId,
+        placeId,
+        eastMeters: target.eastMeters,
+        northMeters: target.northMeters,
+      });
+    })
+    .filter((target): target is WorldDagLayoutTarget => target !== null);
+  // A cross-place relationship keeps each endpoint attached to its own
+  // primary-place origin without becoming a local DAG edge. Truly isolated
+  // entities remain force-owned and receive no DAG target.
+  const unstructuredTargets = nodeIds
+    .filter((id) => !structuredNodeSet.has(id) && connectedInstanceIds.has(id))
+    .map((instanceId) =>
+      Object.freeze({
+        instanceId,
+        placeId,
+        eastMeters: 0,
+        northMeters: 0,
+      }),
+    );
   const targets = Object.freeze(
-    candidate.targets
-      .map((target): WorldDagLayoutTarget | null => {
-        const instanceId = originalIds.get(target.id);
-        if (!instanceId) return null;
-        return Object.freeze({
-          instanceId,
-          placeId,
-          eastMeters: target.eastMeters,
-          northMeters: target.northMeters,
-        });
-      })
-      .filter((target): target is WorldDagLayoutTarget => target !== null)
-      .sort((left, right) => String(left.instanceId).localeCompare(String(right.instanceId))),
+    [...structuredTargets, ...unstructuredTargets].sort((left, right) =>
+      String(left.instanceId).localeCompare(String(right.instanceId)),
+    ),
   );
 
   const routes = Object.freeze(
@@ -1158,6 +1177,7 @@ export function createWorldDagLayout(
       placeId,
       instances,
       index.edgesByPlace.get(placeId) ?? Object.freeze([]),
+      index.connectedInstanceIds,
       options,
       revision,
     );
@@ -1178,7 +1198,11 @@ export function createWorldDagLayout(
     weightedStableDisplacement +=
       result.metrics.meanStableDisplacementMeters * result.metrics.nodeCount;
     stableNodeWeight += result.metrics.nodeCount;
-    algorithms[result.metrics.algorithm] = (algorithms[result.metrics.algorithm] ?? 0) + 1;
+    const algorithm = stableAlgorithmName(result.metrics.algorithm) ?? result.metrics.algorithm;
+    algorithms[algorithm] = (algorithms[algorithm] ?? 0) + 1;
+    if (result.metrics.algorithm.endsWith("-force-only")) {
+      algorithms["overflow-force-only"] = (algorithms["overflow-force-only"] ?? 0) + 1;
+    }
   }
 
   prunePlaceCache(revision);

@@ -303,10 +303,14 @@ export function directedEdgePathArrowhead(
   ]) as readonly [WorldRenderPosition, WorldRenderPosition, WorldRenderPosition];
 }
 
-/** Most zoomed-out zoom of the LOD tier containing `zoom`. */
+/**
+ * Most zoomed-out zoom of the placement-geometry tier containing `zoom`.
+ * The optional-label budget may grow again at zoom 9, but existing labels
+ * must not relocate there; detail placement is stable from zoom 7 onward.
+ */
 export function worldLabelTierFloor(zoom: number): number {
   if (!Number.isFinite(zoom)) return 0;
-  for (const [minimumZoom] of LABEL_BUDGETS) {
+  for (const minimumZoom of [7, 5, 3, 1.5] as const) {
     if (zoom >= minimumZoom) return minimumZoom;
   }
   return 0;

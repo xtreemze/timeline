@@ -704,6 +704,7 @@ interface PlaceClusterTransitionDatums {
   readonly members: readonly DeckWorldEntityDatum[];
   readonly loose: readonly DeckWorldEntityDatum[];
   readonly memberIds: ReadonlySet<WorldInstanceId>;
+  readonly originByMember: ReadonlyMap<WorldInstanceId, WorldRenderPosition>;
 }
 
 /**
@@ -742,6 +743,7 @@ function placeClusterTransitionDatums(
     members: Object.freeze(members),
     loose: Object.freeze(loose),
     memberIds: new Set(originByMember.keys()),
+    originByMember,
   });
 }
 
@@ -3199,7 +3201,12 @@ export class DeckWorldSurface implements WorldSurface {
     const lodChanged =
       budget !== this.#labelBudgetLastRender &&
       Math.min(budget, this.#labelBudgetLastRender) < this.#lodCandidateCountLastRender;
+    // Ordinary camera zoom is handled by deck's controlled viewState. A
+    // 1/32-zoom visual scale step must not rebuild every semantic layer inside
+    // one LOD tier. Drag pickup is the one case where the renderer-owned
+    // screen-space lift itself is interaction state and needs to stay exact.
     const screenScaleChanged =
+      this.#activeDragInstanceId !== null &&
       screenScaleZoomStep(this.#camera.zoom) !== this.#screenScaleZoomLastRender;
     const cameraFacingChanged = cameraFacingStep(this.#camera) !== this.#cameraFacingStepLastRender;
     return (
@@ -3650,7 +3657,8 @@ export class DeckWorldSurface implements WorldSurface {
     this.#directionDatumCache = directionResult.byId;
     const focus = this.#focus;
     const pinnedEntity = (entity: DeckWorldEntityDatum) =>
-      focus?.kind === "entity" && focus.id === entity.entityId;
+      (this.#selection?.kind === "entity" && this.#selection.id === entity.entityId) ||
+      (focus?.kind === "entity" && focus.id === entity.entityId);
     const edgeExpansion = (
       edge: Pick<DeckWorldRelationshipDatum, "sourceInstanceId" | "targetInstanceId">,
     ): number => {
@@ -3874,8 +3882,17 @@ export class DeckWorldSurface implements WorldSurface {
         dataComparator: sameDatumSequence,
         pickable: !gridClustered,
         widthUnits: "pixels",
-        getPath: (datum: DeckWorldTemporalRelationshipDatum) =>
-          this.#temporalRelationshipStateFor(datum).edge.path,
+        getPath: (datum: DeckWorldTemporalRelationshipDatum) => {
+          const edge = this.#temporalRelationshipStateFor(datum).edge;
+          if (edgeExpansion(edge) > 0) return edge.path;
+
+          const sourceOrigin = placeTransition.originByMember.get(edge.sourceInstanceId);
+          const targetOrigin = placeTransition.originByMember.get(edge.targetInstanceId);
+          if (!sourceOrigin && !targetOrigin) return edge.path;
+          const source = sourceOrigin ?? edge.path[0];
+          const target = targetOrigin ?? edge.path[edge.path.length - 1];
+          return source && target ? Object.freeze([source, target]) : edge.path;
+        },
         // Colour/width by relationship type (Orb semantics) unless the
         // relationship carries its own style. Temporal membership is only
         // presentation state here; WorldProjection already contains truth.
@@ -3894,7 +3911,7 @@ export class DeckWorldSurface implements WorldSurface {
           );
         },
         updateTriggers: {
-          getPath: this.#relationshipPathRevision,
+          getPath: [this.#relationshipPathRevision, placeExpansion, gridClustered],
           getWidth: [
             this.#palette,
             this.#temporalRelationshipRevision,
