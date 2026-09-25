@@ -1351,13 +1351,6 @@
   .timeline-focus-hero {
     min-height: 460px;
   }
-  .timeline-view.is-event-focused .timeline-surface,
-  .timeline-view.is-event-focused[data-orientation="portrait"] .timeline-surface {
-    height: 250px;
-    min-height: 250px;
-    border-left: 0;
-    border-top: 1px solid var(--line);
-  }
   .timeline-focus-title {
     font-size: clamp(2.8rem, 15vw, 5.8rem);
   }
