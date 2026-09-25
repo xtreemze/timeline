@@ -267,7 +267,10 @@ export function createWorldViewFactory(options: WorldViewFactoryOptions): WorldV
           return worldInteraction.claimGesture(gesture);
         },
         finish() {
-          worldInteraction.finishDiscrete();
+          worldInteraction.finishDiscrete({ commit: false });
+        },
+        commit() {
+          worldInteraction.commit();
         },
         cancel() {
           worldInteraction.cancel("aborted");
