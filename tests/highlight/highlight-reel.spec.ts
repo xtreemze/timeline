@@ -318,7 +318,7 @@ async function startTabCapture(
                 recorder.addEventListener("start", () => resolve(), { once: true });
                 recorder.addEventListener(
                   "error",
-                  (event) => reject(new Error(`MediaRecorder failed: ${event.error.name}`)),
+                  () => reject(new Error("MediaRecorder failed while starting showcase capture.")),
                   { once: true },
                 );
               });
@@ -383,7 +383,7 @@ async function stopTabCapture(page: Page, videoPath: string) {
       state.recorder.addEventListener("stop", () => resolve(), { once: true });
       state.recorder.addEventListener(
         "error",
-        (event) => reject(new Error(`MediaRecorder failed: ${event.error.name}`)),
+        () => reject(new Error("MediaRecorder failed while stopping showcase capture.")),
         { once: true },
       );
     });
