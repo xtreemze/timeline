@@ -68,7 +68,11 @@ export function createSurfaceInteractionController(
     owner,
     snapshot,
 
-    beginPointer(pointerId, gesture, options: SurfacePointerBeginOptions = {}) {
+    beginPointer(
+      pointerId: number,
+      gesture: GestureKind,
+      options: SurfacePointerBeginOptions = {},
+    ) {
       const before = snapshot();
       if (!coordinator.begin(owner, pointerId)) return false;
 
@@ -96,7 +100,7 @@ export function createSurfaceInteractionController(
 
     claimGesture,
 
-    releasePointer(pointerId, options: SurfaceFinishOptions = {}) {
+    releasePointer(pointerId: number, options: SurfaceFinishOptions = {}) {
       if (!coordinator.release(owner, pointerId)) return false;
       if (options.commit === true && snapshot().phase === "settling") {
         return coordinator.commit(owner);
@@ -104,7 +108,7 @@ export function createSurfaceInteractionController(
       return true;
     },
 
-    beginDiscrete(gesture) {
+    beginDiscrete(gesture: GestureKind) {
       return coordinator.beginDiscrete(owner, gesture);
     },
 
@@ -118,7 +122,7 @@ export function createSurfaceInteractionController(
       return coordinator.commit(owner);
     },
 
-    cancel(reason) {
+    cancel(reason: Exclude<InteractionCompletionReason, "release">) {
       return coordinator.cancel(owner, reason);
     },
   });
