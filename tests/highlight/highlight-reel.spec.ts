@@ -521,6 +521,7 @@ async function recordSegment(
       path: screenshotPath,
       animations: "disabled",
       scale: "css",
+      timeout: 30_000,
     });
   }
 
