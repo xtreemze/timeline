@@ -2910,7 +2910,9 @@ export class DeckWorldSurface implements WorldSurface {
   ): "grab" | "grabbing" | "pointer" | "zoom-in" {
     const intent =
       this.#hoverClusterId !== null
-        ? "cluster"
+        ? this.#hoverClusterId.startsWith("cluster:place:")
+          ? "action"
+          : "cluster"
         : this.#hoverSelection?.kind === "entity" && this.#nodeDragSink
           ? "draggable"
           : this.#hoverSelection
@@ -2961,7 +2963,8 @@ export class DeckWorldSurface implements WorldSurface {
           : [];
       const [placeId] = placeIds;
       if (placeIds.length === 1 && placeId) {
-        this.setSelection({ kind: "place", id: placeId });
+        const next = { kind: "place", id: placeId } as const;
+        this.setSelection(selectionEquals(next, this.#selection) ? null : next);
       } else {
         this.#focusCluster(cluster, clusterMemberCountFromPicking(info));
       }
@@ -4346,9 +4349,10 @@ export class DeckWorldSurface implements WorldSurface {
       : Object.freeze([] as DeckWorldRelationshipDatum[]);
     const releasingSegments = releasingRelationshipSegments(releasingRelationships);
 
-    // Only places selected by semantic density or unreadable screen-space
-    // proximity belong to the collapsed representation. Sparse/singleton
-    // places resolve independently only after their neighbourhood separates.
+    // Only topology that exceeds the shared readability budget belongs to the
+    // collapsed representation. Very-near place pins are handled separately,
+    // so sparse nodes can use surrounding whitespace without losing location
+    // aggregation.
     const clusteredEntitySource = entityResult.datums.filter(
       (entity) =>
         memberIds.has(entity.worldInstanceId) &&
