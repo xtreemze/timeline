@@ -7,10 +7,7 @@ class FakeElement {
   }
 
   closest(selector) {
-    if (
-      this.camera &&
-      selector === '[data-surface-keyboard-navigation="camera"]'
-    ) {
+    if (this.camera && selector === '[data-surface-keyboard-navigation="camera"]') {
       return this;
     }
     return null;
@@ -38,10 +35,7 @@ test("presentation D-pad commands yield to focused camera surfaces", () => {
     navigation.commandFromKeyboard({ key: "ArrowRight", target: cameraTarget }, true),
     null,
   );
-  assert.equal(
-    navigation.commandFromKeyboard({ key: "Enter", target: cameraTarget }, true),
-    null,
-  );
+  assert.equal(navigation.commandFromKeyboard({ key: "Enter", target: cameraTarget }, true), null);
   assert.equal(
     navigation.commandFromKeyboard({ key: "MediaPlayPause", target: cameraTarget }, true),
     "toggle-auto",
