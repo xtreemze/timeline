@@ -1384,6 +1384,114 @@ test("DeckWorldSurface switches to local geographic view only at high zoom", () 
   assert.equal(globeSwitches.at(-1).controller.zoomAround, "pointer");
 });
 
+test("entity layers expose sparse deck row diffs for position-only projection updates", () => {
+  const { calls, runtime } = harness();
+  const iconLayers = [];
+  runtime.createIconLayer = (props) => {
+    const layer = { type: "icon", props };
+    iconLayers.push(layer);
+    return layer;
+  };
+
+  const surface = new DeckWorldSurface({}, runtime, {
+    longitude: 18.0686,
+    latitude: 59.3293,
+    zoom: 8,
+    bearing: 0,
+    pitch: 0,
+  });
+  const before = projection();
+  surface.setProjection(before);
+
+  const previousEntityLayer = calls.scatterLayers
+    .filter((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entities)
+    .at(-1);
+  const previousIconLayer = iconLayers
+    .filter((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entityIcons)
+    .at(-1);
+  assert.ok(previousEntityLayer);
+  assert.ok(previousIconLayer);
+  assert.equal(typeof previousEntityLayer.props._dataDiff, "function");
+  assert.equal(typeof previousIconLayer.props._dataDiff, "function");
+
+  const alice = before.instances.find((instance) => instance.canonicalId === "alice");
+  assert.ok(alice);
+  const after = createWorldProjection({
+    instances: before.instances.map((instance) =>
+      instance === alice
+        ? createProjectedWorldInstance({
+            ...instance,
+            localOffset: { eastMeters: 2_000, northMeters: -500 },
+          })
+        : instance,
+    ),
+    edges: before.edges,
+  });
+  surface.applyProjectionDelta(diffWorldProjection(before, after));
+
+  const nextEntityLayer = calls.scatterLayers
+    .filter((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entities)
+    .at(-1);
+  const nextIconLayer = iconLayers
+    .filter((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entityIcons)
+    .at(-1);
+  assert.ok(nextEntityLayer);
+  assert.ok(nextIconLayer);
+
+  const changedIndex = nextEntityLayer.props.data.findIndex(
+    (datum) => datum.kind === "entity" && datum.entityId === "alice",
+  );
+  assert.ok(changedIndex >= 0);
+  const expectedRange = [{ startRow: changedIndex, endRow: changedIndex + 1 }];
+
+  assert.deepEqual(
+    nextEntityLayer.props._dataDiff(nextEntityLayer.props.data, previousEntityLayer.props.data),
+    expectedRange,
+  );
+
+  const previousIconAlice = previousIconLayer.props.data.findIndex(
+    (datum) => datum.entityId === "alice",
+  );
+  const nextIconAlice = nextIconLayer.props.data.findIndex((datum) => datum.entityId === "alice");
+  assert.equal(previousIconAlice, nextIconAlice);
+  assert.ok(nextIconAlice >= 0);
+  assert.deepEqual(
+    nextIconLayer.props._dataDiff(nextIconLayer.props.data, previousIconLayer.props.data),
+    [{ startRow: nextIconAlice, endRow: nextIconAlice + 1 }],
+  );
+});
+
+test("entity layer sparse row diff falls back when row identity changes", () => {
+  const { calls, runtime } = harness();
+  const surface = new DeckWorldSurface({}, runtime, {
+    longitude: 18.0686,
+    latitude: 59.3293,
+    zoom: 8,
+    bearing: 0,
+    pitch: 0,
+  });
+  surface.setProjection(projection());
+
+  const entityLayer = calls.scatterLayers
+    .filter((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entities)
+    .at(-1);
+  assert.ok(entityLayer);
+  assert.equal(typeof entityLayer.props._dataDiff, "function");
+
+  const previous = entityLayer.props.data;
+  const reordered = [...previous].reverse();
+  assert.deepEqual(
+    entityLayer.props._dataDiff(reordered, previous),
+    previous.length === 0 ? [] : [{ startRow: 0, endRow: previous.length }],
+  );
+
+  const shortened = previous.slice(0, -1);
+  assert.deepEqual(
+    entityLayer.props._dataDiff(shortened, previous),
+    shortened.length === 0 ? [] : [{ startRow: 0, endRow: shortened.length }],
+  );
+});
+
 test("deck entity drag callbacks resolve screen motion into world-local drag intents", () => {
   const { calls, runtime } = harness();
   const surface = new DeckWorldSurface({}, runtime);
