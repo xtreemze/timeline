@@ -372,7 +372,7 @@ export function worldEdgeStyle(
     number(own["width"], 0.5, 10) ??
     number(own["strokeWidth"], 0.5, 10) ??
     number(own["lineWidth"], 0.5, 10) ??
-    1;
+    1.25;
   return Object.freeze({
     // Interaction emphasis is renderer-only so edge geometry/routing never
     // changes on hover or selection.
