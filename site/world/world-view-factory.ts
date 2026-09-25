@@ -208,6 +208,18 @@ export function createWorldViewFactory(options: WorldViewFactoryOptions): WorldV
 
       const container = root.querySelector<HTMLElement>(".temporal-graph-canvas") ?? root;
       const surface = new DeckWorldSurface(container, deckRuntime);
+      const controls =
+        typeof container.querySelector === "function"
+          ? container.querySelector<HTMLElement>(".world-camera-controls")
+          : null;
+      const footerSlot =
+        typeof root.ownerDocument?.querySelector === "function"
+          ? root.ownerDocument.querySelector<HTMLElement>("[data-world-controls-slot]")
+          : null;
+      if (controls && footerSlot) {
+        controls.classList.add("is-footer-control");
+        footerSlot.appendChild(controls);
+      }
       loadWorldBasemap()
         .then((basemap) => {
           try {
