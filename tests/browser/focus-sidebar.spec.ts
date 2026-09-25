@@ -32,20 +32,20 @@ async function ensureOrientation(page: Page, orientation: "landscape" | "portrai
 }
 
 async function boxes(page: Page, focus: Locator) {
-  const [focusBox, graphBox, timelineBox, stageBox] = await Promise.all([
+  const [focusBox, graphBox, timelineSurfaceBox, stageBox] = await Promise.all([
     focus.boundingBox(),
     page.locator("#graph-lens").boundingBox(),
-    page.locator("#timeline-view").boundingBox(),
+    page.locator("#timeline-view > .timeline-surface").boundingBox(),
     page.locator("#presentation-stage").boundingBox(),
   ]);
   expect(focusBox).not.toBeNull();
   expect(graphBox).not.toBeNull();
-  expect(timelineBox).not.toBeNull();
+  expect(timelineSurfaceBox).not.toBeNull();
   expect(stageBox).not.toBeNull();
-  if (!focusBox || !graphBox || !timelineBox || !stageBox) {
+  if (!focusBox || !graphBox || !timelineSurfaceBox || !stageBox) {
     throw new Error("Focused presentation surfaces must all have layout bounds.");
   }
-  return { focusBox, graphBox, timelineBox, stageBox };
+  return { focusBox, graphBox, timelineSurfaceBox, stageBox };
 }
 
 function overlapArea(
@@ -90,17 +90,17 @@ test("landscape selection preserves timeline geometry while detail layers over t
   page,
 }) => {
   await ensureOrientation(page, "landscape");
-  const before = await page.locator("#timeline-view").boundingBox();
+  const before = await page.locator("#timeline-view > .timeline-surface").boundingBox();
   expect(before).not.toBeNull();
-  if (!before) throw new Error("Timeline must have layout bounds before focus.");
+  if (!before) throw new Error("Timeline surface must have layout bounds before focus.");
 
   const focus = await focusOccurrence(page);
-  const { focusBox, graphBox, timelineBox, stageBox } = await boxes(page, focus);
+  const { focusBox, graphBox, timelineSurfaceBox, stageBox } = await boxes(page, focus);
 
-  expect(Math.abs(timelineBox.x - before.x)).toBeLessThanOrEqual(2);
-  expect(Math.abs(timelineBox.y - before.y)).toBeLessThanOrEqual(2);
-  expect(Math.abs(timelineBox.width - before.width)).toBeLessThanOrEqual(2);
-  expect(Math.abs(timelineBox.height - before.height)).toBeLessThanOrEqual(2);
+  expect(Math.abs(timelineSurfaceBox.x - before.x)).toBeLessThanOrEqual(2);
+  expect(Math.abs(timelineSurfaceBox.y - before.y)).toBeLessThanOrEqual(2);
+  expect(Math.abs(timelineSurfaceBox.width - before.width)).toBeLessThanOrEqual(2);
+  expect(Math.abs(timelineSurfaceBox.height - before.height)).toBeLessThanOrEqual(2);
   expect(graphBox.x).toBeLessThanOrEqual(stageBox.x + 2);
   expect(graphBox.y).toBeLessThanOrEqual(stageBox.y + 2);
   expect(overlapArea(focusBox, graphBox)).toBeGreaterThan(100);
@@ -110,17 +110,17 @@ test("portrait selection preserves timeline geometry while detail layers over th
   page,
 }) => {
   await ensureOrientation(page, "portrait");
-  const before = await page.locator("#timeline-view").boundingBox();
+  const before = await page.locator("#timeline-view > .timeline-surface").boundingBox();
   expect(before).not.toBeNull();
-  if (!before) throw new Error("Timeline must have layout bounds before focus.");
+  if (!before) throw new Error("Timeline surface must have layout bounds before focus.");
 
   const focus = await focusOccurrence(page);
-  const { focusBox, graphBox, timelineBox, stageBox } = await boxes(page, focus);
+  const { focusBox, graphBox, timelineSurfaceBox, stageBox } = await boxes(page, focus);
 
-  expect(Math.abs(timelineBox.x - before.x)).toBeLessThanOrEqual(2);
-  expect(Math.abs(timelineBox.y - before.y)).toBeLessThanOrEqual(2);
-  expect(Math.abs(timelineBox.width - before.width)).toBeLessThanOrEqual(2);
-  expect(Math.abs(timelineBox.height - before.height)).toBeLessThanOrEqual(2);
+  expect(Math.abs(timelineSurfaceBox.x - before.x)).toBeLessThanOrEqual(2);
+  expect(Math.abs(timelineSurfaceBox.y - before.y)).toBeLessThanOrEqual(2);
+  expect(Math.abs(timelineSurfaceBox.width - before.width)).toBeLessThanOrEqual(2);
+  expect(Math.abs(timelineSurfaceBox.height - before.height)).toBeLessThanOrEqual(2);
   expect(graphBox.x).toBeLessThanOrEqual(stageBox.x + 2);
   expect(graphBox.y).toBeLessThanOrEqual(stageBox.y + 2);
   expect(overlapArea(focusBox, graphBox)).toBeGreaterThan(100);
