@@ -36,6 +36,8 @@ Each fictional item carries `extensions.narrative.displayTime` for the story-fac
 
 This preserves deterministic sorting and zooming, intervals and event precision, graph-window calculations, JSON/interchange stability, and an explicit separation between fictional chronology and asserted real-world time.
 
+Use an instant for a discrete narrative beat, but use an interval when the fixture is representing a sustained state, journey, pursuit, confinement, repeated visitation, active obligation, or other process with meaningful duration. The bundled stories intentionally mix both forms so fictional authoring exercises range rendering and temporal relationship lifecycles instead of reducing every scene to a point timestamp.
+
 ## Fictional places
 
 Fictional locations can use ordinary names and identifiers. When the current map renderer needs coordinates, a fixture may provide stable staging anchors so relative distance and movement remain logically coherent. The location identifier and narrative metadata must clearly state that these are not Earth-location claims.
