@@ -2313,6 +2313,12 @@ function clusterIdFromPicking(info: DeckRuntimePickingInfo | null): string | nul
   return typeof info.object.clusterId === "string" ? info.object.clusterId : null;
 }
 
+function clusterMemberCountFromPicking(info: DeckRuntimePickingInfo | null): number {
+  if (!info || !isRecord(info.object) || info.object.kind !== "cluster") return 1;
+  const members = info.object.clusterMembers;
+  return Array.isArray(members) ? Math.max(1, members.length) : 1;
+}
+
 function clusterPositionFromPicking(
   info: DeckRuntimePickingInfo | null,
 ): WorldRenderPosition | null {
@@ -2575,7 +2581,7 @@ export class DeckWorldSurface implements WorldSurface {
     }
     const cluster = clusterPositionFromPicking(info);
     if (cluster) {
-      this.#focusCluster(cluster);
+      this.#focusCluster(cluster, clusterMemberCountFromPicking(info));
       void pulseHaptic("selection");
       return;
     }
@@ -4647,8 +4653,15 @@ export class DeckWorldSurface implements WorldSurface {
     });
   }
 
-  #focusCluster(position: WorldRenderPosition): void {
-    this.#focusPosition(position, this.#detailFocusZoom(this.#camera.zoom + 1));
+  #focusCluster(position: WorldRenderPosition, memberCount = 1): void {
+    const densityThreshold = clusterZoomThresholdForPlaceDensity(
+      this.#clusterEntityFootprintRadiusPx(),
+      memberCount,
+    );
+    this.#focusPosition(
+      position,
+      Math.max(this.#detailFocusZoom(this.#camera.zoom + 1), densityThreshold + 0.25),
+    );
   }
 
   /**
