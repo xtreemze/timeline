@@ -1969,6 +1969,7 @@ export class TimelineViewController {
   startInertia(initialVelocityPxPerMs: number, usableLength: number): void {
     if (this.reducedMotionQuery?.matches) {
       this.commitInteraction();
+      this.surfaceInteraction.commit();
       return;
     }
     this.cancelInertia();
@@ -1982,6 +1983,7 @@ export class TimelineViewController {
       if (Math.abs(velocity) < motion.STOP_VELOCITY_PX_PER_MS) {
         this.interactionVelocity = 0;
         this.commitInteraction();
+        this.surfaceInteraction.commit();
         return;
       }
 
@@ -2003,6 +2005,7 @@ export class TimelineViewController {
       } else {
         this.interactionVelocity = 0;
         this.commitInteraction();
+        this.surfaceInteraction.commit();
       }
     };
 
