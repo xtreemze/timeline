@@ -81,7 +81,7 @@ Across surfaces:
 - arrow keys and +/- stay with the active renderer/navigation controller; the retained timeline maps them through the shared navigation vocabulary, while deck/Leaflet keep their native keyboard controller;
 - focused native controls/content-editable regions and Ctrl/Meta/Alt platform shortcuts are never stolen by surface camera navigation;
 - Home fits the visible timeline context and Shift+Home fits all timeline content; these are timeline-only commands, not global shortcuts;
-- one-finger world touch pans unless a stationary long-press arms node dragging; a second touch cancels that exclusive node drag and yields immediately to multi-touch camera control;
+- one-finger world/graph touch pans unless a stationary long-press arms node dragging; a second touch cancels that exclusive node drag and yields immediately to multi-touch camera control;
 - pinch/multi-touch gestures stay renderer-owned; node/object dragging must stop propagation only after it has actually claimed the gesture;
 - every pointer-capture path must handle `pointercancel` and `lostpointercapture`; Escape/cancel/back is resolved at the owning surface or application-navigation layer.
 
