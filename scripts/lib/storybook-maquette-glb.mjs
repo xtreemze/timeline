@@ -227,7 +227,7 @@ export function buildMaquetteGlb(asset, lod) {
   const binary = Buffer.concat(chunks);
 
   const json = {
-    asset: { version: "2.0", generator: "Lūm storybook-maquette generator" },
+    asset: { version: "2.0", generator: "Lum maquette" },
     scene: 0,
     scenes: [{ nodes: [0] }],
     nodes,
