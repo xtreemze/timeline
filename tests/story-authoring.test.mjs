@@ -6,7 +6,11 @@ import {
   addItemToStory,
   auditStoryAuthoring,
   deriveStoryPlaceIds,
+  narrativeStoryEpoch,
+  nextNarrativeSequence,
+  parseNarrativeRelativeTime,
   reconcileStoryContext,
+  resolveNarrativeRelativeTime,
   storyIdsForItem,
 } from "../site/story-authoring.js";
 
@@ -15,6 +19,111 @@ const places = [
   { id: "castle", name: "Castle" },
   { id: "village", name: "Village" },
 ];
+
+test("narrative story sequencing derives the next scene number from authored metadata", () => {
+  const story = { id: "story-a", itemIds: ["a1", "a2"] };
+  const items = [
+    { id: "a1", extensions: { narrative: { sequence: 2 } } },
+    { id: "a2", extensions: { narrative: { sequence: 5 } } },
+  ];
+
+  assert.equal(nextNarrativeSequence(story, items), 6);
+  assert.equal(nextNarrativeSequence({ id: "new", itemIds: [] }, items), 1);
+});
+
+test("narrative story epoch prefers an explicit synthetic epoch and otherwise uses the earliest scene", () => {
+  const items = [
+    { id: "a1", start: "1061-06-05T09:00Z" },
+    { id: "a2", time: { start: { value: "1061-06-01T07:30Z" } } },
+  ];
+
+  assert.equal(
+    narrativeStoryEpoch(
+      {
+        id: "story-a",
+        itemIds: ["a1", "a2"],
+        extensions: { narrative: { syntheticEpoch: "1061-05-30T00:00Z" } },
+      },
+      items,
+    ),
+    "1061-05-30T00:00Z",
+  );
+  assert.equal(
+    narrativeStoryEpoch({ id: "story-a", itemIds: ["a1", "a2"] }, items),
+    "1061-06-01T07:30Z",
+  );
+});
+
+test("narrative-relative parser accepts day coordinates, offsets, and following dayparts", () => {
+  assert.deepEqual(parseNarrativeRelativeTime("Day 3 · 18:45"), {
+    kind: "day",
+    day: 3,
+    hour: 18,
+    minute: 45,
+    displayTime: "Day 3 · 18:45",
+  });
+  assert.deepEqual(parseNarrativeRelativeTime("two days later"), {
+    kind: "offset",
+    days: 2,
+    displayTime: "two days later",
+  });
+  assert.deepEqual(parseNarrativeRelativeTime("the following evening"), {
+    kind: "offset-daypart",
+    days: 1,
+    daypart: "evening",
+    hour: 19,
+    displayTime: "the following evening",
+  });
+  assert.equal(parseNarrativeRelativeTime("sometime later"), null);
+});
+
+test("narrative-relative time resolves to stable synthetic ISO anchors", () => {
+  assert.deepEqual(
+    resolveNarrativeRelativeTime("Day 3 · 18:45", {
+      epoch: "1061-06-01T07:30Z",
+    }),
+    {
+      value: "1061-06-03T18:45Z",
+      precision: "minute",
+      displayTime: "Day 3 · 18:45",
+      intent: {
+        kind: "day",
+        day: 3,
+        hour: 18,
+        minute: 45,
+        displayTime: "Day 3 · 18:45",
+      },
+    },
+  );
+
+  assert.equal(
+    resolveNarrativeRelativeTime("two days later", {
+      previousStart: "1061-06-03T18:45Z",
+    }).value,
+    "1061-06-05T18:45Z",
+  );
+  assert.equal(
+    resolveNarrativeRelativeTime("the following evening", {
+      previousStart: "1061-06-05",
+    }).value,
+    "1061-06-06T19:00Z",
+  );
+});
+
+test("narrative-relative time refuses missing anchors and duplicate exact timestamps", () => {
+  assert.throws(
+    () => resolveNarrativeRelativeTime("Day 2"),
+    /narrative epoch is required/i,
+  );
+  assert.throws(
+    () =>
+      resolveNarrativeRelativeTime("Day 2 · 09:00", {
+        epoch: "1061-06-01",
+        occupiedValues: ["1061-06-02T09:00Z"],
+      }),
+    /occupied anchor/i,
+  );
+});
 
 test("story authoring derives places from contextual occurrence edges without pooling other stories", () => {
   const story = { id: "story-a", itemIds: ["a1", "a2"], placeIds: ["village"] };
