@@ -3490,7 +3490,7 @@ function renderStories() {
     const placeCount = story.placeIds?.length || 0;
     const health = auditStoryAuthoring(story, state.relationships, state.places);
     const healthLabel = health.healthy
-      ? "context complete"
+      ? "context valid"
       : `${health.issueCount} context ${health.issueCount === 1 ? "gap" : "gaps"}`;
     meta.textContent = `${story.itemIds.length} ${story.itemIds.length === 1 ? "step" : "steps"} · ${placeCount} ${placeCount === 1 ? "place" : "places"} · ${storySpanLabel(story)} · ${healthLabel}`;
     if (!health.healthy) meta.title = health.issues.map((issue) => issue.message).join("\n");
