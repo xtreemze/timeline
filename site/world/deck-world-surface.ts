@@ -1,4 +1,5 @@
 import type { EntityId, PlaceId, RelationshipId } from "../../src/domain/ids.ts";
+import { placeId, relationshipId } from "../../src/domain/ids.ts";
 import {
   surfaceActivationFromKeyboard,
   surfaceCursor,
@@ -19,7 +20,6 @@ import {
   worldClusterShowsActiveEdges,
   worldClusterShowsMembers,
   worldClusterShowsReleasingEdges,
-  worldClusterWantsCollapsed,
 } from "../../src/layout/world-cluster-transition.ts";
 import type { WorldRelationshipRouteHint } from "../../src/layout/world-force-simulation.ts";
 import {
@@ -2420,7 +2420,7 @@ function labelDatums(input: {
   const interactionPlaceIds = new Set<PlaceId>();
   if (input.selection?.kind === "place") interactionPlaceIds.add(input.selection.id);
   if (input.hoverSelection?.kind === "place") interactionPlaceIds.add(input.hoverSelection.id);
-  if (input.focus?.kind === "place") interactionPlaceIds.add(input.focus.id);
+  if (input.focus?.kind === "place") interactionPlaceIds.add(placeId(input.focus.id));
   // Place labels are revealed only by direct place interaction. Neighborhood
   // emphasis from hovering/selecting nodes or relationships may style an
   // already-visible place label, but it must not resurrect one suppressed by
@@ -2509,7 +2509,8 @@ function labelDatums(input: {
   if (input.hoverSelection?.kind === "relationship") {
     interactionRelationshipIds.add(input.hoverSelection.id);
   }
-  if (input.focus?.kind === "relationship") interactionRelationshipIds.add(input.focus.id);
+  if (input.focus?.kind === "relationship")
+    interactionRelationshipIds.add(relationshipId(input.focus.id));
   if (interactionRelationshipIds.size > 0) {
     for (const relationship of input.relationships) {
       if (!relationship.label || !interactionRelationshipIds.has(relationship.relationshipId)) {
