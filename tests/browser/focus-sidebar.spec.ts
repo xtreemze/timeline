@@ -133,7 +133,7 @@ test("portrait preserves the right timeline rail while focused detail layers ins
   expect(overlapArea(focusBox, graphBox)).toBeGreaterThan(100);
 });
 
-test("opening Browse or View does not discard the focused occurrence", async ({ page }) => {
+test("Browse and persistent View controls do not discard the focused occurrence", async ({ page }) => {
   await focusOccurrence(page);
 
   await page.locator("#timeline-browser-toggle").click();
@@ -141,13 +141,7 @@ test("opening Browse or View does not discard the focused occurrence", async ({ 
   await expect(page.locator("#app-shell")).toHaveClass(/is-event-focused/);
   await page.locator("#timeline-browser-close").click();
 
-  await page.locator("#timeline-view-controls-toggle").click();
-  await expect
-    .poll(() =>
-      page
-        .locator("#timeline-view-toolbar")
-        .evaluate((element) => element.matches(":popover-open")),
-    )
-    .toBe(true);
+  await expect(page.locator("#timeline-view-toolbar")).toBeVisible();
+  await expect(page.locator("#timeline-view-controls-toggle")).toHaveCount(0);
   await expect(page.locator("#app-shell")).toHaveClass(/is-event-focused/);
 });
