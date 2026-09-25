@@ -5,10 +5,7 @@ import test from "node:test";
 import { createDeckWorldRuntime } from "../site/world/deck-world-runtime.ts";
 import { DECK_WORLD_LAYER_IDS, DeckWorldSurface } from "../site/world/deck-world-surface.ts";
 import { worldEntityIconName } from "../site/world/world-entity-icon.ts";
-import {
-  worldNodeBorderMarker,
-  worldNodeMarker,
-} from "../site/world/world-node-marker.ts";
+import { worldNodeBorderMarker, worldNodeMarker } from "../site/world/world-node-marker.ts";
 import { WORLD_LIGHT_PALETTE, worldPlaceStyle } from "../src/layout/world-graph-style.ts";
 import {
   createProjectedWorldInstance,
