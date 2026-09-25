@@ -4,6 +4,8 @@ import type { Locator, Page, TestInfo } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
 const OUTPUT_ROOT = path.resolve(process.env.E2E_MEDIA_DIR ?? "artifacts/e2e-media");
+const SHOWCASE_FPS = 60;
+const MIN_CAPTURE_FPS = 59;
 
 type FormFactor = "desktop" | "mobile";
 
@@ -23,6 +25,13 @@ type ShowcaseSegment = SceneIntent & {
   screenshot: string;
   motionStartSeconds: number | null;
   motionDurationSeconds: number | null;
+  capture: {
+    requestedFps: number;
+    measuredFps: number;
+    frameCount: number;
+    durationSeconds: number;
+    frameTimestampsMs: number[];
+  } | null;
 };
 
 const SCENES: readonly SceneIntent[] = [
@@ -155,9 +164,26 @@ async function recordSegment(
   await mkdir(rawDir, { recursive: true });
   const videoPath = path.join(rawDir, `${scene.name}.webm`);
   const screenshotPath = path.join(rawDir, `${scene.name}.png`);
+  const captureSize =
+    formFactor === "desktop"
+      ? PROJECTS["Desktop Showcase"].size
+      : PROJECTS["Mobile Showcase"].size;
+  let capture: ShowcaseSegment["capture"] = null;
 
   if (scene.mediaMode === "motion") {
-    await page.screencast.start({ path: videoPath, quality: 92 });
+    const sourceFrameTimestampsMs: number[] = [];
+    let motionFrameStartIndex = 0;
+    let motionFrameEndIndex = 0;
+
+    await page.screencast.start({
+      path: videoPath,
+      quality: 92,
+      size: captureSize,
+      fps: SHOWCASE_FPS,
+      onFrame: ({ timestamp }) => {
+        sourceFrameTimestampsMs.push(timestamp);
+      },
+    });
     const actions = await page.screencast.showActions({
       position: formFactor === "mobile" ? "bottom-right" : "top-right",
       duration: 500,
@@ -195,8 +221,10 @@ async function recordSegment(
         duration: 1_000,
       });
       await page.waitForTimeout(1_100);
+      motionFrameStartIndex = sourceFrameTimestampsMs.length;
       await body();
       await page.waitForTimeout(450);
+      motionFrameEndIndex = sourceFrameTimestampsMs.length;
       await page.screenshot({
         path: screenshotPath,
         animations: "disabled",
@@ -207,6 +235,36 @@ async function recordSegment(
       await actions.dispose().catch(() => {});
       if (!page.isClosed()) await page.screencast.stop().catch(() => {});
     }
+
+    const frameTimestampsMs = sourceFrameTimestampsMs.slice(
+      motionFrameStartIndex,
+      motionFrameEndIndex,
+    );
+    if (frameTimestampsMs.length < 2) {
+      throw new Error(`${formFactor}/${scene.name} did not expose enough source frames.`);
+    }
+    const firstFrameMs = frameTimestampsMs[0];
+    const lastFrameMs = frameTimestampsMs.at(-1);
+    if (firstFrameMs === undefined || lastFrameMs === undefined) {
+      throw new Error(`${formFactor}/${scene.name} source frame timestamps are incomplete.`);
+    }
+    const durationSeconds = (lastFrameMs - firstFrameMs) / 1_000;
+    if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) {
+      throw new Error(`${formFactor}/${scene.name} source frame duration is invalid.`);
+    }
+    const measuredFps = (frameTimestampsMs.length - 1) / durationSeconds;
+    if (measuredFps < MIN_CAPTURE_FPS) {
+      throw new Error(
+        `${formFactor}/${scene.name} captured ${measuredFps.toFixed(2)} actual source fps; expected at least ${MIN_CAPTURE_FPS}.`,
+      );
+    }
+    capture = {
+      requestedFps: SHOWCASE_FPS,
+      measuredFps,
+      frameCount: frameTimestampsMs.length,
+      durationSeconds,
+      frameTimestampsMs,
+    };
   } else {
     await body();
     await page.waitForTimeout(250);
@@ -224,6 +282,7 @@ async function recordSegment(
     motionStartSeconds: scene.mediaMode === "motion" ? 1.05 : null,
     motionDurationSeconds:
       scene.mediaMode === "motion" ? (formFactor === "mobile" ? 5.2 : 4.8) : null,
+    capture,
   };
 }
 
@@ -378,6 +437,8 @@ test("records source-native Lūm showcase media per form factor", async ({ page 
         formFactor: settings.formFactor,
         generatedAt: new Date().toISOString(),
         captureViewport: settings.size,
+        captureFps: SHOWCASE_FPS,
+        minimumMeasuredCaptureFps: MIN_CAPTURE_FPS,
         transitionSeconds: 0.28,
         stillSeconds: 0.9,
         motionSceneCount: segments.filter((segment) => segment.mediaMode === "motion").length,
