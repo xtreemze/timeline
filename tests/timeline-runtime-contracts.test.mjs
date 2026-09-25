@@ -54,6 +54,7 @@ test("retained event terminals preserve semantic media, tag icons, and connector
   assert.match(card, /setSemanticItem\(item: TimelineEventCardItem\)/);
   assert.match(card, /data-timeline-icon/);
   assert.match(card, /this\.dataset\.connectorWeight/);
+  assert.match(card, /data-surface-interaction="action"/);
   assert.match(card, /aria-controls="timeline-focus-view"/);
   assert.match(card, /aria-expanded="false"/);
   assert.match(card, /setAttribute\("aria-expanded", String\(selected\)\)/);
@@ -126,6 +127,20 @@ test("Lit event card has no ambient Timeline globals", async () => {
   );
   assert.doesNotMatch(card, /globalThis\.Timeline/);
   assert.match(card, /import \{ createIcon \} from "\.\.\/event-presentation\.ts"/);
+});
+
+test("event cards and focused detail participate in the shared surface input contract", async () => {
+  const view = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
+
+  assert.match(view, /surfaceInteractionRoleFromTarget\(interactiveTarget\) === "action"/);
+  assert.match(view, /range\.dataset\.surfaceInteraction = "action"/);
+  assert.match(view, /terminal\.dataset\.surfaceInteraction = "action"/);
+  assert.match(view, /this\.focusView\.dataset\.surfaceInteraction = "detail"/);
+  assert.match(view, /tabs\.dataset\.surfaceKeyboardNavigation = "local"/);
+  assert.match(view, /focusReturnTarget: HTMLElement \| null/);
+  assert.match(view, /this\.focusView\.focus\(\{ preventScroll: true \}\)/);
+  assert.match(view, /returnTarget\.focus\(\{ preventScroll: true \}\)/);
+  assert.match(view, /event\.key === "ArrowLeft"[\s\S]*event\.key === "ArrowRight"/);
 });
 
 test("timeline touch arbitration keeps occurrence taps separate from camera gestures", async () => {
