@@ -99,8 +99,8 @@ export function validateSpatialGeometry(geometry: unknown): readonly string[] {
   }
 
   const record = geometry as Readonly<Record<string, unknown>>;
-  const type = record.type;
-  const coordinates = record.coordinates;
+  const type = record["type"];
+  const coordinates = record["coordinates"];
 
   if (type === "Point") {
     return Object.freeze(
@@ -155,7 +155,7 @@ function endpointValue(endpoint: Readonly<Record<string, unknown>> | null | unde
   if (!endpoint) {
     return "";
   }
-  const value = endpoint.value;
+  const value = endpoint["value"];
   return typeof value === "string" ? value.trim() : "";
 }
 
