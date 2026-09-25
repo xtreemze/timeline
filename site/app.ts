@@ -1907,10 +1907,11 @@ function fillItemStoryContext(selectedStoryId = "") {
     options.push(option);
   }
   els.itemStoryContext.replaceChildren(...options);
+  const activeStoryId = ui.activeStoryId ?? "";
   const preferred =
     selectedStoryId ||
-    (!els.itemId.value && state.stories.some((story) => story.id === ui.activeStoryId)
-      ? ui.activeStoryId
+    (!els.itemId.value && state.stories.some((story) => story.id === activeStoryId)
+      ? activeStoryId
       : "");
   els.itemStoryContext.value = state.stories.some((story) => story.id === preferred)
     ? preferred
