@@ -3223,10 +3223,21 @@ export class DeckWorldSurface implements WorldSurface {
 
   focusPlace(id: PlaceId): void {
     this.#setLabelFocus("place", id);
+    const memberCount = this.#projection.instances.filter(
+      (instance) => instance.geographicAnchors[0]?.placeId === id,
+    ).length;
+    const destinationZoom = Math.max(
+      this.#detailFocusZoom(),
+      clusterZoomThresholdForPlaceDensity(
+        this.#clusterEntityFootprintRadiusPx(),
+        memberCount,
+      ) + 0.25,
+    );
     this.#focusPosition(
       placeDatums(this.#projection.instances, this.#selection, this.#placeDatumCache).datums.find(
         (datum) => datum.placeId === id,
       )?.position ?? null,
+      destinationZoom,
     );
   }
 
