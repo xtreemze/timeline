@@ -174,7 +174,7 @@ function assertManifest(manifest, formFactor) {
     );
   }
   for (const segment of motion) {
-    if (!segment.video) throw new Error(`Motion scene ${segment.name} is missing its WebM source`);
+    if (!segment.video) throw new Error(`Motion scene ${segment.name} is missing its native Chromium recording`);
     if (segment.requestedFps !== manifest.captureFps) {
       throw new Error(`Motion scene ${segment.name} did not request the showcase capture cadence`);
     }
