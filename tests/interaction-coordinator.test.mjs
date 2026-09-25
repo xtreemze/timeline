@@ -167,9 +167,9 @@ test("node drag remains exclusive when a second pointer arrives", () => {
   assert.equal(world.beginPointer(4, "node-drag"), true);
   assert.equal(world.beginPointer(5, "pinch"), false);
   assert.equal(coordinator.snapshot().gesture, "node-drag");
-  assert.deepEqual(coordinator.snapshot().pointerIds, [4, 5]);
+  assert.deepEqual(coordinator.snapshot().pointerIds, [4]);
 
-  assert.equal(world.releasePointer(5), true);
+  assert.equal(world.releasePointer(5), false);
   assert.equal(world.releasePointer(4, { commit: true }), true);
 });
 
