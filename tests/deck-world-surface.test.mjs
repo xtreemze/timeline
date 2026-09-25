@@ -555,6 +555,9 @@ test("temporal relationship joins and disconnects update immediately without ren
     .layers.find((candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.relationships);
   assert.ok(joinedLayer);
   assert.equal(joinedLayer.props.transitions, undefined);
+  assert.equal(joinedLayer.props.widthMinPixels, 0.75);
+  assert.equal(joinedLayer.props.jointRounded, true);
+  assert.equal(joinedLayer.props.capRounded, true);
   const joined = joinedLayer.props.data[0];
   assert.equal(joined.kind, "relationship");
   assert.equal(joined.relationshipId, "meeting");
