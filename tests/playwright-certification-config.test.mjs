@@ -146,14 +146,18 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightConfig, /--disable-backgrounding-occluded-windows/);
   assert.match(highlightConfig, /--disable-frame-rate-limit/);
   assert.match(highlightConfig, /--disable-gpu-vsync/);
+  assert.match(highlightConfig, /--auto-accept-this-tab-capture/);
+  assert.match(highlightConfig, /--enable-experimental-web-platform-features/);
 
   assert.match(highlightSpec, /records source-native Lūm showcase media per form factor/);
-  assert.match(highlightSpec, /page\.screencast\.start/);
-  assert.match(highlightSpec, /onFrame/);
+  assert.match(highlightSpec, /getDisplayMedia/);
+  assert.match(highlightSpec, /preferCurrentTab:\s*true/);
+  assert.match(highlightSpec, /requestVideoFrameCallback/);
+  assert.match(highlightSpec, /MediaRecorder/);
+  assert.match(highlightSpec, /video\/webm;codecs=vp8[\s\S]*video\/webm;codecs=vp9/);
   assert.match(highlightSpec, /CAPTURE_FPS\s*=\s*60/);
   assert.match(highlightSpec, /MIN_CAPTURE_FPS\s*=\s*CAPTURE_FPS\s*-\s*1/);
   assert.match(highlightSpec, /measuredFps\s*<\s*MIN_CAPTURE_FPS/);
-  assert.match(highlightSpec, /libvpx/);
   assert.match(highlightSpec, /\.frames\.json/);
   assert.match(highlightSpec, /page\.screencast\.showChapter/);
   assert.match(highlightSpec, /page\.screencast\.showOverlay/);
@@ -174,7 +178,8 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightRenderer, /probeVisualSource/);
   assert.match(highlightRenderer, /verifyMeasuredCapture/);
   assert.match(highlightRenderer, /best_effort_timestamp_time/);
-  assert.match(highlightRenderer, /decodedTimestamps\.length !== timing\.encodedFrames/);
+  assert.match(highlightRenderer, /probeFrameTimestamps/);
+  assert.match(highlightRenderer, /raw WebM decodes at only/);
   assert.match(highlightRenderer, /minimumMeasuredCaptureFps/);
   assert.match(highlightRenderer, /libwebp_anim/);
   assert.match(highlightRenderer, /copyFile/);
