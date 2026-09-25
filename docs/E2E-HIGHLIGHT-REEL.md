@@ -16,7 +16,7 @@ Desktop uses the 1440×900 product layout. Mobile uses the explicit touch-capabl
 
 The showcase distinguishes motion from static presentation. Timeline navigation and relation-graph navigation are motion scenes. Focused context, evidence, and story browsing are static scenes.
 
-Static scenes hold the demonstrated state open and capture a PNG screenshot. Motion scenes collect Chromium's native full-tab screen-recording frames at the full 1440×900 or 390×844 viewport. The capture step refuses to encode if those timestamps measure below 59 actual frames per second. Chromium writes the raw capture directly to its DevTools IO stream as MP4 at a 60 fps target; the capture step decodes that native file and refuses it below 59 actual frames per second. The renderer independently decodes and re-measures the same raw recording before producing 60 fps presentation media.
+Static scenes hold the demonstrated state open and capture a PNG screenshot. Motion scenes use Chromium's native full-tab screen recorder at the full 1440×900 or 390×844 viewport with a 60 fps target. Chromium writes the raw capture directly to its DevTools IO stream as MP4; the capture step decodes that native file, requires at least 95% of the intended recording window to be present, and rejects cadence below 59 actual frames per second. The renderer independently decodes and re-measures the same raw recording before producing 60 fps presentation media.
 
 ## Output contract
 
@@ -43,20 +43,20 @@ artifacts/e2e-media/
 ├── raw/
 │   ├── desktop/
 │   │   ├── manifest.json
-│   │   ├── 01-timeline-navigation.webm
+│   │   ├── 01-timeline-navigation.mp4
 │   │   ├── 01-timeline-navigation.png
 │   │   ├── 02-focused-context.png
 │   │   └── ...
 │   └── mobile/
 │       ├── manifest.json
-│       ├── 01-timeline-navigation.webm
+│       ├── 01-timeline-navigation.mp4
 │       ├── 01-timeline-navigation.png
 │       ├── 02-focused-context.png
 │       └── ...
 └── playwright/
 ```
 
-Each form factor publishes two 60 fps animated WebP motion assets and three PNG stills. Raw Chromium MP4 exists only for motion scenes; every scene keeps a raw PNG capture. The root manifest records each published asset's byte size, the source dimensions, the 60 fps target, and the measured browser-presented source cadence for motion scenes.
+Each form factor publishes two 60 fps animated WebP motion assets and three PNG stills. Raw Chromium MP4 exists only for motion scenes; every scene keeps a raw PNG capture. The root manifest records each published asset's byte size, the source dimensions, the 60 fps target, and the measured decoded source cadence for motion scenes.
 
 ## Capture architecture
 
