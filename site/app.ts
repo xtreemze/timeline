@@ -726,7 +726,6 @@ function positionViewControls() {
     .querySelector<HTMLElement>(".timeline-project-heading")
     ?.getBoundingClientRect();
   const viewport = workspaceToolViewport();
-  const orientation = timelineView?.getOrientation?.() || "horizontal";
   const gap = 8;
   const edge = 8;
   const availableWidth = Math.max(1, viewport.width - edge * 2);
@@ -744,48 +743,26 @@ function positionViewControls() {
     y: triggerRect.top + triggerRect.height / 2,
   };
 
-  const candidates =
-    orientation === "vertical"
-      ? [
-          {
-            id: "timeline-left",
-            rect: {
-              x: triggerRect.left - gap - measuredWidth,
-              y: anchor.y - measuredHeight / 2,
-              width: measuredWidth,
-              height: measuredHeight,
-            },
-          },
-          {
-            id: "timeline-below",
-            rect: {
-              x: triggerRect.right - measuredWidth,
-              y: triggerRect.bottom + gap,
-              width: measuredWidth,
-              height: measuredHeight,
-            },
-          },
-        ]
-      : [
-          {
-            id: "timeline-below",
-            rect: {
-              x: triggerRect.right - measuredWidth,
-              y: triggerRect.bottom + gap,
-              width: measuredWidth,
-              height: measuredHeight,
-            },
-          },
-          {
-            id: "timeline-left",
-            rect: {
-              x: triggerRect.left - gap - measuredWidth,
-              y: triggerRect.top,
-              width: measuredWidth,
-              height: measuredHeight,
-            },
-          },
-        ];
+  const candidates = [
+    {
+      id: "footer-above",
+      rect: {
+        x: triggerRect.right - measuredWidth,
+        y: triggerRect.top - gap - measuredHeight,
+        width: measuredWidth,
+        height: measuredHeight,
+      },
+    },
+    {
+      id: "footer-left",
+      rect: {
+        x: triggerRect.left - gap - measuredWidth,
+        y: triggerRect.top - gap - measuredHeight,
+        width: measuredWidth,
+        height: measuredHeight,
+      },
+    },
+  ];
 
   const snapshot = planWorkspacePlacement({
     viewport: {
@@ -844,13 +821,10 @@ function positionViewControls() {
   const maxLeft = Math.max(minLeft, viewport.left + viewport.width - edge - actualInlineSize);
   const maxTop = Math.max(minTop, viewport.top + viewport.height - edge - actualBlockSize);
   const preferredLeft =
-    selectedCandidate.id === "timeline-left"
+    selectedCandidate.id === "footer-left"
       ? triggerRect.left - gap - actualInlineSize
       : triggerRect.right - actualInlineSize;
-  const preferredTop =
-    selectedCandidate.id === "timeline-left"
-      ? anchor.y - actualBlockSize / 2
-      : triggerRect.bottom + gap;
+  const preferredTop = triggerRect.top - gap - actualBlockSize;
   const boundedLeft = Math.min(maxLeft, Math.max(minLeft, preferredLeft));
   const boundedTop = Math.min(maxTop, Math.max(minTop, preferredTop));
 
@@ -1751,7 +1725,7 @@ function syncApplicationSurfaces() {
     els.browserSheet.setAttribute("aria-hidden", String(!ui.browserOpen));
   }
   if (els.presentationStage) els.presentationStage.inert = Boolean(ui.browserOpen || editing);
-  if (els.appToolDock) els.appToolDock.inert = Boolean(ui.browserOpen);
+  if (els.appToolDock) els.appToolDock.inert = false;
   if (els.title) {
     els.title.readOnly = !editing;
     els.title.tabIndex = editing ? 0 : -1;
