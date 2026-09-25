@@ -66,7 +66,7 @@ The product is browser-first and backend-free. Hosting the application does not 
 
 ## Product showcase
 
-The showcase media is generated from the real application in Chromium CI. Static states use source-resolution PNG screenshots. Motion targets 60 fps: CI measures Chromium's presented-frame timestamps and requires at least 59 actual captured frames per second before encoding, then verifies the raw WebM, animated WebP, and highlight reels at 60 fps so a slower source cannot pass through encoder duplication.
+The showcase media is generated from the real application in Chromium CI. Static states use source-resolution PNG screenshots. Motion targets 60 fps: CI measures the Chromium current-tab capture stream and requires at least 59 actual captured frames per second before publication encoding, then independently verifies decoded raw WebM, animated WebP, and highlight-reel cadence so a slower source cannot pass merely because a downstream encoder reports 60 fps.
 
 | Flow | Desktop | Mobile |
 | --- | --- | --- |
