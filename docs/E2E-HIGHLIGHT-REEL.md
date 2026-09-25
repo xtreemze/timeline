@@ -91,7 +91,7 @@ Playwright native screencast overlays provide restrained Lūm branding and featu
 - emits README-ready markup from the same manifest metadata;
 - measures individual and aggregate showcase payloads.
 
-There is no GIF palette stage, no reduced presentation frame rate, and no fixed GIF width. A nominal 60 fps output is not sufficient by itself: CI must first prove that the current-tab stream delivered at least 59 frames per second, then prove that the raw WebM independently decodes at at least 59 frames per second before any WebP or MP4 publication derivative can pass.
+There is no GIF palette stage, no reduced presentation frame rate, and no fixed GIF width. A nominal 60 fps output is not sufficient by itself: CI must first prove that the current-tab stream delivered at least 59 frames per second, then prove that the raw WebM independently decodes at least 59 frames per second before any WebP or MP4 publication derivative can pass.
 
 ## CI and publication
 
