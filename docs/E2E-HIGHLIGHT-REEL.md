@@ -79,7 +79,7 @@ Playwright native screencast overlays provide restrained Lūm branding and featu
 
 `scripts/render-e2e-highlight.mjs` uses FFmpeg rather than adding a second browser/video framework. It:
 
-- probes every visual source with FFprobe;
+- probes every visual source with FFprobe and decodes output frame timestamps rather than trusting only stream-reported FPS;
 - preserves each published asset independently at its own source dimensions;
 - copies static PNG captures directly into the published showcase;
 - refuses motion sources whose recorded source-frame timestamps measure below 59 fps;
@@ -90,7 +90,7 @@ Playwright native screencast overlays provide restrained Lūm branding and featu
 - emits README-ready markup from the same manifest metadata;
 - measures individual and aggregate showcase payloads.
 
-There is no GIF palette stage, no reduced WebP frame rate, and no fixed animation width. Primary showcase motion is certified against browser-presented source-frame timestamps and published at 60 fps only after that source measurement passes.
+There is no GIF palette stage, no reduced WebP frame rate, and no fixed animation width. Primary showcase motion is certified against browser-presented source-frame timestamps before encoding; the normalized WebM, animated WebP, and final MP4 are then independently checked from decoded frame timestamps at a minimum of 59 fps rather than accepted on stream metadata alone.
 
 ## CI and publication
 
