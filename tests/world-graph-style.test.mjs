@@ -49,7 +49,7 @@ test("an entity's own style overrides the defaults; invalid values fall back", (
   assert.equal(styled.shape, "square");
   assert.equal(styled.icon, "object");
   assert.equal(styled.image, "https://example.test/a.png");
-  assert.equal(styled.radius, 7);
+  assert.equal(styled.radius, 23);
 
   const invalid = worldNodeStyle(
     { type: "person", attributes: { style: { fillColor: "red; x", shape: "star" } } },
@@ -154,7 +154,7 @@ test("portable fill, border, stroke, and radius aliases override defaults", () =
   assert.equal(styled.fill, "#112233");
   assert.equal(styled.border, "#445566");
   assert.equal(styled.borderWidth, 3);
-  assert.equal(styled.radius, 15);
+  assert.equal(styled.radius, 19);
 });
 
 test("places use node-like shape, icon, border, fill, and readable footprint", () => {
@@ -215,20 +215,20 @@ test("marker shape scales normalize filled area and collision extent", () => {
   );
 });
 
-test("entity and place authored size share diameter semantics", () => {
+test("entity and place authored size share diameter semantics above the minimum target", () => {
   const entity = worldNodeStyle(
-    { type: "person", attributes: { style: { size: 32 } } },
+    { type: "person", attributes: { style: { size: 48 } } },
     WORLD_LIGHT_PALETTE,
   );
-  const place = worldPlaceStyle({ marker: { size: 32 } }, false, WORLD_LIGHT_PALETTE);
-  assert.equal(entity.radius, 16);
-  assert.equal(place.radius, 16);
+  const place = worldPlaceStyle({ marker: { size: 48 } }, false, WORLD_LIGHT_PALETTE);
+  assert.equal(entity.radius, 24);
+  assert.equal(place.radius, 24);
   assert.equal(
     worldNodeFootprintRadiusPx({
       type: "person",
-      attributes: { style: { size: 32 } },
+      attributes: { style: { size: 48 } },
     }),
-    WORLD_ENTITY_MIN_HIT_RADIUS_PX,
+    26,
   );
 });
 
@@ -312,7 +312,7 @@ test("colour bytes parse short, long and alpha hex", () => {
   assert.deepEqual(worldColorBytes("#10203080"), [16, 32, 48, 128]);
 });
 
-test("node radii are whole pixels so a scene shares a few marker textures", () => {
+test("node radii remain whole pixels while respecting the shared minimum footprint", () => {
   const radii = new Set(
     Array.from(
       { length: 200 },
@@ -322,29 +322,33 @@ test("node radii are whole pixels so a scene shares a few marker textures", () =
   );
   assert.deepEqual(
     [...radii].sort((a, b) => a - b),
-    [10, 11, 12],
+    [20],
   );
   assert.equal(
     worldNodeStyle({ type: "person", attributes: { style: { size: 12.7 } } }, WORLD_LIGHT_PALETTE)
       .radius,
-    6,
+    20,
   );
 });
 
-test("visual footprint stays independent from the larger mobile hit target", () => {
-  const input = { type: "person", visualWeight: 0.5 };
-  const visual = worldNodeVisualFootprintRadiusPx(input);
-  const hit = worldNodeFootprintRadiusPx(input);
-  assert.ok(visual < WORLD_ENTITY_MIN_HIT_RADIUS_PX);
-  assert.equal(hit, WORLD_ENTITY_MIN_HIT_RADIUS_PX);
+test("visible, touch, and collision footprints are identical", () => {
+  for (const type of ["person", "event", "organization", "story"]) {
+    const input = { type, visualWeight: 0.5 };
+    const visual = worldNodeVisualFootprintRadiusPx(input);
+    const hit = worldNodeFootprintRadiusPx(input);
+    assert.equal(hit, visual);
+    assert.ok(visual >= WORLD_ENTITY_MIN_HIT_RADIUS_PX);
+  }
 });
 
-test("force footprint is never smaller than the rendered node or mobile target", () => {
+test("force footprint exactly matches rendered geometry and the mobile target", () => {
   for (const visualWeight of [0, 0.25, 0.5, 1]) {
     const input = { type: "person", visualWeight };
     const rendered = worldNodeStyle(input, WORLD_LIGHT_PALETTE);
+    const visual = worldNodeVisualFootprintRadiusPx(input);
     const footprint = worldNodeFootprintRadiusPx(input);
-    assert.ok(footprint >= rendered.radius + rendered.borderWidth);
+    assert.equal(footprint, visual);
+    assert.equal(footprint, rendered.radius + rendered.borderWidth);
     assert.ok(footprint >= WORLD_ENTITY_MIN_HIT_RADIUS_PX);
   }
 
@@ -355,5 +359,6 @@ test("force footprint is never smaller than the rendered node or mobile target",
   };
   const rendered = worldNodeStyle(custom, WORLD_LIGHT_PALETTE);
   assert.equal(rendered.radius, 24);
+  assert.equal(worldNodeVisualFootprintRadiusPx(custom), 30);
   assert.equal(worldNodeFootprintRadiusPx(custom), 30);
 });
