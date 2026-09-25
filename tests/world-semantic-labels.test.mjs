@@ -400,9 +400,8 @@ test("selecting a clustered place reveals its incident nodes and edges without o
   const b1 = make(2, "place-b", 12.03);
   const b2 = make(3, "place-b", 12.03);
   const b3 = make(4, "place-b", 12.03);
-  const b4 = make(5, "place-b", 12.03);
   const projection = createWorldProjection({
-    instances: [a1, a2, b1, b2, b3, b4],
+    instances: [a1, a2, b1, b2, b3],
     edges: [
       createProjectedWorldEdge({
         id: "a-internal",
@@ -447,15 +446,24 @@ test("selecting a clustered place reveals its incident nodes and edges without o
       visibleEntityIds.includes(b1.canonicalId),
       "the one-hop node connected from the selected location is revealed from its cluster",
     );
-    assert.ok(
+    assert.equal(
       entities.props.data.some(
-        (datum) =>
-          datum.kind === "cluster" &&
-          datum.placeIds?.includes("place-b") &&
-          datum.clusterMembers.length === 3,
+        (datum) => datum.kind === "cluster" && datum.placeIds?.includes("place-b"),
       ),
-      "unrelated members of the neighboring place stay aggregated",
+      false,
+      "revealing one member of a three-node cluster dissolves the remaining pair",
     );
+    for (const member of [b2, b3]) {
+      const datum = entities.props.data.find(
+        (candidate) =>
+          candidate.kind === "entity" && candidate.worldInstanceId === member.id,
+      );
+      assert.ok(datum, "sub-three cluster remnants stay as individual node datums");
+      assert.ok(
+        entities.props.getRadius(datum) > 0,
+        "sub-three cluster remnants stay visibly pickable",
+      );
+    }
 
     const relationships = layer(layers, DECK_WORLD_LAYER_IDS.relationships);
     const cross = relationships.props.data.find(
