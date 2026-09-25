@@ -434,7 +434,6 @@
   }
 }
 
-
 /* Persistent footer control plane: application center, world left, timeline view right. */
 #app-shell {
   --workspace-footer-base-content-block-size: 64px;
@@ -451,6 +450,39 @@
   inset-block-end: var(--workspace-footer-block-size);
   block-size: auto;
   height: auto;
+}
+
+/* The stage already terminates at the footer edge, so chronology/graph rails must not reserve
+   the footer a second time internally. */
+#app-shell[data-graph-open="true"] #presentation-stage {
+  --relations-bottom-safe: 0px;
+  --mobile-bottom-chrome: 0px;
+  --mobile-focus-bottom: 0px;
+}
+
+#app-shell[data-graph-open="true"]
+  #presentation-stage:has(> #timeline-view[data-orientation="portrait"])
+  > .graph-lens:not([hidden]) {
+  inset-block-end: 0;
+}
+
+#app-shell[data-graph-open="true"]
+  #presentation-stage
+  > #timeline-view[data-orientation="portrait"]
+  > .timeline-surface,
+#app-shell[data-graph-open="false"]
+  #presentation-stage
+  > #timeline-view[data-orientation="portrait"]
+  > .timeline-surface,
+#app-shell[data-graph-open="true"]
+  #presentation-stage
+  > #timeline-view[data-orientation="landscape"]
+  > .timeline-surface,
+#app-shell[data-graph-open="false"]
+  #presentation-stage
+  > #timeline-view[data-orientation="landscape"]
+  > .timeline-surface {
+  inset-block-end: 0;
 }
 
 /* Utility sheets own only the workspace above the footer. They never occlude application chrome. */
