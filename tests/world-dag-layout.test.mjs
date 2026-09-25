@@ -511,7 +511,11 @@ test("explicit reorganization bypasses cached place layout while preserving geog
   const cached = createWorldDagLayout(projection);
   const reorganized = createWorldDagLayout(projection, { reorganize: true });
 
-  assert.equal(cached.targets[0], first.targets[0], "normal repeat should reuse cached target objects");
+  assert.equal(
+    cached.targets[0],
+    first.targets[0],
+    "normal repeat should reuse cached target objects",
+  );
   assert.notEqual(
     reorganized.targets[0],
     cached.targets[0],
