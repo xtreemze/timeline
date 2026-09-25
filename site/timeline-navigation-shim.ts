@@ -3,8 +3,6 @@
  * Sets TimelineNavigation on globalThis for backward compatibility with IIFE code
  */
 
-import { TimelineNavigation } from './timeline-navigation.ts';
+import { TimelineNavigation } from "./timeline-navigation.ts";
 
 globalThis.TimelineNavigation = TimelineNavigation;
-
-export {};

@@ -1,6 +1,11 @@
 import { performance } from "node:perf_hooks";
 
 import { ReferenceWorldForceSimulation } from "../src/layout/reference-world-force-simulation.ts";
+import { createWorldDagLayout } from "../src/layout/world-dag-layout.ts";
+import {
+  applyWorldForceLayoutUpdate,
+  updateWorldForceLayoutInstance,
+} from "../src/layout/world-force-layout.ts";
 import { createWorldForceScene } from "../src/layout/world-force-scene.ts";
 import {
   createProjectedWorldEdge,
@@ -14,8 +19,13 @@ function positiveInteger(value) {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
+const denseMode = process.argv.includes("--dense");
 const requestedSizes = process.argv.slice(2).map(positiveInteger).filter(Boolean);
-const sizes = requestedSizes.length ? requestedSizes : [1_000, 10_000, 50_000];
+const sizes = requestedSizes.length
+  ? requestedSizes
+  : denseMode
+    ? [1_000, 5_000]
+    : [1_000, 10_000, 50_000];
 
 function percentile(sorted, fraction) {
   if (!sorted.length) return 0;
@@ -44,6 +54,21 @@ function measure(fn, iterations) {
     minMs: Number((sorted[0] ?? 0).toFixed(3)),
     maxMs: Number((sorted.at(-1) ?? 0).toFixed(3)),
   };
+}
+
+function settleTicks(scene, maxTicks = 480) {
+  const simulation = new ReferenceWorldForceSimulation();
+  simulation.setScene(scene);
+  simulation.apply({ reason: "topology", excitation: 0.12, reheat: true });
+
+  let ticks = 0;
+  while (ticks < maxTicks && !simulation.getDiagnostics().settled) {
+    simulation.step(1000 / 60);
+    ticks += 1;
+  }
+  const settled = simulation.getDiagnostics().settled;
+  simulation.destroy();
+  return { ticks, settled, maxTicks };
 }
 
 function fixture(nodeCount, groupSize = 32) {
@@ -123,8 +148,17 @@ function fixture(nodeCount, groupSize = 32) {
 const results = [];
 
 for (const nodeCount of sizes) {
-  const { projection, placeCount } = fixture(nodeCount);
-  const iterations = nodeCount >= 50_000 ? 1 : nodeCount >= 10_000 ? 2 : 4;
+  const groupSize = denseMode ? nodeCount : 32;
+  const { projection, placeCount } = fixture(nodeCount, groupSize);
+  const iterations = denseMode
+    ? nodeCount >= 5_000
+      ? 1
+      : 2
+    : nodeCount >= 50_000
+      ? 1
+      : nodeCount >= 10_000
+        ? 2
+        : 4;
 
   let forceScene;
   const sceneBuild = measure(() => {
@@ -135,6 +169,17 @@ for (const nodeCount of sizes) {
   }, iterations);
 
   forceScene = createWorldForceScene(projection);
+  const dagQuality = createWorldDagLayout(projection, {
+    nodeSizes: new Map(
+      forceScene.nodes.map((node) => [
+        node.id,
+        {
+          widthMeters: node.collisionRadiusMeters * 2,
+          heightMeters: node.collisionRadiusMeters * 2,
+        },
+      ]),
+    ),
+  }).metrics;
 
   const solverSetup = measure(() => {
     const simulation = new ReferenceWorldForceSimulation();
@@ -145,10 +190,39 @@ for (const nodeCount of sizes) {
     simulation.destroy();
   }, iterations);
 
-  const stepIterations = nodeCount >= 50_000 ? 2 : nodeCount >= 10_000 ? 3 : 6;
+  const stepIterations = denseMode
+    ? nodeCount >= 5_000
+      ? 1
+      : 2
+    : nodeCount >= 50_000
+      ? 2
+      : nodeCount >= 10_000
+        ? 3
+        : 6;
+  const firstInstance = projection.instances[0];
+  if (!firstInstance) throw new Error("World force benchmark requires at least one instance.");
+  const sparseSample = {
+    instanceId: firstInstance.id,
+    eastMeters: 1_234,
+    northMeters: -567,
+    visualAltitudeMeters: (firstInstance.visualAltitude ?? 0) + 25,
+  };
+  const sparseInstanceUpdate = measure(() => {
+    const updated = updateWorldForceLayoutInstance(firstInstance, sparseSample);
+    if (updated === firstInstance) {
+      throw new Error("Sparse instance update should produce a changed force layout instance.");
+    }
+  }, stepIterations);
+  const sparseLayoutApply = measure(() => {
+    const update = applyWorldForceLayoutUpdate(projection, [sparseSample]);
+    if (update.updatedInstances.length !== 1) {
+      throw new Error("Sparse force-layout update should report exactly one changed instance.");
+    }
+  }, stepIterations);
+
   const simulation = new ReferenceWorldForceSimulation();
   simulation.setScene(forceScene);
-  simulation.apply({ reason: "topology", energyTarget: 0.12, reheat: true });
+  simulation.apply({ reason: "topology", excitation: 0.12, reheat: true });
 
   const solveStep = measure(() => {
     simulation.step(1000 / 60);
@@ -156,14 +230,42 @@ for (const nodeCount of sizes) {
   const diagnostics = simulation.getDiagnostics();
   simulation.destroy();
 
+  const settling = nodeCount <= 1_000 ? settleTicks(forceScene) : null;
+
+  const dragSimulation = new ReferenceWorldForceSimulation();
+  dragSimulation.setScene(forceScene);
+  // Clear the scene-load publication so this measurement reflects only the
+  // interaction frame's changed positions.
+  dragSimulation.getChangedSnapshot();
+  const dragged = forceScene.nodes[0];
+  if (!dragged) throw new Error("World force benchmark requires at least one node.");
+  dragSimulation.setPin({
+    instanceId: dragged.id,
+    eastMeters: 10_000_000,
+    northMeters: 0,
+    visualAltitudeMeters: dragged.targetVisualAltitudeMeters,
+  });
+  dragSimulation.apply({ reason: "drag", excitation: 0.2, reheat: true });
+  const dragStep = measure(() => {
+    dragSimulation.step(1000 / 60);
+  }, stepIterations);
+  const dragChangedNodes = dragSimulation.getChangedSnapshot().length;
+  dragSimulation.destroy();
+
   results.push({
     worldInstances: nodeCount,
     places: placeCount,
     relationships: projection.edges.length,
-    groupSize: 32,
+    groupSize,
     sceneBuild,
     solverSetup,
     solveStep,
+    dragStep,
+    dragChangedNodes,
+    sparseInstanceUpdate,
+    sparseLayoutApply,
+    dagQuality,
+    settling,
     diagnostics,
   });
 }
@@ -176,8 +278,9 @@ console.log(
       runtime: process.version,
       platform: process.platform,
       architecture: process.arch,
-      fixture:
-        "deterministic geographic groups of <=32 nodes with local topology and cross-place visual relationships",
+      fixture: denseMode
+        ? "pathological single-place dense groups for same-anchor pair-force scaling"
+        : "deterministic geographic groups of <=32 nodes with local topology, cross-place relationships, and DAG quality metrics",
       results,
     },
     null,

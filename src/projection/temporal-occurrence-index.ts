@@ -1,13 +1,13 @@
 import type { SpatiotemporalViewport } from "../application/spatiotemporal-viewport.ts";
 import {
-  projectActiveOccurrences,
   type ProjectableOccurrence,
+  projectActiveOccurrences,
 } from "./spatiotemporal-projection.ts";
 
 export interface TemporalOccurrenceIndex<T extends ProjectableOccurrence> {
   readonly size: number;
-  query(viewport: Pick<SpatiotemporalViewport, "time">): readonly T[];
-  replace(occurrences: readonly T[]): TemporalOccurrenceIndex<T>;
+  query: (viewport: Pick<SpatiotemporalViewport, "time">) => readonly T[];
+  replace: (occurrences: readonly T[]) => TemporalOccurrenceIndex<T>;
 }
 
 function stableOccurrences<T extends ProjectableOccurrence>(

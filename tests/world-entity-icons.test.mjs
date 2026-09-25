@@ -5,6 +5,8 @@ import test from "node:test";
 import { createDeckWorldRuntime } from "../site/world/deck-world-runtime.ts";
 import { DECK_WORLD_LAYER_IDS, DeckWorldSurface } from "../site/world/deck-world-surface.ts";
 import { worldEntityIconName } from "../site/world/world-entity-icon.ts";
+import { worldNodeMarker } from "../site/world/world-node-marker.ts";
+import { WORLD_LIGHT_PALETTE, worldPlaceStyle } from "../src/layout/world-graph-style.ts";
 import {
   createProjectedWorldInstance,
   createWorldProjection,
@@ -125,36 +127,73 @@ test("every entity renders as a styled node marker that picks as the entity", ()
     "unknown kinds draw no glyph",
   );
   assert.ok(icons.props.getSize(byEntity.get("entity-0")) > 0);
+  assert.equal(
+    icons.props.getColor(byEntity.get("entity-0"))[3],
+    230,
+    "ordinary markers keep enough opacity to remain visible against the app background",
+  );
   assert.equal(byEntity.get("entity-0").kind, "entity", "markers pick as the canonical entity");
 
   surface.pick({ x: 1, y: 1 });
   assert.ok(h.pickOptions().layerIds.includes(DECK_WORLD_LAYER_IDS.entityIcons));
 });
 
-test("dense marker load follows the LOD budget; selection is stable and focus pins a marker", () => {
+test("markers fade toward the globe horizon instead of popping at a hard cutoff", () => {
+  const h = harness();
+  const surface = new DeckWorldSurface({}, h.runtime, {
+    longitude: 0,
+    latitude: 0,
+    zoom: 5,
+    bearing: 0,
+    pitch: 0,
+  });
+  surface.setProjection(
+    createWorldProjection({
+      instances: [
+        entity(0, "person", {
+          geographicAnchors: [
+            {
+              placeId: "horizon-place",
+              longitude: 87,
+              latitude: 0,
+              influence: 1,
+            },
+          ],
+        }),
+      ],
+      edges: [],
+    }),
+  );
+
+  const icons = h.lastLayers().find((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entityIcons);
+  assert.equal(icons.props.data.length, 1, "near-horizon marker remains retained while fading");
+  const alpha = icons.props.getColor(icons.props.data[0])[3];
+  assert.ok(alpha > 0 && alpha < 230, `near-horizon alpha should be partial, got ${alpha}`);
+});
+
+test("pin glyphs stay inside the pin head rather than scaling to the full teardrop", () => {
+  const marker = worldNodeMarker(worldPlaceStyle({}, false, WORLD_LIGHT_PALETTE));
+  const svg = decodeURIComponent(marker.url);
+  const scaleMatch = svg.match(/<g transform="translate\([^)]*\) scale\(([^)]+)\)"/);
+  assert.ok(scaleMatch, "default place pin contains a semantic glyph");
+  const glyphScale = Number(scaleMatch[1]);
+  assert.ok(Number.isFinite(glyphScale));
+  assert.ok(glyphScale < 0.8, `pin glyph scale should fit inside the head, got ${glyphScale}`);
+});
+
+test("dense marker load follows the LOD budget but keeps the selected entity", () => {
   const h = harness();
   // Dense (clustering) scale: markers fall back to the label budget there.
   const count = 26_000;
-  const target = `entity-${count - 1}`;
   const surface = new DeckWorldSurface({}, h.runtime, { ...CAMERA, zoom: 5 });
   const instances = Array.from({ length: count }, (_, index) => entity(index, "person"));
   surface.setProjection(createWorldProjection({ instances, edges: [] }));
-  const iconIds = () =>
-    h
-      .lastLayers()
-      .find((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entityIcons)
-      .props.data.map((datum) => datum.entityId);
+  surface.setSelection({ kind: "entity", id: `entity-${count - 1}` });
 
-  const before = iconIds();
-  assert.ok(before.length < count);
-
-  // Selection recolours but never changes which markers the LOD shows.
-  surface.setSelection({ kind: "entity", id: target });
-  assert.deepEqual(iconIds(), before);
-
-  // Explicit focus may pin its marker through the budget.
-  surface.focusEntity(target);
-  assert.ok(iconIds().includes(target));
+  const icons = h.lastLayers().find((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entityIcons);
+  const ids = icons.props.data.map((datum) => datum.entityId);
+  assert.ok(ids.length < count);
+  assert.ok(ids.includes(`entity-${count - 1}`));
 });
 
 test("a runtime without icon support renders no icon layer", () => {

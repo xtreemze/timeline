@@ -84,9 +84,7 @@ function normalizedWindow(viewport: TemporalLayoutWindow): TemporalLayoutWindow 
   return end > start ? { start, end } : { start: end, end: start + 1 };
 }
 
-function normalizedThresholds(
-  thresholds: ClusterThresholds | undefined,
-): ClusterThresholds {
+function normalizedThresholds(thresholds: ClusterThresholds | undefined): ClusterThresholds {
   const enterPx = Math.max(1, finite(thresholds?.enterPx, DEFAULT_CLUSTER_THRESHOLDS.enterPx));
   const exitPx = Math.max(
     enterPx + 1,
@@ -102,16 +100,16 @@ export function clusterMembershipWithHysteresis(
 ): boolean {
   const distance = Math.max(0, finite(distancePx, Number.POSITIVE_INFINITY));
   const normalized = normalizedThresholds(thresholds);
-  return wasClustered
-    ? distance <= normalized.exitPx
-    : distance < normalized.enterPx;
+  return wasClustered ? distance <= normalized.exitPx : distance < normalized.enterPx;
 }
 
 export function chooseStableLane(
   previousLane: number | null | undefined,
   legalLanes: readonly number[],
 ): number {
-  const legal = [...new Set(legalLanes.filter(Number.isInteger))].sort((left, right) => left - right);
+  const legal = [...new Set(legalLanes.filter(Number.isInteger))].sort(
+    (left, right) => left - right,
+  );
   if (!legal.length) return 0;
   if (Number.isInteger(previousLane) && legal.includes(Number(previousLane))) {
     return Number(previousLane);
@@ -119,18 +117,13 @@ export function chooseStableLane(
   return legal[0] ?? 0;
 }
 
-export function geometryMeasurementKey(
-  sceneKey: string,
-  contentRevision: string | number,
-): string {
+export function geometryMeasurementKey(sceneKey: string, contentRevision: string | number): string {
   const key = canonicalId(sceneKey);
   if (!key) throw new Error("Geometry measurement keys require a stable scene identity.");
   return `${key}@${String(contentRevision)}`;
 }
 
-function previousClusterPairs(
-  previous: TemporalLayoutPrevious | undefined,
-): Set<string> {
+function previousClusterPairs(previous: TemporalLayoutPrevious | undefined): Set<string> {
   const pairs = new Set<string>();
   for (const cluster of previous?.clusters ?? []) {
     const ids = [...new Set((cluster.itemIds ?? []).map(canonicalId).filter(Boolean))].sort();
@@ -181,7 +174,10 @@ function requiredLaneCount(
       const half = measurement.inlineSize / 2;
       return { id: occurrence.id, start: position - half, end: position + half };
     })
-    .sort((left, right) => left.start - right.start || left.end - right.end || left.id.localeCompare(right.id));
+    .sort(
+      (left, right) =>
+        left.start - right.start || left.end - right.end || left.id.localeCompare(right.id),
+    );
 
   const laneEnds: number[] = [];
   for (const interval of intervals) {
@@ -240,9 +236,9 @@ function clusterGroups(
       if (allCoincident) return false;
 
       const retainedByHysteresis = group.some((occurrence, index) =>
-        group.slice(index + 1).some((candidate) =>
-          previousPairs.has(pairKey(occurrence.id, candidate.id)),
-        ),
+        group
+          .slice(index + 1)
+          .some((candidate) => previousPairs.has(pairKey(occurrence.id, candidate.id))),
       );
       if (retainedByHysteresis) return true;
 

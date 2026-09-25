@@ -119,7 +119,6 @@ test("polar east-west offsets remain bounded instead of exploding longitude", ()
   assert.deepEqual(resolveWorldRenderPosition(projected), [40, 90, 0]);
 });
 
-
 test("world render positions round-trip back to local tangent drag coordinates", () => {
   const projected = instance({
     localOffset: { eastMeters: 1250, northMeters: -750 },
@@ -162,8 +161,5 @@ test("inverse local drag conversion chooses the shortest path across the date li
 test("inverse local drag conversion preserves unplaced semantics", () => {
   const projected = instance({ geographicAnchors: [] });
 
-  assert.equal(
-    resolveWorldLocalLayoutPosition(projected, [18.0686, 59.3293, 1000]),
-    null,
-  );
+  assert.equal(resolveWorldLocalLayoutPosition(projected, [18.0686, 59.3293, 1000]), null);
 });

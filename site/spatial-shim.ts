@@ -4,8 +4,6 @@
  * This shim can be removed after app.ts conversion (Phase 4d)
  */
 
-import { TimelineSpatial } from './spatial.ts';
+import { TimelineSpatial } from "./spatial.ts";
 
 globalThis.TimelineSpatial = TimelineSpatial;
-
-export {};

@@ -1,7 +1,7 @@
-import type { WorldInstanceId, WorldProjection } from "../projection/world-projection.ts";
-import {
-  createProjectedWorldInstance,
-  createWorldProjection,
+import type {
+  ProjectedWorldInstance,
+  WorldInstanceId,
+  WorldProjection,
 } from "../projection/world-projection.ts";
 
 export interface WorldForceLayoutSample {
@@ -9,6 +9,11 @@ export interface WorldForceLayoutSample {
   readonly eastMeters: number;
   readonly northMeters: number;
   readonly visualAltitudeMeters: number;
+}
+
+export interface WorldForceLayoutUpdate {
+  readonly projection: WorldProjection;
+  readonly updatedInstances: readonly ProjectedWorldInstance[];
 }
 
 function finite(value: number, label: string): number {
@@ -22,58 +27,114 @@ function nonNegative(value: number, label: string): number {
   return result;
 }
 
-export function applyWorldForceLayout(
+function instanceIndex(
+  instances: readonly ProjectedWorldInstance[],
+  instanceId: WorldInstanceId,
+): number {
+  let low = 0;
+  let high = instances.length - 1;
+  while (low <= high) {
+    const middle = (low + high) >>> 1;
+    const current = instances[middle];
+    if (!current) break;
+    const comparison = current.id.localeCompare(instanceId);
+    if (comparison === 0) return middle;
+    if (comparison < 0) low = middle + 1;
+    else high = middle - 1;
+  }
+  return -1;
+}
+
+export function updateWorldForceLayoutInstance(
+  instance: ProjectedWorldInstance,
+  sample: WorldForceLayoutSample,
+): ProjectedWorldInstance {
+  if (instance.id !== sample.instanceId) {
+    throw new Error(
+      `World force layout sample references unknown instance ${String(sample.instanceId)}.`,
+    );
+  }
+
+  const eastMeters = finite(sample.eastMeters, "World force east offset");
+  const northMeters = finite(sample.northMeters, "World force north offset");
+  const visualAltitudeMeters = nonNegative(
+    sample.visualAltitudeMeters,
+    "World force visual altitude",
+  );
+
+  if (
+    instance.localOffset?.eastMeters === eastMeters &&
+    instance.localOffset?.northMeters === northMeters &&
+    instance.visualAltitude === visualAltitudeMeters
+  ) {
+    return instance;
+  }
+
+  return Object.freeze({
+    ...instance,
+    localOffset: Object.freeze({ eastMeters, northMeters }),
+    visualAltitude: visualAltitudeMeters,
+  });
+}
+
+export function applyWorldForceLayoutUpdate(
   projection: WorldProjection,
   samples: readonly WorldForceLayoutSample[],
-): WorldProjection {
-  const knownIds = new Set(projection.instances.map((instance) => instance.id));
-  const byId = new Map<WorldInstanceId, WorldForceLayoutSample>();
+): WorldForceLayoutUpdate {
+  if (samples.length === 0) {
+    return Object.freeze({
+      projection,
+      updatedInstances: Object.freeze([]),
+    });
+  }
+
+  const seen = new Set<WorldInstanceId>();
+  const replacements: Array<{ index: number; value: ProjectedWorldInstance }> = [];
 
   for (const sample of samples) {
-    if (!knownIds.has(sample.instanceId)) {
+    if (seen.has(sample.instanceId)) {
+      throw new Error(`Duplicate world force layout sample for ${String(sample.instanceId)}.`);
+    }
+    seen.add(sample.instanceId);
+
+    const index = instanceIndex(projection.instances, sample.instanceId);
+    if (index < 0) {
       throw new Error(
         `World force layout sample references unknown instance ${String(sample.instanceId)}.`,
       );
     }
-    if (byId.has(sample.instanceId)) {
-      throw new Error(`Duplicate world force layout sample for ${String(sample.instanceId)}.`);
-    }
 
-    byId.set(
-      sample.instanceId,
-      Object.freeze({
-        instanceId: sample.instanceId,
-        eastMeters: finite(sample.eastMeters, "World force east offset"),
-        northMeters: finite(sample.northMeters, "World force north offset"),
-        visualAltitudeMeters: nonNegative(
-          sample.visualAltitudeMeters,
-          "World force visual altitude",
-        ),
-      }),
-    );
+    const instance = projection.instances[index];
+    if (!instance) continue;
+    const value = updateWorldForceLayoutInstance(instance, sample);
+    if (value === instance) continue;
+
+    replacements.push({ index, value });
   }
 
-  return createWorldProjection({
-    instances: projection.instances.map((instance) => {
-      const sample = byId.get(instance.id);
-      if (!sample) return instance;
-      if (
-        instance.localOffset?.eastMeters === sample.eastMeters &&
-        instance.localOffset?.northMeters === sample.northMeters &&
-        instance.visualAltitude === sample.visualAltitudeMeters
-      ) {
-        return instance;
-      }
+  if (replacements.length === 0) {
+    return Object.freeze({
+      projection,
+      updatedInstances: Object.freeze([]),
+    });
+  }
 
-      return createProjectedWorldInstance({
-        ...instance,
-        localOffset: {
-          eastMeters: sample.eastMeters,
-          northMeters: sample.northMeters,
-        },
-        visualAltitude: sample.visualAltitudeMeters,
-      });
+  replacements.sort((left, right) => left.index - right.index);
+  const instances = [...projection.instances];
+  for (const replacement of replacements) instances[replacement.index] = replacement.value;
+
+  return Object.freeze({
+    projection: Object.freeze({
+      instances: Object.freeze(instances),
+      edges: projection.edges,
     }),
-    edges: projection.edges,
+    updatedInstances: Object.freeze(replacements.map((replacement) => replacement.value)),
   });
+}
+
+export function applyWorldForceLayout(
+  projection: WorldProjection,
+  samples: readonly WorldForceLayoutSample[],
+): WorldProjection {
+  return applyWorldForceLayoutUpdate(projection, samples).projection;
 }

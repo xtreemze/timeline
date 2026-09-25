@@ -1,4 +1,7 @@
-import type { WorldNodeStyle } from "../../src/layout/world-graph-style.ts";
+import {
+  type WorldNodeStyle,
+  worldNodeShapeVisualRadiusScale,
+} from "../../src/layout/world-graph-style.ts";
 import { iconPathData, TimelinePresentation } from "../event-presentation.ts";
 import { worldEntityIconName } from "./world-entity-icon.ts";
 
@@ -29,8 +32,8 @@ function escapeAttribute(value: string): string {
 function shapePath(shape: WorldNodeStyle["shape"], center: number, radius: number): string {
   switch (shape) {
     case "square": {
-      const side = radius * 1.7;
-      const start = center - side / 2;
+      const side = radius * 2;
+      const start = center - radius;
       return `<rect x="${start}" y="${start}" width="${side}" height="${side}" rx="${radius * 0.25}"/>`;
     }
     case "diamond":
@@ -42,8 +45,13 @@ function shapePath(shape: WorldNodeStyle["shape"], center: number, radius: numbe
       }).join(" ");
       return `<polygon points="${points}"/>`;
     }
-    case "pin":
-      return `<path d="M${center} ${center + radius}C${center + radius * 0.75} ${center + radius * 0.1} ${center + radius} ${center - radius * 0.25} ${center + radius} ${center - radius * 0.45}A${radius} ${radius} 0 1 0 ${center - radius} ${center - radius * 0.45}C${center - radius} ${center - radius * 0.25} ${center - radius * 0.75} ${center + radius * 0.1} ${center} ${center + radius}Z"/>`;
+    case "pin": {
+      // Keep the entire teardrop inside the nominal radius. The previous arc
+      // extended ~45% beyond the atlas top and could be visibly clipped even
+      // when the marker itself was correctly lifted above the globe.
+      const head = radius * 0.66;
+      return `<path d="M${center} ${center + radius}L${center - head * 0.82} ${center + radius * 0.12}A${head} ${head} 0 1 1 ${center + head * 0.82} ${center + radius * 0.12}Z"/>`;
+    }
     default:
       return `<circle cx="${center}" cy="${center}" r="${radius}"/>`;
   }
@@ -62,19 +70,22 @@ export function worldNodeMarker(style: WorldNodeStyle): WorldNodeMarker {
   const cached = markers.get(key);
   if (cached) return cached;
 
-  const size = Math.ceil((style.radius + style.borderWidth) * 2 + 2);
+  const bodyRadius = style.radius * worldNodeShapeVisualRadiusScale(style.shape);
+  const size = Math.ceil((bodyRadius + style.borderWidth) * 2 + 2);
   const pixels = size * SUPERSAMPLE;
   const center = size / 2;
-  const body = shapePath(style.shape, center, style.radius);
+  const body = shapePath(style.shape, center, bodyRadius);
   const authoredIcon =
     style.icon && TimelinePresentation.ICON_NAMES.some((name) => name === style.icon)
       ? style.icon
       : null;
   const iconName = authoredIcon ?? (style.icon ? worldEntityIconName(style.icon) : null);
-  const glyphSize = style.radius * 1.15;
+  const glyphRadius =
+    style.shape === "pin" ? style.radius * 0.6 : Math.min(style.radius, bodyRadius);
+  const glyphSize = glyphRadius * 1.15;
   const glyphOrigin = center - glyphSize / 2;
   const inner = style.image
-    ? `<clipPath id="c">${shapePath(style.shape, center, style.radius - 0.5)}</clipPath><image href="${escapeAttribute(style.image)}" x="${center - style.radius}" y="${center - style.radius}" width="${style.radius * 2}" height="${style.radius * 2}" preserveAspectRatio="xMidYMid slice" clip-path="url(#c)"/>`
+    ? `<clipPath id="c">${shapePath(style.shape, center, Math.max(0, bodyRadius - 0.5))}</clipPath><image href="${escapeAttribute(style.image)}" x="${center - bodyRadius}" y="${center - bodyRadius}" width="${bodyRadius * 2}" height="${bodyRadius * 2}" preserveAspectRatio="xMidYMid slice" clip-path="url(#c)"/>`
     : iconName
       ? `<g transform="translate(${glyphOrigin} ${glyphOrigin}) scale(${glyphSize / 24})" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${iconPathData(
           iconName,

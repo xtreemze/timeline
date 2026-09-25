@@ -81,10 +81,27 @@ async function dragAndSample(
   const box = await surface.boundingBox();
   if (!box) throw new Error("Timeline continuity surface has no bounding box.");
 
-  const start =
-    orientation === "horizontal"
-      ? { x: box.x + box.width * 0.72, y: box.y + box.height * 0.54 }
-      : { x: box.x + box.width * 0.54, y: box.y + box.height * 0.72 };
+  const start = await surface.evaluate((element, axis) => {
+    const rect = element.getBoundingClientRect();
+    if (axis === "horizontal") {
+      return { x: rect.left + rect.width * 0.72, y: rect.top + rect.height * 0.54 };
+    }
+
+    const y = rect.top + rect.height * 0.72;
+    for (const fraction of [0.12, 0.88, 0.28, 0.72, 0.5]) {
+      const x = rect.left + rect.width * fraction;
+      const hit = document.elementFromPoint(x, y);
+      if (
+        hit &&
+        element.contains(hit) &&
+        !hit.closest(".timeline-event, button, a, input, select, textarea, [role=button]")
+      ) {
+        return { x, y };
+      }
+    }
+    return null;
+  }, orientation);
+  if (!start) throw new Error("Timeline continuity surface has no open background drag point.");
   const end =
     orientation === "horizontal"
       ? { x: box.x + box.width * 0.28, y: start.y }
@@ -119,7 +136,8 @@ async function dragAndSample(
 
     const probe = await sampleProbe(page);
     const sample = await probe.evaluate((node) => {
-      const rect = node.getBoundingClientRect();
+      const terminal = node.querySelector<HTMLElement>(".timeline-event-terminal");
+      const rect = (terminal ?? node).getBoundingClientRect();
       const horizontal =
         node.closest(".timeline-view")?.getAttribute("data-orientation") !== "portrait";
       return {
@@ -162,10 +180,11 @@ for (const orientation of ["horizontal", "vertical"] as const) {
           | undefined;
         controller?.setOrientation("vertical");
       });
+      await expect(root).toHaveAttribute("data-orientation", "portrait");
       await twoFrames(page);
     }
 
-    await expect(probe).toBeVisible();
+    await expect(probe.locator(".timeline-event-terminal")).toBeVisible();
     await probe.evaluate((node) => {
       (node as HTMLElement).dataset.continuityIdentity = "probe-stable-dom";
     });

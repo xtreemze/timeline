@@ -89,7 +89,9 @@ function uniqueSorted(values: readonly string[]): readonly string[] {
 }
 
 function stringList(value: unknown, maxItems = 256): readonly string[] {
-  if (!Array.isArray(value)) return Object.freeze([]);
+  if (!Array.isArray(value)) {
+    return Object.freeze([]);
+  }
   return uniqueSorted(
     value
       .slice(0, maxItems)
@@ -115,13 +117,17 @@ function parseEndpoint(value: unknown): number | null {
     const parsed = Date.parse(value);
     return Number.isFinite(parsed) ? parsed : null;
   }
-  if (!value || typeof value !== "object") return null;
+  if (!value || typeof value !== "object") {
+    return null;
+  }
 
   const endpoint = value as Readonly<Record<string, unknown>>;
   const direct = endpoint["value"];
   if (typeof direct === "string") {
     const parsed = Date.parse(direct);
-    if (Number.isFinite(parsed)) return parsed;
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
   }
 
   const earliest =
@@ -131,21 +137,33 @@ function parseEndpoint(value: unknown): number | null {
   if (Number.isFinite(earliest) && Number.isFinite(latest)) {
     return earliest + (latest - earliest) / 2;
   }
-  if (Number.isFinite(earliest)) return earliest;
-  if (Number.isFinite(latest)) return latest;
+  if (Number.isFinite(earliest)) {
+    return earliest;
+  }
+  if (Number.isFinite(latest)) {
+    return latest;
+  }
   return null;
 }
 
 function temporalBounds(
   time: CanonicalTemporalExtent | null | undefined,
 ): readonly [number, number] | null {
-  if (!time || time.openStart) return null;
+  if (!time || time.openStart) {
+    return null;
+  }
   const start = parseEndpoint(time.start);
-  if (start === null) return null;
-  if (time.type !== "interval" || time.openEnd) return [start, start];
+  if (start === null) {
+    return null;
+  }
+  if (time.type !== "interval" || time.openEnd) {
+    return [start, start];
+  }
 
   const end = parseEndpoint(time.end);
-  if (end === null || end < start) return null;
+  if (end === null || end < start) {
+    return null;
+  }
   return [start, end];
 }
 
@@ -165,14 +183,20 @@ function relationshipMatchesTime(
   relationship: AnalyticalLensRelationship,
   temporalRange: AnalyticalLensTimeWindow | undefined,
 ): boolean {
-  if (!temporalRange) return true;
+  if (!temporalRange) {
+    return true;
+  }
   const bounds = temporalBounds(relationship.time);
-  if (!bounds) return temporalRange.untimed === "include";
+  if (!bounds) {
+    return temporalRange.untimed === "include";
+  }
   return intersectsWindow(bounds[0], bounds[1], temporalRange);
 }
 
 function intersects(values: readonly string[] | undefined, filter: ReadonlySet<string>): boolean {
-  if (!values?.length) return false;
+  if (!values?.length) {
+    return false;
+  }
   return values.some((value) => filter.has(value));
 }
 
@@ -190,10 +214,12 @@ function relationshipMatches(
   }
 
   const predicates = new Set((filters.relationshipPredicates ?? []).map(semanticKey));
-  if (predicates.size > 0 && !predicates.has(semanticKey(relationship.predicate))) return false;
+  if (predicates.size > 0 && !predicates.has(semanticKey(relationship.predicate))) {
+    return false;
+  }
 
   const placeIds = new Set(filters.placeIds ?? []);
-  if (placeIds.size > 0 && (!relationship.placeId || !placeIds.has(relationship.placeId))) {
+  if (placeIds.size > 0 && !(relationship.placeId && placeIds.has(relationship.placeId))) {
     return false;
   }
 
@@ -204,11 +230,15 @@ function neighborhoodEntityIds(
   relationships: readonly AnalyticalLensRelationship[],
   neighborhood: AnalyticalLensNeighborhood | undefined,
 ): ReadonlySet<string> | null {
-  if (!neighborhood) return null;
+  if (!neighborhood) {
+    return null;
+  }
 
   const seeds = uniqueSorted(neighborhood.seedEntityIds);
   const visited = new Set(seeds);
-  if (seeds.length === 0 || neighborhood.depth <= 0) return visited;
+  if (seeds.length === 0 || neighborhood.depth <= 0) {
+    return visited;
+  }
 
   let frontier = [...seeds];
   for (let depth = 0; depth < neighborhood.depth && frontier.length > 0; depth += 1) {
@@ -222,7 +252,9 @@ function neighborhoodEntityIds(
         next.add(relationship.subjectId);
       }
     }
-    for (const id of next) visited.add(id);
+    for (const id of next) {
+      visited.add(id);
+    }
     frontier = [...next].sort((left, right) => left.localeCompare(right));
   }
   return visited;
@@ -239,20 +271,19 @@ function occurrenceMatches(
   }
 
   const categories = new Set(filters.categoryIds ?? []);
-  if (
-    categories.size > 0 &&
-    (!occurrence.categoryId || !categories.has(occurrence.categoryId))
-  ) {
+  if (categories.size > 0 && !(occurrence.categoryId && categories.has(occurrence.categoryId))) {
     return false;
   }
 
   const places = new Set(filters.placeIds ?? []);
-  if (places.size > 0 && (!occurrence.placeId || !places.has(occurrence.placeId))) {
+  if (places.size > 0 && !(occurrence.placeId && places.has(occurrence.placeId))) {
     return false;
   }
 
   const entities = new Set(filters.entityIds ?? []);
-  if (entities.size > 0 && !intersects(occurrence.entityIds, entities)) return false;
+  if (entities.size > 0 && !intersects(occurrence.entityIds, entities)) {
+    return false;
+  }
 
   if (
     visibleEntityIds.size > 0 &&
@@ -272,14 +303,17 @@ export function validateAnalyticalLens(lens: AnalyticalLens): readonly string[] 
   if (lens.schemaVersion !== ANALYTICAL_LENS_SCHEMA_VERSION) {
     errors.push("Unsupported analytical lens schema version.");
   }
-  if (!lens.id.trim()) errors.push("Analytical lens ID is required.");
-  if (!lens.name.trim()) errors.push("Analytical lens name is required.");
+  if (!lens.id.trim()) {
+    errors.push("Analytical lens ID is required.");
+  }
+  if (!lens.name.trim()) {
+    errors.push("Analytical lens name is required.");
+  }
 
   const temporalRange = lens.filters.timeWindow;
   if (
     temporalRange &&
-    (!Number.isFinite(temporalRange.start) ||
-      !Number.isFinite(temporalRange.end) ||
+    (!(Number.isFinite(temporalRange.start) && Number.isFinite(temporalRange.end)) ||
       temporalRange.end < temporalRange.start)
   ) {
     errors.push("Analytical lens temporal range must contain finite ordered bounds.");
@@ -288,9 +322,7 @@ export function validateAnalyticalLens(lens: AnalyticalLens): readonly string[] 
   const neighborhood = lens.filters.neighborhood;
   if (
     neighborhood &&
-    (!Number.isInteger(neighborhood.depth) ||
-      neighborhood.depth < 0 ||
-      neighborhood.depth > 8)
+    (!Number.isInteger(neighborhood.depth) || neighborhood.depth < 0 || neighborhood.depth > 8)
   ) {
     errors.push("Analytical lens neighborhood depth must be an integer from 0 through 8.");
   }
@@ -325,9 +357,7 @@ export function parseAnalyticalLens(input: unknown): AnalyticalLensParseResult {
   }
 
   const filterInput =
-    record["filters"] &&
-    typeof record["filters"] === "object" &&
-    !Array.isArray(record["filters"])
+    record["filters"] && typeof record["filters"] === "object" && !Array.isArray(record["filters"])
       ? (record["filters"] as Readonly<Record<string, unknown>>)
       : {};
 
@@ -360,18 +390,16 @@ export function parseAnalyticalLens(input: unknown): AnalyticalLensParseResult {
   const placeIds = stringList(filterInput["placeIds"]);
 
   const filters: AnalyticalLensFilters = {
-    ...(entityIds.length ? { entityIds } : {}),
+    ...(entityIds.length > 0 ? { entityIds } : {}),
     ...(filterInput["entityMatch"] === "both-endpoints"
       ? { entityMatch: "both-endpoints" as const }
       : filterInput["entityMatch"] === "either-endpoint"
         ? { entityMatch: "either-endpoint" as const }
         : {}),
-    ...(relationshipPredicates.length ? { relationshipPredicates } : {}),
-    ...(categoryIds.length ? { categoryIds } : {}),
-    ...(placeIds.length ? { placeIds } : {}),
-    ...(timeInput && start !== null && end !== null
-      ? { timeWindow: { start, end, untimed } }
-      : {}),
+    ...(relationshipPredicates.length > 0 ? { relationshipPredicates } : {}),
+    ...(categoryIds.length > 0 ? { categoryIds } : {}),
+    ...(placeIds.length > 0 ? { placeIds } : {}),
+    ...(timeInput && start !== null && end !== null ? { timeWindow: { start, end, untimed } } : {}),
     ...(neighborhoodInput && neighborhoodDepth !== null
       ? {
           neighborhood: {
@@ -403,7 +431,7 @@ export function parseAnalyticalLens(input: unknown): AnalyticalLensParseResult {
   }
 
   return {
-    lens: errors.length ? null : lens,
+    lens: errors.length > 0 ? null : lens,
     errors,
     warnings: Object.freeze(warnings),
   };
@@ -411,7 +439,9 @@ export function parseAnalyticalLens(input: unknown): AnalyticalLensParseResult {
 
 export function serializeAnalyticalLens(lens: AnalyticalLens): string {
   const errors = validateAnalyticalLens(lens);
-  if (errors.length) throw new Error(errors.join(" "));
+  if (errors.length > 0) {
+    throw new Error(errors.join(" "));
+  }
   return JSON.stringify(lens);
 }
 
@@ -420,22 +450,20 @@ export function evaluateAnalyticalLens(
   dataset: AnalyticalLensDataset,
 ): AnalyticalLensEvaluation {
   const errors = validateAnalyticalLens(lens);
-  if (errors.length) throw new Error(errors.join(" "));
+  if (errors.length > 0) {
+    throw new Error(errors.join(" "));
+  }
 
   const semanticRelationships = dataset.relationships.filter((relationship) =>
     relationshipMatches(relationship, lens.filters),
   );
 
-  const neighborhood = neighborhoodEntityIds(
-    semanticRelationships,
-    lens.filters.neighborhood,
-  );
+  const neighborhood = neighborhoodEntityIds(semanticRelationships, lens.filters.neighborhood);
 
   const visibleRelationships = neighborhood
     ? semanticRelationships.filter(
         (relationship) =>
-          neighborhood.has(relationship.subjectId) &&
-          neighborhood.has(relationship.objectId),
+          neighborhood.has(relationship.subjectId) && neighborhood.has(relationship.objectId),
       )
     : semanticRelationships;
 
@@ -446,18 +474,26 @@ export function evaluateAnalyticalLens(
   const visibleEntityIds = new Set<string>();
 
   if (
-    !lens.filters.entityIds?.length &&
-    !lens.filters.relationshipPredicates?.length &&
-    !lens.filters.placeIds?.length &&
-    !lens.filters.timeWindow &&
-    !lens.filters.neighborhood
+    !(
+      lens.filters.entityIds?.length ||
+      lens.filters.relationshipPredicates?.length ||
+      lens.filters.placeIds?.length ||
+      lens.filters.timeWindow ||
+      lens.filters.neighborhood
+    )
   ) {
-    for (const entity of dataset.entities) visibleEntityIds.add(entity.id);
+    for (const entity of dataset.entities) {
+      visibleEntityIds.add(entity.id);
+    }
   }
 
-  for (const id of explicitEntityIds) visibleEntityIds.add(id);
+  for (const id of explicitEntityIds) {
+    visibleEntityIds.add(id);
+  }
   if (neighborhood) {
-    for (const id of neighborhood) visibleEntityIds.add(id);
+    for (const id of neighborhood) {
+      visibleEntityIds.add(id);
+    }
   }
   for (const relationship of visibleRelationships) {
     visibleEntityIds.add(relationship.subjectId);
@@ -466,29 +502,20 @@ export function evaluateAnalyticalLens(
 
   const occurrences = dataset.occurrences ?? [];
   const visibleOccurrences = occurrences.filter((occurrence) =>
-    occurrenceMatches(
-      occurrence,
-      lens.filters,
-      visibleRelationshipIds,
-      visibleEntityIds,
-    ),
+    occurrenceMatches(occurrence, lens.filters, visibleRelationshipIds, visibleEntityIds),
   );
 
   for (const occurrence of visibleOccurrences) {
-    for (const id of occurrence.entityIds ?? []) visibleEntityIds.add(id);
+    for (const id of occurrence.entityIds ?? []) {
+      visibleEntityIds.add(id);
+    }
   }
 
   const entityIds = uniqueSorted(
-    dataset.entities
-      .map((entity) => entity.id)
-      .filter((id) => visibleEntityIds.has(id)),
+    dataset.entities.map((entity) => entity.id).filter((id) => visibleEntityIds.has(id)),
   );
-  const relationshipIds = uniqueSorted(
-    visibleRelationships.map((relationship) => relationship.id),
-  );
-  const occurrenceIds = uniqueSorted(
-    visibleOccurrences.map((occurrence) => occurrence.id),
-  );
+  const relationshipIds = uniqueSorted(visibleRelationships.map((relationship) => relationship.id));
+  const occurrenceIds = uniqueSorted(visibleOccurrences.map((occurrence) => occurrence.id));
 
   return Object.freeze({
     entityIds,
@@ -502,14 +529,15 @@ export function evaluateAnalyticalLens(
   });
 }
 
-
 export interface AnalyticalLensCatalog {
   readonly lenses: readonly AnalyticalLens[];
 }
 
 function canonicalLensCopy(lens: AnalyticalLens): AnalyticalLens {
   const parsed = parseAnalyticalLens(JSON.parse(serializeAnalyticalLens(lens)));
-  if (!parsed.lens) throw new Error(parsed.errors.join(" "));
+  if (!parsed.lens) {
+    throw new Error(parsed.errors.join(" "));
+  }
   return Object.freeze(parsed.lens);
 }
 
@@ -531,14 +559,14 @@ export function replaceAnalyticalLens(
   lens: AnalyticalLens,
 ): AnalyticalLensCatalog {
   const index = catalog.lenses.findIndex((existing) => existing.id === lens.id);
-  if (index < 0) throw new Error("Analytical lens does not exist.");
+  if (index < 0) {
+    throw new Error("Analytical lens does not exist.");
+  }
 
   const replacement = canonicalLensCopy(lens);
   return Object.freeze({
     lenses: Object.freeze(
-      catalog.lenses.map((existing, current) =>
-        current === index ? replacement : existing,
-      ),
+      catalog.lenses.map((existing, current) => (current === index ? replacement : existing)),
     ),
   });
 }
@@ -550,7 +578,9 @@ export function duplicateAnalyticalLens(
   newName: string,
 ): AnalyticalLensCatalog {
   const source = catalog.lenses.find((lens) => lens.id === sourceId);
-  if (!source) throw new Error("Source analytical lens does not exist.");
+  if (!source) {
+    throw new Error("Source analytical lens does not exist.");
+  }
 
   const copy: AnalyticalLens = {
     ...source,

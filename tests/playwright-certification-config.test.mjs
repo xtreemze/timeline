@@ -141,9 +141,28 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightConfig, /viewport:\s*\{\s*width:\s*1440,\s*height:\s*900\s*\}/);
   assert.match(highlightConfig, /viewport:\s*\{\s*width:\s*390,\s*height:\s*844\s*\}/);
   assert.match(highlightConfig, /hasTouch:\s*true/);
+  assert.match(highlightConfig, /headless:\s*false/);
+  assert.match(highlightConfig, /--disable-background-timer-throttling/);
+  assert.match(highlightConfig, /--disable-renderer-backgrounding/);
+  assert.match(highlightConfig, /--disable-backgrounding-occluded-windows/);
+  assert.match(highlightConfig, /--disable-frame-rate-limit/);
+  assert.match(highlightConfig, /--disable-gpu-vsync/);
+  assert.match(highlightConfig, /--window-position=0,0/);
+  assert.doesNotMatch(highlightConfig, /auto-accept-this-tab-capture/);
 
-  assert.match(highlightSpec, /records five loop-safe Lūm showcase scenes per form factor/);
-  assert.match(highlightSpec, /page\.screencast\.start/);
+  assert.match(highlightSpec, /records source-native Lūm showcase media per form factor/);
+  assert.match(highlightSpec, /x11grab/);
+  assert.match(highlightSpec, /-fps_mode/);
+  assert.match(highlightSpec, /passthrough/);
+  assert.match(highlightSpec, /libvpx/);
+  assert.match(highlightSpec, /best_effort_timestamp_time/);
+  assert.match(highlightSpec, /requestAnimationFrame/);
+  assert.match(highlightSpec, /CAPTURE_FPS\s*=\s*60/);
+  assert.match(highlightSpec, /MIN_CAPTURE_FPS\s*=\s*CAPTURE_FPS\s*-\s*1/);
+  assert.match(highlightSpec, /captured\.fps\s*<\s*MIN_CAPTURE_FPS/);
+  assert.match(highlightSpec, /browser\.fps\s*<\s*MIN_CAPTURE_FPS/);
+  assert.match(highlightSpec, /\.frames\.json/);
+  assert.doesNotMatch(highlightSpec, /getDisplayMedia|MediaRecorder/);
   assert.match(highlightSpec, /page\.screencast\.showChapter/);
   assert.match(highlightSpec, /page\.screencast\.showOverlay/);
   assert.match(highlightSpec, /page\.screenshot/);
@@ -159,25 +178,41 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   }
 
   assert.match(highlightRenderer, /lum-\$\{formFactor\}-highlight\.mp4/);
-  assert.match(highlightRenderer, /path\.join\(gifsRoot, formFactor\)/);
-  assert.match(highlightRenderer, /palettegen/);
-  assert.match(highlightRenderer, /paletteuse/);
-  assert.match(highlightRenderer, /'-loop', '0'/);
-  assert.match(highlightRenderer, /combinedGifBytes/);
+  assert.match(highlightRenderer, /path\.join\(showcaseRoot, formFactor\)/);
+  assert.match(highlightRenderer, /probeVisualSource/);
+  assert.match(highlightRenderer, /verifyMeasuredCapture/);
+  assert.match(highlightRenderer, /best_effort_timestamp_time/);
+  assert.match(highlightRenderer, /probeFrameTimestamps/);
+  assert.match(highlightRenderer, /raw WebM decodes at only/);
+  assert.match(highlightRenderer, /browser animation clock is only/);
+  assert.match(highlightRenderer, /video\.codec !== "vp8"/);
+  assert.match(highlightRenderer, /minimumMeasuredCaptureFps/);
+  assert.match(highlightRenderer, /libwebp_anim/);
+  assert.match(highlightRenderer, /copyFile/);
+  assert.match(highlightRenderer, /mediaMode === "static"/);
+  assert.match(highlightRenderer, /combinedShowcaseBytes/);
   assert.match(highlightRenderer, /README-showcase\.md/);
+  assert.doesNotMatch(highlightRenderer, /palettegen|paletteuse|gifFps|gifWidth/);
   assert.match(highlightRenderer, /desktop/);
   assert.match(highlightRenderer, /mobile/);
 
-  assert.match(mediaWorkflow, /Record ten real-browser showcase scenes/);
+  assert.match(mediaWorkflow, /Record source-native showcase media/);
+  assert.match(mediaWorkflow, /xvfb-run/);
+  assert.match(mediaWorkflow, /-screen 0 1920x1080x24/);
   assert.match(mediaWorkflow, /pnpm test:e2e:showcase/);
   assert.match(mediaWorkflow, /pnpm render:e2e:showcase/);
   assert.match(mediaWorkflow, /raw\/desktop/);
   assert.match(mediaWorkflow, /raw\/mobile/);
-  assert.match(mediaWorkflow, /gifs\/desktop/);
-  assert.match(mediaWorkflow, /gifs\/mobile/);
+  assert.match(mediaWorkflow, /showcase\/desktop/);
+  assert.match(mediaWorkflow, /showcase\/mobile/);
   assert.match(mediaWorkflow, /lum-desktop-highlight\.mp4/);
   assert.match(mediaWorkflow, /lum-mobile-highlight\.mp4/);
   assert.match(mediaWorkflow, /name:\s*lum-e2e-showcase/);
+  assert.match(
+    mediaWorkflow,
+    /cancel-in-progress:\s*\$\{\{\s*github\.event_name == 'pull_request'\s*\}\}/,
+    "main showcase runs must not be cancelled because Pages depends on their successful artifact",
+  );
 
   assert.match(pagesWorkflow, /workflow_run:/);
   assert.match(pagesWorkflow, /workflows:\s*\["E2E media showcase"\]/);
@@ -187,16 +222,16 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(pagesWorkflow, /dist\/showcase\/mobile/);
 
   for (const formFactor of ["desktop", "mobile"]) {
-    for (const gif of [
-      "01-timeline-navigation.gif",
-      "02-focused-context.gif",
-      "03-evidence.gif",
-      "04-relation-graph.gif",
-      "05-story-browser.gif",
+    for (const asset of [
+      "01-timeline-navigation.webp",
+      "02-focused-context.png",
+      "03-evidence.png",
+      "04-relation-graph.webp",
+      "05-story-browser.png",
     ]) {
       assert.ok(
-        readme.includes(`showcase/${formFactor}/${gif}`),
-        `README showcase missing ${formFactor}/${gif}`,
+        readme.includes(`showcase/${formFactor}/${asset}`),
+        `README showcase missing ${formFactor}/${asset}`,
       );
     }
   }

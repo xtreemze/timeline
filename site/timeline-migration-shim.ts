@@ -3,8 +3,6 @@
  * Sets TimelineMigration on globalThis for backward compatibility with IIFE code
  */
 
-import { TimelineMigration } from './timeline-migration.ts';
+import { TimelineMigration } from "./timeline-migration.ts";
 
 globalThis.TimelineMigration = TimelineMigration;
-
-export {};

@@ -8,8 +8,12 @@ import {
   worldColorBytes,
   worldEdgeStyle,
   worldNodeFootprintRadiusPx,
+  worldNodeShapeVisualRadiusScale,
   worldNodeStyle,
+  worldNodeVisualFootprintRadiusPx,
+  worldPlaceFootprintRadiusPx,
   worldPlaceStyle,
+  worldPlaceVisualFootprintRadiusPx,
 } from "../src/layout/world-graph-style.ts";
 
 test("node defaults follow the Orb type language", () => {
@@ -45,7 +49,7 @@ test("an entity's own style overrides the defaults; invalid values fall back", (
   assert.equal(styled.shape, "square");
   assert.equal(styled.icon, "object");
   assert.equal(styled.image, "https://example.test/a.png");
-  assert.equal(styled.radius, 28);
+  assert.equal(styled.radius, 23);
 
   const invalid = worldNodeStyle(
     { type: "person", attributes: { style: { fillColor: "red; x", shape: "star" } } },
@@ -82,10 +86,7 @@ test("selection preserves semantic colours without changing node geometry", () =
 
 test("selection and connected-neighborhood emphasis preserve graph geometry", () => {
   const ordinary = worldNodeStyle({ type: "person" }, WORLD_LIGHT_PALETTE);
-  const neighbor = worldNodeStyle(
-    { type: "person", emphasized: true },
-    WORLD_LIGHT_PALETTE,
-  );
+  const neighbor = worldNodeStyle({ type: "person", emphasized: true }, WORLD_LIGHT_PALETTE);
   const selected = worldNodeStyle(
     { type: "person", selected: true, emphasized: true },
     WORLD_LIGHT_PALETTE,
@@ -153,7 +154,7 @@ test("portable fill, border, stroke, and radius aliases override defaults", () =
   assert.equal(styled.fill, "#112233");
   assert.equal(styled.border, "#445566");
   assert.equal(styled.borderWidth, 3);
-  assert.equal(styled.radius, 30);
+  assert.equal(styled.radius, 19);
 });
 
 test("places use node-like shape, icon, border, fill, and readable footprint", () => {
@@ -176,12 +177,59 @@ test("places use node-like shape, icon, border, fill, and readable footprint", (
   assert.equal(place.borderWidth, 3);
   assert.equal(place.shape, "square");
   assert.equal(place.icon, "crown");
-  assert.equal(place.radius, WORLD_ENTITY_MIN_HIT_RADIUS_PX);
+  assert.equal(place.radius, 12);
 
   const fallback = worldPlaceStyle({}, false, WORLD_LIGHT_PALETTE);
   assert.equal(fallback.shape, "pin");
   assert.equal(fallback.icon, "place");
-  assert.ok(fallback.radius >= WORLD_ENTITY_MIN_HIT_RADIUS_PX);
+  assert.equal(fallback.radius, 12);
+  assert.ok(fallback.radius < WORLD_ENTITY_MIN_HIT_RADIUS_PX);
+});
+
+test("place footprint reserves rendered geometry and the mobile interaction minimum", () => {
+  const compact = { marker: { radius: 12, borderWidth: 2 } };
+  assert.equal(worldPlaceVisualFootprintRadiusPx(compact), 14);
+  assert.equal(worldPlaceFootprintRadiusPx(compact), WORLD_ENTITY_MIN_HIT_RADIUS_PX);
+
+  const large = { marker: { radius: 30, borderWidth: 4, shape: "square" } };
+  assert.ok(worldPlaceVisualFootprintRadiusPx(large) > 30);
+  assert.equal(worldPlaceFootprintRadiusPx(large), worldPlaceVisualFootprintRadiusPx(large));
+});
+
+test("marker shape scales normalize filled area and collision extent", () => {
+  const square = worldNodeShapeVisualRadiusScale("square");
+  const diamond = worldNodeShapeVisualRadiusScale("diamond");
+  const hexagon = worldNodeShapeVisualRadiusScale("hexagon");
+
+  assert.ok(Math.abs(4 * square ** 2 - Math.PI) < 1e-12);
+  assert.ok(Math.abs(2 * diamond ** 2 - Math.PI) < 1e-12);
+  assert.ok(Math.abs(((3 * Math.sqrt(3)) / 2) * hexagon ** 2 - Math.PI) < 1e-12);
+
+  const diamondInput = {
+    type: "event",
+    attributes: { style: { radius: 20, borderWidth: 2 } },
+  };
+  assert.ok(
+    worldNodeFootprintRadiusPx(diamondInput) >= 20 * diamond + 2,
+    "force collision reserves the normalized diamond extent",
+  );
+});
+
+test("entity and place authored size share diameter semantics above the minimum target", () => {
+  const entity = worldNodeStyle(
+    { type: "person", attributes: { style: { size: 48 } } },
+    WORLD_LIGHT_PALETTE,
+  );
+  const place = worldPlaceStyle({ marker: { size: 48 } }, false, WORLD_LIGHT_PALETTE);
+  assert.equal(entity.radius, 24);
+  assert.equal(place.radius, 24);
+  assert.equal(
+    worldNodeFootprintRadiusPx({
+      type: "person",
+      attributes: { style: { size: 48 } },
+    }),
+    26,
+  );
 });
 
 test("edges colour by relationship type unless they carry their own style, including style aliases", () => {
@@ -212,13 +260,59 @@ test("edges colour by relationship type unless they carry their own style, inclu
   assert.equal(aliased.width, 3);
 });
 
+test("subdued edges mute while emphasis restores category or endpoint colour", () => {
+  const subdued = worldEdgeStyle(
+    { predicate: "calls", fallbackColor: "#123456", subdued: true },
+    WORLD_LIGHT_PALETTE,
+  );
+  assert.equal(subdued.color, WORLD_LIGHT_PALETTE.muted);
+  assert.equal(subdued.dashed, false);
+
+  const inactive = worldEdgeStyle(
+    { predicate: "calls", fallbackColor: "#123456", inactive: true },
+    WORLD_LIGHT_PALETTE,
+  );
+  assert.equal(inactive.dashed, true, "semantic inactivity can still use a dashed line");
+
+  const emphasized = worldEdgeStyle(
+    { predicate: "calls", fallbackColor: "#123456", emphasized: true },
+    WORLD_LIGHT_PALETTE,
+  );
+  assert.equal(emphasized.color, "#123456");
+  assert.equal(emphasized.dashed, false);
+  assert.equal(emphasized.width, 1);
+
+  const endpoint = worldEdgeStyle(
+    {
+      predicate: "calls",
+      fallbackColor: "#123456",
+      emphasized: true,
+      attributes: { style: { color: "#abcdef" } },
+    },
+    WORLD_LIGHT_PALETTE,
+  );
+  assert.equal(endpoint.color, "#123456");
+
+  const category = worldEdgeStyle(
+    {
+      predicate: "calls",
+      fallbackColor: "#123456",
+      emphasized: true,
+      attributes: { style: { categoryColor: "#aabbcc", color: "#abcdef" } },
+    },
+    WORLD_LIGHT_PALETTE,
+  );
+  assert.equal(category.color, "#aabbcc");
+  assert.equal(category.width, 1);
+});
+
 test("colour bytes parse short, long and alpha hex", () => {
   assert.deepEqual(worldColorBytes("#fff"), [255, 255, 255, 255]);
   assert.deepEqual(worldColorBytes("#102030", 128), [16, 32, 48, 128]);
   assert.deepEqual(worldColorBytes("#10203080"), [16, 32, 48, 128]);
 });
 
-test("node radii are whole pixels so a scene shares a few marker textures", () => {
+test("node radii remain whole pixels while respecting the shared minimum footprint", () => {
   const radii = new Set(
     Array.from(
       { length: 200 },
@@ -228,31 +322,43 @@ test("node radii are whole pixels so a scene shares a few marker textures", () =
   );
   assert.deepEqual(
     [...radii].sort((a, b) => a - b),
-    [22, 24, 26],
+    [20],
   );
   assert.equal(
     worldNodeStyle({ type: "person", attributes: { style: { size: 12.7 } } }, WORLD_LIGHT_PALETTE)
       .radius,
-    26,
+    20,
   );
 });
 
+test("visible, touch, and collision footprints are identical", () => {
+  for (const type of ["person", "event", "organization", "story"]) {
+    const input = { type, visualWeight: 0.5 };
+    const visual = worldNodeVisualFootprintRadiusPx(input);
+    const hit = worldNodeFootprintRadiusPx(input);
+    assert.equal(hit, visual);
+    assert.ok(visual >= WORLD_ENTITY_MIN_HIT_RADIUS_PX);
+  }
+});
 
-test("force footprint is never smaller than the rendered node or mobile target", () => {
+test("force footprint exactly matches rendered geometry and the mobile target", () => {
   for (const visualWeight of [0, 0.25, 0.5, 1]) {
     const input = { type: "person", visualWeight };
     const rendered = worldNodeStyle(input, WORLD_LIGHT_PALETTE);
+    const visual = worldNodeVisualFootprintRadiusPx(input);
     const footprint = worldNodeFootprintRadiusPx(input);
-    assert.ok(footprint >= rendered.radius + rendered.borderWidth);
+    assert.equal(footprint, visual);
+    assert.equal(footprint, rendered.radius + rendered.borderWidth);
     assert.ok(footprint >= WORLD_ENTITY_MIN_HIT_RADIUS_PX);
   }
 
   const custom = {
     type: "person",
-    attributes: { style: { size: 24, borderWidth: 6 } },
+    attributes: { style: { radius: 24, borderWidth: 6 } },
     visualWeight: 0,
   };
   const rendered = worldNodeStyle(custom, WORLD_LIGHT_PALETTE);
-  assert.equal(rendered.radius, 48);
-  assert.equal(worldNodeFootprintRadiusPx(custom), 54);
+  assert.equal(rendered.radius, 24);
+  assert.equal(worldNodeVisualFootprintRadiusPx(custom), 30);
+  assert.equal(worldNodeFootprintRadiusPx(custom), 30);
 });

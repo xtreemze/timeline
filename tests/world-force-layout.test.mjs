@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { applyWorldForceLayout } from "../src/layout/world-force-layout.ts";
+import {
+  applyWorldForceLayout,
+  applyWorldForceLayoutUpdate,
+  updateWorldForceLayoutInstance,
+} from "../src/layout/world-force-layout.ts";
 import {
   createProjectedWorldEdge,
   createProjectedWorldInstance,
@@ -90,6 +94,24 @@ test("force layout samples update only derived local offset and visual altitude"
   assert.equal(updatedAlice.occurrenceId, "meeting");
   assert.equal(bob.localOffset, undefined);
   assert.equal(JSON.stringify(input), before);
+});
+
+test("one force layout sample can update an instance without rebuilding its projection", () => {
+  const input = projection();
+  const alice = input.instances.find((instance) => instance.canonicalId === "alice");
+  const sample = {
+    instanceId: alice.id,
+    eastMeters: 25,
+    northMeters: -10,
+    visualAltitudeMeters: 1100,
+  };
+
+  const updated = updateWorldForceLayoutInstance(alice, sample);
+  assert.notEqual(updated, alice);
+  assert.deepEqual(updated.localOffset, { eastMeters: 25, northMeters: -10 });
+  assert.equal(updated.visualAltitude, 1100);
+  assert.equal(updated.geographicAnchors, alice.geographicAnchors);
+  assert.equal(updateWorldForceLayoutInstance(updated, sample), updated);
 });
 
 test("partial force snapshots preserve untouched world instances and edges", () => {
@@ -222,4 +244,45 @@ test("layout samples reject non-finite offsets and negative visual altitude", ()
       ]),
     /visual altitude/,
   );
+});
+
+test("sparse layout updates report exact changed instances and preserve static topology identity", () => {
+  const input = projection();
+  const alice = input.instances.find((instance) => instance.canonicalId === "alice");
+  const bob = input.instances.find((instance) => instance.canonicalId === "bob");
+
+  const update = applyWorldForceLayoutUpdate(input, [
+    {
+      instanceId: alice.id,
+      eastMeters: 250,
+      northMeters: -125,
+      visualAltitudeMeters: 1750,
+    },
+  ]);
+
+  assert.deepEqual(
+    update.updatedInstances.map((instance) => instance.id),
+    [alice.id],
+  );
+  assert.equal(update.projection.edges, input.edges);
+  assert.equal(
+    update.projection.instances.find((instance) => instance.canonicalId === "bob"),
+    bob,
+  );
+  assert.equal(
+    update.projection.instances.find((instance) => instance.canonicalId === "alice")
+      .geographicAnchors,
+    alice.geographicAnchors,
+  );
+
+  const noChange = applyWorldForceLayoutUpdate(update.projection, [
+    {
+      instanceId: alice.id,
+      eastMeters: 250,
+      northMeters: -125,
+      visualAltitudeMeters: 1750,
+    },
+  ]);
+  assert.equal(noChange.projection, update.projection);
+  assert.deepEqual(noChange.updatedInstances, []);
 });

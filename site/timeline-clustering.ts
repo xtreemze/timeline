@@ -63,7 +63,7 @@ type Cluster = SingleCluster | MultiCluster;
 
 export function clusterProjectedItems(
   items: unknown,
-  positionFor: (item: any) => number,
+  positionFor: (item: TimelineItem) => number,
   thresholdPx: number = 120,
 ): Cluster[] {
   if (!Array.isArray(items)) return [];
@@ -77,7 +77,7 @@ export function clusterProjectedItems(
   }
 
   const projected: ProjectedEntry[] = items
-    .map((item: any) => ({
+    .map((item: TimelineItem) => ({
       item,
       position: finite(positionFor(item), Number.NaN),
       coincident: Number.isFinite(item?.start) && (startCounts.get(String(item.start)) || 0) > 1,
@@ -218,7 +218,8 @@ export function monthAccents(items: unknown, options?: AccentOptions): AccentInf
     const key = getMonthKey(item.start);
     if (!key) continue;
     if (!buckets.has(key)) buckets.set(key, []);
-    buckets.get(key)!.push(item);
+    const bucket = buckets.get(key);
+    if (bucket) bucket.push(item);
   }
 
   const accents: AccentInfo[] = [];
@@ -787,7 +788,7 @@ export function clusterExpansionViewport(
 ): ExpansionResult | null {
   const { paddingRatio = 0.12, minSpanMs = 1 } = options || {};
   const starts = (Array.isArray(items) ? items : [])
-    .map((item: any) => Number(item?.start))
+    .map((item: TimelineItem) => Number(item?.start))
     .filter(Number.isFinite)
     .sort((a, b) => a - b);
   const start = Number(viewport?.start);
@@ -821,15 +822,15 @@ export function clusterExpansionViewport(
   const maximum = uniqueStarts.at(-1);
   if (minimum === undefined || maximum === undefined) return null;
   const range = Math.max(minSpanMs, maximum - minimum);
-  const positionFor = (item: any) => ((item.start - start) / span) * length;
+  const positionFor = (item: TimelineItem) => ((item.start - start) / span) * length;
   const representations = clusterProjectedItems(
     (Array.isArray(items) ? items : []).filter(
-      (item: any) => item && Number.isFinite(item.start) && item.start >= minimum,
+      (item: TimelineItem) => item && Number.isFinite(item.start) && item.start >= minimum,
     ),
     positionFor,
     threshold,
   );
-  const dense = representations.some((rep: any) => rep.kind === "cluster");
+  const dense = representations.some((rep) => rep.kind === "cluster");
   if (!dense) return null;
 
   const minimumPixelDistance = threshold * 0.65;
@@ -1022,7 +1023,7 @@ export function compactTickLabel(
   spec: TemporalSpec | null,
   hasAmbientMonth: boolean,
 ): string | null {
-  if (!spec || !spec.unit) return null;
+  if (!spec?.unit) return null;
   const date = new Date(Number(timeMs));
   if (!Number.isFinite(date.getTime())) return null;
 

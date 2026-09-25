@@ -32,14 +32,13 @@ export class LuumTimelineElement extends LitElement {
   override connectedCallback(): void {
     super.connectedCallback();
     queueMicrotask(() => {
-      if (this.isConnected) this.ensureTimelineController();
+      if (this.isConnected) {
+        this.ensureTimelineController();
+      }
     });
   }
 }
 
-if (
-  typeof customElements !== "undefined" &&
-  !customElements.get("luum-timeline")
-) {
+if (typeof customElements !== "undefined" && !customElements.get("luum-timeline")) {
   customElements.define("luum-timeline", LuumTimelineElement);
 }

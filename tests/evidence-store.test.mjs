@@ -32,7 +32,7 @@ test("preserves image evidence and derived OCR/PDF extraction metadata", () => {
       blobKey: "evidence:image-a",
       name: "note.jpg",
       mimeType: "image/jpeg",
-      size: 2048
+      size: 2048,
     },
     extraction: {
       schemaVersion: "timeline-evidence-extraction-v1",
@@ -40,15 +40,17 @@ test("preserves image evidence and derived OCR/PDF extraction metadata", () => {
       mimeType: "image/jpeg",
       generatedAt: "2026-09-21T00:00:00Z",
       tool: { name: "Timeline Evidence Extraction", version: "1" },
-      segments: [{
-        id: "image-1",
-        locator: { kind: "image", index: 1 },
-        method: "text-detector",
-        text: "Call Bob at 09:30",
-        confidence: null
-      }],
-      unresolved: []
-    }
+      segments: [
+        {
+          id: "image-1",
+          locator: { kind: "image", index: 1 },
+          method: "text-detector",
+          text: "Call Bob at 09:30",
+          confidence: null,
+        },
+      ],
+      unresolved: [],
+    },
   });
 
   assert.equal(record.type, "image");

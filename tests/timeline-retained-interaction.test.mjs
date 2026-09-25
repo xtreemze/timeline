@@ -45,7 +45,8 @@ test("interaction positioning performs no per-card layout read and freezes label
   const positionEnd = source.indexOf("  animateEntry(", positionStart);
   const positionBody = source.slice(positionStart, positionEnd);
   assert.doesNotMatch(positionBody, /getBoundingClientRect/);
-  assert.match(positionBody, /crossLength/);
+  assert.doesNotMatch(positionBody, /querySelector/);
+  assert.match(positionBody, /_primaryLength/);
   assert.match(positionBody, /labelBeforeForPosition/);
   assert.match(positionBody, /record\.labelBefore = labelBefore/);
 
@@ -61,6 +62,45 @@ test("interaction positioning performs no per-card layout read and freezes label
   const clusterBody = source.slice(clusterStart, clusterEnd);
   assert.match(clusterBody, /labelBeforeForPosition/);
   assert.match(clusterBody, /record\.labelBefore = labelBefore/);
+});
+
+test("retained card semantic work is dataset-scoped and cross geometry is cached", async () => {
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
+
+  assert.match(source, /itemEpoch = 0/);
+  assert.match(source, /this\.itemEpoch \+= 1/);
+  assert.match(source, /contentEpoch: number/);
+  assert.match(source, /connectorGeometryDirty: boolean/);
+
+  const sceneStart = source.indexOf("  renderScene(): void {");
+  const createStart = source.indexOf("  createRecord(", sceneStart);
+  const sceneBody = source.slice(sceneStart, createStart);
+  assert.match(sceneBody, /record\.contentEpoch !== this\.itemEpoch/);
+  assert.match(sceneBody, /else this\.syncRecordSelection\(record\)/);
+
+  const updateStart = source.indexOf("  updateRecordContent(");
+  const positionStart = source.indexOf("  positionRecord(", updateStart);
+  const updateBody = source.slice(updateStart, positionStart);
+  assert.match(updateBody, /record\.contentEpoch = this\.itemEpoch/);
+  assert.match(updateBody, /record\.connectorGeometryDirty = true/);
+  assert.match(updateBody, /syncRecordSelection\(record: SceneRecord\)/);
+  assert.match(updateBody, /if \(record\.selected === selected\) return/);
+
+  const positionEnd = source.indexOf("  animateEntry(", positionStart);
+  const positionBody = source.slice(positionStart, positionEnd);
+  assert.match(positionBody, /node\.hidden !== hiddenByCluster/);
+  assert.match(positionBody, /previousLabelBefore !== labelBefore/);
+  assert.match(positionBody, /classList\.contains\("is-buffered"\) !== buffered/);
+  assert.match(positionBody, /terminal\.tabIndex !== terminalTabIndex/);
+  assert.match(positionBody, /record\.connectorGeometryDirty \|\| crossGeometryChanged/);
+  assert.match(positionBody, /record\.connectorGeometryDirty = false/);
+
+  const clusterStart = source.indexOf("  positionCommittedClusters(");
+  const clusterEnd = source.indexOf("  activateCommittedCluster(", clusterStart);
+  const clusterBody = source.slice(clusterStart, clusterEnd);
+  assert.match(clusterBody, /const lane = record\.lane/);
+  assert.doesNotMatch(clusterBody, /this\.items\.find/);
+  assert.match(clusterBody, /record\.connectorGeometryDirty \|\| crossGeometryChanged/);
 });
 
 test("continuous input publishes viewport state only from the rendered animation frame", async () => {
@@ -102,22 +142,70 @@ test("interaction surface geometry is cached for the epoch and invalidated at co
     source,
     /commitInteraction\(\): void \{[\s\S]{0,360}this\.interactionSurfaceRect = null/,
   );
-  assert.match(
-    source,
-    /refreshLayout\(\): void \{[\s\S]{0,120}this\.interactionSurfaceRect = null/,
+  const refreshStart = source.indexOf("  refreshLayout(): void {");
+  const refreshEnd = source.indexOf("  runStructuralTransaction(", refreshStart);
+  const refreshBody = source.slice(refreshStart, refreshEnd);
+  assert.match(refreshBody, /if \(this\.retention\.active\)/);
+  assert.match(refreshBody, /this\.geometryReflowPending = true/);
+  assert.match(refreshBody, /this\.interactionSurfaceRect = null/);
+  assert.match(refreshBody, /this\.scheduleCommittedGeometryReflow\(\)/);
+  assert.ok(
+    refreshBody.indexOf("this.geometryReflowPending = true") <
+      refreshBody.indexOf("this.interactionSurfaceRect = null"),
   );
+
+  const sceneStart = source.indexOf("  renderScene(): void {");
+  const sceneEnd = source.indexOf("  createRecord(", sceneStart);
+  const sceneBody = source.slice(sceneStart, sceneEnd);
+  assert.match(
+    sceneBody,
+    /const rect = this\.retention\.active[\s\S]{0,120}\? this\.interactionRect\(\)[\s\S]{0,80}: this\.surface\.getBoundingClientRect\(\)/,
+  );
+});
+
+test("retained commits flush the final interaction frame and replan before their only committed paint", async () => {
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
+  const commitStart = source.indexOf("  commitInteraction(): void {");
+  const commitEnd = source.indexOf("  scheduleInteractionRender(): void {", commitStart);
+  const commitBody = source.slice(commitStart, commitEnd);
+
+  assert.match(commitBody, /const hadRetainedScene = this\.retention\.active/);
+  assert.match(
+    commitBody,
+    /const hadPendingInteractionRender = hadRetainedScene && Boolean\(this\.renderFrame\)/,
+  );
+  assert.match(
+    commitBody,
+    /if \(hadPendingInteractionRender\) \{[\s\S]*this\.render\(\);[\s\S]*this\.retention = commitRetention/,
+  );
+  assert.match(
+    commitBody,
+    /if \(hadRetainedScene\) \{[\s\S]*this\.measureCommittedGeometry\(\);[\s\S]*this\.reconcileCommittedLayout\(\);[\s\S]*this\.render\(\);/,
+  );
+  const retainedBranchStart = commitBody.indexOf(
+    "if (hadRetainedScene)",
+    commitBody.indexOf("this.retention = commitRetention"),
+  );
+  const retainedBranch = commitBody.slice(
+    retainedBranchStart,
+    commitBody.indexOf("} else {", retainedBranchStart),
+  );
+  assert.equal((retainedBranch.match(/this\.render\(\)/g) || []).length, 1);
 });
 
 test("committed lane and side corrections are short, cancelable, and reduced-motion aware", async () => {
   const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
 
   assert.match(source, /LAYOUT_CORRECTION_DURATION_MS = 140/);
-  assert.match(source, /layoutCorrectionAnimations = new Set<Animation>\(\)/);
+  assert.match(source, /layoutCorrectionAnimations = new Map</);
   assert.match(
     source,
-    /animateLayoutCorrection\(target: HTMLElement, deltaX: number, deltaY: number\): void \{[\s\S]{0,260}this\.reducedMotionQuery\?\.matches/,
+    /animateLayoutCorrection\(target: HTMLElement, deltaX: number, deltaY: number\): void \{[\s\S]{0,900}this\.reducedMotionQuery\?\.matches/,
   );
-  assert.match(source, /\{ translate: `\$\{deltaX\}px \$\{deltaY\}px` \}/);
+  assert.match(source, /const existing = this\.layoutCorrectionAnimations\.get\(target\)/);
+  assert.match(source, /getComputedTiming\(\)\.progress/);
+  assert.match(source, /startX \+= existing\.deltaX \* \(1 - progress\)/);
+  assert.match(source, /\{ translate: `\$\{startX\}px \$\{startY\}px` \}/);
   assert.match(source, /cancelLayoutCorrections\(\): void/);
   assert.match(
     source,
@@ -126,4 +214,61 @@ test("committed lane and side corrections are short, cancelable, and reduced-mot
   assert.match(source, /previousCrossPosition/);
   assert.match(source, /sideCorrectionStart/);
   assert.match(source, /!this\.retention\.active/);
+});
+
+test("stable interaction-frame metadata writes are coalesced", async () => {
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
+
+  assert.match(source, /lastAxisCrossCss = ""/);
+  assert.match(source, /lastReadoutKey = ""/);
+
+  const sceneStart = source.indexOf("  renderScene(): void {");
+  const sceneEnd = source.indexOf("  createRecord(", sceneStart);
+  const sceneBody = source.slice(sceneStart, sceneEnd);
+  assert.match(sceneBody, /this\.root\.dataset\.empty !== emptyState/);
+  assert.match(sceneBody, /this\.lastAxisCrossCss !== axisCrossCss/);
+  assert.match(sceneBody, /this\.stage\.dataset\.sceneState !== sceneState/);
+
+  const zoomStart = source.indexOf("  syncZoomSlider(): void {");
+  const zoomEnd = source.indexOf("  positionTemporalNode(", zoomStart);
+  const zoomBody = source.slice(zoomStart, zoomEnd);
+  assert.match(zoomBody, /!this\.zoomSlider \|\| this\.retention\.active/);
+  assert.match(zoomBody, /this\.zoomSlider\.disabled !== disabled/);
+  assert.match(zoomBody, /getAttribute\("aria-orientation"\) !== orientation/);
+  assert.match(zoomBody, /this\.zoomSlider\.value !== nextValue/);
+  assert.match(zoomBody, /getAttribute\("aria-valuetext"\) !== label/);
+
+  const readoutStart = source.indexOf("  updateReadout(): void {");
+  const readoutBody = source.slice(readoutStart);
+  assert.match(readoutBody, /if \(key === this\.lastReadoutKey\) return/);
+  assert.ok(
+    readoutBody.indexOf("if (key === this.lastReadoutKey) return") <
+      readoutBody.indexOf("toLocaleDateString"),
+  );
+});
+
+test("structural axis relocation keeps the retained scene visually continuous", async () => {
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
+
+  assert.match(source, /lastRenderedAxisCross: number \| null = null/);
+  assert.match(source, /lastRenderedAxisOrientation: Orientation \| null = null/);
+
+  const stabilizeStart = source.indexOf("  stabilizeStructuralAxisCross(");
+  const stabilizeEnd = source.indexOf("  itemContentRevision(", stabilizeStart);
+  const stabilizeBody = source.slice(stabilizeStart, stabilizeEnd);
+  assert.match(stabilizeBody, /this\.retention\.active/);
+  assert.match(stabilizeBody, /const axisShift = axisCross - previous/);
+  assert.match(stabilizeBody, /record\.crossPosition = record\.crossPosition \+ axisShift/);
+  assert.match(stabilizeBody, /this\.animateLayoutCorrection\([\s\S]*this\.stage/);
+
+  const sceneStart = source.indexOf("  renderScene(): void {");
+  const sceneEnd = source.indexOf("  createRecord(", sceneStart);
+  const sceneBody = source.slice(sceneStart, sceneEnd);
+  assert.match(sceneBody, /this\.stabilizeStructuralAxisCross\(axisCross\)/);
+
+  const orientationStart = source.indexOf("  setOrientation(");
+  const orientationEnd = source.indexOf("  getOrientation(", orientationStart);
+  const orientationBody = source.slice(orientationStart, orientationEnd);
+  assert.match(orientationBody, /this\.lastRenderedAxisCross = null/);
+  assert.match(orientationBody, /this\.lastRenderedAxisOrientation = null/);
 });

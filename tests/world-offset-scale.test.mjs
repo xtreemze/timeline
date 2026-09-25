@@ -6,10 +6,14 @@ import {
   resolveWorldRenderPosition,
 } from "../src/layout/world-geographic-position.ts";
 import {
+  representativeWorldNodeRadiusPx,
   typicalLocalOffsetMeters,
   WORLD_FLOATING_GRAPH_MAX_EXPANSION,
   WORLD_LOCAL_GRAPH_RADIUS_PX,
+  WORLD_PLACE_CLUSTER_RADIUS_PX,
   worldFloatingGraphRadiusPx,
+  worldLocalRadiusPx,
+  worldPlaceClusterRadiusPx,
   worldPresentationOffsetScale,
 } from "../src/layout/world-semantic-presentation.ts";
 
@@ -41,8 +45,10 @@ test("offset scale keeps overview topology readable and expands it at detail zoo
     const radiusPx = (typical * scale) / metersPerPixel;
     const targetPx = worldFloatingGraphRadiusPx(zoom);
     radii.push(radiusPx);
-    // Quarter-octave quantisation: within 2^(1/8) of the semantic target.
-    assert.ok(Math.abs(Math.log2(radiusPx / targetPx)) <= 0.125 + 1e-9);
+    assert.ok(
+      Math.abs(radiusPx - targetPx) <= 1e-9,
+      "continuous scaling lands exactly on the semantic screen-space target",
+    );
   }
 
   assert.ok(radii[1] > radii[0], "detail zoom gives floating nodes more screen-space room");
@@ -52,6 +58,57 @@ test("offset scale keeps overview topology readable and expands it at detail zoo
     WORLD_LOCAL_GRAPH_RADIUS_PX * WORLD_FLOATING_GRAPH_MAX_EXPANSION,
     "detail expansion is bounded",
   );
+});
+
+test("latitude-local scaling produces the same apparent radius at distant anchors", () => {
+  const zoom = 7;
+  const typical = 500;
+  const equatorScale = worldPresentationOffsetScale(zoom, 100, typical, 0);
+  const highLatitudeScale = worldPresentationOffsetScale(zoom, 100, typical, 60);
+
+  const equatorRadius = worldLocalRadiusPx(typical * equatorScale, zoom, 0);
+  const highLatitudeRadius = worldLocalRadiusPx(typical * highLatitudeScale, zoom, 60);
+
+  assert.ok(Math.abs(equatorRadius - highLatitudeRadius) < 1e-9);
+});
+
+test("offset scale respects the available viewport radius", () => {
+  const zoom = 6;
+  const typical = 500;
+  const uncapped = worldPresentationOffsetScale(zoom, 100, typical, 0);
+  const capped = worldPresentationOffsetScale(zoom, 100, typical, 0, 140);
+  const metersPerPixel = 40_075_016.686 / 512 / 2 ** zoom;
+  const cappedRadiusPx = (typical * capped) / metersPerPixel;
+
+  assert.ok(capped < uncapped);
+  assert.ok(
+    Math.abs(cappedRadiusPx - 140) <= 1e-9,
+    "continuous scaling lands exactly on the viewport-constrained target",
+  );
+});
+
+test("offset scale changes continuously across nearby zoom values", () => {
+  const typical = 500;
+  const low = worldPresentationOffsetScale(7, 100, typical, 0);
+  const near = worldPresentationOffsetScale(7.01, 100, typical, 0);
+  const farther = worldPresentationOffsetScale(7.02, 100, typical, 0);
+
+  assert.notEqual(near, low);
+  assert.notEqual(farther, near);
+  const expectedRatio = 2 ** -0.0075;
+  assert.ok(Math.abs(near / low - expectedRatio) < 1e-9);
+  assert.ok(Math.abs(farther / near - expectedRatio) < 1e-9);
+});
+
+test("decluster readability grows with node footprint but is capped by the viewport", () => {
+  assert.equal(worldPlaceClusterRadiusPx(28), WORLD_PLACE_CLUSTER_RADIUS_PX);
+  assert.equal(worldPlaceClusterRadiusPx(60), 240);
+  assert.equal(worldPlaceClusterRadiusPx(60, 150), 150);
+});
+
+test("global LOD ignores one oversized node once the scene is large enough", () => {
+  assert.equal(representativeWorldNodeRadiusPx([22, 26, 64]), 64);
+  assert.equal(representativeWorldNodeRadiusPx([22, 22, 22, 22, 22, 22, 22, 22, 22, 64]), 22);
 });
 
 test("offset scale never shrinks and is disabled for dense or offset-free scenes", () => {

@@ -7,7 +7,7 @@ export interface BulkIngestInput {
 }
 
 export interface BinaryTabularAdapter {
-  parse(data: Uint8Array): Promise<readonly BulkRow[]> | readonly BulkRow[];
+  parse: (data: Uint8Array) => Promise<readonly BulkRow[]> | readonly BulkRow[];
 }
 
 export interface BulkIngestAdapters {
@@ -42,8 +42,12 @@ export interface BulkDataProfile {
 }
 
 function bytes(value: string | ArrayBuffer | Uint8Array): Uint8Array {
-  if (typeof value === "string") return new TextEncoder().encode(value);
-  if (value instanceof Uint8Array) return value;
+  if (typeof value === "string") {
+    return new TextEncoder().encode(value);
+  }
+  if (value instanceof Uint8Array) {
+    return value;
+  }
   return new Uint8Array(value);
 }
 
@@ -76,10 +80,14 @@ function parseDelimitedRecords(input: string, delimiter: "," | "\t"): readonly B
     }
 
     if (!quoted && (character === "\n" || character === "\r")) {
-      if (character === "\r" && input[index + 1] === "\n") index += 1;
+      if (character === "\r" && input[index + 1] === "\n") {
+        index += 1;
+      }
       row.push(field);
       field = "";
-      if (row.some((value) => value.length > 0)) rows.push(row);
+      if (row.some((value) => value.length > 0)) {
+        rows.push(row);
+      }
       row = [];
       continue;
     }
@@ -87,16 +95,25 @@ function parseDelimitedRecords(input: string, delimiter: "," | "\t"): readonly B
     field += character;
   }
 
-  if (quoted) throw new Error("Delimited input contains an unterminated quoted field.");
+  if (quoted) {
+    throw new Error("Delimited input contains an unterminated quoted field.");
+  }
   row.push(field);
-  if (row.some((value) => value.length > 0)) rows.push(row);
-  if (!rows.length) return Object.freeze([]);
+  if (row.some((value) => value.length > 0)) {
+    rows.push(row);
+  }
+  if (rows.length === 0) {
+    return Object.freeze([]);
+  }
 
   const headerRow = rows[0];
-  if (!headerRow) return Object.freeze([]);
+  if (!headerRow) {
+    return Object.freeze([]);
+  }
   const headers = headerRow.map((value) => value.trim());
-  if (headers.some((value) => !value))
+  if (headers.some((value) => !value)) {
     throw new Error("Delimited input contains an empty column name.");
+  }
   if (new Set(headers).size !== headers.length) {
     throw new Error("Delimited input contains duplicate column names.");
   }
@@ -107,7 +124,9 @@ function parseDelimitedRecords(input: string, delimiter: "," | "\t"): readonly B
       for (let index = 0; index < headers.length; index += 1) {
         const value = values[index] ?? "";
         const header = headers[index];
-        if (header) record[header] = value === "" ? null : value;
+        if (header) {
+          record[header] = value === "" ? null : value;
+        }
       }
       return Object.freeze(record);
     }),
@@ -116,7 +135,9 @@ function parseDelimitedRecords(input: string, delimiter: "," | "\t"): readonly B
 
 function parseJsonRows(input: string): readonly BulkRow[] {
   const parsed: unknown = JSON.parse(input);
-  if (!Array.isArray(parsed)) throw new Error("Bulk JSON input must be an array of objects.");
+  if (!Array.isArray(parsed)) {
+    throw new Error("Bulk JSON input must be an array of objects.");
+  }
 
   return Object.freeze(
     parsed.map((value, index) => {
@@ -132,9 +153,15 @@ export async function parseBulkRows(
   input: BulkIngestInput,
   adapters: BulkIngestAdapters = {},
 ): Promise<readonly BulkRow[]> {
-  if (input.format === "csv") return parseDelimitedRecords(textInput(input.data), ",");
-  if (input.format === "tsv") return parseDelimitedRecords(textInput(input.data), "\t");
-  if (input.format === "json") return parseJsonRows(textInput(input.data));
+  if (input.format === "csv") {
+    return parseDelimitedRecords(textInput(input.data), ",");
+  }
+  if (input.format === "tsv") {
+    return parseDelimitedRecords(textInput(input.data), "\t");
+  }
+  if (input.format === "json") {
+    return parseJsonRows(textInput(input.data));
+  }
 
   const adapter = input.format === "arrow" ? adapters.arrow : adapters.parquet;
   if (!adapter) {
@@ -157,24 +184,34 @@ function inferredType(values: readonly unknown[]): ColumnProfile["inferredType"]
     values
       .filter((value) => value !== null && value !== undefined)
       .map((value) => {
-        if (Array.isArray(value)) return "object";
+        if (Array.isArray(value)) {
+          return "object";
+        }
         const type = typeof value;
         return type === "number" || type === "string" || type === "boolean" ? type : "object";
       }),
   );
 
-  if (!types.size) return "null";
-  if (types.size === 1) return [...types][0] as ColumnProfile["inferredType"];
+  if (types.size === 0) {
+    return "null";
+  }
+  if (types.size === 1) {
+    return [...types][0] as ColumnProfile["inferredType"];
+  }
   return "mixed";
 }
 
 function quantile(sorted: readonly number[], fraction: number): number {
-  if (!sorted.length) return Number.NaN;
+  if (sorted.length === 0) {
+    return Number.NaN;
+  }
   const position = (sorted.length - 1) * fraction;
   const lower = Math.floor(position);
   const upper = Math.ceil(position);
   const first = sorted[0];
-  if (first === undefined) return Number.NaN;
+  if (first === undefined) {
+    return Number.NaN;
+  }
   const left = sorted[lower] ?? first;
   const right = sorted[upper] ?? sorted.at(-1) ?? left;
   return left + (right - left) * (position - lower);
@@ -187,14 +224,18 @@ function numericProfile(values: readonly unknown[]): NumericColumnProfile | unde
   if (numbers.length !== values.filter((value) => value !== null && value !== undefined).length) {
     return undefined;
   }
-  if (!numbers.length) return undefined;
+  if (numbers.length === 0) {
+    return undefined;
+  }
 
   const sorted = [...numbers].sort((left, right) => left - right);
   const mean = numbers.reduce((sum, value) => sum + value, 0) / numbers.length;
   const variance = numbers.reduce((sum, value) => sum + (value - mean) ** 2, 0) / numbers.length;
 
   const min = sorted[0];
-  if (min === undefined) return undefined;
+  if (min === undefined) {
+    return undefined;
+  }
 
   return Object.freeze({
     min,
@@ -208,8 +249,12 @@ function numericProfile(values: readonly unknown[]): NumericColumnProfile | unde
 }
 
 function stableValueKey(value: unknown): string {
-  if (value === undefined) return "undefined";
-  if (typeof value === "number" && Number.isNaN(value)) return "number:NaN";
+  if (value === undefined) {
+    return "undefined";
+  }
+  if (typeof value === "number" && Number.isNaN(value)) {
+    return "number:NaN";
+  }
   return `${typeof value}:${JSON.stringify(value)}`;
 }
 
@@ -235,7 +280,7 @@ export function profileBulkRows(rows: readonly BulkRow[], sampleLimit = 5): Bulk
       name,
       rowCount: rows.length,
       nullCount,
-      nullFraction: rows.length ? nullCount / rows.length : 0,
+      nullFraction: rows.length > 0 ? nullCount / rows.length : 0,
       uniqueCount,
       inferredType: inferredType(values),
       samples,

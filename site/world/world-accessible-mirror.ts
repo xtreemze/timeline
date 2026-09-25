@@ -219,7 +219,10 @@ export class WorldAccessibleMirror {
             insetBlockStart: "0.5rem",
             insetInlineStart: "0.5rem",
             zIndex: "20",
-            inlineSize: "min(22rem, calc(100% - 1rem))",
+            // Keep a dedicated right-side corridor for the 44px camera
+            // toolbar on narrow screens so the revealed keyboard outline
+            // never blocks pointer access to visible camera controls.
+            inlineSize: "min(22rem, calc(100% - 4.5rem))",
             maxBlockSize: "min(60vh, calc(100% - 1rem))",
             overflow: "auto",
             padding: "0.75rem",

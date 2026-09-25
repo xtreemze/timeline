@@ -3,14 +3,20 @@
  * Main entry point coordinating all modules, UI state, and persistence
  */
 
-import { planWorkspacePlacement } from "../src/layout/workspace-layout.ts";
 import { projectTimelineOccurrences } from "../src/projection/timeline-projection.ts";
 import { TimelineEvidence } from "./evidence-store.ts";
 import { TimelineGraphInference } from "./graph-inference.ts";
 import { TimelineInterchangeAdapter } from "./interchange-adapter.ts";
 import { TimelineSpatial } from "./spatial.ts";
+import {
+  addItemToStory,
+  auditStoryAuthoring,
+  reconcileStoryContext,
+  storyIdsForItem,
+} from "./story-authoring.js";
 // Import ESM modules
 import { TimelineTemporal } from "./temporal-standards.ts";
+import { createSettledTemporalWindowSink } from "./world/settled-temporal-window.ts";
 import { selectPrimarySpatialViewFactory } from "./world/world-view-selection.ts";
 
 // Import globals that still use globalThis (not yet converted)
@@ -367,7 +373,8 @@ const els = {
   browserStoryList: requiredElement<HTMLElement>("#browser-story-list"),
   browserStoryCount: requiredElement<HTMLElement>("#browser-story-count"),
   viewControls: requiredElement<HTMLElement>("#timeline-view-toolbar"),
-  viewControlsToggle: requiredElement<HTMLButtonElement>("#timeline-view-controls-toggle"),
+  focusPrev: requiredElement<HTMLButtonElement>("#timeline-focus-prev"),
+  focusNext: requiredElement<HTMLButtonElement>("#timeline-focus-next"),
   loadSample: requiredElement<HTMLButtonElement>("#load-sample"),
   importJson: requiredElement<HTMLInputElement>("#import-json"),
   importInterchange: requiredElement<HTMLInputElement>("#import-interchange"),
@@ -382,6 +389,7 @@ const els = {
   itemId: requiredElement<HTMLInputElement>("#item-id"),
   itemKind: requiredElement<HTMLSelectElement>("#item-kind"),
   itemCategory: requiredElement<HTMLSelectElement>("#item-category"),
+  itemStoryContext: requiredElement<HTMLSelectElement>("#item-story-context"),
   itemLayoutVariant: requiredElement<HTMLSelectElement>("#item-layout-variant"),
   itemTerminalShape: requiredElement<HTMLSelectElement>("#item-terminal-shape"),
   itemConnectorStyle: requiredElement<HTMLSelectElement>("#item-connector-style"),
@@ -651,7 +659,6 @@ const graphEdgeDatePicker = dateRangeFactory.create({
   mode: "range",
 });
 let presentationResizeObserver: ResizeObserver | null = null;
-let viewControlsResizeObserver: ResizeObserver | null = null;
 let presentationResizeFrame = 0;
 let timelineOrientationBeforeFullscreen = null;
 let presentationMap: PresentationMapController | null = null;
@@ -663,162 +670,6 @@ els.presentationMap.after(presentationMapAnchor);
 
 const appToolDockAnchor = document.createComment("timeline-tool-dock-home");
 els.appToolDock.after(appToolDockAnchor);
-
-function workspaceToolViewport() {
-  const visualViewport = window.visualViewport;
-  const layoutWidth = Math.max(
-    1,
-    document.documentElement.clientWidth || window.innerWidth || visualViewport?.width || 1,
-  );
-  const layoutHeight = Math.max(
-    1,
-    document.documentElement.clientHeight || window.innerHeight || visualViewport?.height || 1,
-  );
-  return {
-    width: Math.max(1, Math.min(layoutWidth, visualViewport?.width || layoutWidth)),
-    height: Math.max(1, Math.min(layoutHeight, visualViewport?.height || layoutHeight)),
-    left: Math.max(0, Math.min(visualViewport?.offsetLeft || 0, layoutWidth - 1)),
-    top: Math.max(0, Math.min(visualViewport?.offsetTop || 0, layoutHeight - 1)),
-  };
-}
-
-function clearViewControlsPosition() {
-  if (!els.viewControls) return;
-  for (const property of [
-    "--view-controls-left",
-    "--view-controls-top",
-    "--view-controls-right",
-    "--view-controls-bottom",
-    "--view-controls-inline-size",
-    "--view-controls-block-size",
-    "width",
-    "max-width",
-    "max-height",
-  ]) {
-    els.viewControls.style.removeProperty(property);
-  }
-}
-
-function positionViewControls() {
-  if (!viewControlsAreOpen()) return;
-
-  if (presentationIsFullscreen()) {
-    clearViewControlsPosition();
-    els.viewControls.dataset.anchorPlacement = "fullscreen";
-    return;
-  }
-
-  const triggerRect = els.viewControlsToggle.getBoundingClientRect();
-  const toolbarRect = els.viewControls.getBoundingClientRect();
-  const dockRect = els.appToolDock.getBoundingClientRect();
-  const titleRect = els.timelineViewRoot
-    .querySelector<HTMLElement>(".timeline-project-heading")
-    ?.getBoundingClientRect();
-  const viewport = workspaceToolViewport();
-  const gap = 8;
-  const edge = 8;
-  const availableWidth = Math.max(1, viewport.width - edge * 2);
-  const availableHeight = Math.max(1, viewport.height - edge * 2);
-  const measuredWidth = Math.min(
-    availableWidth,
-    Math.max(1, toolbarRect.width || els.viewControls.offsetWidth || 1),
-  );
-  const measuredHeight = Math.min(
-    availableHeight,
-    Math.max(1, toolbarRect.height || els.viewControls.offsetHeight || 1),
-  );
-  const anchor = {
-    x: triggerRect.left + triggerRect.width / 2,
-    y: triggerRect.top + triggerRect.height / 2,
-  };
-
-  const candidates = [
-    {
-      id: "above",
-      rect: {
-        x: anchor.x - measuredWidth / 2,
-        y: dockRect.top - gap - measuredHeight,
-        width: Math.min(measuredWidth, Math.max(1, viewport.width - edge * 2)),
-        height: Math.min(measuredHeight, Math.max(1, dockRect.top - gap - (viewport.top + edge))),
-      },
-    },
-  ];
-
-  const snapshot = planWorkspacePlacement({
-    viewport: {
-      x: viewport.left,
-      y: viewport.top,
-      width: viewport.width,
-      height: viewport.height,
-      safeInsets: { top: edge, right: edge, bottom: edge, left: edge },
-    },
-    anchor,
-    exclusionZones: [
-      {
-        id: "app-tool-dock",
-        rect: {
-          x: dockRect.left,
-          y: dockRect.top,
-          width: dockRect.width,
-          height: dockRect.height,
-        },
-      },
-      ...(titleRect
-        ? [
-            {
-              id: "timeline-project-heading",
-              rect: {
-                x: titleRect.left,
-                y: titleRect.top,
-                width: titleRect.width,
-                height: titleRect.height,
-              },
-            },
-          ]
-        : []),
-    ],
-    candidates,
-  });
-  const selected = snapshot.selected;
-  if (!selected) return;
-
-  const primaryCandidate = candidates[0];
-  if (!primaryCandidate) return;
-
-  const boundedInlineSize = Math.floor(
-    Math.min(availableWidth, Math.max(1, primaryCandidate.rect.width)),
-  );
-  const boundedBlockSize = Math.floor(
-    Math.min(availableHeight, Math.max(1, primaryCandidate.rect.height)),
-  );
-
-  els.viewControls.style.setProperty("--view-controls-inline-size", `${boundedInlineSize}px`);
-  els.viewControls.style.setProperty("--view-controls-block-size", `${boundedBlockSize}px`);
-  // Inline size is authoritative over orientation-specific max-content rules.
-  els.viewControls.style.width = `${boundedInlineSize}px`;
-  els.viewControls.style.maxWidth = `${availableWidth}px`;
-  els.viewControls.style.maxHeight = `${availableHeight}px`;
-
-  // Measure the actual border box after applying constraints. Flex content and
-  // native top-layer sizing may otherwise make the final box larger than the
-  // candidate rect used by the placement planner.
-  const constrainedRect = els.viewControls.getBoundingClientRect();
-  const actualInlineSize = Math.min(availableWidth, Math.max(1, constrainedRect.width));
-  const actualBlockSize = Math.min(availableHeight, Math.max(1, constrainedRect.height));
-  const minLeft = viewport.left + edge;
-  const minTop = viewport.top + edge;
-  const maxLeft = Math.max(minLeft, viewport.left + viewport.width - edge - actualInlineSize);
-  const maxTop = Math.max(minTop, viewport.top + viewport.height - edge - actualBlockSize);
-  const boundedLeft = Math.min(maxLeft, Math.max(minLeft, anchor.x - actualInlineSize / 2));
-  const boundedTop = Math.min(maxTop, Math.max(minTop, dockRect.top - gap - actualBlockSize));
-
-  els.viewControls.dataset.anchorPlacement = selected.id;
-  els.viewControls.dataset.placementValid = String(snapshot.fullySatisfiesConstraints);
-  els.viewControls.style.setProperty("--view-controls-left", `${Math.round(boundedLeft)}px`);
-  els.viewControls.style.setProperty("--view-controls-top", `${Math.round(boundedTop)}px`);
-  els.viewControls.style.setProperty("--view-controls-right", "auto");
-  els.viewControls.style.setProperty("--view-controls-bottom", "auto");
-}
 
 function mountFullscreenToolDock() {
   if (!els.appToolDock || !els.presentationStage) return;
@@ -1003,7 +854,6 @@ function refreshPresentationGeometry({ recenterGraph = false } = {}) {
   updatePresentationStageLayout();
   timelineView?.refreshLayout?.();
   presentationMap?.refresh?.();
-  positionViewControls();
   if (recenterGraph) temporalGraphView?.refreshLayout?.();
 }
 
@@ -1549,7 +1399,7 @@ function loadState(): TimelineState {
   // A first launch should demonstrate the complete application rather than an empty shell.
   // Persisted current/legacy timelines still take precedence above this sample fallback.
   const sample = getSample();
-  if (sample && sample.items && sample.items.length > 0) {
+  if (sample?.items && sample.items.length > 0) {
     return normalizeTimeline(clone(sample));
   }
   return blankTimeline();
@@ -1669,35 +1519,14 @@ function setError(element, message = "") {
   element.hidden = !message;
 }
 
-function viewControlsAreOpen() {
-  return Boolean(els.viewControls?.matches(":popover-open"));
-}
-
-function syncViewControlsChrome() {
-  const open = viewControlsAreOpen();
-  if (els.appShell) els.appShell.dataset.viewControlsOpen = String(open);
-  if (els.viewControlsToggle) els.viewControlsToggle.setAttribute("aria-expanded", String(open));
-  return open;
-}
-
-function closeViewControls() {
-  if (!viewControlsAreOpen()) return;
-  try {
-    els.viewControls.hidePopover();
-  } catch {
-    // The native popover may already be transitioning; its toggle event will resync chrome.
-  }
-}
 function syncApplicationSurfaces() {
   if (ui.mode !== "edit") ui.editorOpen = false;
   const editing = ui.mode === "edit";
-  const viewControlsOpen = viewControlsAreOpen();
   if (els.appShell) {
     els.appShell.dataset.mode = ui.mode;
     els.appShell.dataset.editorOpen = String(ui.editorOpen);
     els.appShell.dataset.browserOpen = String(ui.browserOpen);
     els.appShell.dataset.graphOpen = "true";
-    els.appShell.dataset.viewControlsOpen = String(viewControlsOpen);
   }
 
   if (els.controlPanel) {
@@ -1708,6 +1537,8 @@ function syncApplicationSurfaces() {
     els.browserSheet.hidden = !ui.browserOpen;
     els.browserSheet.setAttribute("aria-hidden", String(!ui.browserOpen));
   }
+  if (els.presentationStage) els.presentationStage.inert = Boolean(ui.browserOpen || editing);
+  if (els.appToolDock) els.appToolDock.inert = false;
   if (els.title) {
     els.title.readOnly = !editing;
     els.title.tabIndex = editing ? 0 : -1;
@@ -1715,34 +1546,56 @@ function syncApplicationSurfaces() {
   }
   if (els.editorToggle) {
     els.editorToggle.setAttribute("aria-expanded", String(ui.editorOpen));
-    els.editorToggle.setAttribute("aria-pressed", String(editing));
-    const label = els.editorToggle.querySelector(".app-tool-label");
-    if (label) label.textContent = editing ? "Done" : "Edit";
   }
-  for (const control of [els.browserToggle, els.viewControlsToggle]) {
-    if (control) control.disabled = editing;
+  for (const control of els.viewControls.querySelectorAll<HTMLButtonElement | HTMLInputElement>(
+    "button, input",
+  )) {
+    control.disabled = editing;
   }
   for (const opener of els.panelOpeners) {
     opener.setAttribute("aria-expanded", String(ui.editorOpen));
   }
-  if (els.browserToggle) els.browserToggle.setAttribute("aria-expanded", String(ui.browserOpen));
-  if (els.viewControlsToggle) {
-    els.viewControlsToggle.setAttribute("aria-expanded", String(viewControlsOpen));
+  if (els.browserToggle) {
+    els.browserToggle.disabled = editing;
+    els.browserToggle.setAttribute("aria-expanded", String(ui.browserOpen));
   }
 
   temporalGraphView?.setPresentationMode?.(presentationModeActive());
   syncContextualPresentationPanels();
+  syncTimelineContextControls();
   schedulePresentationGeometryRefresh({ recenterGraph: true });
 }
 
 function closeLargeUtilitySurfaces(except = "") {
   if (except !== "editor") ui.editorOpen = false;
   if (except !== "browser") ui.browserOpen = false;
-  if (except !== "view") closeViewControls();
 }
 
 function closeFocusedEventForUtility() {
   if (timelineView?.hasFocusedItem?.()) timelineView.closeFocus();
+}
+
+function syncTimelineContextControls() {
+  const focused = Boolean(timelineView?.hasFocusedItem?.());
+  const navigation = focused ? timelineView?.focusNavigationState?.() : null;
+  els.focusPrev.hidden = !focused;
+  els.focusNext.hidden = !focused;
+  els.focusPrev.disabled = !focused || navigation?.previous !== true;
+  els.focusNext.disabled = !focused || navigation?.next !== true;
+
+  if (els.editorToggle) {
+    const editableFocus = focused && navigation?.editable === true;
+    const label = ui.editorOpen
+      ? "Done editing"
+      : editableFocus
+        ? "Edit focused event"
+        : "Edit timeline";
+    els.editorToggle.disabled = false;
+    els.editorToggle.setAttribute("aria-label", label);
+    els.editorToggle.title = label;
+    const accessibleLabel = els.editorToggle.querySelector(".app-tool-label");
+    if (accessibleLabel) accessibleLabel.textContent = ui.editorOpen ? "Done" : "Edit";
+  }
 }
 
 function setEditorSurfaceOpen(open) {
@@ -1763,7 +1616,6 @@ function setBrowserSurfaceOpen(open) {
   if (ui.browserOpen) {
     closeLargeUtilitySurfaces("browser");
     closeProjectMenu();
-    closeFocusedEventForUtility();
   }
   syncApplicationSurfaces();
   if (ui.browserOpen) {
@@ -1829,6 +1681,33 @@ function renderCategoryOptions() {
   const itemSelected = els.itemCategory.value || state.categories[0]?.id || "";
   fillCategorySelect(els.itemCategory, false, itemSelected);
   fillCategorySelect(els.categoryFilter, true, ui.categoryFilter);
+}
+
+function fillItemStoryContext(selectedStoryId = "") {
+  const noneOption = document.createElement("option");
+  noneOption.value = "";
+  noneOption.textContent = "No story";
+  const options = [noneOption];
+  for (const story of state.stories) {
+    const option = document.createElement("option");
+    option.value = story.id;
+    option.textContent = story.title;
+    options.push(option);
+  }
+  els.itemStoryContext.replaceChildren(...options);
+  const preferred =
+    selectedStoryId ||
+    (!els.itemId.value && state.stories.some((story) => story.id === ui.activeStoryId)
+      ? ui.activeStoryId
+      : "") ||
+    "";
+  els.itemStoryContext.value = state.stories.some((story) => story.id === preferred)
+    ? preferred
+    : "";
+}
+
+function renderItemStoryContext() {
+  fillItemStoryContext(els.itemStoryContext.value);
 }
 
 function renderBrowserStories() {
@@ -2739,10 +2618,16 @@ function fillEvidenceForm(item) {
 }
 
 function inferenceStoryIds(itemId) {
-  if (!itemId) return [];
-  return state.stories
-    .filter((story) => (story.itemIds || []).some((id) => String(id) === String(itemId)))
-    .map((story) => story.id);
+  const storyIds = storyIdsForItem(state.stories, itemId);
+  const selectedStoryId = els.itemStoryContext.value;
+  if (
+    selectedStoryId &&
+    state.stories.some((story) => story.id === selectedStoryId) &&
+    !storyIds.includes(selectedStoryId)
+  ) {
+    storyIds.push(selectedStoryId);
+  }
+  return storyIds;
 }
 
 function inferenceEventTime() {
@@ -3163,6 +3048,7 @@ function resetItemForm() {
   els.itemLane.value = "";
   resetLocationForm();
   fillCategorySelect(els.itemCategory, false, state.categories[0]?.id || "");
+  fillItemStoryContext(ui.activeStoryId || "");
   els.saveItem.textContent = "Add item";
   els.cancelItemEdit.hidden = true;
   els.deleteItemEdit.hidden = true;
@@ -3184,6 +3070,14 @@ function beginItemEdit(id) {
   dateRangePicker.setRange(startParts.date, item.kind === "range" ? endParts.date : "");
   els.endField.hidden = item.kind !== "range";
   fillCategorySelect(els.itemCategory, false, item.categoryId);
+  const storyIds = storyIdsForItem(state.stories, item.id);
+  const preferredStoryId =
+    ui.activeStoryId && storyIds.includes(ui.activeStoryId)
+      ? ui.activeStoryId
+      : storyIds.length === 1
+        ? storyIds[0]
+        : "";
+  fillItemStoryContext(preferredStoryId);
   els.itemTitle.value = item.title;
   els.itemDescription.value = item.description;
   fillMediaForm(item.media || []);
@@ -3393,8 +3287,41 @@ function renderStories() {
     const meta = document.createElement("div");
     meta.className = "story-meta";
     const placeCount = story.placeIds?.length || 0;
-    meta.textContent = `${story.itemIds.length} ${story.itemIds.length === 1 ? "step" : "steps"} · ${placeCount} ${placeCount === 1 ? "place" : "places"} · ${storySpanLabel(story)}`;
+    const health = auditStoryAuthoring(story, state.relationships, state.places);
+    const healthLabel = health.healthy
+      ? "context valid"
+      : `${health.issueCount} context ${health.issueCount === 1 ? "gap" : "gaps"}`;
+    meta.textContent = `${story.itemIds.length} ${story.itemIds.length === 1 ? "step" : "steps"} · ${placeCount} ${placeCount === 1 ? "place" : "places"} · ${storySpanLabel(story)} · ${healthLabel}`;
     card.append(top, meta);
+
+    if (!health.healthy) {
+      const inspector = document.createElement("details");
+      inspector.className = "story-health-inspector";
+      const summary = document.createElement("summary");
+      summary.textContent = `Review ${health.issueCount} context ${health.issueCount === 1 ? "gap" : "gaps"}`;
+      const list = document.createElement("ul");
+      list.className = "story-health-list";
+      for (const issue of health.issues) {
+        const row = document.createElement("li");
+        row.className = "story-health-row";
+        const message = document.createElement("span");
+        message.className = "story-health-message";
+        message.textContent = issue.message;
+        const action = actionButton(
+          issue.relationshipId ? "Edit relation" : "Edit story",
+          issue.relationshipId ? "edit-story-health-edge" : "edit-story-health-story",
+          issue.relationshipId
+            ? `Edit relation ${issue.relationshipId} for story ${story.title}`
+            : `Edit story ${story.title} to repair its place registry`,
+        );
+        action.classList.add("story-health-action");
+        if (issue.relationshipId) action.dataset.relationshipId = issue.relationshipId;
+        row.append(message, action);
+        list.append(row);
+      }
+      inspector.append(summary, list);
+      card.append(inspector);
+    }
     return card;
   });
   if (!cards.length) {
@@ -4040,6 +3967,7 @@ function renderGraphEditor() {
     places: state.places,
     relationships: state.relationships,
     items: state.items,
+    categories: state.categories,
   });
 }
 
@@ -4055,21 +3983,7 @@ if (els.presentationStage && "ResizeObserver" in globalThis) {
 } else {
   window.addEventListener("resize", () => schedulePresentationGeometryRefresh());
 }
-if ("ResizeObserver" in globalThis && els.viewControls && els.viewControlsToggle) {
-  viewControlsResizeObserver = new ResizeObserver(() => {
-    if (viewControlsAreOpen()) positionViewControls();
-  });
-  viewControlsResizeObserver.observe(els.viewControls);
-  viewControlsResizeObserver.observe(els.viewControlsToggle);
-}
-
 updatePresentationStageLayout();
-requestAnimationFrame(() => {
-  positionViewControls();
-});
-window.addEventListener("resize", positionViewControls);
-window.visualViewport?.addEventListener("resize", positionViewControls);
-window.visualViewport?.addEventListener("scroll", positionViewControls);
 
 function collapseAllCategories() {
   ui.collapsedCategoryIds.clear();
@@ -4079,6 +3993,7 @@ function collapseAllCategories() {
 function renderAll() {
   renderProjectMeta();
   renderCategoryOptions();
+  renderItemStoryContext();
   renderStoryBuilder();
   renderStories();
   renderCategories();
@@ -4377,7 +4292,7 @@ function positionProjectMenu() {
   const availableWidth = Math.max(1, maxRight - minLeft);
   const availableHeight = Math.max(1, maxBottom - minTop);
 
-  let menuWidth = Math.min(340, availableWidth);
+  const menuWidth = Math.min(340, availableWidth);
   let menuHeight = Math.min(620, availableHeight);
   let left = minLeft;
   let top = minTop;
@@ -4440,32 +4355,33 @@ els.projectMenu?.addEventListener("click", (event) => {
   queueMicrotask(closeProjectMenu);
 });
 
-els.editorToggle?.addEventListener("click", () => setEditorSurfaceOpen(!ui.editorOpen));
+els.editorToggle?.addEventListener("click", () => {
+  if (ui.editorOpen) {
+    setEditorSurfaceOpen(false);
+    return;
+  }
+  const focusedId = timelineView?.focusedItemId?.() || null;
+  const navigation = focusedId ? timelineView?.focusNavigationState?.() : null;
+  const focusedEditableId = focusedId && navigation?.editable === true ? focusedId : null;
+  setEditorSurfaceOpen(true);
+  if (focusedEditableId) beginItemEdit(focusedEditableId);
+});
 els.panelOpeners.forEach((button) => {
   button.addEventListener("click", () => setActivePanel(button.dataset.openPanel));
 });
 els.controlPanelClose?.addEventListener("click", () => setEditorSurfaceOpen(false));
 els.browserToggle?.addEventListener("click", () => setBrowserSurfaceOpen(!ui.browserOpen));
 els.browserClose?.addEventListener("click", () => setBrowserSurfaceOpen(false));
-els.viewControlsToggle?.addEventListener("click", () => {
-  if (viewControlsAreOpen()) return;
-  closeLargeUtilitySurfaces("view");
-  closeProjectMenu();
-  closeFocusedEventForUtility();
-  syncApplicationSurfaces();
+els.browserSheet.addEventListener("click", (event) => {
+  if (event.target === els.browserSheet) setBrowserSurfaceOpen(false);
 });
-els.viewControls?.addEventListener("beforetoggle", (event) => {
-  if (event.newState === "open" && ui.mode === "edit") event.preventDefault();
+els.focusPrev.addEventListener("click", () => {
+  advancePresentation(-1);
+  syncTimelineContextControls();
 });
-els.viewControls?.addEventListener("toggle", () => {
-  const open = syncViewControlsChrome();
-  if (open) {
-    positionViewControls();
-    requestAnimationFrame(positionViewControls);
-  } else {
-    clearViewControlsPosition();
-  }
-  schedulePresentationGeometryRefresh({ recenterGraph: false });
+els.focusNext.addEventListener("click", () => {
+  advancePresentation(1);
+  syncTimelineContextControls();
 });
 
 document.addEventListener("keydown", (event) => {
@@ -4479,10 +4395,6 @@ document.addEventListener("keydown", (event) => {
     event.preventDefault();
     setBrowserSurfaceOpen(false);
     return;
-  }
-  if (viewControlsAreOpen() && !presentationIsFullscreen()) {
-    event.preventDefault();
-    closeViewControls();
   }
 });
 
@@ -4918,6 +4830,10 @@ els.itemForm.addEventListener("submit", async (event) => {
     return;
   }
 
+  const selectedStoryId = state.stories.some((story) => story.id === els.itemStoryContext.value)
+    ? els.itemStoryContext.value
+    : "";
+
   const item: TimelineItemRecord = {
     id: els.itemId.value || newId("item"),
     kind,
@@ -4988,6 +4904,21 @@ els.itemForm.addEventListener("submit", async (event) => {
       );
     }
     state = normalizeTimeline(draft, { strictGraph: true });
+    if (selectedStoryId) {
+      state = normalizeTimeline(
+        {
+          ...state,
+          stories: addItemToStory(
+            state.stories,
+            selectedStoryId,
+            item.id,
+            state.relationships,
+            state.places,
+          ),
+        },
+        { strictGraph: true },
+      );
+    }
   } catch (error) {
     setError(
       els.itemFormError,
@@ -5115,13 +5046,17 @@ els.storyForm.addEventListener("submit", (event) => {
     setError(els.storyFormError, "Select at least one timeline item for this story.");
     return;
   }
-  const story = {
-    id: els.storyId.value || newId("story"),
-    title: title.slice(0, 160),
-    description: els.storyDescription.value.trim().slice(0, 1500),
-    itemIds: [...storyDraftIds],
-    placeIds: [...storyDraftPlaceIds],
-  };
+  const story = reconcileStoryContext(
+    {
+      id: els.storyId.value || newId("story"),
+      title: title.slice(0, 160),
+      description: els.storyDescription.value.trim().slice(0, 1500),
+      itemIds: [...storyDraftIds],
+      placeIds: [...storyDraftPlaceIds],
+    },
+    state.relationships,
+    state.places,
+  );
   const index = state.stories.findIndex((candidate) => candidate.id === story.id);
   if (index >= 0) {
     state.stories[index] = story;
@@ -5146,6 +5081,13 @@ els.storyList.addEventListener("click", (event) => {
   if (button.dataset.action === "focus-story") focusStory(storyId);
   if (button.dataset.action === "edit-story") beginStoryEdit(storyId);
   if (button.dataset.action === "delete-story") removeStory(storyId);
+  if (button.dataset.action === "edit-story-health-story") beginStoryEdit(storyId);
+  if (button.dataset.action === "edit-story-health-edge") {
+    const relationshipId = button.dataset.relationshipId;
+    if (!relationshipId) return;
+    setActivePanel("graph");
+    beginGraphEdgeEdit(relationshipId);
+  }
 });
 
 els.browserStoryList?.addEventListener("click", (event) => {
@@ -5225,8 +5167,17 @@ els.storyPrev.addEventListener("click", () => stepStory(-1));
 els.storyNext.addEventListener("click", () => stepStory(1));
 els.storyExit.addEventListener("click", () => exitStoryFocus());
 
+const settledSpatialWindow = createSettledTemporalWindowSink<unknown>(
+  (viewport) => {
+    temporalGraphView?.setWindow(viewport);
+  },
+  (viewport) => {
+    temporalGraphView?.previewWindow?.(viewport);
+  },
+);
+
 els.timelineViewRoot.addEventListener("timelineviewportchange", (event) => {
-  temporalGraphView?.setWindow(event.detail?.viewport || null);
+  settledSpatialWindow.push(event.detail?.viewport || null, Boolean(event.detail?.committed));
 });
 
 els.timelineViewRoot.addEventListener("timelineorientationchange", (event) => {
@@ -5252,11 +5203,13 @@ els.timelineViewRoot.addEventListener("timelinefocuschange", (event) => {
   focusedGraphContextAvailable = focused && Boolean(temporalGraphView?.hasContext?.());
   temporalGraphView?.setPresentationMode?.(presentationModeActive());
   syncContextualPresentationPanels();
+  syncTimelineContextControls();
   schedulePresentationGeometryRefresh({ recenterGraph: true });
 });
 
 els.timelineViewRoot.addEventListener("timelinefocusrender", () => {
   syncContextualPresentationPanels();
+  syncTimelineContextControls();
   schedulePresentationGeometryRefresh({ recenterGraph: true });
 });
 
@@ -5297,7 +5250,6 @@ els.title.addEventListener("input", () => {
 });
 
 els.loadSample.addEventListener("click", () => {
-  if (ui.mode !== "edit") return;
   if (
     (state.items.length || state.stories.length) &&
     !window.confirm("Replace the current timeline with the example dataset?")
@@ -5546,7 +5498,6 @@ els.exportMarkdown.addEventListener("click", () => {
 });
 
 els.clear.addEventListener("click", () => {
-  if (ui.mode !== "edit") return;
   if (
     (state.items.length || state.stories.length || state.title) &&
     !window.confirm("Clear this timeline? This removes its locally stored items and stories.")

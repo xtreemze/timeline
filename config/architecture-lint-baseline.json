@@ -51,7 +51,7 @@
       "nonNull": 0
     },
     "site/timeline-clustering.ts": {
-      "any": 55,
+      "any": 53,
       "asAny": 7,
       "nonNull": 5
     },
@@ -270,7 +270,7 @@
       "physicalInlineProperties": {
         "right": 34,
         "left": 50,
-        "border-left": 7,
+        "border-left": 6,
         "border-right": 3
       },
       "viewportWidthSizing": {

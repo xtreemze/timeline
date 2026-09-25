@@ -150,7 +150,7 @@ export function edgeMidpoint(
   ]) as WorldRenderPosition;
 }
 
-/** Fixed topology lets deck interpolate straight<->curved relationship paths. */
+/** Fixed topology keeps straight/curved relationship lanes structurally stable. */
 const WORLD_RELATIONSHIP_PATH_SEGMENTS = 8;
 /**
  * Quadratic control-point displacement relative to endpoint distance. The
@@ -162,18 +162,20 @@ function edgePathPointAtFraction(
   path: readonly WorldRenderPosition[],
   fraction: number,
 ): WorldRenderPosition {
-  const first = path[0];
-  if (!first) {
+  if (path.length === 0) {
     return Object.freeze([0, 0, 0]) as WorldRenderPosition;
   }
-  if (path.length === 1) return first;
+  if (path.length === 1) {
+    const [onlyPoint] = path;
+    if (onlyPoint) return onlyPoint;
+  }
   const clamped = Math.max(0, Math.min(1, fraction));
   const scaled = clamped * (path.length - 1);
   const index = Math.min(path.length - 2, Math.floor(scaled));
   const local = scaled - index;
   const left = path[index];
   const right = path[index + 1];
-  if (!left || !right) return first;
+  if (!left || !right) return Object.freeze([0, 0, 0]) as WorldRenderPosition;
   return Object.freeze([
     wrapLongitude(left[0] + shortestLongitudeDelta(left[0], right[0]) * local),
     left[1] + (right[1] - left[1]) * local,
@@ -184,8 +186,8 @@ function edgePathPointAtFraction(
 /**
  * Stable world-space relationship geometry. lane=0 is visually straight;
  * non-zero lanes bend in the tangent plane while preserving both endpoints.
- * All paths contain the same point count so renderer transitions can morph
- * between straight and curved states when parallel topology changes.
+ * All paths contain the same point count so downstream geometry stays stable
+ * when parallel topology changes.
  */
 export function relationshipEdgePath(
   source: WorldRenderPosition,
@@ -233,13 +235,32 @@ export function edgePathMidpoint(path: readonly WorldRenderPosition[]): WorldRen
  */
 export function directedEdgePathArrowhead(
   path: readonly WorldRenderPosition[],
+  headLengthDegrees?: number,
+  targetClearanceDegrees = 0,
 ): readonly [WorldRenderPosition, WorldRenderPosition, WorldRenderPosition] | null {
+  if (path.length < 2) return null;
   const source = path[0];
   const target = path[path.length - 1];
-  if (path.length < 2 || !source || !target) return null;
-  const apex = edgePathPointAtFraction(path, ARROW_APEX_FRACTION);
-  const before = edgePathPointAtFraction(path, ARROW_APEX_FRACTION - 0.06);
-  const after = edgePathPointAtFraction(path, ARROW_APEX_FRACTION + 0.06);
+  if (!source || !target) return null;
+  const chordLatitude = ((source[1] + target[1]) / 2) * (Math.PI / 180);
+  const chordLongitudeScale = Math.max(MINIMUM_LONGITUDE_SCALE, Math.cos(chordLatitude));
+  const chordX = shortestLongitudeDelta(source[0], target[0]) * chordLongitudeScale;
+  const chordY = target[1] - source[1];
+  const chordLength = Math.hypot(chordX, chordY);
+  if (!(chordLength > MINIMUM_EDGE_LENGTH_DEGREES)) return null;
+
+  const clearance =
+    Number.isFinite(targetClearanceDegrees) && targetClearanceDegrees > 0
+      ? targetClearanceDegrees
+      : 0;
+  const apexFraction = Math.max(
+    0.2,
+    Math.min(ARROW_APEX_FRACTION, 1 - Math.min(clearance / chordLength, 0.45)),
+  );
+  const tangentSample = Math.min(0.06, apexFraction / 2, (1 - apexFraction) / 2);
+  const apex = edgePathPointAtFraction(path, apexFraction);
+  const before = edgePathPointAtFraction(path, apexFraction - tangentSample);
+  const after = edgePathPointAtFraction(path, apexFraction + tangentSample);
 
   const tangentLatitude = ((before[1] + after[1]) / 2) * (Math.PI / 180);
   const tangentLongitudeScale = Math.max(MINIMUM_LONGITUDE_SCALE, Math.cos(tangentLatitude));
@@ -247,27 +268,25 @@ export function directedEdgePathArrowhead(
   const tangentY = after[1] - before[1];
   const tangentLength = Math.hypot(tangentX, tangentY);
 
-  const chordLatitude = ((source[1] + target[1]) / 2) * (Math.PI / 180);
-  const chordLongitudeScale = Math.max(MINIMUM_LONGITUDE_SCALE, Math.cos(chordLatitude));
-  const chordX = shortestLongitudeDelta(source[0], target[0]) * chordLongitudeScale;
-  const chordY = target[1] - source[1];
-  const chordLength = Math.hypot(chordX, chordY);
-  if (
-    !(tangentLength > MINIMUM_EDGE_LENGTH_DEGREES) ||
-    !(chordLength > MINIMUM_EDGE_LENGTH_DEGREES)
-  ) {
-    return null;
-  }
+  if (!(tangentLength > MINIMUM_EDGE_LENGTH_DEGREES)) return null;
 
   const ux = tangentX / tangentLength;
   const uy = tangentY / tangentLength;
-  const head = chordLength * ARROW_LENGTH_FRACTION;
+  const requestedHead =
+    typeof headLengthDegrees === "number" &&
+    Number.isFinite(headLengthDegrees) &&
+    headLengthDegrees > 0
+      ? headLengthDegrees
+      : chordLength * ARROW_LENGTH_FRACTION;
+  // Short edges cap the marker before its wings can overrun the endpoints.
+  // Otherwise the renderer supplies a node-relative screen-space length.
+  const head = Math.min(requestedHead, chordLength * 0.4);
   const halfWidth = head * ARROW_HALF_WIDTH_RATIO;
   const baseX = -ux * head;
   const baseY = -uy * head;
   const baseAltitude = edgePathPointAtFraction(
     path,
-    ARROW_APEX_FRACTION - ARROW_LENGTH_FRACTION,
+    Math.max(0, apexFraction - ARROW_LENGTH_FRACTION),
   )[2];
   const apexLongitudeScale = Math.max(MINIMUM_LONGITUDE_SCALE, Math.cos((apex[1] * Math.PI) / 180));
   const point = (x: number, y: number): WorldRenderPosition =>
@@ -413,6 +432,7 @@ export function worldPresentationOffsetScale(
   entityCount: number,
   typicalOffsetMeters: number,
   latitude = 0,
+  maxRadiusPx = Number.POSITIVE_INFINITY,
 ): number {
   if (
     !Number.isFinite(zoom) ||
@@ -424,9 +444,12 @@ export function worldPresentationOffsetScale(
   }
   const cosine = Math.max(0.05, Math.cos((latitude * Math.PI) / 180));
   const metersPerPixel = (WORLD_METERS_PER_PIXEL_AT_ZOOM_0 * cosine) / 2 ** zoom;
-  const wanted = (worldFloatingGraphRadiusPx(zoom) * metersPerPixel) / typicalOffsetMeters;
+  const viewportRadius =
+    Number.isFinite(maxRadiusPx) && maxRadiusPx > 0 ? maxRadiusPx : Number.POSITIVE_INFINITY;
+  const targetRadiusPx = Math.min(worldFloatingGraphRadiusPx(zoom), viewportRadius);
+  const wanted = (targetRadiusPx * metersPerPixel) / typicalOffsetMeters;
   if (wanted <= 1) return 1;
-  return 2 ** (Math.round(Math.log2(wanted) * 4) / 4);
+  return wanted;
 }
 
 /** 90th-percentile distance of local offsets from their anchors, in metres. */
@@ -486,19 +509,114 @@ export function medianNearestPlaceMeters(
 export const WORLD_LOCAL_GRAPH_MAX_PLACE_SHARE = 3;
 /** Clusters closer than this on screen merge into one bubble. */
 export const WORLD_CLUSTER_MERGE_PX = 96;
-/** Local graphs at least this large on screen count as readable. */
-export const WORLD_READABLE_LOCAL_RADIUS_PX = 200;
+/**
+ * Local graphs at least this large on screen count as readable. The current
+ * node baseline is the same >=44px physical footprint used for touch and
+ * collision, so this radius must leave room for those full-size markers.
+ */
+export const WORLD_READABLE_LOCAL_RADIUS_PX = 160;
 
 /** Degrees of longitude spanned by `pixels` at `zoom` (GlobeView scale). */
 export function worldPixelsToDegrees(pixels: number, zoom: number): number {
   return (pixels * 360) / (512 * 2 ** zoom);
 }
+
+/** Arrow length as a fraction of the visible target-node radius. */
+export const WORLD_EDGE_ARROW_NODE_RADIUS_RATIO = 0.85;
+/** Arrow stroke width relative to the target-node radius, with edge width as a floor. */
+export const WORLD_EDGE_ARROW_STROKE_NODE_RADIUS_RATIO = 0.14;
+
+/**
+ * Converts a node-relative screen-pixel arrow length into the local angular
+ * metric used by relationship geometry. This keeps arrowheads visually tied
+ * to pixel-sized nodes instead of growing or shrinking with the edge chord.
+ */
+export function worldArrowLengthDegreesForNodeRadius(
+  nodeRadiusPx: number,
+  zoom: number,
+  latitude = 0,
+): number {
+  const radiusPx = Number.isFinite(nodeRadiusPx) && nodeRadiusPx > 0 ? nodeRadiusPx : 1;
+  const latitudeScale = Math.max(
+    0.2,
+    Math.cos((Math.max(-89.9, Math.min(89.9, latitude)) * Math.PI) / 180),
+  );
+  return worldPixelsToDegrees(radiusPx * WORLD_EDGE_ARROW_NODE_RADIUS_RATIO, zoom) * latitudeScale;
+}
+
+/** Screen-space node radius converted to the same local angular metric as edge geometry. */
+export function worldNodeClearanceDegreesForRadius(
+  nodeRadiusPx: number,
+  zoom: number,
+  latitude = 0,
+): number {
+  const radiusPx = Number.isFinite(nodeRadiusPx) && nodeRadiusPx > 0 ? nodeRadiusPx : 1;
+  const latitudeScale = Math.max(
+    0.2,
+    Math.cos((Math.max(-89.9, Math.min(89.9, latitude)) * Math.PI) / 180),
+  );
+  return worldPixelsToDegrees(radiusPx, zoom) * latitudeScale;
+}
+
+/**
+ * Keeps a direction chevron's line weight visually proportional to the nodes
+ * it connects while never making it thinner than the relationship itself.
+ */
+export function worldArrowStrokeWidthPxForNodeRadius(
+  nodeRadiusPx: number,
+  edgeWidthPx: number,
+): number {
+  const radiusPx = Number.isFinite(nodeRadiusPx) && nodeRadiusPx > 0 ? nodeRadiusPx : 1;
+  const widthPx = Number.isFinite(edgeWidthPx) && edgeWidthPx > 0 ? edgeWidthPx : 1;
+  return Math.max(widthPx, radiusPx * WORLD_EDGE_ARROW_STROKE_NODE_RADIUS_RATIO);
+}
+
+/**
+ * A robust node-footprint radius for global LOD decisions. A single authored
+ * outlier must not hold an otherwise readable scene in the overview cluster
+ * tier, while small scenes retain exact max-radius behaviour.
+ */
+export function representativeWorldNodeRadiusPx(radii: readonly number[]): number {
+  const sorted = radii
+    .filter((radius) => Number.isFinite(radius) && radius > 0)
+    .slice()
+    .sort((left, right) => left - right);
+  if (sorted.length === 0) return 0;
+  if (sorted.length < 10) return sorted[sorted.length - 1] ?? 0;
+  const index = Math.max(0, Math.min(sorted.length - 1, Math.ceil(sorted.length * 0.9) - 1));
+  return sorted[index] ?? 0;
+}
+
 /**
  * Below this on-screen local radius a place's entities remain clustered.
  * Align the cluster gate with the readability floor so local topology does
  * not begin resolving before it has enough screen space to be legible.
  */
 export const WORLD_PLACE_CLUSTER_RADIUS_PX = WORLD_READABLE_LOCAL_RADIUS_PX;
+/** Larger rendered nodes need proportionally more room before declustering. */
+export const WORLD_CLUSTER_NODE_RADIUS_MULTIPLIER = 4;
+
+/**
+ * Required local graph radius before place members fully resolve. The default
+ * preserves the 160px readability floor, large nodes raise it, and
+ * narrow viewports may cap it so the graph can actually fit on screen.
+ */
+export function worldPlaceClusterRadiusPx(
+  nodeFootprintRadiusPx: number,
+  viewportRadiusLimitPx = Number.POSITIVE_INFINITY,
+): number {
+  const nodeRadius =
+    Number.isFinite(nodeFootprintRadiusPx) && nodeFootprintRadiusPx > 0 ? nodeFootprintRadiusPx : 0;
+  const required = Math.max(
+    WORLD_PLACE_CLUSTER_RADIUS_PX,
+    nodeRadius * WORLD_CLUSTER_NODE_RADIUS_MULTIPLIER,
+  );
+  const limit =
+    Number.isFinite(viewportRadiusLimitPx) && viewportRadiusLimitPx > 0
+      ? viewportRadiusLimitPx
+      : Number.POSITIVE_INFINITY;
+  return Math.min(required, limit);
+}
 
 /** On-screen radius (pixels) of a local graph of `meters` at `zoom`. */
 export function worldLocalRadiusPx(meters: number, zoom: number, latitude = 0): number {

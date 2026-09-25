@@ -690,13 +690,13 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
       const beforeSelection = harness.surface.getAccessibleSnapshot().selection;
 
       // src/layout/world-spatial-mode.ts DEFAULT_WORLD_SPATIAL_MODE_POLICY:
-      // enterLocalAtZoom 11.5 — cross well past it, then back below
-      // exitLocalBelowZoom 10.5 to exercise both crossing directions.
-      harness.surface.setCamera({ longitude: 5, latitude: 5, zoom: 13, bearing: 0, pitch: 0 });
+      // enterLocalAtZoom 12.75 — cross well past it, then back below
+      // exitLocalBelowZoom 12 to exercise both crossing directions.
+      harness.surface.setCamera({ longitude: 5, latitude: 5, zoom: 14, bearing: 0, pitch: 0 });
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       const afterEnterLocal = harness.surface.getAccessibleSnapshot().selection;
 
-      harness.surface.setCamera({ longitude: 5, latitude: 5, zoom: 9, bearing: 0, pitch: 0 });
+      harness.surface.setCamera({ longitude: 5, latitude: 5, zoom: 11, bearing: 0, pitch: 0 });
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       const afterExitLocal = harness.surface.getAccessibleSnapshot().selection;
 

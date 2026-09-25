@@ -30,7 +30,7 @@ function anchor(instanceId, placeId, overrides = {}) {
 }
 
 function topologyRequest() {
-  return { reason: "topology", energyTarget: 0.12, reheat: true };
+  return { reason: "topology", excitation: 0.12, reheat: true };
 }
 
 test("reference solver starts from explicit local offsets and visual altitude", () => {
@@ -80,6 +80,85 @@ test("reference solver is deterministic when no explicit offset exists", () => {
 
   assert.deepEqual(first.getSnapshot(), second.getSnapshot());
   assert.deepEqual(first.getDiagnostics(), second.getDiagnostics());
+});
+
+test("secondary anchors bias local layout without replacing the primary geographic frame", () => {
+  const simulation = new ReferenceWorldForceSimulation({
+    repulsionStrength: 0,
+    collisionStrength: 0,
+    anchorStrength: 0.02,
+    altitudeStrength: 0,
+    damping: 0.9,
+    settleEnergy: 0,
+  });
+  const instanceId = '["alice","multi-anchor"]';
+
+  simulation.setScene({
+    nodes: [
+      node(instanceId, {
+        initialEastMeters: 300,
+        initialNorthMeters: 0,
+        collisionRadiusMeters: 100,
+      }),
+    ],
+    edges: [],
+    anchors: [
+      anchor(instanceId, "stockholm", {
+        influence: 1,
+        precisionRadiusMeters: 500,
+      }),
+      anchor(instanceId, "nearby-east", {
+        longitude: 18.0786,
+        latitude: 59.3293,
+        influence: 0.8,
+        precisionRadiusMeters: 500,
+      }),
+    ],
+  });
+
+  const before = simulation.getSnapshot()[0];
+  simulation.apply(topologyRequest());
+  for (let index = 0; index < 20; index += 1) simulation.step(1000 / 60);
+  const after = simulation.getSnapshot()[0];
+
+  assert.ok(
+    after.eastMeters > before.eastMeters,
+    "secondary east anchor should bias local layout east",
+  );
+  assert.ok(
+    after.eastMeters < 550,
+    "secondary anchors should steer inside the primary place domain instead of relocating globally",
+  );
+});
+
+test("sparse readback publishes only force positions dirtied since the previous read", () => {
+  const simulation = new ReferenceWorldForceSimulation();
+  const alice = '["alice","meeting"]';
+  const bob = '["bob","remote"]';
+  simulation.setScene({
+    nodes: [node(alice), node(bob)],
+    edges: [],
+    anchors: [anchor(alice, "stockholm"), anchor(bob, "copenhagen")],
+  });
+
+  assert.deepEqual(
+    simulation.getChangedSnapshot().map((entry) => entry.instanceId),
+    [alice, bob],
+  );
+  assert.deepEqual(simulation.getChangedSnapshot(), []);
+
+  simulation.setPin({
+    instanceId: alice,
+    eastMeters: 250,
+    northMeters: -125,
+    visualAltitudeMeters: 1200,
+  });
+
+  assert.deepEqual(
+    simulation.getChangedSnapshot().map((entry) => entry.instanceId),
+    [alice],
+  );
+  assert.deepEqual(simulation.getChangedSnapshot(), []);
 });
 
 test("same-place topology participates in local layout", () => {
@@ -136,7 +215,10 @@ test("default repulsion spreads a dense same-anchor group beyond label-scale cro
     for (let right = left + 1; right < positions.length; right += 1) {
       const a = positions[left];
       const b = positions[right];
-      minimum = Math.min(minimum, Math.hypot(a.eastMeters - b.eastMeters, a.northMeters - b.northMeters));
+      minimum = Math.min(
+        minimum,
+        Math.hypot(a.eastMeters - b.eastMeters, a.northMeters - b.northMeters),
+      );
     }
   }
   assert.ok(minimum >= 200, `minimum same-anchor spacing was ${minimum}`);
@@ -224,6 +306,282 @@ test("nearby floating nodes from different place anchors repel in shared world s
   assert.ok(after[1].eastMeters > before[1].eastMeters);
 });
 
+test("cross-anchor collision uses true 3D altitude separation", () => {
+  const simulation = new ReferenceWorldForceSimulation({
+    repulsionStrength: 0,
+    collisionStrength: 0.5,
+    anchorStrength: 0,
+    altitudeStrength: 0,
+    damping: 0.9,
+    settleEnergy: 0,
+  });
+  const low = '["alice","low"]';
+  const high = '["bob","high"]';
+  simulation.setScene({
+    nodes: [
+      node(low, {
+        collisionRadiusMeters: 220,
+        targetVisualAltitudeMeters: 900,
+      }),
+      node(high, {
+        collisionRadiusMeters: 220,
+        targetVisualAltitudeMeters: 1100,
+      }),
+    ],
+    edges: [],
+    anchors: [
+      anchor(low, "low-place", {
+        longitude: 18.0686,
+        latitude: 59.3293,
+        influence: 0,
+      }),
+      anchor(high, "high-place", {
+        longitude: 18.0686,
+        latitude: 59.3293,
+        influence: 0,
+      }),
+    ],
+  });
+
+  const before = simulation.getSnapshot();
+  simulation.apply(topologyRequest());
+  for (let index = 0; index < 20; index += 1) simulation.step(1000 / 60);
+  const after = simulation.getSnapshot();
+
+  const beforeLow = before.find((entry) => entry.instanceId === low);
+  const beforeHigh = before.find((entry) => entry.instanceId === high);
+  const afterLow = after.find((entry) => entry.instanceId === low);
+  const afterHigh = after.find((entry) => entry.instanceId === high);
+
+  assert.ok(afterLow.visualAltitudeMeters < beforeLow.visualAltitudeMeters);
+  assert.ok(afterHigh.visualAltitudeMeters > beforeHigh.visualAltitudeMeters);
+  assert.ok(
+    afterHigh.visualAltitudeMeters - afterLow.visualAltitudeMeters >
+      beforeHigh.visualAltitudeMeters - beforeLow.visualAltitudeMeters,
+    "cross-place nodes separate along altitude when that is their collision axis",
+  );
+});
+
+test("broad phase finds floating nodes that meet far from their different anchors", () => {
+  const simulation = new ReferenceWorldForceSimulation({
+    repulsionStrength: 0,
+    collisionStrength: 0.5,
+    anchorStrength: 0,
+    altitudeStrength: 0,
+    damping: 0.9,
+    settleEnergy: 0,
+  });
+  const west = '["alice","far-west-anchor"]';
+  const east = '["bob","far-east-anchor"]';
+
+  simulation.setScene({
+    nodes: [
+      node(west, {
+        initialEastMeters: 110_000,
+        collisionRadiusMeters: 3_000,
+      }),
+      node(east, {
+        initialEastMeters: -110_000,
+        collisionRadiusMeters: 3_000,
+      }),
+    ],
+    edges: [],
+    anchors: [
+      anchor(west, "far-west-anchor", {
+        longitude: 0,
+        latitude: 0,
+        influence: 0,
+      }),
+      anchor(east, "far-east-anchor", {
+        longitude: 2,
+        latitude: 0,
+        influence: 0,
+      }),
+    ],
+  });
+
+  const before = simulation.getSnapshot();
+  simulation.apply(topologyRequest());
+  for (let index = 0; index < 20; index += 1) simulation.step(1000 / 60);
+  const after = simulation.getSnapshot();
+
+  assert.notDeepEqual(
+    after,
+    before,
+    "floating nodes must interact even when their anchors are more than one broad-phase bucket apart",
+  );
+});
+
+test("direct drag only disturbs same-place pairs incident to the pinned node", () => {
+  const simulation = new ReferenceWorldForceSimulation({
+    repulsionStrength: 0,
+    collisionStrength: 0.5,
+    anchorStrength: 0,
+    altitudeStrength: 0,
+    damping: 0.9,
+    settleEnergy: 0,
+  });
+  const dragged = '["alice","drag-focus"]';
+  const left = '["bob","drag-focus-left"]';
+  const right = '["carol","drag-focus-right"]';
+
+  simulation.setScene({
+    nodes: [
+      node(dragged, { initialEastMeters: 1, collisionRadiusMeters: 100 }),
+      node(left, { initialEastMeters: -10, collisionRadiusMeters: 100 }),
+      node(right, { initialEastMeters: 10, collisionRadiusMeters: 100 }),
+    ],
+    edges: [],
+    anchors: [
+      anchor(dragged, "stockholm", { influence: 0 }),
+      anchor(left, "stockholm", { influence: 0 }),
+      anchor(right, "stockholm", { influence: 0 }),
+    ],
+  });
+
+  simulation.setPin({
+    instanceId: dragged,
+    eastMeters: 10_000,
+    northMeters: 0,
+    visualAltitudeMeters: 1000,
+  });
+  simulation.apply({ reason: "drag", excitation: 0.2, reheat: true });
+
+  const beforeDrag = simulation.getSnapshot();
+  simulation.step(1000 / 60);
+  const duringDrag = simulation.getSnapshot();
+
+  const beforeLeft = beforeDrag.find((entry) => entry.instanceId === left);
+  const beforeRight = beforeDrag.find((entry) => entry.instanceId === right);
+  const duringLeft = duringDrag.find((entry) => entry.instanceId === left);
+  const duringRight = duringDrag.find((entry) => entry.instanceId === right);
+
+  assert.deepEqual(duringLeft, beforeLeft);
+  assert.deepEqual(duringRight, beforeRight);
+
+  simulation.setPin(null);
+  simulation.apply({ reason: "post-drop", excitation: 0.035, reheat: true });
+  simulation.step(1000 / 60);
+  const afterDrop = simulation.getSnapshot();
+  const afterLeft = afterDrop.find((entry) => entry.instanceId === left);
+  const afterRight = afterDrop.find((entry) => entry.instanceId === right);
+
+  assert.notDeepEqual(afterLeft, duringLeft);
+  assert.notDeepEqual(afterRight, duringRight);
+});
+
+test("post-drop settling stays responsive after an extreme drag displacement", () => {
+  const simulation = new ReferenceWorldForceSimulation({
+    repulsionStrength: 0,
+    collisionStrength: 0,
+    anchorStrength: 0.02,
+    altitudeStrength: 0,
+    damping: 0.84,
+    settleEnergy: 0,
+  });
+  const dragged = '["alice","extreme-drag"]';
+  const remoteIds = ['["bob","remote-west"]', '["carol","remote-east"]', '["dave","remote-south"]'];
+
+  simulation.setScene({
+    nodes: [node(dragged), ...remoteIds.map((id) => node(id))],
+    edges: [],
+    anchors: [
+      anchor(dragged, "stockholm", { influence: 1 }),
+      anchor(remoteIds[0], "remote-west", {
+        longitude: -122.4194,
+        latitude: 37.7749,
+        influence: 0,
+      }),
+      anchor(remoteIds[1], "remote-east", {
+        longitude: 139.6917,
+        latitude: 35.6895,
+        influence: 0,
+      }),
+      anchor(remoteIds[2], "remote-south", {
+        longitude: 151.2093,
+        latitude: -33.8688,
+        influence: 0,
+      }),
+    ],
+  });
+
+  simulation.apply({ reason: "drag", excitation: 0.2, reheat: true });
+  simulation.setPin({
+    instanceId: dragged,
+    eastMeters: 10_000_000,
+    northMeters: 0,
+    visualAltitudeMeters: 1000,
+  });
+  simulation.step(1000 / 60);
+  simulation.setPin(null);
+  simulation.apply({ reason: "post-drop", excitation: 0.035, reheat: true });
+
+  const before = simulation.getSnapshot().find((entry) => entry.instanceId === dragged);
+  const startedAt = performance.now();
+  simulation.step(1000 / 60);
+  const elapsedMs = performance.now() - startedAt;
+  const after = simulation.getSnapshot().find((entry) => entry.instanceId === dragged);
+
+  assert.ok(before);
+  assert.ok(after);
+  assert.ok(elapsedMs < 100, `extreme post-drop force step took ${elapsedMs.toFixed(1)} ms`);
+  assert.ok(Number.isFinite(after.eastMeters));
+  assert.ok(Number.isFinite(after.northMeters));
+  assert.ok(Number.isFinite(after.visualAltitudeMeters));
+  assert.ok(
+    Math.abs(after.eastMeters) < Math.abs(before.eastMeters),
+    "released node should resume smooth correction toward its place domain",
+  );
+});
+
+test("cross-anchor rejection maintains breathing room beyond hard collision radii", () => {
+  const simulation = new ReferenceWorldForceSimulation({
+    repulsionStrength: 48_000,
+    collisionStrength: 0.28,
+    anchorStrength: 0,
+    altitudeStrength: 0,
+    damping: 0.84,
+    settleEnergy: 0,
+  });
+  const left = '["alice","readable-left"]';
+  const right = '["bob","readable-right"]';
+  simulation.setScene({
+    nodes: [
+      node(left, { initialEastMeters: 0, collisionRadiusMeters: 180 }),
+      node(right, { initialEastMeters: 0, collisionRadiusMeters: 180 }),
+    ],
+    edges: [],
+    anchors: [
+      anchor(left, "readable-left", {
+        longitude: 18.0686,
+        latitude: 59.3293,
+        influence: 0,
+      }),
+      anchor(right, "readable-right", {
+        // Distinct provenance, same geographic origin: this isolates the
+        // cross-anchor force rule from ordinary anchor-to-anchor distance.
+        longitude: 18.0686,
+        latitude: 59.3293,
+        influence: 0,
+      }),
+    ],
+  });
+
+  simulation.apply(topologyRequest());
+  for (let index = 0; index < 120; index += 1) simulation.step(1000 / 60);
+  const [a, b] = simulation.getSnapshot();
+  const localDistance = Math.hypot(
+    b.eastMeters - a.eastMeters,
+    b.northMeters - a.northMeters,
+    b.visualAltitudeMeters - a.visualAltitudeMeters,
+  );
+
+  assert.ok(
+    localDistance > 360,
+    `expected readable gap beyond hard 360m collision diameter, got ${localDistance}`,
+  );
+});
+
 test("cross-anchor proximity remains continuous across the dateline", () => {
   const simulation = new ReferenceWorldForceSimulation({
     repulsionStrength: 0,
@@ -297,7 +655,7 @@ test("drag wakes nearby foreign-anchor topology but leaves distant groups frozen
     ],
   });
 
-  simulation.apply({ reason: "drag", energyTarget: 0.2, reheat: true });
+  simulation.apply({ reason: "drag", excitation: 0.2, reheat: true });
   simulation.setPin({
     instanceId: alice,
     eastMeters: 20,
@@ -313,15 +671,314 @@ test("drag wakes nearby foreign-anchor topology but leaves distant groups frozen
   const beforeRemote = before.find((entry) => entry.instanceId === remote);
   const afterRemote = after.find((entry) => entry.instanceId === remote);
 
-  assert.notDeepEqual(
-    afterBob,
-    beforeBob,
-    "nearby foreign-anchor node participates in drag force",
-  );
+  assert.notDeepEqual(afterBob, beforeBob, "nearby foreign-anchor node participates in drag force");
   assert.deepEqual(afterRemote, beforeRemote, "distant anchor group stays frozen");
 });
 
-test("geographic anchor force pulls local displacement toward its precision radius", () => {
+test("far drag does not wake a foreign group located only between active-group members", () => {
+  const simulation = new ReferenceWorldForceSimulation({
+    repulsionStrength: 0,
+    collisionStrength: 0.5,
+    anchorStrength: 0,
+    altitudeStrength: 0,
+    damping: 0.9,
+    settleEnergy: 0,
+  });
+  const dragged = '["alice","dragged"]';
+  const peer = '["bob","peer"]';
+  const middleA = '["carol","middle-a"]';
+  const middleB = '["dave","middle-b"]';
+
+  simulation.setScene({
+    nodes: [
+      node(dragged, { initialEastMeters: -10_000, collisionRadiusMeters: 120 }),
+      node(peer, { initialEastMeters: -10_000, collisionRadiusMeters: 120 }),
+      node(middleA, { initialEastMeters: -1, collisionRadiusMeters: 120 }),
+      node(middleB, { initialEastMeters: 1, collisionRadiusMeters: 120 }),
+    ],
+    edges: [],
+    anchors: [
+      anchor(dragged, "active-place", {
+        longitude: 18.0686,
+        latitude: 59.3293,
+        influence: 0,
+      }),
+      anchor(peer, "active-place", {
+        longitude: 18.0686,
+        latitude: 59.3293,
+        influence: 0,
+      }),
+      anchor(middleA, "middle-place", {
+        longitude: 18.0686,
+        latitude: 59.3293,
+        influence: 0,
+      }),
+      anchor(middleB, "middle-place", {
+        longitude: 18.0686,
+        latitude: 59.3293,
+        influence: 0,
+      }),
+    ],
+  });
+
+  simulation.apply({ reason: "drag", excitation: 0.2, reheat: true });
+  simulation.setPin({
+    instanceId: dragged,
+    eastMeters: 10_000,
+    northMeters: 0,
+    visualAltitudeMeters: 1000,
+  });
+
+  const before = simulation.getSnapshot();
+  simulation.step(1000 / 60);
+  const after = simulation.getSnapshot();
+  const beforeMiddle = before.filter(
+    (entry) => entry.instanceId === middleA || entry.instanceId === middleB,
+  );
+  const afterMiddle = after.filter(
+    (entry) => entry.instanceId === middleA || entry.instanceId === middleB,
+  );
+
+  assert.deepEqual(
+    afterMiddle,
+    beforeMiddle,
+    "foreign group between separated active members remains asleep when no node is nearby",
+  );
+});
+
+test("drag cross-place interaction is specific to the grabbed node, not its whole place group", () => {
+  const simulation = new ReferenceWorldForceSimulation({
+    repulsionStrength: 0,
+    collisionStrength: 0.5,
+    anchorStrength: 0,
+    altitudeStrength: 0,
+    damping: 0.9,
+    settleEnergy: 0,
+  });
+  const dragged = '["alice","dragged-specific"]';
+  const peer = '["bob","same-place-peer"]';
+  const foreignA = '["carol","foreign-a"]';
+  const foreignB = '["dave","foreign-b"]';
+
+  simulation.setScene({
+    nodes: [
+      node(dragged, { initialEastMeters: -10_000, collisionRadiusMeters: 120 }),
+      node(peer, { initialEastMeters: 0, collisionRadiusMeters: 120 }),
+      node(foreignA, { initialEastMeters: -1, collisionRadiusMeters: 120 }),
+      node(foreignB, { initialEastMeters: 1, collisionRadiusMeters: 120 }),
+    ],
+    edges: [],
+    anchors: [
+      anchor(dragged, "active-place", {
+        longitude: 18.0686,
+        latitude: 59.3293,
+        influence: 0,
+      }),
+      anchor(peer, "active-place", {
+        longitude: 18.0686,
+        latitude: 59.3293,
+        influence: 0,
+      }),
+      anchor(foreignA, "foreign-place", {
+        longitude: 18.0686,
+        latitude: 59.3293,
+        influence: 0,
+      }),
+      anchor(foreignB, "foreign-place", {
+        longitude: 18.0686,
+        latitude: 59.3293,
+        influence: 0,
+      }),
+    ],
+  });
+
+  simulation.apply({ reason: "drag", excitation: 0.2, reheat: true });
+  simulation.setPin({
+    instanceId: dragged,
+    eastMeters: 10_000,
+    northMeters: 0,
+    visualAltitudeMeters: 1000,
+  });
+
+  const before = simulation.getSnapshot();
+  simulation.step(1000 / 60);
+  const after = simulation.getSnapshot();
+  const beforeForeign = before.filter(
+    (entry) => entry.instanceId === foreignA || entry.instanceId === foreignB,
+  );
+  const afterForeign = after.filter(
+    (entry) => entry.instanceId === foreignA || entry.instanceId === foreignB,
+  );
+
+  assert.deepEqual(
+    afterForeign,
+    beforeForeign,
+    "a nearby peer in the dragged node's place must not wake unrelated foreign topology",
+  );
+});
+
+test("post-drop settling stays localized to the released node's force island", () => {
+  const simulation = new ReferenceWorldForceSimulation({
+    repulsionStrength: 0,
+    collisionStrength: 0.5,
+    anchorStrength: 0.02,
+    altitudeStrength: 0,
+    damping: 0.9,
+    settleEnergy: 0,
+  });
+  const dragged = '["alice","released-locality"]';
+  const remoteA = '["bob","remote-a"]';
+  const remoteB = '["carol","remote-b"]';
+
+  simulation.setScene({
+    nodes: [
+      node(dragged, { collisionRadiusMeters: 120 }),
+      node(remoteA, { initialEastMeters: -1, collisionRadiusMeters: 120 }),
+      node(remoteB, { initialEastMeters: 1, collisionRadiusMeters: 120 }),
+    ],
+    edges: [],
+    anchors: [
+      anchor(dragged, "stockholm", { influence: 1 }),
+      anchor(remoteA, "remote", {
+        longitude: 12.5683,
+        latitude: 55.6761,
+        influence: 0,
+      }),
+      anchor(remoteB, "remote", {
+        longitude: 12.5683,
+        latitude: 55.6761,
+        influence: 0,
+      }),
+    ],
+  });
+
+  simulation.apply({ reason: "drag", excitation: 0.2, reheat: true });
+  simulation.setPin({
+    instanceId: dragged,
+    eastMeters: 10_000_000,
+    northMeters: 0,
+    visualAltitudeMeters: 1000,
+  });
+  simulation.step(1000 / 60);
+
+  const remoteBefore = simulation
+    .getSnapshot()
+    .filter((entry) => entry.instanceId === remoteA || entry.instanceId === remoteB);
+
+  simulation.setPin(null);
+  simulation.apply({ reason: "post-drop", excitation: 0.035, reheat: true });
+  for (let index = 0; index < 20; index += 1) simulation.step(1000 / 60);
+
+  const after = simulation.getSnapshot();
+  const remoteAfter = after.filter(
+    (entry) => entry.instanceId === remoteA || entry.instanceId === remoteB,
+  );
+  const draggedAfter = after.find((entry) => entry.instanceId === dragged);
+
+  assert.deepEqual(
+    remoteAfter,
+    remoteBefore,
+    "unrelated geographic groups must stay asleep while the released force island settles",
+  );
+  assert.ok(draggedAfter);
+  assert.ok(
+    Math.abs(draggedAfter.eastMeters) < 10_000_000,
+    "the released node should still relax toward its authored place domain",
+  );
+});
+
+test("extreme drag stretch does not launch a connected peer", () => {
+  const simulation = new ReferenceWorldForceSimulation({
+    repulsionStrength: 0,
+    collisionStrength: 0,
+    anchorStrength: 0,
+    altitudeStrength: 0,
+    damping: 0.9,
+    settleEnergy: 0,
+  });
+  const dragged = '["alice","edge-stretch"]';
+  const peer = '["bob","edge-stretch"]';
+
+  simulation.setScene({
+    nodes: [
+      node(dragged, { collisionRadiusMeters: 120 }),
+      node(peer, { initialEastMeters: 1000, collisionRadiusMeters: 120 }),
+    ],
+    edges: [
+      {
+        id: "stretched-edge",
+        sourceId: dragged,
+        targetId: peer,
+        strength: 1,
+        restLengthMeters: 1000,
+      },
+    ],
+    anchors: [
+      anchor(dragged, "stockholm", { influence: 0 }),
+      anchor(peer, "stockholm", { influence: 0 }),
+    ],
+  });
+  simulation.setPin({
+    instanceId: dragged,
+    eastMeters: 10_000_000,
+    northMeters: 0,
+    visualAltitudeMeters: 1000,
+  });
+  simulation.apply({ reason: "drag", excitation: 0.2, reheat: true });
+
+  const before = simulation.getSnapshot().find((entry) => entry.instanceId === peer);
+  simulation.step(1000 / 60);
+  const after = simulation.getSnapshot().find((entry) => entry.instanceId === peer);
+
+  assert.ok(before);
+  assert.ok(after);
+  assert.ok(
+    Math.abs(after.eastMeters - before.eastMeters) < 200,
+    "an arbitrarily stretched relationship must not inject an extreme one-frame velocity",
+  );
+});
+
+test("extreme post-drop place correction is bounded per physics step", () => {
+  const simulation = new ReferenceWorldForceSimulation({
+    repulsionStrength: 0,
+    collisionStrength: 0,
+    anchorStrength: 0.05,
+    altitudeStrength: 0,
+    damping: 0.9,
+    settleEnergy: 0,
+  });
+  const dragged = '["alice","far-release-cap"]';
+
+  simulation.setScene({
+    nodes: [node(dragged, { collisionRadiusMeters: 120 })],
+    edges: [],
+    anchors: [anchor(dragged, "stockholm", { influence: 1 })],
+  });
+  simulation.setPin({
+    instanceId: dragged,
+    eastMeters: 10_000_000,
+    northMeters: 0,
+    visualAltitudeMeters: 1000,
+  });
+  simulation.apply({ reason: "drag", excitation: 0.2, reheat: true });
+  simulation.step(1000 / 60);
+
+  simulation.setPin(null);
+  simulation.apply({ reason: "post-drop", excitation: 0.035, reheat: true });
+  const before = simulation.getSnapshot()[0];
+  simulation.step(1000 / 60);
+  const after = simulation.getSnapshot()[0];
+
+  assert.ok(before);
+  assert.ok(after);
+  assert.ok(after.eastMeters < before.eastMeters, "the released node must still return");
+  assert.ok(
+    before.eastMeters - after.eastMeters <= 6000 + Number.EPSILON,
+    "far release must not produce a distance-amplified position jump",
+  );
+});
+
+test("place-domain constraint returns distant nodes to an annulus without centering them", () => {
   const simulation = new ReferenceWorldForceSimulation({
     repulsionStrength: 0,
     collisionStrength: 0,
@@ -347,6 +1004,42 @@ test("geographic anchor force pulls local displacement toward its precision radi
   const after = simulation.getSnapshot()[0].eastMeters;
 
   assert.ok(Math.abs(after) < Math.abs(before));
+  assert.ok(
+    Math.abs(after) > 200,
+    "the entity remains outside the place marker clearance instead of converging on the anchor",
+  );
+});
+
+test("place-domain constraint pushes a released node away from the exact place centre", () => {
+  const simulation = new ReferenceWorldForceSimulation({
+    repulsionStrength: 0,
+    collisionStrength: 0,
+    anchorStrength: 0.05,
+    altitudeStrength: 0,
+    damping: 0.9,
+    settleEnergy: 0,
+  });
+  const instanceId = '["alice","centre-release"]';
+  simulation.setScene({
+    nodes: [node(instanceId, { collisionRadiusMeters: 100 })],
+    edges: [],
+    anchors: [anchor(instanceId, "stockholm", { influence: 1 })],
+  });
+  simulation.setPin({
+    instanceId,
+    eastMeters: 0,
+    northMeters: 0,
+    visualAltitudeMeters: 1000,
+  });
+  simulation.setPin(null);
+  simulation.apply({ reason: "post-drop", excitation: 0.035, reheat: true });
+
+  for (let index = 0; index < 40; index += 1) simulation.step(1000 / 60);
+  const settled = simulation.getSnapshot()[0];
+  const radius = Math.hypot(settled.eastMeters, settled.northMeters);
+
+  assert.ok(radius >= 200, `expected place clearance, got ${radius}`);
+  assert.ok(radius < 600, `expected a local annular layout, got ${radius}`);
 });
 
 test("pinning hard-locks local layout position and altitude", () => {
@@ -371,7 +1064,7 @@ test("pinning hard-locks local layout position and altitude", () => {
       visualAltitudeMeters: 1750,
     },
   ]);
-  simulation.apply({ reason: "drag", energyTarget: 0.2, reheat: true });
+  simulation.apply({ reason: "drag", excitation: 0.2, reheat: true });
 
   for (let index = 0; index < 10; index += 1) simulation.step(1000 / 60);
 
@@ -420,7 +1113,7 @@ test("drag force is localized to the pinned node's geographic group", () => {
       anchor(remote, "copenhagen", { influence: 0 }),
     ],
   });
-  simulation.apply({ reason: "drag", energyTarget: 0.2, reheat: true });
+  simulation.apply({ reason: "drag", excitation: 0.2, reheat: true });
   simulation.setPin({
     instanceId: alice,
     eastMeters: -250,
@@ -438,7 +1131,7 @@ test("drag force is localized to the pinned node's geographic group", () => {
   assert.notDeepEqual(bobAfter, bobBefore, "same-anchor floating topology still relaxes");
 });
 
-test("place-anchor attraction is suspended for the active drag group until release", () => {
+test("place-domain constraint is suspended for the active drag group until release", () => {
   const simulation = new ReferenceWorldForceSimulation({
     repulsionStrength: 0,
     collisionStrength: 0,
@@ -457,7 +1150,7 @@ test("place-anchor attraction is suspended for the active drag group until relea
       anchor(bob, "stockholm", { influence: 1, precisionRadiusMeters: 0 }),
     ],
   });
-  simulation.apply({ reason: "drag", energyTarget: 0.2, reheat: true });
+  simulation.apply({ reason: "drag", excitation: 0.2, reheat: true });
   simulation.setPin({
     instanceId: alice,
     eastMeters: 1200,
@@ -471,16 +1164,16 @@ test("place-anchor attraction is suspended for the active drag group until relea
   assert.deepEqual(
     bobDuring,
     bobBefore,
-    "the shared place anchor does not pull floating neighbours inward during drag",
+    "the shared place domain does not reposition floating neighbours during drag",
   );
 
   simulation.setPin(null);
-  simulation.apply({ reason: "settle", energyTarget: 0.08, reheat: true });
+  simulation.apply({ reason: "settle", excitation: 0.08, reheat: true });
   for (let index = 0; index < 20; index += 1) simulation.step(1000 / 60);
   const bobAfter = simulation.getSnapshot().find((entry) => entry.instanceId === bob);
   assert.ok(
     Math.abs(bobAfter.eastMeters) < Math.abs(bobDuring.eastMeters),
-    "anchor attraction resumes after release",
+    "the place-domain constraint resumes after release",
   );
 });
 
@@ -573,4 +1266,183 @@ test("unknown pins, invalid deltas, and use-after-destroy fail explicitly", () =
   simulation.destroy();
   simulation.destroy();
   assert.throws(() => simulation.step(16), /destroyed/);
+});
+
+test("updated DAG targets preserve position and converge through force only", () => {
+  const simulation = new ReferenceWorldForceSimulation({
+    repulsionStrength: 0,
+    collisionStrength: 0,
+    anchorStrength: 0,
+    altitudeStrength: 0,
+    damping: 0.9,
+    settleEnergy: 0,
+  });
+  const instanceId = '["alice","dag-target"]';
+
+  simulation.setScene({
+    nodes: [
+      node(instanceId, {
+        initialEastMeters: 100,
+        layoutTargetEastMeters: 800,
+        layoutTargetNorthMeters: 0,
+        layoutTargetStrength: 0.01,
+      }),
+    ],
+    edges: [],
+    anchors: [],
+  });
+
+  assert.equal(simulation.getSnapshot()[0].eastMeters, 100);
+
+  simulation.setScene({
+    nodes: [
+      node(instanceId, {
+        initialEastMeters: 100,
+        layoutTargetEastMeters: 1_600,
+        layoutTargetNorthMeters: 0,
+        layoutTargetStrength: 0.01,
+      }),
+    ],
+    edges: [],
+    anchors: [],
+  });
+
+  assert.equal(
+    simulation.getSnapshot()[0].eastMeters,
+    100,
+    "changing the organizational target must not jump the rendered node",
+  );
+
+  simulation.apply(topologyRequest());
+  simulation.step(1000 / 60);
+
+  assert.ok(
+    simulation.getSnapshot()[0].eastMeters > 100,
+    "the force solver should move toward the new DAG target after a tick",
+  );
+});
+
+test("dense same-place spatial indexing stays deterministic and resolves hard overlap", () => {
+  const ids = Array.from({ length: 120 }, (_, index) => `["dense","node-${index}"]`);
+  const nodes = ids.map((id, index) =>
+    node(id, {
+      initialEastMeters: 1 + (index % 12) * 8,
+      initialNorthMeters: 1 + Math.floor(index / 12) * 8,
+      collisionRadiusMeters: 20,
+      targetVisualAltitudeMeters: 0,
+    }),
+  );
+  const anchors = ids.map((id) =>
+    anchor(id, "dense-place", {
+      influence: 0,
+      precisionRadiusMeters: 0,
+    }),
+  );
+  const options = {
+    repulsionStrength: 48_000,
+    collisionStrength: 0.5,
+    anchorStrength: 0,
+    altitudeStrength: 0,
+    damping: 0.84,
+    settleEnergy: 0,
+  };
+  const scene = { nodes, edges: [], anchors };
+  const first = new ReferenceWorldForceSimulation(options);
+  const second = new ReferenceWorldForceSimulation(options);
+  first.setScene(scene);
+  second.setScene({
+    nodes: [...nodes].reverse(),
+    edges: [],
+    anchors: [...anchors].reverse(),
+  });
+
+  first.apply(topologyRequest());
+  second.apply(topologyRequest());
+  for (let index = 0; index < 180; index += 1) {
+    first.step(1000 / 60);
+    second.step(1000 / 60);
+  }
+
+  assert.deepEqual(first.getSnapshot(), second.getSnapshot());
+
+  const positions = first.getSnapshot();
+  let minimum = Number.POSITIVE_INFINITY;
+  for (let left = 0; left < positions.length; left += 1) {
+    for (let right = left + 1; right < positions.length; right += 1) {
+      const a = positions[left];
+      const b = positions[right];
+      minimum = Math.min(
+        minimum,
+        Math.hypot(
+          a.eastMeters - b.eastMeters,
+          a.northMeters - b.northMeters,
+          a.visualAltitudeMeters - b.visualAltitudeMeters,
+        ),
+      );
+    }
+  }
+
+  assert.ok(minimum >= 39, `dense minimum separation was ${minimum}`);
+});
+
+test("world excitation is a force-gain control rather than a cooling target", () => {
+  const scene = {
+    nodes: [
+      node('["alice","excitation-left"]', {
+        initialEastMeters: -120,
+        collisionRadiusMeters: 100,
+        targetVisualAltitudeMeters: 0,
+      }),
+      node('["bob","excitation-right"]', {
+        initialEastMeters: 120,
+        collisionRadiusMeters: 100,
+        targetVisualAltitudeMeters: 0,
+      }),
+    ],
+    edges: [],
+    anchors: [
+      anchor('["alice","excitation-left"]', "stockholm", { influence: 0 }),
+      anchor('["bob","excitation-right"]', "stockholm", { influence: 0 }),
+    ],
+  };
+  const baseline = new ReferenceWorldForceSimulation();
+  const excited = new ReferenceWorldForceSimulation();
+  baseline.setScene(scene);
+  excited.setScene(scene);
+
+  baseline.apply({ reason: "topology", excitation: 0, reheat: true });
+  excited.apply({ reason: "topology", excitation: 0.2, reheat: true });
+  baseline.step(1000 / 60);
+  excited.step(1000 / 60);
+
+  const baselineLeft = baseline.getSnapshot()[0];
+  const excitedLeft = excited.getSnapshot()[0];
+  assert.ok(
+    Math.abs(excitedLeft.eastMeters + 120) > Math.abs(baselineLeft.eastMeters + 120),
+    "higher excitation should increase one-step force response",
+  );
+  assert.equal(baseline.getDiagnostics().running, true);
+  assert.equal(excited.getDiagnostics().running, true);
+});
+
+test("repeating an unchanged drag pin does not republish the node", () => {
+  const simulation = new ReferenceWorldForceSimulation();
+  const alice = '["alice","meeting"]';
+  simulation.setScene({
+    nodes: [node(alice, { initialEastMeters: 250, initialNorthMeters: -125 })],
+    edges: [],
+    anchors: [anchor(alice, "stockholm")],
+  });
+  simulation.getChangedSnapshot();
+
+  const pin = {
+    instanceId: alice,
+    eastMeters: 250,
+    northMeters: -125,
+    visualAltitudeMeters: 1000,
+  };
+  simulation.setPin(pin);
+  assert.deepEqual(simulation.getChangedSnapshot(), []);
+  simulation.setPin(pin);
+  assert.deepEqual(simulation.getChangedSnapshot(), []);
 });

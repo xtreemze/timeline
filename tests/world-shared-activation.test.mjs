@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { createSettledTemporalWindowSink } from "../site/world/settled-temporal-window.ts";
 import { WorldProjectionView } from "../site/world/world-projection-view.ts";
 import { activeOccurrenceIds } from "../src/projection/spatiotemporal-projection.ts";
 
@@ -125,6 +126,32 @@ test("the temporal window forwarded to the renderer stays purely temporal", () =
   assert.deepEqual(windows.at(-1), window);
 });
 
+test("world temporal previews do not rebuild the spatial projection before commit", () => {
+  const { view, getProjection, windows } = harness();
+  view.setModel(model);
+  view.setWindow({ ...window, activeOccurrenceIds: ["meeting"] });
+  const committedProjection = getProjection();
+  const rendersBeforePreview = windows.length;
+
+  const preview = {
+    start: Date.parse("2026-09-24T09:00:00Z"),
+    end: Date.parse("2026-09-24T11:00:00Z"),
+    activeOccurrenceIds: ["later"],
+  };
+  view.previewWindow(preview);
+
+  assert.equal(
+    getProjection(),
+    committedProjection,
+    "preview preserves expensive projection state",
+  );
+  assert.equal(windows.length, rendersBeforePreview + 1);
+  assert.deepEqual(windows.at(-1), { start: preview.start, end: preview.end });
+
+  view.setWindow(preview);
+  assert.deepEqual(edgeIds(getProjection()), ["later"]);
+});
+
 test("without a shared active set the world keeps its standalone temporal query", () => {
   const { view, getProjection } = harness();
   view.setModel(model);
@@ -161,8 +188,44 @@ test("TimelineSurface publishes activation from the logical viewport, never from
     /emitViewport\(committed: boolean\): void \{([\s\S]*?)\n {2}\}/.exec(view)?.[1] ?? "";
   assert.match(emit, /activeOccurrenceIds\(this\.relationships, this\.viewport\)/);
   assert.doesNotMatch(emit, /activeOccurrenceIds\([^)]*(renderWindow|retention)/);
+  assert.match(app, /createSettledTemporalWindowSink/);
   assert.match(
     app,
-    /timelineviewportchange[\s\S]{0,200}setWindow\(event\.detail\?\.viewport \|\| null\)/,
+    /timelineviewportchange[\s\S]{0,260}settledSpatialWindow\.push\([\s\S]*event\.detail\?\.viewport \|\| null[\s\S]*Boolean\(event\.detail\?\.committed\)/,
   );
+});
+
+test("transient timeline viewport bursts preview cheaply and collapse to one settled spatial update", () => {
+  const applied = [];
+  const previews = [];
+  const sink = createSettledTemporalWindowSink(
+    (viewport) => applied.push(viewport),
+    (viewport) => previews.push(viewport),
+  );
+
+  const first = { start: 0, end: 10 };
+  const second = { start: 5, end: 15 };
+  const third = { start: 10, end: 20 };
+  assert.equal(sink.push(first, false), false);
+  assert.equal(sink.push(second, false), false);
+  assert.equal(sink.push(third, false), false);
+  assert.deepEqual(previews, [first, second, third]);
+  assert.deepEqual(applied, []);
+
+  const settled = { start: 15, end: 25 };
+  assert.equal(sink.push(settled, true), true);
+  assert.deepEqual(applied, [settled]);
+});
+
+test("a new transient burst never replays a stale settled viewport", () => {
+  const applied = [];
+  const sink = createSettledTemporalWindowSink((viewport) => applied.push(viewport));
+
+  const first = { start: 0, end: 10 };
+  const second = { start: 100, end: 110 };
+  sink.push(first, true);
+  sink.push({ start: 50, end: 60 }, false);
+  sink.push(second, true);
+
+  assert.deepEqual(applied, [first, second]);
 });

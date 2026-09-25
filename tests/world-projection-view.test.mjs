@@ -124,8 +124,12 @@ test("application model projects timed and timeless relationships into one world
   );
   assert.equal(
     projection.instances.filter((instance) => instance.canonicalId === "alice").length,
-    2,
+    1,
   );
+
+  const aliceInstance = projection.instances.find((instance) => instance.canonicalId === "alice");
+  assert.ok(aliceInstance);
+  assert.deepEqual([...aliceInstance.occurrenceIds].sort(), ["meeting", "timeless"]);
 
   const meetingInstances = projection.instances.filter(
     (instance) => instance.occurrenceId === "meeting",
@@ -146,6 +150,21 @@ test("application model projects timed and timeless relationships into one world
     (instance) => instance.occurrenceId === "timeless",
   );
   assert.ok(timelessInstances.every((instance) => instance.geographicAnchors.length === 0));
+});
+
+test("linked timeline category color is carried into world relationship presentation", () => {
+  const { view, getProjection } = harness();
+  view.setModel({
+    ...model,
+    categories: [{ id: "meeting-category", color: "#b42318" }],
+    items: [{ id: "meeting-item", categoryId: "meeting-category" }],
+    relationships: model.relationships.map((relationship) =>
+      relationship.id === "meeting" ? { ...relationship, itemIds: ["meeting-item"] } : relationship,
+    ),
+  });
+
+  const meeting = getProjection().edges.find((edge) => edge.id === "meeting");
+  assert.equal(meeting.style?.categoryColor, "#b42318");
 });
 
 test("timeline window controls world activation through the shared temporal index", () => {

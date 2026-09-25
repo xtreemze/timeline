@@ -27,8 +27,12 @@ export interface WorldLayoutConstraint {
 }
 
 function positionsFromGeometry(geometry: CanonicalSpatialGeometry): readonly GeoPosition[] {
-  if (geometry.type === "Point") return Object.freeze([geometry.coordinates]);
-  if (geometry.type === "LineString") return Object.freeze([...geometry.coordinates]);
+  if (geometry.type === "Point") {
+    return Object.freeze([geometry.coordinates]);
+  }
+  if (geometry.type === "LineString") {
+    return Object.freeze([...geometry.coordinates]);
+  }
   if (geometry.type === "MultiLineString") {
     return Object.freeze(geometry.coordinates.flatMap((line) => [...line]));
   }
@@ -49,7 +53,9 @@ function radians(value: number): number {
 }
 
 function normalizeLongitude(value: number): number {
-  if (value >= -180 && value <= 180) return Object.is(value, -0) ? 0 : value;
+  if (value >= -180 && value <= 180) {
+    return Object.is(value, -0) ? 0 : value;
+  }
   const normalized = ((((value + 180) % 360) + 360) % 360) - 180;
   return Object.is(normalized, -0) ? 0 : normalized;
 }
@@ -62,7 +68,9 @@ export function representativeGeographicPosition(
   }
 
   const positions = positionsFromGeometry(geometry);
-  if (!positions.length) throw new Error("Spatial geometry must contain at least one position.");
+  if (positions.length === 0) {
+    throw new Error("Spatial geometry must contain at least one position.");
+  }
 
   let x = 0;
   let y = 0;
@@ -80,7 +88,9 @@ export function representativeGeographicPosition(
   const magnitude = Math.hypot(x, y, z);
   if (magnitude < 1e-12) {
     const first = positions[0];
-    if (!first) throw new Error("Spatial geometry must contain at least one position.");
+    if (!first) {
+      throw new Error("Spatial geometry must contain at least one position.");
+    }
     const [longitude, latitude] = first;
     return Object.freeze([normalizeLongitude(longitude), latitude]);
   }
@@ -136,7 +146,9 @@ export class SpatialAnchorIndex {
       }
       this.#relationships.set(relationship.id, relationship);
 
-      if (!relationship.placeId) continue;
+      if (!relationship.placeId) {
+        continue;
+      }
       const place = this.#places.get(relationship.placeId);
       if (!place) {
         throw new Error(
@@ -210,7 +222,9 @@ export class SpatialAnchorIndex {
       }
 
       const anchor = this.#occurrenceAnchors.get(occurrenceId);
-      if (!anchor) continue;
+      if (!anchor) {
+        continue;
+      }
 
       constraints.push(
         Object.freeze({

@@ -174,7 +174,7 @@ test("touch graph dragging requires a long press while preserving live force phy
   assert.match(bridge, /setDragEnabled\(false\)/);
   assert.match(bridge, /setDragEnabled\(true\)/);
   assert.match(bridge, /isPhysicsEnabled:\s*true/);
-  assert.match(bridge, /vibrate\?\.\(12\)/);
+  assert.match(bridge, /motion\?\.pulseHaptic\?\.\("drag"\)/);
   assert.match(bridge, /activeTouchPointers/);
   assert.match(bridge, /Math\.hypot/);
   assert.match(adapter, /onNodeLongPress/);
@@ -243,11 +243,11 @@ test("mouse node drag preheats force before Orb enters native drag state", async
   );
   assert.match(
     source,
-    /const onNodeDragStart = \(\) => \{[\s\S]{0,320}clearInteractionSettleTimer\(\)/,
+    /const onNodeDragStart = \(payload\) => \{[\s\S]{0,320}beginDragFeedback\(payload\?\.node\)[\s\S]{0,180}clearInteractionSettleTimer\(\)/,
   );
   assert.doesNotMatch(
     source,
-    /const onNodeDragStart = \(\) => \{[\s\S]{0,320}requestSimulation\("drag"/,
+    /const onNodeDragStart = \(payload\) => \{[\s\S]{0,420}requestSimulation\("drag"/,
   );
 });
 
@@ -305,6 +305,42 @@ test("touch node long press is armed from capture-phase hit testing before Orb d
     /touchHold\.activated = true[\s\S]*setDragEnabled\(false\)[\s\S]*setZoomEnabled\(false\)[\s\S]*requestSimulation\("drag", DRAG_ALPHA_TARGET\)[\s\S]*simulator\?\.startDragNode\(\)/,
   );
   assert.doesNotMatch(bridge, /onNodeDragStart[\s\S]{0,180}beginTouchHold/);
+});
+
+test("long-press node drag flashes, elevates, haptically confirms, and restores feedback", async () => {
+  const source = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
+
+  assert.match(source, /DRAG_FEEDBACK_FLASH_MS\s*=\s*150/);
+  assert.match(source, /DRAG_Z_INDEX_OFFSET\s*=\s*3/);
+  assert.match(
+    source,
+    /function beginDragFeedback\(node,[\s\S]*activeDragNodeId = nodeId[\s\S]*dragFlashNodeId = nodeId[\s\S]*DRAG_FEEDBACK_FLASH_MS/,
+  );
+  assert.match(source, /motion\?\.pulseHaptic\?\.\("drag"\)/);
+  assert.match(
+    source,
+    /touchHold\.activated = true[\s\S]*beginDragFeedback\(node, \{ flash: true, haptic: true \}\)/,
+  );
+  assert.match(source, /size: isDragFlash \? transitionSize \* 1\.16 : transitionSize/);
+  assert.match(source, /zIndex: baseZIndex \+ \(isDragged \? DRAG_Z_INDEX_OFFSET : 0\)/);
+  assert.match(
+    source,
+    /function finishActiveTouchNodeDrag[\s\S]*simulator\.endDragNode\(node\.getId\(\)\)[\s\S]*endDragFeedback\(\{ haptic: settle \}\)/,
+  );
+  assert.match(source, /motion\?\.pulseHaptic\?\.\("release"\)/);
+});
+
+test("legacy Orb drag keeps many-body repulsion local", async () => {
+  const source = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
+
+  assert.doesNotMatch(source, /DRAG_GLOBAL_REPULSION_DISTANCE/);
+  assert.doesNotMatch(source, /globalDrag/);
+  assert.match(source, /distanceMax: dense \? 1800 : 3200/);
+  assert.match(
+    source,
+    /forceLayoutOptions\(forceNodeCount, request\.alphaTarget, request\.reheat\)/,
+  );
+  assert.match(source, /collision:[\s\S]*radius: dense \? 30 : 42/);
 });
 
 test("touch graph gesture ownership separates node drag from graph pan and pinch", async () => {
@@ -457,7 +493,7 @@ test("activated touch long press directly drives the Orb simulator instead of de
   assert.match(bridge, /container\.setPointerCapture\?\.\(touchHold\.pointerId\)/);
   assert.match(
     bridge,
-    /touchHold\?\.activated[\s\S]*touchHold\.pointerId === event\.pointerId[\s\S]*touchGeometry\(event\)[\s\S]*simulator\.dragNode\(touchHold\.node\.getId\(\), geometry\.localPoint\)/,
+    /touchHold\?\.activated[\s\S]*touchHold\.pointerId === event\.pointerId[\s\S]*touchGeometry\(event\)[\s\S]*scheduleTouchDrag\(touchHold\.node\.getId\(\), geometry\.localPoint\)/,
   );
   assert.match(
     bridge,
@@ -572,7 +608,10 @@ test("touch camera navigation is not intercepted by Orb's D3 node-drag recognize
     bridge,
     /orb\.setRenderer\([\s\S]*removeOrbTouchDragListeners\(\);[\s\S]*orb\.setSettings/,
   );
-  assert.match(bridge, /simulator\.dragNode\(touchHold\.node\.getId\(\), geometry\.localPoint\)/);
+  assert.match(
+    bridge,
+    /function scheduleTouchDrag\(nodeId, localPoint\)[\s\S]*requestAnimationFrame\([\s\S]*flushPendingTouchDrag\(\)/,
+  );
 });
 
 test("active touch node drag blocks Orb camera movement at the event boundary", async () => {
@@ -580,7 +619,7 @@ test("active touch node drag blocks Orb camera movement at the event boundary", 
 
   assert.match(
     bridge,
-    /function onPointerMove\(event\)[\s\S]*touchHold\?\.activated[\s\S]*touchHold\.pointerId === event\.pointerId[\s\S]*event\.preventDefault\(\)[\s\S]*event\.stopPropagation\(\)[\s\S]*simulator\.dragNode\(touchHold\.node\.getId\(\), geometry\.localPoint\)[\s\S]*return;[\s\S]*updateCameraGesture\(event\)/,
+    /function onPointerMove\(event\)[\s\S]*touchHold\?\.activated[\s\S]*touchHold\.pointerId === event\.pointerId[\s\S]*event\.preventDefault\(\)[\s\S]*event\.stopPropagation\(\)[\s\S]*scheduleTouchDrag\(touchHold\.node\.getId\(\), geometry\.localPoint\)[\s\S]*return;[\s\S]*updateCameraGesture\(event\)/,
   );
   assert.match(
     bridge,
@@ -701,4 +740,56 @@ test("legacy Orb fallback keeps data synchronization enabled before manual force
     /Orb 1\.1\.0 only rebinds freshly loaded graph data into d3-force[\s\S]*isSimulatingOnDataUpdate:\s*true/,
   );
   assert.match(source, /isSimulatingOnSettingsUpdate:\s*false/);
+});
+
+test("graph interaction work is coalesced to the display frame", async () => {
+  const bridge = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
+
+  assert.match(
+    bridge,
+    /function scheduleGraphRender\(\)[\s\S]*if \(graphRenderAnimationFrame\) return[\s\S]*requestAnimationFrame\([\s\S]*orb\.render\(\)/,
+  );
+  assert.match(bridge, /function applyCameraPan\([\s\S]*orb\.render\(\)[\s\S]*return true/);
+  assert.match(
+    bridge,
+    /function updateCameraGesture\([\s\S]*scheduleGraphRender\(\)[\s\S]*return true/,
+  );
+  assert.match(
+    bridge,
+    /function scheduleTouchDrag\(nodeId, localPoint\)[\s\S]*pendingTouchDrag = \{ nodeId, localPoint \}[\s\S]*if \(touchDragAnimationFrame\) return[\s\S]*requestAnimationFrame/,
+  );
+  assert.match(
+    bridge,
+    /function finishActiveTouchNodeDrag[\s\S]*cancelAnimationFrame\(touchDragAnimationFrame\)[\s\S]*flushPendingTouchDrag\(\)[\s\S]*simulator\.endDragNode/,
+  );
+});
+
+test("graph performance mode invalidates at the force and label thresholds", async () => {
+  const bridge = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
+
+  assert.match(bridge, /FORCE_DENSE_NODE_THRESHOLD\s*=\s*1000/);
+  assert.match(bridge, /GRAPH_LABEL_NODE_THRESHOLD\s*=\s*1800/);
+  assert.match(
+    bridge,
+    /const forceDense = nodeCount >= FORCE_DENSE_NODE_THRESHOLD[\s\S]*const labelsEnabled = nodeCount < GRAPH_LABEL_NODE_THRESHOLD/,
+  );
+  assert.match(
+    bridge,
+    /const rendererType = wantsWebGL \? "webgl" : "canvas"[\s\S]*sizeClass = [\s\S]*forceDense \? "force-dense" : "force-normal"[\s\S]*labelsEnabled \? "labels" : "no-labels"/,
+  );
+  assert.match(
+    bridge,
+    /if \(rendererType !== lastRendererType\)[\s\S]*orb\.setRenderer\(rendererType\)/,
+  );
+  assert.match(bridge, /labelsIsEnabled:\s*labelsEnabled/);
+});
+
+test("WebGL capability probing is cached across graph performance updates", async () => {
+  const bridge = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
+
+  assert.match(bridge, /let webGL2Support/);
+  assert.match(
+    bridge,
+    /function supportsWebGL2\(\)[\s\S]*webGL2Support !== undefined[\s\S]*canvas\.getContext\("webgl2"\)[\s\S]*return webGL2Support/,
+  );
 });

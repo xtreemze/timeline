@@ -31,11 +31,11 @@ function legacySpatialFactory(): DeferredSpatialViewFactory | null {
 if (supportsWebGL2()) {
   const lazyWorldView = createDeferredSpatialViewFactory(
     async () => {
-      const [{ realDeckWorldBindings }, { registerTimelineWorldView }] = await Promise.all([
+      const [{ loadRealDeckWorldBindings }, { registerTimelineWorldView }] = await Promise.all([
         import("./world/deck-world-bindings.ts"),
         import("./world/world-view-registration.ts"),
       ]);
-      return registerTimelineWorldView(realDeckWorldBindings);
+      return registerTimelineWorldView(await loadRealDeckWorldBindings());
     },
     {
       fallback: legacySpatialFactory,

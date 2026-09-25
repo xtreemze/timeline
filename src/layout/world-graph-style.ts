@@ -37,12 +37,12 @@ export const WORLD_DARK_PALETTE: WorldGraphPalette = Object.freeze({
 });
 
 /**
- * Ordinary nodes render at roughly 44-52px visible diameter before authored
- * sizing, comparable with a mobile icon button. Picking keeps a separate
- * >=44px target in WorldSurface.
+ * Nodes share one physical footprint across rendering, picking, and collision.
+ * The minimum 44px diameter is therefore visible rather than hidden inside a
+ * larger interaction-only target.
  */
-export const WORLD_NODE_SCALE = 2;
-/** Minimum radius of the mobile interaction footprint (44px diameter). */
+export const WORLD_NODE_SCALE = 1;
+/** Minimum visible/touch/collision radius (44px diameter). */
 export const WORLD_ENTITY_MIN_HIT_RADIUS_PX = 22;
 
 export interface WorldNodeStyle {
@@ -67,6 +67,24 @@ export interface WorldEdgeStyle {
 
 const HEX_COLOR = /^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 const SHAPES: readonly WorldNodeShape[] = ["circle", "square", "diamond", "hexagon", "pin"];
+
+/**
+ * Radius multiplier that gives the common geometric shapes approximately the
+ * same filled area for one authored semantic radius. Collision and marker
+ * atlases use the same multiplier, so perceptual normalization never clips.
+ */
+export function worldNodeShapeVisualRadiusScale(shape: WorldNodeShape): number {
+  switch (shape) {
+    case "square":
+      return Math.sqrt(Math.PI) / 2;
+    case "diamond":
+      return Math.sqrt(Math.PI / 2);
+    case "hexagon":
+      return Math.sqrt(Math.PI / ((3 * Math.sqrt(3)) / 2));
+    default:
+      return 1;
+  }
+}
 
 function record(value: unknown): Readonly<Record<string, unknown>> | null {
   return typeof value === "object" && value !== null && !Array.isArray(value)
@@ -132,36 +150,64 @@ function worldNodeMetrics(input: WorldNodeStyleInput): {
   readonly borderWidth: number;
 } {
   const own = styleOf(input.attributes);
-  // Keep ordinary nodes at least icon-button scale visibly, not merely as
-  // hit targets. Quantized radii still keep the marker atlas bounded.
-  const baseRadius = Math.round(11 + Math.min(1, Math.max(0, input.visualWeight ?? 0)) * 2);
-  const authoredDiameter = number(own["diameter"], 8, 56);
+  const baseRadius = Math.round(10 + Math.min(1, Math.max(0, input.visualWeight ?? 0)) * 2);
+  // Portable marker semantics: `size` and `diameter` are visible diameters;
+  // `radius` is the only radius-valued property. Authored geometry may grow a
+  // node beyond the shared target, but may not make its physical footprint
+  // smaller than the minimum touch/collision target.
+  const authoredDiameter = number(own["size"], 8, 64) ?? number(own["diameter"], 8, 64);
   const authoredRadius =
-    number(own["size"], 4, 28) ??
-    number(own["radius"], 4, 28) ??
-    (authoredDiameter === null ? null : authoredDiameter / 2);
-  const resolvedRadius = Math.round(authoredRadius ?? baseRadius);
+    number(own["radius"], 4, 32) ?? (authoredDiameter === null ? null : authoredDiameter / 2);
+  const resolvedRadius = Math.round(authoredRadius ?? baseRadius * WORLD_NODE_SCALE);
   const authoredBorderWidth =
     number(own["borderWidth"], 0, 8) ?? number(own["strokeWidth"], 0, 8) ?? 2;
   return Object.freeze({
     // Interaction state is presentation-only. Never feed hover/selection into
     // visible geometry or collision/force footprints.
-    radius: resolvedRadius * WORLD_NODE_SCALE,
+    radius: resolvedRadius,
     borderWidth: authoredBorderWidth,
   });
 }
 
-/**
- * Full on-screen radius that collision/picking must reserve. The force body
- * must never be smaller than what is visibly rendered, and it also respects
- * the 44px minimum mobile interaction target.
- */
-export function worldNodeFootprintRadiusPx(input: WorldNodeStyleInput): number {
+function worldNodeShape(input: WorldNodeStyleInput): WorldNodeShape {
+  const type = (input.type ?? "").toLowerCase();
+  const own = styleOf(input.attributes);
+  const ownShape = text(own["shape"] ?? own["markerShape"], 16)?.toLowerCase();
+  return SHAPES.includes(ownShape as WorldNodeShape)
+    ? (ownShape as WorldNodeShape)
+    : defaultNodeShape(type);
+}
+
+function worldNodeDisplayMetrics(input: WorldNodeStyleInput): {
+  readonly radius: number;
+  readonly borderWidth: number;
+  readonly shape: WorldNodeShape;
+} {
   const metrics = worldNodeMetrics(input);
-  return Math.max(
-    WORLD_ENTITY_MIN_HIT_RADIUS_PX,
-    metrics.radius + metrics.borderWidth,
+  const shape = worldNodeShape(input);
+  const shapeScale = worldNodeShapeVisualRadiusScale(shape);
+  const minimumBodyRadius = Math.max(
+    0,
+    (WORLD_ENTITY_MIN_HIT_RADIUS_PX - metrics.borderWidth) / shapeScale,
   );
+  return Object.freeze({
+    // Whole-pixel body radii keep the marker atlas bounded while guaranteeing
+    // that the full visible footprint is never smaller than the touch target.
+    radius: Math.max(metrics.radius, Math.ceil(minimumBodyRadius)),
+    borderWidth: metrics.borderWidth,
+    shape,
+  });
+}
+
+/** Full visible/touch/collision marker radius, including shape extent and border. */
+export function worldNodeVisualFootprintRadiusPx(input: WorldNodeStyleInput): number {
+  const metrics = worldNodeDisplayMetrics(input);
+  return metrics.radius * worldNodeShapeVisualRadiusScale(metrics.shape) + metrics.borderWidth;
+}
+
+/** Collision and picking use the exact same radius as the rendered node. */
+export function worldNodeFootprintRadiusPx(input: WorldNodeStyleInput): number {
+  return worldNodeVisualFootprintRadiusPx(input);
 }
 
 export function worldNodeStyle(
@@ -170,8 +216,7 @@ export function worldNodeStyle(
 ): WorldNodeStyle {
   const type = (input.type ?? "").toLowerCase();
   const own = styleOf(input.attributes);
-  const ownShape = text(own["shape"] ?? own["markerShape"], 16)?.toLowerCase();
-  const metrics = worldNodeMetrics(input);
+  const metrics = worldNodeDisplayMetrics(input);
   const fill =
     color(own["fillColor"]) ??
     color(own["fill"]) ??
@@ -190,13 +235,62 @@ export function worldNodeStyle(
     fill,
     border,
     borderWidth: metrics.borderWidth,
-    shape: SHAPES.includes(ownShape as WorldNodeShape)
-      ? (ownShape as WorldNodeShape)
-      : defaultNodeShape(type),
+    shape: metrics.shape,
     icon: text(own["icon"], 48) ?? (type || null),
     image: text(own["image"] ?? own["imageUrl"], 2048),
     radius: metrics.radius,
   });
+}
+
+interface WorldPlaceMarkerMetrics {
+  readonly radius: number;
+  readonly borderWidth: number;
+  readonly shape: WorldNodeShape;
+}
+
+function worldPlaceMarkerMetrics(placeStyle: unknown): WorldPlaceMarkerMetrics {
+  const own = record(placeStyle) ?? {};
+  const marker = record(own["marker"]) ?? {};
+  const ownShape = text(
+    marker["shape"] ?? marker["markerShape"] ?? own["markerShape"] ?? own["shape"],
+    16,
+  )?.toLowerCase();
+  const borderWidth =
+    number(marker["borderWidth"], 0, 8) ??
+    number(marker["strokeWidth"], 0, 8) ??
+    number(marker["weight"], 0, 8) ??
+    number(own["borderWidth"], 0, 8) ??
+    2;
+  const authoredDiameter =
+    number(marker["size"], 8, 64) ??
+    number(marker["diameter"], 8, 64) ??
+    number(own["size"], 8, 64) ??
+    number(own["diameter"], 8, 64);
+  const authoredRadius =
+    number(marker["radius"], 4, 32) ??
+    number(own["radius"], 4, 32) ??
+    (authoredDiameter === null ? 12 : authoredDiameter / 2);
+
+  return Object.freeze({
+    radius: Math.round(authoredRadius),
+    borderWidth,
+    shape: SHAPES.includes(ownShape as WorldNodeShape) ? (ownShape as WorldNodeShape) : "pin",
+  });
+}
+
+/** Full visible footprint of a place marker, including shape extent and border. */
+export function worldPlaceVisualFootprintRadiusPx(placeStyle: unknown): number {
+  const metrics = worldPlaceMarkerMetrics(placeStyle);
+  return metrics.radius * worldNodeShapeVisualRadiusScale(metrics.shape) + metrics.borderWidth;
+}
+
+/**
+ * Layout/picking footprint for a place anchor. Like entity nodes, an anchor
+ * reserves at least the 44px interaction footprint even when its marker is
+ * visually smaller.
+ */
+export function worldPlaceFootprintRadiusPx(placeStyle: unknown): number {
+  return Math.max(WORLD_ENTITY_MIN_HIT_RADIUS_PX, worldPlaceVisualFootprintRadiusPx(placeStyle));
 }
 
 /** Place anchors use the same marker grammar as graph nodes without becoming semantic graph nodes. */
@@ -208,10 +302,7 @@ export function worldPlaceStyle(
 ): WorldNodeStyle {
   const own = record(placeStyle) ?? {};
   const marker = record(own["marker"]) ?? {};
-  const ownShape = text(
-    marker["shape"] ?? marker["markerShape"] ?? own["markerShape"] ?? own["shape"],
-    16,
-  )?.toLowerCase();
+  const metrics = worldPlaceMarkerMetrics(placeStyle);
   const fill =
     color(marker["fillColor"]) ??
     color(marker["fill"]) ??
@@ -226,29 +317,17 @@ export function worldPlaceStyle(
     color(own["stroke"]) ??
     color(marker["color"]) ??
     palette.paper;
-  const borderWidth =
-    number(marker["borderWidth"], 0, 8) ??
-    number(marker["strokeWidth"], 0, 8) ??
-    number(marker["weight"], 0, 8) ??
-    number(own["borderWidth"], 0, 8) ??
-    2;
-  const authoredRadius =
-    number(marker["radius"], 4, 32) ??
-    number(own["radius"], 4, 32) ??
-    (number(marker["size"], 8, 64) ?? number(own["size"], 8, 64) ?? 44) / 2;
   return Object.freeze({
     fill,
     border,
-    borderWidth,
-    shape: SHAPES.includes(ownShape as WorldNodeShape)
-      ? (ownShape as WorldNodeShape)
-      : "pin",
+    borderWidth: metrics.borderWidth,
+    shape: metrics.shape,
     icon: text(marker["icon"] ?? own["icon"], 48) ?? "place",
-    image: text(
-      marker["image"] ?? marker["imageUrl"] ?? own["image"] ?? own["imageUrl"],
-      2048,
-    ),
-    radius: Math.max(WORLD_ENTITY_MIN_HIT_RADIUS_PX, Math.round(authoredRadius)),
+    image: text(marker["image"] ?? marker["imageUrl"] ?? own["image"] ?? own["imageUrl"], 2048),
+    // The visible marker respects authored geometry. The renderer maintains
+    // the separate >=44px acquisition target, so a deliberately small marker
+    // does not have to be visually inflated for touch accessibility.
+    radius: metrics.radius,
   });
 }
 
@@ -270,6 +349,10 @@ export interface WorldEdgeStyleInput {
   /** Incident-edge emphasis without changing canonical selection. */
   readonly emphasized?: boolean;
   readonly inactive?: boolean;
+  /** Visual de-emphasis for edges outside the active interaction neighborhood. */
+  readonly subdued?: boolean;
+  /** Endpoint-derived colour used when no timeline category colour is available. */
+  readonly fallbackColor?: string;
 }
 
 export function worldEdgeStyle(
@@ -279,6 +362,8 @@ export function worldEdgeStyle(
   const own = styleOf(input.attributes);
   const lineStyle = text(own["lineStyle"] ?? own["strokeStyle"], 16)?.toLowerCase();
   const semanticColor =
+    color(own["categoryColor"]) ??
+    color(input.fallbackColor) ??
     color(own["color"]) ??
     color(own["stroke"]) ??
     color(own["lineColor"]) ??
@@ -287,11 +372,11 @@ export function worldEdgeStyle(
     number(own["width"], 0.5, 10) ??
     number(own["strokeWidth"], 0.5, 10) ??
     number(own["lineWidth"], 0.5, 10) ??
-    2.5;
+    1;
   return Object.freeze({
     // Interaction emphasis is renderer-only so edge geometry/routing never
     // changes on hover or selection.
-    color: input.inactive && !input.selected ? palette.muted : semanticColor,
+    color: (input.subdued || input.inactive) && !input.selected ? palette.muted : semanticColor,
     width: authoredWidth,
     dashed:
       lineStyle === "dashed" ||

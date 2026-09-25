@@ -45,12 +45,16 @@ function finite(value: number): boolean {
 
 export function validateTemporalEnvelope(envelope: TemporalEnvelope): readonly string[] {
   const findings: string[] = [];
-  if (!envelope.id.trim()) findings.push("Temporal envelope ID is required.");
+  if (!envelope.id.trim()) {
+    findings.push("Temporal envelope ID is required.");
+  }
   if (
-    !finite(envelope.earliestStart) ||
-    !finite(envelope.latestStart) ||
-    !finite(envelope.earliestEnd) ||
-    !finite(envelope.latestEnd)
+    !(
+      finite(envelope.earliestStart) &&
+      finite(envelope.latestStart) &&
+      finite(envelope.earliestEnd) &&
+      finite(envelope.latestEnd)
+    )
   ) {
     findings.push("Temporal envelope bounds must be finite.");
     return Object.freeze(findings);
@@ -70,12 +74,12 @@ export function validateTemporalEnvelope(envelope: TemporalEnvelope): readonly s
   return Object.freeze(findings);
 }
 
-export function validateTemporalConstraint(
-  constraint: TemporalConstraint,
-): readonly string[] {
+export function validateTemporalConstraint(constraint: TemporalConstraint): readonly string[] {
   const findings: string[] = [];
-  if (!constraint.id.trim()) findings.push("Temporal constraint ID is required.");
-  if (!constraint.leftId.trim() || !constraint.rightId.trim()) {
+  if (!constraint.id.trim()) {
+    findings.push("Temporal constraint ID is required.");
+  }
+  if (!(constraint.leftId.trim() && constraint.rightId.trim())) {
     findings.push("Temporal constraint requires two record references.");
   }
   if (constraint.leftId === constraint.rightId) {
@@ -93,12 +97,13 @@ export function validateTemporalConstraint(
   return Object.freeze(findings);
 }
 
-function evaluateBefore(
-  left: TemporalEnvelope,
-  right: TemporalEnvelope,
-): TemporalConstraintStatus {
-  if (left.latestEnd <= right.earliestStart) return "satisfied";
-  if (left.earliestEnd > right.latestStart) return "violated";
+function evaluateBefore(left: TemporalEnvelope, right: TemporalEnvelope): TemporalConstraintStatus {
+  if (left.latestEnd <= right.earliestStart) {
+    return "satisfied";
+  }
+  if (left.earliestEnd > right.latestStart) {
+    return "violated";
+  }
   return "indeterminate";
 }
 
@@ -108,7 +113,9 @@ function evaluateOverlap(
 ): TemporalConstraintStatus {
   const definitelyDisjoint =
     left.latestEnd < right.earliestStart || right.latestEnd < left.earliestStart;
-  if (definitelyDisjoint) return "violated";
+  if (definitelyDisjoint) {
+    return "violated";
+  }
 
   const definitelyOverlap =
     left.latestStart <= right.earliestEnd && right.latestStart <= left.earliestEnd;
@@ -121,7 +128,9 @@ function evaluateContains(
 ): TemporalConstraintStatus {
   const definitelyContains =
     left.latestStart <= right.earliestStart && left.earliestEnd >= right.latestEnd;
-  if (definitelyContains) return "satisfied";
+  if (definitelyContains) {
+    return "satisfied";
+  }
 
   const definitelyCannotContain =
     left.earliestStart > right.latestStart || left.latestEnd < right.earliestEnd;
@@ -136,17 +145,16 @@ function evaluateWithinAfter(
   const minimumDelay = right.earliestStart - left.latestEnd;
   const maximumDelay = right.latestStart - left.earliestEnd;
 
-  if (minimumDelay >= 0 && maximumDelay <= maxDeltaMs) return "satisfied";
+  if (minimumDelay >= 0 && maximumDelay <= maxDeltaMs) {
+    return "satisfied";
+  }
   if (right.latestStart < left.earliestEnd || minimumDelay > maxDeltaMs) {
     return "violated";
   }
   return "indeterminate";
 }
 
-function statusReason(
-  kind: TemporalConstraintKind,
-  status: TemporalConstraintStatus,
-): string {
+function statusReason(kind: TemporalConstraintKind, status: TemporalConstraintStatus): string {
   if (status === "indeterminate") {
     return "Temporal uncertainty does not establish whether the constraint is satisfied.";
   }
@@ -159,9 +167,11 @@ export function evaluateTemporalConstraint(
   right: TemporalEnvelope | null,
 ): TemporalConstraintEvaluation {
   const constraintFindings = validateTemporalConstraint(constraint);
-  if (constraintFindings.length) throw new Error(constraintFindings.join(" "));
+  if (constraintFindings.length > 0) {
+    throw new Error(constraintFindings.join(" "));
+  }
 
-  if (!left || !right) {
+  if (!(left && right)) {
     return Object.freeze({
       constraintId: constraint.id,
       status: "indeterminate" as const,
@@ -169,11 +179,10 @@ export function evaluateTemporalConstraint(
     });
   }
 
-  const envelopeFindings = [
-    ...validateTemporalEnvelope(left),
-    ...validateTemporalEnvelope(right),
-  ];
-  if (envelopeFindings.length) throw new Error(envelopeFindings.join(" "));
+  const envelopeFindings = [...validateTemporalEnvelope(left), ...validateTemporalEnvelope(right)];
+  if (envelopeFindings.length > 0) {
+    throw new Error(envelopeFindings.join(" "));
+  }
 
   let status: TemporalConstraintStatus;
   switch (constraint.kind) {
@@ -211,9 +220,7 @@ export function evaluateTemporalConstraint(
   });
 }
 
-function orderingEdge(
-  constraint: TemporalConstraint,
-): readonly [string, string] | null {
+function orderingEdge(constraint: TemporalConstraint): readonly [string, string] | null {
   if (constraint.kind === "before" || constraint.kind === "within-after") {
     return [constraint.leftId, constraint.rightId];
   }
@@ -244,10 +251,7 @@ export function findTemporalConstraintCycles(
   for (const { constraint, edge } of edges) {
     const [from, to] = edge;
     const current = outgoing.get(from) ?? [];
-    outgoing.set(
-      from,
-      Object.freeze([...current, { to, constraintId: constraint.id }]),
-    );
+    outgoing.set(from, Object.freeze([...current, { to, constraintId: constraint.id }]));
   }
 
   const findings: TemporalConstraintGraphFinding[] = [];
@@ -269,17 +273,20 @@ export function findTemporalConstraintCycles(
         constraintStack.pop();
         continue;
       }
-      if (!active.has(edge.to)) continue;
+      if (!active.has(edge.to)) {
+        continue;
+      }
 
       const startIndex = nodeStack.lastIndexOf(edge.to);
-      if (startIndex < 0) continue;
+      if (startIndex < 0) {
+        continue;
+      }
       const recordIds = [...nodeStack.slice(startIndex), edge.to];
-      const constraintIds = [
-        ...constraintStack.slice(startIndex),
-        edge.constraintId,
-      ];
+      const constraintIds = [...constraintStack.slice(startIndex), edge.constraintId];
       const signature = [...new Set(recordIds)].sort().join("|");
-      if (signatures.has(signature)) continue;
+      if (signatures.has(signature)) {
+        continue;
+      }
       signatures.add(signature);
       findings.push(
         Object.freeze({
@@ -300,7 +307,9 @@ export function findTemporalConstraintCycles(
     nodes.add(edge[1]);
   }
   for (const node of [...nodes].sort((left, right) => left.localeCompare(right))) {
-    if (!visited.has(node)) visit(node);
+    if (!visited.has(node)) {
+      visit(node);
+    }
   }
 
   return Object.freeze(findings);

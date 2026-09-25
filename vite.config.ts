@@ -1,9 +1,23 @@
+import { fileURLToPath } from "node:url";
+
 import { defineConfig } from "vite";
+
+const deckLayersSourceEntry = fileURLToPath(
+  new URL("./node_modules/@deck.gl/layers/src/index.ts", import.meta.url),
+);
 
 export default defineConfig({
   root: "site",
   // Keep production assets relative so the same build works under GitHub Pages' /timeline/ subpath.
   base: "./",
+  // deck.gl ships its TypeScript source in the package. Resolving the public layers
+  // entry to that source keeps individual layer modules visible to Rolldown, so the
+  // TextLayer graph can be split instead of collapsing behind one oversized module.
+  // This intentionally preserves the normal (including WebGPU) implementation rather
+  // than switching to the lighter WebGL-only export condition.
+  resolve: {
+    alias: [{ find: /^@deck\.gl\/layers$/, replacement: deckLayersSourceEntry }],
+  },
   build: {
     emptyOutDir: true,
     outDir: "../dist",
@@ -11,11 +25,14 @@ export default defineConfig({
     target: "chrome155",
     manifest: true,
     rolldownOptions: {
+      preserveEntrySignatures: "allow-extension",
       input: {
         main: new URL("./site/index.html", import.meta.url).pathname,
       },
       output: {
+        strictExecutionOrder: true,
         codeSplitting: {
+          includeDependenciesRecursively: false,
           groups: [
             // Shared modules claimed first, so the optional-runtime groups below
             // (which capture their dependencies recursively) cannot absorb
@@ -28,6 +45,12 @@ export default defineConfig({
             {
               name: "map-runtime",
               test: /node_modules[\\/]leaflet[\\/]/,
+              priority: 40,
+            },
+            {
+              name: "luma-webgpu",
+              test: /node_modules[\\/]@luma\\.gl[\\/]webgpu[\\/]/,
+              maxSize: 300_000,
               priority: 40,
             },
             {
@@ -53,6 +76,13 @@ export default defineConfig({
               test: /node_modules[\\/]@memgraph[\\/]orb[\\/]/,
               maxSize: 400_000,
               priority: 20,
+            },
+            {
+              name: "application",
+              test: /[\\/](?:site|src)[\\/]/,
+              entriesAware: true,
+              maxSize: 350_000,
+              priority: 5,
             },
           ],
         },

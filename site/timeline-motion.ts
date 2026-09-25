@@ -221,6 +221,7 @@ interface HapticPattern {
 
 function hapticPattern(kind: string): HapticPattern {
   if (kind === "cluster") return { duration: 14, magnitude: 0.18, vibration: 8 };
+  if (kind === "drag") return { duration: 26, magnitude: 0.32, vibration: 12 };
   if (kind === "release") return { duration: 22, magnitude: 0.24, vibration: 10 };
   if (kind === "selection") return { duration: 18, magnitude: 0.2, vibration: 7 };
   return { duration: 12, magnitude: 0.14, vibration: 6 };

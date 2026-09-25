@@ -27,19 +27,11 @@ test("before constraints distinguish satisfied, violated, and uncertain chronolo
   };
 
   assert.equal(
-    evaluateTemporalConstraint(
-      constraint,
-      envelope("a", 10, 20),
-      envelope("b", 30, 40),
-    ).status,
+    evaluateTemporalConstraint(constraint, envelope("a", 10, 20), envelope("b", 30, 40)).status,
     "satisfied",
   );
   assert.equal(
-    evaluateTemporalConstraint(
-      constraint,
-      envelope("a", 30, 40),
-      envelope("b", 10, 20),
-    ).status,
+    evaluateTemporalConstraint(constraint, envelope("a", 30, 40), envelope("b", 10, 20)).status,
     "violated",
   );
 
@@ -80,27 +72,15 @@ test("overlap and containment use conservative uncertainty semantics", () => {
   };
 
   assert.equal(
-    evaluateTemporalConstraint(
-      overlap,
-      envelope("a", 10, 30),
-      envelope("b", 20, 40),
-    ).status,
+    evaluateTemporalConstraint(overlap, envelope("a", 10, 30), envelope("b", 20, 40)).status,
     "satisfied",
   );
   assert.equal(
-    evaluateTemporalConstraint(
-      overlap,
-      envelope("a", 10, 15),
-      envelope("b", 20, 25),
-    ).status,
+    evaluateTemporalConstraint(overlap, envelope("a", 10, 15), envelope("b", 20, 25)).status,
     "violated",
   );
   assert.equal(
-    evaluateTemporalConstraint(
-      contains,
-      envelope("a", 10, 50),
-      envelope("b", 20, 40),
-    ).status,
+    evaluateTemporalConstraint(contains, envelope("a", 10, 50), envelope("b", 20, 40)).status,
     "satisfied",
   );
 });
@@ -117,19 +97,11 @@ test("within-after constraints require an explicit non-negative tolerance", () =
 
   assert.deepEqual(validateTemporalConstraint(constraint), []);
   assert.equal(
-    evaluateTemporalConstraint(
-      constraint,
-      envelope("a", 10, 20),
-      envelope("b", 30, 30),
-    ).status,
+    evaluateTemporalConstraint(constraint, envelope("a", 10, 20), envelope("b", 30, 30)).status,
     "satisfied",
   );
   assert.equal(
-    evaluateTemporalConstraint(
-      constraint,
-      envelope("a", 10, 20),
-      envelope("b", 50, 50),
-    ).status,
+    evaluateTemporalConstraint(constraint, envelope("a", 10, 20), envelope("b", 50, 50)).status,
     "violated",
   );
 

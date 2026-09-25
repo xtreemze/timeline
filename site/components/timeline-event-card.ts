@@ -33,7 +33,9 @@ export class LuumEventCardElement extends LitElement {
   }
 
   setSemanticItem(item: TimelineEventCardItem): void {
-    if (this.item === item) return;
+    if (this.item === item) {
+      return;
+    }
     this.item = item;
     this.requestUpdate();
     this.performUpdate();
@@ -41,6 +43,7 @@ export class LuumEventCardElement extends LitElement {
 
   setSelected(selected: boolean): void {
     this.classList.toggle("is-selected", selected);
+    this.terminal?.setAttribute("aria-expanded", String(selected));
   }
 
   get terminal(): HTMLButtonElement | null {
@@ -49,7 +52,9 @@ export class LuumEventCardElement extends LitElement {
 
   override render() {
     const item = this.item;
-    if (!item) return noChange;
+    if (!item) {
+      return noChange;
+    }
 
     const primaryTag = item.tags?.[0];
     const iconName =
@@ -69,14 +74,17 @@ export class LuumEventCardElement extends LitElement {
         class="timeline-event-terminal"
         data-id=${item.id}
         aria-label=${ariaLabel}
+        aria-controls="timeline-focus-view"
+        aria-expanded="false"
       >
         <span
           class=${media?.src ? "timeline-event-art" : "timeline-event-dot"}
           aria-hidden="true"
           data-timeline-visual
         >
-          ${media?.src
-            ? html`
+          ${
+            media?.src
+              ? html`
                 <img
                   class="timeline-event-art-image"
                   src=${media.src}
@@ -86,7 +94,8 @@ export class LuumEventCardElement extends LitElement {
                 />
                 <span class="timeline-event-icon-badge" data-timeline-icon=${iconName}></span>
               `
-            : html`<span data-timeline-icon=${iconName}>•</span>`}
+              : html`<span data-timeline-icon=${iconName}>•</span>`
+          }
         </span>
         <span class="timeline-event-copy">
           <strong>${item.title || item.id}</strong>
@@ -98,7 +107,9 @@ export class LuumEventCardElement extends LitElement {
 
   override updated(): void {
     const item = this.item;
-    if (!item) return;
+    if (!item) {
+      return;
+    }
 
     this.style.setProperty("--event-color", item.color || "var(--accent)");
     this.dataset.terminalShape = item.terminalShape || "rounded";
@@ -117,9 +128,6 @@ export class LuumEventCardElement extends LitElement {
   }
 }
 
-if (
-  typeof customElements !== "undefined" &&
-  !customElements.get("luum-event-card")
-) {
+if (typeof customElements !== "undefined" && !customElements.get("luum-event-card")) {
   customElements.define("luum-event-card", LuumEventCardElement);
 }

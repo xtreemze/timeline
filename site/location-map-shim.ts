@@ -3,8 +3,6 @@
  * Sets TimelineLocationMap on globalThis for backward compatibility with IIFE code
  */
 
-import { TimelineLocationMap } from './location-map.ts';
+import { TimelineLocationMap } from "./location-map.ts";
 
 globalThis.TimelineLocationMap = TimelineLocationMap;
-
-export {};

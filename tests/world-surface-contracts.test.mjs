@@ -115,10 +115,7 @@ test("world temporal window preserves exact inclusive bounds", () => {
     end: 100,
   });
 
-  assert.throws(
-    () => createWorldTemporalWindow({ start: 200, end: 100 }),
-    /greater than or equal/,
-  );
+  assert.throws(() => createWorldTemporalWindow({ start: 200, end: 100 }), /greater than or equal/);
 });
 
 test("world hits map immediately back to canonical selection IDs", () => {
@@ -126,7 +123,7 @@ test("world hits map immediately back to canonical selection IDs", () => {
     worldSelectionFromHit({
       kind: "entity",
       entityId: "alice",
-      worldInstanceId: "[\"alice\",\"meeting\"]",
+      worldInstanceId: '["alice","meeting"]',
       depth: 0.2,
     }),
     { kind: "entity", id: "alice" },
@@ -158,12 +155,12 @@ test("rendered world-instance identity never replaces canonical entity selection
   const stockholm = worldSelectionFromHit({
     kind: "entity",
     entityId: "alice",
-    worldInstanceId: "[\"alice\",\"stockholm-meeting\"]",
+    worldInstanceId: '["alice","stockholm-meeting"]',
   });
   const copenhagen = worldSelectionFromHit({
     kind: "entity",
     entityId: "alice",
-    worldInstanceId: "[\"alice\",\"copenhagen-meeting\"]",
+    worldInstanceId: '["alice","copenhagen-meeting"]',
   });
 
   assert.deepEqual(stockholm, copenhagen);

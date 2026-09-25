@@ -4,8 +4,6 @@
  * This shim can be removed after app.ts conversion (Phase 4d)
  */
 
-import { TimelineScale } from './time-scale.ts';
+import { TimelineScale } from "./time-scale.ts";
 
 globalThis.TimelineScale = TimelineScale;
-
-export {};

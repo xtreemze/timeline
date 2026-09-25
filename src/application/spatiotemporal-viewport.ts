@@ -32,7 +32,9 @@ export interface SpatiotemporalViewport {
 }
 
 function finite(value: number, label: string): number {
-  if (!Number.isFinite(value)) throw new Error(`${label} must be finite.`);
+  if (!Number.isFinite(value)) {
+    throw new Error(`${label} must be finite.`);
+  }
   return value;
 }
 
@@ -41,7 +43,9 @@ function optionalFinite(value: number | undefined, label: string): number | unde
 }
 
 function geographicBounds(bounds: GeographicBounds | undefined): GeographicBounds | undefined {
-  if (!bounds) return undefined;
+  if (!bounds) {
+    return undefined;
+  }
   const south = finite(bounds.south, "Geographic south");
   const north = finite(bounds.north, "Geographic north");
   const west = finite(bounds.west, "Geographic west");
@@ -60,7 +64,9 @@ export function createSpatiotemporalViewport(
 ): SpatiotemporalViewport {
   const start = finite(viewport.time.start, "Temporal viewport start");
   const end = finite(viewport.time.end, "Temporal viewport end");
-  if (end < start) throw new Error("Temporal viewport end must be greater than or equal to start.");
+  if (end < start) {
+    throw new Error("Temporal viewport end must be greater than or equal to start.");
+  }
 
   const cursor = optionalFinite(viewport.time.cursor, "Temporal viewport cursor");
   const semanticZoom = optionalFinite(viewport.semanticZoom, "Semantic zoom");
@@ -111,9 +117,7 @@ export function spatiotemporalViewportKey(viewport: SpatiotemporalViewport): str
     space: normalized.space
       ? {
           focusPlaceId: normalized.space.focusPlaceId ?? null,
-          geographicBounds: bounds
-            ? [bounds.south, bounds.west, bounds.north, bounds.east]
-            : null,
+          geographicBounds: bounds ? [bounds.south, bounds.west, bounds.north, bounds.east] : null,
         }
       : null,
     focus: normalized.focus

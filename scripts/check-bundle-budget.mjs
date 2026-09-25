@@ -33,9 +33,11 @@ if (!entry || typeof entry.file !== "string") {
 
 const recordsByKey = new Map(Object.entries(manifest));
 const staticFiles = new Set();
+const visitedRecords = new Set();
 
 function visit(record) {
-  if (!record || typeof record !== "object") return;
+  if (!record || typeof record !== "object" || visitedRecords.has(record)) return;
+  visitedRecords.add(record);
   if (typeof record.file === "string") staticFiles.add(record.file);
   for (const importKey of record.imports ?? []) {
     visit(recordsByKey.get(importKey));
@@ -45,7 +47,7 @@ function visit(record) {
 visit(entry);
 
 const heavyweightInitialChunks = [...staticFiles].filter((file) =>
-  /(?:pdf-runtime|world-rendering|legacy-graph)/.test(file),
+  /(?:pdf-runtime|world-rendering|legacy-graph|webgpu-adapter)/.test(file),
 );
 if (heavyweightInitialChunks.length > 0) {
   throw new Error(

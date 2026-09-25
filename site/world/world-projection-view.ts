@@ -64,15 +64,28 @@ interface InputRelationship {
   readonly predicate?: unknown;
   readonly role?: unknown;
   readonly placeId?: unknown;
+  readonly itemIds?: unknown;
   readonly time?: unknown;
   readonly confidence?: unknown;
   readonly attributes?: unknown;
+}
+
+interface InputCategory {
+  readonly id?: unknown;
+  readonly color?: unknown;
+}
+
+interface InputItem {
+  readonly id?: unknown;
+  readonly categoryId?: unknown;
 }
 
 export interface WorldViewModel {
   readonly entities?: readonly InputEntity[];
   readonly places?: readonly InputPlace[];
   readonly relationships?: readonly InputRelationship[];
+  readonly categories?: readonly InputCategory[];
+  readonly items?: readonly InputItem[];
 }
 
 export interface WorldViewViewport {
@@ -116,12 +129,12 @@ function temporalEndpoint(value: unknown): Readonly<Record<string, unknown>> | n
 
 function canonicalTime(value: unknown): CanonicalTemporalExtent | null {
   if (!isRecord(value)) return null;
-  const type = value["type"];
+  const type = value.type;
   if (type !== "instant" && type !== "interval") return null;
 
-  const start = temporalEndpoint(value["start"]);
-  const openStart = value["openStart"] === true;
-  const openEnd = value["openEnd"] === true;
+  const start = temporalEndpoint(value.start);
+  const openStart = value.openStart === true;
+  const openEnd = value.openEnd === true;
 
   if (type === "instant") {
     return Object.freeze({
@@ -132,7 +145,7 @@ function canonicalTime(value: unknown): CanonicalTemporalExtent | null {
     });
   }
 
-  const end = temporalEndpoint(value["end"]);
+  const end = temporalEndpoint(value.end);
   return Object.freeze({
     type,
     start,
@@ -155,19 +168,19 @@ function confidence(value: unknown): number | null {
 
 function placePresentationStyle(raw: InputPlace): Readonly<Record<string, unknown>> | undefined {
   const attributes = isRecord(raw.attributes) ? raw.attributes : {};
-  const attributeStyle = isRecord(attributes["style"]) ? attributes["style"] : {};
+  const attributeStyle = isRecord(attributes.style) ? attributes.style : {};
   const mapStyle = isRecord(raw.mapStyle) ? raw.mapStyle : {};
   const directStyle = isRecord(raw.style) ? raw.style : {};
   const directMarker = isRecord(raw.marker) ? raw.marker : {};
   const marker = Object.freeze({
-    ...(isRecord(attributeStyle["marker"]) ? attributeStyle["marker"] : {}),
+    ...(isRecord(attributeStyle.marker) ? attributeStyle.marker : {}),
     ...directMarker,
-    ...(isRecord(mapStyle["marker"]) ? mapStyle["marker"] : {}),
-    ...(isRecord(directStyle["marker"]) ? directStyle["marker"] : {}),
+    ...(isRecord(mapStyle.marker) ? mapStyle.marker : {}),
+    ...(isRecord(directStyle.marker) ? directStyle.marker : {}),
   });
-  const icon = text(raw.icon) || text(directMarker["icon"]) || text(attributes["icon"]);
+  const icon = text(raw.icon) || text(directMarker.icon) || text(attributes.icon);
   const markerShape =
-    text(raw.markerShape) || text(directMarker["shape"]) || text(attributes["markerShape"]);
+    text(raw.markerShape) || text(directMarker.shape) || text(attributes.markerShape);
   const resolvedMarker =
     Object.keys(marker).length > 0 || icon || markerShape
       ? Object.freeze({
@@ -215,6 +228,7 @@ function canonicalRelationships(
   input: readonly InputRelationship[],
   entityIds: ReadonlySet<string>,
   renderablePlaceIds: ReadonlySet<string>,
+  categoryColorByRelationshipId: ReadonlyMap<string, string> = new Map(),
 ): readonly CanonicalRelationship[] {
   const result: CanonicalRelationship[] = [];
 
@@ -227,6 +241,17 @@ function canonicalRelationships(
     if (!entityIds.has(subject) || !entityIds.has(object) || subject === object) continue;
 
     const rawPlaceId = text(raw.placeId);
+    const attributes: Record<string, unknown> = isRecord(raw.attributes)
+      ? { ...raw.attributes }
+      : {};
+    const categoryColor = categoryColorByRelationshipId.get(id);
+    if (categoryColor) {
+      const style: Record<string, unknown> = isRecord(attributes.style)
+        ? { ...attributes.style }
+        : {};
+      style.categoryColor = categoryColor;
+      attributes.style = Object.freeze(style);
+    }
     result.push(
       Object.freeze({
         id: relationshipId(id),
@@ -241,9 +266,7 @@ function canonicalRelationships(
         sourceIds: Object.freeze([]),
         confidence: confidence(raw.confidence),
         time: canonicalTime(raw.time),
-        attributes: isRecord(raw.attributes)
-          ? Object.freeze({ ...raw.attributes })
-          : Object.freeze({}),
+        attributes: Object.freeze(attributes),
       }),
     );
   }
@@ -315,10 +338,37 @@ export class WorldProjectionView {
     );
     this.#placeIds = new Set(places.map((place) => String(place.id)));
 
+    const categoryColors = new Map(
+      (Array.isArray(model.categories) ? model.categories : [])
+        .map((category) => [text(category.id), text(category.color)] as const)
+        .filter(([id, color]) => Boolean(id && color)),
+    );
+    const itemCategoryColors = new Map(
+      (Array.isArray(model.items) ? model.items : [])
+        .map((item) => {
+          const id = text(item.id);
+          const categoryColor = categoryColors.get(text(item.categoryId)) ?? "";
+          return [id, categoryColor] as const;
+        })
+        .filter(([id, color]) => Boolean(id && color)),
+    );
+    const categoryColorByRelationshipId = new Map<string, string>();
+    for (const relationship of Array.isArray(model.relationships) ? model.relationships : []) {
+      const id = text(relationship.id);
+      if (!id || !Array.isArray(relationship.itemIds)) continue;
+      for (const itemId of relationship.itemIds) {
+        const categoryColor = itemCategoryColors.get(text(itemId));
+        if (!categoryColor) continue;
+        categoryColorByRelationshipId.set(id, categoryColor);
+        break;
+      }
+    }
+
     this.#relationships = canonicalRelationships(
       Array.isArray(model.relationships) ? model.relationships : [],
       this.#entityIds,
       this.#placeIds,
+      categoryColorByRelationshipId,
     );
     this.#spatialAnchors = new SpatialAnchorIndex(places, this.#relationships);
 
@@ -348,6 +398,14 @@ export class WorldProjectionView {
    * when the window and active set are unchanged: the timeline re-publishes
    * its committed viewport after every settled gesture, including taps.
    */
+  previewWindow(viewport: WorldViewViewport | null): void {
+    const next =
+      viewport && Number.isFinite(viewport.start) && Number.isFinite(viewport.end)
+        ? Object.freeze({ start: viewport.start, end: viewport.end })
+        : null;
+    if (next) this.#runtime.setTemporalWindow(next);
+  }
+
   setWindow(viewport: WorldViewViewport | null): boolean {
     const next =
       viewport && Number.isFinite(viewport.start) && Number.isFinite(viewport.end)

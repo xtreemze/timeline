@@ -70,18 +70,18 @@ Rendering may retain entering/leaving material for continuity and may ramp physi
 
 Canonical entities do not acquire one permanent location merely because their occurrences happen at places.
 
-One canonical entity may have multiple simultaneous or historical world instances:
+Each active canonical entity has exactly one rendered world node. If its active occurrences reference several places, that one node carries several geographic anchors:
 
 ```
-canonical entity Alice
-  ├─ occurrence instance near Stockholm
-  ├─ occurrence instance near Copenhagen
-  └─ occurrence instance near Malmö
+canonical entity Alice ●
+  ├─ anchor → Stockholm
+  ├─ anchor → Copenhagen
+  └─ anchor → Malmö
 ```
 
-Every rendered instance carries the canonical entity ID plus the occurrence/context that caused the instance to exist. Selection, evidence, neighborhood queries and editing resolve through canonical IDs.
+The node carries the canonical entity ID plus the active occurrence IDs and spatial anchors that currently constrain it. Selection, evidence, neighborhood queries and editing resolve through that single canonical identity.
 
-Instance multiplicity is derived rendering state and must never duplicate canonical identity.
+Spatial multiplicity belongs to anchors and occurrence context, never to replicated entity nodes.
 
 ## Coordinate model
 
@@ -164,9 +164,38 @@ F(instance) =
 + F_user
 ```
 
-Exact/direct place evidence may strongly constrain a local occurrence instance. Approximate evidence may use a softer radius/influence. Unlocated material has no invented canonical coordinates and may be positioned by topology around related anchored instances.
+Exact/direct place evidence may strongly constrain the entity node. When several placed occurrences are active for the same entity, their anchors jointly constrain that one node. Approximate evidence may use a softer radius/influence. Unlocated material has no invented canonical coordinates and may be positioned by topology around related anchored nodes.
+
+### Force execution semantics
+
+The renderer-neutral simulation request uses **excitation**, a dimensionless temporary force-gain control. It is not a d3-force `alpha` or `alphaTarget`. A value of `0` means baseline backend force gain; larger values may accelerate response during topology changes, dragging, or post-drop settling. Backend-specific adapters may translate excitation to their own heat/iteration controls, but must preserve the request priority and settling semantics.
+
+Reference-solver dimensions are explicit:
+
+- local east/north offsets, collision radii, place precision, link rest lengths, and geographic neighborhood distances are metres;
+- visual altitude is metres of presentation offset, not source elevation evidence;
+- mass, anchor influence, edge strength, damping, and excitation are dimensionless;
+- settle energy is the reference backend's mean squared per-node velocity/activity criterion and must not be interpreted as d3 alpha.
+
+Small same-place groups use exact pair evaluation. Dense same-place groups use a deterministic spatial-neighbor index whose radius is derived from rendered collision footprint and bounded place precision. Hard collision/readability neighbors remain exact, while distant inverse-square repulsion may be omitted in the dense path. Same-place relationship springs are evaluated independently of that neighbor index. Cross-place interaction retains its separate world-space broad phase and is not widened by the dense-local optimization.
 
 Places remain anchors/records, not semantic graph nodes.
+
+### Manual layout controls
+
+The world footer may expose two explicit operator commands:
+
+- **Reorganize relationship layout (D3 DAG)** recomputes the local Sugiyama/DAG organization and routed relationship hints. This bypasses the per-place DAG result cache and stability hysteresis for that pass, then feeds fresh targets back into the live force solver as soft positional preferences. It never snaps rendered positions.
+- **Relax graph forces (D3 force)** reheats the current force scene without recomputing DAG targets.
+
+The commands deliberately use different rules for geography:
+
+- a geographic place is an immutable anchor/coordinate frame for the command, not a movable DAG or force node;
+- anchored entity instances may reorganize only in local tangent-space offsets around their owning anchor and remain subject to geographic anchor influence/precision;
+- cross-place relationships remain semantic/force relationships and do not pull one place coordinate toward another;
+- unanchored instances receive no invented place and no DAG target merely because a manual reorganization was requested; they remain force-owned by topology, collision, and related constraints;
+- a manual force relaxation may move anchored and unanchored entity instances according to their applicable forces, but it never edits stored place geometry or anchor evidence.
+
 
 ## WorldProjection
 

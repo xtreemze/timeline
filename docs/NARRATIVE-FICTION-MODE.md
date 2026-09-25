@@ -36,6 +36,8 @@ Each fictional item carries `extensions.narrative.displayTime` for the story-fac
 
 This preserves deterministic sorting and zooming, intervals and event precision, graph-window calculations, JSON/interchange stability, and an explicit separation between fictional chronology and asserted real-world time.
 
+Use an instant for a discrete narrative beat, but use an interval when the fixture is representing a sustained state, journey, pursuit, confinement, repeated visitation, active obligation, or other process with meaningful duration. The bundled stories intentionally mix both forms so fictional authoring exercises range rendering and temporal relationship lifecycles instead of reducing every scene to a point timestamp.
+
 ## Fictional places
 
 Fictional locations can use ordinary names and identifiers. When the current map renderer needs coordinates, a fixture may provide stable staging anchors so relative distance and movement remain logically coherent. The location identifier and narrative metadata must clearly state that these are not Earth-location claims.
@@ -54,17 +56,17 @@ Categories and stories serve different axes and should not be used interchangeab
 - The same category should be reusable by unrelated stories when their events have the same semantic type.
 - A story title or story identifier should not be copied into `categoryId` merely to color or group that story. Story identity belongs in `story.itemIds` and, where useful, narrative extension metadata.
 
-The default anthology therefore keeps **The Three Little Pigs**, **Snow White**, and **Cinderella** as three story nodes while categorizing their events with a reusable semantic taxonomy: background/condition, movement/transition, creation/preparation, conflict/threat, decision/choice, discovery/information, relationship/social, state change/transformation, and resolution/outcome.
+The default anthology keeps **The Three Little Pigs**, **Snow White**, **Cinderella**, **Little Red Riding Hood**, **Hansel and Gretel**, **Jack and the Beanstalk**, **Rapunzel**, **The Frog Prince**, and **Rumpelstiltskin** as nine story records while categorizing their events with a reusable semantic taxonomy. In addition to the original categories, the expanded fixture includes deception/manipulation, exchange/bargain, and promise/obligation so unrelated stories can share those semantics without turning story titles into categories.
 
 ## Parallel stories
 
-Multiple stories may coexist in one timeline. The recommended pattern is:
+Multiple stories may coexist in one timeline. For showcase/demo datasets, synthetic story bands should normally be separated enough that the combined timeline remains readable unless overlap is itself the behavior being demonstrated. The recommended pattern is:
 
 - every chronology item belongs to exactly one story unless a deliberate crossover is represented;
 - each story explicitly declares its reusable place set through `story.placeIds[]`;
-- every edge in the bundled example stories has a canonical `time` and `placeId`, and its place comes from that story's reusable place set;
+- every edge in the bundled example stories has canonical `time`, `placeId`, and chronology context, and its place comes from that story's reusable place set; long-lived lifecycle edges use explicit area/route places rather than blank spatial fields;
 - story places carry map-ready geometry plus a semantic icon and marker shape; edges reference the place ID rather than copying marker or geometry data;
 - stories remain narrative metadata rather than graph nodes or synthetic container topology;
 - with story focus off, the timeline shows all items together; selecting a story uses the existing focus path to inspect only that narrative sequence.
 
-The default sample uses **The Three Little Pigs**, **Snow White**, and **Cinderella** to exercise this model across year-scale prologues, minute-scale action, ranges, media, locations, graph relationships, relation lifecycle changes, and all three focused-event compositions.
+The default sample uses nine classic tales arranged into deliberately separated presentation bands. **The Three Little Pigs**, **Snow White**, and **Cinderella** now occupy Storybook Cycles 976, 988, and 1000; the remaining tales continue through Cycles 1012, 1027, 1043, 1061, 1078, and 1096. Spatial staging uses compact terrestrial regions whose visible terrain is reasonable for each narrative—forest tales stay in wooded uplands, farm tales in rural country, and palace/castle tales on inhabited land—without claiming that the fictional events canonically occurred at those real-world coordinates. This keeps the all-stories timeline and world legible while still exercising minute-scale action, ranges, media, reusable story place registries, graph relationships, relation lifecycle changes, and all three focused-event compositions.

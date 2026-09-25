@@ -7,17 +7,20 @@ export interface WorldSpatialModePolicy {
   readonly exitLocalBelowZoom: number;
 }
 
-export const DEFAULT_WORLD_SPATIAL_MODE_POLICY: WorldSpatialModePolicy =
-  Object.freeze({
-    enterLocalAtZoom: 11.5,
-    exitLocalBelowZoom: 10.5,
-  });
+/**
+ * Preserve the spherical globe through regional/city navigation and defer the
+ * planar precision handoff until close local detail. deck.gl GlobeView loses
+ * high-precision accuracy above roughly zoom 12, so the entry threshold stays
+ * only modestly beyond that boundary instead of pushing the globe arbitrarily
+ * deep. Hysteresis keeps zoom jitter from repeatedly swapping projections.
+ */
+export const DEFAULT_WORLD_SPATIAL_MODE_POLICY: WorldSpatialModePolicy = Object.freeze({
+  enterLocalAtZoom: 12.75,
+  exitLocalBelowZoom: 12,
+});
 
 function validatePolicy(policy: WorldSpatialModePolicy): WorldSpatialModePolicy {
-  if (
-    !Number.isFinite(policy.enterLocalAtZoom) ||
-    !Number.isFinite(policy.exitLocalBelowZoom)
-  ) {
+  if (!Number.isFinite(policy.enterLocalAtZoom) || !Number.isFinite(policy.exitLocalBelowZoom)) {
     throw new Error("World spatial-mode zoom thresholds must be finite.");
   }
   if (policy.exitLocalBelowZoom >= policy.enterLocalAtZoom) {

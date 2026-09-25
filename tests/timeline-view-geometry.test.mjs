@@ -37,23 +37,51 @@ test("wheel zoom is deliberately capped and symmetric enough for fine control", 
   assert.ok(Math.abs(zoomOut * zoomIn - 1) < 0.001);
 });
 
-test("selected events use a compact six-column focus popover over the persistent timeline", async () => {
+test("trackpad pinch keeps wheel units but amplifies Ctrl-modified deltas like d3-zoom", () => {
+  assert.equal(geometry.normalizeWheelDelta({ deltaY: 2, deltaMode: 0, ctrlKey: false }, 800), 2);
+  assert.equal(geometry.normalizeWheelDelta({ deltaY: 2, deltaMode: 0, ctrlKey: true }, 800), 20);
+  assert.equal(geometry.normalizeWheelDelta({ deltaY: 1, deltaMode: 1, ctrlKey: true }, 800), 160);
+  assert.equal(geometry.normalizeWheelDelta({ deltaY: 1, deltaMode: 2, ctrlKey: false }, 800), 800);
+});
+
+test("selected events use a shell-owned six-column detail surface with footer-owned controls", async () => {
   const [html, js, css] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
-    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/spatial-shell.css", import.meta.url), "utf8"),
   ]);
   assert.match(html, /id="timeline-focus-view"/);
+  assert.match(html, /data-world-controls-slot/);
+  assert.match(html, /class="app-footer-zone app-footer-timeline timeline-local-toolbar"/);
+  assert.match(html, /id="timeline-view-toolbar"/);
+  assert.doesNotMatch(html, /timeline-view-controls-toggle/);
+  assert.match(html, /id="timeline-focus-prev"/);
+  assert.match(html, /id="timeline-focus-next"/);
+  assert.doesNotMatch(html, /id="timeline-focus-edit"/);
+  assert.equal((html.match(/id="editor-toggle"/g) ?? []).length, 1);
   assert.doesNotMatch(html, /id="timeline-detail"/);
   assert.match(js, /focusItem\(id, options = \{\}\)/);
   assert.match(js, /timelinefocuschange/);
   assert.match(js, /createFocusHero/);
-  assert.match(css, /\.timeline-focus-view\s*\{[\s\S]*grid-template-columns:\s*repeat\(6,/);
-  assert.doesNotMatch(css, /\.timeline-focus-view\s*\{[\s\S]*grid-template-columns:\s*repeat\(12,/);
-  assert.match(css, /timeline-focus-view\[popover\]/);
-  assert.match(css, /inline-size:\s*min\(640px/);
-  assert.match(css, /\.timeline-view\.is-event-focused/);
-  assert.match(css, /grid-row:\s*3/);
+  assert.match(js, /focusNavigationState\(\)/);
+  assert.doesNotMatch(js, /timeline-focus-nav-prev|timeline-focus-nav-next|Edit event/);
+  assert.match(css, /Persistent footer control plane/);
+  assert.match(
+    css,
+    /\.app-footer-world \.world-camera-controls[\s\S]*position:\s*static[\s\S]*flex-direction:\s*row/,
+  );
+  assert.match(
+    css,
+    /#app-shell\.is-event-focused #presentation-stage > \.timeline-view[\s\S]*inset:\s*0[\s\S]*inline-size:\s*100%[\s\S]*block-size:\s*100%/,
+  );
+  assert.match(
+    css,
+    /\.timeline-focus-sidebar:not\(\[hidden\]\)\s*\{[\s\S]*grid-template-columns:\s*repeat\(6,/,
+  );
+  assert.doesNotMatch(
+    css,
+    /\.timeline-focus-sidebar:not\(\[hidden\]\)\s*\{[\s\S]*grid-template-columns:\s*repeat\(12,/,
+  );
   assert.doesNotMatch(css, /position-anchor:\s*--timeline-detail-anchor/);
 });
 
@@ -83,34 +111,35 @@ test("long visible ranges trace from the midpoint of their visible portion", () 
   );
 });
 
-test("Browse and Edit stay viewport-contained on narrow screens and become sidebars progressively", async () => {
-  const [css, architecture] = await Promise.all([
-    readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
+test("Browse overlays without workspace reflow and Edit becomes a bounded desktop panel", async () => {
+  const [css, html, architecture] = await Promise.all([
+    readFile(new URL("../site/spatial-shell.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../docs/TIMELINE-V3-ARCHITECTURE.md", import.meta.url), "utf8"),
   ]);
 
-  assert.match(css, /Browse and Edit are viewport-contained utility surfaces by default/);
+  assert.match(css, /Spatial shell utility surfaces/);
   assert.match(
     css,
-    /#app-shell\[data-editor-open="true"\]\s*>\s*\.app-editor-sheet,[\s\S]*position:\s*fixed[\s\S]*inset-block-start:[\s\S]*inset-block-end:[\s\S]*inset-inline-start:[\s\S]*inset-inline-end:/,
+    /#app-shell\[data-browser-open="true"\]\s*>\s*\.app-browser-sheet[\s\S]*position:\s*fixed[\s\S]*z-index:\s*1450[\s\S]*inset:\s*0[\s\S]*pointer-events:\s*auto/,
   );
   assert.match(
     css,
-    /#app-shell\[data-browser-open="true"\]\s*>\s*\.timeline-panel\s*>\s*\.app-browser-sheet[\s\S]*overflow-x:\s*clip[\s\S]*overflow-y:\s*auto/,
+    /\.app-browser-sheet\s*>\s*\.app-browser-panel[\s\S]*inline-size:\s*min\(420px,\s*100%\)[\s\S]*overflow-y:\s*auto/,
   );
   assert.match(
     css,
-    /@media \(min-width:\s*760px\)[\s\S]*#app-shell\[data-editor-open="true"\][\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) var\(--utility-sidebar-width\)/,
+    /#app-shell\[data-browser-open="true"\]\s*>\s*\.timeline-panel,[\s\S]*display:\s*block/,
   );
   assert.match(
     css,
-    /@media \(min-width:\s*760px\)[\s\S]*#app-shell\[data-browser-open="true"\]\s*>\s*\.timeline-panel[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) var\(--utility-sidebar-width\)/,
+    /@media \(min-width:\s*760px\)[\s\S]*#app-shell\[data-editor-open="true"\][\s\S]*display:\s*block[\s\S]*\.app-editor-sheet[\s\S]*inline-size:\s*clamp\(360px,\s*34%,\s*460px\)/,
   );
   assert.match(
-    css,
-    /@container utility-sidebar \(max-width:\s*360px\)[\s\S]*\.app-editor-sheet \.temporal-fields[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\)/,
+    html,
+    /id="timeline-browser-sheet"[\s\S]*class="app-browser-panel"[\s\S]*<section class="timeline-panel"/,
   );
-  assert.match(architecture, /viewport-contained utility surfaces/);
-  assert.match(architecture, /vertical right-side workspace columns/);
+  assert.match(architecture, /Browse is always an overlay utility surface/);
+  assert.match(architecture, /Edit is fullscreen on compact\/mobile viewports/);
   assert.match(architecture, /Horizontal overflow is a layout defect/);
 });

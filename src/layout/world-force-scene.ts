@@ -1,4 +1,11 @@
+import type { PlaceId } from "../domain/ids.ts";
 import type { ProjectedWorldInstance, WorldProjection } from "../projection/world-projection.ts";
+import {
+  createWorldDagLayout,
+  WORLD_DAG_TARGET_STRENGTH,
+  type WorldDagLayoutNodeSize,
+  type WorldDagLayoutTarget,
+} from "./world-dag-layout.ts";
 import type {
   WorldForceAnchor,
   WorldForceEdge,
@@ -7,8 +14,8 @@ import type {
 } from "./world-force-simulation.ts";
 import {
   WORLD_ENTITY_MIN_HIT_RADIUS_PX,
-  WORLD_NODE_SCALE,
   worldNodeFootprintRadiusPx,
+  worldPlaceFootprintRadiusPx,
 } from "./world-graph-style.ts";
 
 export interface WorldForceScenePolicy {
@@ -20,12 +27,26 @@ export interface WorldForceScenePolicy {
   readonly anchorInfluenceScale: number;
 }
 
+export interface WorldForceSceneBuildOptions {
+  /**
+   * Recompute local d3-dag targets without cached stability hysteresis.
+   * Anchors remain geographic constraints and never become force nodes.
+   */
+  readonly reorganizeDag?: boolean;
+}
+
+/**
+ * Physical graph spacing is deliberately independent from screen marker scale.
+ * Compact markers must not collapse the force layout or DAG target geometry.
+ */
+const WORLD_FORCE_LAYOUT_SCALE = 2;
+
 export const DEFAULT_WORLD_FORCE_SCENE_POLICY: WorldForceScenePolicy = Object.freeze({
   baseMass: 1,
   visualWeightMassScale: 1,
-  baseCollisionRadiusMeters: 180 * WORLD_NODE_SCALE,
+  baseCollisionRadiusMeters: 180 * WORLD_FORCE_LAYOUT_SCALE,
   edgeStrength: 0.035,
-  edgeRestLengthMeters: 900 * WORLD_NODE_SCALE,
+  edgeRestLengthMeters: 900 * WORLD_FORCE_LAYOUT_SCALE,
   anchorInfluenceScale: 0.75,
 });
 
@@ -82,8 +103,7 @@ function nodeFromInstance(
     mass: policy.baseMass + instance.visualWeight * policy.visualWeightMassScale,
     collisionRadiusPx,
     collisionRadiusMeters:
-      policy.baseCollisionRadiusMeters *
-      (collisionRadiusPx / WORLD_ENTITY_MIN_HIT_RADIUS_PX),
+      policy.baseCollisionRadiusMeters * (collisionRadiusPx / WORLD_ENTITY_MIN_HIT_RADIUS_PX),
     initialEastMeters: instance.localOffset?.eastMeters ?? 0,
     initialNorthMeters: instance.localOffset?.northMeters ?? 0,
     targetVisualAltitudeMeters: instance.visualAltitude ?? 0,
@@ -121,12 +141,62 @@ function anchorsFromInstance(
 export function createWorldForceScene(
   projection: WorldProjection,
   inputPolicy: WorldForceScenePolicy = DEFAULT_WORLD_FORCE_SCENE_POLICY,
+  options: WorldForceSceneBuildOptions = {},
 ): WorldForceScene {
   const policy = validatePolicy(inputPolicy);
 
-  const nodes: WorldForceNode[] = projection.instances.map((instance) =>
-    nodeFromInstance(instance, policy),
+  const baseNodes = projection.instances.map((instance) => nodeFromInstance(instance, policy));
+  const nodeSizes = new Map(
+    baseNodes.map(
+      (node) =>
+        [
+          node.id,
+          Object.freeze({
+            widthMeters: node.collisionRadiusMeters * 2,
+            heightMeters: node.collisionRadiusMeters * 2,
+          }),
+        ] as const,
+    ),
   );
+  const placeSizes = new Map<PlaceId, WorldDagLayoutNodeSize>();
+  for (const instance of projection.instances) {
+    for (const anchor of instance.geographicAnchors) {
+      const footprintPx = worldPlaceFootprintRadiusPx(anchor.style);
+      const radiusMeters =
+        policy.baseCollisionRadiusMeters * (footprintPx / WORLD_ENTITY_MIN_HIT_RADIUS_PX);
+      const diameterMeters = radiusMeters * 2;
+      const previous = placeSizes.get(anchor.placeId);
+      if (!previous || previous.widthMeters < diameterMeters) {
+        placeSizes.set(
+          anchor.placeId,
+          Object.freeze({
+            widthMeters: diameterMeters,
+            heightMeters: diameterMeters,
+          }),
+        );
+      }
+    }
+  }
+
+  const dagLayout = createWorldDagLayout(projection, {
+    nodeSizes,
+    placeSizes,
+    reorganize: options.reorganizeDag === true,
+  });
+  const dagTargets = new Map(
+    dagLayout.targets.map((target) => [target.instanceId, target] as const),
+  );
+  const nodes: WorldForceNode[] = baseNodes.map((node) => {
+    const dagTarget: WorldDagLayoutTarget | undefined = dagTargets.get(node.id);
+    return dagTarget
+      ? Object.freeze({
+          ...node,
+          layoutTargetEastMeters: dagTarget.eastMeters,
+          layoutTargetNorthMeters: dagTarget.northMeters,
+          layoutTargetStrength: WORLD_DAG_TARGET_STRENGTH,
+        })
+      : node;
+  });
 
   const edges: WorldForceEdge[] = projection.edges.map((edge) =>
     Object.freeze({
@@ -153,6 +223,7 @@ export function createWorldForceScene(
       ),
     ),
     anchors: Object.freeze(anchors),
+    relationshipRoutes: dagLayout.routes,
   });
 }
 
@@ -161,9 +232,7 @@ export function createWorldForceScene(
  * per layout. Use the largest exact rendered footprint in the component so
  * no node receives a smaller force body than its visible marker.
  */
-export function worldForceComponentCollisionRadiusPx(
-  nodes: readonly WorldForceNode[],
-): number {
+export function worldForceComponentCollisionRadiusPx(nodes: readonly WorldForceNode[]): number {
   return nodes.reduce(
     (radius, node) => Math.max(radius, node.collisionRadiusPx),
     WORLD_ENTITY_MIN_HIT_RADIUS_PX,

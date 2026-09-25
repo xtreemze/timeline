@@ -1,3 +1,4 @@
+import type { PlaceId } from "../../src/domain/ids.ts";
 import {
   createInteractionCoordinator,
   type InteractionCompletionReason,
@@ -8,7 +9,8 @@ import {
   type WorldNodeDragPosition,
 } from "../../src/interaction/world-node-drag-controller.ts";
 import {
-  applyWorldForceLayout,
+  applyWorldForceLayoutUpdate,
+  updateWorldForceLayoutInstance,
   type WorldForceLayoutSample,
 } from "../../src/layout/world-force-layout.ts";
 import {
@@ -24,7 +26,11 @@ import type {
   WorldSurface,
   WorldTemporalWindow,
 } from "../../src/layout/world-surface.ts";
-import type { WorldInstanceId, WorldProjection } from "../../src/projection/world-projection.ts";
+import type {
+  ProjectedWorldInstance,
+  WorldInstanceId,
+  WorldProjection,
+} from "../../src/projection/world-projection.ts";
 import {
   diffWorldProjection,
   isEmptyWorldProjectionDelta,
@@ -80,6 +86,9 @@ export class WorldViewRuntimeController {
 
   #sourceProjection: WorldProjection | null = null;
   #renderProjection: WorldProjection | null = null;
+  #sourceInstances = new Map<WorldInstanceId, ProjectedWorldInstance>();
+  #renderOverrides = new Map<WorldInstanceId, ProjectedWorldInstance>();
+  #renderProjectionDirty = false;
   #projectionRevision = 0;
   #sinceLayoutPush = Number.POSITIVE_INFINITY;
   #destroyed = false;
@@ -110,16 +119,21 @@ export class WorldViewRuntimeController {
     const previous = this.#sourceProjection;
     this.#sourceProjection = projection;
     this.#renderProjection = projection;
+    this.#sourceInstances = new Map(
+      projection.instances.map((instance) => [instance.id, instance] as const),
+    );
+    this.#renderOverrides.clear();
+    this.#renderProjectionDirty = false;
     this.#projectionRevision += 1;
 
-    this.#forceBackend.setScene(
-      this.#forcePolicy
-        ? createWorldForceScene(projection, this.#forcePolicy)
-        : createWorldForceScene(projection),
-    );
+    const forceScene = this.#forcePolicy
+      ? createWorldForceScene(projection, this.#forcePolicy)
+      : createWorldForceScene(projection);
+    this.#forceBackend.setScene(forceScene);
+    this.#surface.setRelationshipRoutes?.(forceScene.relationshipRoutes ?? Object.freeze([]));
     this.#simulation.request({
       reason: "projection-update",
-      energyTarget: 0.08,
+      excitation: 0.08,
       reheat: true,
     });
 
@@ -135,6 +149,49 @@ export class WorldViewRuntimeController {
   setTemporalWindow(window: WorldTemporalWindow): void {
     this.#assertAlive();
     this.#surface.setTemporalWindow(window);
+  }
+
+  setClusteredPlaceIds(
+    placeIds: readonly PlaceId[],
+    detachedLinkPlaceIds?: readonly PlaceId[],
+  ): void {
+    this.#assertAlive();
+    this.#forceBackend.setClusteredPlaceIds?.(placeIds, detachedLinkPlaceIds);
+    this.#simulation.request({
+      reason: "topology",
+      excitation: 0.14,
+      reheat: true,
+    });
+  }
+
+  /**
+   * Rebuild local Sugiyama targets and route hints for the current projection.
+   * Geographic anchors are retained verbatim; only the entity layout around
+   * each anchor is reorganized, then D3 force moves toward the new soft targets.
+   */
+  reorganizeDag(): boolean {
+    this.#assertAlive();
+    if (!this.#sourceProjection) return false;
+
+    const forceScene = this.#forcePolicy
+      ? createWorldForceScene(this.#sourceProjection, this.#forcePolicy, {
+          reorganizeDag: true,
+        })
+      : createWorldForceScene(this.#sourceProjection, undefined, {
+          reorganizeDag: true,
+        });
+    this.#forceBackend.setScene(forceScene);
+    this.#surface.setRelationshipRoutes?.(forceScene.relationshipRoutes ?? Object.freeze([]));
+    this.#reheatTopology(0.18);
+    return true;
+  }
+
+  /** Reheat the existing D3 force scene without recomputing DAG targets. */
+  relaxForce(): boolean {
+    this.#assertAlive();
+    if (!this.#sourceProjection) return false;
+    this.#reheatTopology(0.14);
+    return true;
   }
 
   setSelection(selection: WorldSelection | null): void {
@@ -207,6 +264,7 @@ export class WorldViewRuntimeController {
     if (diagnostics.settled) {
       this.#simulation.release("projection-update");
       this.#simulation.release("spatial-anchor-update");
+      this.#simulation.release("topology");
       if (this.#drag.state().settling) this.#drag.commit();
     }
 
@@ -225,6 +283,7 @@ export class WorldViewRuntimeController {
     this.#pushLayout();
     this.#simulation.release("projection-update");
     this.#simulation.release("spatial-anchor-update");
+    this.#simulation.release("topology");
     if (this.#drag.state().settling) this.#drag.commit();
   }
 
@@ -232,20 +291,59 @@ export class WorldViewRuntimeController {
     this.#sinceLayoutPush = 0;
     if (this.#gpuLayoutBridge || !this.#layoutReadback || !this.#sourceProjection) return;
     const samples = this.#layoutReadback.read();
-    const previous = this.#renderProjection;
-    const next = applyWorldForceLayout(previous ?? this.#sourceProjection, samples);
-    this.#renderProjection = next;
+    if (samples.length === 0) return;
 
-    // Force animation should not replace the whole deck data graph every
-    // frame. Reuse WorldSurface's incremental path so only nodes/edges whose
-    // derived positions changed invalidate renderer attributes.
-    if (previous && this.#surface.applyProjectionDelta) {
-      const delta = diffWorldProjection(previous, next);
-      if (!isEmptyWorldProjectionDelta(delta)) this.#surface.applyProjectionDelta(delta);
+    // Production WorldSurface implementations support sparse projection deltas.
+    // Keep this interaction path O(changed nodes): materializing the immutable
+    // projection array here would otherwise copy tens of thousands of instances
+    // for every drag frame even when only one local island moved.
+    if (this.#surface.applyProjectionDelta) {
+      const updatedInstances: ProjectedWorldInstance[] = [];
+      const seen = new Set<WorldInstanceId>();
+
+      for (const sample of samples) {
+        if (seen.has(sample.instanceId)) {
+          throw new Error(`Duplicate world force layout sample for ${String(sample.instanceId)}.`);
+        }
+        seen.add(sample.instanceId);
+
+        const current =
+          this.#renderOverrides.get(sample.instanceId) ??
+          this.#sourceInstances.get(sample.instanceId);
+        if (!current) {
+          throw new Error(
+            `World force layout sample references unknown instance ${String(sample.instanceId)}.`,
+          );
+        }
+
+        const updated = updateWorldForceLayoutInstance(current, sample);
+        if (updated === current) continue;
+        this.#renderOverrides.set(sample.instanceId, updated);
+        updatedInstances.push(updated);
+      }
+
+      if (updatedInstances.length > 0) {
+        this.#renderProjectionDirty = true;
+        this.#surface.applyProjectionDelta(
+          Object.freeze({
+            addedInstances: Object.freeze([]),
+            updatedInstances: Object.freeze(updatedInstances),
+            removedInstanceIds: Object.freeze([]),
+            addedEdges: Object.freeze([]),
+            updatedEdges: Object.freeze([]),
+            removedEdgeIds: Object.freeze([]),
+          }),
+        );
+      }
       return;
     }
 
-    this.#surface.setProjection(next);
+    // Compatibility surfaces that only accept complete projections retain the
+    // original immutable reconstruction path.
+    const previous = this.#renderProjection ?? this.#sourceProjection;
+    const update = applyWorldForceLayoutUpdate(previous, samples);
+    this.#renderProjection = update.projection;
+    this.#surface.setProjection(update.projection);
   }
 
   refresh(): void {
@@ -272,6 +370,9 @@ export class WorldViewRuntimeController {
     this.#destroyed = true;
     this.#simulation.clear();
     this.#gpuLayoutBridge?.destroy();
+    this.#sourceInstances.clear();
+    this.#renderOverrides.clear();
+    this.#renderProjectionDirty = false;
     this.#forceBackend.destroy();
     this.#surface.destroy();
   }
@@ -281,7 +382,33 @@ export class WorldViewRuntimeController {
   }
 
   getRenderProjection(): WorldProjection | null {
+    if (!this.#sourceProjection) return null;
+    if (!this.#renderProjectionDirty) return this.#renderProjection ?? this.#sourceProjection;
+
+    // Materialize only for consumers that explicitly need a complete snapshot.
+    // High-frequency rendering consumes sparse deltas and never pays this O(N)
+    // copy during ordinary drag/settle frames.
+    this.#renderProjection = Object.freeze({
+      instances: Object.freeze(
+        this.#sourceProjection.instances.map(
+          (instance) => this.#renderOverrides.get(instance.id) ?? instance,
+        ),
+      ),
+      edges: this.#sourceProjection.edges,
+    });
+    this.#renderProjectionDirty = false;
     return this.#renderProjection;
+  }
+
+  #reheatTopology(excitation: number): void {
+    // Releasing first makes repeated operator commands meaningful even while a
+    // previous topology run is still active.
+    this.#simulation.release("topology");
+    this.#simulation.request({
+      reason: "topology",
+      excitation,
+      reheat: true,
+    });
   }
 
   #assertAlive(): void {

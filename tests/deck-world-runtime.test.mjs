@@ -80,7 +80,6 @@ test("runtime creation does not instantiate any deck resource eagerly", () => {
   assert.equal(calls, 0);
 });
 
-
 function compositionHarness() {
   const deckCalls = [];
   let settled = true;
@@ -202,18 +201,22 @@ test("world view factory composes deck surface projection runtime and force sche
 
   view.setModel({
     entities: [{ id: "alice" }, { id: "bob" }],
-    places: [{
-      id: "stockholm",
-      geometry: { type: "Point", coordinates: [18.0686, 59.3293] },
-    }],
-    relationships: [{
-      id: "meeting",
-      subjectId: "alice",
-      objectId: "bob",
-      predicate: "met",
-      placeId: "stockholm",
-      time: null,
-    }],
+    places: [
+      {
+        id: "stockholm",
+        geometry: { type: "Point", coordinates: [18.0686, 59.3293] },
+      },
+    ],
+    relationships: [
+      {
+        id: "meeting",
+        subjectId: "alice",
+        objectId: "bob",
+        predicate: "met",
+        placeId: "stockholm",
+        time: null,
+      },
+    ],
   });
 
   const deckCreation = harness.deckCalls.find(([name]) => name === "deck");
@@ -237,13 +240,15 @@ test("world view factory accepts GPU-style force backends without CPU snapshots"
   assert.ok(view);
   view.setModel({
     entities: [{ id: "alice" }, { id: "bob" }],
-    relationships: [{
-      id: "relation",
-      subjectId: "alice",
-      objectId: "bob",
-      predicate: "called",
-      time: null,
-    }],
+    relationships: [
+      {
+        id: "relation",
+        subjectId: "alice",
+        objectId: "bob",
+        predicate: "called",
+        time: null,
+      },
+    ],
   });
   assert.equal(harness.runNextFrame(), true);
 });
@@ -258,24 +263,22 @@ test("destroying a scheduled world view cancels pending animation work", () => {
 
   view.setModel({
     entities: [{ id: "alice" }, { id: "bob" }],
-    relationships: [{
-      id: "relation",
-      subjectId: "alice",
-      objectId: "bob",
-      predicate: "called",
-      time: null,
-    }],
+    relationships: [
+      {
+        id: "relation",
+        subjectId: "alice",
+        objectId: "bob",
+        predicate: "called",
+        time: null,
+      },
+    ],
   });
   assert.equal(harness.scheduled.size, 1);
 
   view.destroy();
   assert.equal(harness.scheduled.size, 0);
-  assert.equal(
-    harness.deckCalls.filter(([name]) => name === "finalize").length,
-    1,
-  );
+  assert.equal(harness.deckCalls.filter(([name]) => name === "finalize").length, 1);
 });
-
 
 test("world view registration publishes the composed factory without eager deck construction", () => {
   let constructionCalls = 0;
@@ -304,6 +307,46 @@ test("world view registration publishes the composed factory without eager deck 
   assert.equal(target.TimelineWorldView, factory);
   assert.equal(typeof factory.create, "function");
   assert.equal(constructionCalls, 0);
+});
+
+test("deck world runtime exposes collision filtering only when the binding is supplied", () => {
+  const extension = { kind: "collision-filter" };
+  const runtime = createDeckWorldRuntime({
+    deck() {
+      throw new Error("not used");
+    },
+    globeView() {
+      throw new Error("not used");
+    },
+    scatterplotLayer() {
+      throw new Error("not used");
+    },
+    pathLayer() {
+      throw new Error("not used");
+    },
+    collisionFilterExtension() {
+      return extension;
+    },
+  });
+
+  assert.equal(typeof runtime.createCollisionFilterExtension, "function");
+  assert.equal(runtime.createCollisionFilterExtension(), extension);
+
+  const withoutExtension = createDeckWorldRuntime({
+    deck() {
+      throw new Error("not used");
+    },
+    globeView() {
+      throw new Error("not used");
+    },
+    scatterplotLayer() {
+      throw new Error("not used");
+    },
+    pathLayer() {
+      throw new Error("not used");
+    },
+  });
+  assert.equal(withoutExtension.createCollisionFilterExtension, undefined);
 });
 
 test("deck world runtime exposes MapView only when the binding is supplied", () => {

@@ -111,14 +111,13 @@ test("focused chronology item recovers its contextual canonical relationship nei
     { depth: 1, limit: 12 },
   );
 
+  assert.deepEqual(graph.nodes.map((node) => node.id).sort(), ["a", "b"]);
   assert.deepEqual(
-    graph.nodes.map((node) => node.id).sort(),
-    ["a", "b"],
+    graph.edges.map((edge) => edge.id),
+    ["r1"],
   );
-  assert.deepEqual(graph.edges.map((edge) => edge.id), ["r1"]);
   assert.equal(graph.edges[0].temporalState, "timeless");
 });
-
 
 test("global compatibility API keeps pure graph projections and default temporal semantics", async () => {
   const previous = globalThis.TimelineTemporal;
@@ -158,7 +157,10 @@ test("global compatibility API keeps pure graph projections and default temporal
       { depth: 1, limit: 12 },
     );
     assert.deepEqual(graph.nodes.map((node) => node.id).sort(), ["a", "b"]);
-    assert.deepEqual(graph.edges.map((edge) => edge.id), ["r-global"]);
+    assert.deepEqual(
+      graph.edges.map((edge) => edge.id),
+      ["r-global"],
+    );
   } finally {
     globalThis.TimelineTemporal = previous;
   }

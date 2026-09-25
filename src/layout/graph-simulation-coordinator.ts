@@ -13,7 +13,7 @@ export interface GraphSimulationRequest {
 }
 
 export interface GraphSimulationAdapter {
-  apply(request: GraphSimulationRequest): boolean | void;
+  apply(request: GraphSimulationRequest): boolean | undefined;
   stop(): void;
 }
 
@@ -172,6 +172,4 @@ export function createGraphSimulationCoordinator(adapter: GraphSimulationAdapter
   });
 }
 
-export type GraphSimulationCoordinator = ReturnType<
-  typeof createGraphSimulationCoordinator
->;
+export type GraphSimulationCoordinator = ReturnType<typeof createGraphSimulationCoordinator>;

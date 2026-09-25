@@ -99,8 +99,9 @@ function instance(index, overrides = {}) {
 function directedProjection() {
   const source = instance(0, { visualWeight: 1 });
   const target = instance(1);
+  const other = instance(2);
   return createWorldProjection({
-    instances: [source, target],
+    instances: [source, target, other],
     edges: [
       createProjectedWorldEdge({
         id: "meeting",
@@ -152,31 +153,10 @@ function parallelProjection() {
   });
 }
 
-// One place per instance: nothing shares a place, so no place cluster hides
-// members and the scene shows individual labels past the overview tier.
-function ownPlace(index) {
-  return {
-    geographicAnchors: [
-      {
-        placeId: `own-place-${index}`,
-        label: `Own place ${index}`,
-        longitude: 10 + (index % 50) * 0.5,
-        latitude: 40 + Math.floor(index / 50) * 0.5,
-        influence: 1,
-      },
-    ],
-  };
-}
-
-function denseProjection(count, { distinctPlaces = false } = {}) {
+function denseProjection(count) {
   const instances = [];
   for (let index = 0; index < count; index += 1) {
-    instances.push(
-      instance(index, {
-        ...(distinctPlaces ? ownPlace(index) : {}),
-        ...(index === 0 ? { visualWeight: 1 } : {}),
-      }),
-    );
+    instances.push(instance(index, index === 0 ? { visualWeight: 1 } : {}));
   }
   return createWorldProjection({ instances, edges: [] });
 }
@@ -187,6 +167,18 @@ const WORKING_CAMERA = Object.freeze({
   zoom: 5,
   bearing: 0,
   pitch: 20,
+});
+
+test("empty world skips the deck.gl text atlas", () => {
+  const h = harness();
+  const surface = new DeckWorldSurface({}, h.runtime, WORKING_CAMERA);
+  surface.setProjection(createWorldProjection({ instances: [], edges: [] }));
+
+  assert.equal(
+    layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels),
+    undefined,
+    "an empty visible label set must not instantiate TextLayer with a zero-sized auto atlas",
+  );
 });
 
 test("production bindings and runtime expose a real deck.gl TextLayer path", async () => {
@@ -225,9 +217,27 @@ test("place anchors render through the node marker path", () => {
 
   const datum = placeIcons.props.data[0];
   const marker = placeIcons.props.getIcon(datum);
+  const renderedPosition = placeIcons.props.getPosition(datum);
   assert.ok(marker.id.includes("pin"));
   assert.ok(marker.id.includes("place"));
-  assert.ok(placeIcons.props.getSize(datum) >= 44);
+  // Visual marker size respects authored geometry (default pin radius 12 + border 2 = 30px).
+  // The separate >=44px hit target is handled by the scatter layer, not the icon size.
+  assert.equal(placeIcons.props.getSize(datum), 30);
+  assert.equal(
+    placeIcons.props.parameters.depthCompare,
+    "always",
+    "near-side place markers share the entity marker depth behavior",
+  );
+  assert.equal(renderedPosition[0], datum.position[0]);
+  assert.equal(renderedPosition[1], datum.position[1]);
+  assert.ok(
+    renderedPosition[2] > datum.position[2],
+    "place icon is lifted slightly above the canonical globe surface",
+  );
+  assert.ok(
+    renderedPosition[2] - datum.position[2] < 20_000,
+    "place icon lift stays presentation-small at the working zoom",
+  );
 });
 
 test("place marker rendering uses the authored icon, fill, border, width, and shape", () => {
@@ -262,9 +272,217 @@ test("place marker rendering uses the authored icon, fill, border, width, and sh
   assert.ok(datum);
   const marker = placeIcons.props.getIcon(datum);
   assert.ok(
-    marker.id.startsWith("lum-node:square|#123456|#abcdef|4|22|crown|"),
+    marker.id.startsWith("lum-node:square|#123456|#abcdef|4|16|crown|"),
     `authored marker visual tuple must remain authoritative: ${marker.id}`,
   );
+});
+
+
+test("three very near places share one aggregate marker while readable nodes remain expanded", () => {
+  const h = harness();
+  const left = instance(0, {
+    geographicAnchors: [
+      {
+        placeId: "near-a",
+        label: "Near A",
+        longitude: 12,
+        latitude: 41,
+        influence: 1,
+      },
+    ],
+  });
+  const middle = instance(1, {
+    geographicAnchors: [
+      {
+        placeId: "near-b",
+        label: "Near B",
+        longitude: 12.01,
+        latitude: 41,
+        influence: 1,
+      },
+    ],
+  });
+  const right = instance(2, {
+    geographicAnchors: [
+      {
+        placeId: "near-c",
+        label: "Near C",
+        longitude: 12.02,
+        latitude: 41,
+        influence: 1,
+      },
+    ],
+  });
+  const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 8 });
+  surface.setProjection(createWorldProjection({ instances: [left, middle, right], edges: [] }));
+
+  const layers = h.lastLayers();
+  const entities = layer(layers, DECK_WORLD_LAYER_IDS.entities);
+  const aggregate = entities.props.data.find((datum) => datum.kind === "cluster");
+  assert.ok(aggregate, "three very near place pins use one aggregate marker");
+  assert.deepEqual([...aggregate.placeIds].sort(), ["near-a", "near-b", "near-c"]);
+  assert.equal(
+    entities.props.data.filter((datum) => datum.kind === "entity").length,
+    3,
+    "node topology stays expanded because the sparse component fits",
+  );
+  assert.ok(
+    entities.props.data
+      .filter((datum) => datum.kind === "entity")
+      .every((datum) => entities.props.getRadius(datum) > 0),
+    "expanded member nodes remain visibly pickable",
+  );
+  assert.equal(layer(layers, DECK_WORLD_LAYER_IDS.placeIcons).props.data.length, 0);
+  assert.ok(
+    layer(layers, DECK_WORLD_LAYER_IDS.labels).props.data.some(
+      (datum) =>
+        datum.kind === "cluster-label" &&
+        datum.text.includes("3 places") &&
+        datum.text.includes("3 nodes"),
+    ),
+    "the aggregate marker communicates that nearby locations contain nodes",
+  );
+});
+
+test("two very near places remain separate markers", () => {
+  const h = harness();
+  const left = instance(0, {
+    geographicAnchors: [
+      {
+        placeId: "pair-a",
+        label: "Pair A",
+        longitude: 12,
+        latitude: 41,
+        influence: 1,
+      },
+    ],
+  });
+  const right = instance(1, {
+    geographicAnchors: [
+      {
+        placeId: "pair-b",
+        label: "Pair B",
+        longitude: 12.02,
+        latitude: 41,
+        influence: 1,
+      },
+    ],
+  });
+  const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 8 });
+  surface.setProjection(createWorldProjection({ instances: [left, right], edges: [] }));
+
+  const layers = h.lastLayers();
+  const entities = layer(layers, DECK_WORLD_LAYER_IDS.entities);
+  assert.equal(entities.props.data.some((datum) => datum.kind === "cluster"), false);
+  assert.equal(
+    entities.props.data.filter((datum) => datum.kind === "entity").length,
+    2,
+  );
+  assert.equal(layer(layers, DECK_WORLD_LAYER_IDS.placeIcons).props.data.length, 2);
+});
+
+test("selecting a clustered place reveals its incident nodes and edges without opening neighbors", () => {
+  const h = harness();
+  const make = (index, placeId, longitude) =>
+    instance(index, {
+      geographicAnchors: [
+        {
+          placeId,
+          label: placeId === "place-a" ? "Place A" : "Place B",
+          longitude,
+          latitude: 41,
+          influence: 1,
+        },
+      ],
+    });
+  const a1 = make(0, "place-a", 12);
+  const a2 = make(1, "place-a", 12);
+  const b1 = make(2, "place-b", 12.03);
+  const b2 = make(3, "place-b", 12.03);
+  const b3 = make(4, "place-b", 12.03);
+  const projection = createWorldProjection({
+    instances: [a1, a2, b1, b2, b3],
+    edges: [
+      createProjectedWorldEdge({
+        id: "a-internal",
+        label: "knows",
+        sourceInstanceId: a1.id,
+        targetInstanceId: a2.id,
+        temporalWeight: 1,
+        visible: true,
+        retained: false,
+      }),
+      createProjectedWorldEdge({
+        id: "a-to-b",
+        label: "visits",
+        sourceInstanceId: a1.id,
+        targetInstanceId: b1.id,
+        temporalWeight: 1,
+        visible: true,
+        retained: false,
+      }),
+    ],
+  });
+
+  const originalSetTimeout = globalThis.setTimeout;
+  try {
+    globalThis.setTimeout = (callback) => {
+      callback();
+      return 0;
+    };
+    const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 0.2 });
+    surface.setProjection(projection);
+    surface.setSelection({ kind: "place", id: "place-a" });
+
+    const layers = h.lastLayers();
+    const entities = layer(layers, DECK_WORLD_LAYER_IDS.entities);
+    const visibleEntityIds = entities.props.data
+      .filter((datum) => datum.kind === "entity" && entities.props.getRadius(datum) > 0)
+      .map((datum) => datum.entityId);
+
+    assert.ok(visibleEntityIds.includes(a1.canonicalId));
+    assert.ok(visibleEntityIds.includes(a2.canonicalId));
+    assert.ok(
+      visibleEntityIds.includes(b1.canonicalId),
+      "the one-hop node connected from the selected location is revealed from its cluster",
+    );
+    assert.equal(
+      entities.props.data.some(
+        (datum) => datum.kind === "cluster" && datum.placeIds?.includes("place-b"),
+      ),
+      false,
+      "revealing one member of a three-node cluster dissolves the remaining pair",
+    );
+    for (const member of [b2, b3]) {
+      const datum = entities.props.data.find(
+        (candidate) =>
+          candidate.kind === "entity" && candidate.worldInstanceId === member.id,
+      );
+      assert.ok(datum, "sub-three cluster remnants stay as individual node datums");
+      assert.ok(
+        entities.props.getRadius(datum) > 0,
+        "sub-three cluster remnants stay visibly pickable",
+      );
+    }
+
+    const relationships = layer(layers, DECK_WORLD_LAYER_IDS.relationships);
+    const cross = relationships.props.data.find(
+      (datum) => datum.relationshipId === "a-to-b",
+    );
+    assert.ok(cross);
+    assert.ok(
+      relationships.props.getWidth(cross) > 0,
+      "the selected location reveals its incident edge into the remaining cluster",
+    );
+    assert.ok(
+      layer(layers, DECK_WORLD_LAYER_IDS.labels).props.data.some(
+        (datum) => datum.kind === "relationship-label" && datum.relationshipId === "a-to-b",
+      ),
+      "revealed incident relationships retain semantic labels",
+    );
+  } finally {
+    globalThis.setTimeout = originalSetTimeout;
+  }
 });
 
 test("entity and place labels come from renderer-neutral WorldProjection metadata", () => {
@@ -282,12 +500,14 @@ test("entity and place labels come from renderer-neutral WorldProjection metadat
   assert.deepEqual(entityLabels.map((datum) => labels.props.getText(datum)).sort(), [
     "Entity 0",
     "Entity 1",
+    "Entity 2",
   ]);
   assert.deepEqual(
     entityLabels.map((datum) => datum.worldInstanceId).sort(),
     [
       worldInstanceId("entity-0", "occurrence-0"),
       worldInstanceId("entity-1", "occurrence-0"),
+      worldInstanceId("entity-2", "occurrence-1"),
     ].sort(),
   );
 
@@ -295,6 +515,7 @@ test("entity and place labels come from renderer-neutral WorldProjection metadat
   assert.deepEqual(placeLabels.map((datum) => labels.props.getText(datum)).sort(), [
     "Place 0",
     "Place 1",
+    "Place 2",
   ]);
 
   const relationshipLabels = labels.props.data.filter(
@@ -320,9 +541,6 @@ test("detail zoom repositions co-located semantic labels before hiding them", ()
         influence: 1,
       },
     ],
-    // Force-solved local displacement: until the backend emits one, members
-    // stay collapsed at their place origin and have no individual labels.
-    localOffset: { eastMeters: 4, northMeters: 0 },
   });
   const target = instance(1, {
     geographicAnchors: [
@@ -334,7 +552,6 @@ test("detail zoom repositions co-located semantic labels before hiding them", ()
         influence: 1,
       },
     ],
-    localOffset: { eastMeters: -4, northMeters: 0 },
   });
   const surface = new DeckWorldSurface({}, h.runtime, {
     ...WORKING_CAMERA,
@@ -361,27 +578,209 @@ test("detail zoom repositions co-located semantic labels before hiding them", ()
 
   const labels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
   const data = labels.props.data;
-  assert.equal(data.filter((datum) => datum.kind === "entity-label").length, 2);
+  assert.equal(data.filter((datum) => datum.kind === "entity-label").length, 0);
   assert.equal(data.filter((datum) => datum.kind === "place-label").length, 1);
   assert.equal(data.filter((datum) => datum.kind === "relationship-label").length, 1);
 
   const offsets = data.map((datum) => labels.props.getPixelOffset(datum).join(":"));
-  assert.ok(new Set(offsets).size >= 3, "colliding semantic labels use alternate placements");
+  assert.ok(new Set(offsets).size >= 2, "colliding semantic labels use alternate placements");
   assert.equal(labels.props.getTextAnchor, "middle");
 });
 
-test("clustered overview shows only place labels", () => {
+test("relationship hover reveals only endpoint node labels and does not resurrect place labels", () => {
+  const h = harness();
+  const instances = Array.from({ length: 60 }, (_, index) =>
+    instance(index, {
+      visualWeight: 0.1,
+      geographicAnchors: [
+        {
+          placeId: `hover-place-${String(index).padStart(3, "0")}`,
+          label: `Hover place ${index}`,
+          longitude: -165 + (index % 12) * 30,
+          latitude: -50 + Math.floor(index / 12) * 25,
+          influence: 1,
+        },
+      ],
+    }),
+  );
+  const source = instances[58];
+  const target = instances[59];
+  const surface = new DeckWorldSurface({}, h.runtime, {
+    ...WORKING_CAMERA,
+    longitude: 0,
+    latitude: 0,
+    zoom: 3,
+  });
+  surface.setProjection(
+    createWorldProjection({
+      instances,
+      edges: [
+        createProjectedWorldEdge({
+          id: "hover-edge",
+          label: "connects",
+          sourceInstanceId: source.id,
+          targetInstanceId: target.id,
+          temporalWeight: 0.1,
+          visible: true,
+          retained: false,
+        }),
+      ],
+    }),
+  );
+
+  const before = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
+  const beforeEntityIds = new Set(
+    before.filter((datum) => datum.kind === "entity-label").map((datum) => datum.entityId),
+  );
+  const beforePlaceIds = new Set(
+    before.filter((datum) => datum.kind === "place-label").map((datum) => datum.placeId),
+  );
+  assert.equal(beforeEntityIds.has(source.canonicalId), false);
+  assert.equal(beforeEntityIds.has(target.canonicalId), false);
+  assert.equal(beforePlaceIds.has("hover-place-058"), false);
+  assert.equal(beforePlaceIds.has("hover-place-059"), false);
+
+  h.getDeckProps().onHover({
+    object: {
+      kind: "relationship",
+      relationshipId: "hover-edge",
+    },
+  });
+
+  const after = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
+  const afterEntityIds = new Set(
+    after.filter((datum) => datum.kind === "entity-label").map((datum) => datum.entityId),
+  );
+  const afterPlaceIds = new Set(
+    after.filter((datum) => datum.kind === "place-label").map((datum) => datum.placeId),
+  );
+  const newlyRevealedEntityIds = [...afterEntityIds]
+    .filter((entityId) => !beforeEntityIds.has(entityId))
+    .sort();
+
+  assert.deepEqual(newlyRevealedEntityIds, [source.canonicalId, target.canonicalId].sort());
+  assert.deepEqual(
+    [...afterPlaceIds].sort(),
+    [...beforePlaceIds].sort(),
+    "edge hover must leave place-label membership unchanged",
+  );
+});
+
+test("dense detail scenes keep only collision-free labels and reveal interaction context", () => {
+  const h = harness();
+  const instances = Array.from({ length: 24 }, (_, index) =>
+    instance(index, {
+      geographicAnchors: [
+        {
+          placeId: `dense-place-${index}`,
+          label: `Dense place ${index}`,
+          longitude: 10,
+          latitude: 50,
+          influence: 1,
+        },
+      ],
+      localOffset: { eastMeters: 0, northMeters: 0 },
+    }),
+  );
+  const surface = new DeckWorldSurface({}, h.runtime, {
+    ...WORKING_CAMERA,
+    longitude: 10,
+    latitude: 50,
+    zoom: 9,
+  });
+  surface.setProjection(createWorldProjection({ instances, edges: [] }));
+
+  const labels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
+  const visibleEntityIds = new Set(
+    labels.props.data
+      .filter((datum) => datum.kind === "entity-label")
+      .map((datum) => datum.entityId),
+  );
+  assert.ok(
+    labels.props.data.length < instances.length * 2,
+    "detail zoom no longer forces overlapping labels back into the scene",
+  );
+
+  const hidden = instances.find((candidate) => !visibleEntityIds.has(candidate.canonicalId));
+  assert.ok(hidden, "dense co-located fixture leaves at least one optional entity label hidden");
+
+  surface.setSelection({ kind: "entity", id: hidden.canonicalId });
+  const selectedLabels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
+  assert.ok(
+    selectedLabels.some(
+      (datum) => datum.kind === "entity-label" && datum.entityId === hidden.canonicalId,
+    ),
+    "selection still reveals a suppressed label without restoring the surrounding clutter",
+  );
+});
+
+test("large marker labels clear the rendered node footprint", () => {
+  const h = harness();
+  const large = instance(0, {
+    style: { radius: 32 },
+    geographicAnchors: [
+      {
+        placeId: "large-place",
+        label: "Large place",
+        longitude: 10,
+        latitude: 50,
+        influence: 1,
+      },
+    ],
+  });
+  const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 9 });
+  surface.setProjection(createWorldProjection({ instances: [large], edges: [] }));
+
+  const layers = h.lastLayers();
+  const icons = layer(layers, DECK_WORLD_LAYER_IDS.entityIcons);
+  const labels = layer(layers, DECK_WORLD_LAYER_IDS.labels);
+  const entity = icons.props.data[0];
+  const labelDatum = labels.props.data.find((datum) => datum.kind === "entity-label");
+  assert.ok(labelDatum);
+  const markerRadius = icons.props.getSize(entity) / 2;
+  const [x, y] = labels.props.getPixelOffset(labelDatum);
+  assert.ok(
+    Math.hypot(x, y) > markerRadius + 8,
+    "label placement derives clearance from the actual marker instead of a fixed 32px offset",
+  );
+});
+
+test("clustered overview replaces nearby place markers and member labels with aggregate context", () => {
   const h = harness();
   const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 0.2 });
   surface.setProjection(directedProjection());
 
-  const labels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
-  assert.ok(labels.props.data.length > 0);
-  assert.ok(labels.props.data.every((datum) => datum.kind === "place-label"));
-  assert.deepEqual(labels.props.data.map((datum) => labels.props.getText(datum)).sort(), [
-    "Place 0",
-    "Place 1",
-  ]);
+  // Wait for cluster lifecycle to complete
+  return new Promise((resolve) => setTimeout(resolve, 2000)).then(() => {
+    const layers = h.lastLayers();
+    const labels = layer(layers, DECK_WORLD_LAYER_IDS.labels);
+    assert.ok(labels.props.data.length > 0);
+    assert.ok(
+      labels.props.data.every((datum) => datum.kind === "cluster-label"),
+      "collapsed nearby places expose aggregate context instead of duplicating member labels",
+    );
+    assert.ok(
+      labels.props.data.some(
+        (datum) => datum.text.includes("3 places") && datum.text.includes("3 nodes"),
+      ),
+    );
+
+    const entityCluster = layer(layers, DECK_WORLD_LAYER_IDS.entities).props.data.find(
+      (datum) => datum.kind === "cluster",
+    );
+    assert.ok(entityCluster);
+    assert.equal(entityCluster.placeIds.length, 3, "the aggregate preserves all canonical places");
+    assert.equal(
+      layer(layers, DECK_WORLD_LAYER_IDS.places).props.data.length,
+      0,
+      "represented place hit bodies are folded into the aggregate cluster",
+    );
+    assert.equal(
+      layer(layers, DECK_WORLD_LAYER_IDS.placeIcons).props.data.length,
+      0,
+      "nearby place pins do not remain visibly stacked underneath the cluster",
+    );
+  });
 });
 
 test("same-place overview retains members at the cluster origin while hiding member topology", () => {
@@ -463,7 +862,12 @@ test("same-place overview retains members at the cluster origin while hiding mem
   );
   assert.equal(
     labels.some((datum) => datum.kind === "place-label"),
-    true,
+    false,
+    "collapsed place members use one aggregate label instead of duplicating the place name",
+  );
+  assert.ok(
+    labels.some((datum) => datum.kind === "cluster-label" && datum.text.includes("2 nodes")),
+    "collapsed topology exposes aggregate cluster context",
   );
 });
 
@@ -544,7 +948,7 @@ test("parallel and reciprocal relationships fan into distinct curved paths with 
     3,
     "direction markers follow the separate curve tangents",
   );
-  assert.equal(relationships.props.transitions.getPath.duration, 600);
+  assert.equal(relationships.props.transitions, undefined);
 });
 
 test("each rendered directed relationship has a visible marker preserving source/target identity", () => {
@@ -580,6 +984,139 @@ test("each rendered directed relationship has a visible marker preserving source
   assert.notDeepEqual(wingA, wingB);
 });
 
+test("direction marker clears the target marker footprint", () => {
+  const clearanceFor = (targetStyle) => {
+    const h = harness();
+    const source = instance(0, { visualWeight: 1 });
+    const target = instance(1, { style: targetStyle });
+    const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 8 });
+    surface.setProjection(
+      createWorldProjection({
+        instances: [source, target],
+        edges: [
+          createProjectedWorldEdge({
+            id: "clearance",
+            label: "met",
+            sourceInstanceId: source.id,
+            targetInstanceId: target.id,
+            temporalWeight: 1,
+            visible: true,
+            retained: false,
+          }),
+        ],
+      }),
+    );
+    const directions = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.relationshipDirections);
+    const marker = directions.props.data[0];
+    const [wingA, apex, wingB] = directions.props.getPath(marker);
+    const relationship = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.relationships);
+    const edge = relationship.props.data[0];
+    const targetPosition = relationship.props.getPath(edge).at(-1);
+    const distanceToTarget = Math.hypot(apex[0] - targetPosition[0], apex[1] - targetPosition[1]);
+    return {
+      targetClearanceDegrees: marker.targetClearanceDegrees,
+      distanceToTarget,
+      wingA,
+      wingB,
+    };
+  };
+
+  const ordinary = clearanceFor(undefined);
+  const large = clearanceFor({ radius: 32 });
+  assert.ok(large.targetClearanceDegrees > ordinary.targetClearanceDegrees);
+  assert.ok(
+    large.distanceToTarget > ordinary.distanceToTarget,
+    "larger target nodes push the arrow apex farther from the node center",
+  );
+  assert.notDeepEqual(large.wingA, large.wingB);
+});
+
+test("interactive zoom refreshes world-space arrow geometry before LOD thresholds", () => {
+  const h = harness();
+  const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 7 });
+  surface.setProjection(directedProjection());
+
+  const beforeLayer = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.relationshipDirections);
+  const before = beforeLayer.props.data[0].arrowLengthDegrees;
+
+  surface.setCamera({ ...WORKING_CAMERA, zoom: 7.04 });
+
+  const afterLayer = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.relationshipDirections);
+  const after = afterLayer.props.data[0].arrowLengthDegrees;
+  assert.ok(after < before, "zooming in refreshes the angular arrow size");
+  assert.ok(
+    Math.abs(after / before - 2 ** -0.04) < 0.01,
+    "arrow geometry tracks the pixel-sized node scale between semantic LOD thresholds",
+  );
+});
+
+test("direction marker length stays node-relative across camera zoom", () => {
+  const markerLength = (zoom) => {
+    const h = harness();
+    const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom });
+    surface.setProjection(directedProjection());
+    const marker = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.relationshipDirections).props.data[0];
+    return marker.arrowLengthDegrees;
+  };
+
+  const zoom7 = markerLength(7);
+  const zoom8 = markerLength(8);
+  assert.ok(zoom7 > 0);
+  assert.ok(zoom8 > 0);
+  assert.ok(
+    Math.abs(zoom7 / zoom8 - 2) < 1e-9,
+    "pixel-sized nodes imply halved angular arrow length for each +1 zoom",
+  );
+});
+
+test("direction marker length and stroke follow the target marker scale", () => {
+  const metricsFor = (sourceStyle, targetStyle, edgeStyle) => {
+    const h = harness();
+    const source = instance(0, { style: sourceStyle, visualWeight: 1 });
+    const target = instance(1, { style: targetStyle });
+    const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 8 });
+    surface.setProjection(
+      createWorldProjection({
+        instances: [source, target],
+        edges: [
+          createProjectedWorldEdge({
+            id: "scaled",
+            label: "met",
+            sourceInstanceId: source.id,
+            targetInstanceId: target.id,
+            temporalWeight: 1,
+            visible: true,
+            retained: false,
+            ...(edgeStyle ? { style: edgeStyle } : {}),
+          }),
+        ],
+      }),
+    );
+    const directions = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.relationshipDirections);
+    const marker = directions.props.data[0];
+    return {
+      width: directions.props.getWidth(marker),
+      length: marker.arrowLengthDegrees,
+    };
+  };
+
+  const ordinary = metricsFor(undefined, undefined);
+  const largeSource = metricsFor({ radius: 32 }, undefined);
+  const largeTarget = metricsFor(undefined, { radius: 32 });
+  const thinEdgeLargeTarget = metricsFor(undefined, { radius: 32 }, { width: 0.5 });
+
+  assert.ok(
+    Math.abs(largeSource.length - ordinary.length) < 1e-12,
+    "source-node size does not distort a marker terminating at the target",
+  );
+  assert.ok(largeTarget.length > ordinary.length, "target-node size controls chevron length");
+  assert.ok(largeTarget.width > ordinary.width, "target-node size controls chevron stroke");
+  assert.ok(
+    thinEdgeLargeTarget.width > 1,
+    "a thin authored edge cannot force a large target-relative chevron into a hairline stroke",
+  );
+});
+
 test("picking a direction marker resolves to its canonical relationship", () => {
   const h = harness();
   const surface = new DeckWorldSurface({}, h.runtime, WORKING_CAMERA);
@@ -594,42 +1131,81 @@ test("picking a direction marker resolves to its canonical relationship", () => 
   assert.ok(h.pickOptions.at(-1).layerIds.includes(DECK_WORLD_LAYER_IDS.relationshipDirections));
 });
 
-test("selection leaves dense label LOD geometry stable while focus can still pin a label", () => {
+test("hover and selection surface omitted entity labels without relocating stable labels", () => {
   const h = harness();
-  const surface = new DeckWorldSurface({}, h.runtime, WORKING_CAMERA);
-  surface.setProjection(denseProjection(1_000, { distinctPlaces: true }));
+  const projection = denseProjection(1_000);
+  const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 2 });
+  surface.setProjection(projection);
 
-  const before = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
-  const beforeGeometry = before.map((datum) => ({
-    key: datum.key,
-    pixelOffset: datum.pixelOffset ?? null,
-  }));
-
-  surface.setSelection({ kind: "entity", id: "entity-777" });
-  const selected = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
-  assert.deepEqual(
-    selected.map((datum) => ({ key: datum.key, pixelOffset: datum.pixelOffset ?? null })),
-    beforeGeometry,
-    "selection may recolor labels but must not add, remove, or relocate them",
+  const beforeLayer = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
+  const beforeEntityIds = new Set(
+    beforeLayer.props.data
+      .filter((datum) => datum.kind === "entity-label")
+      .map((datum) => datum.entityId),
   );
+  const hidden = projection.instances.find(
+    (candidate) => !beforeEntityIds.has(candidate.canonicalId),
+  );
+  assert.ok(hidden, "dense LOD fixture must omit at least one entity label");
 
-  surface.focusEntity("entity-555");
-  const focused = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
-  const entityIds = focused
-    .filter((datum) => datum.kind === "entity-label")
-    .map((datum) => datum.entityId);
-  assert.ok(entityIds.length > 0);
-  assert.ok(entityIds.length < 1_000, "dense label load is reduced");
-  assert.ok(entityIds.includes("entity-555"), "explicit focus may pin its label");
+  const beforeGeometry = new Map(
+    beforeLayer.props.data.map((datum) => [
+      datum.key,
+      {
+        position: beforeLayer.props.getPosition(datum),
+        pixelOffset: beforeLayer.props.getPixelOffset(datum),
+      },
+    ]),
+  );
+  const assertStableBaseGeometry = (labelLayer) => {
+    for (const [key, geometry] of beforeGeometry) {
+      const datum = labelLayer.props.data.find((candidate) => candidate.key === key);
+      assert.ok(datum, `${key} remains visible while an interaction label is appended`);
+      assert.deepEqual(
+        {
+          position: labelLayer.props.getPosition(datum),
+          pixelOffset: labelLayer.props.getPixelOffset(datum),
+        },
+        geometry,
+        `${key} keeps its stable declutter placement`,
+      );
+    }
+  };
+
+  surface.setSelection({ kind: "entity", id: hidden.canonicalId });
+  let interactionLayer = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
+  assert.ok(
+    interactionLayer.props.data.some(
+      (datum) => datum.kind === "entity-label" && datum.entityId === hidden.canonicalId,
+    ),
+    "selected node receives a label even when ordinary dense LOD suppressed it",
+  );
+  assertStableBaseGeometry(interactionLayer);
+
+  surface.setSelection(null);
+  h.getDeckProps().onHover({
+    object: {
+      kind: "entity",
+      entityId: hidden.canonicalId,
+      worldInstanceId: hidden.id,
+    },
+  });
+  interactionLayer = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
+  assert.ok(
+    interactionLayer.props.data.some(
+      (datum) => datum.kind === "entity-label" && datum.entityId === hidden.canonicalId,
+    ),
+    "hovered node receives a label even when ordinary dense LOD suppressed it",
+  );
+  assertStableBaseGeometry(interactionLayer);
 });
 
-test("clustered overview suppresses member labels even when a member is selected", () => {
+test("clustered overview reveals aggregate and location context on interaction", () => {
   const h = harness();
   const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 0.2 });
   surface.setProjection(denseProjection(200));
-  surface.setSelection({ kind: "entity", id: "entity-150" });
 
-  const labels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
+  let labels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
   assert.equal(
     labels.some((datum) => datum.kind === "entity-label"),
     false,
@@ -638,11 +1214,90 @@ test("clustered overview suppresses member labels even when a member is selected
     labels.some((datum) => datum.kind === "relationship-label"),
     false,
   );
-  assert.ok(labels.length > 0);
-  assert.ok(labels.every((datum) => datum.kind === "place-label"));
+  assert.ok(
+    labels.some((datum) => datum.kind === "cluster-label"),
+    "collapsed overview presents cluster summaries",
+  );
+
+  surface.setSelection({ kind: "entity", id: "entity-150" });
+  const interactionLayers = h.lastLayers();
+  labels = layer(interactionLayers, DECK_WORLD_LAYER_IDS.labels).props.data;
+  assert.equal(
+    labels.some((datum) => datum.kind === "entity-label"),
+    false,
+    "clustered member geometry remains suppressed",
+  );
+  assert.ok(
+    labels.some((datum) => datum.kind === "place-label" && datum.text === "Place 0"),
+    "selected clustered nodes reveal their canonical location",
+  );
+  assert.ok(
+    labels.some((datum) => datum.kind === "cluster-label" && datum.emphasized),
+    "the selected node's aggregate context is emphasized",
+  );
+  assert.ok(
+    layer(interactionLayers, DECK_WORLD_LAYER_IDS.placeIcons).props.data.some(
+      (datum) => datum.label === "Place 0",
+    ),
+    "interaction restores the exact canonical place pin without expanding the surrounding cluster",
+  );
+
+  surface.setSelection(null);
+  const cluster = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.entities).props.data.find(
+    (datum) => datum.kind === "cluster",
+  );
+  assert.ok(cluster);
+  h.getDeckProps().onHover({ object: cluster });
+  const hovered = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data.find(
+    (datum) => datum.kind === "cluster-label" && datum.clusterId === cluster.clusterId,
+  );
+  assert.ok(hovered);
+  assert.equal(hovered.emphasized, true, "hover reveals the cluster summary");
 });
 
-test("hover changes label color only and never restarts label position transitions", () => {
+test("inactive relationships mute until their connected neighborhood is emphasized", () => {
+  const h = harness();
+  const source = instance(0, { style: { fill: "#123456" }, visualWeight: 1 });
+  const target = instance(1);
+  const surface = new DeckWorldSurface({}, h.runtime, WORKING_CAMERA);
+  surface.setProjection(
+    createWorldProjection({
+      instances: [source, target],
+      edges: [
+        createProjectedWorldEdge({
+          id: "hierarchy",
+          label: "met",
+          sourceInstanceId: source.id,
+          targetInstanceId: target.id,
+          temporalWeight: 1,
+          visible: true,
+          retained: false,
+        }),
+      ],
+    }),
+  );
+
+  let relationships = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.relationships);
+  let edge = relationships.props.data[0];
+  const inactive = relationships.props.getColor(edge);
+  assert.equal(inactive[3], 72, "ordinary edges stay visually subordinate");
+
+  h.getDeckProps().onHover({
+    object: {
+      kind: "entity",
+      entityId: source.canonicalId,
+      worldInstanceId: source.id,
+    },
+  });
+
+  relationships = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.relationships);
+  edge = relationships.props.data[0];
+  const emphasized = relationships.props.getColor(edge);
+  assert.deepEqual(emphasized.slice(0, 3), [18, 52, 86]);
+  assert.ok(emphasized[3] > inactive[3], "hover restores the semantic edge emphasis");
+});
+
+test("hover changes label color only and never invokes renderer transitions", () => {
   const h = harness();
   const surface = new DeckWorldSurface({}, h.runtime, WORKING_CAMERA);
   surface.setProjection(directedProjection());
@@ -679,24 +1334,23 @@ test("hover changes label color only and never restarts label position transitio
   assert.equal(hoveredAfter, hoveredBefore, "hover preserves label datum identity");
 
   for (const datum of afterLayer.props.data) {
-    assert.equal(datum, beforeByKey.get(datum.key), datum.key + " datum identity stays stable");
+    assert.equal(datum, beforeByKey.get(datum.key), `${datum.key} datum identity stays stable`);
     assert.deepEqual(
       {
         position: afterLayer.props.getPosition(datum),
         pixelOffset: afterLayer.props.getPixelOffset(datum),
       },
       beforeGeometry.get(datum.key),
-      datum.key + " label geometry stays stable on hover",
+      `${datum.key} label geometry stays stable on hover`,
     );
   }
 
   assert.notDeepEqual(afterLayer.props.getColor(hoveredAfter), colorBefore);
-  assert.deepEqual(
+  assert.equal(
     afterLayer.props.transitions,
-    { getColor: 120 },
-    "hover-capable label layer transitions color only",
+    undefined,
+    "hover emphasis must not invoke renderer transitions",
   );
-  assert.equal(afterLayer.props.transitions.getPosition, undefined);
 });
 
 test("label and marker datums keep object identity across unrelated re-renders", () => {
@@ -731,8 +1385,9 @@ test("the non-WebGL accessibility snapshot carries the same labels and directed 
   assert.deepEqual(snapshot.entities.map((entity) => entity.label).sort(), [
     "Entity 0",
     "Entity 1",
+    "Entity 2",
   ]);
-  assert.deepEqual(snapshot.places.map((place) => place.label).sort(), ["Place 0", "Place 1"]);
+  assert.deepEqual(snapshot.places.map((place) => place.label).sort(), ["Place 0", "Place 1", "Place 2"]);
   assert.deepEqual(snapshot.relationships, [
     {
       relationshipId: "meeting",
@@ -804,11 +1459,11 @@ test("the live region announces the selected object's projection label", () => {
   assert.match(region.textContent, /Selected relationship meeting \(met\)\./);
 });
 
-function chainProjection(count, { distinctPlaces = false } = {}) {
+function chainProjection(count) {
   const instances = [];
   const edges = [];
   for (let index = 0; index < count; index += 1) {
-    instances.push(instance(index, distinctPlaces ? ownPlace(index) : {}));
+    instances.push(instance(index));
     if (index > 0) {
       edges.push(
         createProjectedWorldEdge({
@@ -828,8 +1483,8 @@ function chainProjection(count, { distinctPlaces = false } = {}) {
 
 test("selection changes label color without changing label membership or placement", () => {
   const h = harness();
-  const surface = new DeckWorldSurface({}, h.runtime, WORKING_CAMERA);
-  surface.setProjection(chainProjection(2_000, { distinctPlaces: true }));
+  const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 1 });
+  surface.setProjection(chainProjection(2_000));
 
   const beforeLayer = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
   const before = beforeLayer.props.data;
@@ -877,8 +1532,8 @@ test("selection changes label color without changing label membership or placeme
 
 test("dense direction-marker LOD is selection-stable while explicit focus may pin an edge", () => {
   const h = harness();
-  const surface = new DeckWorldSurface({}, h.runtime, WORKING_CAMERA);
-  surface.setProjection(chainProjection(2_000, { distinctPlaces: true }));
+  const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 1 });
+  surface.setProjection(chainProjection(2_000));
 
   const before = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.relationshipDirections).props.data;
   const beforeIds = before.map((marker) => marker.relationshipId);

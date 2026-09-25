@@ -19,6 +19,10 @@ export interface WorldForceNode {
   readonly collisionRadiusMeters: number;
   readonly initialEastMeters: number;
   readonly initialNorthMeters: number;
+  /** Optional local Sugiyama target; force backends must approach it without snapping. */
+  readonly layoutTargetEastMeters?: number;
+  readonly layoutTargetNorthMeters?: number;
+  readonly layoutTargetStrength?: number;
   readonly targetVisualAltitudeMeters: number;
 }
 
@@ -40,6 +44,19 @@ export interface WorldForceAnchor {
   readonly precisionRadiusMeters: number;
 }
 
+export interface WorldRelationshipRoutePoint {
+  readonly eastMeters: number;
+  readonly northMeters: number;
+}
+
+export interface WorldRelationshipRouteHint {
+  readonly relationshipId: RelationshipId;
+  readonly placeId: PlaceId;
+  readonly sourceId: WorldInstanceId;
+  readonly targetId: WorldInstanceId;
+  readonly points: readonly WorldRelationshipRoutePoint[];
+}
+
 export interface WorldForcePin {
   readonly instanceId: WorldInstanceId;
   readonly eastMeters: number;
@@ -51,11 +68,18 @@ export interface WorldForceScene {
   readonly nodes: readonly WorldForceNode[];
   readonly edges: readonly WorldForceEdge[];
   readonly anchors: readonly WorldForceAnchor[];
+  /** d3-dag routing hints for local relationships; physics remains node-based. */
+  readonly relationshipRoutes?: readonly WorldRelationshipRouteHint[];
 }
 
 export interface WorldSimulationRequest {
   readonly reason: WorldSimulationReason;
-  readonly energyTarget: number;
+  /**
+   * Dimensionless force excitation. Zero means the backend's baseline force gain.
+   * This is intentionally not a d3-force alpha/alphaTarget contract; adapters may
+   * translate excitation into backend-specific heat while preserving these semantics.
+   */
+  readonly excitation: number;
   readonly reheat: boolean;
 }
 
@@ -68,6 +92,15 @@ export interface WorldSimulationDiagnostics {
 
 export interface WorldForceSimulationBackend {
   setScene(scene: WorldForceScene): void;
+  /**
+   * Presentation-only place clustering. `placeIds` controls anchor gathering;
+   * `detachedLinkPlaceIds` may remain populated during expansion so D3
+   * rejection can scatter members before relationship springs are restored.
+   */
+  setClusteredPlaceIds?(
+    placeIds: readonly PlaceId[],
+    detachedLinkPlaceIds?: readonly PlaceId[],
+  ): void;
   setPin(pin: WorldForcePin | null): void;
   apply(request: WorldSimulationRequest): void;
   stop(): void;
@@ -105,7 +138,7 @@ function requestChanged(
   if (!left || !right) return true;
   return (
     left.reason !== right.reason ||
-    left.energyTarget !== right.energyTarget ||
+    left.excitation !== right.excitation ||
     left.reheat !== right.reheat
   );
 }
@@ -145,7 +178,7 @@ export function createWorldSimulationCoordinator(backend: WorldForceSimulationBa
       if (applied && applied.reason !== "idle") {
         const idleRequest: WorldSimulationRequest = {
           reason: "idle",
-          energyTarget: 0,
+          excitation: 0,
           reheat: false,
         };
         applied = idleRequest;
@@ -226,6 +259,4 @@ export function createWorldSimulationCoordinator(backend: WorldForceSimulationBa
   });
 }
 
-export type WorldSimulationCoordinator = ReturnType<
-  typeof createWorldSimulationCoordinator
->;
+export type WorldSimulationCoordinator = ReturnType<typeof createWorldSimulationCoordinator>;

@@ -100,11 +100,7 @@ function addDays(value: string, delta: number): string {
   return `${String(year).padStart(4, "0")}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
 }
 
-export function formatDisplay(
-  start: unknown,
-  end: unknown,
-  mode: string,
-): string {
+export function formatDisplay(start: unknown, end: unknown, mode: string): string {
   const parsedStart = parseDate(start);
   if (!parsedStart) return "";
   const date = new Date(0);
@@ -290,7 +286,9 @@ class DateRangePicker {
     this.viewMonth = parsed.month;
     this.render();
     requestAnimationFrame(() => {
-      (this.grid.querySelector(`button[data-date="${CSS.escape(value)}"]`) as HTMLButtonElement)?.focus();
+      (
+        this.grid.querySelector(`button[data-date="${CSS.escape(value)}"]`) as HTMLButtonElement
+      )?.focus();
     });
   }
 
@@ -425,9 +423,7 @@ class DateRangePicker {
 
     renderLit(
       html`
-        ${WEEKDAYS.map(
-          (weekday) => html`<span class="range-calendar-weekday">${weekday}</span>`,
-        )}
+        ${WEEKDAYS.map((weekday) => html`<span class="range-calendar-weekday">${weekday}</span>`)}
         ${repeat(
           cells,
           (cell) => cell.value,

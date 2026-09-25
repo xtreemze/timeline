@@ -17,28 +17,31 @@ function storyItems(story) {
   return story.itemIds.map((id) => sample.items.find((item) => item.id === id)).filter(Boolean);
 }
 
-function storySpan(story) {
-  const items = storyItems(story);
-  return {
-    start: Math.min(...items.map((item) => temporal.sortKey(item.time?.start || item.start))),
-    end: Math.max(
-      ...items.map((item) =>
-        temporal.sortKey(item.time?.end || item.end || item.time?.start || item.start),
-      ),
-    ),
-  };
-}
-
-test("sample is a three-story fictional anthology with strict logical consistency", () => {
+test("sample is a nine-story fictional anthology with strict logical consistency", () => {
   assert.deepEqual(
     sample.stories.map((story) => story.title),
-    ["The Three Little Pigs", "Snow White", "Cinderella"],
+    [
+      "The Three Little Pigs",
+      "Snow White",
+      "Cinderella",
+      "Little Red Riding Hood",
+      "Hansel and Gretel",
+      "Jack and the Beanstalk",
+      "Rapunzel",
+      "The Frog Prince",
+      "Rumpelstiltskin",
+    ],
   );
   assert.equal(sample.extensions?.narrative?.mode, "fictional");
   assert.equal(sample.extensions?.narrative?.validationProfile, "narrative");
   assert.equal(sample.extensions?.narrative?.forensicEvidenceRequired, false);
   assert.equal(sample.extensions?.narrative?.logicalConsistencyRequired, true);
-  assert.equal(sample.extensions?.narrative?.anthology?.simultaneousStories, true);
+  assert.equal(sample.extensions?.narrative?.anthology?.simultaneousStories, false);
+  assert.equal(sample.extensions?.narrative?.anthology?.distributedStoryCycles, true);
+  assert.deepEqual(
+    sample.extensions?.narrative?.anthology?.storyIds,
+    sample.stories.map((story) => story.id),
+  );
 });
 
 test("every chronology item belongs to exactly one independently inspectable story", () => {
@@ -51,13 +54,35 @@ test("every chronology item belongs to exactly one independently inspectable sto
   for (const [id, count] of memberships) assert.equal(count, 1, id);
 });
 
-test("all three stories coexist on the same chronology and overlap during their main action", () => {
-  const spans = sample.stories.map(storySpan);
-  for (let i = 0; i < spans.length; i += 1) {
-    for (let j = i + 1; j < spans.length; j += 1) {
-      assert.ok(spans[i].end >= spans[j].start && spans[j].end >= spans[i].start);
-    }
+test("all anthology stories occupy deliberately separated chronological presentation bands", () => {
+  assert.deepEqual(
+    sample.stories.map((story) => story.extensions?.narrative?.temporalReferenceFrame),
+    [
+      "Storybook Cycle 976",
+      "Storybook Cycle 988",
+      "Storybook Cycle 1000",
+      "Storybook Cycle 1012",
+      "Storybook Cycle 1027",
+      "Storybook Cycle 1043",
+      "Storybook Cycle 1061",
+      "Storybook Cycle 1078",
+      "Storybook Cycle 1096",
+    ],
+  );
+
+  const mainActionStarts = sample.stories.map((story) => {
+    const precise = storyItems(story)
+      .filter((item) => item.start.includes("T"))
+      .map((item) => temporal.sortKey(item.start));
+    return Math.min(...precise);
+  });
+  for (let index = 1; index < mainActionStarts.length; index += 1) {
+    assert.ok(
+      mainActionStarts[index] - mainActionStarts[index - 1] > 10 * 365 * 86_400_000,
+      `${sample.stories[index - 1].title} and ${sample.stories[index].title}: presentation bands should remain separated`,
+    );
   }
+
   for (const story of sample.stories) {
     const labels = storyItems(story).map((item) => item.extensions?.narrative?.displayTime || "");
     assert.ok(labels.some((label) => /Day 1/i.test(label)));
@@ -81,13 +106,46 @@ test("sample exercises years, days, ranges, and minute-level action", () => {
   assert.ok(sample.items.filter((item) => item.kind === "range").length >= 6);
 });
 
+test("added stories use ranges for sustained narrative actions and states", () => {
+  const addedStories = sample.stories.slice(3);
+  for (const story of addedStories) {
+    const ranges = storyItems(story).filter((item) => item.kind === "range");
+    assert.ok(ranges.length >= 2, `${story.title}: sustained scenes should include ranges`);
+
+    for (const item of ranges) {
+      assert.ok(item.end, `${item.id}: range end`);
+      assert.equal(item.time?.type, "interval", `${item.id}: interval item time`);
+      assert.equal(item.time?.start?.value, item.start, `${item.id}: interval start`);
+      assert.equal(item.time?.end?.value, item.end, `${item.id}: interval end`);
+
+      const relationship = sample.relationships.find(
+        (candidate) => candidate.id === `rel-${item.id}`,
+      );
+      assert.equal(relationship?.time?.type, "interval", `${item.id}: interval edge time`);
+      assert.equal(relationship?.time?.start?.value, item.start, `${item.id}: edge interval start`);
+      assert.equal(relationship?.time?.end?.value, item.end, `${item.id}: edge interval end`);
+    }
+  }
+});
+
 test("fictional chronology is explicitly marked instead of weakening ISO validation", () => {
+  const storyById = new Map(sample.stories.map((story) => [story.id, story]));
   for (const item of sample.items) {
     const narrative = item.extensions?.narrative;
+    const story = storyById.get(narrative?.storyId);
+    assert.ok(story, `${item.id}: known story`);
     assert.equal(narrative?.fictional, true);
     assert.equal(narrative?.validationProfile, "narrative");
-    assert.equal(narrative?.temporalReferenceFrame, "Storybook Cycle 1000");
-    assert.equal(narrative?.spatialReferenceFrame, "Storybook Realm");
+    assert.equal(
+      narrative?.temporalReferenceFrame,
+      story.extensions?.narrative?.temporalReferenceFrame,
+      `${item.id}: story temporal frame`,
+    );
+    assert.equal(
+      narrative?.spatialReferenceFrame,
+      story.extensions?.narrative?.spatialReferenceFrame,
+      `${item.id}: story spatial frame`,
+    );
     assert.ok(narrative?.displayTime);
     assert.equal(item.time?.start?.certainty, "inferred");
     assert.match(item.time?.start?.sourceText || "", /Fictional narrative ordering coordinate/);
@@ -132,6 +190,182 @@ test("each story has distinct reusable fictional places referenced by edges", ()
         [],
       );
     }
+  }
+});
+
+test("story realms use compact terrestrial staging regions appropriate to their settings", () => {
+  const placeById = new Map(sample.places.map((place) => [place.id, place]));
+  const terrainBounds = new Map([
+    [
+      "story-three-little-pigs",
+      {
+        west: 7.5,
+        east: 8.9,
+        south: 49.4,
+        north: 50.5,
+        setting: /Field|Track|Meadow|Hill|Road|Yard|Cottage/,
+      },
+    ],
+    [
+      "story-snow-white",
+      {
+        west: 9.8,
+        east: 11.2,
+        south: 47.8,
+        north: 49.2,
+        setting: /Forest|Cottage|Clearing|Ridge/,
+      },
+    ],
+    [
+      "story-cinderella",
+      {
+        west: 12.2,
+        east: 13.5,
+        south: 46.8,
+        north: 47.8,
+        setting: /Palace|House|Garden|Village|Road/,
+      },
+    ],
+    [
+      "story-little-red-riding-hood",
+      {
+        west: 4.9,
+        east: 6.4,
+        south: 49.4,
+        north: 50.6,
+        setting: /Forest|Meadow|Clearing/,
+      },
+    ],
+    [
+      "story-hansel-and-gretel",
+      {
+        west: 9.8,
+        east: 11.2,
+        south: 51.1,
+        north: 52.3,
+        setting: /Trail|Forest|Crossing|Clearing/,
+      },
+    ],
+    [
+      "story-jack-and-the-beanstalk",
+      {
+        west: -2.8,
+        east: -1.5,
+        south: 53.6,
+        north: 54.8,
+        setting: /Farm|Field|Village/,
+      },
+    ],
+    [
+      "story-rapunzel",
+      {
+        west: 24.0,
+        east: 25.8,
+        south: 45.0,
+        north: 46.4,
+        setting: /Garden|Cottage|Tower|Thornwood|Valley/,
+      },
+    ],
+    [
+      "story-frog-prince",
+      {
+        west: 10.6,
+        east: 12.0,
+        south: 47.2,
+        north: 48.5,
+        setting: /Garden|Well|Path|Palace|Gate/,
+      },
+    ],
+    [
+      "story-rumpelstiltskin",
+      {
+        west: 10.0,
+        east: 11.5,
+        south: 50.2,
+        north: 51.5,
+        setting: /Mill|Palace|Clearing/,
+      },
+    ],
+  ]);
+
+  function coordinatePairs(value, pairs = []) {
+    if (!Array.isArray(value)) return pairs;
+    if (
+      value.length >= 2 &&
+      Number.isFinite(Number(value[0])) &&
+      Number.isFinite(Number(value[1]))
+    ) {
+      pairs.push([Number(value[0]), Number(value[1])]);
+      return pairs;
+    }
+    for (const entry of value) coordinatePairs(entry, pairs);
+    return pairs;
+  }
+
+  for (const story of sample.stories) {
+    const bounds = terrainBounds.get(story.id);
+    assert.ok(bounds, `${story.title}: staging bounds must be declared`);
+
+    const places = (story.placeIds || []).map((placeId) => placeById.get(placeId)).filter(Boolean);
+    const points = places.flatMap((place) => coordinatePairs(place.geometry?.coordinates));
+    assert.ok(points.length >= 5, `${story.title}: enough spatial anchors`);
+    assert.ok(
+      places.some((place) => bounds.setting.test(place.name || "")),
+      `${story.title}: place names should express the intended terrain or built setting`,
+    );
+
+    const longitudeSpan =
+      Math.max(...points.map((point) => point[0])) - Math.min(...points.map((point) => point[0]));
+    const latitudeSpan =
+      Math.max(...points.map((point) => point[1])) - Math.min(...points.map((point) => point[1]));
+    assert.ok(longitudeSpan <= 3, `${story.title}: local geography should remain compact`);
+    assert.ok(latitudeSpan <= 3, `${story.title}: local geography should remain compact`);
+
+    for (const [longitude, latitude] of points) {
+      assert.ok(
+        longitude >= bounds.west &&
+          longitude <= bounds.east &&
+          latitude >= bounds.south &&
+          latitude <= bounds.north,
+        `${story.title}: ${longitude}, ${latitude} must remain inside its plausible terrestrial staging region`,
+      );
+    }
+  }
+});
+
+test("story place registries cover every contextual edge location", () => {
+  const knownPlaceIds = new Set(sample.places.map((place) => place.id));
+  for (const story of sample.stories) {
+    const declared = new Set(story.placeIds || []);
+    assert.ok(declared.size >= 5, `${story.title}: reusable story places`);
+    for (const placeId of declared) assert.ok(knownPlaceIds.has(placeId), placeId);
+
+    const itemIds = new Set(story.itemIds);
+    const used = new Set(
+      sample.relationships
+        .filter((relationship) =>
+          (relationship.itemIds || []).some((itemId) => itemIds.has(itemId)),
+        )
+        .map((relationship) => relationship.placeId)
+        .filter(Boolean),
+    );
+    for (const placeId of used) {
+      assert.ok(declared.has(placeId), `${story.title}: declare used place ${placeId}`);
+    }
+  }
+});
+
+test("all sample relationships carry canonical time, place, and chronology context", () => {
+  const knownPlaceIds = new Set(sample.places.map((place) => place.id));
+  const knownItemIds = new Set(sample.items.map((item) => item.id));
+  for (const relationship of sample.relationships) {
+    assert.ok(relationship.time?.start?.value, `${relationship.id}: time`);
+    assert.ok(knownPlaceIds.has(relationship.placeId), `${relationship.id}: place`);
+    assert.ok(relationship.itemIds?.length, `${relationship.id}: item context`);
+    assert.ok(
+      relationship.itemIds.every((itemId) => knownItemIds.has(itemId)),
+      `${relationship.id}: known item context`,
+    );
   }
 });
 
@@ -235,7 +469,7 @@ test("timed graph edges cover intervals, instants, attributes, entities, and reu
   const entityTypes = new Set(sample.entities.map((entity) => entity.type));
   for (const type of ["group", "object", "person"]) assert.ok(entityTypes.has(type));
   assert.equal(entityTypes.has("place"), false);
-  assert.ok(sample.places.length >= 27);
+  assert.ok(sample.places.length >= 45);
 });
 
 test("storybook scenes remain recognizable through distributed media and semantic icons", () => {
@@ -259,7 +493,7 @@ test("categories classify event semantics independently from story membership", 
   const categoryNames = new Set(sample.categories.map((category) => category.name));
   const storyTitles = new Set(sample.stories.map((story) => story.title));
 
-  assert.equal(sample.categories.length, 9);
+  assert.equal(sample.categories.length, 12);
   for (const title of storyTitles) assert.equal(categoryNames.has(title), false, title);
   for (const item of sample.items) assert.ok(categoryIds.has(item.categoryId), item.id);
 
@@ -287,6 +521,9 @@ test("categories classify event semantics independently from story membership", 
       "relationship",
       "state-change",
       "resolution",
+      "deception",
+      "exchange",
+      "obligation",
     ],
   );
 });
@@ -296,6 +533,12 @@ test("each story exposes a detailed causal sequence rather than summary-only bea
     ["story-three-little-pigs", 16],
     ["story-snow-white", 20],
     ["story-cinderella", 19],
+    ["story-little-red-riding-hood", 10],
+    ["story-hansel-and-gretel", 10],
+    ["story-jack-and-the-beanstalk", 10],
+    ["story-rapunzel", 10],
+    ["story-frog-prince", 10],
+    ["story-rumpelstiltskin", 10],
   ]);
   for (const story of sample.stories) {
     const items = storyItems(story);
@@ -310,6 +553,30 @@ test("each story exposes a detailed causal sequence rather than summary-only bea
       `${story.title}: descriptions should carry causal context`,
     );
   }
+});
+
+test("new story fixtures cover obligation, displacement, object recovery, and identity resolution", () => {
+  const expected = new Map([
+    ["story-rapunzel", ["rapunzel-confined", "rapunzel-banished", "rapunzel-reunion"]],
+    ["story-frog-prince", ["frog-promise", "frog-ball-retrieved", "frog-thrown"]],
+    ["story-rumpelstiltskin", ["rumpel-final-bargain", "rumpel-promise", "rumpel-name-found"]],
+  ]);
+
+  for (const [storyId, itemIds] of expected) {
+    const story = sample.stories.find((candidate) => candidate.id === storyId);
+    assert.ok(story, storyId);
+    const ids = new Set(story.itemIds);
+    for (const itemId of itemIds) assert.ok(ids.has(itemId), itemId);
+  }
+
+  const obligationStories = new Set(
+    sample.items
+      .filter((item) => item.categoryId === "obligation")
+      .map((item) => item.extensions?.narrative?.storyId),
+  );
+  assert.ok(obligationStories.has("story-rapunzel"));
+  assert.ok(obligationStories.has("story-frog-prince"));
+  assert.ok(obligationStories.has("story-rumpelstiltskin"));
 });
 
 test("Three Little Pigs includes material choices, escapes, regrouping and alternate-entry escalation", () => {
@@ -389,12 +656,12 @@ test("Cinderella includes household formation, practical transformation, palace 
 });
 
 test("detailed stories add graph and place depth without conflating categories with stories", () => {
-  assert.ok(sample.items.length >= 55);
-  assert.ok(sample.entities.length >= 39);
-  assert.ok(sample.places.length >= 27);
-  assert.ok(sample.relationships.length >= 46);
+  assert.ok(sample.items.length >= 115);
+  assert.ok(sample.entities.length >= 52);
+  assert.ok(sample.places.length >= 45);
+  assert.ok(sample.relationships.length >= 76);
   assert.ok(
-    sample.relationships.filter((relationship) => relationship.time?.start?.value).length >= 30,
+    sample.relationships.filter((relationship) => relationship.time?.start?.value).length >= 60,
   );
 
   const storyTitles = new Set(sample.stories.map((story) => story.title));
@@ -418,7 +685,8 @@ test("detailed stories add graph and place depth without conflating categories w
 
 test("main-action chronology is spread across realistic multi-day spans without duplicate timestamps", () => {
   for (const story of sample.stories) {
-    const items = storyItems(story).filter((item) => item.start.startsWith("1000-"));
+    const items = storyItems(story).filter((item) => item.start.includes("T"));
+    assert.ok(items.length >= 8, `${story.title}: enough precise action beats`);
     const starts = items.map((item) => temporal.sortKey(item.start));
     const spanDays = (Math.max(...starts) - Math.min(...starts)) / 86_400_000;
     assert.ok(spanDays >= 14, `${story.title}: main action should span at least two weeks`);
@@ -561,7 +829,7 @@ test("chronology items remain edge context and never become graph nodes", () => 
 test("places are reusable spatial records and never graph nodes", () => {
   const placeIds = new Set(sample.places.map((place) => place.id));
   const entityIds = new Set(sample.entities.map((entity) => entity.id));
-  assert.ok(sample.places.length >= 27);
+  assert.ok(sample.places.length >= 45);
   assert.ok(
     sample.entities.every((entity) => entity.type !== "place" && entity.type !== "location"),
   );
@@ -591,19 +859,17 @@ test("places are reusable spatial records and never graph nodes", () => {
   }
 });
 
-test("widened anthology chronology keeps same-day density low across all stories", () => {
-  const startsPerDay = new Map();
-  for (const item of sample.items.filter((candidate) => candidate.start.startsWith("1000-"))) {
+test("anthology chronology avoids cross-story day bunching", () => {
+  const storiesPerDay = new Map();
+  for (const item of sample.items.filter((candidate) => candidate.start.includes("T"))) {
     const day = item.start.slice(0, 10);
-    startsPerDay.set(day, (startsPerDay.get(day) || 0) + 1);
+    const storyId = item.extensions?.narrative?.storyId;
+    if (!storiesPerDay.has(day)) storiesPerDay.set(day, new Set());
+    storiesPerDay.get(day).add(storyId);
   }
   assert.ok(
-    Math.max(...startsPerDay.values()) <= 3,
-    "no synthetic date should carry more than three chronology starts",
-  );
-  assert.ok(
-    [...startsPerDay.values()].filter((count) => count === 3).length <= 4,
-    "three-event dates should remain exceptional",
+    [...storiesPerDay.values()].every((storyIds) => storyIds.size === 1),
+    "a synthetic calendar day should belong to only one story presentation band",
   );
 });
 

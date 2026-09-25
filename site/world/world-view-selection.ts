@@ -1,6 +1,7 @@
 export interface CompatibleSpatialView {
   setModel(model: unknown): void;
   setWindow(viewport: unknown): void;
+  previewWindow?(viewport: unknown): void;
   setFocus(id: string | number | null): void;
   setPresentationMode?(active: boolean): void;
   hasContext?(): boolean;
@@ -15,9 +16,7 @@ export interface CompatibleSpatialViewFactory {
 function compatibleFactory(value: unknown): CompatibleSpatialViewFactory | null {
   if (!value || typeof value !== "object") return null;
   const create = Reflect.get(value, "create");
-  return typeof create === "function"
-    ? (value as CompatibleSpatialViewFactory)
-    : null;
+  return typeof create === "function" ? (value as CompatibleSpatialViewFactory) : null;
 }
 
 export function selectPrimarySpatialViewFactory(

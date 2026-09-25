@@ -24,15 +24,15 @@ export interface SaveProjectRequest {
 }
 
 export interface ProjectRepository {
-  load(projectKey: string): Promise<ProjectSnapshot | null>;
-  save(request: SaveProjectRequest): Promise<ProjectSnapshot>;
-  recover(projectKey: string): Promise<ProjectSnapshot | null>;
+  load: (projectKey: string) => Promise<ProjectSnapshot | null>;
+  save: (request: SaveProjectRequest) => Promise<ProjectSnapshot>;
+  recover: (projectKey: string) => Promise<ProjectSnapshot | null>;
 }
 
 export interface ProjectMigration {
   readonly fromVersion: number;
   readonly toVersion: number;
-  migrate(project: unknown): unknown;
+  migrate: (project: unknown) => unknown;
 }
 
 interface PersistedProjectEnvelope {
@@ -93,12 +93,16 @@ function requireNonNegativeInteger(value: unknown, label: string): number {
 
 function requirePositiveInteger(value: unknown, label: string): number {
   const integer = requireNonNegativeInteger(value, label);
-  if (integer === 0) throw new Error(`${label} must be greater than zero.`);
+  if (integer === 0) {
+    throw new Error(`${label} must be greater than zero.`);
+  }
   return integer;
 }
 
 function assertEntityShape(value: unknown): CanonicalEntity {
-  if (!isRecord(value)) throw new Error("Project entity must be an object.");
+  if (!isRecord(value)) {
+    throw new Error("Project entity must be an object.");
+  }
   requireNonEmptyString(value.id, "Entity ID");
   requireNonEmptyString(value.type, "Entity type");
   requireNonEmptyString(value.name, "Entity name");
@@ -121,7 +125,9 @@ function assertEntityShape(value: unknown): CanonicalEntity {
     attributes: value.attributes,
   };
   const validation = validateEntity(entity);
-  if (!validation.valid) throw new Error(validation.message);
+  if (!validation.valid) {
+    throw new Error(validation.message);
+  }
   return entity;
 }
 
@@ -129,7 +135,9 @@ function assertRelationshipShape(
   value: unknown,
   entities: readonly CanonicalEntity[],
 ): CanonicalRelationship {
-  if (!isRecord(value)) throw new Error("Project relationship must be an object.");
+  if (!isRecord(value)) {
+    throw new Error("Project relationship must be an object.");
+  }
   requireNonEmptyString(value.id, "Relationship ID");
   requireNonEmptyString(value.subjectId, "Relationship subject ID");
   requireNonEmptyString(value.objectId, "Relationship object ID");
@@ -177,12 +185,16 @@ function assertRelationshipShape(
     attributes: value.attributes,
   };
   const validation = validateRelationship(relationship, entities);
-  if (!validation.valid) throw new Error(validation.message);
+  if (!validation.valid) {
+    throw new Error(validation.message);
+  }
   return relationship;
 }
 
 export function assertCanonicalProject(value: unknown): CanonicalProject {
-  if (!isRecord(value)) throw new Error("Canonical project must be an object.");
+  if (!isRecord(value)) {
+    throw new Error("Canonical project must be an object.");
+  }
 
   const schemaVersion = requirePositiveInteger(value.schemaVersion, "Project schemaVersion");
   if (!Array.isArray(value.entities)) {
@@ -196,7 +208,9 @@ export function assertCanonicalProject(value: unknown): CanonicalProject {
   const entityIds = new Set<string>();
   for (const entity of entities) {
     const id = String(entity.id);
-    if (entityIds.has(id)) throw new Error(`Duplicate entity ID "${id}".`);
+    if (entityIds.has(id)) {
+      throw new Error(`Duplicate entity ID "${id}".`);
+    }
     entityIds.add(id);
   }
 
@@ -220,7 +234,9 @@ export function assertCanonicalProject(value: unknown): CanonicalProject {
 }
 
 function projectSchemaVersion(value: unknown): number {
-  if (!isRecord(value)) throw new Error("Migrated project must be an object.");
+  if (!isRecord(value)) {
+    throw new Error("Migrated project must be an object.");
+  }
   return requirePositiveInteger(value.schemaVersion, "Project schemaVersion");
 }
 
@@ -307,7 +323,9 @@ export function deserializeProjectSnapshot(
     throw new Error("Project snapshot is not valid JSON.", { cause: error });
   }
 
-  if (!isRecord(value)) throw new Error("Project snapshot envelope must be an object.");
+  if (!isRecord(value)) {
+    throw new Error("Project snapshot envelope must be an object.");
+  }
   if (value.format !== PROJECT_ENVELOPE_FORMAT) {
     throw new Error("Project snapshot format is not supported.");
   }
@@ -375,7 +393,9 @@ export function createInMemoryProjectRepository(): ProjectRepository {
         throw new ProjectRevisionConflictError(projectKey, expectedRevision, actualRevision);
       }
 
-      if (current) checkpoints.set(projectKey, cloneSnapshot(current));
+      if (current) {
+        checkpoints.set(projectKey, cloneSnapshot(current));
+      }
 
       const next: ProjectSnapshot = {
         projectKey,

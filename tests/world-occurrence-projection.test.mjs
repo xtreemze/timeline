@@ -54,7 +54,7 @@ test("active placed relationships compose into elevated-world-ready instances an
   assert.equal(projection.edges[0].id, "stockholm-meeting");
 });
 
-test("one canonical entity becomes distinct world instances only across distinct spatial contexts", () => {
+test("one canonical entity stays one world node across distinct spatial contexts", () => {
   const relationships = [
     relationship({
       id: "copenhagen-meeting",
@@ -93,11 +93,20 @@ test("one canonical entity becomes distinct world instances only across distinct
     (instance) => instance.canonicalId === "alice",
   );
 
-  assert.equal(aliceInstances.length, 2);
-  assert.notEqual(aliceInstances[0].id, aliceInstances[1].id);
+  assert.equal(aliceInstances.length, 1);
+  assert.deepEqual(aliceInstances[0].occurrenceIds, ["copenhagen-meeting", "stockholm-meeting"]);
+  assert.equal(aliceInstances[0].occurrenceId, undefined);
   assert.deepEqual(
-    aliceInstances.map((instance) => instance.geographicAnchors[0]?.placeId).sort(),
+    aliceInstances[0].geographicAnchors.map((anchor) => anchor.placeId),
     ["copenhagen", "stockholm"],
+  );
+  assert.equal(
+    projection.edges.every(
+      (edge) =>
+        edge.sourceInstanceId === aliceInstances[0].id ||
+        edge.targetInstanceId === aliceInstances[0].id,
+    ),
+    true,
   );
 });
 
@@ -127,7 +136,9 @@ test("repeated active relationships at one place reuse one canonical rendered no
   );
 
   const projection = projectWorldOccurrences(relationships, ["first", "second"], spatialAnchors);
-  const aliceInstances = projection.instances.filter((instance) => instance.canonicalId === "alice");
+  const aliceInstances = projection.instances.filter(
+    (instance) => instance.canonicalId === "alice",
+  );
 
   assert.equal(aliceInstances.length, 1);
   assert.deepEqual(aliceInstances[0].occurrenceIds, ["first", "second"]);

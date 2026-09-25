@@ -40,7 +40,9 @@ on:
 
 concurrency:
   group: e2e-media-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  # Cancel stale PR evidence, but never cancel the active main run that Pages depends on.
+  # GitHub still keeps only the newest pending run in this concurrency group.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -69,10 +71,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg
 
-      - name: Record ten real-browser showcase scenes
-        run: pnpm test:e2e:showcase
+      - name: Record source-native showcase media
+        run: xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" pnpm test:e2e:showcase
 
-      - name: Render desktop and mobile reels and GIF collections
+      - name: Render desktop and mobile reels and showcase assets
         run: pnpm render:e2e:showcase
 
       - name: Verify media evidence
@@ -81,23 +83,27 @@ jobs:
           test -s artifacts/e2e-media/README-showcase.md
           test -s artifacts/e2e-media/reels/lum-desktop-highlight.mp4
           test -s artifacts/e2e-media/reels/lum-mobile-highlight.mp4
-          test "$(find artifacts/e2e-media/raw/desktop -type f -name '*.webm' | wc -l)" -eq 5
-          test "$(find artifacts/e2e-media/raw/mobile -type f -name '*.webm' | wc -l)" -eq 5
+          test "$(find artifacts/e2e-media/raw/desktop -type f -name '*.webm' | wc -l)" -eq 2
+          test "$(find artifacts/e2e-media/raw/mobile -type f -name '*.webm' | wc -l)" -eq 2
+          test "$(find artifacts/e2e-media/raw/desktop -type f -name '*.frames.json' | wc -l)" -eq 2
+          test "$(find artifacts/e2e-media/raw/mobile -type f -name '*.frames.json' | wc -l)" -eq 2
           test "$(find artifacts/e2e-media/raw/desktop -type f -name '*.png' | wc -l)" -eq 5
           test "$(find artifacts/e2e-media/raw/mobile -type f -name '*.png' | wc -l)" -eq 5
-          test "$(find artifacts/e2e-media/gifs/desktop -type f -name '*.gif' | wc -l)" -eq 5
-          test "$(find artifacts/e2e-media/gifs/mobile -type f -name '*.gif' | wc -l)" -eq 5
+          test "$(find artifacts/e2e-media/showcase/desktop -type f -name '*.webp' | wc -l)" -eq 2
+          test "$(find artifacts/e2e-media/showcase/mobile -type f -name '*.webp' | wc -l)" -eq 2
+          test "$(find artifacts/e2e-media/showcase/desktop -type f -name '*.png' | wc -l)" -eq 3
+          test "$(find artifacts/e2e-media/showcase/mobile -type f -name '*.png' | wc -l)" -eq 3
 
-      - name: Report GIF sizes
+      - name: Report showcase asset sizes
         run: |
-          echo "Desktop GIFs"
-          du -h artifacts/e2e-media/gifs/desktop/*.gif
-          du -sh artifacts/e2e-media/gifs/desktop
-          echo "Mobile GIFs"
-          du -h artifacts/e2e-media/gifs/mobile/*.gif
-          du -sh artifacts/e2e-media/gifs/mobile
-          echo "Combined GIF payload"
-          du -sh artifacts/e2e-media/gifs
+          echo "Desktop showcase"
+          du -h artifacts/e2e-media/showcase/desktop/*
+          du -sh artifacts/e2e-media/showcase/desktop
+          echo "Mobile showcase"
+          du -h artifacts/e2e-media/showcase/mobile/*
+          du -sh artifacts/e2e-media/showcase/mobile
+          echo "Combined showcase payload"
+          du -sh artifacts/e2e-media/showcase
 
       - name: Upload E2E media evidence
         if: always()

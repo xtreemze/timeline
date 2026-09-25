@@ -4,17 +4,18 @@
  * This adapter preserves existing Orb data/event semantics while keeping
  * renderer objects out of application and domain code.
  */
+
+import type { EntityId, RelationshipId } from "../domain/ids.ts";
 import type {
   CanonicalSelection,
   GraphEdgeProjection,
   GraphProjection,
   GraphSelectionKind,
-  GraphSurface,
   GraphSimulationState,
+  GraphSurface,
   GraphSurfaceEventListener,
   GraphSurfaceFactory,
 } from "./graph-surface.ts";
-import type { EntityId, RelationshipId } from "../domain/ids.ts";
 
 interface OrbNode {
   id: string | number;

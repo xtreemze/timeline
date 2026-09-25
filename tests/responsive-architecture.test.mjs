@@ -34,7 +34,6 @@ test("responsive architecture documents mobile-first and container-responsive ru
   assert.match(source, /#243/);
 });
 
-
 test("focused timeline styling stays free of legacy sizing and directional keyframes", async () => {
   const [styles, timeline] = await Promise.all([
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),

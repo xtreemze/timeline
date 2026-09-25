@@ -62,7 +62,13 @@ function projection() {
   });
 }
 
-function harness({ settled = false, readback = false, delta = false, gpuBridge = false } = {}) {
+function harness({
+  settled = false,
+  readback = false,
+  emptyReadback = false,
+  delta = false,
+  gpuBridge = false,
+} = {}) {
   const calls = [];
   const diagnostics = { running: false, settled, energy: 0, iteration: 0 };
   let pin = null;
@@ -70,6 +76,9 @@ function harness({ settled = false, readback = false, delta = false, gpuBridge =
   const surface = {
     setProjection(value) {
       calls.push(["surface:projection", value]);
+    },
+    setRelationshipRoutes(value) {
+      calls.push(["surface:routes", value]);
     },
     setTemporalWindow(value) {
       calls.push(["surface:window", value]);
@@ -141,6 +150,7 @@ function harness({ settled = false, readback = false, delta = false, gpuBridge =
   if (readback) {
     options.layoutReadback = {
       read() {
+        if (emptyReadback) return [];
         const id = worldInstanceId("alice", "meeting");
         return [
           {
@@ -183,8 +193,10 @@ test("projection updates feed force scene and WorldSurface from one revision", (
   assert.equal(controller.state().projectionRevision, 1);
   assert.equal(controller.state().hasProjection, true);
   assert.equal(calls[0][0], "force:scene");
-  assert.equal(calls[1][0], "force:apply");
-  assert.deepEqual(calls[2], ["surface:projection", input]);
+  assert.equal(calls[1][0], "surface:routes");
+  assert.ok(calls[1][1].length > 0, "local DAG route hints reach the renderer");
+  assert.equal(calls[2][0], "force:apply");
+  assert.deepEqual(calls[3], ["surface:projection", input]);
 });
 
 test("runtime delegates temporal window and canonical selection to WorldSurface", () => {
@@ -234,6 +246,47 @@ test("CPU force readback applies incremental WorldSurface deltas", () => {
   assert.deepEqual(
     deltaCall[1].updatedInstances.map((instance) => instance.canonicalId),
     ["alice"],
+  );
+  assert.deepEqual(deltaCall[1].addedInstances, []);
+  assert.deepEqual(deltaCall[1].removedInstanceIds, []);
+  assert.deepEqual(deltaCall[1].addedEdges, []);
+  assert.deepEqual(deltaCall[1].updatedEdges, []);
+  assert.deepEqual(deltaCall[1].removedEdgeIds, []);
+});
+
+test("delta-capable CPU readback materializes a full render snapshot only on demand", () => {
+  const { calls, controller } = harness({ readback: true, delta: true });
+  controller.setProjection(projection());
+
+  controller.step(16);
+  const deltasAfterFirstPush = calls.filter(([name]) => name === "surface:delta").length;
+  const output = controller.getRenderProjection();
+  const alice = output.instances.find((instance) => instance.canonicalId === "alice");
+
+  assert.deepEqual(alice.localOffset, { eastMeters: 100, northMeters: 50 });
+  assert.equal(alice.visualAltitude, 1500);
+
+  // The harness intentionally returns the same sparse sample again. A second
+  // eligible push must be a no-op instead of invalidating the renderer.
+  controller.step(50);
+  assert.equal(calls.filter(([name]) => name === "surface:delta").length, deltasAfterFirstPush);
+});
+
+test("empty sparse CPU readback skips projection rebuild and renderer invalidation", () => {
+  const { calls, controller } = harness({
+    readback: true,
+    emptyReadback: true,
+    delta: true,
+  });
+  controller.setProjection(projection());
+
+  const before = calls.length;
+  controller.step(16);
+  const afterStepCalls = calls.slice(before);
+
+  assert.deepEqual(
+    afterStepCalls.map(([name]) => name),
+    ["force:step"],
   );
 });
 
@@ -340,3 +393,48 @@ test("subsequent projection revisions use WorldSurface delta updates when suppor
     ["alice"],
   );
 });
+
+test("manual DAG reorganization rebuilds targets and routes while retaining geographic anchors", () => {
+  const { calls, controller } = harness();
+  controller.setProjection(projection());
+  const initialScene = calls.find(([name]) => name === "force:scene")?.[1];
+  assert.ok(initialScene);
+
+  calls.length = 0;
+  assert.equal(controller.reorganizeDag(), true);
+
+  const sceneCall = calls.find(([name]) => name === "force:scene");
+  const routeCall = calls.find(([name]) => name === "surface:routes");
+  const applyCall = calls.find(([name]) => name === "force:apply");
+
+  assert.ok(sceneCall);
+  assert.ok(routeCall);
+  assert.ok(applyCall);
+  assert.deepEqual(sceneCall[1].anchors, initialScene.anchors);
+  assert.equal(applyCall[1].reason, "topology");
+  assert.equal(applyCall[1].reheat, true);
+  assert.ok(applyCall[1].excitation > 0);
+});
+
+test("manual force relaxation reheats the existing scene without rebuilding geographic ownership", () => {
+  const { calls, controller } = harness();
+  controller.setProjection(projection());
+
+  calls.length = 0;
+  assert.equal(controller.relaxForce(), true);
+
+  assert.equal(calls.some(([name]) => name === "force:scene"), false);
+  const applyCall = calls.find(([name]) => name === "force:apply");
+  assert.ok(applyCall);
+  assert.equal(applyCall[1].reason, "topology");
+  assert.equal(applyCall[1].reheat, true);
+});
+
+test("manual layout commands are inert until a world projection exists", () => {
+  const { calls, controller } = harness();
+
+  assert.equal(controller.reorganizeDag(), false);
+  assert.equal(controller.relaxForce(), false);
+  assert.deepEqual(calls, []);
+});
+

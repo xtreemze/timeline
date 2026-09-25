@@ -6,6 +6,7 @@
  * alive across pan/zoom so rendering does not become a destructive per-frame rebuild.
  */
 
+import { surfacePointerMayStartDirectManipulation } from "../src/interaction/surface-input-policy.ts";
 import {
   geometryMeasurementKey,
   planCommittedTemporalLayout,
@@ -64,6 +65,9 @@ const LABEL_BEFORE_ENTER_RATIO = 0.64;
 const LABEL_BEFORE_EXIT_RATIO = 0.36;
 const LAYOUT_CORRECTION_DURATION_MS = 140;
 const LAYOUT_CORRECTION_EPSILON_PX = 0.75;
+const EDGE_ACCENT_HORIZONTAL_MIN_GAP_PX = 96;
+const EDGE_ACCENT_VERTICAL_MIN_GAP_PX = 72;
+const EDGE_ACCENT_HYSTERESIS_PX = 12;
 
 type Orientation = "horizontal" | "vertical";
 
@@ -110,6 +114,12 @@ interface TimelineRelationshipBand {
   subjectId?: string;
 }
 
+interface RelationshipBandPresentation {
+  title: string;
+  laneOffset: string;
+  color: string | null;
+}
+
 interface SetItemsOptions {
   focusId?: string | null;
   allCoordinates?: number[];
@@ -120,8 +130,13 @@ interface SceneRecord {
   item: TimelineItem;
   node: LuumEventCardElement;
   terminal: HTMLButtonElement;
+  connector: HTMLElement | null;
+  connectorTurn: HTMLElement | null;
   range: HTMLButtonElement | null;
   contentRevision: string;
+  contentEpoch: number;
+  selected: boolean | null;
+  connectorGeometryDirty: boolean;
   labelBefore: boolean | null;
   crossPosition: number | null;
 }
@@ -130,6 +145,10 @@ interface ClusterSceneRecord {
   cluster: TemporalLayoutCluster;
   node: HTMLDivElement;
   terminal: HTMLButtonElement;
+  connector: HTMLElement;
+  connectorTurn: HTMLElement;
+  lane: number;
+  connectorGeometryDirty: boolean;
   labelBefore: boolean | null;
   crossPosition: number | null;
 }
@@ -165,6 +184,7 @@ interface TouchTapState {
   startX: number;
   startY: number;
   cancelled: boolean;
+  interactive: boolean;
 }
 
 interface LastTouchTap {
@@ -178,12 +198,16 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 function normalizeWheelDelta(
-  event: Pick<WheelEvent, "deltaY" | "deltaMode">,
+  event: Pick<WheelEvent, "deltaY" | "deltaMode" | "ctrlKey">,
   pageLength: number,
 ): number {
   let delta = Number(event.deltaY) || 0;
   if (event.deltaMode === 1) delta *= 16;
   if (event.deltaMode === 2) delta *= Math.max(1, pageLength);
+  // Browser trackpad pinch is commonly exposed as a Ctrl-modified wheel
+  // gesture. Match d3-zoom's normalization here, then let Lūm's existing
+  // exponent cap keep the actual zoom response deliberately conservative.
+  if (event.ctrlKey) delta *= 10;
   return delta;
 }
 
@@ -259,6 +283,49 @@ function labelBeforeForPosition(
   return ratio > 0.5;
 }
 
+function selectEdgeAccents<T extends { label?: string; position?: number }>(
+  accents: readonly T[],
+  limit: number,
+  orientation: Orientation,
+  previousCount = 1,
+): T[] {
+  const maximum = clamp(Math.trunc(limit) || 1, 1, 2);
+  const ordered = [...accents].sort(
+    (left, right) => Number(left.position) - Number(right.position),
+  );
+  let selected =
+    ordered.length <= maximum
+      ? ordered
+      : maximum === 1
+        ? ordered.slice(0, 1)
+        : [ordered[0], ordered.at(-1)].filter((accent): accent is T => Boolean(accent));
+
+  if (selected.length === 2) {
+    const first = selected[0];
+    const last = selected[1];
+    if (first && last) {
+      const labelLength = Math.max(
+        String(first.label || "").length,
+        String(last.label || "").length,
+      );
+      const baseGap =
+        orientation === "horizontal"
+          ? EDGE_ACCENT_HORIZONTAL_MIN_GAP_PX
+          : EDGE_ACCENT_VERTICAL_MIN_GAP_PX;
+      const glyphGap = labelLength * (orientation === "horizontal" ? 11 : 8);
+      const projectedGap = Math.abs(Number(last.position) - Number(first.position));
+      const requiredGap =
+        Math.max(baseGap, glyphGap) +
+        (previousCount >= 2 ? -EDGE_ACCENT_HYSTERESIS_PX : EDGE_ACCENT_HYSTERESIS_PX);
+      if (projectedGap < requiredGap) {
+        selected = [first];
+      }
+    }
+  }
+
+  return selected;
+}
+
 function itemOverlapsViewport(
   item: Pick<TimelineItem, "start" | "end">,
   viewport: TemporalWindow,
@@ -325,6 +392,7 @@ export class TimelineViewController {
   axis: HTMLDivElement;
   semanticList: HTMLOListElement;
   items: TimelineItem[] = [];
+  itemEpoch = 0;
   relationships: TimelineRelationshipBand[] = [];
   allCoordinates: number[] = [];
   viewport: TemporalWindow = { start: 0, end: DEFAULT_SPAN_MS };
@@ -335,8 +403,10 @@ export class TimelineViewController {
   orientation: Orientation = loadViewPreferences().orientation;
   scene = new Map<string, SceneRecord>();
   tickScene = new Map<string, HTMLDivElement>();
+  tickLabelScene = new Map<string, HTMLSpanElement>();
   accentScene = new Map<string, HTMLDivElement>();
   relationshipBandScene = new Map<string, HTMLDivElement>();
+  relationshipBandPresentation = new Map<string, RelationshipBandPresentation>();
   relationshipBandZone: HTMLDivElement | null = null;
   committedLayout: TemporalCommittedLayoutPlan = {
     lanes: Object.freeze({}),
@@ -351,6 +421,7 @@ export class TimelineViewController {
   geometryMeasurements = new Map<string, CachedGeometryMeasurement>();
   committedTickSpecKey = "";
   committedTickSpec: SemanticTickSpec | null = null;
+  edgeAccentCount = 1;
   performanceMetrics = createRetainedTimelineMetrics();
   frameCreatedObjects = 0;
   frameDestroyedObjects = 0;
@@ -373,8 +444,14 @@ export class TimelineViewController {
   geometryObserver: ResizeObserver | null = null;
   pendingViewportEmit = false;
   interactionSurfaceRect: DOMRect | null = null;
-  layoutCorrectionAnimations = new Set<Animation>();
-  pendingSideCorrections: Array<{ node: HTMLElement; terminal: HTMLElement }> = [];
+  lastRenderedAxisCross: number | null = null;
+  lastRenderedAxisOrientation: Orientation | null = null;
+  lastAxisCrossCss = "";
+  lastReadoutKey = "";
+  layoutCorrectionAnimations = new Map<
+    HTMLElement,
+    { animation: Animation; deltaX: number; deltaY: number }
+  >();
   wheelCommitTimer: ReturnType<typeof globalThis.setTimeout> | 0 = 0;
   viewportInitialized = false;
   reducedMotionQuery: MediaQueryList | null =
@@ -392,12 +469,22 @@ export class TimelineViewController {
       root.parentElement?.querySelector("#timeline-focus-view") ||
       root.parentElement?.querySelector(".timeline-focus-view") ||
       root;
+    // View controls are footer-owned rather than children of the timeline
+    // surface. Prefer legacy/local controls for isolated fixtures, then resolve
+    // the persistent controls from the owning application shell.
+    const controlsRoot = root.closest("#app-shell") ?? root.ownerDocument;
     this.readout =
       root.querySelector("#timeline-window-readout") ||
       root.querySelector(".timeline-window-readout") ||
+      controlsRoot.querySelector("#timeline-window-readout") ||
+      controlsRoot.querySelector(".timeline-window-readout") ||
       root;
-    this.orientationToggle = root.querySelector("#timeline-orientation-toggle");
-    this.zoomSlider = root.querySelector("#timeline-zoom-level");
+    this.orientationToggle =
+      root.querySelector("#timeline-orientation-toggle") ||
+      controlsRoot.querySelector("#timeline-orientation-toggle");
+    this.zoomSlider =
+      root.querySelector("#timeline-zoom-level") ||
+      controlsRoot.querySelector("#timeline-zoom-level");
 
     this.stage = document.createElement("div");
     this.stage.className = "timeline-stage timeline-retained-scene";
@@ -551,13 +638,25 @@ export class TimelineViewController {
     };
 
     const registerTouchTap = (event: PointerEvent, tap: TouchTapState | null): boolean => {
-      if (!tap || tap.cancelled) return false;
+      if (!tap) return false;
+      this.touchTap = null;
+      // Event-card/range taps belong to the occurrence, never to the background
+      // camera double-tap recognizer. Cancelled taps also must not survive into
+      // the next pointer sequence.
+      if (tap.cancelled || tap.interactive) {
+        if (tap.interactive) {
+          this.lastTouchTap = null;
+          if (tap.cancelled) {
+            this.suppressClickUntil = performance.now() + CLICK_SUPPRESSION_MS;
+          }
+        }
+        return false;
+      }
       // Input time, not handling time: a busy main thread must not stretch a
       // quick double-tap past its window.
       const now = Number(event.timeStamp) || performance.now();
       const previous = this.lastTouchTap;
       const point = { x: event.clientX, y: event.clientY };
-      this.touchTap = null;
 
       if (
         previous &&
@@ -618,11 +717,17 @@ export class TimelineViewController {
     );
 
     this.surface.addEventListener("pointerdown", (event) => {
-      const isPrimaryPointer = event.pointerType === "touch" || event.button === 0;
-      if (!this.items.length || !isPrimaryPointer) return;
+      if (!this.items.length || !surfacePointerMayStartDirectManipulation(event)) return;
       const interactiveTarget =
         event.target instanceof Element
           ? event.target.closest("button, a, input, select, textarea")
+          : null;
+      const timelineInteractionTarget =
+        interactiveTarget instanceof HTMLElement &&
+        interactiveTarget.matches(
+          ".timeline-event-terminal, .timeline-range-segment, .timeline-cluster-terminal",
+        )
+          ? interactiveTarget
           : null;
 
       if (event.pointerType === "touch") {
@@ -636,6 +741,7 @@ export class TimelineViewController {
           startX: event.clientX,
           startY: event.clientY,
           cancelled: false,
+          interactive: Boolean(timelineInteractionTarget),
         };
         if (this.touchPointers.size >= 2) {
           beginPinch();
@@ -679,8 +785,18 @@ export class TimelineViewController {
             event.clientY - this.touchTap.startY,
           );
           if (distance > TOUCH_TAP_MOVE_TOLERANCE_PX) {
-            this.touchTap.cancelled = true;
+            const tap = this.touchTap;
+            tap.cancelled = true;
             this.lastTouchTap = null;
+            if (tap.interactive && !this.pointerDrag && !this.pinch) {
+              // A finger may start on a large occurrence target and still mean
+              // to move the chronology. Promote the pending tap to a camera
+              // drag only after the tap tolerance is crossed, and suppress the
+              // synthetic click generated when that contact is released.
+              event.preventDefault();
+              this.suppressClickUntil = performance.now() + CLICK_SUPPRESSION_MS;
+              beginSurfaceDrag(event.pointerId, { x: tap.startX, y: tap.startY });
+            }
           }
         }
       }
@@ -843,7 +959,7 @@ export class TimelineViewController {
 
     document.addEventListener("graphselectionchange", (event: Event) => {
       const detail = (event as CustomEvent).detail;
-      if (!detail || detail.kind !== "node") return;
+      if (detail?.kind !== "node") return;
       const nodeId = String(detail.id);
       if (!nodeId.startsWith("cluster:")) return;
       const eventIds = nodeId.split(":")[1]?.split("|") || [];
@@ -873,15 +989,22 @@ export class TimelineViewController {
     this.items = (items || []).filter(
       (item) => item && typeof item.id === "string" && Number.isFinite(item.start),
     );
+    this.itemEpoch += 1;
     this.relationships = Array.isArray(options.relationships)
-      ? options.relationships.filter(
-          (relationship): relationship is TimelineRelationshipBand =>
-            Boolean(relationship) &&
-            typeof relationship.id === "string" &&
-            Number.isFinite(relationship.start) &&
-            Number.isFinite(relationship.end),
-        )
+      ? options.relationships
+          .filter(
+            (relationship): relationship is TimelineRelationshipBand =>
+              Boolean(relationship) &&
+              typeof relationship.id === "string" &&
+              Number.isFinite(relationship.start) &&
+              Number.isFinite(relationship.end),
+          )
+          .sort(
+            (left, right) =>
+              left.start - right.start || left.end - right.end || left.id.localeCompare(right.id),
+          )
       : [];
+    this.rebuildRelationshipBandPresentation();
     this.allCoordinates = Array.isArray(options.allCoordinates)
       ? options.allCoordinates.filter(Number.isFinite)
       : this.items.flatMap((item) =>
@@ -1143,22 +1266,31 @@ export class TimelineViewController {
   }
 
   syncZoomSlider(): void {
-    if (!this.zoomSlider) return;
-    this.zoomSlider.disabled = !this.items.length;
-    this.zoomSlider.setAttribute(
-      "aria-orientation",
-      this.orientation === "vertical" ? "vertical" : "horizontal",
-    );
-    if (this.zoomSlider.disabled || this.retention.active) return;
+    if (!this.zoomSlider || this.retention.active) return;
+
+    const disabled = !this.items.length;
+    if (this.zoomSlider.disabled !== disabled) this.zoomSlider.disabled = disabled;
+
+    // View controls live in the persistent horizontal footer. The slider's
+    // own physical orientation no longer follows the timeline axis.
+    if (this.zoomSlider.getAttribute("aria-orientation") !== "horizontal") {
+      this.zoomSlider.setAttribute("aria-orientation", "horizontal");
+    }
+
+    if (disabled) return;
     const targets = this.semanticZoomTargets();
     if (!targets) return;
     const value = Math.round(
       this.semanticZoomValueForSpan(this.viewport.end - this.viewport.start, targets),
     );
-    this.zoomSlider.value = String(value);
+    const nextValue = String(value);
+    if (this.zoomSlider.value !== nextValue) this.zoomSlider.value = nextValue;
+
     const label = this.semanticZoomValueText(value);
-    this.zoomSlider.setAttribute("aria-valuetext", label);
-    this.zoomSlider.title = label;
+    if (this.zoomSlider.getAttribute("aria-valuetext") !== label) {
+      this.zoomSlider.setAttribute("aria-valuetext", label);
+    }
+    if (this.zoomSlider.title !== label) this.zoomSlider.title = label;
   }
 
   positionTemporalNode(node: HTMLElement, time: number, padding: number, usable: number): void {
@@ -1181,31 +1313,37 @@ export class TimelineViewController {
       label: HTMLElement;
       position: number;
       extent: number;
+      inViewport: boolean;
     }> = [];
 
     for (const key of keep) {
       const node = this.tickScene.get(key);
-      const label = node?.querySelector<HTMLElement>(".timeline-tick-label");
+      const label = this.tickLabelScene.get(key);
       if (!node || !label) continue;
       const time = Number(node.dataset.time);
       const position = padding + scale.coordinateFor(time, this.viewport, usable);
-      if (!Number.isFinite(position) || position < minimum || position > maximum) {
+      if (!Number.isFinite(position)) {
         label.hidden = true;
         continue;
       }
       const textLength = (label.textContent || "").trim().length;
       const extent = this.orientation === "horizontal" ? clamp(30 + textLength * 6.2, 42, 168) : 18;
-      candidates.push({ label, position, extent });
+      candidates.push({
+        label,
+        position,
+        extent,
+        inViewport: position >= minimum && position <= maximum,
+      });
     }
 
     candidates.sort((left, right) => left.position - right.position);
     let lastEnd = Number.NEGATIVE_INFINITY;
     for (const candidate of candidates) {
-      const start = Math.max(minimum, candidate.position - candidate.extent / 2);
-      const end = Math.min(maximum, candidate.position + candidate.extent / 2);
-      const visible = start >= lastEnd + TEMPORAL_LABEL_GAP_PX;
-      candidate.label.hidden = !visible;
-      if (visible) lastEnd = end;
+      const start = candidate.position - candidate.extent / 2;
+      const end = candidate.position + candidate.extent / 2;
+      const collisionVisible = start >= lastEnd + TEMPORAL_LABEL_GAP_PX;
+      candidate.label.hidden = !collisionVisible || !candidate.inViewport;
+      if (collisionVisible) lastEnd = end;
     }
   }
 
@@ -1287,6 +1425,51 @@ export class TimelineViewController {
     );
   }
 
+  updateEdgeAccentLabel(node: HTMLElement, label: string, animateChanges: boolean): void {
+    const target = String(label || "");
+    const slots = Array.from(node.querySelectorAll<HTMLElement>(".timeline-edge-date-character"));
+
+    while (slots.length < target.length) {
+      const slot = document.createElement("span");
+      slot.className = "timeline-edge-date-character";
+      node.append(slot);
+      slots.push(slot);
+    }
+    while (slots.length > target.length) {
+      slots.pop()?.remove();
+    }
+
+    for (let index = 0; index < target.length; index += 1) {
+      const slot = slots[index];
+      const next = target[index] || "";
+      if (!slot) continue;
+      const previous = slot.textContent || "";
+      if (previous === next) continue;
+
+      slot.textContent = next;
+      const numericReplacement = /\d/.test(previous) && /\d/.test(next);
+      if (
+        !animateChanges ||
+        !numericReplacement ||
+        this.reducedMotionQuery?.matches ||
+        typeof slot.animate !== "function"
+      ) {
+        continue;
+      }
+
+      for (const animation of slot.getAnimations()) animation.cancel();
+      const direction = Number(next) >= Number(previous) ? 1 : -1;
+      const animation = slot.animate(
+        [
+          { opacity: 0.28, transform: `translateY(${direction * 0.42}em)` },
+          { opacity: 1, transform: "translateY(0)" },
+        ],
+        { duration: 180, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" },
+      );
+      animation.addEventListener("finish", () => animation.cancel(), { once: true });
+    }
+  }
+
   materializeTickHierarchy(
     spec: SemanticTickSpec,
     extent: TemporalWindow,
@@ -1303,15 +1486,17 @@ export class TimelineViewController {
       const key = tickSceneKey({ unit: tick.spec.unit, value: tick.value });
       keep.add(key);
       let node = this.tickScene.get(key);
+      let label = this.tickLabelScene.get(key);
       const created = !node;
       if (!node) {
         node = document.createElement("div");
         node.className = "timeline-tick";
         node.dataset.time = String(tick.value);
-        const label = document.createElement("span");
+        label = document.createElement("span");
         label.className = "timeline-tick-label";
         node.append(label);
         this.tickScene.set(key, node);
+        this.tickLabelScene.set(key, label);
         this.stage.append(node);
         this.frameCreatedObjects += 1;
       }
@@ -1330,11 +1515,11 @@ export class TimelineViewController {
         node.style.opacity = "0.35";
       }
 
-      const label = node.querySelector(".timeline-tick-label");
       if (label) {
-        label.textContent =
+        const nextLabel =
           clustering.compactTickLabel(tick.value, tick.spec, accentPlan.hasAmbientContext) ??
           tick.label;
+        if (label.textContent !== nextLabel) label.textContent = nextLabel;
       }
       this.positionTemporalNode(node, tick.value, padding, usable);
     }
@@ -1347,43 +1532,73 @@ export class TimelineViewController {
     padding: number,
     usable: number,
     incoming: boolean,
+    edgeAccentLimit: number,
   ): Set<string> {
     const keep = new Set<string>();
+    const boundedEdgeAccents = selectEdgeAccents(
+      accentPlan.edgeAccents,
+      edgeAccentLimit,
+      this.orientation,
+      this.edgeAccentCount,
+    );
+    this.edgeAccentCount = boundedEdgeAccents.length;
     const materialize = (
       accent: (typeof accentPlan.edgeAccents)[number] | (typeof accentPlan.axisMonths)[number],
       axis: boolean,
+      slot: number = 0,
     ): void => {
-      const key = temporalAccentSceneKey({
-        kind: String(accent.kind || (axis ? "axis" : "edge")),
-        time: Number(accent.sceneTime ?? accent.time),
-      });
+      const key = axis
+        ? temporalAccentSceneKey({
+            kind: String(accent.kind || "axis"),
+            time: Number(accent.sceneTime ?? accent.time),
+          })
+        : `edge-slot:${slot}`;
       keep.add(key);
+
       let node = this.accentScene.get(key);
       const created = !node;
+      const className = axis
+        ? "timeline-axis-month-label"
+        : accent.kind === "year"
+          ? "timeline-month-accent timeline-year-accent timeline-edge-date"
+          : "timeline-month-accent timeline-edge-date";
+
       if (!node) {
         node = document.createElement("div");
-        node.className = axis
-          ? "timeline-axis-month-label"
-          : accent.kind === "year"
-            ? "timeline-month-accent timeline-year-accent"
-            : "timeline-month-accent";
-        node.dataset.time = String(accent.time);
-        node.dataset.temporalAccent = String(accent.kind || "");
+        node.className = className;
         this.accentScene.set(key, node);
         this.stage.append(node);
         this.frameCreatedObjects += 1;
+      } else {
+        node.className = className;
       }
+      node.hidden = false;
+
+      node.dataset.time = String(accent.time);
+      node.dataset.temporalAccent = String(accent.kind || "");
       node.classList.toggle("is-incoming-hierarchy", incoming && created);
       if (incoming && created) {
         node.dataset.pendingHierarchy = "true";
         node.style.opacity = "0.35";
       }
-      node.textContent = String(accent.label || "");
+
+      const label = String(accent.label || "");
+      if (axis) {
+        delete node.dataset.temporalAccentSlot;
+        node.textContent = label;
+      } else {
+        node.dataset.temporalAccentSlot = String(slot);
+        this.updateEdgeAccentLabel(node, label, !created);
+      }
+
       node.dataset.count = String(accent.count || 0);
       this.positionTemporalNode(node, Number(accent.time), padding, usable);
     };
 
-    for (const accent of accentPlan.edgeAccents) materialize(accent, false);
+    boundedEdgeAccents.forEach((accent, index) => {
+      materialize(accent, false, index);
+    });
+    this.stage.dataset.edgeDateCount = String(boundedEdgeAccents.length);
     for (const accent of accentPlan.axisMonths) materialize(accent, true);
     return keep;
   }
@@ -1442,6 +1657,7 @@ export class TimelineViewController {
       padding,
       usable,
       false,
+      this.retention.active ? 2 : 1,
     );
 
     if (incomingHierarchy) {
@@ -1457,6 +1673,18 @@ export class TimelineViewController {
 
     this.resolveTickLabelCollisions(keepTicks, padding, usable);
 
+    // Edge dates are viewport references rather than retained chronology objects.
+    // During interaction, keep obsolete slots materialized but hidden so the retained
+    // scene never destroys DOM nodes mid-gesture. A later frame can reuse the same slot;
+    // committed cleanup removes anything that remains stale.
+    if (this.retention.active) {
+      for (const [key, node] of this.accentScene) {
+        if (!key.startsWith("edge-slot:") || keepAccents.has(key)) continue;
+        for (const animation of node.getAnimations()) animation.cancel();
+        node.hidden = true;
+      }
+    }
+
     if (!this.retention.active) {
       for (const [key, node] of this.tickScene) {
         if (keepTicks.has(key)) {
@@ -1469,6 +1697,7 @@ export class TimelineViewController {
           continue;
         }
         this.tickScene.delete(key);
+        this.tickLabelScene.delete(key);
         this.frameDestroyedObjects += 1;
         if (hierarchyChangedOnCommit) node.remove();
         else this.retireTemporalContextNode(node);
@@ -1485,7 +1714,7 @@ export class TimelineViewController {
         }
         this.accentScene.delete(key);
         this.frameDestroyedObjects += 1;
-        if (hierarchyChangedOnCommit) node.remove();
+        if (key.startsWith("edge-slot:") || hierarchyChangedOnCommit) node.remove();
         else this.retireTemporalContextNode(node);
       }
     }
@@ -1501,6 +1730,35 @@ export class TimelineViewController {
     return Math.abs(hash) % 4;
   }
 
+  rebuildRelationshipBandPresentation(): void {
+    this.relationshipBandPresentation.clear();
+
+    for (const relationship of this.relationships) {
+      let eventId: string | null = null;
+      const eventMatch = relationship.id.match(/event-([a-z0-9-]+)/);
+      if (eventMatch) eventId = eventMatch[1] ?? null;
+
+      let coloredItem = eventId
+        ? this.items.find((item) => item.id === eventId || item.id.includes(eventId))
+        : null;
+
+      if (!coloredItem) {
+        const { subjectId } = relationship;
+        if (subjectId) {
+          coloredItem = this.items.find(
+            (item) => item.id.includes(subjectId) || item.title?.includes(subjectId),
+          );
+        }
+      }
+
+      this.relationshipBandPresentation.set(relationship.id, {
+        title: relationship.predicate || "Temporal relationship",
+        laneOffset: `${this.relationshipBandLane(relationship.id) * 8}px`,
+        color: coloredItem?.color || null,
+      });
+    }
+  }
+
   renderRelationshipBands(padding: number, usable: number): void {
     if (!this.relationshipBandZone) {
       this.relationshipBandZone = document.createElement("div");
@@ -1508,9 +1766,9 @@ export class TimelineViewController {
       this.stage.append(this.relationshipBandZone);
     }
 
-    const retained = this.relationships
-      .filter((relationship) => itemOverlapsWindow(relationship, this.retention.extent))
-      .sort((left, right) => left.start - right.start || left.id.localeCompare(right.id));
+    const retained = this.relationships.filter((relationship) =>
+      itemOverlapsWindow(relationship, this.retention.extent),
+    );
     const keep = new Set<string>();
 
     for (const relationship of retained) {
@@ -1526,42 +1784,32 @@ export class TimelineViewController {
         this.frameCreatedObjects += 1;
       }
 
-      segment.title = relationship.predicate || "Temporal relationship";
-      segment.style.setProperty(
-        "--relation-lane-offset",
-        `${this.relationshipBandLane(relationship.id) * 8}px`,
-      );
+      const presentation = this.relationshipBandPresentation.get(relationship.id);
+      const title = presentation?.title || "Temporal relationship";
+      if (segment.title !== title) segment.title = title;
 
-      // Color segment based on associated event
-      // Try to extract event ID from relationship ID (for event-based relationships)
-      let eventId: string | null = null;
-      const eventMatch = relationship.id.match(/event-([a-z0-9-]+)/);
-      if (eventMatch) {
-        eventId = eventMatch[1] ?? null;
+      const laneOffset =
+        presentation?.laneOffset || `${this.relationshipBandLane(relationship.id) * 8}px`;
+      if (segment.style.getPropertyValue("--relation-lane-offset") !== laneOffset) {
+        segment.style.setProperty("--relation-lane-offset", laneOffset);
       }
 
-      let coloredItem = eventId
-        ? this.items.find((item) => item.id === eventId || item.id.includes(eventId))
-        : null;
-
-      // Fall back to finding events by subject entity
-      if (!coloredItem) {
-        const { subjectId } = relationship;
-        if (subjectId) {
-          coloredItem = this.items.find(
-            (item) => item.id.includes(subjectId) || item.title?.includes(subjectId),
-          );
-        }
-      }
-
-      if (coloredItem && coloredItem.color) {
-        segment.style.setProperty("--relation-event-color", coloredItem.color);
+      const color = presentation?.color || "";
+      if (segment.style.getPropertyValue("--relation-event-color") !== color) {
+        if (color) segment.style.setProperty("--relation-event-color", color);
+        else segment.style.removeProperty("--relation-event-color");
       }
 
       const visible = itemOverlapsWindow(relationship, this.viewport);
-      segment.hidden = !visible;
-      segment.classList.toggle("is-buffered", !visible);
-      segment.setAttribute("aria-hidden", String(!visible));
+      if (segment.hidden === visible) segment.hidden = !visible;
+      const buffered = !visible;
+      if (segment.classList.contains("is-buffered") !== buffered) {
+        segment.classList.toggle("is-buffered", buffered);
+      }
+      const ariaHidden = String(!visible);
+      if (segment.getAttribute("aria-hidden") !== ariaHidden) {
+        segment.setAttribute("aria-hidden", ariaHidden);
+      }
       if (!visible) continue;
 
       const clippedStart = Math.max(
@@ -1711,10 +1959,18 @@ export class TimelineViewController {
   }
 
   commitInteraction(): void {
+    const hadRetainedScene = this.retention.active;
+    const hadPendingInteractionRender = hadRetainedScene && Boolean(this.renderFrame);
     this.cancelInertia();
     if (this.renderFrame) {
       cancelAnimationFrame(this.renderFrame);
       this.renderFrame = 0;
+    }
+    if (hadPendingInteractionRender) {
+      // Flush the final pointer/wheel viewport while retention still owns stable gesture
+      // geometry. This materializes newly-entered cards without running committed
+      // relocation corrections, so the following measure/replan pass is complete.
+      this.render();
     }
     this.pendingViewportEmit = false;
     this.interactionSurfaceRect = null;
@@ -1730,10 +1986,16 @@ export class TimelineViewController {
       : this.items.length
         ? "populated"
         : "empty";
-    this.render();
-    this.measureCommittedGeometry();
-    this.reconcileCommittedLayout();
-    this.render();
+    if (hadRetainedScene) {
+      this.measureCommittedGeometry();
+      this.reconcileCommittedLayout();
+      this.render();
+    } else {
+      this.render();
+      this.measureCommittedGeometry();
+      this.reconcileCommittedLayout();
+      this.render();
+    }
     this.emitViewport(true);
   }
 
@@ -1754,52 +2016,89 @@ export class TimelineViewController {
     });
   }
 
-  /**
-   * A label side flip mirrors the terminal around its zero-size anchor node, so
-   * its previous box is the reflection of the new one. Measuring every flipped
-   * card in one read pass after all writes costs a single layout instead of a
-   * forced layout per card.
-   */
-  animatePendingSideCorrections(): void {
-    if (this.pendingSideCorrections.length === 0) return;
-    const corrections = this.pendingSideCorrections.splice(0).map(({ node, terminal }) => {
-      const anchor = node.getBoundingClientRect().left;
-      const end = terminal.getBoundingClientRect();
-      return { terminal, deltaX: 2 * anchor - end.left - end.right };
-    });
-    for (const { terminal, deltaX } of corrections) {
-      this.animateLayoutCorrection(terminal, deltaX, 0);
-    }
-  }
-
   animateLayoutCorrection(target: HTMLElement, deltaX: number, deltaY: number): void {
+    let startX = deltaX;
+    let startY = deltaY;
+    const existing = this.layoutCorrectionAnimations.get(target);
+    if (existing) {
+      const progress = clamp(
+        Number(existing.animation.effect?.getComputedTiming().progress ?? 0),
+        0,
+        1,
+      );
+      startX += existing.deltaX * (1 - progress);
+      startY += existing.deltaY * (1 - progress);
+      existing.animation.cancel();
+      this.layoutCorrectionAnimations.delete(target);
+    }
+
     if (
       this.reducedMotionQuery?.matches ||
       typeof target.animate !== "function" ||
-      (Math.abs(deltaX) <= LAYOUT_CORRECTION_EPSILON_PX &&
-        Math.abs(deltaY) <= LAYOUT_CORRECTION_EPSILON_PX)
+      (Math.abs(startX) <= LAYOUT_CORRECTION_EPSILON_PX &&
+        Math.abs(startY) <= LAYOUT_CORRECTION_EPSILON_PX)
     ) {
       return;
     }
 
     const animation = target.animate(
-      [{ translate: `${deltaX}px ${deltaY}px` }, { translate: "0 0" }],
+      [{ translate: `${startX}px ${startY}px` }, { translate: "0 0" }],
       {
         duration: LAYOUT_CORRECTION_DURATION_MS,
         easing: "cubic-bezier(.2,.8,.2,1)",
       },
     );
-    this.layoutCorrectionAnimations.add(animation);
+    this.layoutCorrectionAnimations.set(target, {
+      animation,
+      deltaX: startX,
+      deltaY: startY,
+    });
     const release = (): void => {
-      this.layoutCorrectionAnimations.delete(animation);
+      if (this.layoutCorrectionAnimations.get(target)?.animation === animation) {
+        this.layoutCorrectionAnimations.delete(target);
+      }
     };
     animation.addEventListener("finish", release, { once: true });
     animation.addEventListener("cancel", release, { once: true });
   }
 
   cancelLayoutCorrections(): void {
-    for (const animation of this.layoutCorrectionAnimations) animation.cancel();
+    for (const { animation } of this.layoutCorrectionAnimations.values()) animation.cancel();
     this.layoutCorrectionAnimations.clear();
+  }
+
+  stabilizeStructuralAxisCross(axisCross: number): void {
+    const previous =
+      this.lastRenderedAxisOrientation === this.orientation ? this.lastRenderedAxisCross : null;
+    this.lastRenderedAxisCross = axisCross;
+    this.lastRenderedAxisOrientation = this.orientation;
+
+    if (
+      this.retention.active ||
+      previous === null ||
+      Math.abs(previous - axisCross) <= LAYOUT_CORRECTION_EPSILON_PX
+    ) {
+      return;
+    }
+
+    const axisShift = axisCross - previous;
+    for (const record of this.scene.values()) {
+      if (record.crossPosition !== null) {
+        record.crossPosition = record.crossPosition + axisShift;
+      }
+    }
+    for (const record of this.clusterScene.values()) {
+      if (record.crossPosition !== null) {
+        record.crossPosition = record.crossPosition + axisShift;
+      }
+    }
+
+    const correction = previous - axisCross;
+    this.animateLayoutCorrection(
+      this.stage,
+      this.orientation === "horizontal" ? 0 : correction,
+      this.orientation === "horizontal" ? correction : 0,
+    );
   }
 
   itemContentRevision(item: TimelineItem): string {
@@ -1850,9 +2149,13 @@ export class TimelineViewController {
           invalidated = true;
           continue;
         }
-        const rect = terminal.getBoundingClientRect();
-        const inlineSize = this.orientation === "horizontal" ? rect.width : rect.height;
-        const blockSize = this.orientation === "horizontal" ? rect.height : rect.width;
+        const borderBox = Array.isArray(entry.borderBoxSize)
+          ? entry.borderBoxSize[0]
+          : entry.borderBoxSize;
+        const width = borderBox?.inlineSize ?? entry.contentRect.width;
+        const height = borderBox?.blockSize ?? entry.contentRect.height;
+        const inlineSize = this.orientation === "horizontal" ? width : height;
+        const blockSize = this.orientation === "horizontal" ? height : width;
         if (
           Math.abs(cached.measurement.inlineSize - inlineSize) <= GEOMETRY_EPSILON_PX &&
           Math.abs(cached.measurement.blockSize - blockSize) <= GEOMETRY_EPSILON_PX
@@ -2035,6 +2338,10 @@ export class TimelineViewController {
       cluster,
       node,
       terminal,
+      connector,
+      connectorTurn,
+      lane: -1,
+      connectorGeometryDirty: true,
       labelBefore: null,
       crossPosition: null,
     };
@@ -2062,6 +2369,8 @@ export class TimelineViewController {
     if (!items.length) return;
     const first = items[0];
     if (!first) return;
+    record.lane = this.visualLaneFor(first);
+    record.connectorGeometryDirty = true;
     record.node.style.setProperty("--event-color", first.color || "var(--accent)");
     record.terminal.setAttribute(
       "aria-label",
@@ -2117,16 +2426,14 @@ export class TimelineViewController {
     for (const record of this.clusterScene.values()) {
       const { cluster, node, terminal } = record;
       const visible = itemOverlapsWindow({ start: cluster.start, end: cluster.end }, this.viewport);
-      node.hidden = !visible;
-      terminal.tabIndex = visible ? 0 : -1;
+      if (node.hidden === visible) node.hidden = !visible;
+      const terminalTabIndex = visible ? 0 : -1;
+      if (terminal.tabIndex !== terminalTabIndex) terminal.tabIndex = terminalTabIndex;
       if (!visible) continue;
 
       const anchor = cluster.start + (cluster.end - cluster.start) / 2;
       const primary = padding + scale.coordinateFor(anchor, this.viewport, usable);
-      const representative =
-        cluster.itemIds.map((id) => this.items.find((item) => item.id === id)).find(Boolean) ||
-        null;
-      const lane = representative ? this.visualLaneFor(representative) : -1;
+      const lane = record.lane;
       const laneDistance = 72 + Math.max(0, Math.abs(lane) - 1) * 62;
       const terminalCross = axisCross + (lane < 0 ? -laneDistance : laneDistance);
       const segment = connectorSegment(axisCross, terminalCross);
@@ -2150,20 +2457,21 @@ export class TimelineViewController {
         previousLabelBefore !== labelBefore
           ? terminal.getBoundingClientRect()
           : null;
+      const crossGeometryChanged =
+        previousCrossPosition === null ||
+        Math.abs(previousCrossPosition - terminalCross) > LAYOUT_CORRECTION_EPSILON_PX;
       record.labelBefore = labelBefore;
       record.crossPosition = terminalCross;
-      node.dataset.side = labelBefore ? "before" : "after";
-      node.classList.toggle("label-before", labelBefore);
+      if (previousLabelBefore !== labelBefore) {
+        node.dataset.side = labelBefore ? "before" : "after";
+        node.classList.toggle("label-before", labelBefore);
+      }
       if (this.orientation === "horizontal") {
         node.style.transform = `translate3d(${primary}px, ${terminalCross}px, 0)`;
       } else {
         node.style.transform = `translate3d(${terminalCross}px, ${primary}px, 0)`;
       }
-      if (
-        !this.retention.active &&
-        previousCrossPosition !== null &&
-        Math.abs(previousCrossPosition - terminalCross) > LAYOUT_CORRECTION_EPSILON_PX
-      ) {
+      if (!this.retention.active && previousCrossPosition !== null && crossGeometryChanged) {
         const crossDelta = previousCrossPosition - terminalCross;
         this.animateLayoutCorrection(
           node,
@@ -2180,8 +2488,8 @@ export class TimelineViewController {
         );
       }
 
-      const connector = node.querySelector<HTMLElement>(".timeline-event-connector");
-      if (connector) {
+      const connector = record.connector;
+      if (connector && (record.connectorGeometryDirty || crossGeometryChanged)) {
         if (this.orientation === "horizontal") {
           connector.style.left = "0";
           connector.style.top = `${segment.offset}px`;
@@ -2193,6 +2501,7 @@ export class TimelineViewController {
           connector.style.width = `${Math.max(1, segment.length)}px`;
           connector.style.height = "2px";
         }
+        record.connectorGeometryDirty = false;
       }
     }
   }
@@ -2250,10 +2559,14 @@ export class TimelineViewController {
 
   renderScene(): void {
     const empty = !this.items.length;
-    this.root.dataset.empty = empty ? "true" : "false";
+    const emptyState = empty ? "true" : "false";
+    if (this.root.dataset.empty !== emptyState) this.root.dataset.empty = emptyState;
     if (empty) {
-      this.stage.dataset.sceneState = "empty";
-      this.readout.textContent = "No visible events";
+      if (this.stage.dataset.sceneState !== "empty") this.stage.dataset.sceneState = "empty";
+      if (this.readout.textContent !== "No visible events") {
+        this.readout.textContent = "No visible events";
+      }
+      this.lastReadoutKey = "";
       for (const record of this.scene.values()) this.removeRecord(record);
       this.scene.clear();
       this.frameDestroyedObjects +=
@@ -2264,6 +2577,7 @@ export class TimelineViewController {
       for (const node of this.tickScene.values()) node.remove();
       for (const node of this.accentScene.values()) node.remove();
       this.tickScene.clear();
+      this.tickLabelScene.clear();
       this.accentScene.clear();
       for (const node of this.relationshipBandScene.values()) node.remove();
       this.relationshipBandScene.clear();
@@ -2279,19 +2593,26 @@ export class TimelineViewController {
       };
       this.committedTickSpecKey = "";
       this.committedTickSpec = null;
+      this.edgeAccentCount = 1;
       this.syncZoomSlider();
       return;
     }
 
-    const rect = this.surface.getBoundingClientRect();
+    const rect = this.retention.active
+      ? this.interactionRect()
+      : this.surface.getBoundingClientRect();
     const width = Math.max(1, rect.width || this.surface.clientWidth || 800);
     const height = Math.max(1, rect.height || this.surface.clientHeight || 480);
     const primaryLength = this.orientation === "horizontal" ? width : height;
-    const crossLength = this.orientation === "horizontal" ? height : width;
     const axisCross = this.orientation === "horizontal" ? height / 2 : width * 0.58;
     const padding = this.axisPadding(primaryLength);
     const usable = Math.max(1, primaryLength - padding * 2);
-    this.surface.style.setProperty("--timeline-axis-cross", `${axisCross}px`);
+    this.stabilizeStructuralAxisCross(axisCross);
+    const axisCrossCss = `${axisCross}px`;
+    if (this.lastAxisCrossCss !== axisCrossCss) {
+      this.surface.style.setProperty("--timeline-axis-cross", axisCrossCss);
+      this.lastAxisCrossCss = axisCrossCss;
+    }
 
     this.renderWindow = createRenderWindow(this.viewport, {
       overscanRatio: OVERSCAN_RATIO,
@@ -2332,11 +2653,18 @@ export class TimelineViewController {
         this.animateEntry(record);
       } else {
         record.item = item;
-        this.updateRecordContent(record);
+        if (record.contentEpoch !== this.itemEpoch) this.updateRecordContent(record);
+        else this.syncRecordSelection(record);
       }
-      this.positionRecord(record, padding, usable, axisCross, crossLength);
+      this.positionRecord(
+        record,
+        primaryLength,
+        axisCross,
+        padding,
+        usable,
+        this.orientation === "horizontal" ? height : width,
+      );
     }
-    this.animatePendingSideCorrections();
 
     this.positionCommittedClusters(padding, usable, axisCross);
 
@@ -2348,11 +2676,12 @@ export class TimelineViewController {
       }
     }
 
-    this.stage.dataset.sceneState = this.retention.active
+    const sceneState = this.retention.active
       ? "interacting"
       : this.focusedId
         ? "focused"
         : "populated";
+    if (this.stage.dataset.sceneState !== sceneState) this.stage.dataset.sceneState = sceneState;
     this.syncZoomSlider();
     this.updateReadout();
   }
@@ -2366,6 +2695,8 @@ export class TimelineViewController {
 
     const terminal = node.terminal;
     if (!terminal) throw new Error(`Timeline event card ${item.id} did not render a terminal.`);
+    const connector = node.querySelector<HTMLElement>(".timeline-event-connector");
+    const connectorTurn = node.querySelector<HTMLElement>(".timeline-event-connector-turn");
     terminal.dataset.timelineGeometryId = item.id;
     this.geometryObserver?.observe(terminal);
     terminal.addEventListener("click", () => {
@@ -2399,8 +2730,13 @@ export class TimelineViewController {
       item,
       node,
       terminal,
+      connector,
+      connectorTurn,
       range,
       contentRevision: "",
+      contentEpoch: -1,
+      selected: null,
+      connectorGeometryDirty: true,
       labelBefore: null,
       crossPosition: null,
     };
@@ -2449,6 +2785,7 @@ export class TimelineViewController {
     if (record.contentRevision !== revision) {
       node.setSemanticItem(item);
       record.contentRevision = revision;
+      record.connectorGeometryDirty = true;
       if (range) {
         range.style.setProperty("--event-color", item.color || "var(--accent)");
         const rangeLabel = `${item.title || item.id} · ${item.startLabel || item.start} → ${item.endLabel || item.end}`;
@@ -2457,20 +2794,27 @@ export class TimelineViewController {
         range.setAttribute("aria-label", rangeLabel);
       }
     }
+    record.contentEpoch = this.itemEpoch;
+    this.syncRecordSelection(record);
+  }
 
-    const selected = item.id === this.focusedId;
-    node.setSelected(selected);
-    range?.classList.toggle("is-selected", selected);
+  syncRecordSelection(record: SceneRecord): void {
+    const selected = record.item.id === this.focusedId;
+    if (record.selected === selected) return;
+    record.selected = selected;
+    record.node.setSelected(selected);
+    record.range?.classList.toggle("is-selected", selected);
   }
 
   positionRecord(
     record: SceneRecord,
+    _primaryLength: number,
+    axisCross: number,
     padding: number,
     usable: number,
-    axisCross: number,
-    crossLength: number,
+    crossExtent: number,
   ): void {
-    const { item, node, terminal, range } = record;
+    const { item, node, terminal, connector, connectorTurn, range } = record;
     const coordinate = (time: number): number =>
       padding + scale.coordinateFor(time, this.viewport, usable);
 
@@ -2482,14 +2826,14 @@ export class TimelineViewController {
     const lane = this.visualLaneFor(item);
     const clusterId = this.committedClusterByItem.get(item.id);
     const hiddenByCluster = Boolean(clusterId) && item.id !== this.focusedId;
-    node.hidden = hiddenByCluster;
-    if (range) range.hidden = hiddenByCluster;
+    if (node.hidden !== hiddenByCluster) node.hidden = hiddenByCluster;
+    if (range && range.hidden !== hiddenByCluster) range.hidden = hiddenByCluster;
     const laneDistance = 72 + Math.max(0, Math.abs(lane) - 1) * 62;
     const terminalCross = axisCross + (lane < 0 ? -laneDistance : laneDistance);
     const routeOffset = connectorRouteOffset(
       item.connectorRouting || "straight",
       terminalCross,
-      Math.max(1, crossLength),
+      Math.max(1, crossExtent),
       Math.abs(lane),
     );
     const shiftedCross = terminalCross + routeOffset;
@@ -2506,27 +2850,34 @@ export class TimelineViewController {
             this.retention.active,
           )
         : lane < 0;
-    const sideFlipped =
+    const sideCorrectionStart =
       !this.retention.active &&
       this.orientation === "horizontal" &&
       previousLabelBefore !== null &&
-      previousLabelBefore !== labelBefore;
+      previousLabelBefore !== labelBefore
+        ? terminal.getBoundingClientRect()
+        : null;
+    const crossGeometryChanged =
+      previousCrossPosition === null ||
+      Math.abs(previousCrossPosition - shiftedCross) > LAYOUT_CORRECTION_EPSILON_PX;
     record.labelBefore = labelBefore;
     record.crossPosition = shiftedCross;
-    node.dataset.side = labelBefore ? "before" : "after";
-    node.classList.toggle("label-before", labelBefore);
-    node.classList.toggle("is-buffered", !itemOverlapsWindow(item, this.viewport));
+    if (previousLabelBefore !== labelBefore) {
+      node.dataset.side = labelBefore ? "before" : "after";
+      node.classList.toggle("label-before", labelBefore);
+    }
+    const visible = itemOverlapsWindow(item, this.viewport);
+    const buffered = !visible;
+    if (node.classList.contains("is-buffered") !== buffered) {
+      node.classList.toggle("is-buffered", buffered);
+    }
 
     if (this.orientation === "horizontal") {
       node.style.transform = `translate3d(${primary}px, ${shiftedCross}px, 0)`;
     } else {
       node.style.transform = `translate3d(${shiftedCross}px, ${primary}px, 0)`;
     }
-    if (
-      !this.retention.active &&
-      previousCrossPosition !== null &&
-      Math.abs(previousCrossPosition - shiftedCross) > LAYOUT_CORRECTION_EPSILON_PX
-    ) {
+    if (!this.retention.active && previousCrossPosition !== null && crossGeometryChanged) {
       const crossDelta = previousCrossPosition - shiftedCross;
       this.animateLayoutCorrection(
         node,
@@ -2534,13 +2885,15 @@ export class TimelineViewController {
         this.orientation === "horizontal" ? crossDelta : 0,
       );
     }
-    if (sideFlipped) this.pendingSideCorrections.push({ node, terminal });
+    if (sideCorrectionStart) {
+      const sideCorrectionEnd = terminal.getBoundingClientRect();
+      this.animateLayoutCorrection(terminal, sideCorrectionStart.left - sideCorrectionEnd.left, 0);
+    }
 
-    terminal.tabIndex = itemOverlapsWindow(item, this.viewport) ? 0 : -1;
+    const terminalTabIndex = visible ? 0 : -1;
+    if (terminal.tabIndex !== terminalTabIndex) terminal.tabIndex = terminalTabIndex;
 
-    const connector = node.querySelector<HTMLElement>(".timeline-event-connector");
-    const connectorTurn = node.querySelector<HTMLElement>(".timeline-event-connector-turn");
-    if (connector && connectorTurn) {
+    if (connector && connectorTurn && (record.connectorGeometryDirty || crossGeometryChanged)) {
       const segment = connectorSegment(axisCross, shiftedCross);
       const connectorThickness =
         item.connectorWeight === "fine" ? 1 : item.connectorWeight === "strong" ? 4 : 2;
@@ -2563,6 +2916,7 @@ export class TimelineViewController {
         connectorTurn.style.width = `${connectorThickness}px`;
         connectorTurn.style.height = `${Math.max(1, Math.abs(routeOffset))}px`;
       }
+      record.connectorGeometryDirty = false;
     }
 
     if (range && Number.isFinite(item.end)) {
@@ -2571,8 +2925,10 @@ export class TimelineViewController {
       const startPosition = coordinate(clippedStart);
       const endPosition = coordinate(clippedEnd);
       const length = Math.max(2, endPosition - startPosition);
-      range.classList.toggle("is-buffered", !itemOverlapsWindow(item, this.viewport));
-      range.tabIndex = itemOverlapsWindow(item, this.viewport) ? 0 : -1;
+      if (range.classList.contains("is-buffered") !== buffered) {
+        range.classList.toggle("is-buffered", buffered);
+      }
+      if (range.tabIndex !== terminalTabIndex) range.tabIndex = terminalTabIndex;
       if (this.orientation === "horizontal") {
         range.style.transform = `translate3d(${startPosition}px, 0, 0)`;
         range.style.width = `${length}px`;
@@ -2638,6 +2994,19 @@ export class TimelineViewController {
     return this.focusedId;
   }
 
+  focusNavigationState(): { previous: boolean; next: boolean; editable: boolean } {
+    const ordered = [...this.items].sort(
+      (left, right) => left.start - right.start || left.id.localeCompare(right.id),
+    );
+    const currentIndex = ordered.findIndex((item) => item.id === this.focusedId);
+    const current = currentIndex >= 0 ? ordered[currentIndex] : null;
+    return {
+      previous: currentIndex > 0,
+      next: currentIndex >= 0 && currentIndex < ordered.length - 1,
+      editable: Boolean(current && current.editable !== false),
+    };
+  }
+
   setOrientation(orientation: string, options: { persist?: boolean; focus?: boolean } = {}): void {
     const normalized: Orientation =
       orientation === "vertical" || orientation === "portrait" ? "vertical" : "horizontal";
@@ -2648,13 +3017,18 @@ export class TimelineViewController {
         saveViewPreferences({ orientation: normalized });
       }
       this.geometryMeasurements.clear();
+      this.edgeAccentCount = 1;
+      this.lastRenderedAxisCross = null;
+      this.lastRenderedAxisOrientation = null;
       for (const record of this.scene.values()) {
         record.labelBefore = null;
         record.crossPosition = null;
+        record.connectorGeometryDirty = true;
       }
       for (const record of this.clusterScene.values()) {
         record.labelBefore = null;
         record.crossPosition = null;
+        record.connectorGeometryDirty = true;
       }
       this.applyOrientation();
       this.root.dispatchEvent(
@@ -2687,8 +3061,14 @@ export class TimelineViewController {
   }
 
   refreshLayout(): void {
+    if (this.retention.active) {
+      // A gesture owns one geometry epoch. Defer container resize/reflow until commit
+      // so pointer deltas and rendered projection never use different surface metrics.
+      this.geometryReflowPending = true;
+      return;
+    }
     this.interactionSurfaceRect = null;
-    this.scheduleRender();
+    this.scheduleCommittedGeometryReflow();
   }
 
   runStructuralTransaction(update: () => void): void {
@@ -2820,42 +3200,6 @@ export class TimelineViewController {
     description.textContent =
       item.description || "No narrative description has been recorded for this event.";
     summary.append(description);
-
-    const ordered = [...this.items].sort(
-      (left, right) => left.start - right.start || left.id.localeCompare(right.id),
-    );
-    const currentIndex = ordered.findIndex((candidate) => candidate.id === item.id);
-    const actions = document.createElement("div");
-    actions.className = "timeline-focus-actions";
-    const previous = document.createElement("button");
-    previous.type = "button";
-    previous.className = "button icon-only timeline-focus-nav-prev";
-    previous.setAttribute("aria-label", "Previous event");
-    previous.setAttribute("title", "Previous event");
-    previous.textContent = "←";
-    previous.disabled = currentIndex <= 0;
-    previous.addEventListener("click", () => this.focusAdjacent(-1));
-    const next = document.createElement("button");
-    next.type = "button";
-    next.className = "button icon-only timeline-focus-nav-next";
-    next.setAttribute("aria-label", "Next event");
-    next.setAttribute("title", "Next event");
-    next.textContent = "→";
-    next.disabled = currentIndex < 0 || currentIndex >= ordered.length - 1;
-    next.addEventListener("click", () => this.focusAdjacent(1));
-    const edit = document.createElement("button");
-    edit.type = "button";
-    edit.className = "button secondary";
-    edit.textContent = "Edit event";
-    edit.addEventListener("click", () => {
-      this.root.dispatchEvent(
-        new CustomEvent("timelinefocusedit", { bubbles: true, detail: { id: item.id } }),
-      );
-      this.closeFocus();
-    });
-    actions.append(previous, next);
-    if (item.editable !== false) actions.append(edit);
-    summary.append(actions);
 
     const place = document.createElement("section");
     place.id = "timeline-focus-place-panel";
@@ -3003,7 +3347,7 @@ export class TimelineViewController {
     const overviewTab = document.createElement("button");
     overviewTab.type = "button";
     overviewTab.className = "timeline-focus-tab is-active";
-    overviewTab.textContent = "Overview";
+    overviewTab.textContent = "Context";
     overviewTab.setAttribute("role", "tab");
     overviewTab.setAttribute("aria-selected", "true");
     overviewTab.setAttribute(
@@ -3191,7 +3535,19 @@ export class TimelineViewController {
   updateReadout(): void {
     const start = new Date(this.viewport.start);
     const end = new Date(this.viewport.end);
-    this.readout.textContent = `${start.toLocaleDateString()} — ${end.toLocaleDateString()}`;
+    const key = [
+      start.getFullYear(),
+      start.getMonth(),
+      start.getDate(),
+      end.getFullYear(),
+      end.getMonth(),
+      end.getDate(),
+    ].join(":");
+    if (key === this.lastReadoutKey) return;
+
+    this.lastReadoutKey = key;
+    const text = `${start.toLocaleDateString()} — ${end.toLocaleDateString()}`;
+    if (this.readout.textContent !== text) this.readout.textContent = text;
   }
 }
 
@@ -3209,6 +3565,8 @@ export const TimelineView = Object.freeze({
     connectorRouteOffset,
     visibleIntervalAnchor,
     itemOverlapsViewport,
+    normalizeWheelDelta,
     wheelZoomFactor,
+    selectEdgeAccents,
   }),
 });

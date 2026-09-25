@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { DECK_WORLD_LAYER_IDS, DeckWorldSurface } from "../site/world/deck-world-surface.ts";
+import { worldPointerDragMayStart } from "../src/interaction/world-pointer-policy.ts";
 import {
   createWorldTouchHoldGate,
   WORLD_TOUCH_HOLD_MS,
@@ -43,6 +44,26 @@ test("a second finger cancels a pending hold so pinch keeps camera ownership", (
   assert.equal(gate.isArmed(2, WORLD_TOUCH_HOLD_MS * 2), false);
 });
 
+test("world node drag initiation preserves modified and secondary-button browser gestures", () => {
+  assert.equal(worldPointerDragMayStart({ srcEvent: { button: 0, ctrlKey: false } }), true);
+  assert.equal(
+    worldPointerDragMayStart({
+      srcEvent: { button: -1, buttons: 1, pointerType: "mouse", ctrlKey: false },
+    }),
+    true,
+    "deck drag-start may originate from a primary-button pointermove",
+  );
+  assert.equal(
+    worldPointerDragMayStart({
+      srcEvent: { button: -1, buttons: 2, pointerType: "mouse", ctrlKey: false },
+    }),
+    false,
+  );
+  assert.equal(worldPointerDragMayStart({ srcEvent: { button: 2, ctrlKey: false } }), false);
+  assert.equal(worldPointerDragMayStart({ srcEvent: { button: 0, ctrlKey: true } }), false);
+  assert.equal(worldPointerDragMayStart({ srcEvent: { pointerType: "touch" } }), true);
+});
+
 function surfaceHarness() {
   const listeners = new Map();
   const dataset = {};
@@ -56,12 +77,18 @@ function surfaceHarness() {
     },
   };
   const scatter = [];
+  const icons = [];
   let pickResult = null;
   const runtime = {
     createGlobeView: (props) => ({ props }),
     createScatterplotLayer(props) {
       const layer = { props };
       scatter.push(layer);
+      return layer;
+    },
+    createIconLayer(props) {
+      const layer = { props };
+      icons.push(layer);
       return layer;
     },
     createPathLayer: (props) => ({ props }),
@@ -113,14 +140,19 @@ function surfaceHarness() {
   });
   const entityLayer = () =>
     scatter.filter((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entities).at(-1);
+  const entityIconLayer = () =>
+    icons.filter((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entityIcons).at(-1);
   const alice = () => entityLayer().props.data.find((datum) => datum.entityId === "alice");
+  const aliceIcon = () => entityIconLayer().props.data.find((datum) => datum.entityId === "alice");
   return {
     surface,
     listeners,
     dataset,
     begins,
     alice,
+    aliceIcon,
     entityLayer,
+    entityIconLayer,
     setPickResult(value) {
       pickResult = value;
     },
@@ -134,8 +166,14 @@ function surfaceHarness() {
         clientY: y,
       });
     },
-    dragStart(pointerId, pointerType = "touch") {
+    dragStart(pointerId, pointerType = "touch", source = {}) {
       return entityLayer().props.onDragStart(
+        { object: alice(), x: 118.0786, y: 259.3393 },
+        { srcEvent: { pointerId, pointerType, ...source } },
+      );
+    },
+    dragEnd(pointerId, pointerType = "touch") {
+      return entityLayer().props.onDragEnd(
         { object: alice(), x: 118.0786, y: 259.3393 },
         { srcEvent: { pointerId, pointerType } },
       );
@@ -175,6 +213,49 @@ test("a long press on an entity then drag claims the node drag", (t) => {
   assert.equal(h.dataset.worldTouchDrag, undefined);
 });
 
+test("long-press pickup flashes and lifts only the actively dragged node", (t) => {
+  t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: 10_000 });
+  const h = surfaceHarness();
+  h.setPickResult({ object: h.alice() });
+
+  const initialLayer = h.entityIconLayer();
+  const initialDatum = h.aliceIcon();
+  const initialSize = initialLayer.props.getSize(initialDatum);
+  const initialPosition = initialLayer.props.getPosition(initialDatum);
+
+  h.touch("pointerdown", 4, 118, 259);
+  t.mock.timers.tick(WORLD_TOUCH_HOLD_MS);
+
+  const flashedLayer = h.entityIconLayer();
+  const flashedDatum = h.aliceIcon();
+  assert.ok(
+    flashedLayer.props.getSize(flashedDatum) > initialSize,
+    "long-press activation should visibly flash the node",
+  );
+
+  assert.equal(h.dragStart(4), true);
+  const draggedLayer = h.entityIconLayer();
+  const draggedPosition = draggedLayer.props.getPosition(h.aliceIcon());
+  assert.ok(
+    draggedPosition[2] > initialPosition[2],
+    "the active node should lift slightly while it is being dragged",
+  );
+
+  assert.equal(h.dragEnd(4), true);
+  const releasedLayer = h.entityIconLayer();
+  const releasedDatum = h.aliceIcon();
+  assert.deepEqual(
+    releasedLayer.props.getPosition(releasedDatum),
+    initialPosition,
+    "release should restore the authored force altitude",
+  );
+  assert.equal(
+    releasedLayer.props.getSize(releasedDatum),
+    initialSize,
+    "release should clear any remaining pickup flash",
+  );
+});
+
 test("a second finger during the hold cancels it and never starts a node drag", (t) => {
   t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: 10_000 });
   const h = surfaceHarness();
@@ -202,8 +283,20 @@ test("touch presses off any entity never arm a hold", (t) => {
 
 test("mouse and pen drags stay immediate", () => {
   const h = surfaceHarness();
-  assert.equal(h.dragStart(9, "mouse"), true);
-  assert.equal(h.begins.length, 1);
+  assert.equal(
+    h.dragStart(9, "mouse", { button: -1, buttons: 1 }),
+    true,
+    "a real deck pointermove-derived drag start must claim the node",
+  );
+  assert.equal(h.dragStart(10, "pen", { button: -1, buttons: 1 }), true);
+  assert.equal(h.begins.length, 2);
+});
+
+test("modified and secondary-button mouse drags never claim the world node", () => {
+  const h = surfaceHarness();
+  assert.equal(h.dragStart(9, "mouse", { button: 2 }), false);
+  assert.equal(h.dragStart(10, "mouse", { button: 0, ctrlKey: true }), false);
+  assert.deepEqual(h.begins, []);
 });
 
 test("destroy removes every touch-hold listener", () => {

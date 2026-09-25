@@ -243,7 +243,6 @@ test("coincident timestamps stay separate and gain enough perpendicular lanes", 
   assert.equal(new Set(Object.values(plan.lanes)).size, 4);
 });
 
-
 test("timeline interaction uses one padded coordinate system and direct pointer tracking", async () => {
   const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
 
@@ -267,6 +266,28 @@ test("timeline interaction uses one padded coordinate system and direct pointer 
   assert.doesNotMatch(positionBody, /getBoundingClientRect/);
 });
 
+test("timeline caches tick labels instead of querying descendants every frame", async () => {
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
+
+  assert.match(source, /tickLabelScene = new Map<string, HTMLSpanElement>\(\)/);
+
+  const materializeStart = source.indexOf("  materializeTickHierarchy(");
+  const materializeEnd = source.indexOf("  materializeTemporalAccents(", materializeStart);
+  const materializeBody = source.slice(materializeStart, materializeEnd);
+  assert.match(materializeBody, /let label = this\.tickLabelScene\.get\(key\)/);
+  assert.match(materializeBody, /this\.tickLabelScene\.set\(key, label\)/);
+  assert.doesNotMatch(materializeBody, /querySelector/);
+
+  const collisionStart = source.indexOf("  resolveTickLabelCollisions(");
+  const collisionEnd = source.indexOf("  retainedObjectCount(", collisionStart);
+  const collisionBody = source.slice(collisionStart, collisionEnd);
+  assert.match(collisionBody, /const label = this\.tickLabelScene\.get\(key\)/);
+  assert.doesNotMatch(collisionBody, /querySelector/);
+
+  assert.match(source, /this\.tickLabelScene\.clear\(\)/);
+  assert.match(source, /this\.tickLabelScene\.delete\(key\)/);
+});
+
 test("timeline keeps one semantic date hierarchy during an active zoom gesture", async () => {
   const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
   const start = source.indexOf("  renderTemporalContext(");
@@ -275,4 +296,105 @@ test("timeline keeps one semantic date hierarchy during an active zoom gesture",
 
   assert.match(body, /const incomingHierarchy = false/);
   assert.match(body, /selected hierarchy becomes authoritative on commit/);
+});
+
+test("timeline edge date context keeps retained slots and rolls changed digits in place", async () => {
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
+
+  const materializeStart = source.indexOf("  materializeTemporalAccents(");
+  const materializeEnd = source.indexOf("  renderTemporalContext(", materializeStart);
+  const materializeBody = source.slice(materializeStart, materializeEnd);
+  assert.match(materializeBody, /edge-slot:\$\{slot\}/);
+  assert.match(materializeBody, /updateEdgeAccentLabel/);
+  assert.match(materializeBody, /timeline-edge-date/);
+
+  const updateStart = source.indexOf("  updateEdgeAccentLabel(");
+  const updateEnd = source.indexOf("  materializeTickHierarchy(", updateStart);
+  const updateBody = source.slice(updateStart, updateEnd);
+  assert.match(updateBody, /timeline-edge-date-character/);
+  assert.match(updateBody, /slot\.animate/);
+  assert.doesNotMatch(updateBody, /replaceChildren/);
+});
+
+test("timeline retains obsolete edge-year slots during gestures, suppresses overlap, and cleans them on commit", async () => {
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
+  const materializeStart = source.indexOf("  materializeTemporalAccents(");
+  const renderStart = source.indexOf("  renderTemporalContext(", materializeStart);
+  const materializeBody = source.slice(materializeStart, renderStart);
+  const renderEnd = source.indexOf("  relationshipBandLane(", renderStart);
+  const renderBody = source.slice(renderStart, renderEnd);
+
+  assert.match(
+    materializeBody,
+    /selectEdgeAccents\([\s\S]*accentPlan\.edgeAccents,[\s\S]*edgeAccentLimit,[\s\S]*this\.orientation,[\s\S]*this\.edgeAccentCount/,
+  );
+  assert.match(materializeBody, /const boundedEdgeAccents =/);
+  assert.match(materializeBody, /this\.edgeAccentCount = boundedEdgeAccents\.length/);
+  assert.match(materializeBody, /boundedEdgeAccents\.forEach/);
+  assert.doesNotMatch(materializeBody, /accentPlan\.edgeAccents\.forEach/);
+  assert.match(materializeBody, /node\.hidden = false/);
+  assert.match(materializeBody, /dataset\.edgeDateCount = String\(boundedEdgeAccents\.length\)/);
+
+  const helperStart = source.indexOf("function selectEdgeAccents");
+  const helperEnd = source.indexOf("function itemOverlapsViewport", helperStart);
+  const helperBody = source.slice(helperStart, helperEnd);
+  assert.match(helperBody, /EDGE_ACCENT_HORIZONTAL_MIN_GAP_PX/);
+  assert.match(helperBody, /EDGE_ACCENT_VERTICAL_MIN_GAP_PX/);
+  assert.match(helperBody, /EDGE_ACCENT_HYSTERESIS_PX/);
+  assert.match(helperBody, /previousCount >= 2/);
+  assert.match(helperBody, /const projectedGap = Math\.abs/);
+  assert.match(helperBody, /const requiredGap =/);
+  assert.match(helperBody, /selected = \[first\]/);
+
+  assert.match(renderBody, /minimumEdgeAccents:\s*this\.retention\.active \? 2 : 1/);
+  assert.match(renderBody, /this\.retention\.active \? 2 : 1/);
+  assert.match(
+    renderBody,
+    /if \(!key\.startsWith\("edge-slot:"\) \|\| keepAccents\.has\(key\)\) continue;/,
+  );
+  assert.match(renderBody, /if \(this\.retention\.active\) \{/);
+  assert.match(
+    renderBody,
+    /for \(const animation of node\.getAnimations\(\)\) animation\.cancel\(\);[\s\S]*node\.hidden = true/,
+  );
+  const interactionCleanupStart = renderBody.indexOf("if (this.retention.active)");
+  const committedCleanupStart = renderBody.indexOf(
+    "if (!this.retention.active)",
+    interactionCleanupStart,
+  );
+  const interactionCleanup = renderBody.slice(interactionCleanupStart, committedCleanupStart);
+  assert.doesNotMatch(interactionCleanup, /accentScene\.delete/);
+  assert.doesNotMatch(interactionCleanup, /node\.remove\(\)/);
+  assert.match(
+    renderBody,
+    /resolveTickLabelCollisions[\s\S]*if \(this\.retention\.active\)[\s\S]*if \(!this\.retention\.active\) \{/,
+  );
+  assert.match(
+    renderBody,
+    /if \(key\.startsWith\("edge-slot:"\) \|\| hierarchyChangedOnCommit\) node\.remove\(\);/,
+  );
+});
+
+test("tick collision packing keeps offscreen retained ticks in the phase calculation", async () => {
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
+  const start = source.indexOf("  resolveTickLabelCollisions(");
+  const end = source.indexOf("  retainedObjectCount(", start);
+  const body = source.slice(start, end);
+
+  assert.match(body, /inViewport: boolean/);
+  assert.match(body, /inViewport: position >= minimum && position <= maximum/);
+  assert.match(body, /const start = candidate\.position - candidate\.extent \/ 2/);
+  assert.match(body, /const end = candidate\.position \+ candidate\.extent \/ 2/);
+  assert.match(body, /candidate\.label\.hidden = !collisionVisible \|\| !candidate\.inViewport/);
+  assert.match(body, /if \(collisionVisible\) lastEnd = end/);
+  assert.doesNotMatch(body, /position < minimum \|\| position > maximum/);
+  assert.doesNotMatch(body, /Math\.max\(minimum/);
+  assert.doesNotMatch(body, /Math\.min\(maximum/);
+});
+
+test("portrait edge dates live on the outer rail rather than beside the timeline axis", async () => {
+  const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
+  assert.match(css, /\.is-portrait \.timeline-edge-date\s*\{[^}]*inset-inline-end:\s*8px/s);
+  assert.match(css, /\.is-portrait \.timeline-edge-date\s*\{[^}]*inset-inline-start:\s*auto/s);
+  assert.match(css, /\.is-portrait \.timeline-edge-date\s*\{[^}]*writing-mode:\s*vertical-rl/s);
 });

@@ -99,7 +99,10 @@ test.describe("production WorldSurface in the app", () => {
       .poll(async () => (await entityPixels(page, clip)).count, {
         message: "entity marks must be drawn in a colour visible on the app background",
       })
-      .toBeGreaterThan(40);
+      // Nodes expose the same >=44px physical footprint used for touch and
+      // collision. This assertion certifies a stable patch of semantic colour;
+      // the spread assertion below independently certifies readable framing.
+      .toBeGreaterThan(8);
     const fitted = await entityPixels(page, clip);
     expect(
       Math.max(fitted.spreadX, fitted.spreadY),
