@@ -156,6 +156,9 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightSpec, /maxWidth:\s*captureSize\.width/);
   assert.match(highlightSpec, /maxHeight:\s*captureSize\.height/);
   assert.match(highlightSpec, /Page\.stopScreenRecording/);
+  assert.match(highlightSpec, /startCaptureHeartbeat/);
+  assert.match(highlightSpec, /lum-showcase-capture-heartbeat/);
+  assert.match(highlightSpec, /requestAnimationFrame/);
   assert.match(highlightSpec, /IO\.read/);
   assert.match(highlightSpec, /best_effort_timestamp_time/);
   assert.match(highlightSpec, /capturedFps < MIN_CAPTURE_FPS/);
