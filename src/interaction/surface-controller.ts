@@ -75,16 +75,25 @@ export function createSurfaceInteractionController(
       if (!coordinator.begin(owner, pointerId)) return false;
 
       const claim = options.claim !== false;
-      if (!claim) {
-        // Classification records the unresolved intent without claiming it.
-        // This is used by touch taps that may later promote to pan.
-        if (before.phase === "owned") {
-          return coordinator.reclassify(owner, gesture);
-        }
-        return coordinator.classify(owner, gesture);
-      }
+      const accepted = !claim
+        ? // Classification records the unresolved intent without claiming it.
+          // This is used by touch taps that may later promote to pan.
+          before.phase === "owned"
+          ? coordinator.reclassify(owner, gesture)
+          : coordinator.classify(owner, gesture)
+        : claimGesture(gesture);
 
-      return claimGesture(gesture);
+      if (accepted) return true;
+
+      // Failed promotion/acquisition is transactional. In particular, a
+      // second pointer cannot remain registered after an exclusive node drag
+      // rejects pinch takeover.
+      const current = snapshot();
+      if (!before.pointerIds.includes(pointerId) && current.pointerIds.includes(pointerId)) {
+        coordinator.release(owner, pointerId);
+        if (snapshot().phase === "settling") coordinator.cancel(owner, "aborted");
+      }
+      return false;
     },
 
     claimGesture,
