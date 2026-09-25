@@ -2271,7 +2271,7 @@ export class DeckWorldSurface implements WorldSurface {
         ? "grab"
         : selection
           ? "pointer"
-          : "";
+          : "grab";
   }
 
   #selectionFromPickingInfo(info: DeckRuntimePickingInfo): WorldSelection | null {
@@ -2376,6 +2376,10 @@ export class DeckWorldSurface implements WorldSurface {
       controller: deckControllerOptions(this.#spatialMode),
       initialViewState: this.#camera,
       pickingRadius: WORLD_PICKING_RADIUS_PX,
+      // Keep one cursor owner. deck.gl otherwise writes its own grab/pointer
+      // cursor onto the canvas while hover picking writes the host cursor,
+      // which makes the visible cursor oscillate as picking state changes.
+      getCursor: () => "inherit",
       layers: [],
       onHover: (info: DeckRuntimePickingInfo) => this.#handleDeckHover(info),
       onClick: (info: DeckRuntimePickingInfo) => this.#handleDeckClick(info),
@@ -2405,6 +2409,9 @@ export class DeckWorldSurface implements WorldSurface {
         }
       },
     });
+
+    // The host owns cursor semantics; deck's canvas inherits this value.
+    this.#setPointerCursor(null);
 
     this.#container.addEventListener?.("pointercancel", this.#handlePointerCancel);
     this.#container.addEventListener?.(
@@ -2649,6 +2656,7 @@ export class DeckWorldSurface implements WorldSurface {
       this.#activeDragPointerId = null;
       this.#dragCameraLock = null;
     }
+    this.#setPointerCursor(this.#hoverSelection);
     this.#render();
   }
 
@@ -2978,7 +2986,8 @@ export class DeckWorldSurface implements WorldSurface {
     this.#container.removeEventListener?.("keydown", this.#handleKeyDown as EventListener);
     this.#liveRegion?.remove?.();
     this.#accessibleMirror?.destroy();
-    this.#setPointerCursor(null);
+    const style = (this.#container as HTMLElement).style;
+    if (style) style.cursor = "";
     this.#deck.finalize();
   }
 
