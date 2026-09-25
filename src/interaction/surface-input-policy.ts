@@ -126,8 +126,9 @@ export function surfaceKeyboardMayNavigate(event: SurfaceKeyboardEventLike): boo
  * this to avoid competing with deck.gl/mjolnir, Leaflet, or the retained
  * timeline while focus is inside one of those surfaces.
  */
-export function surfaceKeyboardTargetOwnsNavigation(event: SurfaceKeyboardEventLike): boolean {
-  const target = record(event.target) as SurfaceKeyboardTargetLike | null;
+export function surfaceKeyboardTargetOwnsNavigation(event: unknown): boolean {
+  const keyboardEvent = record(event);
+  const target = record(keyboardEvent?.target) as SurfaceKeyboardTargetLike | null;
   const closest = target?.closest;
   if (typeof closest !== "function") return false;
   try {
