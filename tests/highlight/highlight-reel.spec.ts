@@ -361,7 +361,8 @@ async function startTabCapture(
           if (showcaseWindow.__lumShowcaseCaptureError) {
             return `error:${showcaseWindow.__lumShowcaseCaptureError}`;
           }
-          return showcaseWindow.__lumShowcaseCapture?.recorder.state === "recording"
+          const capture = showcaseWindow.__lumShowcaseCapture;
+          return capture?.recorder.state === "recording" && capture.frameTimestampsMs.length >= 2
             ? "ready"
             : "pending";
         }),
