@@ -1,3 +1,4 @@
+import type { InteractionCoordinator } from "../../src/interaction/interaction-coordinator.ts";
 import { D3WorldForceSimulation } from "../../src/layout/d3-world-force-simulation.ts";
 import type { WorldForceLayoutSample } from "../../src/layout/world-force-layout.ts";
 import type { WorldForceSimulationBackend } from "../../src/layout/world-force-simulation.ts";
@@ -29,8 +30,15 @@ export interface WorldApplicationView {
   destroy(): void;
 }
 
+export interface WorldViewCreateOptions {
+  readonly interaction?: InteractionCoordinator;
+}
+
 export interface WorldViewFactory {
-  create(root: HTMLElement | null): WorldApplicationView | null;
+  create(
+    root: HTMLElement | null,
+    options?: WorldViewCreateOptions,
+  ): WorldApplicationView | null;
 }
 
 export interface WorldViewFactoryForceBackend extends WorldForceSimulationBackend {
@@ -203,7 +211,10 @@ export function createWorldViewFactory(options: WorldViewFactoryOptions): WorldV
   const deckRuntime = createDeckWorldRuntime(options.bindings);
 
   return Object.freeze({
-    create(root: HTMLElement | null): WorldApplicationView | null {
+    create(
+      root: HTMLElement | null,
+      createOptions: WorldViewCreateOptions = {},
+    ): WorldApplicationView | null {
       if (!root) return null;
 
       const container = root.querySelector<HTMLElement>(".temporal-graph-canvas") ?? root;
@@ -222,6 +233,7 @@ export function createWorldViewFactory(options: WorldViewFactoryOptions): WorldV
       const runtime = new WorldViewRuntimeController({
         surface,
         forceBackend,
+        interaction: createOptions.interaction,
         ...(typeof forceBackend.getChangedSnapshot === "function" ||
         typeof forceBackend.getSnapshot === "function"
           ? {
