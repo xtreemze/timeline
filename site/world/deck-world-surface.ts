@@ -3310,11 +3310,17 @@ export class DeckWorldSurface implements WorldSurface {
    */
   #readableContentCamera(fitted: WorldCameraState | null): WorldCameraState | null {
     if (!fitted) return null;
-    const typical = this.#typicalOffsetMeters();
-    if (typical <= 0) return fitted;
+    const nodeRadiusPx = this.#clusterEntityFootprintRadiusPx();
+    const viewportRadiusPx = this.#viewportGraphRadiusLimitPx();
     const readableAt = (zoom: number) =>
-      worldLocalRadiusPx(typical * this.#nextOffsetScale(zoom), zoom, fitted.latitude) >=
-      this.#clusterRadiusPx();
+      clusterTargetPlaceIds(
+        this.#projection.instances,
+        this.#projection.edges,
+        zoom,
+        nodeRadiusPx,
+        Math.min(worldFloatingGraphRadiusPx(zoom), viewportRadiusPx),
+        "expanded",
+      ).length === 0;
     if (readableAt(fitted.zoom)) return fitted;
     let zoom = fitted.zoom;
     while (zoom < 18 && !readableAt(zoom)) zoom += 0.25;
