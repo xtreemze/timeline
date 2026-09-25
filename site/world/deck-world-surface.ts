@@ -22,7 +22,6 @@ import {
   worldClusterWantsCollapsed,
 } from "../../src/layout/world-cluster-transition.ts";
 import {
-  WORLD_TEMPORAL_REVEAL_MS,
   worldTemporalRevealProgress,
   type WorldTemporalRevealProgress,
 } from "../../src/layout/world-temporal-reveal.ts";
@@ -4486,18 +4485,20 @@ export class DeckWorldSurface implements WorldSurface {
   #render(withCamera = false): void {
     this.#offsetScale = this.#nextOffsetScale();
     this.#floatMeters = this.#nextFloatMeters();
-    const neighborhood = interactionNeighborhood(this.#projection, [
+    const temporalProgress = this.#temporalProgress();
+    const projection = this.#temporalPresentationProjection(temporalProgress);
+    const neighborhood = interactionNeighborhood(projection, [
       this.#selection,
       this.#hoverSelection,
     ]);
     const placeResult = placeDatums(
-      this.#projection.instances,
+      projection.instances,
       this.#selection,
       this.#placeDatumCache,
       neighborhood.placeIds,
     );
     const entityResult = entityDatums(
-      this.#projection.instances,
+      projection.instances,
       this.#selection,
       this.#entityDatumCache,
       (instance) => this.#offsetScaleForInstance(instance),
@@ -4506,9 +4507,9 @@ export class DeckWorldSurface implements WorldSurface {
     );
 
     const clusterPlaces = new Set(this.#clusterPlaceIds);
-    const placeReveal = placeInteractionReveal(this.#projection, this.#selection);
+    const placeReveal = placeInteractionReveal(projection, this.#selection);
     const candidateMemberIds = new Set<WorldInstanceId>(
-      this.#projection.instances
+      projection.instances
         .filter((instance) => {
           const placeId = instance.geographicAnchors[0]?.placeId;
           return placeId !== undefined && clusterPlaces.has(placeId);
@@ -4519,7 +4520,7 @@ export class DeckWorldSurface implements WorldSurface {
     // Relationship geometry always consumes the exact force-resolved positions.
     // Cluster lifecycle never interpolates endpoints in the renderer.
     const relationshipResult = relationshipDatums(
-      this.#projection,
+      projection,
       instanceIndexFromEntities(entityResult.datums),
       this.#selection,
       this.#relationshipDatumCache,
@@ -4552,7 +4553,7 @@ export class DeckWorldSurface implements WorldSurface {
     );
     const placeClusters = clusterEntityDatumsByPlace(
       clusteredEntitySource,
-      this.#projection.instances,
+      projection.instances,
       worldPixelsToDegrees(this.#clusterMergeRadiusPx(), this.#camera.zoom),
     );
     const topologyClusters = placeClusters.filter(
@@ -4594,7 +4595,7 @@ export class DeckWorldSurface implements WorldSurface {
         ? Object.freeze(
             clusterEntityDatumsByPlace(
               entityResult.datums,
-              this.#projection.instances,
+              projection.instances,
               worldPixelsToDegrees(WORLD_PLACE_MARKER_CLUSTER_MERGE_PX, this.#camera.zoom),
               WORLD_CLUSTER_MIN_MEMBER_COUNT,
             ).filter((datum): datum is DeckWorldClusterDatum => datum.kind === "cluster"),
@@ -4708,6 +4709,25 @@ export class DeckWorldSurface implements WorldSurface {
     const iconSource = entities.filter(
       (datum): datum is DeckWorldEntityDatum => datum.kind === "entity",
     );
+    const temporalTransitioningInstance = (instanceId: WorldInstanceId): boolean => {
+      const reveal = this.#temporalReveal;
+      return Boolean(
+        reveal &&
+          (reveal.enteringInstanceIds.has(instanceId) || reveal.exitingInstanceIds.has(instanceId)),
+      );
+    };
+    const entityMarkerStyle = (datum: DeckWorldEntityDatum): WorldNodeStyle => {
+      const style = this.#entityStyle(
+        datum,
+        muteMembers && memberIds.has(datum.worldInstanceId),
+      );
+      // The tintable border layer owns the border while a node is entering or
+      // leaving. Removing it from the body marker prevents a final-colour
+      // border from leaking through the interpolation.
+      return temporalTransitioningInstance(datum.worldInstanceId)
+        ? Object.freeze({ ...style, border: "#00000000" })
+        : style;
+    };
 
     const labelInteractionKey = [
       this.#selection?.kind ?? "",
@@ -4749,6 +4769,10 @@ export class DeckWorldSurface implements WorldSurface {
           key: (entity) => entity.worldInstanceId,
         })
       : null;
+    const temporalBorderDatums =
+      iconDatums && this.#temporalReveal
+        ? iconDatums.filter((datum) => temporalTransitioningInstance(datum.worldInstanceId))
+        : Object.freeze([] as DeckWorldEntityDatum[]);
     const labelEntities = iconSource;
     const labelClusters = entities.filter(
       (datum): datum is DeckWorldClusterDatum => datum.kind === "cluster",
@@ -4948,11 +4972,15 @@ export class DeckWorldSurface implements WorldSurface {
         },
         getColor: (datum: DeckWorldTemporalRelationshipDatum) => {
           const state = this.#temporalRelationshipStateFor(datum);
-          return worldColorBytes(
-            this.#temporalEdgeStyle(datum, edgeFallbackColor(state.edge)).color,
-            state.temporalActive
-              ? Math.round(edgeAlpha(state.edge) * edgeExpansion(state.edge))
-              : 0,
+          const style = this.#temporalEdgeStyle(datum, edgeFallbackColor(state.edge));
+          const alpha = state.temporalActive
+            ? Math.round(edgeAlpha(state.edge) * edgeExpansion(state.edge))
+            : 0;
+          return this.#temporalEdgeColor(
+            state.edge.relationshipId,
+            style.color,
+            alpha,
+            temporalProgress,
           );
         },
         updateTriggers: {
@@ -4968,6 +4996,7 @@ export class DeckWorldSurface implements WorldSurface {
             this.#temporalRelationshipRevision,
             this.#relationshipStyleRevision,
             clusterPhase,
+            this.#temporalRevealRevision,
           ],
         },
         parameters: { cullMode: "none" },
@@ -5075,10 +5104,14 @@ export class DeckWorldSurface implements WorldSurface {
               widthUnits: "pixels",
               getPath: (tether: DeckWorldTether) => tether.path,
               getWidth: WORLD_TETHER_WIDTH_PX,
-              getColor: this.#theme.tether,
+              getColor: (tether: DeckWorldTether) =>
+                scaleAlpha(
+                  this.#theme.tether,
+                  this.#temporalNodeVisibility(tether.worldInstanceId, temporalProgress),
+                ),
               updateTriggers: {
                 getWidth: [clusterPhase],
-                getColor: [this.#palette, clusterPhase],
+                getColor: [this.#palette, clusterPhase, this.#temporalRevealRevision],
               },
               parameters: { cullMode: "none" },
             }),
@@ -5103,13 +5136,9 @@ export class DeckWorldSurface implements WorldSurface {
               // Styled node markers: shape, fill, border and icon/image from
               // the entity's own style or the type default.
               getIcon: (datum: DeckWorldEntityDatum) =>
-                worldNodeMarker(
-                  this.#entityStyle(datum, muteMembers && memberIds.has(datum.worldInstanceId)),
-                ),
+                worldNodeMarker(entityMarkerStyle(datum)),
               getSize: (datum: DeckWorldEntityDatum) =>
-                worldNodeMarker(
-                  this.#entityStyle(datum, muteMembers && memberIds.has(datum.worldInstanceId)),
-                ).size *
+                worldNodeMarker(entityMarkerStyle(datum)).size *
                 entityExpansion(datum) *
                 (this.#dragFlashInstanceId === datum.worldInstanceId
                   ? WORLD_DRAG_PICKUP_FLASH_SCALE
@@ -5122,7 +5151,11 @@ export class DeckWorldSurface implements WorldSurface {
                   255,
                   255,
                   255,
-                  Math.round(emphasisAlpha * this.#cameraFacingOpacity(datum.position)),
+                  Math.round(
+                    emphasisAlpha *
+                      this.#cameraFacingOpacity(datum.position) *
+                      this.#temporalNodeVisibility(datum.worldInstanceId, temporalProgress),
+                  ),
                 ] as Rgba;
               },
               updateTriggers: {
@@ -5137,7 +5170,11 @@ export class DeckWorldSurface implements WorldSurface {
                   clusterPhase,
                   this.#dragPresentationRevision,
                 ],
-                getColor: [clusterPhase, cameraFacingStep(this.#camera)],
+                getColor: [
+                  clusterPhase,
+                  cameraFacingStep(this.#camera),
+                  this.#temporalRevealRevision,
+                ],
               },
               // GlobeView culls back faces; billboarded icon quads vanish
               // without this (same as the label TextLayer). Markers draw
@@ -5154,6 +5191,79 @@ export class DeckWorldSurface implements WorldSurface {
                       this.#endEntityDrag(event),
                   }
                 : {}),
+            }),
+          ]
+        : []),
+      ...(temporalBorderDatums.length > 0 && this.#runtime.createIconLayer
+        ? [
+            this.#runtime.createIconLayer({
+              id: DECK_WORLD_LAYER_IDS.entityBorderTransitions,
+              data: this.#cameraFacingEntities(temporalBorderDatums),
+              dataComparator: sameDatumSequence,
+              pickable: false,
+              billboard: true,
+              sizeUnits: "pixels",
+              getPosition: (datum: DeckWorldEntityDatum) =>
+                liftedDraggedEntityPosition(
+                  datum.position,
+                  this.#camera.zoom,
+                  this.#activeDragInstanceId === datum.worldInstanceId,
+                ),
+              getIcon: (datum: DeckWorldEntityDatum) =>
+                worldNodeBorderMarker(
+                  this.#entityStyle(
+                    datum,
+                    muteMembers && memberIds.has(datum.worldInstanceId),
+                  ),
+                ),
+              getSize: (datum: DeckWorldEntityDatum) =>
+                worldNodeBorderMarker(
+                  this.#entityStyle(
+                    datum,
+                    muteMembers && memberIds.has(datum.worldInstanceId),
+                  ),
+                ).size * entityExpansion(datum),
+              getColor: (datum: DeckWorldEntityDatum) => {
+                const style = this.#entityStyle(
+                  datum,
+                  muteMembers && memberIds.has(datum.worldInstanceId),
+                );
+                const reveal = this.#temporalReveal;
+                const entering = reveal?.enteringInstanceIds.has(datum.worldInstanceId) === true;
+                const visibility = this.#temporalNodeVisibility(
+                  datum.worldInstanceId,
+                  temporalProgress,
+                );
+                const color = entering
+                  ? mixWorldColorBytes(
+                      this.#palette.muted,
+                      style.border,
+                      temporalProgress.node,
+                      255 * visibility,
+                    )
+                  : mixWorldColorBytes(
+                      style.border,
+                      this.#palette.muted,
+                      temporalProgress.node,
+                      255 * visibility,
+                    );
+                return scaleAlpha(color, this.#cameraFacingOpacity(datum.position));
+              },
+              updateTriggers: {
+                getPosition: [
+                  this.#dragPresentationRevision,
+                  screenScaleZoomStep(this.#camera.zoom),
+                ],
+                getIcon: [this.#palette, clusterPhase],
+                getSize: [this.#palette, clusterPhase],
+                getColor: [
+                  this.#palette,
+                  clusterPhase,
+                  cameraFacingStep(this.#camera),
+                  this.#temporalRevealRevision,
+                ],
+              },
+              parameters: { cullMode: "none", depthCompare: "always" },
             }),
           ]
         : []),
@@ -5178,14 +5288,18 @@ export class DeckWorldSurface implements WorldSurface {
             ) * edgeExpansion(datum)
           );
         },
-        getColor: (datum: DeckWorldDirectionDatum) =>
-          worldColorBytes(
-            this.#edgeStyle(datum.edge, edgeFallbackColor(datum.edge)).color,
+        getColor: (datum: DeckWorldDirectionDatum) => {
+          const style = this.#edgeStyle(datum.edge, edgeFallbackColor(datum.edge));
+          return this.#temporalEdgeColor(
+            datum.relationshipId,
+            style.color,
             Math.round(edgeAlpha(datum.edge) * edgeExpansion(datum)),
-          ),
+            temporalProgress,
+          );
+        },
         updateTriggers: {
           getWidth: [this.#palette, clusterPhase],
-          getColor: [this.#palette, clusterPhase],
+          getColor: [this.#palette, clusterPhase, this.#temporalRevealRevision],
         },
         parameters: { cullMode: "none" },
       }),
@@ -5236,14 +5350,24 @@ export class DeckWorldSurface implements WorldSurface {
                 }
                 if (datum.kind === "relationship-label") {
                   const edge = relationshipResult.byId.get(datum.relationshipId);
-                  return scaleAlpha(base, facing * (edge ? edgeExpansion(edge) : 0));
+                  return scaleAlpha(
+                    base,
+                    facing *
+                      (edge ? edgeExpansion(edge) : 0) *
+                      this.#temporalEdgeVisibility(datum.relationshipId, temporalProgress),
+                  );
                 }
                 const entity = entityResult.byId.get(datum.worldInstanceId);
                 const entityBase =
                   muteMembers && memberIds.has(datum.worldInstanceId)
                     ? this.#theme.labelPlace
                     : base;
-                return scaleAlpha(entityBase, facing * (entity ? entityExpansion(entity) : 0));
+                return scaleAlpha(
+                  entityBase,
+                  facing *
+                    (entity ? entityExpansion(entity) : 0) *
+                    this.#temporalNodeVisibility(datum.worldInstanceId, temporalProgress),
+                );
               },
               getTextAnchor: "middle",
               getAlignmentBaseline: "center",
@@ -5258,6 +5382,7 @@ export class DeckWorldSurface implements WorldSurface {
                   clusterPhase,
                   labelInteractionKey,
                   cameraFacingStep(this.#camera),
+                  this.#temporalRevealRevision,
                 ],
               },
               // GlobeView culls back faces; billboarded glyph quads are
