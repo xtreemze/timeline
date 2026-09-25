@@ -104,7 +104,9 @@ test("landscape selection preserves timeline geometry while detail layers over t
   expect(graphBox.x).toBeLessThanOrEqual(stageBox.x + 2);
   expect(graphBox.y).toBeLessThanOrEqual(stageBox.y + 2);
   expect(overlapArea(focusBox, graphBox)).toBeGreaterThan(100);
-});test("portrait selection preserves timeline geometry while detail layers over the graph", async ({
+});
+
+test("portrait selection preserves timeline geometry while detail layers over the graph", async ({
   page,
 }) => {
   await ensureOrientation(page, "portrait");
@@ -122,7 +124,9 @@ test("landscape selection preserves timeline geometry while detail layers over t
   expect(graphBox.x).toBeLessThanOrEqual(stageBox.x + 2);
   expect(graphBox.y).toBeLessThanOrEqual(stageBox.y + 2);
   expect(overlapArea(focusBox, graphBox)).toBeGreaterThan(100);
-});test("opening Browse or View does not discard the focused occurrence", async ({ page }) => {
+});
+
+test("opening Browse or View does not discard the focused occurrence", async ({ page }) => {
   await focusOccurrence(page);
 
   await page.locator("#timeline-browser-toggle").click();
