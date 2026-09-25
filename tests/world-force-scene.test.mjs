@@ -389,3 +389,33 @@ test("force scenes keep current offsets while exposing soft DAG targets", () => 
   assert.ok((alice.layoutTargetStrength ?? 0) > 0);
   assert.notEqual(alice.initialNorthMeters, alice.layoutTargetNorthMeters);
 });
+
+test("manual DAG rebuild preserves geographic anchors and keeps places out of the force graph", () => {
+  const projection = dagProjection();
+  const baseline = createWorldForceScene(projection);
+  const reorganized = createWorldForceScene(
+    projection,
+    DEFAULT_WORLD_FORCE_SCENE_POLICY,
+    { reorganizeDag: true },
+  );
+
+  assert.deepEqual(reorganized.anchors, baseline.anchors);
+  assert.deepEqual(
+    reorganized.nodes.map((node) => node.id),
+    baseline.nodes.map((node) => node.id),
+  );
+  assert.equal(
+    reorganized.nodes.some((node) => node.canonicalId === "stockholm"),
+    false,
+    "geographic places remain anchors rather than movable force nodes",
+  );
+  assert.ok(
+    reorganized.nodes.every(
+      (node) =>
+        node.layoutTargetEastMeters === undefined ||
+        (Number.isFinite(node.layoutTargetEastMeters) &&
+          Number.isFinite(node.layoutTargetNorthMeters)),
+    ),
+  );
+});
+
