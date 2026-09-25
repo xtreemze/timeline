@@ -1,11 +1,32 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { spawn } from "node:child_process";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Locator, Page, TestInfo } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
 const OUTPUT_ROOT = path.resolve(process.env.E2E_MEDIA_DIR ?? "artifacts/e2e-media");
+const CAPTURE_FPS = 60;
+const MIN_CAPTURE_FPS = CAPTURE_FPS - 1;
+const FFMPEG = process.env.FFMPEG_BIN ?? "ffmpeg";
 
 type FormFactor = "desktop" | "mobile";
+
+type CapturedFrame = {
+  data: Buffer;
+  timestamp: number;
+  viewportWidth: number;
+  viewportHeight: number;
+};
+
+type CaptureStats = {
+  requestedFps: number;
+  minimumFps: number;
+  capturedFrames: number;
+  encodedFrames: number;
+  capturedDurationSeconds: number;
+  measuredFps: number;
+  timestamps: number[];
+};
 
 type ShowcaseMediaMode = "motion" | "static";
 
@@ -108,6 +129,138 @@ async function firstVisibleOccurrence(page: Page) {
   return occurrence;
 }
 
+function run(command: string, args: string[], cwd = process.cwd()) {
+  return new Promise<void>((resolve, reject) => {
+    const child = spawn(command, args, {
+      cwd,
+      stdio: "inherit",
+      env: process.env,
+    });
+    child.on("error", reject);
+    child.on("exit", (code, signal) => {
+      if (code === 0) return resolve();
+      reject(new Error(`${command} exited with ${String(code ?? signal)}`));
+    });
+  });
+}
+
+function measureCapturedFrames(frames: CapturedFrame[]) {
+  if (frames.length < 2) throw new Error("Showcase motion capture produced fewer than two frames");
+  const firstTimestamp = frames[0]?.timestamp;
+  const lastTimestamp = frames.at(-1)?.timestamp;
+  if (!Number.isFinite(firstTimestamp) || !Number.isFinite(lastTimestamp)) {
+    throw new Error("Showcase motion capture did not provide usable browser timestamps");
+  }
+  const durationSeconds = (lastTimestamp! - firstTimestamp!) / 1000;
+  if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) {
+    throw new Error("Showcase motion capture duration is invalid");
+  }
+  const measuredFps = (frames.length - 1) / durationSeconds;
+  if (measuredFps < MIN_CAPTURE_FPS) {
+    throw new Error(
+      `Showcase captured ${String(frames.length)} actual Chromium frames across ${durationSeconds.toFixed(3)}s (${measuredFps.toFixed(2)} fps); expected at least ${MIN_CAPTURE_FPS.toFixed(2)} fps before encoding.`,
+    );
+  }
+  return { durationSeconds, measuredFps };
+}
+
+function sampleFramesAtTargetRate(frames: CapturedFrame[]) {
+  if (frames.length < 2) return frames;
+  const start = frames[0]!.timestamp;
+  const end = frames.at(-1)!.timestamp;
+  const intervalMs = 1000 / CAPTURE_FPS;
+  const selected: CapturedFrame[] = [];
+  let cursor = 0;
+
+  for (let target = start; target <= end; target += intervalMs) {
+    while (
+      cursor + 1 < frames.length &&
+      Math.abs(frames[cursor + 1]!.timestamp - target) <=
+        Math.abs(frames[cursor]!.timestamp - target)
+    ) {
+      cursor += 1;
+    }
+    const candidate = frames[cursor]!;
+    if (selected.at(-1) !== candidate) selected.push(candidate);
+  }
+  return selected;
+}
+
+async function encodeMeasuredCapture(
+  videoPath: string,
+  frames: CapturedFrame[],
+  captureSize: { width: number; height: number },
+) {
+  const measured = measureCapturedFrames(frames);
+  for (const frame of frames) {
+    if (frame.viewportWidth !== captureSize.width || frame.viewportHeight !== captureSize.height) {
+      throw new Error(
+        `Unexpected showcase viewport ${String(frame.viewportWidth)}x${String(frame.viewportHeight)}; expected ${String(captureSize.width)}x${String(captureSize.height)}`,
+      );
+    }
+  }
+
+  const selected = sampleFramesAtTargetRate(frames);
+  if (selected.length < 2) throw new Error("Showcase frame sampler produced fewer than two frames");
+
+  const frameDir = `${videoPath}.frames`;
+  const timingPath = `${videoPath}.frames.json`;
+  await rm(frameDir, { recursive: true, force: true });
+  await mkdir(frameDir, { recursive: true });
+
+  for (const [index, frame] of selected.entries()) {
+    await writeFile(path.join(frameDir, `${String(index).padStart(6, "0")}.jpg`), frame.data);
+  }
+
+  const stats: CaptureStats = {
+    requestedFps: CAPTURE_FPS,
+    minimumFps: MIN_CAPTURE_FPS,
+    capturedFrames: frames.length,
+    encodedFrames: selected.length,
+    capturedDurationSeconds: measured.durationSeconds,
+    measuredFps: measured.measuredFps,
+    timestamps: frames.map((frame) => frame.timestamp),
+  };
+  await writeFile(timingPath, JSON.stringify(stats, null, 2));
+
+  try {
+    await run(
+      FFMPEG,
+      [
+        "-y",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-framerate",
+        String(CAPTURE_FPS),
+        "-start_number",
+        "0",
+        "-i",
+        "%06d.jpg",
+        "-an",
+        "-c:v",
+        "libvpx",
+        "-deadline",
+        "realtime",
+        "-cpu-used",
+        "8",
+        "-crf",
+        "8",
+        "-b:v",
+        "0",
+        "-pix_fmt",
+        "yuv420p",
+        videoPath,
+      ],
+      frameDir,
+    );
+  } finally {
+    await rm(frameDir, { recursive: true, force: true });
+  }
+
+  return stats;
+}
+
 async function touchDrag(target: Locator, deltaX: number, deltaY: number) {
   const box = await target.boundingBox();
   if (!box) throw new Error("Touch target has no layout box");
@@ -148,6 +301,7 @@ async function touchDrag(target: Locator, deltaX: number, deltaY: number) {
 async function recordSegment(
   page: Page,
   formFactor: FormFactor,
+  captureSize: { width: number; height: number },
   scene: SceneIntent,
   body: () => Promise<void>,
 ): Promise<ShowcaseSegment> {
@@ -157,7 +311,14 @@ async function recordSegment(
   const screenshotPath = path.join(rawDir, `${scene.name}.png`);
 
   if (scene.mediaMode === "motion") {
-    await page.screencast.start({ path: videoPath, quality: 92 });
+    const capturedFrames: CapturedFrame[] = [];
+    await page.screencast.start({
+      quality: 92,
+      size: captureSize,
+      onFrame: ({ data, timestamp, viewportWidth, viewportHeight }) => {
+        capturedFrames.push({ data, timestamp, viewportWidth, viewportHeight });
+      },
+    });
     const actions = await page.screencast.showActions({
       position: formFactor === "mobile" ? "bottom-right" : "top-right",
       duration: 500,
@@ -207,6 +368,8 @@ async function recordSegment(
       await actions.dispose().catch(() => {});
       if (!page.isClosed()) await page.screencast.stop().catch(() => {});
     }
+
+    await encodeMeasuredCapture(videoPath, capturedFrames, captureSize);
   } else {
     await body();
     await page.waitForTimeout(250);
@@ -358,7 +521,7 @@ test("records source-native Lūm showcase media per form factor", async ({ page 
     await test.step(scene.title, async () => {
       await loadSample(page);
       segments.push(
-        await recordSegment(page, settings.formFactor, scene, async () => {
+        await recordSegment(page, settings.formFactor, settings.size, scene, async () => {
           if (settings.formFactor === "desktop") await desktopRoutine(page, scene.name);
           else await mobileRoutine(page, scene.name);
         }),
@@ -378,6 +541,8 @@ test("records source-native Lūm showcase media per form factor", async ({ page 
         formFactor: settings.formFactor,
         generatedAt: new Date().toISOString(),
         captureViewport: settings.size,
+        captureFps: CAPTURE_FPS,
+        minimumMeasuredCaptureFps: MIN_CAPTURE_FPS,
         transitionSeconds: 0.28,
         stillSeconds: 0.9,
         motionSceneCount: segments.filter((segment) => segment.mediaMode === "motion").length,
