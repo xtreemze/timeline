@@ -321,6 +321,119 @@ function temporalInterval(start, end) {
   return { type: "interval", start: temporalPoint(start), end: temporalPoint(end) };
 }
 
+const LEGACY_STORY_LAYOUTS = [
+  {
+    storyId: "story-three-little-pigs",
+    yearOffset: 0,
+    cycle: "Storybook Cycle 1000",
+    spatialFrame: "Pigwood Realm",
+    longitudeOffset: -80,
+    latitudeOffset: -20,
+  },
+  {
+    storyId: "story-snow-white",
+    yearOffset: -24,
+    cycle: "Storybook Cycle 976",
+    spatialFrame: "Mirrorwood Realm",
+    longitudeOffset: -10,
+    latitudeOffset: -30,
+  },
+  {
+    storyId: "story-cinderella",
+    yearOffset: -12,
+    cycle: "Storybook Cycle 988",
+    spatialFrame: "Ashenvale Realm",
+    longitudeOffset: 32,
+    latitudeOffset: -42,
+  },
+];
+
+function shiftSyntheticYear(value, yearOffset) {
+  if (typeof value !== "string" || !/^\d{4}-/.test(value) || !yearOffset) return value;
+  const year = Number(value.slice(0, 4)) + yearOffset;
+  return `${String(year).padStart(4, "0")}${value.slice(4)}`;
+}
+
+function shiftTemporalExtent(time, yearOffset) {
+  if (!time || typeof time !== "object" || !yearOffset) return;
+  if (time.start?.value) time.start.value = shiftSyntheticYear(time.start.value, yearOffset);
+  if (time.end?.value) time.end.value = shiftSyntheticYear(time.end.value, yearOffset);
+}
+
+function translateGeometryCoordinates(value, longitudeOffset, latitudeOffset) {
+  if (!Array.isArray(value)) return value;
+  if (
+    value.length >= 2 &&
+    Number.isFinite(Number(value[0])) &&
+    Number.isFinite(Number(value[1]))
+  ) {
+    return [
+      Number(value[0]) + longitudeOffset,
+      Number(value[1]) + latitudeOffset,
+      ...value.slice(2),
+    ];
+  }
+  return value.map((entry) =>
+    translateGeometryCoordinates(entry, longitudeOffset, latitudeOffset),
+  );
+}
+
+function repositionLegacyStory(sample, layout) {
+  const story = sample.stories.find((candidate) => candidate.id === layout.storyId);
+  if (!story) return;
+
+  const itemIds = new Set(story.itemIds || []);
+  const evidenceIds = new Set();
+
+  for (const item of sample.items) {
+    if (!itemIds.has(item.id)) continue;
+    item.start = shiftSyntheticYear(item.start, layout.yearOffset);
+    if (item.end) item.end = shiftSyntheticYear(item.end, layout.yearOffset);
+    shiftTemporalExtent(item.time, layout.yearOffset);
+    for (const evidenceId of item.evidenceIds || []) evidenceIds.add(evidenceId);
+
+    const narrative = item.extensions?.narrative;
+    if (narrative) {
+      narrative.temporalReferenceFrame = layout.cycle;
+      narrative.spatialReferenceFrame = layout.spatialFrame;
+    }
+  }
+
+  for (const relationship of sample.relationships) {
+    const belongsToStory =
+      relationship.attributes?.storyId === layout.storyId ||
+      (relationship.itemIds || []).some((itemId) => itemIds.has(itemId));
+    if (belongsToStory) shiftTemporalExtent(relationship.time, layout.yearOffset);
+  }
+
+  for (const evidence of sample.evidence) {
+    if (evidenceIds.has(evidence.id) && evidence.publishedAt) {
+      evidence.publishedAt = shiftSyntheticYear(evidence.publishedAt, layout.yearOffset);
+    }
+  }
+
+  for (const place of sample.places) {
+    if (place.attributes?.storyId !== layout.storyId || !place.geometry) continue;
+    place.geometry.coordinates = translateGeometryCoordinates(
+      place.geometry.coordinates,
+      layout.longitudeOffset,
+      layout.latitudeOffset,
+    );
+    if (place.geographicIdentifier) {
+      place.geographicIdentifier = place.geographicIdentifier.replace(
+        /Storybook Cycle \d{3,4}/,
+        layout.cycle,
+      );
+    }
+  }
+
+  const narrative = story.extensions?.narrative;
+  if (narrative) {
+    narrative.temporalReferenceFrame = layout.cycle;
+    narrative.spatialReferenceFrame = layout.spatialFrame;
+  }
+}
+
 function itemMedia(media, sequence) {
   const first = (sequence - 1) % media.length;
   const second = sequence % media.length;
@@ -460,6 +573,8 @@ function refreshStoryPlaces(sample) {
 }
 
 export function extendSampleCase(sample) {
+  for (const layout of LEGACY_STORY_LAYOUTS) repositionLegacyStory(sample, layout);
+
   for (const category of EXTRA_CATEGORIES) {
     if (!sample.categories.some((candidate) => candidate.id === category.id)) {
       sample.categories.push(category);
@@ -535,11 +650,11 @@ export function extendSampleCase(sample) {
     itemIds: ["pigs-wolf-straw", "pigs-brick-siege", "pigs-safe"],
   });
   patchRelationship(sample, "rel-snow-queen-threat", {
-    time: temporalInterval("1000-04-05T09:00Z", "1000-05-22T12:00Z"),
+    time: temporalInterval("0976-04-05T09:00Z", "0976-05-22T12:00Z"),
     placeId: "place-snow-white-threat-corridor",
   });
   patchRelationship(sample, "rel-cinderella-prince-search", {
-    time: temporalInterval("1000-05-07T00:02Z", "1000-06-02T14:00Z"),
+    time: temporalInterval("0988-05-07T00:02Z", "0988-06-02T14:00Z"),
     placeId: "place-cinderella-ashenvale-village-search-route",
   });
   patchRelationship(sample, "rel-cinderella-stepsisters", {
@@ -571,6 +686,7 @@ export function extendSampleCase(sample) {
     };
     if (narrative.anthology) {
       narrative.anthology.storyIds = sample.stories.map((story) => story.id);
+      narrative.anthology.simultaneousStories = false;
       narrative.anthology.distributedStoryCycles = true;
     }
   }
