@@ -85,7 +85,7 @@ const SAMPLE = {
       type: "note",
       title: "Narrative consistency note",
       sourceName: "Timeline demo",
-      note: "The nine tales use synthetic dates and fictional map anchors while preserving internal temporal, spatial, and relational consistency across overlapping and deliberately separated story cycles.",
+      note: "The nine tales use synthetic dates and fictional map anchors while preserving internal temporal, spatial, and relational consistency across deliberately separated story cycles.",
       publishedAt: "1043-05-22",
     },
   ],
@@ -5817,7 +5817,7 @@ const SAMPLE = {
           "staging anchors for relative story geography; not Earth-location claims",
       },
       anthology: {
-        simultaneousStories: true,
+        simultaneousStories: false,
         independentStoryFocus: true,
         storyIds: ["story-three-little-pigs", "story-snow-white", "story-cinderella"],
       },
