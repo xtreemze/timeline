@@ -3396,6 +3396,145 @@ export class DeckWorldSurface implements WorldSurface {
     }
   }
 
+  #clearTemporalRevealTimer(): void {
+    if (this.#temporalRevealTimer === null) return;
+    globalThis.clearTimeout(this.#temporalRevealTimer);
+    this.#temporalRevealTimer = null;
+  }
+
+  #temporalProgress(): WorldTemporalRevealProgress {
+    const reveal = this.#temporalReveal;
+    return reveal
+      ? worldTemporalRevealProgress(Date.now() - reveal.startedAt)
+      : Object.freeze({ edge: 1, node: 1, complete: true });
+  }
+
+  #temporalPresentationProjection(progress: WorldTemporalRevealProgress): WorldProjection {
+    const reveal = this.#temporalReveal;
+    if (!reveal) return this.#projection;
+
+    const instances =
+      progress.node < 1 && reveal.outgoingInstances.length > 0
+        ? Object.freeze(
+            [...this.#projection.instances, ...reveal.outgoingInstances].sort((left, right) =>
+              String(left.id).localeCompare(String(right.id)),
+            ),
+          )
+        : this.#projection.instances;
+    const edges =
+      progress.edge < 1 && reveal.outgoingEdges.length > 0
+        ? Object.freeze(
+            [...this.#projection.edges, ...reveal.outgoingEdges].sort(
+              (left, right) =>
+                String(left.id).localeCompare(String(right.id)) ||
+                String(left.sourceInstanceId).localeCompare(String(right.sourceInstanceId)) ||
+                String(left.targetInstanceId).localeCompare(String(right.targetInstanceId)),
+            ),
+          )
+        : this.#projection.edges;
+
+    return instances === this.#projection.instances && edges === this.#projection.edges
+      ? this.#projection
+      : Object.freeze({ instances, edges });
+  }
+
+  #temporalNodeVisibility(
+    instanceId: WorldInstanceId,
+    progress: WorldTemporalRevealProgress,
+  ): number {
+    const reveal = this.#temporalReveal;
+    if (!reveal) return 1;
+    if (reveal.enteringInstanceIds.has(instanceId)) return progress.node;
+    if (reveal.exitingInstanceIds.has(instanceId)) return 1 - progress.node;
+    return 1;
+  }
+
+  #temporalBorderOverlayAlpha(
+    instanceId: WorldInstanceId,
+    progress: WorldTemporalRevealProgress,
+  ): number {
+    const reveal = this.#temporalReveal;
+    if (
+      !reveal ||
+      (!reveal.enteringInstanceIds.has(instanceId) &&
+        !reveal.exitingInstanceIds.has(instanceId))
+    ) {
+      return 0;
+    }
+    return Math.sin(Math.PI * progress.node);
+  }
+
+  #temporalEdgeColor(
+    relationshipId: RelationshipId,
+    semanticColor: string,
+    alpha: number,
+    progress: WorldTemporalRevealProgress,
+  ): Rgba {
+    const reveal = this.#temporalReveal;
+    if (!reveal) return worldColorBytes(semanticColor, alpha);
+    if (reveal.enteringRelationshipIds.has(relationshipId)) {
+      return mixWorldColorBytes(
+        this.#palette.muted,
+        semanticColor,
+        progress.edge,
+        alpha * progress.edge,
+      );
+    }
+    if (reveal.exitingRelationshipIds.has(relationshipId)) {
+      return mixWorldColorBytes(
+        semanticColor,
+        this.#palette.muted,
+        progress.edge,
+        alpha * (1 - progress.edge),
+      );
+    }
+    return worldColorBytes(semanticColor, alpha);
+  }
+
+  #beginTemporalReveal(previous: WorldProjection, delta: WorldProjectionDelta): void {
+    this.#clearTemporalRevealTimer();
+    this.#temporalReveal = null;
+
+    const topologyChanged =
+      delta.addedInstances.length > 0 ||
+      delta.removedInstanceIds.length > 0 ||
+      delta.addedEdges.length > 0 ||
+      delta.removedEdgeIds.length > 0;
+    if (!topologyChanged || prefersReducedMotion()) return;
+
+    const exitingInstanceIds = new Set(delta.removedInstanceIds);
+    const exitingRelationshipIds = new Set(delta.removedEdgeIds);
+    this.#temporalReveal = Object.freeze({
+      startedAt: Date.now(),
+      enteringInstanceIds: new Set(delta.addedInstances.map((instance) => instance.id)),
+      exitingInstanceIds,
+      enteringRelationshipIds: new Set(delta.addedEdges.map((edge) => edge.id)),
+      exitingRelationshipIds,
+      outgoingInstances: Object.freeze(
+        previous.instances.filter((instance) => exitingInstanceIds.has(instance.id)),
+      ),
+      outgoingEdges: Object.freeze(
+        previous.edges.filter((edge) => exitingRelationshipIds.has(edge.id)),
+      ),
+    });
+    this.#temporalRevealRevision += 1;
+    this.#scheduleTemporalRevealFrame();
+  }
+
+  #scheduleTemporalRevealFrame(): void {
+    if (this.#temporalRevealTimer !== null || !this.#temporalReveal || this.#destroyed) return;
+    this.#temporalRevealTimer = globalThis.setTimeout(() => {
+      this.#temporalRevealTimer = null;
+      if (!this.#temporalReveal || this.#destroyed) return;
+      const progress = this.#temporalProgress();
+      this.#temporalRevealRevision += 1;
+      if (progress.complete) this.#temporalReveal = null;
+      this.#syncClusterLifecycle();
+      this.#render();
+      if (this.#temporalReveal) this.#scheduleTemporalRevealFrame();
+    }, Math.min(16, WORLD_TEMPORAL_REVEAL_MS));
+  }
+
   #clusterTargetPlaceIds(): readonly PlaceId[] {
     const targets = clusterTargetPlaceIds(
       this.#projection.instances,
