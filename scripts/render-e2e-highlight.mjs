@@ -117,7 +117,7 @@ function assertMeasuredCapture(segment, formFactor) {
       `${formFactor}/${segment.name} is missing the ${SHOWCASE_FPS} fps source-capture contract.`,
     );
   }
-  if (capture.method !== "ffmpeg-x11grab-rawvideo") {
+  if (capture.method !== "ffmpeg-x11grab-x264rgb-lossless") {
     throw new Error(
       `${formFactor}/${segment.name} used ${String(capture.method)}; expected the raw X11 framebuffer capture path.`,
     );
