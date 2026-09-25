@@ -34,7 +34,7 @@ type ShowcaseSegment = SceneIntent & {
     durationSeconds: number;
     recordingWindowSeconds: number;
     frameTimestampsMs: number[];
-    method: "ffmpeg-x11grab-x264rgb-lossless";
+    method: "ffmpeg-x11grab-rawvideo-nut";
     browserFrameClockFps: number;
   } | null;
 };
@@ -216,18 +216,14 @@ async function startX11Capture(
       "-i",
       `${display}+0,0`,
       "-an",
+      "-pix_fmt",
+      "bgr24",
       "-c:v",
-      "libx264rgb",
-      "-preset",
-      "ultrafast",
-      "-tune",
-      "zerolatency",
-      "-qp",
-      "0",
+      "rawvideo",
       "-fps_mode",
       "passthrough",
       "-f",
-      "matroska",
+      "nut",
       sourcePath,
     ],
     {
@@ -434,7 +430,7 @@ async function recordSegment(
   const rawDir = path.join(OUTPUT_ROOT, "raw", formFactor);
   await mkdir(rawDir, { recursive: true });
   const videoPath = path.join(rawDir, `${scene.name}.webm`);
-  const sourcePath = `${videoPath}.source.mkv`;
+  const sourcePath = `${videoPath}.source.nut`;
   const screenshotPath = path.join(rawDir, `${scene.name}.png`);
   const captureSize =
     formFactor === "desktop" ? PROJECTS["Desktop Showcase"].size : PROJECTS["Mobile Showcase"].size;
@@ -507,7 +503,7 @@ async function recordSegment(
         durationSeconds: cadence.durationSeconds,
         recordingWindowSeconds: expectedDurationSeconds,
         frameTimestampsMs,
-        method: "ffmpeg-x11grab-x264rgb-lossless",
+        method: "ffmpeg-x11grab-rawvideo-nut",
         browserFrameClockFps: browserFrameClock.fps,
       };
     } finally {
