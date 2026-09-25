@@ -713,6 +713,13 @@ function clearViewControlsPosition() {
 function positionViewControls() {
   if (!viewControlsAreOpen()) return;
 
+  if (els.viewControlsToggle.closest(".app-footer-bar")) {
+    clearViewControlsPosition();
+    els.viewControls.dataset.anchorPlacement = "footer";
+    els.viewControls.dataset.placementValid = "true";
+    return;
+  }
+
   if (presentationIsFullscreen()) {
     clearViewControlsPosition();
     els.viewControls.dataset.anchorPlacement = "fullscreen";
