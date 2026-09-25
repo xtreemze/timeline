@@ -171,54 +171,60 @@ test("each story has distinct reusable fictional places referenced by edges", ()
   }
 });
 
-test("story realms are spatially separated while preserving compact internal geography", () => {
+test("story realms use compact terrestrial staging regions appropriate to their settings", () => {
   const placeById = new Map(sample.places.map((place) => [place.id, place]));
+  const terrainBounds = new Map([
+    ["story-three-little-pigs", { west: 7.5, east: 8.9, south: 49.4, north: 50.5, setting: /Field|Track|Meadow|Hill|Road|Yard|Cottage/ }],
+    ["story-snow-white", { west: 9.8, east: 11.2, south: 47.8, north: 49.2, setting: /Forest|Cottage|Clearing|Ridge/ }],
+    ["story-cinderella", { west: 12.2, east: 13.5, south: 46.8, north: 47.8, setting: /Palace|House|Garden|Village|Road/ }],
+    ["story-little-red-riding-hood", { west: 4.9, east: 6.4, south: 49.4, north: 50.6, setting: /Forest|Meadow|Clearing/ }],
+    ["story-hansel-and-gretel", { west: 9.8, east: 11.2, south: 51.1, north: 52.3, setting: /Trail|Forest|Crossing|Clearing/ }],
+    ["story-jack-and-the-beanstalk", { west: -2.8, east: -1.5, south: 53.6, north: 54.8, setting: /Farm|Field|Village/ }],
+    ["story-rapunzel", { west: 24.0, east: 25.8, south: 45.0, north: 46.4, setting: /Garden|Cottage|Tower|Thornwood|Valley/ }],
+    ["story-frog-prince", { west: 10.6, east: 12.0, south: 47.2, north: 48.5, setting: /Garden|Well|Path|Palace|Gate/ }],
+    ["story-rumpelstiltskin", { west: 10.0, east: 11.5, south: 50.2, north: 51.5, setting: /Mill|Palace|Clearing/ }],
+  ]);
 
-  function firstCoordinatePair(value) {
-    if (!Array.isArray(value)) return null;
+  function coordinatePairs(value, pairs = []) {
+    if (!Array.isArray(value)) return pairs;
     if (
       value.length >= 2 &&
       Number.isFinite(Number(value[0])) &&
       Number.isFinite(Number(value[1]))
     ) {
-      return [Number(value[0]), Number(value[1])];
+      pairs.push([Number(value[0]), Number(value[1])]);
+      return pairs;
     }
-    for (const entry of value) {
-      const pair = firstCoordinatePair(entry);
-      if (pair) return pair;
-    }
-    return null;
+    for (const entry of value) coordinatePairs(entry, pairs);
+    return pairs;
   }
 
-  const centroids = sample.stories.map((story) => {
-    const points = (story.placeIds || [])
-      .map((placeId) => placeById.get(placeId)?.geometry?.coordinates)
-      .map(firstCoordinatePair)
-      .filter(Boolean);
+  for (const story of sample.stories) {
+    const bounds = terrainBounds.get(story.id);
+    assert.ok(bounds, `${story.title}: staging bounds must be declared`);
+
+    const places = (story.placeIds || []).map((placeId) => placeById.get(placeId)).filter(Boolean);
+    const points = places.flatMap((place) => coordinatePairs(place.geometry?.coordinates));
     assert.ok(points.length >= 5, `${story.title}: enough spatial anchors`);
-    const longitude = points.reduce((sum, point) => sum + point[0], 0) / points.length;
-    const latitude = points.reduce((sum, point) => sum + point[1], 0) / points.length;
+    assert.ok(
+      places.some((place) => bounds.setting.test(place.name || "")),
+      `${story.title}: place names should express the intended terrain or built setting`,
+    );
+
     const longitudeSpan =
       Math.max(...points.map((point) => point[0])) - Math.min(...points.map((point) => point[0]));
     const latitudeSpan =
       Math.max(...points.map((point) => point[1])) - Math.min(...points.map((point) => point[1]));
-
     assert.ok(longitudeSpan <= 3, `${story.title}: local geography should remain compact`);
     assert.ok(latitudeSpan <= 3, `${story.title}: local geography should remain compact`);
-    assert.ok(
-      Math.abs(latitude) <= 60,
-      `${story.title}: avoid extreme-latitude staging distortion`,
-    );
-    return { story, longitude, latitude };
-  });
 
-  for (let left = 0; left < centroids.length; left += 1) {
-    for (let right = left + 1; right < centroids.length; right += 1) {
-      const dx = centroids[left].longitude - centroids[right].longitude;
-      const dy = centroids[left].latitude - centroids[right].latitude;
+    for (const [longitude, latitude] of points) {
       assert.ok(
-        Math.hypot(dx, dy) >= 25,
-        `${centroids[left].story.title} and ${centroids[right].story.title}: fictional realms should not bunch together`,
+        longitude >= bounds.west &&
+          longitude <= bounds.east &&
+          latitude >= bounds.south &&
+          latitude <= bounds.north,
+        `${story.title}: ${longitude}, ${latitude} must remain inside its plausible terrestrial staging region`,
       );
     }
   }
