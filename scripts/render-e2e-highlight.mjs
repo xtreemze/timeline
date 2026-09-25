@@ -117,10 +117,13 @@ function assertMeasuredCapture(segment, formFactor) {
       `${formFactor}/${segment.name} is missing the ${SHOWCASE_FPS} fps source-capture contract.`,
     );
   }
-  if (capture.method !== "ffmpeg-x11grab-rawvideo-nut") {
+  if (capture.method !== "get-display-media-current-tab-vp8") {
     throw new Error(
-      `${formFactor}/${segment.name} used ${String(capture.method)}; expected the raw X11 framebuffer capture path.`,
+      `${formFactor}/${segment.name} used ${String(capture.method)}; expected Chromium current-tab VP8 capture.`,
     );
+  }
+  if (capture.mimeType !== "video/webm;codecs=vp8") {
+    throw new Error(`${formFactor}/${segment.name} did not use VP8 MediaRecorder capture.`);
   }
   const timestamps = capture.frameTimestampsMs;
   if (!Array.isArray(timestamps) || timestamps.length < 2) {
@@ -250,9 +253,15 @@ async function renderFormFactor(formFactor, manifest) {
         videoPath,
         `${formFactor}/${segment.name} source-frame VP8 WebM`,
       );
-      if (decoded.frameCount !== segment.capture.frameCount) {
+      const frameEvidenceRatio = decoded.frameCount / segment.capture.frameCount;
+      if (frameEvidenceRatio < MIN_CAPTURE_COVERAGE || frameEvidenceRatio > 1 / MIN_CAPTURE_COVERAGE) {
         throw new Error(
-          `${formFactor}/${segment.name} encoded ${String(decoded.frameCount)} frames from ${String(segment.capture.frameCount)} captured framebuffer samples.`,
+          `${formFactor}/${segment.name} decoded ${String(decoded.frameCount)} VP8 frames from ${String(segment.capture.frameCount)} Chromium source frames; expected encoded/source frame evidence within ${String(MIN_CAPTURE_COVERAGE * 100)}%.`,
+        );
+      }
+      if (decoded.durationSeconds < segment.capture.recordingWindowSeconds * MIN_CAPTURE_COVERAGE) {
+        throw new Error(
+          `${formFactor}/${segment.name} decoded VP8 coverage is shorter than the certified recording window.`,
         );
       }
       if (video.codec !== "vp8") {
