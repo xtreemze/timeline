@@ -778,6 +778,7 @@ export class TimelineViewController {
 
     this.surface.addEventListener("pointerdown", (event) => {
       if (!this.items.length || !surfacePointerMayStartDirectManipulation(event)) return;
+      finishWheelEpoch(false);
       const interactiveTarget =
         event.target instanceof Element
           ? event.target.closest("button, a, input, select, textarea")
@@ -804,10 +805,21 @@ export class TimelineViewController {
           interactive: Boolean(timelineInteractionTarget),
         };
         if (this.touchPointers.size >= 2) {
+          if (!this.surfaceInteraction.beginPointer(event.pointerId, "pinch")) {
+            this.touchPointers.delete(event.pointerId);
+            this.touchTap = null;
+            return;
+          }
           beginPinch();
           return;
         }
-        if (interactiveTarget) return;
+        if (interactiveTarget) {
+          if (!this.surfaceInteraction.beginPointer(event.pointerId, "tap", { claim: false })) {
+            this.touchPointers.delete(event.pointerId);
+            this.touchTap = null;
+          }
+          return;
+        }
       } else if (interactiveTarget) {
         return;
       }
@@ -901,6 +913,11 @@ export class TimelineViewController {
     });
 
     const finishPointer = (event: PointerEvent): void => {
+      if (event.type === "pointercancel") {
+        abortSurfaceGesture("pointercancel");
+        return;
+      }
+
       const wasPinching = Boolean(this.pinch);
       const tap =
         event.pointerType === "touch" && this.touchTap?.pointerId === event.pointerId
@@ -913,8 +930,10 @@ export class TimelineViewController {
         this.lastTouchTap = null;
         this.suppressClickUntil = performance.now() + CLICK_SUPPRESSION_MS;
         this.pointerDrag = null;
+        this.surfaceInteraction.releasePointer(event.pointerId);
 
         if (this.touchPointers.size >= 2) {
+          this.surfaceInteraction.claimGesture("pinch");
           beginPinch();
           releasePointerCapture(event.pointerId);
           return;
@@ -923,6 +942,7 @@ export class TimelineViewController {
         this.pinch = null;
         const remaining = Array.from(this.touchPointers.values())[0];
         if (remaining) {
+          this.surfaceInteraction.claimGesture("pan");
           beginSurfaceDrag(remaining.pointerId, remaining);
           releasePointerCapture(event.pointerId);
           return;
@@ -930,6 +950,7 @@ export class TimelineViewController {
 
         releasePointerCapture(event.pointerId);
         this.commitInteraction();
+        this.surfaceInteraction.commit();
         return;
       }
 
@@ -937,28 +958,25 @@ export class TimelineViewController {
       let startedInertia = false;
       if (drag?.pointerId === event.pointerId) {
         motion.appendPointerSamples(drag.samples, event, this.orientation);
-        const releaseVelocity =
-          event.type === "pointercancel" ? 0 : motion.estimatePointerVelocity(drag.samples);
+        const releaseVelocity = motion.estimatePointerVelocity(drag.samples);
         this.pointerDrag = null;
+        this.surfaceInteraction.releasePointer(event.pointerId);
         if (Math.abs(releaseVelocity) >= motion.STOP_VELOCITY_PX_PER_MS) {
           this.startInertia(releaseVelocity, drag.usableLength);
           startedInertia = true;
           void motion.pulseHaptic("release");
         }
-      }
-
-      if (event.type === "pointercancel") {
-        this.touchTap = null;
-        this.lastTouchTap = null;
-        releasePointerCapture(event.pointerId);
-        if (!startedInertia) this.commitInteraction();
-        return;
+      } else {
+        this.surfaceInteraction.releasePointer(event.pointerId);
       }
 
       const doubleTapped = tap ? registerTouchTap(event, tap) : false;
       if (event.pointerType === "touch" && !tap) this.touchTap = null;
       releasePointerCapture(event.pointerId);
-      if (!startedInertia && !doubleTapped) this.commitInteraction();
+      if (!startedInertia) {
+        if (!doubleTapped) this.commitInteraction();
+        this.surfaceInteraction.commit();
+      }
     };
 
     this.surface.addEventListener("pointerup", finishPointer);
@@ -968,53 +986,56 @@ export class TimelineViewController {
         this.pointerDrag?.pointerId === event.pointerId ||
         this.touchPointers.has(event.pointerId)
       ) {
-        abortSurfaceGesture();
+        abortSurfaceGesture("lostpointercapture");
       }
     });
-    window.addEventListener("blur", abortSurfaceGesture);
+    window.addEventListener("blur", () => abortSurfaceGesture("blur"));
     document.addEventListener("visibilitychange", () => {
-      if (document.hidden) abortSurfaceGesture();
+      if (document.hidden) abortSurfaceGesture("visibilitychange");
     });
-    window.addEventListener("orientationchange", abortSurfaceGesture);
-    globalThis.screen?.orientation?.addEventListener?.("change", abortSurfaceGesture);
+    window.addEventListener("orientationchange", () =>
+      abortSurfaceGesture("orientationchange"),
+    );
+    globalThis.screen?.orientation?.addEventListener?.("change", () =>
+      abortSurfaceGesture("orientationchange"),
+    );
     window.visualViewport?.addEventListener("resize", () => {
-      if (this.pointerDrag || this.pinch || this.touchPointers.size) abortSurfaceGesture();
+      if (this.pointerDrag || this.pinch || this.touchPointers.size) {
+        abortSurfaceGesture("aborted");
+      }
     });
 
     this.surface.addEventListener("keydown", (event) => {
       if (!this.items.length) return;
-      if (event.key === "Home") {
-        event.preventDefault();
-        this.cancelInertia();
-        event.shiftKey ? this.fitAll() : this.fitVisible();
+      const command = surfaceNavigationFromKeyboard(
+        event,
+        this.orientation === "horizontal" ? "horizontal" : "vertical",
+      );
+      if (!command) return;
+
+      prepareSurfaceInput();
+      if (!this.surfaceInteraction.beginDiscrete("keyboard")) return;
+      event.preventDefault();
+
+      if (command === "fit-visible" || command === "fit-all") {
+        command === "fit-all" ? this.fitAll() : this.fitVisible();
+        this.surfaceInteraction.finishDiscrete();
         return;
       }
-      if (event.key === "+" || event.key === "=" || event.key === "-") {
-        event.preventDefault();
-        const factor = event.key === "-" ? 1.25 : 0.8;
+
+      if (command === "zoom-in" || command === "zoom-out") {
+        const factor = command === "zoom-out" ? 1.25 : 0.8;
         const center = (this.viewport.start + this.viewport.end) / 2;
         const span = Math.max(MIN_SPAN_MS, (this.viewport.end - this.viewport.start) * factor);
         this.viewport = { start: center - span / 2, end: center + span / 2 };
-        this.commitInteraction();
-        return;
-      }
-      if (
-        event.key === "ArrowLeft" ||
-        event.key === "ArrowRight" ||
-        event.key === "ArrowUp" ||
-        event.key === "ArrowDown"
-      ) {
-        const alongAxis =
-          this.orientation === "horizontal"
-            ? event.key === "ArrowLeft" || event.key === "ArrowRight"
-            : event.key === "ArrowUp" || event.key === "ArrowDown";
-        if (!alongAxis) return;
-        event.preventDefault();
-        const sign = event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 1;
+      } else {
+        const sign = command === "pan-negative" ? -1 : 1;
         const delta = (this.viewport.end - this.viewport.start) * 0.12 * sign;
         this.viewport = { start: this.viewport.start + delta, end: this.viewport.end + delta };
-        this.commitInteraction();
       }
+
+      this.commitInteraction();
+      this.surfaceInteraction.finishDiscrete();
     });
 
     document.addEventListener("graphselectionchange", (event: Event) => {
