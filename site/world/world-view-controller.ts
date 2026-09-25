@@ -151,9 +151,12 @@ export class WorldViewRuntimeController {
     this.#surface.setTemporalWindow(window);
   }
 
-  setClusteredPlaceIds(placeIds: readonly PlaceId[]): void {
+  setClusteredPlaceIds(
+    placeIds: readonly PlaceId[],
+    detachedLinkPlaceIds?: readonly PlaceId[],
+  ): void {
     this.#assertAlive();
-    this.#forceBackend.setClusteredPlaceIds?.(placeIds);
+    this.#forceBackend.setClusteredPlaceIds?.(placeIds, detachedLinkPlaceIds);
     this.#simulation.request({
       reason: "topology",
       excitation: 0.14,
