@@ -469,12 +469,22 @@ export class TimelineViewController {
       root.parentElement?.querySelector("#timeline-focus-view") ||
       root.parentElement?.querySelector(".timeline-focus-view") ||
       root;
+
+    // View controls are footer-owned rather than children of the timeline
+    // surface. Prefer legacy/local controls for isolated fixtures, then resolve
+    // the persistent controls from the owning application shell.
+    const controlsRoot = root.closest("#app-shell") ?? root.ownerDocument;
     this.readout =
       root.querySelector("#timeline-window-readout") ||
       root.querySelector(".timeline-window-readout") ||
+      controlsRoot.querySelector("#timeline-window-readout") ||
+      controlsRoot.querySelector(".timeline-window-readout") ||
       root;
-    this.orientationToggle = root.querySelector("#timeline-orientation-toggle");
-    this.zoomSlider = root.querySelector("#timeline-zoom-level");
+    this.orientationToggle =
+      root.querySelector("#timeline-orientation-toggle") ||
+      controlsRoot.querySelector("#timeline-orientation-toggle");
+    this.zoomSlider =
+      root.querySelector("#timeline-zoom-level") || controlsRoot.querySelector("#timeline-zoom-level");
 
     this.stage = document.createElement("div");
     this.stage.className = "timeline-stage timeline-retained-scene";
