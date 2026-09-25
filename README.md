@@ -66,7 +66,7 @@ The product is browser-first and backend-free. Hosting the application does not 
 
 ## Product showcase
 
-The showcase media is generated from the real application in Chromium CI. Static states use source-resolution PNG screenshots. Motion captures the current tab at the source viewport dimensions with a 60 fps target, prefers VP8 for the raw WebM, and independently measures browser-presented source timestamps plus decoded raw frames; CI requires at least 59 actual fps and 95% recording-window coverage before publishing 60 fps animated WebP and highlight reels.
+The showcase media is generated from the real application in Chrome CI. Static states use source-resolution PNG screenshots. Motion records Chromium compositor frames directly through DevTools, requires at least 59 actual source fps and 95% recording-window coverage before encoding, then verifies a one-to-one source-frame count in the VP8 WebM before publishing 60 fps animated WebP and highlight reels.
 
 | Flow | Desktop | Mobile |
 | --- | --- | --- |
