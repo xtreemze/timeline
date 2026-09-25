@@ -172,6 +172,10 @@ test.describe("Mobile-first Timeline layout contracts", () => {
   test("bottom navigation remains a conventional footer in every timeline orientation", async ({
     page,
   }) => {
+    await page.setViewportSize(PHONE_PORTRAIT);
+    await page.goto("/");
+    await expect(page.locator("#timeline-view")).toBeVisible();
+
     for (const { viewport, orientation } of [
       { viewport: PHONE_PORTRAIT, orientation: "portrait" },
       { viewport: PHONE_LANDSCAPE, orientation: "landscape" },
@@ -179,7 +183,6 @@ test.describe("Mobile-first Timeline layout contracts", () => {
       { viewport: DESKTOP_LANDSCAPE, orientation: "landscape" },
     ]) {
       await page.setViewportSize(viewport);
-      await page.goto("/");
       await ensureTimelineOrientation(page, orientation);
 
       const dock = page.locator(".app-tool-dock");
