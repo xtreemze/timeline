@@ -56,6 +56,7 @@ import {
   WORLD_PLACE_LABEL_FLOOR,
   worldArrowLengthDegreesForNodeRadius,
   worldArrowStrokeWidthPxForNodeRadius,
+  worldFloatingGraphRadiusPx,
   worldLabelBudget,
   worldLabelTierFloor,
   worldLocalRadiusPx,
@@ -445,11 +446,36 @@ export function clusterZoomThresholdForPlaceDensity(
  * the globe's angular metric. It prevents singleton/small place groups from
  * expanding independently while their labels and local graphs still overlap.
  */
+export function clusterRequiredLocalRadiusPx(
+  nodeRadiusPx: number,
+  memberCount: number,
+  internalEdgeCount = 0,
+): number {
+  const radius =
+    Number.isFinite(nodeRadiusPx) && nodeRadiusPx > 0
+      ? nodeRadiusPx
+      : WORLD_CLUSTER_BASE_NODE_RADIUS_PX;
+  const members = Number.isFinite(memberCount) ? Math.max(1, Math.floor(memberCount)) : 1;
+  const edges = Number.isFinite(internalEdgeCount) ? Math.max(0, Math.floor(internalEdgeCount)) : 0;
+  const markerPitchPx = Math.max(44, radius * 2 + 16);
+  const semanticLoad = members + Math.min(edges, members * 4) * 0.25;
+  const packingRadiusPx = markerPitchPx * Math.sqrt(semanticLoad) * 0.75;
+  return Math.max(worldPlaceClusterRadiusPx(radius), packingRadiusPx);
+}
+
+/**
+ * Keeps authored places clustered until the *resulting expanded presentation*
+ * has enough screen-space room. Zoom is only a conversion input: a group may
+ * remain clustered at deep zoom when its node/edge load still exceeds the
+ * available local-graph radius, and nearby groups remain collapsed while
+ * their required radii would overlap.
+ */
 export function clusterTargetPlaceIds(
   instances: readonly ProjectedWorldInstance[],
+  edges: readonly WorldProjection["edges"][number][],
   zoom: number,
   nodeRadiusPx: number,
-  mergeRadiusPx: number,
+  availableLocalRadiusPx: number,
   phase: WorldClusterLifecyclePhase,
 ): readonly PlaceId[] {
   type Anchor = ProjectedWorldInstance["geographicAnchors"][number];
@@ -457,30 +483,65 @@ export function clusterTargetPlaceIds(
     readonly placeId: PlaceId;
     readonly anchor: Anchor;
     readonly count: number;
+    readonly internalEdgeCount: number;
+    readonly requiredRadiusPx: number;
   }
 
-  const groupsByPlace = new Map<PlaceId, Group>();
+  const counts = new Map<PlaceId, { anchor: Anchor; count: number }>();
+  const placeByInstance = new Map<WorldInstanceId, PlaceId>();
   for (const instance of instances) {
     const anchor = instance.geographicAnchors[0];
     if (!anchor) continue;
-    const previous = groupsByPlace.get(anchor.placeId);
-    groupsByPlace.set(anchor.placeId, {
-      placeId: anchor.placeId,
+    placeByInstance.set(instance.id, anchor.placeId);
+    const previous = counts.get(anchor.placeId);
+    counts.set(anchor.placeId, {
       anchor,
       count: (previous?.count ?? 0) + 1,
     });
   }
-  const groups = [...groupsByPlace.values()].sort((left, right) =>
-    String(left.placeId).localeCompare(String(right.placeId)),
-  );
+
+  const edgeCounts = new Map<PlaceId, number>();
+  for (const edge of edges) {
+    const sourcePlace = placeByInstance.get(edge.sourceInstanceId);
+    const targetPlace = placeByInstance.get(edge.targetInstanceId);
+    if (!sourcePlace || sourcePlace !== targetPlace) continue;
+    edgeCounts.set(sourcePlace, (edgeCounts.get(sourcePlace) ?? 0) + 1);
+  }
+
+  const groups: Group[] = [...counts]
+    .map(([placeId, value]) => {
+      const internalEdgeCount = edgeCounts.get(placeId) ?? 0;
+      return Object.freeze({
+        placeId,
+        anchor: value.anchor,
+        count: value.count,
+        internalEdgeCount,
+        requiredRadiusPx: clusterRequiredLocalRadiusPx(
+          nodeRadiusPx,
+          value.count,
+          internalEdgeCount,
+        ),
+      });
+    })
+    .sort((left, right) => String(left.placeId).localeCompare(String(right.placeId)));
 
   if (shouldClusterEntityDatums(instances.length, zoom, nodeRadiusPx)) {
     return Object.freeze(groups.map((group) => group.placeId));
   }
 
-  const mergeDegrees = worldPixelsToDegrees(mergeRadiusPx, zoom);
+  const hysteresis = phase === "expanded" ? 1 : 1.08;
+  const available =
+    Number.isFinite(availableLocalRadiusPx) && availableLocalRadiusPx > 0
+      ? availableLocalRadiusPx
+      : 0;
   const nearby = new Set<PlaceId>();
-  if (mergeDegrees > 0 && Number.isFinite(mergeDegrees)) {
+  const maxRequired = groups.reduce(
+    (maximum, group) => Math.max(maximum, group.requiredRadiusPx),
+    0,
+  );
+  const broadPhaseDegrees = worldPixelsToDegrees(maxRequired * 2 * hysteresis, zoom);
+
+  if (broadPhaseDegrees > 0 && Number.isFinite(broadPhaseDegrees)) {
     const wrappedLongitudeDelta = (from: number, to: number): number =>
       ((((to - from + 180) % 360) + 360) % 360) - 180;
     const angularDistanceDegrees = (left: Anchor, right: Anchor): number => {
@@ -490,15 +551,15 @@ export function clusterTargetPlaceIds(
       return Math.hypot(longitude, right.latitude - left.latitude);
     };
 
-    const longitudeCellCount = Math.max(1, Math.ceil(360 / mergeDegrees));
+    const longitudeCellCount = Math.max(1, Math.ceil(360 / broadPhaseDegrees));
     const grid = new Map<string, Group[]>();
     const wrapCellX = (value: number): number =>
       ((value % longitudeCellCount) + longitudeCellCount) % longitudeCellCount;
     const cellFor = (anchor: Anchor): readonly [number, number] => {
       const longitude = (((anchor.longitude + 180) % 360) + 360) % 360;
       return Object.freeze([
-        Math.min(longitudeCellCount - 1, Math.floor(longitude / mergeDegrees)),
-        Math.floor((anchor.latitude + 90) / mergeDegrees),
+        Math.min(longitudeCellCount - 1, Math.floor(longitude / broadPhaseDegrees)),
+        Math.floor((anchor.latitude + 90) / broadPhaseDegrees),
       ]);
     };
     const keyFor = (x: number, y: number) => `${wrapCellX(x)}:${y}`;
@@ -520,7 +581,13 @@ export function clusterTargetPlaceIds(
           if (visitedCells.has(key)) continue;
           visitedCells.add(key);
           for (const other of grid.get(key) ?? []) {
-            if (angularDistanceDegrees(group.anchor, other.anchor) > mergeDegrees) continue;
+            const pairThresholdDegrees = worldPixelsToDegrees(
+              (group.requiredRadiusPx + other.requiredRadiusPx) * hysteresis,
+              zoom,
+            );
+            if (angularDistanceDegrees(group.anchor, other.anchor) > pairThresholdDegrees) {
+              continue;
+            }
             nearby.add(group.placeId);
             nearby.add(other.placeId);
           }
@@ -538,12 +605,7 @@ export function clusterTargetPlaceIds(
       .filter(
         (group) =>
           nearby.has(group.placeId) ||
-          (group.count > 1 &&
-            worldClusterWantsCollapsed(
-              zoom,
-              clusterZoomThresholdForPlaceDensity(nodeRadiusPx, group.count),
-              phase,
-            )),
+          (group.count > 1 && group.requiredRadiusPx * hysteresis > available),
       )
       .map((group) => group.placeId),
   );
@@ -3127,9 +3189,10 @@ export class DeckWorldSurface implements WorldSurface {
   #clusterTargetPlaceIds(): readonly PlaceId[] {
     return clusterTargetPlaceIds(
       this.#projection.instances,
+      this.#projection.edges,
       this.#camera.zoom,
       this.#clusterEntityFootprintRadiusPx(),
-      this.#clusterMergeRadiusPx(),
+      this.#availableLocalGraphRadiusPx(),
       this.#clusterPhase,
     );
   }
@@ -3843,10 +3906,15 @@ export class DeckWorldSurface implements WorldSurface {
     );
   }
 
+  #availableLocalGraphRadiusPx(): number {
+    return Math.min(worldFloatingGraphRadiusPx(this.#camera.zoom), this.#viewportGraphRadiusLimitPx());
+  }
+
   #clusterMergeRadiusPx(): number {
-    // If two place anchors are closer than one readable local-graph radius,
-    // resolving them independently still produces overlapping topology.
-    return Math.max(WORLD_CLUSTER_MERGE_PX, this.#clusterRadiusPx());
+    // Two independently expanded local graphs each consume their own readable
+    // radius, so their anchors need roughly the combined diameter before the
+    // renderer should stop presenting them as one neighbourhood.
+    return Math.max(WORLD_CLUSTER_MERGE_PX, this.#clusterRadiusPx() * 2);
   }
 
   /**
