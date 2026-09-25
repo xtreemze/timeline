@@ -192,7 +192,10 @@
   > .timeline-focus-sidebar:not([hidden]) {
   inset-block-start: max(0.35rem, env(safe-area-inset-top));
   inset-inline-start: max(0.35rem, env(safe-area-inset-left));
-  max-block-size: calc(100% - var(--focus-timeline-block-size) - 0.7rem);
+  max-block-size: calc(
+    100% - var(--focus-timeline-block-size) -
+    var(--relations-bottom-safe, var(--workspace-footer-block-size, 64px)) - 0.7rem
+  );
 }
 
 #app-shell.is-event-focused
