@@ -1032,7 +1032,7 @@ function create(container, handlers = {}) {
     if (event.pointerType !== "touch") {
       if (target?.object) {
         if (!beginObjectPointer(event)) return;
-        if (target.kind === "node") {
+        if (target?.kind === "node") {
           // Orb/D3 starts native mouse dragging from its later compatibility
           // mousedown handler. Apply force settings now, while capture-phase
           // pointerdown still precedes that drag start, so a settings-driven
