@@ -53,7 +53,6 @@ test("registerTimelineWorldView wires real deck.gl constructors without invoking
   });
 });
 
-
 test("production world view defaults to live D3 force rather than the reference oracle", async () => {
   const factory = await readFile(
     new URL("../site/world/world-view-factory.ts", import.meta.url),
