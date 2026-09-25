@@ -2540,6 +2540,23 @@ export class DeckWorldSurface implements WorldSurface {
   readonly #handleTouchPointerDown = (event: TouchPointerEvent): void => {
     const touch = touchPointer(event);
     if (!touch) return;
+
+    // Multi-touch is camera-owned. If a stationary long-press had already
+    // promoted the first contact to node drag, the second contact cancels
+    // that exclusive gesture before mjolnir begins pinch/multipan handling.
+    if (
+      this.#activeDragPointerId !== null &&
+      touch.pointerId !== this.#activeDragPointerId
+    ) {
+      this.#nodeDragSink?.cancel("pointercancel");
+      this.#activeDragPointerId = null;
+      this.#clearDragFlash({ render: false });
+      this.#setActiveDragInstance(null);
+      this.#dragCameraLock = null;
+      this.#setPointerCursor(this.#hoverSelection);
+      this.#touchHold.clear();
+    }
+
     this.#touchHold.press(touch.pointerId, touch.point, Date.now());
     this.#clearTouchHoldTimer();
     if (!this.#touchHold.isPending(touch.pointerId)) {
