@@ -42,19 +42,50 @@ function probeVisual(filePath) {
   return stream;
 }
 
-function frameRate(value) {
-  if (typeof value !== "string" || value === "" || value === "0/0") return Number.NaN;
-  const [numerator, denominator = "1"] = value.split("/");
-  return Number(numerator) / Number(denominator);
+function probeDecodedFrameRate(filePath) {
+  const result = spawnSync(
+    ffprobe,
+    [
+      "-v",
+      "error",
+      "-select_streams",
+      "v:0",
+      "-show_frames",
+      "-show_entries",
+      "frame=best_effort_timestamp_time",
+      "-of",
+      "json",
+      filePath,
+    ],
+    { encoding: "utf8" },
+  );
+  if (result.status !== 0) {
+    throw new Error(`ffprobe frame decode failed for ${filePath}: ${result.stderr}`);
+  }
+  const timestamps = JSON.parse(result.stdout)
+    .frames?.map((frame) => Number.parseFloat(frame.best_effort_timestamp_time))
+    .filter(Number.isFinite);
+  if (!Array.isArray(timestamps) || timestamps.length < 2) {
+    throw new Error(`No decoded frame timing evidence found in ${filePath}.`);
+  }
+  const first = timestamps[0];
+  const last = timestamps.at(-1);
+  const duration = last - first;
+  const rate = (timestamps.length - 1) / duration;
+  if (!Number.isFinite(duration) || duration <= 0 || !Number.isFinite(rate)) {
+    throw new Error(`Decoded frame timing evidence is invalid for ${filePath}.`);
+  }
+  return { rate, frameCount: timestamps.length, duration };
 }
 
-function assertHighFrameRate(stream, label) {
-  const rate = frameRate(stream.avg_frame_rate || stream.r_frame_rate);
-  if (!Number.isFinite(rate) || rate < MIN_CAPTURE_FPS) {
+function assertDecodedFrameRate(filePath, label) {
+  const decoded = probeDecodedFrameRate(filePath);
+  if (decoded.rate < MIN_CAPTURE_FPS) {
     throw new Error(
-      `${label} reports ${rate.toFixed(2)} fps; expected at least ${MIN_CAPTURE_FPS}.`,
+      `${label} decodes at ${decoded.rate.toFixed(2)} fps; expected at least ${MIN_CAPTURE_FPS}.`,
     );
   }
+  return decoded;
 }
 
 function assertDimensions(stream, expected, label) {
@@ -119,7 +150,10 @@ for (const formFactor of ["desktop", "mobile"]) {
     const measured = measureSourceCadence(segment, formFactor);
     const rawWebm = probeVisual(path.resolve(workspace, segment.video));
     assertDimensions(rawWebm, expected, `${formFactor}/${segment.name} raw WebM`);
-    assertHighFrameRate(rawWebm, `${formFactor}/${segment.name} normalized WebM`);
+    assertDecodedFrameRate(
+      path.resolve(workspace, segment.video),
+      `${formFactor}/${segment.name} normalized WebM`,
+    );
     if (rawWebm.codec_name !== "vp8") {
       throw new Error(
         `${formFactor}/${segment.name} normalized WebM uses ${String(rawWebm.codec_name)}; expected VP8.`,
@@ -132,7 +166,10 @@ for (const formFactor of ["desktop", "mobile"]) {
     if (!published?.path) throw new Error(`${formFactor}/${segment.name} has no published asset.`);
     const webp = probeVisual(path.resolve(workspace, published.path));
     assertDimensions(webp, expected, `${formFactor}/${segment.name} animated WebP`);
-    assertHighFrameRate(webp, `${formFactor}/${segment.name} animated WebP`);
+    assertDecodedFrameRate(
+      path.resolve(workspace, published.path),
+      `${formFactor}/${segment.name} animated WebP`,
+    );
 
     console.log(
       `${formFactor}/${segment.name}: ${measured.toFixed(2)} measured source fps; 60 fps outputs verified`,
@@ -142,5 +179,5 @@ for (const formFactor of ["desktop", "mobile"]) {
   const reelPath = path.resolve(workspace, rendered[formFactor].reel);
   const reel = probeVisual(reelPath);
   assertDimensions(reel, expected, `${formFactor} highlight reel`);
-  assertHighFrameRate(reel, `${formFactor} highlight reel`);
+  assertDecodedFrameRate(reelPath, `${formFactor} highlight reel`);
 }
