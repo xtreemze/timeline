@@ -1,6 +1,7 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { spawn } from "node:child_process";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { Locator, Page, TestInfo } from "@playwright/test";
+import type { CDPSession, Locator, Page, TestInfo } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
 const OUTPUT_ROOT = path.resolve(process.env.E2E_MEDIA_DIR ?? "artifacts/e2e-media");
@@ -21,25 +22,25 @@ type SceneIntent = {
   mediaMode: ShowcaseMediaMode;
 };
 
-type BrowserCaptureState = {
-  recorder: MediaRecorder;
-  stream: MediaStream;
-  processorTrack: MediaStreamTrack;
-  reader: ReadableStreamDefaultReader<VideoFrame>;
-  processorDone: Promise<void>;
-  chunks: Blob[];
-  frameTimestampsMs: number[];
-  mimeType: string;
+type ScreencastFrame = {
+  data: string;
+  timestampSeconds: number;
 };
 
-type ShowcaseWindow = Window &
-  typeof globalThis & {
-    MediaStreamTrackProcessor?: new (options: { track: MediaStreamTrack }) => {
-      readable: ReadableStream<VideoFrame>;
-    };
-    __lumShowcaseCapture?: BrowserCaptureState;
-    __lumShowcaseCaptureError?: string;
-  };
+type RawCdpSession = {
+  send(method: string, params?: Record<string, unknown>): Promise<unknown>;
+  on(event: string, listener: (payload: any) => void): void;
+  off(event: string, listener: (payload: any) => void): void;
+  detach(): Promise<void>;
+};
+
+type DirectScreencast = {
+  session: CDPSession;
+  raw: RawCdpSession;
+  frames: ScreencastFrame[];
+  pendingAcks: Set<Promise<void>>;
+  onFrame: (payload: any) => void;
+};
 
 type ShowcaseSegment = SceneIntent & {
   video: string | null;
@@ -53,9 +54,9 @@ type ShowcaseSegment = SceneIntent & {
     durationSeconds: number;
     recordingWindowSeconds: number;
     frameTimestampsMs: number[];
-    method: "get-display-media-current-tab";
-    mimeType: string;
-    trackSettings: MediaTrackSettings;
+    method: "cdp-screencast-source-frames";
+    jpegQuality: number;
+    maxFramesInFlight: number;
     browserFrameClockFps: number;
   } | null;
 };
@@ -192,200 +193,158 @@ async function stopCaptureHeartbeat(page: Page) {
   });
 }
 
-async function startTabCapture(
-  page: Page,
-  formFactor: FormFactor,
-  captureSize: { width: number; height: number },
-) {
-  await page.evaluate(
-    ({ width, height, targetFps, formFactorName }) => {
-      const showcaseWindow = window as ShowcaseWindow;
-      delete showcaseWindow.__lumShowcaseCapture;
-      delete showcaseWindow.__lumShowcaseCaptureError;
+const SCREencast_JPEG_QUALITY = 70;
+const SCREencast_MAX_FRAMES_IN_FLIGHT = 12;
 
-      const trigger = document.createElement("button");
-      trigger.id = "__lum-showcase-capture-start";
-      trigger.type = "button";
-      trigger.textContent = "Start showcase capture";
-      Object.assign(trigger.style, {
-        position: "fixed",
-        inset: "0 auto auto 0",
-        zIndex: "2147483647",
-        width: "1px",
-        height: "1px",
-        padding: "0",
-        border: "0",
-        opacity: "0.01",
-      });
-      document.body.append(trigger);
-
-      trigger.addEventListener(
-        "click",
-        () => {
-          void (async () => {
-            try {
-              const stream = await navigator.mediaDevices.getDisplayMedia({
-                video: {
-                  frameRate: { ideal: targetFps, max: targetFps },
-                  width: { ideal: width },
-                  height: { ideal: height },
-                },
-                audio: false,
-                preferCurrentTab: true,
-                selfBrowserSurface: "include",
-                surfaceSwitching: "exclude",
-                systemAudio: "exclude",
-              } as DisplayMediaStreamOptions);
-
-              const track = stream.getVideoTracks()[0];
-              if (!track) throw new Error("Current-tab capture did not return a video track.");
-              track.contentHint = "detail";
-              await track
-                .applyConstraints({
-                  frameRate: { ideal: targetFps, max: targetFps },
-                  width: { ideal: width },
-                  height: { ideal: height },
-                })
-                .catch(() => {});
-
-              const Processor = showcaseWindow.MediaStreamTrackProcessor;
-              if (!Processor) {
-                throw new Error("MediaStreamTrackProcessor is required for source-frame evidence.");
-              }
-
-              const mimeType = "video/webm;codecs=vp8";
-              if (!MediaRecorder.isTypeSupported(mimeType)) {
-                throw new Error("VP8 MediaRecorder support is required for showcase capture.");
-              }
-
-              const processorTrack = track.clone();
-              const reader = new Processor({ track: processorTrack }).readable.getReader();
-              const frameTimestampsMs: number[] = [];
-              const processorDone = (async () => {
-                while (true) {
-                  const result = await reader.read();
-                  if (result.done) break;
-                  frameTimestampsMs.push(result.value.timestamp / 1_000);
-                  result.value.close();
-                }
-              })();
-
-              const chunks: Blob[] = [];
-              const recorder = new MediaRecorder(stream, {
-                mimeType,
-                videoBitsPerSecond: formFactorName === "desktop" ? 20_000_000 : 8_000_000,
-              });
-              recorder.addEventListener("dataavailable", (event) => {
-                if (event.data.size > 0) chunks.push(event.data);
-              });
-
-              const started = new Promise<void>((resolve, reject) => {
-                recorder.addEventListener("start", () => resolve(), { once: true });
-                recorder.addEventListener(
-                  "error",
-                  (event) => reject(new Error(`MediaRecorder failed: ${event.error.name}`)),
-                  { once: true },
-                );
-              });
-
-              showcaseWindow.__lumShowcaseCapture = {
-                recorder,
-                stream,
-                processorTrack,
-                reader,
-                processorDone,
-                chunks,
-                frameTimestampsMs,
-                mimeType,
-              };
-              recorder.start(250);
-              await started;
-            } catch (error) {
-              showcaseWindow.__lumShowcaseCaptureError =
-                error instanceof Error ? error.message : String(error);
-            }
-          })();
-        },
-        { once: true },
-      );
-    },
-    {
-      width: captureSize.width,
-      height: captureSize.height,
-      targetFps: SHOWCASE_FPS,
-      formFactorName: formFactor,
-    },
-  );
-
-  await page.locator("#__lum-showcase-capture-start").click();
-  await expect
-    .poll(
-      async () =>
-        page.evaluate(() => {
-          const showcaseWindow = window as ShowcaseWindow;
-          if (showcaseWindow.__lumShowcaseCaptureError) {
-            return `error:${showcaseWindow.__lumShowcaseCaptureError}`;
-          }
-          return showcaseWindow.__lumShowcaseCapture?.recorder.state === "recording"
-            ? "ready"
-            : "pending";
-        }),
-      { timeout: 15_000 },
-    )
-    .toBe("ready");
-  await page.evaluate(() => document.querySelector("#__lum-showcase-capture-start")?.remove());
+function run(command: string, args: string[]) {
+  return new Promise<void>((resolve, reject) => {
+    const child = spawn(command, args, {
+      stdio: ["ignore", "inherit", "inherit"],
+      env: process.env,
+    });
+    child.on("error", reject);
+    child.on("exit", (code, signal) => {
+      if (code === 0) resolve();
+      else reject(new Error(`${command} exited with ${String(code ?? signal)}`));
+    });
+  });
 }
 
-async function stopTabCapture(page: Page, videoPath: string) {
-  const downloadPromise = page.waitForEvent("download", { timeout: 30_000 });
-  const metadata = await page.evaluate(async (downloadName) => {
-    const showcaseWindow = window as ShowcaseWindow;
-    const state = showcaseWindow.__lumShowcaseCapture;
-    if (!state) throw new Error("No active current-tab showcase capture exists.");
+async function startDirectScreencast(
+  page: Page,
+  captureSize: { width: number; height: number },
+): Promise<DirectScreencast> {
+  const session = await page.context().newCDPSession(page);
+  const raw = session as unknown as RawCdpSession;
+  const frames: ScreencastFrame[] = [];
+  const pendingAcks = new Set<Promise<void>>();
 
-    const stopped = new Promise<void>((resolve, reject) => {
-      state.recorder.addEventListener("stop", () => resolve(), { once: true });
-      state.recorder.addEventListener(
-        "error",
-        (event) => reject(new Error(`MediaRecorder failed: ${event.error.name}`)),
-        { once: true },
+  const onFrame = (payload: any) => {
+    const sessionId = Number(payload?.sessionId);
+    const data = typeof payload?.data === "string" ? payload.data : "";
+    const timestampSeconds = Number(payload?.metadata?.timestamp);
+
+    if (data && Number.isFinite(timestampSeconds)) {
+      frames.push({ data, timestampSeconds });
+    }
+
+    if (Number.isFinite(sessionId)) {
+      const ack = raw
+        .send("Page.screencastFrameAck", { sessionId })
+        .then(() => undefined)
+        .catch(() => undefined)
+        .finally(() => pendingAcks.delete(ack));
+      pendingAcks.add(ack);
+    }
+  };
+
+  raw.on("Page.screencastFrame", onFrame);
+  await raw.send("Page.startScreencast", {
+    format: "jpeg",
+    quality: SCREencast_JPEG_QUALITY,
+    maxWidth: captureSize.width,
+    maxHeight: captureSize.height,
+    everyNthFrame: 1,
+    maxFramesInFlight: SCREencast_MAX_FRAMES_IN_FLIGHT,
+    sendLastFrame: true,
+  });
+
+  return { session, raw, frames, pendingAcks, onFrame };
+}
+
+async function stopDirectScreencast(capture: DirectScreencast) {
+  await capture.raw.send("Page.stopScreencast").catch(() => undefined);
+  await new Promise((resolve) => setTimeout(resolve, 120));
+  await Promise.allSettled([...capture.pendingAcks]);
+  capture.raw.off("Page.screencastFrame", capture.onFrame);
+  await capture.session.detach().catch(() => {});
+  return capture.frames;
+}
+
+async function encodeCapturedFrames(frames: readonly ScreencastFrame[], videoPath: string) {
+  const frameDir = `${videoPath}.frames`;
+  await rm(frameDir, { recursive: true, force: true });
+  await mkdir(frameDir, { recursive: true });
+  try {
+    for (let offset = 0; offset < frames.length; offset += 32) {
+      const batch = frames.slice(offset, offset + 32);
+      await Promise.all(
+        batch.map((frame, batchIndex) =>
+          writeFile(
+            path.join(frameDir, `${String(offset + batchIndex).padStart(6, "0")}.jpg`),
+            Buffer.from(frame.data, "base64"),
+          ),
+        ),
       );
+    }
+
+    await run(process.env.FFMPEG_BIN ?? "ffmpeg", [
+      "-y",
+      "-framerate",
+      String(SHOWCASE_FPS),
+      "-start_number",
+      "0",
+      "-i",
+      path.join(frameDir, "%06d.jpg"),
+      "-an",
+      "-c:v",
+      "libvpx",
+      "-deadline",
+      "realtime",
+      "-cpu-used",
+      "6",
+      "-b:v",
+      "0",
+      "-crf",
+      "14",
+      "-pix_fmt",
+      "yuv420p",
+      videoPath,
+    ]);
+  } finally {
+    await rm(frameDir, { recursive: true, force: true });
+  }
+}
+
+async function installCaptureBrand(page: Page, formFactor: FormFactor) {
+  await page.evaluate((factor) => {
+    document.querySelector("#lum-showcase-capture-brand")?.remove();
+    const brand = document.createElement("div");
+    brand.id = "lum-showcase-capture-brand";
+    brand.setAttribute("aria-hidden", "true");
+    brand.innerHTML = `<strong>Lūm</strong><span>${factor}</span>`;
+    Object.assign(brand.style, {
+      position: "fixed",
+      top: "18px",
+      left: "18px",
+      zIndex: "2147483646",
+      display: "flex",
+      alignItems: "baseline",
+      gap: "9px",
+      padding: "8px 12px",
+      border: "1px solid rgba(255,255,255,.22)",
+      borderRadius: "999px",
+      background: "rgba(11,12,16,.76)",
+      color: "white",
+      fontFamily: "system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",
+      backdropFilter: "blur(12px)",
+      boxShadow: "0 8px 30px rgba(0,0,0,.2)",
+      pointerEvents: "none",
     });
-    state.recorder.stop();
-    await stopped;
-
-    const trackSettings = state.stream.getVideoTracks()[0]?.getSettings() ?? {};
-    await state.reader.cancel().catch(() => {});
-    state.processorTrack.stop();
-    for (const track of state.stream.getTracks()) track.stop();
-    await state.processorDone.catch(() => {});
-
-    const blob = new Blob(state.chunks, { type: state.mimeType });
-    if (blob.size === 0) throw new Error("Current-tab capture produced an empty WebM.");
-
-    const frameTimestampsMs = [...state.frameTimestampsMs];
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = downloadName;
-    document.body.append(anchor);
-    anchor.click();
-    anchor.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 5_000);
-
-    delete showcaseWindow.__lumShowcaseCapture;
-    delete showcaseWindow.__lumShowcaseCaptureError;
-
-    return {
-      frameTimestampsMs,
-      mimeType: state.mimeType,
-      trackSettings,
-    };
-  }, path.basename(videoPath));
-
-  const download = await downloadPromise;
-  await download.saveAs(videoPath);
-  return metadata;
+    const strong = brand.querySelector("strong") as HTMLElement | null;
+    const label = brand.querySelector("span") as HTMLElement | null;
+    if (strong) {
+      strong.style.fontSize = "15px";
+      strong.style.letterSpacing = ".06em";
+    }
+    if (label) {
+      label.style.fontSize = "10px";
+      label.style.opacity = ".72";
+      label.style.textTransform = "uppercase";
+      label.style.letterSpacing = ".12em";
+    }
+    document.documentElement.append(brand);
+  }, formFactor);
 }
 
 async function loadSample(page: Page) {
@@ -457,48 +416,15 @@ async function recordSegment(
   let capture: ShowcaseSegment["capture"] = null;
 
   if (scene.mediaMode === "motion") {
-    const actions = await page.screencast.showActions({
-      position: formFactor === "mobile" ? "bottom-right" : "top-right",
-      duration: 500,
-      fontSize: formFactor === "mobile" ? 13 : 18,
-    });
-    const brand = await page.screencast.showOverlay(`
-      <div style="
-        position:absolute;
-        top:18px;
-        left:18px;
-        z-index:2147483647;
-        display:flex;
-        align-items:baseline;
-        gap:9px;
-        padding:8px 12px;
-        border:1px solid rgba(255,255,255,.22);
-        border-radius:999px;
-        background:rgba(11,12,16,.76);
-        color:white;
-        font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-        backdrop-filter:blur(12px);
-        box-shadow:0 8px 30px rgba(0,0,0,.2);
-        pointer-events:none;
-      ">
-        <strong style="font-size:15px;letter-spacing:.06em">Lūm</strong>
-        <span style="font-size:10px;opacity:.72;text-transform:uppercase;letter-spacing:.12em">
-          ${formFactor}
-        </span>
-      </div>
-    `);
+    await installCaptureBrand(page, formFactor);
+    await page.waitForTimeout(250);
 
-    let tabCaptureStarted = false;
+    let directCapture: DirectScreencast | null = null;
     try {
-      await page.screencast.showChapter(scene.title, {
-        description: scene.description,
-        duration: 1_000,
-      });
-      await page.waitForTimeout(1_100);
       await startCaptureHeartbeat(page);
-      await startTabCapture(page, formFactor, captureSize);
-      tabCaptureStarted = true;
+      directCapture = await startDirectScreencast(page, captureSize);
       const captureStartedAt = Date.now();
+
       await body();
       await page.waitForTimeout(450);
       await page.screenshot({
@@ -516,30 +442,24 @@ async function recordSegment(
         );
       }
 
-      const source = await stopTabCapture(page, videoPath);
-      tabCaptureStarted = false;
-      const frameTimestampsMs = source.frameTimestampsMs;
-      if (frameTimestampsMs.length < 2) {
-        throw new Error(`${formFactor}/${scene.name} did not expose enough source frames.`);
-      }
-      const firstFrameMs = frameTimestampsMs[0];
-      const lastFrameMs = frameTimestampsMs.at(-1);
-      if (firstFrameMs === undefined || lastFrameMs === undefined) {
-        throw new Error(`${formFactor}/${scene.name} source frame timestamps are incomplete.`);
-      }
+      const frames = await stopDirectScreencast(directCapture);
+      directCapture = null;
+      const frameTimestampsMs = frames.map((frame) => frame.timestampSeconds * 1_000);
       const cadence = measureFrameCadence(frameTimestampsMs);
       const expectedDurationSeconds = (captureStoppedAt - captureStartedAt) / 1_000;
       const minimumDurationSeconds = expectedDurationSeconds * MIN_CAPTURE_COVERAGE;
       if (cadence.durationSeconds < minimumDurationSeconds) {
         throw new Error(
-          `${formFactor}/${scene.name} source frames cover only ${cadence.durationSeconds.toFixed(3)}s of a ${expectedDurationSeconds.toFixed(3)}s recording window; expected at least ${minimumDurationSeconds.toFixed(3)}s.`,
+          `${formFactor}/${scene.name} compositor frames cover only ${cadence.durationSeconds.toFixed(3)}s of a ${expectedDurationSeconds.toFixed(3)}s recording window; expected at least ${minimumDurationSeconds.toFixed(3)}s.`,
         );
       }
       if (cadence.fps < MIN_CAPTURE_FPS) {
         throw new Error(
-          `${formFactor}/${scene.name} captured ${cadence.fps.toFixed(2)} actual source fps; expected at least ${MIN_CAPTURE_FPS}.`,
+          `${formFactor}/${scene.name} captured ${cadence.fps.toFixed(2)} actual compositor fps; expected at least ${MIN_CAPTURE_FPS}.`,
         );
       }
+
+      await encodeCapturedFrames(frames, videoPath);
       capture = {
         targetFps: SHOWCASE_FPS,
         measuredFps: cadence.fps,
@@ -547,18 +467,15 @@ async function recordSegment(
         durationSeconds: cadence.durationSeconds,
         recordingWindowSeconds: expectedDurationSeconds,
         frameTimestampsMs,
-        method: "get-display-media-current-tab",
-        mimeType: source.mimeType,
-        trackSettings: source.trackSettings,
+        method: "cdp-screencast-source-frames",
+        jpegQuality: SCREencast_JPEG_QUALITY,
+        maxFramesInFlight: SCREencast_MAX_FRAMES_IN_FLIGHT,
         browserFrameClockFps: browserFrameClock.fps,
       };
     } finally {
       await stopCaptureHeartbeat(page).catch(() => {});
-      if (tabCaptureStarted && !page.isClosed()) {
-        await stopTabCapture(page, videoPath).catch(() => {});
-      }
-      await brand.dispose().catch(() => {});
-      await actions.dispose().catch(() => {});
+      if (directCapture) await stopDirectScreencast(directCapture).catch(() => {});
+      await page.evaluate(() => document.querySelector("#lum-showcase-capture-brand")?.remove()).catch(() => {});
     }
   } else {
     await body();
