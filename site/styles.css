@@ -3435,8 +3435,8 @@ body {
 }
 
 /* Keep the footer application bar structurally stable in Edit mode.
-   Browse and View are disabled by application state while editing, but Project must remain
-   reachable because load/import/clear project actions are intentionally edit-only. */
+   Browse and View are disabled by application state while editing, but Project remains
+   reachable because lifecycle actions such as load/import/clear are valid in either mode. */
 
 .project-title-field input[readonly] {
   cursor: default;
