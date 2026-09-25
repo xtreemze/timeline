@@ -217,6 +217,14 @@ test("OrbGraphSurface factory keeps renderer construction at the adapter boundar
   assert.ok(surface instanceof OrbGraphSurface);
 });
 
+test("OrbGraphSurface factory forwards the workspace interaction coordinator", () => {
+  const { factory, handlers } = harness();
+  const interaction = { marker: "workspace" };
+  const adapterFactory = createOrbGraphSurfaceFactory(factory, interaction);
+  adapterFactory.create({}, () => {});
+  assert.equal(handlers().interaction, interaction);
+});
+
 test("OrbGraphSurface exposes Timeline-owned simulation state without Orb internals", () => {
   const { surface } = harness();
   assert.deepEqual(surface.getSimulationState(), {
