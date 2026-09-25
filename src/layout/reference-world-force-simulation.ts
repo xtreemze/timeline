@@ -149,9 +149,11 @@ const READABLE_SEPARATION_SCALE = 1.35;
 const SAME_PLACE_SPATIAL_INDEX_THRESHOLD = 96;
 const SAME_PLACE_NEIGHBORHOOD_SCALE = 4;
 const SAME_PLACE_PRECISION_SCALE = 8;
+const EDGE_FORCE_MAX_STRETCH_SCALE = 8;
 const PLACE_DOMAIN_INNER_RADIUS_SCALE = 2.25;
 const PLACE_DOMAIN_WIDTH_SCALE = 2.4;
 const PLACE_DOMAIN_CORRECTION_SQRT_SCALE = 20;
+const PLACE_DOMAIN_MAX_CORRECTION_METERS = CROSS_ANCHOR_FORCE_RADIUS_METERS;
 const MULTI_ANCHOR_BIAS_RADIUS_SCALE = 4;
 const MULTI_ANCHOR_BIAS_STRENGTH_SCALE = 0.35;
 
@@ -1128,7 +1130,14 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     const distance = Math.max(0.001, Math.hypot(dx, dy));
     const unitX = dx / distance;
     const unitY = dy / distance;
-    const magnitude = (distance - edge.restLengthMeters) * edge.strength * 0.01;
+    // A direct drag can stretch presentation geometry far beyond the local
+    // force domain. Keep ordinary Hooke-style spring behavior, but cap only
+    // the positive stretch term so an extreme pointer displacement cannot
+    // inject an arbitrarily large velocity into connected nodes.
+    const extensionMeters = distance - edge.restLengthMeters;
+    const maxStretchMeters = Math.max(1, edge.restLengthMeters) * EDGE_FORCE_MAX_STRETCH_SCALE;
+    const boundedExtensionMeters = Math.min(extensionMeters, maxStretchMeters);
+    const magnitude = boundedExtensionMeters * edge.strength * 0.01;
 
     this.#addForce(source, unitX * magnitude, unitY * magnitude, 0);
     this.#addForce(target, -unitX * magnitude, -unitY * magnitude, 0);
@@ -1167,11 +1176,14 @@ export class ReferenceWorldForceSimulation implements WorldForceSimulationBacken
     const relaxation = Math.min(0.45, this.#options.anchorStrength * anchor.influence * 24);
     if (relaxation <= 0) return 0;
     const desiredCorrection = radialError * (1 - (1 - relaxation) ** dt);
-    const maxCorrection =
+    const maxCorrectionPerNormalizedStep = Math.min(
+      PLACE_DOMAIN_MAX_CORRECTION_METERS,
       Math.max(
         state.node.collisionRadiusMeters * 2,
         Math.sqrt(Math.abs(radialError)) * PLACE_DOMAIN_CORRECTION_SQRT_SCALE,
-      ) * dt;
+      ),
+    );
+    const maxCorrection = maxCorrectionPerNormalizedStep * dt;
     const correction =
       Math.sign(desiredCorrection) * Math.min(Math.abs(desiredCorrection), maxCorrection);
 
