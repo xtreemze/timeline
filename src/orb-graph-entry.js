@@ -970,6 +970,10 @@ function create(container, handlers = {}) {
 
     touchHold.timer = globalThis.setTimeout(() => {
       if (!touchHold || touchHold.node !== node || activeTouchPointers.size > 1) return;
+      if (!surfaceInteraction.claimGesture("node-drag")) {
+        cancelPendingTouchHold();
+        return;
+      }
       touchHold.activated = true;
       touchTap = null;
       lastTouchTap = null;
@@ -998,58 +1002,91 @@ function create(container, handlers = {}) {
     }, TOUCH_NODE_HOLD_MS);
   }
 
+  function rejectPointerInput(event) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }
+
+  function beginObjectPointer(event) {
+    prepareSurfaceInput();
+    if (surfaceInteraction.beginPointer(event.pointerId, "tap", { claim: false })) return true;
+    rejectPointerInput(event);
+    return false;
+  }
+
   function onPointerDown(event) {
     if (!surfacePointerMayStartDirectManipulation(event)) return;
     const target = touchTargetPayload(event);
     if (event.pointerType !== "touch") {
-      if (target?.kind === "node") {
-        // Orb/D3 starts native mouse dragging from its later compatibility
-        // mousedown handler. Apply force settings now, while capture-phase
-        // pointerdown still precedes that drag start, so a settings-driven
-        // simulation restart cannot disturb the active drag state.
-        cancelCameraInertia();
-        cameraGesture = null;
-        requestSimulation("drag", DRAG_ALPHA_TARGET);
-      } else {
-        beginCameraGesture(event, target);
+      if (target?.object) {
+        if (!beginObjectPointer(event)) return;
+        if (target.kind === "node") {
+          // Orb/D3 starts native mouse dragging from its later compatibility
+          // mousedown handler. Apply force settings now, while capture-phase
+          // pointerdown still precedes that drag start, so a settings-driven
+          // simulation restart cannot disturb the active drag state.
+          cameraGesture = null;
+          requestSimulation("drag", DRAG_ALPHA_TARGET);
+        }
+      } else if (!beginCameraGesture(event, target)) {
+        rejectPointerInput(event);
       }
       return;
     }
 
     activeTouchPointers.add(event.pointerId);
     if (activeTouchPointers.size > 1) {
-      if (cameraGesture?.pointerId !== null && cameraGesture?.pointerId !== undefined)
-        releaseTouchPointerCapture(cameraGesture.pointerId);
-      cameraGesture = null;
-      cancelCameraInertia();
-      if (touchHold?.activated) {
-        // An activated node drag owns the gesture until its original pointer
-        // is released. Additional fingers must not turn camera zoom back on.
-        touchTap = null;
-        lastTouchTap = null;
-        setDragEnabled(false);
-        setZoomEnabled(false);
+      const activeNodePointerId = touchHold?.activated ? touchHold.pointerId : null;
+      if (activeNodePointerId !== null) {
+        finishActiveTouchNodeDrag();
+        finishTouchGesture();
+        surfaceInteraction.cancel("aborted");
+        if (
+          !surfaceInteraction.beginPointer(activeNodePointerId, "pan") ||
+          !surfaceInteraction.beginPointer(event.pointerId, "pinch")
+        ) {
+          activeTouchPointers.delete(event.pointerId);
+          rejectPointerInput(event);
+          return;
+        }
+      } else if (!surfaceInteraction.beginPointer(event.pointerId, "pinch")) {
+        activeTouchPointers.delete(event.pointerId);
+        rejectPointerInput(event);
         return;
       }
-      markCameraOwnedByUser();
-    } else {
-      beginCameraGesture(event, target);
-    }
-    touchTap = {
-      pointerId: event.pointerId,
-      startClientPoint: eventClientPoint(event),
-      target,
-      cancelled: false,
-    };
-    if (activeTouchPointers.size > 1) {
+
+      if (cameraGesture?.pointerId !== null && cameraGesture?.pointerId !== undefined) {
+        releaseTouchPointerCapture(cameraGesture.pointerId);
+      }
+      cameraGesture = null;
+      cancelCameraInertia();
       touchTap = null;
       lastTouchTap = null;
       if (touchHold && !touchHold.activated) cancelPendingTouchHold();
       touchDragBlockedUntilRelease = true;
       setDragEnabled(false);
       setZoomEnabled(true);
+      markCameraOwnedByUser();
       return;
     }
+
+    if (target?.object) {
+      if (!beginObjectPointer(event)) {
+        activeTouchPointers.delete(event.pointerId);
+        return;
+      }
+    } else if (!beginCameraGesture(event, target)) {
+      activeTouchPointers.delete(event.pointerId);
+      rejectPointerInput(event);
+      return;
+    }
+
+    touchTap = {
+      pointerId: event.pointerId,
+      startClientPoint: eventClientPoint(event),
+      target,
+      cancelled: false,
+    };
 
     const payload =
       target?.kind === "node"
@@ -1113,13 +1150,28 @@ function create(container, handlers = {}) {
   }
 
   function onPointerUp(event) {
-    finishCameraGesture(event);
+    const cameraHandled = finishCameraGesture(event);
+    if (!cameraHandled) {
+      if (event.type === "pointercancel") {
+        surfaceInteraction.cancel("pointercancel");
+      } else if (surfaceInteraction.releasePointer(event.pointerId)) {
+        commitSettledInteraction();
+      }
+    }
+
     if (event.pointerType !== "touch") return;
     const tap = touchTap?.pointerId === event.pointerId ? touchTap : null;
     const ownsActiveNodeDrag = Boolean(
       touchHold?.activated && touchHold.pointerId === event.pointerId,
     );
     activeTouchPointers.delete(event.pointerId);
+    if (
+      activeTouchPointers.size === 1 &&
+      surfaceInteraction.snapshot().owner === "graph" &&
+      surfaceInteraction.snapshot().gesture === "pinch"
+    ) {
+      surfaceInteraction.claimGesture("pan");
+    }
 
     if (ownsActiveNodeDrag) {
       touchTap = null;
@@ -1191,8 +1243,9 @@ function create(container, handlers = {}) {
     finishTouchGesture();
   }
 
-  function abortTouchInteraction() {
-    cancelCameraInertia();
+  function abortTouchInteraction(reason = "aborted") {
+    cancelCameraInertia({ commit: false });
+    surfaceInteraction.cancel(reason);
     cameraGesture = null;
     touchTap = null;
     lastTouchTap = null;
@@ -1202,7 +1255,7 @@ function create(container, handlers = {}) {
   }
 
   const onWindowBlur = () => {
-    abortTouchInteraction();
+    abortTouchInteraction("blur");
     competingPointerIds.clear();
     clearCompetingGestureResumeTimer();
     simulationCoordinator.resume("competing-surface");
@@ -1210,7 +1263,7 @@ function create(container, handlers = {}) {
   const onVisibilityChange = () => {
     if (document.visibilityState === "hidden") {
       simulationCoordinator.suspend("hidden");
-      abortTouchInteraction();
+      abortTouchInteraction("visibilitychange");
       return;
     }
     simulationCoordinator.resume("hidden");
@@ -1222,14 +1275,19 @@ function create(container, handlers = {}) {
     event.stopImmediatePropagation();
   };
 
-  const onWheelCapture = () => {
+  const onWheelCapture = (event) => {
+    prepareSurfaceInput();
+    if (!surfaceInteraction.beginDiscrete("wheel")) {
+      rejectPointerInput(event);
+      return;
+    }
     markCameraOwnedByUser();
-    cancelCameraInertia();
+    scheduleDiscreteCommit();
   };
   const onGraphKeyDown = (event) => {
-    if (event.target !== container || event.altKey || event.ctrlKey || event.metaKey) return;
+    if (event.target !== container || !surfaceKeyboardMayNavigate(event)) return;
     let handled = true;
-    cancelCameraInertia();
+    prepareSurfaceInput();
     switch (event.key) {
       case "ArrowLeft":
         applyCameraPan(GRAPH_KEYBOARD_PAN_PX, 0);
@@ -1261,18 +1319,24 @@ function create(container, handlers = {}) {
       default:
         handled = false;
     }
-    if (handled) {
+    if (!handled) return;
+    if (!surfaceInteraction.beginDiscrete("keyboard")) {
       event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
     }
+    event.preventDefault();
+    surfaceInteraction.finishDiscrete();
   };
   const onLostPointerCapture = (event) => {
     if (!touchHold?.activated || touchHold.pointerId !== event.pointerId) return;
+    surfaceInteraction.cancel("lostpointercapture");
     finishActiveTouchNodeDrag();
     finishTouchGesture();
   };
 
   container.addEventListener("click", onClickCapture, { capture: true });
-  container.addEventListener("wheel", onWheelCapture, { capture: true, passive: true });
+  container.addEventListener("wheel", onWheelCapture, { capture: true, passive: false });
   container.addEventListener("keydown", onGraphKeyDown);
   container.addEventListener("pointerdown", onPointerDown, { capture: true });
   container.addEventListener("pointermove", onPointerMove, { capture: true });
@@ -1283,6 +1347,9 @@ function create(container, handlers = {}) {
   container.addEventListener("touchend", onTouchEnd);
   container.addEventListener("touchcancel", onTouchEnd);
   globalThis.addEventListener?.("blur", onWindowBlur);
+  globalThis.addEventListener?.("orientationchange", () =>
+    abortTouchInteraction("orientationchange"),
+  );
   document.addEventListener("visibilitychange", onVisibilityChange);
   document.addEventListener("pointerdown", onCompetingPointerDown, true);
   document.addEventListener("pointerup", onCompetingPointerEnd, true);
@@ -1419,6 +1486,7 @@ function create(container, handlers = {}) {
   const onNodeDragStart = (payload) => {
     // Capture-phase pointerdown already requested drag heat before Orb enters
     // native drag state. Do not independently restart the simulator here.
+    surfaceInteraction.claimGesture("node-drag");
     beginDragFeedback(payload?.node);
     clearInteractionSettleTimer();
   };
