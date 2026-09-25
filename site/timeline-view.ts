@@ -537,12 +537,37 @@ export class TimelineViewController {
       this.surface.focus({ preventScroll: true });
     });
 
+    const finishWheelEpoch = (commitScene: boolean): void => {
+      if (this.wheelCommitTimer) {
+        globalThis.clearTimeout(this.wheelCommitTimer);
+        this.wheelCommitTimer = 0;
+      }
+      const snapshot = this.surfaceInteraction.snapshot();
+      if (
+        snapshot.owner === "timeline" &&
+        snapshot.gesture === "wheel" &&
+        snapshot.phase === "owned"
+      ) {
+        if (commitScene) this.commitInteraction();
+        this.surfaceInteraction.finishDiscrete();
+      }
+    };
+
+    const prepareSurfaceInput = (): void => {
+      this.cancelInertia();
+      const snapshot = this.surfaceInteraction.snapshot();
+      if (snapshot.owner === "timeline" && snapshot.phase === "settling") {
+        this.surfaceInteraction.commit();
+      }
+    };
+
     this.surface.addEventListener(
       "wheel",
       (event) => {
         if (!this.items.length) return;
+        prepareSurfaceInput();
+        if (!this.surfaceInteraction.beginDiscrete("wheel")) return;
         event.preventDefault();
-        this.cancelInertia();
         this.beginInteraction();
         const rect = this.interactionRect();
         const primary =
@@ -567,7 +592,7 @@ export class TimelineViewController {
 
         globalThis.clearTimeout(this.wheelCommitTimer);
         this.wheelCommitTimer = globalThis.setTimeout(
-          () => this.commitInteraction(),
+          () => finishWheelEpoch(true),
           WHEEL_COMMIT_DELAY_MS,
         );
       },
@@ -587,8 +612,9 @@ export class TimelineViewController {
       pointerId: number,
       point: { x: number; y: number },
       sourceEvent: PointerEvent | null = null,
-    ): void => {
-      this.cancelInertia();
+    ): boolean => {
+      prepareSurfaceInput();
+      if (!this.surfaceInteraction.beginPointer(pointerId, "pan")) return false;
       this.beginInteraction();
       const rect = this.interactionRect();
       const length = Math.max(1, this.orientation === "horizontal" ? rect.width : rect.height);
@@ -612,6 +638,7 @@ export class TimelineViewController {
         // Pointer capture is opportunistic.
       }
       this.root.dataset.sceneState = "interacting";
+      return true;
     };
 
     const pinchGeometry = (): { distance: number; ratio: number } | null => {
@@ -634,8 +661,8 @@ export class TimelineViewController {
 
     const beginPinch = (): boolean => {
       const geometry = pinchGeometry();
-      if (!geometry) return false;
-      this.cancelInertia();
+      if (!geometry || !this.surfaceInteraction.claimGesture("pinch")) return false;
+      prepareSurfaceInput();
       this.beginInteraction();
       this.touchTap = null;
       this.lastTouchTap = null;
@@ -706,11 +733,24 @@ export class TimelineViewController {
       return false;
     };
 
-    const abortSurfaceGesture = (): void => {
+    const abortSurfaceGesture = (
+      reason: Exclude<InteractionCompletionReason, "release">,
+    ): void => {
       const pointerIds = new Set(this.touchPointers.keys());
       if (this.pointerDrag) pointerIds.add(this.pointerDrag.pointerId);
-      const interrupted = Boolean(this.pointerDrag || this.pinch || this.touchPointers.size);
+      const snapshot = this.surfaceInteraction.snapshot();
+      const sharedActive =
+        snapshot.owner === "timeline" &&
+        snapshot.phase !== "idle" &&
+        snapshot.phase !== "committed";
+      const interrupted = Boolean(
+        this.pointerDrag || this.pinch || this.touchPointers.size || sharedActive,
+      );
 
+      if (this.wheelCommitTimer) {
+        globalThis.clearTimeout(this.wheelCommitTimer);
+        this.wheelCommitTimer = 0;
+      }
       this.touchPointers.clear();
       this.pinch = null;
       this.touchTap = null;
@@ -718,6 +758,7 @@ export class TimelineViewController {
       this.pointerDrag = null;
       this.cancelInertia();
       for (const pointerId of pointerIds) releasePointerCapture(pointerId);
+      if (sharedActive) this.surfaceInteraction.cancel(reason);
 
       if (interrupted) {
         this.suppressClickUntil = performance.now() + CLICK_SUPPRESSION_MS;
