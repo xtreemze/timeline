@@ -201,6 +201,27 @@ test.describe("Mobile-first Timeline layout contracts", () => {
       }
       await expect(page.locator("#timeline-view-controls-toggle")).toBeVisible();
       await expect(page.locator(".timeline-local-toolbar")).toBeVisible();
+      await expect(dock.locator(".app-footer-world .world-camera-controls")).toBeVisible();
+
+      const [worldZoneBox, actionsZoneBox, timelineZoneBox] = await Promise.all([
+        dock.locator(".app-footer-world").boundingBox(),
+        dock.locator(".app-footer-actions").boundingBox(),
+        dock.locator(".app-footer-timeline").boundingBox(),
+      ]);
+      expect(worldZoneBox).not.toBeNull();
+      expect(actionsZoneBox).not.toBeNull();
+      expect(timelineZoneBox).not.toBeNull();
+      if (!worldZoneBox || !actionsZoneBox || !timelineZoneBox) {
+        throw new Error("Footer zones must all have live bounds.");
+      }
+      expect(worldZoneBox.x).toBeLessThan(actionsZoneBox.x);
+      expect(worldZoneBox.x + worldZoneBox.width).toBeLessThanOrEqual(actionsZoneBox.x + 2);
+      expect(timelineZoneBox.x).toBeGreaterThanOrEqual(
+        actionsZoneBox.x + actionsZoneBox.width - 2,
+      );
+      expect(
+        Math.abs(actionsZoneBox.x + actionsZoneBox.width / 2 - viewport.width / 2),
+      ).toBeLessThanOrEqual(2);
 
       expect(dockBox.x).toBeLessThanOrEqual(2);
       expect(dockBox.width).toBeGreaterThanOrEqual(viewport.width - 4);
@@ -279,8 +300,27 @@ test.describe("Mobile-first Timeline layout contracts", () => {
       const viewControlsBox = await expectInsideViewport(viewControls, viewport);
       await expect(viewControls).toHaveAttribute(
         "data-anchor-placement",
-        /footer-(?:above|left)/,
+        /world-(?:above-timeline|top-right|left-of-timeline|top-left)/,
       );
+
+      const timelineSurfaceBox = await page.locator(".timeline-surface").boundingBox();
+      expect(timelineSurfaceBox).not.toBeNull();
+      if (!timelineSurfaceBox) throw new Error("Timeline surface has no live bounds.");
+      const overlapWidth = Math.max(
+        0,
+        Math.min(
+          viewControlsBox.x + viewControlsBox.width,
+          timelineSurfaceBox.x + timelineSurfaceBox.width,
+        ) - Math.max(viewControlsBox.x, timelineSurfaceBox.x),
+      );
+      const overlapHeight = Math.max(
+        0,
+        Math.min(
+          viewControlsBox.y + viewControlsBox.height,
+          timelineSurfaceBox.y + timelineSurfaceBox.height,
+        ) - Math.max(viewControlsBox.y, timelineSurfaceBox.y),
+      );
+      expect(overlapWidth * overlapHeight).toBeLessThanOrEqual(4);
 
       const viewButtonBox = await viewButton.boundingBox();
       expect(viewButtonBox).not.toBeNull();
