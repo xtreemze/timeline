@@ -1887,9 +1887,10 @@ function renderCategoryOptions() {
 }
 
 function fillItemStoryContext(selectedStoryId = "") {
-  const options = [document.createElement("option")];
-  options[0].value = "";
-  options[0].textContent = "No story";
+  const noneOption = document.createElement("option");
+  noneOption.value = "";
+  noneOption.textContent = "No story";
+  const options = [noneOption];
   for (const story of state.stories) {
     const option = document.createElement("option");
     option.value = story.id;
