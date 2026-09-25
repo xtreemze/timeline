@@ -141,9 +141,23 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightConfig, /viewport:\s*\{\s*width:\s*1440,\s*height:\s*900\s*\}/);
   assert.match(highlightConfig, /viewport:\s*\{\s*width:\s*390,\s*height:\s*844\s*\}/);
   assert.match(highlightConfig, /hasTouch:\s*true/);
+  assert.match(highlightConfig, /--disable-background-timer-throttling/);
+  assert.match(highlightConfig, /--disable-renderer-backgrounding/);
+  assert.match(highlightConfig, /--disable-backgrounding-occluded-windows/);
+  assert.match(highlightConfig, /--disable-frame-rate-limit/);
+  assert.match(highlightConfig, /--disable-gpu-vsync/);
 
   assert.match(highlightSpec, /records source-native Lūm showcase media per form factor/);
+  assert.match(highlightSpec, /const CAPTURE_FPS = 60/);
+  assert.match(highlightSpec, /const MIN_CAPTURE_FPS = 59/);
   assert.match(highlightSpec, /page\.screencast\.start/);
+  assert.match(highlightSpec, /onFrame:/);
+  assert.match(highlightSpec, /size: captureSize/);
+  assert.match(highlightSpec, /Buffer\.from\(data\)/);
+  assert.match(highlightSpec, /libvpx/);
+  assert.match(highlightSpec, /"-fps_mode"/);
+  assert.match(highlightSpec, /capturedFps < MIN_CAPTURE_FPS/);
+  assert.doesNotMatch(highlightSpec, /screencast\.start\(\{\s*path:/);
   assert.match(highlightSpec, /page\.screencast\.showChapter/);
   assert.match(highlightSpec, /page\.screencast\.showOverlay/);
   assert.match(highlightSpec, /page\.screenshot/);
@@ -161,7 +175,12 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightRenderer, /lum-\$\{formFactor\}-highlight\.mp4/);
   assert.match(highlightRenderer, /path\.join\(showcaseRoot, formFactor\)/);
   assert.match(highlightRenderer, /probeVisualSource/);
+  assert.match(highlightRenderer, /best_effort_timestamp_time/);
+  assert.match(highlightRenderer, /assertCapturedFrameCadence/);
+  assert.match(highlightRenderer, /assertRenderedFrameRate/);
+  assert.match(highlightRenderer, /minimumCapturedFps/);
   assert.match(highlightRenderer, /libwebp_anim/);
+  assert.match(highlightRenderer, /fps=\$\{showcaseFpsArg\}/);
   assert.match(highlightRenderer, /copyFile/);
   assert.match(highlightRenderer, /mediaMode === "static"/);
   assert.match(highlightRenderer, /combinedShowcaseBytes/);
@@ -210,6 +229,8 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
 
   assert.match(showcaseDocs, /five desktop scenes/i);
   assert.match(showcaseDocs, /five mobile scenes/i);
+  assert.match(showcaseDocs, /59 actual decoded frames per second/i);
+  assert.match(showcaseDocs, /60 fps animated WebP/i);
   assert.match(showcaseDocs, /lum-desktop-highlight\.mp4/);
   assert.match(showcaseDocs, /lum-mobile-highlight\.mp4/);
   assert.match(formalPresentation, /CI-generated product showcase media/);
