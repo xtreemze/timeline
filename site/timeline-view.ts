@@ -482,6 +482,7 @@ export class TimelineViewController {
     this.surfaceInteraction = createSurfaceInteractionController("timeline", interaction);
     this.surface =
       root.querySelector("#timeline-surface") || root.querySelector(".timeline-surface") || root;
+    this.surface.dataset.surfaceKeyboardNavigation = "camera";
     this.focusView =
       root.querySelector("#timeline-focus-view") ||
       root.querySelector(".timeline-focus-view") ||
