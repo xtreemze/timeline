@@ -149,8 +149,7 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightConfig, /--disable-background-timer-throttling/);
   assert.match(highlightConfig, /--disable-renderer-backgrounding/);
   assert.match(highlightConfig, /--disable-backgrounding-occluded-windows/);
-  assert.match(highlightConfig, /--disable-frame-rate-limit/);
-  assert.match(highlightConfig, /--disable-gpu-vsync/);
+  assert.doesNotMatch(highlightConfig, /--disable-frame-rate-limit|--disable-gpu-vsync/);
   assert.match(highlightConfig, /--kiosk/);
   assert.match(highlightConfig, /screen:\s*\{\s*width:\s*1440,\s*height:\s*900\s*\}/);
   assert.match(highlightConfig, /screen:\s*\{\s*width:\s*390,\s*height:\s*844\s*\}/);
@@ -177,6 +176,7 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightSpec, /startCaptureHeartbeat/);
   assert.match(highlightSpec, /waitForBrowserFrameBudget/);
   assert.match(highlightSpec, /SHOWCASE_CAPTURE_TMPDIR/);
+  assert.match(highlightSpec, /spawn\("nice", \["-n", "10"/);
   assert.match(highlightSpec, /lum-showcase-capture-heartbeat/);
   assert.match(highlightSpec, /requestAnimationFrame/);
   assert.match(highlightSpec, /measureFrameCadence/);
