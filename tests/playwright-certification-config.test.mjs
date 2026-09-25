@@ -223,7 +223,7 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightVerifier, /highlight reel/);
 
   assert.match(mediaWorkflow, /Record source-native showcase media/);
-  assert.match(mediaWorkflow, /pnpm exec playwright install --with-deps chrome/);
+  assert.match(mediaWorkflow, /pnpm exec playwright install --with-deps chromium/);
   assert.match(mediaWorkflow, /playwright test --config=playwright\.highlight\.config\.ts/);
   assert.match(mediaWorkflow, /xvfb-run/);
   assert.match(mediaWorkflow, /-screen 0 1440x900x24/);
