@@ -590,8 +590,8 @@ test.describe("Persistent footer and focus geometry", () => {
       }
 
       for (const [before, after] of [
-        [beforeTimeline, afterTimeline],
-        [beforeSurface, afterSurface],
+        [beforeTimeline, afterTimeline] as const,
+        [beforeSurface, afterSurface] as const,
       ]) {
         expect(Math.abs(after.x - before.x)).toBeLessThanOrEqual(2);
         expect(Math.abs(after.y - before.y)).toBeLessThanOrEqual(2);
