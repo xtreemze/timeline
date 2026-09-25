@@ -4,9 +4,9 @@ import test from "node:test";
 import { TimelineMotion } from "../site/timeline-motion.ts";
 import {
   CLUSTER_ZOOM_THRESHOLD,
-  clusterZoomThresholdForNodeRadius,
   clusterRequiredLocalRadiusPx,
   clusterTargetPlaceIds,
+  clusterZoomThresholdForNodeRadius,
   clusterZoomThresholdForPlaceDensity,
   DECK_WORLD_LAYER_IDS,
   DeckWorldSurface,
@@ -92,7 +92,6 @@ test("nearby singleton places stay clustered until their screen neighbourhood se
     "zooming in resolves the same singleton places once their screen-space separation is readable",
   );
 });
-
 
 test("deep zoom cannot force an intrinsically unreadable local graph open", () => {
   const nodeRadiusPx = 16;
