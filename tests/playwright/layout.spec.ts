@@ -191,7 +191,7 @@ test.describe("Mobile-first Timeline layout contracts", () => {
       const worldControls = dock.locator(
         "#world-footer-controls .world-camera-control:visible",
       );
-      await expect(worldControls).toHaveCount(viewport.width >= 521 ? 4 : 2);
+      await expect(worldControls).toHaveCount(4);
 
       const dockBox = await expectInsideViewport(dock, viewport);
       const titleBox = await expectInsideViewport(titleBar, viewport);
