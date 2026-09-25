@@ -128,6 +128,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
   #states = new Map<WorldInstanceId, D3WorldNodeState>();
   #groups = new Map<string, D3WorldGroup>();
   #clusteredPlaces = new Set<string>();
+  #detachedLinkPlaces = new Set<string>();
   #pin: WorldForcePin | null = null;
   #running = false;
   #settled = true;
@@ -206,11 +207,21 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     this.#settled = false;
   }
 
-  setClusteredPlaceIds(placeIds: readonly PlaceId[]): void {
+  setClusteredPlaceIds(
+    placeIds: readonly PlaceId[],
+    detachedLinkPlaceIds: readonly PlaceId[] = placeIds,
+  ): void {
     this.#assertAlive();
-    const next = new Set(placeIds.map(String));
-    if (sameStringSet(next, this.#clusteredPlaces)) return;
-    this.#clusteredPlaces = next;
+    const nextClustered = new Set(placeIds.map(String));
+    const nextDetached = new Set(detachedLinkPlaceIds.map(String));
+    if (
+      sameStringSet(nextClustered, this.#clusteredPlaces) &&
+      sameStringSet(nextDetached, this.#detachedLinkPlaces)
+    ) {
+      return;
+    }
+    this.#clusteredPlaces = nextClustered;
+    this.#detachedLinkPlaces = nextDetached;
     this.#rebuildGroups(true);
     this.#running = true;
     this.#settled = false;
@@ -315,11 +326,13 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     for (const [key, nodes] of grouped) {
       const placeId = nodes[0]?.placeId ?? null;
       const collapsed = placeId !== null && this.#clusteredPlaces.has(String(placeId));
+      const linksDetached =
+        placeId !== null && this.#detachedLinkPlaces.has(String(placeId));
       const activeDragGroup =
         this.#pin !== null && this.#states.get(this.#pin.instanceId)?.group === key;
 
       const memberIds = new Set(nodes.map((node) => node.id));
-      const links: D3WorldLink[] = collapsed
+      const links: D3WorldLink[] = linksDetached
         ? []
         : this.#scene.edges
             .filter((edge) => memberIds.has(edge.sourceId) && memberIds.has(edge.targetId))
