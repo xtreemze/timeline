@@ -106,46 +106,7 @@
   }
 }
 
-/* Timeline control buttons and content-first focused detail. */
-.timeline-local-button {
-  appearance: none;
-  display: grid;
-  place-items: center;
-  inline-size: 44px;
-  block-size: 44px;
-  min-inline-size: 44px;
-  min-block-size: 44px;
-  padding: 0;
-  border: 0;
-  border-radius: 0.58rem;
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-  touch-action: manipulation;
-}
-
-.timeline-local-button:hover,
-.timeline-local-button:focus-visible,
-#app-shell[data-view-controls-open="true"] .timeline-local-button.app-view-tool {
-  background: var(--paper-2);
-  color: var(--ink);
-  outline: none;
-}
-
-.timeline-local-button:focus-visible {
-  box-shadow: inset 0 0 0 2px var(--focus);
-}
-
-.timeline-local-button:disabled {
-  opacity: 0.34;
-  cursor: default;
-}
-
-.timeline-local-button .semantic-icon {
-  inline-size: 21px;
-  block-size: 21px;
-  stroke-width: 1.9;
-}
+/* Timeline-local actions inherit the canonical footer toolbar chrome below. */
 
 #app-shell.is-event-focused #presentation-stage {
   --focus-timeline-block-size: var(
