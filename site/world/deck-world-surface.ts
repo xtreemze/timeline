@@ -4113,10 +4113,9 @@ export class DeckWorldSurface implements WorldSurface {
       : Object.freeze([] as DeckWorldRelationshipDatum[]);
     const releasingSegments = releasingRelationshipSegments(releasingRelationships);
 
-    // Only the places selected by semantic density belong to the collapsed
-    // representation. This matters above the global overview tier: a dense
-    // story location may stay clustered while nearby sparse/singleton places
-    // are already readable as ordinary nodes.
+    // Only places selected by semantic density or unreadable screen-space
+    // proximity belong to the collapsed representation. Sparse/singleton
+    // places resolve independently only after their neighbourhood separates.
     const clusteredEntitySource = entityResult.datums.filter((entity) =>
       memberIds.has(entity.worldInstanceId),
     );
