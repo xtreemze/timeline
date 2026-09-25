@@ -36,10 +36,7 @@ function topologyRequest() {
 function distance(snapshot, leftId, rightId) {
   const left = snapshot.find((entry) => entry.instanceId === leftId);
   const right = snapshot.find((entry) => entry.instanceId === rightId);
-  return Math.hypot(
-    left.eastMeters - right.eastMeters,
-    left.northMeters - right.northMeters,
-  );
+  return Math.hypot(left.eastMeters - right.eastMeters, left.northMeters - right.northMeters);
 }
 
 test("D3 collision and rejection reserve the full visible force-node footprint", () => {
@@ -65,17 +62,16 @@ test("cluster lifecycle detaches links, gathers with D3, then scatters from the 
   const alice = '["alice",null]';
   const bob = '["bob",null]';
   simulation.setScene({
-    nodes: [
-      node(alice, -900, 180),
-      node(bob, 900, 180),
+    nodes: [node(alice, -900, 180), node(bob, 900, 180)],
+    edges: [
+      {
+        id: "meeting",
+        sourceId: alice,
+        targetId: bob,
+        strength: 0.08,
+        restLengthMeters: 1_800,
+      },
     ],
-    edges: [{
-      id: "meeting",
-      sourceId: alice,
-      targetId: bob,
-      strength: 0.08,
-      restLengthMeters: 1_800,
-    }],
     anchors: [anchor(alice, "stockholm", 1), anchor(bob, "stockholm", 1)],
   });
   simulation.apply(topologyRequest());
