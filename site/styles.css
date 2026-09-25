@@ -1131,6 +1131,50 @@ geolocation {
   gap: 0.2rem;
 }
 
+.story-health-inspector {
+  margin-top: 0.65rem;
+  border-top: 1px solid var(--line);
+}
+
+.story-health-inspector summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  color: var(--ink);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.story-health-list {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0 0 0.15rem;
+  list-style: none;
+}
+
+.story-health-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.6rem;
+  align-items: center;
+  padding: 0.55rem 0;
+  border-top: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+}
+
+.story-health-message {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.story-health-action {
+  min-height: 40px;
+}
+
 .browser-story-section {
   display: grid;
   gap: 0.6rem;
