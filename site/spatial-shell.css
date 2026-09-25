@@ -124,10 +124,10 @@
   appearance: none;
   display: grid;
   place-items: center;
-  inline-size: 40px;
-  block-size: 40px;
-  min-inline-size: 40px;
-  min-block-size: 40px;
+  inline-size: 44px;
+  block-size: 44px;
+  min-inline-size: 44px;
+  min-block-size: 44px;
   padding: 0;
   border: 0;
   border-radius: 0.58rem;
@@ -414,11 +414,11 @@
 #presentation-stage:fullscreen > .app-tool-dock.app-footer-bar {
   z-index: 1600;
   display: grid;
+  pointer-events: auto;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: stretch;
   inline-size: 100%;
   max-inline-size: none;
-  overflow: hidden;
 }
 
 .app-footer-zone {
@@ -446,7 +446,13 @@
 }
 
 .app-footer-actions > .app-tool {
-  flex: 0 1 88px;
+  flex: 0 1 clamp(44px, 7vw, 88px);
+  min-inline-size: 44px;
+  padding-inline: clamp(0.18rem, 0.5vw, 0.3rem);
+}
+
+.app-footer-actions .app-tool-label {
+  font-size: clamp(0.58rem, calc(0.54rem + 0.12vw), 0.68rem);
 }
 
 .app-footer-timeline.timeline-local-toolbar {
@@ -481,9 +487,9 @@
 }
 
 .app-footer-world .world-camera-control {
-  inline-size: 40px;
+  inline-size: 44px;
   block-size: 44px;
-  min-inline-size: 40px;
+  min-inline-size: 44px;
   min-block-size: 44px;
   border-radius: 0.5rem;
 }
@@ -555,28 +561,3 @@
   );
 }
 
-@media (max-width: 699px) {
-  #app-shell > .app-tool-dock.app-footer-bar,
-  #presentation-stage:fullscreen > .app-tool-dock.app-footer-bar {
-    grid-template-columns: minmax(72px, 1fr) auto minmax(48px, 1fr);
-    gap: 0.08rem;
-  }
-
-  .app-footer-actions > .app-tool {
-    flex-basis: 48px;
-    min-inline-size: 44px;
-    padding-inline: 0.18rem;
-  }
-
-  .app-footer-actions .app-tool-label {
-    font-size: 0.58rem;
-  }
-
-  .app-footer-world .world-camera-control,
-  .app-footer-timeline .timeline-local-button {
-    inline-size: 44px;
-    min-inline-size: 44px;
-    block-size: 44px;
-    min-block-size: 44px;
-  }
-}
