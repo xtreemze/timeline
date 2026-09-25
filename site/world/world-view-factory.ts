@@ -1,4 +1,5 @@
 import type { InteractionCoordinator } from "../../src/interaction/interaction-coordinator.ts";
+import { createSurfaceInteractionController } from "../../src/interaction/surface-controller.ts";
 import { D3WorldForceSimulation } from "../../src/layout/d3-world-force-simulation.ts";
 import type { WorldForceLayoutSample } from "../../src/layout/world-force-layout.ts";
 import type { WorldForceSimulationBackend } from "../../src/layout/world-force-simulation.ts";
@@ -246,6 +247,33 @@ export function createWorldViewFactory(options: WorldViewFactoryOptions): WorldV
             }
           : {}),
       });
+      const worldInteraction = createSurfaceInteractionController(
+        "world",
+        runtime.getInteractionCoordinator(),
+      );
+      surface.setCameraInteractionSink({
+        begin(gesture) {
+          return worldInteraction.beginDiscrete(gesture);
+        },
+        update(gesture) {
+          const snapshot = worldInteraction.snapshot();
+          if (
+            snapshot.owner !== "world" ||
+            snapshot.phase !== "owned" ||
+            snapshot.pointerIds.length > 0
+          ) {
+            return false;
+          }
+          return worldInteraction.claimGesture(gesture);
+        },
+        finish() {
+          worldInteraction.finishDiscrete();
+        },
+        cancel() {
+          worldInteraction.cancel("aborted");
+        },
+      });
+
       const view = new WorldProjectionView(runtime);
       const scheduledView = new ScheduledWorldProjectionView(view, runtime, scheduler);
 
