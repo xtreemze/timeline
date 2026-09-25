@@ -2,202 +2,9 @@ name: Timeline view
 
 on:
   pull_request:
-    paths:
-      - 'site/**/*.ts'
-      - 'site/**/*.css'
-      - 'src/**/*.ts'
-      - 'biome.json'
-      - 'biome.strict.json'
-      - 'jsconfig.json'
-      - 'config/architecture-lint-baseline.json'
-      - 'scripts/lint-architecture.mjs'
-      - 'scripts/check-quality-changed.mjs'
-      - 'tests/architecture-lint-policy.test.mjs'
-      - 'tests/quality-tooling-policy.test.mjs'
-      - 'site/index.html'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'src/orb-graph-entry.js'
-      - 'src/leaflet-entry.js'
-      - 'src/domain/**'
-      - 'src/application/**'
-      - 'src/projection/**'
-      - 'src/layout/**'
-      - 'src/interaction/**'
-      - 'tsconfig.architecture.json'
-      - 'tsconfig.migrated.json'
-      - 'site/webmcp.js'
-      - 'site/memgraph-interchange.js'
-      - 'tests/webmcp.test.mjs'
-      - 'tests/webmcp-lifecycle-runtime.test.mjs'
-      - 'site/timeline-view.js'
-      - 'site/presentation-layout.js'
-      - 'site/timeline-clustering.js'
-      - 'site/timeline-motion.js'
-      - 'site/timeline-navigation.js'
-      - 'site/timeline-graph.js'
-      - 'site/temporal-graph-view.js'
-      - 'site/timeline-view.css'
-      - 'site/time-scale.js'
-      - 'site/interchange-adapter.js'
-      - 'site/date-range-picker.js'
-      - 'site/event-presentation.js'
-      - 'site/evidence-store.js'
-      - 'site/case-reasoning.js'
-      - 'site/sample-case.js'
-      - 'site/temporal-standards.js'
-      - 'site/timeline-migration.js'
-      - 'site/spatial.js'
-      - 'site/location-map.js'
-      - 'tests/temporal-spatial.test.mjs'
-      - 'tests/location-map-camera.test.mjs'
-      - 'tests/interchange-adapter.test.mjs'
-      - 'tests/event-focus-form.test.mjs'
-      - 'tests/evidence-store.test.mjs'
-      - 'tests/evidence-inference-runtime.test.mjs'
-      - 'tests/case-reasoning.test.mjs'
-      - 'tests/sample-case.test.mjs'
-      - 'schemas/interchange-v1.schema.json'
-      - 'tests/timeline-view-geometry.test.mjs'
-      - 'tests/timeline-interaction.test.mjs'
-      - 'tests/timeline-recovered-affordances-runtime.test.mjs'
-      - 'tests/retained-structural-composition-runtime.test.mjs'
-      - 'tests/browser/retained-structural-composition.spec.ts'
-      - 'tests/browser/semantic-chronology.spec.ts'
-      - 'tests/browser/focus-sidebar.spec.ts'
-      - 'tests/playwright/**'
-      - 'playwright.config.ts'
-      - 'tests/playwright-certification-config.test.mjs'
-      - 'playwright.pages.config.ts'
-      - 'vite.config.ts'
-      - 'tests/retained-timeline-metrics-runtime.test.mjs'
-      - 'tests/browser/retained-performance.spec.ts'
-      - 'tests/browser/timeline-geometric-continuity.spec.ts'
-      - 'tests/browser/world-interaction-coverage.spec.ts'
-      - 'tests/browser/world-app-visibility.spec.ts'
-      - 'tests/browser/world-webgpu.spec.ts'
-      - 'tests/browser/world-performance-certification.spec.ts'
-      - 'tests/browser/fixtures/world-performance-baseline.json'
-      - 'site/world-perf-harness.html'
-      - 'site/world-fixture-generator.mjs'
-      - 'site/world-test-helpers.mjs'
-      - 'src/performance/retained-timeline-metrics.ts'
-      - 'benchmarks/retained-timeline.mjs'
-      - 'benchmarks/graph-data.mjs'
-      - 'benchmarks/world-force.mjs'
-      - 'docs/CONTRIBUTOR-ARCHITECTURE.md'
-      - 'docs/RETAINED-TIMELINE-PERFORMANCE.md'
-      - 'tests/temporal-layout-runtime.test.mjs'
-      - 'tests/timeline-touch-runtime-contracts.test.mjs'
-      - 'tests/timeline-temporal-context-runtime.test.mjs'
-      - 'tests/semantic-hierarchy-runtime.test.mjs'
-      - 'tests/retained-temporal-context-runtime.test.mjs'
-      - 'tests/timeline-runtime-contracts.test.mjs'
-      - 'tests/timeline-motion-popover-regression.test.mjs'
-      - 'tests/timeline-navigation.test.mjs'
-      - 'tests/temporal-graph-view.test.mjs'
-      - 'tests/temporal-graph-runtime-contracts.test.mjs'
-      - 'tests/timeline-projection-runtime.test.mjs'
-      - 'tests/graph-editor.test.mjs'
-      - 'tests/graph-surface-contracts.test.mjs'
-      - 'tests/graph-simulation-coordinator.test.mjs'
-      - '.github/workflows/timeline-view.yml'
-      - '.github/workflows/pages.yml'
   push:
     branches: [main]
-    paths:
-      - 'site/**/*.ts'
-      - 'site/**/*.css'
-      - 'src/**/*.ts'
-      - 'biome.json'
-      - 'biome.strict.json'
-      - 'jsconfig.json'
-      - 'config/architecture-lint-baseline.json'
-      - 'scripts/lint-architecture.mjs'
-      - 'scripts/check-quality-changed.mjs'
-      - 'tests/architecture-lint-policy.test.mjs'
-      - 'tests/quality-tooling-policy.test.mjs'
-      - 'site/index.html'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'src/orb-graph-entry.js'
-      - 'src/leaflet-entry.js'
-      - 'src/domain/**'
-      - 'src/application/**'
-      - 'src/projection/**'
-      - 'src/layout/**'
-      - 'src/interaction/**'
-      - 'tsconfig.architecture.json'
-      - 'tsconfig.migrated.json'
-      - 'site/timeline-view.js'
-      - 'site/presentation-layout.js'
-      - 'site/timeline-clustering.js'
-      - 'site/timeline-motion.js'
-      - 'site/timeline-navigation.js'
-      - 'site/timeline-graph.js'
-      - 'site/temporal-graph-view.js'
-      - 'site/timeline-view.css'
-      - 'site/time-scale.js'
-      - 'site/interchange-adapter.js'
-      - 'site/date-range-picker.js'
-      - 'site/event-presentation.js'
-      - 'site/evidence-store.js'
-      - 'site/case-reasoning.js'
-      - 'site/sample-case.js'
-      - 'site/temporal-standards.js'
-      - 'site/timeline-migration.js'
-      - 'site/spatial.js'
-      - 'site/location-map.js'
-      - 'tests/temporal-spatial.test.mjs'
-      - 'tests/location-map-camera.test.mjs'
-      - 'tests/interchange-adapter.test.mjs'
-      - 'tests/event-focus-form.test.mjs'
-      - 'tests/evidence-store.test.mjs'
-      - 'tests/evidence-inference-runtime.test.mjs'
-      - 'tests/case-reasoning.test.mjs'
-      - 'tests/sample-case.test.mjs'
-      - 'schemas/interchange-v1.schema.json'
-      - 'tests/timeline-view-geometry.test.mjs'
-      - 'tests/timeline-interaction.test.mjs'
-      - 'tests/timeline-recovered-affordances-runtime.test.mjs'
-      - 'tests/retained-structural-composition-runtime.test.mjs'
-      - 'tests/browser/retained-structural-composition.spec.ts'
-      - 'tests/browser/semantic-chronology.spec.ts'
-      - 'tests/playwright/graph-touch.spec.ts'
-      - 'tests/playwright/interaction.spec.ts'
-      - 'tests/playwright/layout.spec.ts'
-      - 'tests/retained-timeline-metrics-runtime.test.mjs'
-      - 'tests/browser/retained-performance.spec.ts'
-      - 'tests/browser/timeline-geometric-continuity.spec.ts'
-      - 'tests/browser/world-interaction-coverage.spec.ts'
-      - 'tests/browser/world-app-visibility.spec.ts'
-      - 'tests/browser/world-webgpu.spec.ts'
-      - 'tests/browser/world-performance-certification.spec.ts'
-      - 'tests/browser/fixtures/world-performance-baseline.json'
-      - 'site/world-perf-harness.html'
-      - 'site/world-fixture-generator.mjs'
-      - 'site/world-test-helpers.mjs'
-      - 'src/performance/retained-timeline-metrics.ts'
-      - 'benchmarks/retained-timeline.mjs'
-      - 'benchmarks/graph-data.mjs'
-      - 'benchmarks/world-force.mjs'
-      - 'docs/CONTRIBUTOR-ARCHITECTURE.md'
-      - 'docs/RETAINED-TIMELINE-PERFORMANCE.md'
-      - 'tests/temporal-layout-runtime.test.mjs'
-      - 'tests/timeline-touch-runtime-contracts.test.mjs'
-      - 'tests/timeline-temporal-context-runtime.test.mjs'
-      - 'tests/semantic-hierarchy-runtime.test.mjs'
-      - 'tests/retained-temporal-context-runtime.test.mjs'
-      - 'tests/timeline-runtime-contracts.test.mjs'
-      - 'tests/timeline-motion-popover-regression.test.mjs'
-      - 'tests/timeline-navigation.test.mjs'
-      - 'tests/temporal-graph-view.test.mjs'
-      - 'tests/temporal-graph-runtime-contracts.test.mjs'
-      - 'tests/timeline-projection-runtime.test.mjs'
-      - 'tests/graph-editor.test.mjs'
-      - 'tests/graph-surface-contracts.test.mjs'
-      - 'tests/graph-simulation-coordinator.test.mjs'
-      - '.github/workflows/timeline-view.yml'
+  workflow_dispatch:
 
 concurrency:
   group: timeline-view-${{ github.event.pull_request.number || github.ref }}
@@ -229,14 +36,29 @@ jobs:
       - run: "! grep -Eq '(orb-graph|leaflet|evidence-extraction)\\.bundle\\.js' dist/index.html"
       - run: node --check src/orb-graph-entry.js
       - run: node --check src/evidence-extraction-entry.js
-      - run: pnpm test:architecture
       - run: pnpm test:browser-certification-config
-      - run: pnpm test:runtime-contracts
-      - run: pnpm test:recovered-affordances-runtime
-      - run: pnpm test:evidence-inference-runtime
-      - run: pnpm test:temporal-layout-runtime
-      - run: pnpm test:structural-composition-runtime
-      - run: pnpm test:retained-timeline-metrics
+
+  node-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - name: Run all discovered Node tests
+        run: pnpm test
+
+  benchmarks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
       - run: pnpm benchmark:retained-timeline
       - run: pnpm benchmark:graph-data
       - run: pnpm benchmark:world-force
@@ -246,16 +68,6 @@ jobs:
       - name: Certify dense world-force scaling
         run: pnpm benchmark:world-force:dense
         timeout-minutes: 2
-      - run: pnpm test:touch-runtime-contracts
-      - run: pnpm test:temporal-context-runtime
-      - run: pnpm test:semantic-hierarchy-runtime
-      - run: pnpm test:retained-context-runtime
-      - run: pnpm test:graph-runtime-contracts
-      - run: pnpm test:graph-surface-contracts
-      - run: pnpm test:graph-simulation-coordinator
-      - run: pnpm test
-      - run: pnpm test:webmcp-lifecycle-runtime
-      - run: pnpm test:timeline-projection-runtime
 
   structural-composition-browser:
     runs-on: ubuntu-latest
@@ -525,3 +337,34 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:graph-touch-browser
+  certification:
+    if: always()
+    needs:
+      - syntax
+      - node-tests
+      - benchmarks
+      - structural-composition-browser
+      - pages-runtime-browser
+      - application-shell-browser
+      - interaction-browser
+      - retained-performance-browser
+      - timeline-continuity-browser
+      - world-surface-certification-browser
+      - graph-touch-browser
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every certification lane to pass
+        env:
+          NEEDS_JSON: ${{ toJson(needs) }}
+        run: |
+          node --input-type=module <<'NODE'
+          const needs = JSON.parse(process.env.NEEDS_JSON || "{}");
+          const failed = Object.entries(needs).filter(([, value]) => value.result !== "success");
+          if (failed.length) {
+            for (const [name, value] of failed) {
+              console.error(`Certification lane failed: ${name} -> ${value.result}`);
+            }
+            process.exit(1);
+          }
+          console.log(`Certified ${Object.keys(needs).length} CI lanes.`);
+          NODE

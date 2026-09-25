@@ -30,9 +30,9 @@ type CaptureGeometry = {
 type CaptureStats = {
   requestedFps: number;
   minimumFps: number;
-  capturedFrames: number;
-  capturedDurationSeconds: number;
-  measuredFps: number;
+  capturedFrames: number | null;
+  capturedDurationSeconds: number | null;
+  measuredFps: number | null;
   browserFrames: number;
   browserDurationSeconds: number;
   browserFps: number;
@@ -236,17 +236,33 @@ async function captureGeometry(
       `Showcase viewport is ${String(geometry.innerWidth)}x${String(geometry.innerHeight)}; expected ${String(captureSize.width)}x${String(captureSize.height)}`,
     );
   }
+
+  const x11Width = Number(process.env.LUM_SHOWCASE_X11_WIDTH ?? geometry.screenWidth);
+  const x11Height = Number(process.env.LUM_SHOWCASE_X11_HEIGHT ?? geometry.screenHeight);
   if (
-    geometry.x < 0 ||
-    geometry.y < 0 ||
-    geometry.x + geometry.width > geometry.screenWidth ||
-    geometry.y + geometry.height > geometry.screenHeight
+    !Number.isFinite(x11Width) ||
+    !Number.isFinite(x11Height) ||
+    x11Width <= 0 ||
+    x11Height <= 0
+  ) {
+    throw new Error("Showcase X11 display bounds are invalid");
+  }
+  const measuredGeometry = {
+    ...geometry,
+    screenWidth: x11Width,
+    screenHeight: x11Height,
+  };
+  if (
+    measuredGeometry.x < 0 ||
+    measuredGeometry.y < 0 ||
+    measuredGeometry.x + measuredGeometry.width > measuredGeometry.screenWidth ||
+    measuredGeometry.y + measuredGeometry.height > measuredGeometry.screenHeight
   ) {
     throw new Error(
-      `Showcase X11 capture region ${String(geometry.x)},${String(geometry.y)} ${String(geometry.width)}x${String(geometry.height)} exceeds ${String(geometry.screenWidth)}x${String(geometry.screenHeight)} display`,
+      `Showcase X11 capture region ${String(measuredGeometry.x)},${String(measuredGeometry.y)} ${String(measuredGeometry.width)}x${String(measuredGeometry.height)} exceeds ${String(measuredGeometry.screenWidth)}x${String(measuredGeometry.screenHeight)} display`,
     );
   }
-  return geometry;
+  return measuredGeometry;
 }
 
 async function startBrowserFrameClock(page: Page) {
@@ -347,19 +363,11 @@ async function startX11Capture(videoPath: string, geometry: CaptureGeometry) {
   };
 }
 
-async function persistMeasuredCapture(
+async function persistCaptureEvidence(
   videoPath: string,
   browserTimestamps: number[],
   geometry: CaptureGeometry,
 ) {
-  const timestamps = await probeFrameTimestamps(videoPath);
-  const captured = measureTimestamps(timestamps);
-  if (captured.fps < MIN_CAPTURE_FPS) {
-    throw new Error(
-      `Showcase raw X11 WebM decoded ${String(captured.frames)} actual frames across ${captured.durationSeconds.toFixed(3)}s (${captured.fps.toFixed(2)} fps); expected at least ${MIN_CAPTURE_FPS.toFixed(2)} fps before publication encoding.`,
-    );
-  }
-
   const browser = measureTimestamps(browserTimestamps, 1000);
   if (browser.fps < MIN_CAPTURE_FPS) {
     throw new Error(
@@ -370,15 +378,15 @@ async function persistMeasuredCapture(
   const stats: CaptureStats = {
     requestedFps: CAPTURE_FPS,
     minimumFps: MIN_CAPTURE_FPS,
-    capturedFrames: captured.frames,
-    capturedDurationSeconds: captured.durationSeconds,
-    measuredFps: captured.fps,
+    capturedFrames: null,
+    capturedDurationSeconds: null,
+    measuredFps: null,
     browserFrames: browser.frames,
     browserDurationSeconds: browser.durationSeconds,
     browserFps: browser.fps,
     codec: "vp8",
     geometry,
-    timestamps,
+    timestamps: [],
     browserTimestamps,
   };
   await writeFile(`${videoPath}.frames.json`, JSON.stringify(stats, null, 2));
@@ -491,7 +499,7 @@ async function recordSegment(
       await actions.dispose().catch(() => {});
     }
 
-    await persistMeasuredCapture(videoPath, browserTimestamps, geometry);
+    await persistCaptureEvidence(videoPath, browserTimestamps, geometry);
   } else {
     await body();
     await page.waitForTimeout(250);

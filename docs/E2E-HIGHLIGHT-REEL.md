@@ -16,7 +16,7 @@ Desktop uses the 1440×900 product layout. Mobile uses the explicit touch-capabl
 
 The showcase distinguishes motion from static presentation. Timeline navigation and relation-graph navigation are motion scenes. Focused context, evidence, and story browsing are static scenes.
 
-Static scenes hold the demonstrated state open and capture a PNG screenshot. Motion scenes target 60 fps by sampling the headed Chromium window directly from the Xvfb framebuffer with FFmpeg `x11grab`. Raw capture uses a 60 fps input cadence, VP8, and `-fps_mode passthrough` with no output-rate padding. After each scene, FFprobe decodes the raw WebM timestamps and requires at least 59 actual frames per second before publication encoding. A separate browser `requestAnimationFrame()` clock must also sustain at least 59 fps during the recording.
+Static scenes hold the demonstrated state open and capture a PNG screenshot. Motion scenes target 60 fps by sampling the headed Chromium window directly from the Xvfb framebuffer with FFmpeg `x11grab`. Raw capture uses a 60 fps input cadence, VP8, and `-fps_mode passthrough` with no output-rate padding. Playwright records browser `requestAnimationFrame()` evidence while the scene runs. After the recorder process has exited, the render stage FFprobes the fully closed raw WebM and requires at least 59 actual decoded frames per second before publication encoding; the browser clock must independently sustain at least 59 fps.
 
 ## Output contract
 
@@ -58,7 +58,7 @@ artifacts/e2e-media/
 └── playwright/
 ```
 
-Each form factor publishes two 60 fps animated WebP motion assets and three PNG stills. Raw WebM exists only for motion scenes; every motion WebM has a `.frames.json` timing sidecar containing decoded raw-frame timestamps, browser animation timestamps, capture geometry, codec, measured raw cadence, measured browser cadence, and frame counts. Every scene also keeps a raw PNG capture.
+Each form factor publishes two 60 fps animated WebP motion assets and three PNG stills. Raw WebM exists only for motion scenes; every motion WebM has a `.frames.json` timing sidecar. Capture writes browser animation timestamps, geometry, codec, and cadence evidence first; the render verifier then fills in decoded raw-frame timestamps, measured raw cadence, and final frame counts from the fully closed WebM before any publication derivative is allowed. Every scene also keeps a raw PNG capture.
 
 ## Capture architecture
 

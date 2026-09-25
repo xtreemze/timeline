@@ -19,7 +19,6 @@ import {
   worldClusterShowsActiveEdges,
   worldClusterShowsMembers,
   worldClusterShowsReleasingEdges,
-  worldClusterWantsCollapsed,
 } from "../../src/layout/world-cluster-transition.ts";
 import type { WorldRelationshipRouteHint } from "../../src/layout/world-force-simulation.ts";
 import {
@@ -630,10 +629,7 @@ export function clusterTargetPlaceIds(
     if (!sourcePlace || !targetPlace) continue;
     const sourceComponent = componentIndexByPlace.get(sourcePlace);
     const targetComponent = componentIndexByPlace.get(targetPlace);
-    if (
-      sourceComponent !== undefined &&
-      sourceComponent === targetComponent
-    ) {
+    if (sourceComponent !== undefined && sourceComponent === targetComponent) {
       componentEdgeCounts[sourceComponent] = (componentEdgeCounts[sourceComponent] ?? 0) + 1;
     }
   }
@@ -819,9 +815,7 @@ export function clusterEntityDatumsByPlace(
   minimumPlaceCount = 0,
 ): readonly DeckWorldEntityRenderDatum[] {
   const requiredPlaceCount =
-    Number.isFinite(minimumPlaceCount) && minimumPlaceCount > 0
-      ? Math.floor(minimumPlaceCount)
-      : 0;
+    Number.isFinite(minimumPlaceCount) && minimumPlaceCount > 0 ? Math.floor(minimumPlaceCount) : 0;
   type Anchor = ProjectedWorldInstance["geographicAnchors"][number];
   interface PlaceGroup {
     readonly placeId: PlaceId;
@@ -1892,10 +1886,7 @@ function directionDatums(
   return { datums: Object.freeze(result), byId };
 }
 
-interface WorldLabelFocus {
-  readonly kind: WorldSelection["kind"];
-  readonly id: string;
-}
+type WorldLabelFocus = WorldSelection;
 
 function labelDatumUnchanged(
   previous: DeckWorldLabelDatum,
@@ -2612,8 +2603,10 @@ function interactionNeighborhood(
       const target = entityByInstance.get(edge.targetInstanceId);
       if (source) entityIds.add(source);
       if (target) entityIds.add(target);
-      for (const placeId of placesByInstance.get(edge.sourceInstanceId) ?? []) placeIds.add(placeId);
-      for (const placeId of placesByInstance.get(edge.targetInstanceId) ?? []) placeIds.add(placeId);
+      for (const placeId of placesByInstance.get(edge.sourceInstanceId) ?? [])
+        placeIds.add(placeId);
+      for (const placeId of placesByInstance.get(edge.targetInstanceId) ?? [])
+        placeIds.add(placeId);
       continue;
     }
 
@@ -3551,7 +3544,7 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   focusEntity(id: EntityId): void {
-    this.#setLabelFocus("entity", id);
+    this.#setLabelFocus({ kind: "entity", id });
     const instance = this.#projection.instances.find((candidate) => candidate.canonicalId === id);
     const placeId = instance?.geographicAnchors[0]?.placeId;
     const placeMemberCount = placeId
@@ -3584,7 +3577,7 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   focusOccurrence(id: RelationshipId): void {
-    this.#setLabelFocus("relationship", id);
+    this.#setLabelFocus({ kind: "relationship", id });
     this.#focusPosition(
       relationshipDatums(
         this.#projection,
@@ -3596,7 +3589,7 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   focusPlace(id: PlaceId): void {
-    this.#setLabelFocus("place", id);
+    this.#setLabelFocus({ kind: "place", id });
     const memberCount = this.#projection.instances.filter(
       (instance) => instance.geographicAnchors[0]?.placeId === id,
     ).length;
@@ -4081,7 +4074,10 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   #availableLocalGraphRadiusPx(): number {
-    return Math.min(worldFloatingGraphRadiusPx(this.#camera.zoom), this.#viewportGraphRadiusLimitPx());
+    return Math.min(
+      worldFloatingGraphRadiusPx(this.#camera.zoom),
+      this.#viewportGraphRadiusLimitPx(),
+    );
   }
 
   #clusterMergeRadiusPx(): number {
@@ -4280,10 +4276,10 @@ export class DeckWorldSurface implements WorldSurface {
     );
   }
 
-  #setLabelFocus(kind: WorldSelection["kind"], id: string): void {
+  #setLabelFocus(focus: WorldSelection): void {
     this.#assertAlive();
-    if (this.#focus?.kind === kind && this.#focus.id === id) return;
-    this.#focus = Object.freeze({ kind, id });
+    if (this.#focus?.kind === focus.kind && this.#focus.id === focus.id) return;
+    this.#focus = Object.freeze(focus);
     this.#render();
   }
 

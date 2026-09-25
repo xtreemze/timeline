@@ -509,7 +509,7 @@
 
 .app-footer-zone {
   gap: var(--toolbar-control-gap);
-  padding-inline: 0.12rem;
+  padding-inline: 0.06rem;
 }
 
 .app-footer-actions {
@@ -555,8 +555,8 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .app-footer-bar .toolbar-control:hover,
-  .app-footer-bar :is(.toolbar-range-control, .toolbar-number-control):hover {
+  .app-footer-bar .toolbar-control:is(:hover, :focus-visible),
+  .app-footer-bar :is(.toolbar-range-control, .toolbar-number-control):is(:hover, :focus-within) {
     border-color: color-mix(in srgb, var(--line-strong) 70%, transparent);
     background: var(--paper-2);
     color: var(--ink);
@@ -687,7 +687,7 @@
 }
 
 .app-footer-bar .toolbar-range-control {
-  inline-size: clamp(104px, 10vw, 148px);
+  inline-size: 104px;
   padding-inline: 0.34rem;
 }
 
@@ -734,13 +734,13 @@
 
 .app-footer-bar .toolbar-number-control {
   gap: 0.18rem;
-  min-inline-size: 58px;
-  padding-inline: 0.34rem;
+  min-inline-size: 54px;
+  padding-inline: 0.24rem;
   font-size: 0.62rem;
 }
 
 .app-footer-bar .toolbar-number-control input {
-  inline-size: 2.6rem;
+  inline-size: 2.35rem;
   min-inline-size: 0;
   min-block-size: 32px;
   padding: 0.2rem 0.24rem;
@@ -767,22 +767,22 @@
   font-size: 0.62rem;
 }
 
-@media (max-width: 420px) {
+@media (min-width: 421px) {
   .app-footer-zone {
-    padding-inline: 0.06rem;
+    padding-inline: 0.12rem;
   }
 
   .app-footer-bar .toolbar-range-control {
-    inline-size: 104px;
+    inline-size: 148px;
   }
 
   .app-footer-bar .toolbar-number-control {
-    min-inline-size: 54px;
-    padding-inline: 0.24rem;
+    min-inline-size: 58px;
+    padding-inline: 0.34rem;
   }
 
   .app-footer-bar .toolbar-number-control input {
-    inline-size: 2.35rem;
+    inline-size: 2.6rem;
   }
 }
 
