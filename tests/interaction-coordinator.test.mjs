@@ -2,6 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createInteractionCoordinator } from "../src/interaction/interaction-coordinator.ts";
+import {
+  surfaceActivationFromKeyboard,
+  surfaceCursor,
+  surfacePointerMayStartDirectManipulation,
+  surfacePointerType,
+} from "../src/interaction/surface-input-policy.ts";
 
 test("one surface owns an active interaction epoch", () => {
   const coordinator = createInteractionCoordinator();
@@ -91,4 +97,39 @@ test("stale releases and commits from non-owners cannot mutate state", () => {
   assert.equal(coordinator.release("map", 50), false);
   assert.equal(coordinator.commit("map"), false);
   assert.deepEqual(coordinator.snapshot(), before);
+});
+
+
+test("all surfaces share primary pointer acquisition semantics", () => {
+  assert.equal(surfacePointerMayStartDirectManipulation({ pointerType: "mouse", button: 0 }), true);
+  assert.equal(
+    surfacePointerMayStartDirectManipulation({
+      srcEvent: { pointerType: "mouse", button: -1, buttons: 1 },
+    }),
+    true,
+    "mjolnir panstart may originate from pointermove with button -1",
+  );
+  assert.equal(surfacePointerMayStartDirectManipulation({ pointerType: "touch" }), true);
+  assert.equal(surfacePointerMayStartDirectManipulation({ pointerType: "pen", button: 0 }), true);
+  assert.equal(surfacePointerMayStartDirectManipulation({ pointerType: "mouse", button: 2 }), false);
+  assert.equal(
+    surfacePointerMayStartDirectManipulation({ pointerType: "mouse", button: 0, ctrlKey: true }),
+    false,
+  );
+  assert.equal(surfacePointerType({ srcEvent: { pointerType: "pen" } }), "pen");
+});
+
+test("surface keyboard activation gives Enter and Space equivalent semantics", () => {
+  assert.equal(surfaceActivationFromKeyboard({ key: "Enter" }), "activate");
+  assert.equal(surfaceActivationFromKeyboard({ key: " " }), "activate");
+  assert.equal(surfaceActivationFromKeyboard({ key: "Escape" }), "cancel");
+  assert.equal(surfaceActivationFromKeyboard({ key: "Enter", repeat: true }), null);
+});
+
+test("surface cursors use one direct-manipulation vocabulary", () => {
+  assert.equal(surfaceCursor("background"), "grab");
+  assert.equal(surfaceCursor("draggable"), "grab");
+  assert.equal(surfaceCursor("action"), "pointer");
+  assert.equal(surfaceCursor("cluster"), "zoom-in");
+  assert.equal(surfaceCursor("draggable", { dragging: true }), "grabbing");
 });
