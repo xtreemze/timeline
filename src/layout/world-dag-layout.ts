@@ -920,6 +920,24 @@ function chooseCandidate(
     });
   }
 
+  // Hyper-connected local graphs have little useful hierarchy for Sugiyama to
+  // expose, while d3-dag's crossing/coordinate work becomes superlinear. Keep
+  // their semantic edges in the force scene and let collision + LOD own local
+  // organization rather than spending seconds computing disposable DAG targets.
+  if (edges.length > nodeIds.length * SIMPLEX_MAX_EDGES_PER_NODE) {
+    return Object.freeze({
+      name: "longest-two-layer-greedy-force-only",
+      targets: Object.freeze([]),
+      routes: Object.freeze([]),
+      width: 0,
+      height: 0,
+      crossingCount: null,
+      meanEdgeLengthMeters: 0,
+      minSeparationMeters: null,
+      meanStableDisplacementMeters: 0,
+    });
+  }
+
   if (nodeIds.length <= EXACT_DECROSS_MAX_NODES && edges.length <= EXACT_DECROSS_MAX_EDGES) {
     try {
       // Tiny neighborhoods are exactly the case where the optimal decross
