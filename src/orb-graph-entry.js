@@ -6,17 +6,17 @@ import {
   OrbView,
 } from "@memgraph/orb";
 import { TimelineMotion } from "../site/timeline-motion.ts";
+import {
+  connectedGraphComponents,
+  graphComponentTopologySignature,
+  packComponentRects,
+} from "./graph-component-packing.js";
 import { createInteractionCoordinator } from "./interaction/interaction-coordinator.ts";
 import { createSurfaceInteractionController } from "./interaction/surface-controller.ts";
 import {
   surfaceKeyboardMayNavigate,
   surfacePointerMayStartDirectManipulation,
 } from "./interaction/surface-input-policy.ts";
-import {
-  connectedGraphComponents,
-  graphComponentTopologySignature,
-  packComponentRects,
-} from "./graph-component-packing.js";
 import { createGraphSimulationCoordinator } from "./layout/graph-simulation-coordinator.ts";
 
 const LARGE_GRAPH_NODE_THRESHOLD = 1200;
