@@ -27,6 +27,13 @@ export interface WorldDagLayoutNodeSize {
 
 export interface WorldDagLayoutOptions {
   readonly nodeSizes?: ReadonlyMap<WorldInstanceId, WorldDagLayoutNodeSize>;
+  /**
+   * Explicit operator-requested reorganization. Bypasses the per-place result
+   * cache and stability hysteresis for this pass, but remains deterministic.
+   * Geographic anchors still define the local coordinate frame and are never
+   * rewritten or promoted into DAG nodes.
+   */
+  readonly reorganize?: boolean;
 }
 
 export interface WorldDagLayoutTarget {
@@ -1065,20 +1072,22 @@ function layoutPlace(
   const cacheKey = String(placeId);
   const cached = placeCache.get(cacheKey);
 
-  if (cached?.topologyKey === key) {
+  if (!options.reorganize && cached?.topologyKey === key) {
     placeCache.set(cacheKey, { ...cached, lastSeenRevision: revision });
     return cached.result;
   }
 
   const previousTargets = new Map(
-    (cached?.result.targets ?? []).map((target) => [String(target.instanceId), target] as const),
+    (options.reorganize ? [] : (cached?.result.targets ?? [])).map(
+      (target) => [String(target.instanceId), target] as const,
+    ),
   );
   const candidate = chooseCandidate(
     structuredNodeIds,
     edges,
     sizes,
     previousTargets,
-    cached?.result.metrics.algorithm,
+    options.reorganize ? undefined : cached?.result.metrics.algorithm,
   );
   const originalIds = new Map(nodeIds.map((id) => [String(id), id] as const));
 
