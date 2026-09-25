@@ -3469,21 +3469,6 @@ export class DeckWorldSurface implements WorldSurface {
     return 1;
   }
 
-  #temporalBorderOverlayAlpha(
-    instanceId: WorldInstanceId,
-    progress: WorldTemporalRevealProgress,
-  ): number {
-    const reveal = this.#temporalReveal;
-    if (
-      !reveal ||
-      (!reveal.enteringInstanceIds.has(instanceId) &&
-        !reveal.exitingInstanceIds.has(instanceId))
-    ) {
-      return 0;
-    }
-    return Math.sin(Math.PI * progress.node);
-  }
-
   #temporalEdgeColor(
     relationshipId: RelationshipId,
     semanticColor: string,
