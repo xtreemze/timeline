@@ -174,15 +174,96 @@ test("each story has distinct reusable fictional places referenced by edges", ()
 test("story realms use compact terrestrial staging regions appropriate to their settings", () => {
   const placeById = new Map(sample.places.map((place) => [place.id, place]));
   const terrainBounds = new Map([
-    ["story-three-little-pigs", { west: 7.5, east: 8.9, south: 49.4, north: 50.5, setting: /Field|Track|Meadow|Hill|Road|Yard|Cottage/ }],
-    ["story-snow-white", { west: 9.8, east: 11.2, south: 47.8, north: 49.2, setting: /Forest|Cottage|Clearing|Ridge/ }],
-    ["story-cinderella", { west: 12.2, east: 13.5, south: 46.8, north: 47.8, setting: /Palace|House|Garden|Village|Road/ }],
-    ["story-little-red-riding-hood", { west: 4.9, east: 6.4, south: 49.4, north: 50.6, setting: /Forest|Meadow|Clearing/ }],
-    ["story-hansel-and-gretel", { west: 9.8, east: 11.2, south: 51.1, north: 52.3, setting: /Trail|Forest|Crossing|Clearing/ }],
-    ["story-jack-and-the-beanstalk", { west: -2.8, east: -1.5, south: 53.6, north: 54.8, setting: /Farm|Field|Village/ }],
-    ["story-rapunzel", { west: 24.0, east: 25.8, south: 45.0, north: 46.4, setting: /Garden|Cottage|Tower|Thornwood|Valley/ }],
-    ["story-frog-prince", { west: 10.6, east: 12.0, south: 47.2, north: 48.5, setting: /Garden|Well|Path|Palace|Gate/ }],
-    ["story-rumpelstiltskin", { west: 10.0, east: 11.5, south: 50.2, north: 51.5, setting: /Mill|Palace|Clearing/ }],
+    [
+      "story-three-little-pigs",
+      {
+        west: 7.5,
+        east: 8.9,
+        south: 49.4,
+        north: 50.5,
+        setting: /Field|Track|Meadow|Hill|Road|Yard|Cottage/,
+      },
+    ],
+    [
+      "story-snow-white",
+      {
+        west: 9.8,
+        east: 11.2,
+        south: 47.8,
+        north: 49.2,
+        setting: /Forest|Cottage|Clearing|Ridge/,
+      },
+    ],
+    [
+      "story-cinderella",
+      {
+        west: 12.2,
+        east: 13.5,
+        south: 46.8,
+        north: 47.8,
+        setting: /Palace|House|Garden|Village|Road/,
+      },
+    ],
+    [
+      "story-little-red-riding-hood",
+      {
+        west: 4.9,
+        east: 6.4,
+        south: 49.4,
+        north: 50.6,
+        setting: /Forest|Meadow|Clearing/,
+      },
+    ],
+    [
+      "story-hansel-and-gretel",
+      {
+        west: 9.8,
+        east: 11.2,
+        south: 51.1,
+        north: 52.3,
+        setting: /Trail|Forest|Crossing|Clearing/,
+      },
+    ],
+    [
+      "story-jack-and-the-beanstalk",
+      {
+        west: -2.8,
+        east: -1.5,
+        south: 53.6,
+        north: 54.8,
+        setting: /Farm|Field|Village/,
+      },
+    ],
+    [
+      "story-rapunzel",
+      {
+        west: 24.0,
+        east: 25.8,
+        south: 45.0,
+        north: 46.4,
+        setting: /Garden|Cottage|Tower|Thornwood|Valley/,
+      },
+    ],
+    [
+      "story-frog-prince",
+      {
+        west: 10.6,
+        east: 12.0,
+        south: 47.2,
+        north: 48.5,
+        setting: /Garden|Well|Path|Palace|Gate/,
+      },
+    ],
+    [
+      "story-rumpelstiltskin",
+      {
+        west: 10.0,
+        east: 11.5,
+        south: 50.2,
+        north: 51.5,
+        setting: /Mill|Palace|Clearing/,
+      },
+    ],
   ]);
 
   function coordinatePairs(value, pairs = []) {
@@ -203,7 +284,9 @@ test("story realms use compact terrestrial staging regions appropriate to their 
     const bounds = terrainBounds.get(story.id);
     assert.ok(bounds, `${story.title}: staging bounds must be declared`);
 
-    const places = (story.placeIds || []).map((placeId) => placeById.get(placeId)).filter(Boolean);
+    const places = (story.placeIds || [])
+      .map((placeId) => placeById.get(placeId))
+      .filter(Boolean);
     const points = places.flatMap((place) => coordinatePairs(place.geometry?.coordinates));
     assert.ok(points.length >= 5, `${story.title}: enough spatial anchors`);
     assert.ok(
@@ -212,9 +295,11 @@ test("story realms use compact terrestrial staging regions appropriate to their 
     );
 
     const longitudeSpan =
-      Math.max(...points.map((point) => point[0])) - Math.min(...points.map((point) => point[0]));
+      Math.max(...points.map((point) => point[0])) -
+      Math.min(...points.map((point) => point[0]));
     const latitudeSpan =
-      Math.max(...points.map((point) => point[1])) - Math.min(...points.map((point) => point[1]));
+      Math.max(...points.map((point) => point[1])) -
+      Math.min(...points.map((point) => point[1]));
     assert.ok(longitudeSpan <= 3, `${story.title}: local geography should remain compact`);
     assert.ok(latitudeSpan <= 3, `${story.title}: local geography should remain compact`);
 
