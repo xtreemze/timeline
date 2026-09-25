@@ -72,4 +72,8 @@ test("cluster lifecycle contains no renderer position interpolation contract", a
   assert.match(source, /WORLD_CLUSTER_EDGE_RELEASE_MS/);
   assert.match(source, /releasingRelationships/);
   assert.match(source, /setClusteredPlaceIds/);
+  assert.match(source, /detachedLinkPlaceIds/);
+  assert.match(source, /#clusterPhase = "releasing"/);
+  assert.match(source, /#clusterPhase = "collapsing"/);
+  assert.match(source, /#clusterPhase = "expanding"/);
 });
