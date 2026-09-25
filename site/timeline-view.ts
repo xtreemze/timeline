@@ -1261,9 +1261,10 @@ export class TimelineViewController {
     const disabled = !this.items.length;
     if (this.zoomSlider.disabled !== disabled) this.zoomSlider.disabled = disabled;
 
-    const orientation = this.orientation === "vertical" ? "vertical" : "horizontal";
-    if (this.zoomSlider.getAttribute("aria-orientation") !== orientation) {
-      this.zoomSlider.setAttribute("aria-orientation", orientation);
+    // View controls now live in the persistent horizontal footer. The slider's
+    // own physical orientation no longer follows the timeline axis.
+    if (this.zoomSlider.getAttribute("aria-orientation") !== "horizontal") {
+      this.zoomSlider.setAttribute("aria-orientation", "horizontal");
     }
 
     if (disabled) return;
@@ -3039,7 +3040,7 @@ export class TimelineViewController {
     this.surface.classList.toggle("is-portrait", portrait);
     this.surface.classList.toggle("is-landscape", !portrait);
     if (this.zoomSlider) {
-      this.zoomSlider.setAttribute("aria-orientation", portrait ? "vertical" : "horizontal");
+      this.zoomSlider.setAttribute("aria-orientation", "horizontal");
     }
     if (this.orientationToggle) {
       this.orientationToggle.setAttribute(
