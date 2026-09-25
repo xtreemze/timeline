@@ -5,6 +5,7 @@ import { TimelineMotion } from "../site/timeline-motion.ts";
 import {
   CLUSTER_ZOOM_THRESHOLD,
   clusterZoomThresholdForNodeRadius,
+  clusterTargetPlaceIds,
   clusterZoomThresholdForPlaceDensity,
   DECK_WORLD_LAYER_IDS,
   DeckWorldSurface,
@@ -55,6 +56,39 @@ test("dense local places stay clustered longer and resolve progressively", () =>
   assert.ok(
     veryDenseGroup <= CLUSTER_ZOOM_THRESHOLD + 2.75,
     "density adjustment remains bounded so zoom can always resolve the cluster",
+  );
+});
+
+test("nearby singleton places stay clustered until their screen neighbourhood separates", () => {
+  const make = (id, longitude) =>
+    createProjectedWorldInstance({
+      id: worldInstanceId(id, `occ-${id}`),
+      canonicalId: id,
+      occurrenceId: `occ-${id}`,
+      geographicAnchors: [
+        {
+          placeId: `place-${id}`,
+          longitude,
+          latitude: 0,
+          sourceAltitude: 0,
+          influence: 1,
+        },
+      ],
+      temporalWeight: 1,
+      visualWeight: 1,
+      retained: false,
+    });
+  const instances = [make("a", 0), make("b", 1), make("c", 10)];
+
+  assert.deepEqual(
+    clusterTargetPlaceIds(instances, 6, 16, 160, "expanded"),
+    ["place-a", "place-b"],
+    "regional zoom keeps the two visually adjacent authored places aggregated",
+  );
+  assert.deepEqual(
+    clusterTargetPlaceIds(instances, 8, 16, 160, "expanded"),
+    [],
+    "zooming in resolves the same singleton places once their screen-space separation is readable",
   );
 });
 
