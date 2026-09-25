@@ -561,7 +561,8 @@
 }
 
 .app-footer-timeline .timeline-local-button,
-.app-footer-world .world-camera-control {
+.app-footer-world .world-camera-control,
+.app-footer-world .world-layout-control {
   inline-size: var(--app-footer-control-size);
   block-size: var(--app-footer-control-size);
   min-inline-size: var(--app-footer-control-size);
@@ -577,6 +578,29 @@
   gap: 0;
 }
 
+.app-footer-world .world-layout-controls {
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--app-footer-control-gap);
+  margin-inline-start: 0.12rem;
+  padding-inline-start: 0.12rem;
+  border-inline-start: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+}
+
+.app-footer-world .world-layout-control {
+  appearance: none;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  cursor: pointer;
+}
+
+.app-footer-world .world-layout-control .semantic-icon {
+  inline-size: 20px;
+  block-size: 20px;
+  stroke-width: 1.9;
+}
+
 .app-footer-world .world-camera-control + .world-camera-control {
   border-block-start: 1px solid transparent;
   border-inline-start: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
@@ -584,7 +608,8 @@
 
 .app-footer-actions > .app-tool:hover,
 .app-footer-timeline .timeline-local-button:hover,
-.app-footer-world .world-camera-control:hover {
+.app-footer-world .world-camera-control:hover,
+.app-footer-world .world-layout-control:hover {
   border-color: color-mix(in srgb, var(--line-strong) 70%, transparent);
   background: var(--paper-2);
   color: var(--ink);
@@ -592,7 +617,8 @@
 
 .app-footer-actions > .app-tool:focus-visible,
 .app-footer-timeline .timeline-local-button:focus-visible,
-.app-footer-world .world-camera-control:focus-visible {
+.app-footer-world .world-camera-control:focus-visible,
+.app-footer-world .world-layout-control:focus-visible {
   border-color: transparent;
   background: var(--paper-2);
   color: var(--ink);
@@ -612,7 +638,8 @@
 
 .app-footer-actions > .app-tool:disabled,
 .app-footer-timeline .timeline-local-button:disabled,
-.app-footer-world .world-camera-control:disabled {
+.app-footer-world .world-camera-control:disabled,
+.app-footer-world .world-layout-control:disabled {
   opacity: 0.42;
   cursor: not-allowed;
 }
@@ -631,7 +658,8 @@
 @media (forced-colors: active) {
   .app-footer-actions > .app-tool:focus-visible,
   .app-footer-timeline .timeline-local-button:focus-visible,
-  .app-footer-world .world-camera-control:focus-visible {
+  .app-footer-world .world-camera-control:focus-visible,
+  .app-footer-world .world-layout-control:focus-visible {
     outline-color: Highlight;
   }
 }
