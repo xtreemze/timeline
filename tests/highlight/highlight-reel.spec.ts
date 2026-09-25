@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Locator, Page, TestInfo } from "@playwright/test";
 import { expect, test } from "@playwright/test";
@@ -34,7 +34,7 @@ type ShowcaseSegment = SceneIntent & {
     durationSeconds: number;
     recordingWindowSeconds: number;
     frameTimestampsMs: number[];
-    method: "ffmpeg-x11grab-vp8";
+    method: "ffmpeg-x11grab-rawvideo";
     browserFrameClockFps: number;
   } | null;
 };
@@ -195,13 +195,12 @@ function capture(command: string, args: string[]) {
 }
 
 async function startX11Capture(
-  videoPath: string,
+  sourcePath: string,
   captureSize: { width: number; height: number },
 ): Promise<X11Capture> {
   const display = process.env.DISPLAY;
   if (!display) throw new Error("DISPLAY is required for the showcase framebuffer recorder.");
 
-  const bitrate = captureSize.width >= 1_000 ? "20M" : "8M";
   const child = spawn(
     process.env.FFMPEG_BIN ?? "ffmpeg",
     [
@@ -218,26 +217,12 @@ async function startX11Capture(
       `${display}+0,0`,
       "-an",
       "-c:v",
-      "libvpx",
-      "-deadline",
-      "realtime",
-      "-cpu-used",
-      "8",
-      "-threads",
-      "4",
-      "-b:v",
-      bitrate,
-      "-crf",
-      "10",
-      "-lag-in-frames",
-      "0",
-      "-auto-alt-ref",
-      "0",
-      "-pix_fmt",
-      "yuv420p",
+      "rawvideo",
       "-fps_mode",
       "passthrough",
-      videoPath,
+      "-f",
+      "nut",
+      sourcePath,
     ],
     {
       stdio: ["pipe", "inherit", "inherit"],
@@ -256,8 +241,7 @@ async function startX11Capture(
     child.once("spawn", () => resolve());
     child.once("error", reject);
   });
-  // Let x11grab initialize before the certified recording window begins.
-  await new Promise((resolve) => setTimeout(resolve, 120));
+  await new Promise((resolve) => setTimeout(resolve, 80));
   return { child, exited };
 }
 
@@ -290,6 +274,55 @@ async function probeDecodedFrameTimestamps(videoPath: string) {
     throw new Error(`Unable to decode source frame timestamps from ${videoPath}.`);
   }
   return timestamps;
+}
+
+async function encodeSourceCapture(
+  sourcePath: string,
+  videoPath: string,
+  captureSize: { width: number; height: number },
+) {
+  const bitrate = captureSize.width >= 1_000 ? "20M" : "8M";
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(
+      process.env.FFMPEG_BIN ?? "ffmpeg",
+      [
+        "-y",
+        "-i",
+        sourcePath,
+        "-an",
+        "-c:v",
+        "libvpx",
+        "-deadline",
+        "realtime",
+        "-cpu-used",
+        "6",
+        "-threads",
+        "4",
+        "-b:v",
+        bitrate,
+        "-crf",
+        "10",
+        "-lag-in-frames",
+        "0",
+        "-auto-alt-ref",
+        "0",
+        "-pix_fmt",
+        "yuv420p",
+        "-fps_mode",
+        "passthrough",
+        videoPath,
+      ],
+      {
+        stdio: ["ignore", "inherit", "inherit"],
+        env: process.env,
+      },
+    );
+    child.on("error", reject);
+    child.on("exit", (code, signal) => {
+      if (code === 0) resolve();
+      else reject(new Error(`ffmpeg exited with ${String(code ?? signal)}`));
+    });
+  });
 }
 
 async function installCaptureBrand(page: Page, formFactor: FormFactor) {
@@ -399,6 +432,7 @@ async function recordSegment(
   const rawDir = path.join(OUTPUT_ROOT, "raw", formFactor);
   await mkdir(rawDir, { recursive: true });
   const videoPath = path.join(rawDir, `${scene.name}.webm`);
+  const sourcePath = `${videoPath}.source.nut`;
   const screenshotPath = path.join(rawDir, `${scene.name}.png`);
   const captureSize =
     formFactor === "desktop" ? PROJECTS["Desktop Showcase"].size : PROJECTS["Mobile Showcase"].size;
@@ -428,29 +462,16 @@ async function recordSegment(
     let screenCapture: X11Capture | null = null;
     try {
       await startCaptureHeartbeat(page);
-      screenCapture = await startX11Capture(videoPath, captureSize);
+      screenCapture = await startX11Capture(sourcePath, captureSize);
       const captureStartedAt = Date.now();
 
       await body();
       await page.waitForTimeout(450);
-      await page.screenshot({
-        path: screenshotPath,
-        animations: "disabled",
-        scale: "css",
-        timeout: 30_000,
-      });
-
       const browserFrameClock = await stopCaptureHeartbeat(page);
-      if (!Number.isFinite(browserFrameClock.fps) || browserFrameClock.fps < MIN_CAPTURE_FPS) {
-        throw new Error(
-          `${formFactor}/${scene.name} browser frame clock measured ${browserFrameClock.fps.toFixed(2)} fps; expected at least ${MIN_CAPTURE_FPS}.`,
-        );
-      }
-
       const captureStoppedAt = Date.now();
       await stopX11Capture(screenCapture);
       screenCapture = null;
-      const frameTimestampsMs = await probeDecodedFrameTimestamps(videoPath);
+      const frameTimestampsMs = await probeDecodedFrameTimestamps(sourcePath);
       const cadence = measureFrameCadence(frameTimestampsMs);
       const expectedDurationSeconds = (captureStoppedAt - captureStartedAt) / 1_000;
       const minimumDurationSeconds = expectedDurationSeconds * MIN_CAPTURE_COVERAGE;
@@ -459,11 +480,23 @@ async function recordSegment(
           `${formFactor}/${scene.name} framebuffer samples cover only ${cadence.durationSeconds.toFixed(3)}s of a ${expectedDurationSeconds.toFixed(3)}s recording window; expected at least ${minimumDurationSeconds.toFixed(3)}s.`,
         );
       }
-      if (cadence.fps < MIN_CAPTURE_FPS) {
+      if (
+        cadence.fps < MIN_CAPTURE_FPS ||
+        !Number.isFinite(browserFrameClock.fps) ||
+        browserFrameClock.fps < MIN_CAPTURE_FPS
+      ) {
         throw new Error(
-          `${formFactor}/${scene.name} captured ${cadence.fps.toFixed(2)} actual framebuffer fps; expected at least ${MIN_CAPTURE_FPS}.`,
+          `${formFactor}/${scene.name} measured ${cadence.fps.toFixed(2)} actual framebuffer fps and ${browserFrameClock.fps.toFixed(2)} browser fps; expected both to be at least ${MIN_CAPTURE_FPS}.`,
         );
       }
+
+      await encodeSourceCapture(sourcePath, videoPath, captureSize);
+      await page.screenshot({
+        path: screenshotPath,
+        animations: "disabled",
+        scale: "css",
+        timeout: 30_000,
+      });
 
       capture = {
         targetFps: SHOWCASE_FPS,
@@ -472,12 +505,13 @@ async function recordSegment(
         durationSeconds: cadence.durationSeconds,
         recordingWindowSeconds: expectedDurationSeconds,
         frameTimestampsMs,
-        method: "ffmpeg-x11grab-vp8",
+        method: "ffmpeg-x11grab-rawvideo",
         browserFrameClockFps: browserFrameClock.fps,
       };
     } finally {
       await stopCaptureHeartbeat(page).catch(() => {});
       if (screenCapture) await stopX11Capture(screenCapture).catch(() => {});
+      await rm(sourcePath, { force: true }).catch(() => {});
       await page
         .evaluate(() => document.querySelector("#lum-showcase-capture-brand")?.remove())
         .catch(() => {});
