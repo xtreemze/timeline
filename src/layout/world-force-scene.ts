@@ -10,10 +10,7 @@ import type {
   WorldForceNode,
   WorldForceScene,
 } from "./world-force-simulation.ts";
-import {
-  WORLD_ENTITY_MIN_HIT_RADIUS_PX,
-  worldNodeFootprintRadiusPx,
-} from "./world-graph-style.ts";
+import { WORLD_ENTITY_MIN_HIT_RADIUS_PX, worldNodeFootprintRadiusPx } from "./world-graph-style.ts";
 
 export interface WorldForceScenePolicy {
   readonly baseMass: number;

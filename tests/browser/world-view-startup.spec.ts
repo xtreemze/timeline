@@ -58,7 +58,7 @@ test.describe("production world view startup", () => {
     await page.reload({ waitUntil: "load" });
 
     const worldSummary = page.locator(
-      "#temporal-graph-view .temporal-graph-canvas [role=\"status\"]",
+      '#temporal-graph-view .temporal-graph-canvas [role="status"]',
     );
     await expect(worldSummary).toHaveText(
       /World view: [1-9]\d* places, [1-9]\d* relationships, [1-9]\d* entities visible\./,

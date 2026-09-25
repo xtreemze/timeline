@@ -92,10 +92,7 @@ test("retained card semantic work is dataset-scoped and cross geometry is cached
   assert.match(positionBody, /previousLabelBefore !== labelBefore/);
   assert.match(positionBody, /classList\.contains\("is-buffered"\) !== buffered/);
   assert.match(positionBody, /terminal\.tabIndex !== terminalTabIndex/);
-  assert.match(
-    positionBody,
-    /record\.connectorGeometryDirty \|\| crossGeometryChanged/,
-  );
+  assert.match(positionBody, /record\.connectorGeometryDirty \|\| crossGeometryChanged/);
   assert.match(positionBody, /record\.connectorGeometryDirty = false/);
 
   const clusterStart = source.indexOf("  positionCommittedClusters(");

@@ -303,7 +303,9 @@ function stronglyConnectedComponentIndex(
     nextComponent += 1;
   };
 
-  for (const node of [...nodeIds].sort((left, right) => String(left).localeCompare(String(right)))) {
+  for (const node of [...nodeIds].sort((left, right) =>
+    String(left).localeCompare(String(right)),
+  )) {
     if (!indexes.has(node)) visit(node);
   }
 
@@ -873,7 +875,8 @@ function preferPreviousCandidate(
   candidates: readonly CandidateLayout[],
 ): CandidateLayout {
   const best = [...candidates].sort(
-    (left, right) => candidateScore(left) - candidateScore(right) || left.name.localeCompare(right.name),
+    (left, right) =>
+      candidateScore(left) - candidateScore(right) || left.name.localeCompare(right.name),
   )[0];
   if (!best) {
     throw new Error("World DAG candidate selection requires at least one candidate.");
@@ -883,7 +886,9 @@ function preferPreviousCandidate(
   const prior = candidates.find((candidate) => candidate.name === priorName);
   if (!prior || prior.targets.length === 0) return best;
 
-  return candidateScore(prior) <= candidateScore(best) * LAYOUT_HYSTERESIS_SCORE_RATIO ? prior : best;
+  return candidateScore(prior) <= candidateScore(best) * LAYOUT_HYSTERESIS_SCORE_RATIO
+    ? prior
+    : best;
 }
 
 function chooseCandidate(
