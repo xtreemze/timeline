@@ -1,3 +1,4 @@
+import { surfacePointerMayStartDirectManipulation } from "../src/interaction/surface-input-policy.ts";
 import { Leaflet } from "../src/leaflet-entry.js";
 
 /**
@@ -403,7 +404,7 @@ function installWeightedMapDragging(
   };
 
   const onPointerDown = (event: PointerEvent) => {
-    if (event.button !== 0) return;
+    if (!surfacePointerMayStartDirectManipulation(event)) return;
     cancelInertia();
     const blocked = targetBlocksCameraDrag(event.target);
     pointers.set(event.pointerId, {
