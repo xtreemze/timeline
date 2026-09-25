@@ -5,6 +5,7 @@ const MEDIA_CAPTION =
 const EXTRA_CATEGORIES = [
   { id: "deception", name: "Deception / Manipulation", color: "#9333ea" },
   { id: "exchange", name: "Exchange / Bargain", color: "#a16207" },
+  { id: "obligation", name: "Promise / Obligation", color: "#0f766e" },
 ];
 
 const STORY_SPECS =
@@ -152,8 +153,149 @@ const STORY_SPECS =
       ["jack-observes-giant", "1043-05-11T11:00Z", "Jack watches Castle Giant", "Jack watches Castle Giant in the castle hall and learns the rhythm of the household before acting, giving the later theft a clear observational step rather than treating it as instantaneous.", "discovery", "search", "evidence-dossier", "jack-sky-hall-place", "jack", "jack-giant", "watches"],
       ["jack-first-theft", "1043-05-13T12:00Z", "Jack steals from Castle Giant", "Jack steals from Castle Giant after the household settles, beginning the material escalation and creating the conflict that will eventually turn the return route into a pursuit.", "conflict", "object", "hero-split", "jack-sky-hall-place", "jack", "jack-giant", "robs"],
       ["jack-goose", "1043-05-15T13:00Z", "Jack seizes Golden Goose", "Jack seizes Golden Goose during a later visit, making the object itself a canonical graph participant and distinguishing this action from the earlier theft.", "exchange", "object", "editorial-mosaic", "jack-sky-hall-place", "jack", "jack-golden-goose", "seizes"],
-      ["jack-pursuit", "1043-05-18T14:00Z", "Castle Giant chases Jack", "Castle Castle Giant chases Jack across the sky-castle yard toward the vertical route, turning the connection into an escape path and linking the remote cluster back to the farm below.", "conflict", "danger", "evidence-dossier", "jack-sky-yard-place", "jack-giant", "jack", "chases"],
+      ["jack-pursuit", "1043-05-18T14:00Z", "Castle Giant chases Jack", "Castle Giant chases Jack across the sky-castle yard toward the vertical route, turning the connection into an escape path and linking the remote cluster back to the farm below.", "conflict", "danger", "evidence-dossier", "jack-sky-yard-place", "jack-giant", "jack", "chases"],
       ["jack-cuts-beanstalk", "1043-05-21T16:00Z", "Jack cuts Beanstalk", "Jack cuts Beanstalk after reaching the ground, severing the dangerous route and providing a spatially explicit resolution to the pursuit rather than ending at the moment of escape.", "resolution", "decision", "hero-split", "jack-bean-field-place", "jack", "jack-beanstalk", "cuts"],
+    ],
+  },
+  {
+    id: "story-rapunzel",
+    title: "Rapunzel",
+    description:
+      "A child raised under isolation in a remote tower forms a hidden connection with a visiting prince, is displaced into a separate wilderness, and eventually reunites with him far from the tower.",
+    cycle: "Storybook Cycle 1061",
+    spatialFrame: "Briarvale Realm",
+    evidence: {
+      id: "src-rapunzel",
+      type: "article",
+      title: "Rapunzel — narrative source card",
+      sourceName: "Storybook fixture",
+      note: "A fictional narrative source used to demonstrate isolation, repeated visits, displacement, deception, and reunion across separated places.",
+      publishedAt: "1061-06-01",
+    },
+    media: [
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Arthur%20Rackham%20Rapunzel.jpg",
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Rapunzel%2C%20Let%20Down%20Your%20Hair%20-%20Anne%20Anderson.jpg",
+      "https://commons.wikimedia.org/wiki/Special:FilePath/RapunzelWalterCrane.jpg",
+    ],
+    entities: [
+      ["rapunzel", "person", "Rapunzel"],
+      ["rapunzel-gothel", "person", "Mother Gothel"],
+      ["rapunzel-prince", "person", "Tower Prince"],
+    ],
+    places: [
+      ["rapunzel-garden-place", "Briarvale Walled Garden", -58.4, -12.1, "place", "square"],
+      ["rapunzel-cottage-place", "Gothel's Briarvale Cottage", -58.0, -11.85, "home", "square"],
+      ["rapunzel-tower-clearing-place", "Briarvale Tower Clearing", -57.55, -11.5, "place", "pin"],
+      ["rapunzel-tower-chamber-place", "Briarvale Tower Chamber", -57.5, -11.45, "crown", "diamond"],
+      ["rapunzel-thornwood-place", "Briarvale Thornwood", -57.1, -11.15, "danger", "pin"],
+      ["rapunzel-reunion-valley-place", "Briarvale Reunion Valley", -56.65, -10.85, "magic", "diamond"],
+    ],
+    scenes: [
+      ["rapunzel-taken", "1061-06-01T07:30Z", "Mother Gothel takes Rapunzel", "Mother Gothel takes Rapunzel into her care and removes her from the ordinary household world, establishing the controlling relationship that shapes the rest of the story.", "state-change", "home", "hero-split", "rapunzel-garden-place", "rapunzel-gothel", "rapunzel", "takes"],
+      ["rapunzel-raised", "1061-06-03T08:00Z", "Mother Gothel raises Rapunzel", "Mother Gothel raises Rapunzel in increasing isolation and controls the boundaries of her daily life, turning a family relationship into a long-running condition of dependence.", "relationship", "relation", "editorial-mosaic", "rapunzel-cottage-place", "rapunzel-gothel", "rapunzel", "raises"],
+      ["rapunzel-confined", "1061-06-05T09:00Z", "Mother Gothel confines Rapunzel", "Mother Gothel confines Rapunzel in the remote tower and restricts ordinary access to the chamber, making the tower a concrete spatial expression of control rather than mere background.", "conflict", "danger", "evidence-dossier", "rapunzel-tower-chamber-place", "rapunzel-gothel", "rapunzel", "confines"],
+      ["rapunzel-obeys", "1061-06-07T10:15Z", "Rapunzel obeys Mother Gothel", "Rapunzel obeys Mother Gothel at the tower window and preserves the established access ritual, showing how the confinement is maintained through repeated interpersonal action.", "obligation", "relation", "hero-split", "rapunzel-tower-clearing-place", "rapunzel", "rapunzel-gothel", "obeys"],
+      ["rapunzel-prince-hears", "1061-06-09T11:00Z", "Tower Prince hears Rapunzel", "Tower Prince hears Rapunzel singing from the isolated tower and recognizes a person where the landscape first appeared inaccessible, creating the discovery that motivates later visits.", "discovery", "search", "editorial-mosaic", "rapunzel-tower-clearing-place", "rapunzel-prince", "rapunzel", "hears"],
+      ["rapunzel-prince-visits", "1061-06-11T12:00Z", "Tower Prince visits Rapunzel", "Tower Prince visits Rapunzel inside the chamber after learning the tower's access pattern, converting distant observation into a direct relationship hidden from the controlling household.", "relationship", "crown", "evidence-dossier", "rapunzel-tower-chamber-place", "rapunzel-prince", "rapunzel", "visits"],
+      ["rapunzel-trusts-prince", "1061-06-13T13:30Z", "Rapunzel trusts Tower Prince", "Rapunzel trusts Tower Prince during a later meeting and begins treating the secret visits as a path toward a different life, giving the relationship a clear decision point.", "decision", "relation", "hero-split", "rapunzel-tower-chamber-place", "rapunzel", "rapunzel-prince", "trusts"],
+      ["rapunzel-banished", "1061-06-16T14:00Z", "Mother Gothel banishes Rapunzel", "Mother Gothel banishes Rapunzel from the tower after discovering the hidden relationship, abruptly moving the story from controlled isolation into an unfamiliar wilderness.", "conflict", "danger", "editorial-mosaic", "rapunzel-thornwood-place", "rapunzel-gothel", "rapunzel", "banishes"],
+      ["rapunzel-prince-deceived", "1061-06-19T15:00Z", "Mother Gothel deceives Tower Prince", "Mother Gothel deceives Tower Prince when he returns to the tower and expects the familiar meeting, turning the old access route into a deliberate trap and severing his certainty about Rapunzel's location.", "deception", "magic", "evidence-dossier", "rapunzel-tower-chamber-place", "rapunzel-gothel", "rapunzel-prince", "deceives"],
+      ["rapunzel-reunion", "1061-06-23T17:00Z", "Tower Prince reunites with Rapunzel", "Tower Prince reunites with Rapunzel in a distant valley after both have been displaced from the tower, closing the story in a new location rather than returning to the original site of confinement.", "resolution", "relation", "hero-split", "rapunzel-reunion-valley-place", "rapunzel-prince", "rapunzel", "reunitesWith"],
+    ],
+  },
+  {
+    id: "story-frog-prince",
+    title: "The Frog Prince",
+    description:
+      "A lost keepsake at a palace well creates a promise between a princess and a frog, and the ignored obligation follows them from the garden into the palace before the relationship changes.",
+    cycle: "Storybook Cycle 1078",
+    spatialFrame: "Merecourt Realm",
+    evidence: {
+      id: "src-frog-prince",
+      type: "document",
+      title: "The Frog Prince — narrative source card",
+      sourceName: "Storybook fixture",
+      note: "A fictional narrative source used to demonstrate promises, object recovery, following movement, household enforcement, and transformation.",
+      publishedAt: "1078-09-04",
+    },
+    media: [
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Walter%20Crane%20The%20Frog%20Prince.jpg",
+      "https://commons.wikimedia.org/wiki/Special:FilePath/The%20Frog%20Prince%20and%20Other%20Stories-illus010%2011s.jpg",
+      "https://commons.wikimedia.org/wiki/Special:FilePath/The%20Frog%20Turns%20Into%20A%20Prince%20-%20Illustration%20For%20The%20Frog%20Prince%20by%20Walter%20Crane%20-%20Walter%20Crane%20-%20ABDAG003357.jpg",
+    ],
+    entities: [
+      ["frog-princess", "person", "Princess"],
+      ["frog-prince", "person", "Frog Prince"],
+      ["frog-king", "person", "King"],
+      ["frog-golden-ball", "object", "Golden Ball"],
+    ],
+    places: [
+      ["frog-palace-garden-place", "Merecourt Palace Garden", 6.2, -38.0, "crown", "square"],
+      ["frog-well-place", "Merecourt Old Well", 6.55, -38.25, "place", "diamond"],
+      ["frog-garden-path-place", "Merecourt Garden Path", 6.85, -38.05, "place", "pin"],
+      ["frog-banquet-hall-place", "Merecourt Banquet Hall", 7.15, -37.8, "home", "square"],
+      ["frog-princess-chamber-place", "Merecourt Princess Chamber", 7.2, -37.7, "danger", "diamond"],
+      ["frog-castle-gate-place", "Merecourt Castle Gate", 7.55, -37.5, "crown", "pin"],
+    ],
+    scenes: [
+      ["frog-king-gift", "1078-09-04T08:00Z", "King gives Princess a keepsake", "King gives Princess a cherished keepsake for play in the palace garden, establishing the valued possession whose loss will make an unlikely bargain suddenly important.", "relationship", "crown", "hero-split", "frog-palace-garden-place", "frog-king", "frog-princess", "gives"],
+      ["frog-ball-lost", "1078-09-06T09:15Z", "Princess drops Golden Ball", "Princess drops Golden Ball beside the old well and cannot recover it herself, turning a routine garden moment into a practical problem with a specific object at stake.", "state-change", "object", "editorial-mosaic", "frog-well-place", "frog-princess", "frog-golden-ball", "drops"],
+      ["frog-offers-help", "1078-09-08T10:00Z", "Frog Prince offers Princess help", "Frog Prince offers Princess help at the well after hearing her distress, introducing a negotiator whose requested companionship matters more than the material reward she first imagines.", "relationship", "relation", "evidence-dossier", "frog-well-place", "frog-prince", "frog-princess", "offers"],
+      ["frog-promise", "1078-09-10T10:30Z", "Princess promises Frog Prince companionship", "Princess promises Frog Prince companionship in exchange for assistance, creating an explicit obligation that remains meaningful after the immediate problem at the well is solved.", "obligation", "relation", "hero-split", "frog-well-place", "frog-princess", "frog-prince", "promises"],
+      ["frog-ball-retrieved", "1078-09-12T11:00Z", "Frog Prince retrieves Golden Ball", "Frog Prince retrieves Golden Ball from the well and completes his side of the bargain, making the recovered object a visible marker that the earlier promise now has consequences.", "resolution", "magic", "editorial-mosaic", "frog-well-place", "frog-prince", "frog-golden-ball", "retrieves"],
+      ["frog-princess-leaves", "1078-09-14T12:00Z", "Princess abandons Frog Prince", "Princess abandons Frog Prince on the garden path after recovering what she wanted, creating the conflict between a spoken obligation and her immediate attempt to escape it.", "conflict", "danger", "evidence-dossier", "frog-garden-path-place", "frog-princess", "frog-prince", "abandons"],
+      ["frog-follows", "1078-09-16T13:00Z", "Frog Prince follows Princess", "Frog Prince follows Princess from the garden toward the palace instead of accepting the broken promise, moving the unresolved relationship into the household where others can witness it.", "movement", "place", "hero-split", "frog-castle-gate-place", "frog-prince", "frog-princess", "follows"],
+      ["frog-king-orders", "1078-09-18T14:00Z", "King orders Princess to honor her promise", "King orders Princess to honor her promise once the dispute reaches the banquet hall, converting a private bargain at the well into a household obligation backed by authority.", "obligation", "crown", "editorial-mosaic", "frog-banquet-hall-place", "frog-king", "frog-princess", "orders"],
+      ["frog-thrown", "1078-09-21T15:00Z", "Princess throws Frog Prince", "Princess throws Frog Prince inside her chamber after resisting his continued presence, creating the abrupt physical confrontation that precedes the tale's transformation.", "conflict", "danger", "evidence-dossier", "frog-princess-chamber-place", "frog-princess", "frog-prince", "throws"],
+      ["frog-departure", "1078-09-25T16:30Z", "Frog Prince escorts Princess", "Frog Prince escorts Princess through the castle gate after the relationship has changed, closing the story with purposeful movement away from the sites of the bargain and dispute.", "resolution", "crown", "hero-split", "frog-castle-gate-place", "frog-prince", "frog-princess", "escorts"],
+    ],
+  },
+  {
+    id: "story-rumpelstiltskin",
+    title: "Rumpelstiltskin",
+    description:
+      "A boast at court traps a young woman in escalating demands, magical assistance becomes a dangerous bargain, and the final obligation turns on discovering the helper's hidden name.",
+    cycle: "Storybook Cycle 1096",
+    spatialFrame: "Goldmarsh Realm",
+    evidence: {
+      id: "src-rumpelstiltskin",
+      type: "pdf",
+      title: "Rumpelstiltskin — narrative source card",
+      sourceName: "Storybook fixture",
+      note: "A fictional narrative source used to demonstrate escalating demands, exchange, promise obligations, identity discovery, and release.",
+      publishedAt: "1096-02-02",
+    },
+    media: [
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Rumpelstiltskin-Crane1886.jpg",
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Rumpelstiltskin.jpg",
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Rumplestiltskin%20-%20Anne%20Anderson.jpg",
+    ],
+    entities: [
+      ["rumpel-father", "person", "Her Father"],
+      ["rumpel-daughter", "person", "Miller's Daughter"],
+      ["rumpel-king", "person", "Goldmarsh King"],
+      ["rumpel-helper", "person", "Rumpelstiltskin"],
+      ["rumpel-child", "person", "Royal Child"],
+    ],
+    places: [
+      ["rumpel-mill-place", "Goldmarsh Mill House", 58.0, -48.2, "home", "square"],
+      ["rumpel-throne-hall-place", "Goldmarsh Throne Hall", 58.45, -47.95, "crown", "square"],
+      ["rumpel-spinning-room-place", "Goldmarsh Spinning Room", 58.6, -47.65, "object", "diamond"],
+      ["rumpel-palace-place", "Goldmarsh Palace", 58.9, -47.4, "crown", "pin"],
+      ["rumpel-nursery-place", "Goldmarsh Royal Nursery", 59.15, -47.15, "home", "square"],
+      ["rumpel-name-clearing-place", "Goldmarsh Name Clearing", 59.55, -46.85, "search", "diamond"],
+    ],
+    scenes: [
+      ["rumpel-boast", "1096-02-02T07:00Z", "Her Father boasts to Goldmarsh King", "Her Father boasts to Goldmarsh King about impossible spinning skill in the family, turning ordinary court ambition into a claim that places another person under dangerous scrutiny.", "deception", "crown", "hero-split", "rumpel-throne-hall-place", "rumpel-father", "rumpel-king", "boasts"],
+      ["rumpel-first-demand", "1096-02-04T08:00Z", "Goldmarsh King orders Miller's Daughter", "Goldmarsh King orders Miller's Daughter to complete an impossible spinning task under threat, transforming the earlier boast into a direct and measurable demand.", "conflict", "danger", "editorial-mosaic", "rumpel-spinning-room-place", "rumpel-king", "rumpel-daughter", "orders"],
+      ["rumpel-first-help", "1096-02-06T22:00Z", "Rumpelstiltskin helps Miller's Daughter", "Rumpelstiltskin helps Miller's Daughter during the first night of confinement and demonstrates a solution that appears miraculous while introducing a new dependency.", "relationship", "magic", "evidence-dossier", "rumpel-spinning-room-place", "rumpel-helper", "rumpel-daughter", "helps"],
+      ["rumpel-necklace", "1096-02-08T22:30Z", "Miller's Daughter gives Rumpelstiltskin payment", "Miller's Daughter gives Rumpelstiltskin a personal payment for further assistance, making the magical help an explicit exchange rather than an unexplained intervention.", "exchange", "object", "hero-split", "rumpel-spinning-room-place", "rumpel-daughter", "rumpel-helper", "gives"],
+      ["rumpel-second-demand", "1096-02-10T08:30Z", "Goldmarsh King pressures Miller's Daughter", "Goldmarsh King pressures Miller's Daughter with a larger demand after seeing the earlier result, escalating the court's expectations instead of treating the first success as sufficient.", "conflict", "danger", "editorial-mosaic", "rumpel-throne-hall-place", "rumpel-king", "rumpel-daughter", "pressures"],
+      ["rumpel-final-bargain", "1096-02-12T23:00Z", "Rumpelstiltskin bargains with Miller's Daughter", "Rumpelstiltskin bargains with Miller's Daughter when ordinary payment is exhausted, shifting the exchange from possessions to a future obligation with much greater stakes.", "exchange", "relation", "evidence-dossier", "rumpel-spinning-room-place", "rumpel-helper", "rumpel-daughter", "bargainsWith"],
+      ["rumpel-promise", "1096-02-14T23:30Z", "Miller's Daughter promises Rumpelstiltskin", "Miller's Daughter promises Rumpelstiltskin the future payment he requests, creating the obligation that survives the immediate spinning crisis and returns later in the story.", "obligation", "relation", "hero-split", "rumpel-spinning-room-place", "rumpel-daughter", "rumpel-helper", "promises"],
+      ["rumpel-marriage", "1096-02-17T12:00Z", "Goldmarsh King marries Miller's Daughter", "Goldmarsh King marries Miller's Daughter after the impossible demands are satisfied, changing her position at court while leaving the private bargain unresolved.", "relationship", "crown", "editorial-mosaic", "rumpel-palace-place", "rumpel-king", "rumpel-daughter", "marries"],
+      ["rumpel-claim", "1096-02-20T14:00Z", "Rumpelstiltskin claims Royal Child", "Rumpelstiltskin claims Royal Child under the earlier bargain and makes the deferred cost immediate, turning a past promise into the central conflict of the final sequence.", "conflict", "danger", "evidence-dossier", "rumpel-nursery-place", "rumpel-helper", "rumpel-child", "claims"],
+      ["rumpel-name-found", "1096-02-24T17:00Z", "Miller's Daughter identifies Rumpelstiltskin", "Miller's Daughter identifies Rumpelstiltskin after the hidden name is discovered, satisfying the condition that breaks the dangerous obligation and resolves the bargain.", "resolution", "search", "hero-split", "rumpel-name-clearing-place", "rumpel-daughter", "rumpel-helper", "identifies"],
     ],
   },
 ];
@@ -413,7 +555,7 @@ export function extendSampleCase(sample) {
     placeId: "place-cinderella-ashenvale-village-search-route",
   });
 
-  sample.title = "Six classic tales — distributed fictional casebook";
+  sample.title = "Nine classic tales — distributed fictional casebook";
   const narrative = sample.extensions?.narrative;
   if (narrative) {
     narrative.temporalReferenceFrame = {
