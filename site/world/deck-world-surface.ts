@@ -440,11 +440,10 @@ export function clusterZoomThresholdForPlaceDensity(
 }
 
 /**
- * Keeps nearby authored places in the same semantic cluster tier while their
- * anchors are still inside one readable screen-space neighbourhood. This is
- * deliberately zoom-aware: proximity is measured in pixels, then converted to
- * the globe's angular metric. It prevents singleton/small place groups from
- * expanding independently while their labels and local graphs still overlap.
+ * Estimates the screen-space radius needed to present one place's members
+ * without collapsing them. Node packing is the floor; internal relationship
+ * load increases the required area because predicates and edge crossings also
+ * consume semantic space.
  */
 export function clusterRequiredLocalRadiusPx(
   nodeRadiusPx: number,
@@ -472,7 +471,7 @@ export function clusterRequiredLocalRadiusPx(
  */
 export function clusterTargetPlaceIds(
   instances: readonly ProjectedWorldInstance[],
-  edges: readonly WorldProjection["edges"][number][],
+  edges: WorldProjection["edges"],
   zoom: number,
   nodeRadiusPx: number,
   availableLocalRadiusPx: number,
