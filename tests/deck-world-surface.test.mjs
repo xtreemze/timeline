@@ -14,6 +14,7 @@ import {
   worldGraphLabelSize,
   worldLabelCollisionPriority,
 } from "../site/world/deck-world-surface.ts";
+import { WorldRenderTopologyIndex } from "../site/world/world-render-topology.ts";
 import { selectWorldSpatialMode } from "../src/layout/world-spatial-mode.ts";
 import {
   createProjectedWorldEdge,
@@ -198,6 +199,73 @@ function projection() {
     ],
   });
 }
+
+test("retained world topology survives position-only projection deltas", () => {
+  const before = projection();
+  const topology = new WorldRenderTopologyIndex(before);
+  const lanes = topology.lanes;
+  const adjacency = topology.edgesByEntity;
+
+  const alice = before.instances.find((instance) => instance.canonicalId === "alice");
+  assert.ok(alice);
+  const after = createWorldProjection({
+    instances: before.instances.map((instance) =>
+      instance === alice
+        ? createProjectedWorldInstance({
+            ...instance,
+            localOffset: { eastMeters: 4_000, northMeters: -750 },
+          })
+        : instance,
+    ),
+    edges: before.edges,
+  });
+
+  const delta = diffWorldProjection(before, after);
+  topology.applyDelta(delta, after);
+
+  assert.equal(topology.lanes, lanes, "position-only deltas retain relationship lane topology");
+  assert.equal(topology.edgesByEntity, adjacency, "position-only deltas retain entity adjacency");
+  const movedAlice = after.instances.find((instance) => instance.canonicalId === "alice");
+  assert.ok(movedAlice);
+  assert.equal(topology.instanceById.get(movedAlice.id), movedAlice);
+
+  const neighborhood = topology.interactionNeighborhood([
+    { kind: "entity", id: "alice" },
+    { kind: "place", id: "stockholm" },
+  ]);
+  assert.deepEqual([...neighborhood.entityIds].sort(), ["alice", "bob"]);
+  assert.deepEqual([...neighborhood.relationshipIds], ["meeting"]);
+  assert.deepEqual([...neighborhood.placeIds], ["stockholm"]);
+});
+
+test("retained world topology rebuilds lanes when relationship structure changes", () => {
+  const before = projection();
+  const topology = new WorldRenderTopologyIndex(before);
+  const previousLanes = topology.lanes;
+  const [existing] = before.edges;
+  assert.ok(existing);
+
+  const after = createWorldProjection({
+    instances: before.instances,
+    edges: [
+      existing,
+      createProjectedWorldEdge({
+        id: "meeting-2",
+        sourceInstanceId: existing.sourceInstanceId,
+        targetInstanceId: existing.targetInstanceId,
+        temporalWeight: 0.8,
+        visible: true,
+        retained: false,
+      }),
+    ],
+  });
+
+  topology.applyDelta(diffWorldProjection(before, after), after);
+
+  assert.notEqual(topology.lanes, previousLanes);
+  assert.equal(topology.lanes.get("meeting"), -1);
+  assert.equal(topology.lanes.get("meeting-2"), 1);
+});
 
 test("world graph label scale matches the compact interface hierarchy", () => {
   assert.equal(worldGraphLabelSize({ kind: "place-label", emphasized: false }), 14);
