@@ -51,6 +51,7 @@ type ShowcaseSegment = SceneIntent & {
     measuredFps: number;
     frameCount: number;
     durationSeconds: number;
+    recordingWindowSeconds: number;
     frameTimestampsMs: number[];
     method: "get-display-media-current-tab";
     mimeType: string;
@@ -353,6 +354,7 @@ async function stopTabCapture(page: Page, videoPath: string) {
     state.recorder.stop();
     await stopped;
 
+    const trackSettings = state.stream.getVideoTracks()[0]?.getSettings() ?? {};
     await state.reader.cancel().catch(() => {});
     state.processorTrack.stop();
     for (const track of state.stream.getTracks()) track.stop();
@@ -361,7 +363,6 @@ async function stopTabCapture(page: Page, videoPath: string) {
     const blob = new Blob(state.chunks, { type: state.mimeType });
     if (blob.size === 0) throw new Error("Current-tab capture produced an empty WebM.");
 
-    const trackSettings = state.stream.getVideoTracks()[0]?.getSettings() ?? {};
     const frameTimestampsMs = [...state.frameTimestampsMs];
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
@@ -544,6 +545,7 @@ async function recordSegment(
         measuredFps: cadence.fps,
         frameCount: frameTimestampsMs.length,
         durationSeconds: cadence.durationSeconds,
+        recordingWindowSeconds: expectedDurationSeconds,
         frameTimestampsMs,
         method: "get-display-media-current-tab",
         mimeType: source.mimeType,
