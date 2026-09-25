@@ -186,8 +186,10 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightRenderer, /verifyMeasuredCapture/);
   assert.match(highlightRenderer, /best_effort_timestamp_time/);
   assert.match(highlightRenderer, /probeFrameTimestamps/);
-  assert.match(highlightRenderer, /raw WebM decodes at only/);
-  assert.match(highlightRenderer, /browser animation clock is only/);
+  assert.match(highlightRenderer, /raw WebM decodes at/);
+  assert.match(highlightRenderer, /expected native/);
+  assert.match(highlightRenderer, /browser animation clock is/);
+  assert.match(highlightRenderer, /expected display-paced/);
   assert.match(highlightRenderer, /video\.codec !== "vp8"/);
   assert.match(highlightRenderer, /minimumMeasuredCaptureFps/);
   assert.match(highlightRenderer, /maximumMeasuredCaptureFps/);
