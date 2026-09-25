@@ -14,7 +14,7 @@ export default defineConfig({
   // entry to that source keeps individual layer modules visible to Rolldown, so the
   // TextLayer graph can be split instead of collapsing behind one oversized module.
   // This intentionally preserves the normal (including WebGPU) implementation rather
-  // than switching to the lighter visgl:webgl-only export condition.
+  // than switching to the lighter WebGL-only export condition.
   resolve: {
     alias: [{ find: /^@deck\.gl\/layers$/, replacement: deckLayersSourceEntry }],
   },

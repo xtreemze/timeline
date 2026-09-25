@@ -1,11 +1,46 @@
+import { spawn } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Locator, Page, TestInfo } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
 const OUTPUT_ROOT = path.resolve(process.env.E2E_MEDIA_DIR ?? "artifacts/e2e-media");
+const CAPTURE_FPS = 60;
+const MIN_CAPTURE_FPS = CAPTURE_FPS - 1;
+const FFMPEG = process.env.FFMPEG_BIN ?? "ffmpeg";
+const FFPROBE = process.env.FFPROBE_BIN ?? "ffprobe";
 
 type FormFactor = "desktop" | "mobile";
+
+type CaptureGeometry = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  screenWidth: number;
+  screenHeight: number;
+  screenX: number;
+  screenY: number;
+  outerWidth: number;
+  outerHeight: number;
+  innerWidth: number;
+  innerHeight: number;
+};
+
+type CaptureStats = {
+  requestedFps: number;
+  minimumFps: number;
+  capturedFrames: number;
+  capturedDurationSeconds: number;
+  measuredFps: number;
+  browserFrames: number;
+  browserDurationSeconds: number;
+  browserFps: number;
+  codec: "vp8";
+  geometry: CaptureGeometry;
+  timestamps: number[];
+  browserTimestamps: number[];
+};
 
 type ShowcaseMediaMode = "motion" | "static";
 
@@ -108,6 +143,248 @@ async function firstVisibleOccurrence(page: Page) {
   return occurrence;
 }
 
+function captureText(command: string, args: string[]) {
+  return new Promise<string>((resolve, reject) => {
+    const child = spawn(command, args, {
+      stdio: ["ignore", "pipe", "inherit"],
+      env: process.env,
+    });
+    let stdout = "";
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk;
+    });
+    child.on("error", reject);
+    child.on("exit", (code, signal) => {
+      if (code === 0) return resolve(stdout);
+      reject(new Error(`${command} exited with ${String(code ?? signal)}`));
+    });
+  });
+}
+
+async function probeFrameTimestamps(filePath: string) {
+  const stdout = await captureText(FFPROBE, [
+    "-v",
+    "error",
+    "-select_streams",
+    "v:0",
+    "-show_frames",
+    "-show_entries",
+    "frame=best_effort_timestamp_time",
+    "-of",
+    "csv=p=0",
+    filePath,
+  ]);
+  return stdout
+    .split(/\r?\n/u)
+    .map((value) => Number(value.trim()))
+    .filter((value) => Number.isFinite(value));
+}
+
+function measureTimestamps(timestamps: number[], scale = 1) {
+  if (timestamps.length < 2) {
+    throw new Error("Showcase motion capture produced fewer than two timing samples");
+  }
+  const firstTimestamp = timestamps[0];
+  const lastTimestamp = timestamps.at(-1);
+  if (
+    firstTimestamp === undefined ||
+    lastTimestamp === undefined ||
+    !Number.isFinite(firstTimestamp) ||
+    !Number.isFinite(lastTimestamp)
+  ) {
+    throw new Error("Showcase motion capture did not provide usable timestamps");
+  }
+  const durationSeconds = (lastTimestamp - firstTimestamp) / scale;
+  if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) {
+    throw new Error("Showcase motion capture duration is invalid");
+  }
+  return {
+    frames: timestamps.length,
+    durationSeconds,
+    fps: (timestamps.length - 1) / durationSeconds,
+  };
+}
+
+async function captureGeometry(
+  page: Page,
+  captureSize: { width: number; height: number },
+): Promise<CaptureGeometry> {
+  const geometry = await page.evaluate(() => {
+    const horizontalInset = Math.max(0, Math.round((window.outerWidth - window.innerWidth) / 2));
+    const topInset = Math.max(
+      0,
+      Math.round(window.outerHeight - window.innerHeight - horizontalInset),
+    );
+    return {
+      x: Math.round(window.screenX + horizontalInset),
+      y: Math.round(window.screenY + topInset),
+      width: window.innerWidth,
+      height: window.innerHeight,
+      screenWidth: window.screen.width,
+      screenHeight: window.screen.height,
+      screenX: window.screenX,
+      screenY: window.screenY,
+      outerWidth: window.outerWidth,
+      outerHeight: window.outerHeight,
+      innerWidth: window.innerWidth,
+      innerHeight: window.innerHeight,
+    };
+  });
+
+  if (geometry.innerWidth !== captureSize.width || geometry.innerHeight !== captureSize.height) {
+    throw new Error(
+      `Showcase viewport is ${String(geometry.innerWidth)}x${String(geometry.innerHeight)}; expected ${String(captureSize.width)}x${String(captureSize.height)}`,
+    );
+  }
+  if (
+    geometry.x < 0 ||
+    geometry.y < 0 ||
+    geometry.x + geometry.width > geometry.screenWidth ||
+    geometry.y + geometry.height > geometry.screenHeight
+  ) {
+    throw new Error(
+      `Showcase X11 capture region ${String(geometry.x)},${String(geometry.y)} ${String(geometry.width)}x${String(geometry.height)} exceeds ${String(geometry.screenWidth)}x${String(geometry.screenHeight)} display`,
+    );
+  }
+  return geometry;
+}
+
+async function startBrowserFrameClock(page: Page) {
+  await page.evaluate(() => {
+    const state = {
+      active: true,
+      timestamps: [] as number[],
+      frameId: 0,
+    };
+    Reflect.set(globalThis, "__lumShowcaseFrameClock", state);
+    const tick = (timestamp: number) => {
+      if (!state.active) return;
+      state.timestamps.push(timestamp);
+      state.frameId = requestAnimationFrame(tick);
+    };
+    state.frameId = requestAnimationFrame(tick);
+  });
+}
+
+async function stopBrowserFrameClock(page: Page) {
+  return page.evaluate(() => {
+    const state = Reflect.get(globalThis, "__lumShowcaseFrameClock") as
+      | { active: boolean; timestamps: number[]; frameId: number }
+      | undefined;
+    if (!state) return [];
+    state.active = false;
+    if (state.frameId) cancelAnimationFrame(state.frameId);
+    Reflect.deleteProperty(globalThis, "__lumShowcaseFrameClock");
+    return state.timestamps;
+  });
+}
+
+async function startX11Capture(videoPath: string, geometry: CaptureGeometry) {
+  const display = process.env.DISPLAY;
+  if (!display) throw new Error("DISPLAY is required for 60 fps X11 showcase capture");
+
+  const args = [
+    "-y",
+    "-hide_banner",
+    "-loglevel",
+    "warning",
+    "-f",
+    "x11grab",
+    "-framerate",
+    String(CAPTURE_FPS),
+    "-video_size",
+    `${String(geometry.width)}x${String(geometry.height)}`,
+    "-draw_mouse",
+    "0",
+    "-use_wallclock_as_timestamps",
+    "1",
+    "-i",
+    `${display}+${String(geometry.x)},${String(geometry.y)}`,
+    "-an",
+    "-c:v",
+    "libvpx",
+    "-deadline",
+    "realtime",
+    "-cpu-used",
+    "8",
+    "-threads",
+    "4",
+    "-crf",
+    "12",
+    "-b:v",
+    "0",
+    "-pix_fmt",
+    "yuv420p",
+    "-fps_mode",
+    "passthrough",
+    videoPath,
+  ];
+
+  const child = spawn(FFMPEG, args, {
+    stdio: ["pipe", "ignore", "inherit"],
+    env: process.env,
+  });
+  await new Promise<void>((resolve, reject) => {
+    child.once("spawn", resolve);
+    child.once("error", reject);
+  });
+
+  const exit = new Promise<void>((resolve, reject) => {
+    child.once("error", reject);
+    child.once("exit", (code, signal) => {
+      if (code === 0) return resolve();
+      reject(new Error(`FFmpeg X11 capture exited with ${String(code ?? signal)}`));
+    });
+  });
+
+  return {
+    async stop() {
+      if (child.exitCode !== null) return exit;
+      child.stdin.write("q\n");
+      child.stdin.end();
+      return exit;
+    },
+  };
+}
+
+async function persistMeasuredCapture(
+  videoPath: string,
+  browserTimestamps: number[],
+  geometry: CaptureGeometry,
+) {
+  const timestamps = await probeFrameTimestamps(videoPath);
+  const captured = measureTimestamps(timestamps);
+  if (captured.fps < MIN_CAPTURE_FPS) {
+    throw new Error(
+      `Showcase raw X11 WebM decoded ${String(captured.frames)} actual frames across ${captured.durationSeconds.toFixed(3)}s (${captured.fps.toFixed(2)} fps); expected at least ${MIN_CAPTURE_FPS.toFixed(2)} fps before publication encoding.`,
+    );
+  }
+
+  const browser = measureTimestamps(browserTimestamps, 1000);
+  if (browser.fps < MIN_CAPTURE_FPS) {
+    throw new Error(
+      `Showcase browser scheduled ${String(browser.frames)} animation frames across ${browser.durationSeconds.toFixed(3)}s (${browser.fps.toFixed(2)} fps); expected at least ${MIN_CAPTURE_FPS.toFixed(2)} fps while recording.`,
+    );
+  }
+
+  const stats: CaptureStats = {
+    requestedFps: CAPTURE_FPS,
+    minimumFps: MIN_CAPTURE_FPS,
+    capturedFrames: captured.frames,
+    capturedDurationSeconds: captured.durationSeconds,
+    measuredFps: captured.fps,
+    browserFrames: browser.frames,
+    browserDurationSeconds: browser.durationSeconds,
+    browserFps: browser.fps,
+    codec: "vp8",
+    geometry,
+    timestamps,
+    browserTimestamps,
+  };
+  await writeFile(`${videoPath}.frames.json`, JSON.stringify(stats, null, 2));
+  return stats;
+}
+
 async function touchDrag(target: Locator, deltaX: number, deltaY: number) {
   const box = await target.boundingBox();
   if (!box) throw new Error("Touch target has no layout box");
@@ -148,6 +425,7 @@ async function touchDrag(target: Locator, deltaX: number, deltaY: number) {
 async function recordSegment(
   page: Page,
   formFactor: FormFactor,
+  captureSize: { width: number; height: number },
   scene: SceneIntent,
   body: () => Promise<void>,
 ): Promise<ShowcaseSegment> {
@@ -157,7 +435,6 @@ async function recordSegment(
   const screenshotPath = path.join(rawDir, `${scene.name}.png`);
 
   if (scene.mediaMode === "motion") {
-    await page.screencast.start({ path: videoPath, quality: 92 });
     const actions = await page.screencast.showActions({
       position: formFactor === "mobile" ? "bottom-right" : "top-right",
       duration: 500,
@@ -189,6 +466,11 @@ async function recordSegment(
       </div>
     `);
 
+    const geometry = await captureGeometry(page, captureSize);
+    await startBrowserFrameClock(page);
+    const capture = await startX11Capture(videoPath, geometry);
+    let browserTimestamps: number[] = [];
+
     try {
       await page.screencast.showChapter(scene.title, {
         description: scene.description,
@@ -203,10 +485,13 @@ async function recordSegment(
         scale: "css",
       });
     } finally {
+      if (!page.isClosed()) browserTimestamps = await stopBrowserFrameClock(page).catch(() => []);
+      await capture.stop();
       await brand.dispose().catch(() => {});
       await actions.dispose().catch(() => {});
-      if (!page.isClosed()) await page.screencast.stop().catch(() => {});
     }
+
+    await persistMeasuredCapture(videoPath, browserTimestamps, geometry);
   } else {
     await body();
     await page.waitForTimeout(250);
@@ -231,21 +516,16 @@ async function desktopRoutine(page: Page, sceneName: string) {
   if (sceneName === "01-timeline-navigation") {
     const surface = page.locator(".timeline-surface");
     await expect(surface).toBeVisible();
-    const controls = page.locator("#timeline-view-controls-toggle");
-    await controls.click();
-    const toolbar = page.locator("#timeline-view-toolbar:popover-open");
+    const toolbar = page.locator("#timeline-view-toolbar");
     await expect(toolbar).toBeVisible();
     const zoom = toolbar.locator("#timeline-zoom-level");
     const initialZoom = await zoom.inputValue();
-    await page.keyboard.press("Escape");
 
     await surface.hover();
     await page.mouse.wheel(0, -280);
     await page.waitForTimeout(450);
-    await controls.click();
     await expect(toolbar).toBeVisible();
     await zoom.fill(initialZoom);
-    await page.keyboard.press("Escape");
     await surface.focus();
     await page.keyboard.press("ArrowRight");
     await page.waitForTimeout(350);
@@ -305,9 +585,7 @@ async function mobileRoutine(page: Page, sceneName: string) {
     await touchDrag(surface, -48, 0);
     await page.waitForTimeout(350);
     await touchDrag(surface, 48, 0);
-    await page.locator("#timeline-view-controls-toggle").tap();
-    await expect(page.locator("#timeline-view-toolbar:popover-open")).toBeVisible();
-    await page.keyboard.press("Escape");
+    await expect(page.locator("#timeline-view-toolbar")).toBeVisible();
     return;
   }
 
@@ -358,7 +636,7 @@ test("records source-native Lūm showcase media per form factor", async ({ page 
     await test.step(scene.title, async () => {
       await loadSample(page);
       segments.push(
-        await recordSegment(page, settings.formFactor, scene, async () => {
+        await recordSegment(page, settings.formFactor, settings.size, scene, async () => {
           if (settings.formFactor === "desktop") await desktopRoutine(page, scene.name);
           else await mobileRoutine(page, scene.name);
         }),
@@ -378,6 +656,8 @@ test("records source-native Lūm showcase media per form factor", async ({ page 
         formFactor: settings.formFactor,
         generatedAt: new Date().toISOString(),
         captureViewport: settings.size,
+        captureFps: CAPTURE_FPS,
+        minimumMeasuredCaptureFps: MIN_CAPTURE_FPS,
         transitionSeconds: 0.28,
         stillSeconds: 0.9,
         motionSceneCount: segments.filter((segment) => segment.mediaMode === "motion").length,

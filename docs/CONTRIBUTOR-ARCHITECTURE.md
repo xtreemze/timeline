@@ -71,7 +71,19 @@ Workspace placement uses `src/layout/workspace-layout.ts`. Measure real rectangl
 
 One interaction epoch has one owner: timeline or world surface; legacy graph/map adapters use the same coordinator during migration. The shared contract in `src/interaction/interaction-coordinator.ts` owns acquisition, classification, ownership, settling, and completion semantics.
 
-Pointer Events are the baseline direct-manipulation model; a mjolnir-backed input adapter may normalize compound gestures when it earns its dependency. Any pointer capture path must handle `pointercancel` and `lostpointercapture`. Long-press elevated-node acquisition must not become globe rotation/pan. Depth picking and renderer-specific drag/zoom APIs remain behind adapters; application gesture meaning stays Lūm-owned.
+Pointer Events are the baseline direct-manipulation model. The shared acquisition/affordance policy in `src/interaction/surface-input-policy.ts` defines primary-pointer eligibility, activation keys, and cursor intent. Renderer-native controllers still own camera mechanics: deck.gl 9.4/mjolnir owns world pan/rotate/pinch/wheel/keyboard camera input, Leaflet owns map zoom and keyboard camera input, and the retained timeline owns its weighted temporal camera. Do not add a second recognizer for a gesture the renderer already owns.
+
+Across surfaces:
+- primary mouse, pen, and touch are first-class; Ctrl-modified and secondary-button gestures are not captured for direct manipulation;
+- background direct manipulation uses `grab`/`grabbing`; actionable objects use `pointer`; expandable clusters use `zoom-in`;
+- click/tap selects or activates the surface object; Enter and Space are equivalent object-activation keys when the surface itself owns activation;
+- Tab/Shift+Tab remain native and must never be trapped by a camera surface;
+- arrow keys and +/- stay with the active renderer/navigation controller rather than being reinterpreted by a parallel listener;
+- one-finger world touch pans unless a stationary long-press arms node dragging; a second touch yields immediately to multi-touch camera control;
+- pinch/multi-touch gestures stay renderer-owned; node/object dragging must stop propagation only after it has actually claimed the gesture;
+- every pointer-capture path must handle `pointercancel` and `lostpointercapture`; Escape/cancel/back is resolved at the owning surface or application-navigation layer.
+
+Depth picking and renderer-specific drag/zoom APIs remain behind adapters; application gesture meaning stays Lūm-owned.
 
 ## Responsive/mobile rules
 

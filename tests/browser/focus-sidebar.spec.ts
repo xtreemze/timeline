@@ -32,20 +32,22 @@ async function ensureOrientation(page: Page, orientation: "landscape" | "portrai
 }
 
 async function boxes(page: Page, focus: Locator) {
-  const [focusBox, graphBox, timelineBox, stageBox] = await Promise.all([
+  const [focusBox, graphBox, timelineBox, stageBox, footerBox] = await Promise.all([
     focus.boundingBox(),
     page.locator("#graph-lens").boundingBox(),
-    page.locator("#timeline-view").boundingBox(),
+    page.locator(".timeline-surface").boundingBox(),
     page.locator("#presentation-stage").boundingBox(),
+    page.locator(".app-footer-bar").boundingBox(),
   ]);
   expect(focusBox).not.toBeNull();
   expect(graphBox).not.toBeNull();
   expect(timelineBox).not.toBeNull();
   expect(stageBox).not.toBeNull();
-  if (!focusBox || !graphBox || !timelineBox || !stageBox) {
+  expect(footerBox).not.toBeNull();
+  if (!focusBox || !graphBox || !timelineBox || !stageBox || !footerBox) {
     throw new Error("Focused presentation surfaces must all have layout bounds.");
   }
-  return { focusBox, graphBox, timelineBox, stageBox };
+  return { focusBox, graphBox, timelineBox, stageBox, footerBox };
 }
 
 function overlapArea(
@@ -62,7 +64,7 @@ test.beforeEach(async ({ page }) => {
   await expect(page.locator("#timeline-view")).toBeVisible();
 });
 
-test("focused detail is shell-owned while contextual actions stay on the timeline", async ({
+test("focused detail is shell-owned while contextual actions stay in the footer", async ({
   page,
 }) => {
   const focus = await focusOccurrence(page);
@@ -79,46 +81,59 @@ test("focused detail is shell-owned while contextual actions stay on the timelin
 
   await expect(page.locator("#timeline-focus-prev")).toBeVisible();
   await expect(page.locator("#timeline-focus-next")).toBeVisible();
-  await expect(page.locator("#timeline-focus-edit")).toBeVisible();
-  await expect(page.locator("#timeline-view-controls-toggle")).toBeVisible();
+  await expect(page.locator("#timeline-focus-edit")).toHaveCount(0);
+  await expect(page.locator("#editor-toggle")).toHaveAttribute("aria-label", "Edit focused event");
+  await expect(page.locator("#timeline-view-toolbar")).toBeVisible();
 
   await focus.locator(".timeline-focus-close").click();
   await expect(focus).toBeHidden();
 });
 
-test("landscape keeps the timeline as a bottom rail and layers detail over the graph canvas", async ({
+test("landscape preserves the bottom timeline rail while focused detail layers over the graph", async ({
   page,
 }) => {
   await ensureOrientation(page, "landscape");
-  const focus = await focusOccurrence(page);
+  const before = await page.locator(".timeline-surface").boundingBox();
+  expect(before).not.toBeNull();
 
+  const focus = await focusOccurrence(page);
   const { focusBox, graphBox, timelineBox, stageBox } = await boxes(page, focus);
+  if (!before) throw new Error("Landscape timeline surface has no baseline bounds.");
+
+  expect(Math.abs(timelineBox.x - before.x)).toBeLessThanOrEqual(2);
+  expect(Math.abs(timelineBox.y - before.y)).toBeLessThanOrEqual(2);
+  expect(Math.abs(timelineBox.width - before.width)).toBeLessThanOrEqual(2);
+  expect(Math.abs(timelineBox.height - before.height)).toBeLessThanOrEqual(2);
   expect(timelineBox.x).toBeLessThanOrEqual(stageBox.x + 2);
   expect(timelineBox.x + timelineBox.width).toBeGreaterThanOrEqual(stageBox.x + stageBox.width - 2);
-  expect(timelineBox.y).toBeGreaterThan(stageBox.y + stageBox.height * 0.55);
   expect(graphBox.y + graphBox.height).toBeLessThanOrEqual(timelineBox.y + 3);
   expect(focusBox.y + focusBox.height).toBeLessThanOrEqual(timelineBox.y + 3);
   expect(overlapArea(focusBox, graphBox)).toBeGreaterThan(100);
 });
 
-test("portrait keeps the timeline as a right rail and layers detail inside the graph region", async ({
+test("portrait preserves the right timeline rail while focused detail layers inside the graph region", async ({
   page,
 }) => {
   await ensureOrientation(page, "portrait");
-  const focus = await focusOccurrence(page);
+  const before = await page.locator(".timeline-surface").boundingBox();
+  expect(before).not.toBeNull();
 
-  const { focusBox, graphBox, timelineBox, stageBox } = await boxes(page, focus);
+  const focus = await focusOccurrence(page);
+  const { focusBox, graphBox, timelineBox, stageBox, footerBox } = await boxes(page, focus);
+  if (!before) throw new Error("Portrait timeline surface has no baseline bounds.");
+
+  expect(Math.abs(timelineBox.x - before.x)).toBeLessThanOrEqual(2);
+  expect(Math.abs(timelineBox.y - before.y)).toBeLessThanOrEqual(2);
+  expect(Math.abs(timelineBox.width - before.width)).toBeLessThanOrEqual(2);
+  expect(Math.abs(timelineBox.height - before.height)).toBeLessThanOrEqual(2);
   expect(timelineBox.y).toBeLessThanOrEqual(stageBox.y + 2);
-  expect(timelineBox.y + timelineBox.height).toBeGreaterThanOrEqual(
-    stageBox.y + stageBox.height - 2,
-  );
-  expect(timelineBox.x).toBeGreaterThan(stageBox.x + stageBox.width * 0.55);
+  expect(Math.abs(timelineBox.y + timelineBox.height - footerBox.y)).toBeLessThanOrEqual(2);
   expect(graphBox.x + graphBox.width).toBeLessThanOrEqual(timelineBox.x + 3);
   expect(focusBox.x + focusBox.width).toBeLessThanOrEqual(timelineBox.x + 3);
   expect(overlapArea(focusBox, graphBox)).toBeGreaterThan(100);
 });
 
-test("opening Browse or View does not discard the focused occurrence", async ({ page }) => {
+test("Browse and persistent View controls do not discard the focused occurrence", async ({ page }) => {
   await focusOccurrence(page);
 
   await page.locator("#timeline-browser-toggle").click();
@@ -126,13 +141,7 @@ test("opening Browse or View does not discard the focused occurrence", async ({ 
   await expect(page.locator("#app-shell")).toHaveClass(/is-event-focused/);
   await page.locator("#timeline-browser-close").click();
 
-  await page.locator("#timeline-view-controls-toggle").click();
-  await expect
-    .poll(() =>
-      page
-        .locator("#timeline-view-toolbar")
-        .evaluate((element) => element.matches(":popover-open")),
-    )
-    .toBe(true);
+  await expect(page.locator("#timeline-view-toolbar")).toBeVisible();
+  await expect(page.locator("#timeline-view-controls-toggle")).toHaveCount(0);
   await expect(page.locator("#app-shell")).toHaveClass(/is-event-focused/);
 });

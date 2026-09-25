@@ -39,12 +39,12 @@ const STORY_SPECS =
       ["red-mother", "person", "Red's Mother"],
     ],
     places: [
-      ["red-home-place", "Red's Home", -22.0, 52.0, "home", "square"],
-      ["red-forest-path-place", "Northwood Forest Path", -21.65, 52.2, "place", "pin"],
-      ["red-flower-meadow-place", "Northwood Flower Meadow", -21.25, 52.45, "place", "diamond"],
-      ["red-grandmother-cottage-place", "Grandmother's Cottage", -20.85, 52.65, "home", "square"],
-      ["red-cottage-bedroom-place", "Cottage Bedroom", -20.8, 52.68, "danger", "diamond"],
-      ["red-woodcutter-clearing-place", "Woodcutter's Clearing", -21.0, 52.55, "place", "pin"],
+      ["red-home-place", "Red's Home", 5.35, 49.88, "home", "square"],
+      ["red-forest-path-place", "Northwood Forest Path", 5.58, 49.99, "place", "pin"],
+      ["red-flower-meadow-place", "Northwood Flower Meadow", 5.82, 50.12, "place", "diamond"],
+      ["red-grandmother-cottage-place", "Grandmother's Cottage", 6.02, 50.22, "home", "square"],
+      ["red-cottage-bedroom-place", "Cottage Bedroom", 6.03, 50.225, "danger", "diamond"],
+      ["red-woodcutter-clearing-place", "Woodcutter's Clearing", 5.9, 50.16, "place", "pin"],
     ],
     scenes: [
       ["red-departure", "1012-03-01T08:00Z", "Red's Mother instructs Little Red Riding Hood", "Red's Mother asks Little Red Riding Hood to carry food to the cottage and to stay on the known route, establishing both the purpose of the journey and the rule that will soon be tested.", "relationship", "home", "hero-split", "red-home-place", "red-mother", "red-riding-hood", "instructs"],
@@ -87,12 +87,12 @@ const STORY_SPECS =
       ["hg-witch", "person", "Witch"],
     ],
     places: [
-      ["hg-home-place", "Deepwood Family Cottage", 27.0, 44.0, "home", "square"],
-      ["hg-stone-trail-place", "White Stone Trail", 27.35, 44.2, "place", "pin"],
-      ["hg-forest-crossing-place", "Deepwood Crossing", 27.7, 44.45, "place", "diamond"],
-      ["hg-lost-forest-place", "Deepwood Interior", 28.1, 44.7, "danger", "pin"],
-      ["hg-sugar-house-place", "Sugar House Clearing", 28.45, 44.85, "home", "square"],
-      ["hg-witch-kitchen-place", "Witch's Kitchen", 28.5, 44.88, "danger", "diamond"],
+      ["hg-home-place", "Deepwood Family Cottage", 10.25, 51.62, "home", "square"],
+      ["hg-stone-trail-place", "White Stone Trail", 10.4, 51.7, "place", "pin"],
+      ["hg-forest-crossing-place", "Deepwood Crossing", 10.55, 51.78, "place", "diamond"],
+      ["hg-lost-forest-place", "Deepwood Interior", 10.7, 51.84, "danger", "pin"],
+      ["hg-sugar-house-place", "Sugar House Clearing", 10.82, 51.9, "home", "square"],
+      ["hg-witch-kitchen-place", "Witch's Kitchen", 10.825, 51.905, "danger", "diamond"],
     ],
     scenes: [
       ["hg-household-pressure", "1027-09-02T07:30Z", "Stepmother pressures Father", "Stepmother pressures Father to send the children away because the household cannot support them, establishing the decision that drives the first journey into the woods.", "conflict", "home", "hero-split", "hg-home-place", "hg-stepmother", "hg-father", "pressures"],
@@ -137,12 +137,12 @@ const STORY_SPECS =
       ["jack-golden-goose", "object", "Golden Goose"],
     ],
     places: [
-      ["jack-farm-place", "Highmeadow Farm Cottage", 74.0, 16.0, "home", "square"],
-      ["jack-market-place", "Highmeadow Village Market", 74.45, 16.2, "place", "pin"],
-      ["jack-bean-field-place", "Moonlit Bean Field", 74.15, 16.35, "magic", "diamond"],
-      ["jack-beanstalk-place", "Beanstalk Ascent", 74.2, 16.65, "magic", "pin"],
-      ["jack-sky-hall-place", "Sky Castle Hall", 74.4, 17.1, "crown", "square"],
-      ["jack-sky-yard-place", "Sky Castle Yard", 74.3, 16.95, "danger", "diamond"],
+      ["jack-farm-place", "Highmeadow Farm Cottage", -2.25, 54.1, "home", "square"],
+      ["jack-market-place", "Highmeadow Village Market", -2.1, 54.15, "place", "pin"],
+      ["jack-bean-field-place", "Moonlit Bean Field", -2.2, 54.2, "magic", "diamond"],
+      ["jack-beanstalk-place", "Beanstalk Ascent", -2.16, 54.25, "magic", "pin"],
+      ["jack-sky-hall-place", "Sky Castle Hall", -2.05, 54.32, "crown", "square"],
+      ["jack-sky-yard-place", "Sky Castle Yard", -2.08, 54.3, "danger", "diamond"],
     ],
     scenes: [
       ["jack-sale-order", "1043-05-01T07:00Z", "Jack's Mother instructs Jack", "Jack's Mother instructs Jack to take the family's remaining livestock to market and obtain money, establishing the practical need behind the bargain that follows.", "decision", "home", "hero-split", "jack-farm-place", "jack-mother", "jack", "instructs"],
@@ -183,12 +183,12 @@ const STORY_SPECS =
       ["rapunzel-prince", "person", "Tower Prince"],
     ],
     places: [
-      ["rapunzel-garden-place", "Briarvale Walled Garden", -58.4, -12.1, "place", "square"],
-      ["rapunzel-cottage-place", "Gothel's Briarvale Cottage", -58.0, -11.85, "home", "square"],
-      ["rapunzel-tower-clearing-place", "Briarvale Tower Clearing", -57.55, -11.5, "place", "pin"],
-      ["rapunzel-tower-chamber-place", "Briarvale Tower Chamber", -57.5, -11.45, "crown", "diamond"],
-      ["rapunzel-thornwood-place", "Briarvale Thornwood", -57.1, -11.15, "danger", "pin"],
-      ["rapunzel-reunion-valley-place", "Briarvale Reunion Valley", -56.65, -10.85, "magic", "diamond"],
+      ["rapunzel-garden-place", "Briarvale Walled Garden", 24.55, 45.55, "place", "square"],
+      ["rapunzel-cottage-place", "Gothel's Briarvale Cottage", 24.7, 45.62, "home", "square"],
+      ["rapunzel-tower-clearing-place", "Briarvale Tower Clearing", 24.85, 45.72, "place", "pin"],
+      ["rapunzel-tower-chamber-place", "Briarvale Tower Chamber", 24.855, 45.725, "crown", "diamond"],
+      ["rapunzel-thornwood-place", "Briarvale Thornwood", 25.05, 45.8, "danger", "pin"],
+      ["rapunzel-reunion-valley-place", "Briarvale Reunion Valley", 25.25, 45.88, "magic", "diamond"],
     ],
     scenes: [
       ["rapunzel-taken", "1061-06-01T07:30Z", "Mother Gothel takes Rapunzel", "Mother Gothel takes Rapunzel into her care and removes her from the ordinary household world, establishing the controlling relationship that shapes the rest of the story.", "state-change", "home", "hero-split", "rapunzel-garden-place", "rapunzel-gothel", "rapunzel", "takes"],
@@ -230,12 +230,12 @@ const STORY_SPECS =
       ["frog-golden-ball", "object", "Golden Ball"],
     ],
     places: [
-      ["frog-palace-garden-place", "Merecourt Palace Garden", 6.2, -38.0, "crown", "square"],
-      ["frog-well-place", "Merecourt Old Well", 6.55, -38.25, "place", "diamond"],
-      ["frog-garden-path-place", "Merecourt Garden Path", 6.85, -38.05, "place", "pin"],
-      ["frog-banquet-hall-place", "Merecourt Banquet Hall", 7.15, -37.8, "home", "square"],
-      ["frog-princess-chamber-place", "Merecourt Princess Chamber", 7.2, -37.7, "danger", "diamond"],
-      ["frog-castle-gate-place", "Merecourt Castle Gate", 7.55, -37.5, "crown", "pin"],
+      ["frog-palace-garden-place", "Merecourt Palace Garden", 11.2, 47.85, "crown", "square"],
+      ["frog-well-place", "Merecourt Old Well", 11.28, 47.82, "place", "diamond"],
+      ["frog-garden-path-place", "Merecourt Garden Path", 11.35, 47.85, "place", "pin"],
+      ["frog-banquet-hall-place", "Merecourt Banquet Hall", 11.42, 47.88, "home", "square"],
+      ["frog-princess-chamber-place", "Merecourt Princess Chamber", 11.425, 47.885, "danger", "diamond"],
+      ["frog-castle-gate-place", "Merecourt Castle Gate", 11.5, 47.9, "crown", "pin"],
     ],
     scenes: [
       ["frog-king-gift", "1078-09-04T08:00Z", "King gives Princess a keepsake", "King gives Princess a cherished keepsake for play in the palace garden, establishing the valued possession whose loss will make an unlikely bargain suddenly important.", "relationship", "crown", "hero-split", "frog-palace-garden-place", "frog-king", "frog-princess", "gives"],
@@ -278,12 +278,12 @@ const STORY_SPECS =
       ["rumpel-child", "person", "Royal Child"],
     ],
     places: [
-      ["rumpel-mill-place", "Goldmarsh Mill House", 58.0, -48.2, "home", "square"],
-      ["rumpel-throne-hall-place", "Goldmarsh Throne Hall", 58.45, -47.95, "crown", "square"],
-      ["rumpel-spinning-room-place", "Goldmarsh Spinning Room", 58.6, -47.65, "object", "diamond"],
-      ["rumpel-palace-place", "Goldmarsh Palace", 58.9, -47.4, "crown", "pin"],
-      ["rumpel-nursery-place", "Goldmarsh Royal Nursery", 59.15, -47.15, "home", "square"],
-      ["rumpel-name-clearing-place", "Goldmarsh Name Clearing", 59.55, -46.85, "search", "diamond"],
+      ["rumpel-mill-place", "Goldmarsh Mill House", 10.55, 50.8, "home", "square"],
+      ["rumpel-throne-hall-place", "Goldmarsh Throne Hall", 10.7, 50.86, "crown", "square"],
+      ["rumpel-spinning-room-place", "Goldmarsh Spinning Room", 10.705, 50.865, "object", "diamond"],
+      ["rumpel-palace-place", "Goldmarsh Palace", 10.8, 50.9, "crown", "pin"],
+      ["rumpel-nursery-place", "Goldmarsh Royal Nursery", 10.81, 50.905, "home", "square"],
+      ["rumpel-name-clearing-place", "Goldmarsh Name Clearing", 10.98, 50.98, "search", "diamond"],
     ],
     scenes: [
       ["rumpel-boast", "1096-02-02T07:00Z", "Her Father boasts to Goldmarsh King", "Her Father boasts to Goldmarsh King about impossible spinning skill in the family, turning ordinary court ambition into a claim that places another person under dangerous scrutiny.", "deception", "crown", "hero-split", "rumpel-throne-hall-place", "rumpel-father", "rumpel-king", "boasts"],
@@ -319,6 +319,113 @@ function temporalInstant(value) {
 
 function temporalInterval(start, end) {
   return { type: "interval", start: temporalPoint(start), end: temporalPoint(end) };
+}
+
+const LEGACY_STORY_LAYOUTS = [
+  {
+    storyId: "story-three-little-pigs",
+    yearOffset: -24,
+    cycle: "Storybook Cycle 976",
+    spatialFrame: "Pigwood Realm",
+    longitudeOffset: 0,
+    latitudeOffset: 0,
+  },
+  {
+    storyId: "story-snow-white",
+    yearOffset: -12,
+    cycle: "Storybook Cycle 988",
+    spatialFrame: "Mirrorwood Realm",
+    longitudeOffset: 0,
+    latitudeOffset: 0,
+  },
+  {
+    storyId: "story-cinderella",
+    yearOffset: 0,
+    cycle: "Storybook Cycle 1000",
+    spatialFrame: "Ashenvale Realm",
+    longitudeOffset: 0,
+    latitudeOffset: 0,
+  },
+];
+
+function shiftSyntheticYear(value, yearOffset) {
+  if (typeof value !== "string" || !/^\d{4}-/.test(value) || !yearOffset) return value;
+  const year = Number(value.slice(0, 4)) + yearOffset;
+  return `${String(year).padStart(4, "0")}${value.slice(4)}`;
+}
+
+function shiftTemporalExtent(time, yearOffset) {
+  if (!time || typeof time !== "object" || !yearOffset) return;
+  if (time.start?.value) time.start.value = shiftSyntheticYear(time.start.value, yearOffset);
+  if (time.end?.value) time.end.value = shiftSyntheticYear(time.end.value, yearOffset);
+}
+
+function translateGeometryCoordinates(value, longitudeOffset, latitudeOffset) {
+  if (!Array.isArray(value)) return value;
+  if (value.length >= 2 && Number.isFinite(Number(value[0])) && Number.isFinite(Number(value[1]))) {
+    return [
+      Number(value[0]) + longitudeOffset,
+      Number(value[1]) + latitudeOffset,
+      ...value.slice(2),
+    ];
+  }
+  return value.map((entry) => translateGeometryCoordinates(entry, longitudeOffset, latitudeOffset));
+}
+
+function repositionLegacyStory(sample, layout) {
+  const story = sample.stories.find((candidate) => candidate.id === layout.storyId);
+  if (!story) return;
+
+  const itemIds = new Set(story.itemIds || []);
+  const evidenceIds = new Set();
+
+  for (const item of sample.items) {
+    if (!itemIds.has(item.id)) continue;
+    item.start = shiftSyntheticYear(item.start, layout.yearOffset);
+    if (item.end) item.end = shiftSyntheticYear(item.end, layout.yearOffset);
+    shiftTemporalExtent(item.time, layout.yearOffset);
+    for (const evidenceId of item.evidenceIds || []) evidenceIds.add(evidenceId);
+
+    const narrative = item.extensions?.narrative;
+    if (narrative) {
+      narrative.temporalReferenceFrame = layout.cycle;
+      narrative.spatialReferenceFrame = layout.spatialFrame;
+    }
+  }
+
+  for (const relationship of sample.relationships) {
+    const belongsToStory =
+      relationship.attributes?.storyId === layout.storyId ||
+      (relationship.itemIds || []).some((itemId) => itemIds.has(itemId));
+    if (belongsToStory) shiftTemporalExtent(relationship.time, layout.yearOffset);
+  }
+
+  for (const evidence of sample.evidence) {
+    if (evidenceIds.has(evidence.id) && evidence.publishedAt) {
+      evidence.publishedAt = shiftSyntheticYear(evidence.publishedAt, layout.yearOffset);
+    }
+  }
+
+  for (const place of sample.places) {
+    if (place.attributes?.storyId !== layout.storyId || !place.geometry) continue;
+    place.geometry.coordinates = translateGeometryCoordinates(
+      place.geometry.coordinates,
+      layout.longitudeOffset,
+      layout.latitudeOffset,
+    );
+    if (place.geographicIdentifier) {
+      place.geographicIdentifier = place.geographicIdentifier.replace(
+        /Storybook Cycle \d{3,4}/,
+        layout.cycle,
+      );
+    }
+  }
+
+  const narrative = story.extensions?.narrative;
+  if (narrative) {
+    narrative.temporalReferenceFrame = layout.cycle;
+    narrative.spatialReferenceFrame = layout.spatialFrame;
+  }
 }
 
 function itemMedia(media, sequence) {
@@ -460,6 +567,8 @@ function refreshStoryPlaces(sample) {
 }
 
 export function extendSampleCase(sample) {
+  for (const layout of LEGACY_STORY_LAYOUTS) repositionLegacyStory(sample, layout);
+
   for (const category of EXTRA_CATEGORIES) {
     if (!sample.categories.some((candidate) => candidate.id === category.id)) {
       sample.categories.push(category);
@@ -530,12 +639,12 @@ export function extendSampleCase(sample) {
   );
 
   patchRelationship(sample, "rel-pigs-wolf-threat", {
-    time: temporalInterval("1000-04-20T08:00Z", "1000-04-30T08:00Z"),
+    time: temporalInterval("0976-04-20T08:00Z", "0976-04-30T08:00Z"),
     placeId: "place-three-little-pigs-pursuit-corridor",
     itemIds: ["pigs-wolf-straw", "pigs-brick-siege", "pigs-safe"],
   });
   patchRelationship(sample, "rel-snow-queen-threat", {
-    time: temporalInterval("1000-04-05T09:00Z", "1000-05-22T12:00Z"),
+    time: temporalInterval("0988-04-05T09:00Z", "0988-05-22T12:00Z"),
     placeId: "place-snow-white-threat-corridor",
   });
   patchRelationship(sample, "rel-cinderella-prince-search", {
@@ -567,10 +676,11 @@ export function extendSampleCase(sample) {
       fictional: true,
       name: "Storybook Atlas",
       coordinateSemantics:
-        "staging anchors for relative story geography; not Earth-location claims",
+        "terrestrial staging anchors chosen for plausible narrative terrain; not claims of canonical story location",
     };
     if (narrative.anthology) {
       narrative.anthology.storyIds = sample.stories.map((story) => story.id);
+      narrative.anthology.simultaneousStories = false;
       narrative.anthology.distributedStoryCycles = true;
     }
   }

@@ -3121,7 +3121,6 @@ body {
 .app-tool:focus-visible,
 #app-shell[data-editor-open="true"] #editor-toggle,
 #app-shell[data-browser-open="true"] #timeline-browser-toggle,
-#app-shell[data-view-controls-open="true"] #timeline-view-controls-toggle,
 #project-menu-toggle[aria-expanded="true"] {
   background: var(--paper-2);
   color: var(--ink);

@@ -24,18 +24,62 @@
   <a class="skip-link" href="#workspace">Skip to Lūm workspace</a>
 
   <main id="workspace">
-    <section id="app-shell" class="app-shell" aria-label="Lūm application" data-mode="view" data-editor-open="false" data-browser-open="false" data-graph-open="true" data-view-controls-open="false">
-      <nav class="app-tool-dock app-footer-bar" aria-label="Application actions">
-        <button id="project-menu-toggle" class="app-tool app-project-tool project-menu-toggle" type="button" popovertarget="project-menu" aria-haspopup="menu" aria-controls="project-menu" aria-expanded="false" aria-label="Project actions" title="Project actions">
-          <img src="./icon.svg" alt="" width="24" height="24">
-          <span class="app-tool-label">Project</span>
-        </button>
-        <button id="editor-toggle" class="app-tool" type="button" data-semantic-icon="note" aria-controls="control-panel" aria-expanded="false" aria-pressed="false">
-          <span class="app-tool-label">Edit</span>
-        </button>
-        <button id="timeline-browser-toggle" class="app-tool" type="button" data-semantic-icon="search" aria-controls="timeline-browser-sheet" aria-expanded="false">
-          <span class="app-tool-label">Browse</span>
-        </button>
+    <section id="app-shell" class="app-shell" aria-label="Lūm application" data-mode="view" data-editor-open="false" data-browser-open="false" data-graph-open="true">
+      <nav class="app-tool-dock app-footer-bar" aria-label="Workspace controls">
+        <div class="app-footer-zone app-footer-world" data-world-controls-slot></div>
+        <div class="app-footer-zone app-footer-actions" role="group" aria-label="Application actions">
+          <button id="project-menu-toggle" class="toolbar-control app-tool app-project-tool project-menu-toggle" type="button" popovertarget="project-menu" aria-haspopup="menu" aria-controls="project-menu" aria-expanded="false" aria-label="Project actions" title="Project actions">
+            <img src="./icon.svg" alt="" width="20" height="20">
+            <span class="app-tool-label sr-only">Project</span>
+          </button>
+          <button id="editor-toggle" class="toolbar-control app-tool" type="button" data-semantic-icon="note" aria-controls="control-panel" aria-expanded="false" aria-label="Edit timeline" title="Edit timeline">
+            <span class="app-tool-label sr-only">Edit</span>
+          </button>
+          <button id="timeline-browser-toggle" class="toolbar-control app-tool" type="button" data-semantic-icon="search" aria-controls="timeline-browser-sheet" aria-expanded="false" aria-label="Browse timeline" title="Browse timeline">
+            <span class="app-tool-label sr-only">Browse</span>
+          </button>
+        </div>
+        <div class="app-footer-zone app-footer-timeline timeline-local-toolbar" role="group" aria-label="Timeline controls">
+          <div class="app-footer-context-actions" role="group" aria-label="Focused event navigation">
+            <button id="timeline-focus-prev" class="toolbar-control timeline-local-button timeline-context-action" type="button" data-semantic-icon="chevron-left" aria-label="Previous event" title="Previous event" hidden>
+              <span class="sr-only">Previous event</span>
+            </button>
+            <button id="timeline-focus-next" class="toolbar-control timeline-local-button timeline-context-action" type="button" data-semantic-icon="chevron-right" aria-label="Next event" title="Next event" hidden>
+              <span class="sr-only">Next event</span>
+            </button>
+          </div>
+          <div id="timeline-view-toolbar" class="timeline-view-toolbar app-view-controls app-footer-view-controls" role="group" aria-label="View controls">
+            <div class="view-display-controls toolbar-control-group" role="group" aria-label="Layout and display">
+              <button id="timeline-orientation-toggle" class="toolbar-control view-icon-button" type="button" data-semantic-icon="portrait" aria-label="Switch to portrait timeline" title="Switch to portrait timeline">
+                <span class="sr-only">Switch to portrait timeline</span>
+              </button>
+              <button id="presentation-fullscreen-toggle" class="toolbar-control view-icon-button" type="button" data-semantic-icon="fullscreen" aria-pressed="false" aria-keyshortcuts="F" aria-label="Enter full screen" title="Enter full screen">
+                <span class="sr-only">Enter full screen</span>
+              </button>
+            </div>
+            <div class="timeline-zoom-controls toolbar-range-control" role="group" aria-label="Timeline zoom">
+              <label class="timeline-zoom-control" for="timeline-zoom-level">
+                <span class="sr-only">Timeline zoom level</span>
+                <span class="timeline-zoom-endpoint" data-semantic-icon="zoom-out" aria-hidden="true"></span>
+                <input id="timeline-zoom-level" type="range" min="0" max="100" step="1" value="100" aria-describedby="timeline-zoom-level-hint" aria-valuetext="Focused time window">
+                <span class="timeline-zoom-endpoint" data-semantic-icon="zoom-in" aria-hidden="true"></span>
+              </label>
+              <span id="timeline-zoom-level-hint" class="sr-only">Farthest shows the whole timeline context. The middle centers the focused event with two neighboring events. Closest isolates the focused time window while keeping every event or range that intersects it visible.</span>
+            </div>
+            <div class="timeline-auto-controls toolbar-control-group" data-auto-control role="group" aria-label="Slideshow">
+              <button id="timeline-auto-toggle" class="toolbar-control view-icon-button" type="button" data-semantic-icon="play" aria-pressed="false" aria-keyshortcuts="Space" aria-label="Play slideshow" title="Play slideshow">
+                <span class="sr-only">Play slideshow</span>
+              </button>
+              <label class="timeline-auto-timer toolbar-number-control" title="Slideshow interval">
+                <span class="sr-only">Slideshow interval</span>
+                <input id="timeline-auto-seconds" type="number" min="2" max="3600" step="1" value="10" inputmode="numeric" aria-label="Slideshow interval in seconds">
+                <span aria-hidden="true">s</span>
+              </label>
+              <span id="timeline-auto-status" class="timeline-auto-status sr-only" aria-live="polite">Slideshow stopped</span>
+            </div>
+            <span id="timeline-window-readout" class="timeline-window-readout toolbar-readout sr-only" aria-live="polite">No visible events</span>
+          </div>
+        </div>
       </nav>
       <aside id="control-panel" class="control-panel app-editor-sheet" aria-label="Timeline editors" aria-hidden="true" hidden>
         <header class="app-surface-header">
@@ -1113,7 +1157,7 @@
         </section>
       </aside>
 
-        <aside id="timeline-browser-sheet" class="timeline-browser-sheet app-browser-sheet" role="dialog" aria-modal="true" aria-labelledby="timeline-heading" aria-hidden="true" hidden>
+        <aside id="timeline-browser-sheet" class="timeline-browser-sheet app-browser-sheet" role="dialog" aria-modal="false" aria-labelledby="timeline-heading" aria-hidden="true" hidden>
           <div class="app-browser-panel">
             <header class="app-surface-header">
               <div>
@@ -1258,55 +1302,9 @@
             </div>
 
             </header>
-          <div id="timeline-view-toolbar" class="timeline-view-toolbar app-view-controls" popover="manual" role="toolbar" aria-label="View controls">
-            <div class="view-display-controls" role="group" aria-label="Layout and display">
-              <button id="timeline-orientation-toggle" class="view-icon-button" type="button" data-semantic-icon="portrait" aria-label="Switch to portrait timeline" title="Switch to portrait timeline">
-                <span class="sr-only">Switch to portrait timeline</span>
-              </button>
-              <button id="presentation-fullscreen-toggle" class="view-icon-button" type="button" data-semantic-icon="fullscreen" aria-pressed="false" aria-keyshortcuts="F" aria-label="Enter full screen" title="Enter full screen">
-                <span class="sr-only">Enter full screen</span>
-              </button>
-            </div>
-            <div class="timeline-zoom-controls" aria-label="Timeline zoom">
-              <label class="timeline-zoom-control" for="timeline-zoom-level">
-                <span class="sr-only">Timeline zoom level</span>
-                <span class="timeline-zoom-endpoint" data-semantic-icon="zoom-out" aria-hidden="true"></span>
-                <input id="timeline-zoom-level" type="range" min="0" max="100" step="1" value="100" aria-describedby="timeline-zoom-level-hint" aria-valuetext="Focused time window">
-                <span class="timeline-zoom-endpoint" data-semantic-icon="zoom-in" aria-hidden="true"></span>
-              </label>
-              <span id="timeline-zoom-level-hint" class="sr-only">Farthest shows the whole timeline context. The middle centers the focused event with two neighboring events. Closest isolates the focused time window while keeping every event or range that intersects it visible.</span>
-            </div>
-            <div class="timeline-auto-controls" data-auto-control role="group" aria-label="Slideshow">
-              <button id="timeline-auto-toggle" class="view-icon-button" type="button" data-semantic-icon="play" aria-pressed="false" aria-keyshortcuts="Space" aria-label="Play slideshow" title="Play slideshow">
-                <span class="sr-only">Play slideshow</span>
-              </button>
-              <label class="timeline-auto-timer" title="Slideshow interval">
-                <span class="sr-only">Slideshow interval</span>
-                <input id="timeline-auto-seconds" type="number" min="2" max="3600" step="1" value="10" inputmode="numeric" aria-label="Slideshow interval in seconds">
-                <span aria-hidden="true">s</span>
-              </label>
-              <span id="timeline-auto-status" class="timeline-auto-status sr-only" aria-live="polite">Slideshow stopped</span>
-            </div>
-            <span id="timeline-window-readout" class="timeline-window-readout toolbar-readout" aria-live="polite">No visible events</span>
-          </div>
-          <p id="timeline-surface-help" class="sr-only">Drag along the time axis to pan with inertia. Scroll or pinch over the timeline for slow pointer-anchored zoom. The timeline View controls run from whole chronology context, through the focused event with two neighboring events, to an isolated focused-event time window that preserves intersecting timeline items. Home fits the currently visible or filtered chronology; Shift+Home fits the full chronology. Selecting an event enters a full focused composition. In focused presentation mode, Left and Right move between events, Up and Down move between photographs, Space or media Play/Pause toggles automatic advance, and Escape or Browser Back returns. Standard gamepads and TV remote D-pads use the same commands. Any manual interaction pauses automatic advance. Press F while the presentation stage has focus to enter or leave full screen; the timeline and relation graph remain visible, with focused detail arranged beside the graph and place context shown when the focused event provides it.</p>
+                    <p id="timeline-surface-help" class="sr-only">Drag along the time axis to pan with inertia. Scroll or pinch over the timeline for slow pointer-anchored zoom. The timeline View controls run from whole chronology context, through the focused event with two neighboring events, to an isolated focused-event time window that preserves intersecting timeline items. Home fits the currently visible or filtered chronology; Shift+Home fits the full chronology. Selecting an event enters a full focused composition. In focused presentation mode, Left and Right move between events, Up and Down move between photographs, Space or media Play/Pause toggles automatic advance, and Escape or Browser Back returns. Standard gamepads and TV remote D-pads use the same commands. Any manual interaction pauses automatic advance. Press F while the presentation stage has focus to enter or leave full screen; the timeline and relation graph remain visible, with focused detail arranged beside the graph and place context shown when the focused event provides it.</p>
           <div id="timeline-surface" class="timeline-surface is-landscape" tabindex="0" role="group" aria-describedby="timeline-surface-help"></div>
         </luum-timeline>
-
-        <div class="timeline-local-toolbar" role="toolbar" aria-label="Timeline controls">
-          <button id="timeline-view-controls-toggle" class="timeline-local-button app-view-tool" type="button" data-semantic-icon="magic" popovertarget="timeline-view-toolbar" popovertargetaction="toggle" aria-controls="timeline-view-toolbar" aria-expanded="false" title="View controls">
-            <span class="sr-only">View controls</span>
-          </button>
-          <button id="timeline-focus-prev" class="timeline-local-button timeline-context-action" type="button" data-semantic-icon="chevron-left" aria-label="Previous event" title="Previous event" hidden>
-            <span class="sr-only">Previous event</span>
-          </button>
-          <button id="timeline-focus-next" class="timeline-local-button timeline-context-action" type="button" data-semantic-icon="chevron-right" aria-label="Next event" title="Next event" hidden>
-            <span class="sr-only">Next event</span>
-          </button>
-          <button id="timeline-focus-edit" class="timeline-local-button timeline-context-action" type="button" data-semantic-icon="note" aria-label="Edit focused event" title="Edit focused event" aria-controls="control-panel" hidden>
-            <span class="sr-only">Edit focused event</span>
-          </button>
-        </div>
 
         <section id="timeline-focus-view" class="timeline-focus-view timeline-focus-sidebar" data-presentation-surface="sidebar" aria-live="polite" aria-label="Focused occurrence details" hidden></section>
 

@@ -124,8 +124,12 @@ test("application model projects timed and timeless relationships into one world
   );
   assert.equal(
     projection.instances.filter((instance) => instance.canonicalId === "alice").length,
-    2,
+    1,
   );
+
+  const aliceInstance = projection.instances.find((instance) => instance.canonicalId === "alice");
+  assert.ok(aliceInstance);
+  assert.deepEqual([...aliceInstance.occurrenceIds].sort(), ["meeting", "timeless"]);
 
   const meetingInstances = projection.instances.filter(
     (instance) => instance.occurrenceId === "meeting",

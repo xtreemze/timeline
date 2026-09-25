@@ -40,5 +40,5 @@ test("the tier floor is the most zoomed-out zoom of the current LOD tier", () =>
   assert.equal(worldLabelTierFloor(0.8), 0);
   assert.equal(worldLabelTierFloor(3.9), 3);
   assert.equal(worldLabelTierFloor(5), 5);
-  assert.equal(worldLabelTierFloor(11), 7);
+  assert.equal(worldLabelTierFloor(11), 9);
 });
