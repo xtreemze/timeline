@@ -178,7 +178,8 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightRenderer, /path\.join\(showcaseRoot, formFactor\)/);
   assert.match(highlightRenderer, /probeVisualSource/);
   assert.match(highlightRenderer, /SHOWCASE_FPS = 60/);
-  assert.match(highlightRenderer, /assertHighFrameRate/);
+  assert.match(highlightRenderer, /assertDecodedFrameRate/);
+  assert.match(highlightRenderer, /best_effort_timestamp_time/);
   assert.match(highlightRenderer, /assertMeasuredCapture/);
   assert.match(highlightRenderer, /libwebp_anim/);
   assert.match(highlightRenderer, /copyFile/);
@@ -197,6 +198,8 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightVerifier, /ACTIVE_FRAME_GAP_MS = 100/);
   assert.match(highlightVerifier, /frameTimestampsMs/);
   assert.match(highlightVerifier, /codec_name/);
+  assert.match(highlightVerifier, /-show_frames/);
+  assert.match(highlightVerifier, /best_effort_timestamp_time/);
   assert.match(highlightVerifier, /animated WebP/);
   assert.match(mediaWorkflow, /raw\/desktop/);
   assert.match(mediaWorkflow, /raw\/mobile/);
