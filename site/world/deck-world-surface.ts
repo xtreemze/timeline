@@ -1435,6 +1435,36 @@ function placeDatums(
   };
 }
 
+/**
+ * A collapsed entity cluster is also the aggregate geographic representation
+ * for every canonical place it contains. Do not draw the represented place
+ * pins underneath it; that duplicates both hit targets and visual semantics.
+ * Interaction is the exception: an active place pin is restored so the user
+ * can see the exact canonical anchor within the aggregate neighbourhood.
+ */
+function placeDatumsForClusterPresentation(
+  places: readonly DeckWorldPlaceDatum[],
+  clusters: readonly DeckWorldClusterDatum[],
+  clustered: boolean,
+  focus: WorldLabelFocus | null,
+): readonly DeckWorldPlaceDatum[] {
+  if (!clustered || clusters.length === 0) return places;
+  const representedPlaceIds = new Set<PlaceId>();
+  for (const cluster of clusters) {
+    for (const placeId of cluster.placeIds ?? []) representedPlaceIds.add(placeId);
+  }
+  if (representedPlaceIds.size === 0) return places;
+  return Object.freeze(
+    places.filter(
+      (place) =>
+        !representedPlaceIds.has(place.placeId) ||
+        place.selected ||
+        place.emphasized ||
+        (focus?.kind === "place" && focus.id === place.placeId),
+    ),
+  );
+}
+
 function entityDatumUnchanged(
   previous: DeckWorldEntityDatum,
   position: WorldRenderPosition,
@@ -2464,9 +2494,21 @@ function interactionNeighborhood(
   const entityIds = new Set<EntityId>();
   const relationshipIds = new Set<RelationshipId>();
   const placeIds = new Set<PlaceId>();
-  const entityByInstance = new Map<WorldInstanceId, EntityId>(
-    projection.instances.map((instance) => [instance.id, instance.canonicalId] as const),
-  );
+  const entityByInstance = new Map<WorldInstanceId, EntityId>();
+  const placesByInstance = new Map<WorldInstanceId, readonly PlaceId[]>();
+  const placesByEntity = new Map<EntityId, Set<PlaceId>>();
+  for (const instance of projection.instances) {
+    entityByInstance.set(instance.id, instance.canonicalId);
+    const instancePlaceIds = Object.freeze(
+      [...new Set(instance.geographicAnchors.map((anchor) => anchor.placeId))].sort((left, right) =>
+        String(left).localeCompare(String(right)),
+      ),
+    );
+    placesByInstance.set(instance.id, instancePlaceIds);
+    const entityPlaces = placesByEntity.get(instance.canonicalId) ?? new Set<PlaceId>();
+    for (const placeId of instancePlaceIds) entityPlaces.add(placeId);
+    placesByEntity.set(instance.canonicalId, entityPlaces);
+  }
 
   for (const selection of selections) {
     if (!selection) continue;
@@ -2484,10 +2526,13 @@ function interactionNeighborhood(
       const target = entityByInstance.get(edge.targetInstanceId);
       if (source) entityIds.add(source);
       if (target) entityIds.add(target);
+      for (const placeId of placesByInstance.get(edge.sourceInstanceId) ?? []) placeIds.add(placeId);
+      for (const placeId of placesByInstance.get(edge.targetInstanceId) ?? []) placeIds.add(placeId);
       continue;
     }
 
     entityIds.add(selection.id);
+    for (const placeId of placesByEntity.get(selection.id) ?? []) placeIds.add(placeId);
     for (const edge of projection.edges) {
       const source = entityByInstance.get(edge.sourceInstanceId);
       const target = entityByInstance.get(edge.targetInstanceId);
@@ -4202,6 +4247,15 @@ export class DeckWorldSurface implements WorldSurface {
               (entity) => !memberIds.has(entity.worldInstanceId) || showMembers,
             ),
           );
+    const renderedPlaceClusters = placeClusters.filter(
+      (datum): datum is DeckWorldClusterDatum => datum.kind === "cluster",
+    );
+    const renderedPlaces = placeDatumsForClusterPresentation(
+      places,
+      renderedPlaceClusters,
+      clusterPhase === "collapsed",
+      this.#focus,
+    );
 
     this.#placeDatumCache = placeResult.byId;
     this.#relationshipDatumCache = relationshipResult.byId;
@@ -4414,7 +4468,7 @@ export class DeckWorldSurface implements WorldSurface {
         : []),
       this.#runtime.createScatterplotLayer({
         id: DECK_WORLD_LAYER_IDS.places,
-        data: places,
+        data: renderedPlaces,
         dataComparator: sameDatumSequence,
         pickable: true,
         // Screen-constant acquisition target. IconLayer owns the visible
@@ -4456,7 +4510,7 @@ export class DeckWorldSurface implements WorldSurface {
         ? [
             this.#runtime.createIconLayer({
               id: DECK_WORLD_LAYER_IDS.placeIcons,
-              data: this.#cameraFacingPlaces(places),
+              data: this.#cameraFacingPlaces(renderedPlaces),
               dataComparator: sameDatumSequence,
               pickable: true,
               billboard: true,
@@ -4564,8 +4618,9 @@ export class DeckWorldSurface implements WorldSurface {
               )
             : datum.position,
         // Individual entities are drawn by the styled marker layer; this
-        // layer is their (invisible) pick/drag target. Clusters render only
-        // as an outer neutral ring so they never cover the place marker.
+        // layer is their (invisible) pick/drag target. A collapsed cluster is
+        // the aggregate marker for both its member entities and represented
+        // place anchors, so duplicate place pins are omitted underneath it.
         getRadius: (datum: DeckWorldEntityRenderDatum) => {
           if (datum.kind === "cluster") {
             const memberRadius = datum.clusterMembers.reduce(

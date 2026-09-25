@@ -446,12 +446,13 @@ test("large marker labels clear the rendered node footprint", () => {
   );
 });
 
-test("clustered overview replaces nearby member labels with aggregate context", () => {
+test("clustered overview replaces nearby place markers and member labels with aggregate context", () => {
   const h = harness();
   const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 0.2 });
   surface.setProjection(directedProjection());
 
-  const labels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
+  const layers = h.lastLayers();
+  const labels = layer(layers, DECK_WORLD_LAYER_IDS.labels);
   assert.ok(labels.props.data.length > 0);
   assert.ok(
     labels.props.data.every((datum) => datum.kind === "cluster-label"),
@@ -461,6 +462,22 @@ test("clustered overview replaces nearby member labels with aggregate context", 
     labels.props.data.some(
       (datum) => datum.text.includes("2 places") && datum.text.includes("2 nodes"),
     ),
+  );
+
+  const entityCluster = layer(layers, DECK_WORLD_LAYER_IDS.entities).props.data.find(
+    (datum) => datum.kind === "cluster",
+  );
+  assert.ok(entityCluster);
+  assert.equal(entityCluster.placeIds.length, 2, "the aggregate preserves both canonical places");
+  assert.equal(
+    layer(layers, DECK_WORLD_LAYER_IDS.places).props.data.length,
+    0,
+    "represented place hit bodies are folded into the aggregate cluster",
+  );
+  assert.equal(
+    layer(layers, DECK_WORLD_LAYER_IDS.placeIcons).props.data.length,
+    0,
+    "nearby place pins do not remain visibly stacked underneath the cluster",
   );
 });
 
@@ -901,7 +918,8 @@ test("clustered overview reveals aggregate and location context on interaction",
   );
 
   surface.setSelection({ kind: "entity", id: "entity-150" });
-  labels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
+  let interactionLayers = h.lastLayers();
+  labels = layer(interactionLayers, DECK_WORLD_LAYER_IDS.labels).props.data;
   assert.equal(
     labels.some((datum) => datum.kind === "entity-label"),
     false,
@@ -914,6 +932,12 @@ test("clustered overview reveals aggregate and location context on interaction",
   assert.ok(
     labels.some((datum) => datum.kind === "cluster-label" && datum.emphasized),
     "the selected node's aggregate context is emphasized",
+  );
+  assert.ok(
+    layer(interactionLayers, DECK_WORLD_LAYER_IDS.placeIcons).props.data.some(
+      (datum) => datum.label === "Place 0",
+    ),
+    "interaction restores the exact canonical place pin without expanding the surrounding cluster",
   );
 
   surface.setSelection(null);
