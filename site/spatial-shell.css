@@ -72,19 +72,6 @@
   max-block-size: none;
 }
 
-#app-shell:has(#timeline-view[data-orientation="landscape"]) .app-tool-dock,
-#app-shell:has(#timeline-view[data-orientation="portrait"]) .app-tool-dock {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-@media (min-width: 700px) {
-  .app-tool-dock,
-  #app-shell:has(#timeline-view[data-orientation="landscape"]) .app-tool-dock,
-  #app-shell:has(#timeline-view[data-orientation="portrait"]) .app-tool-dock {
-    grid-template-columns: repeat(3, minmax(72px, 112px));
-  }
-}
-
 @media (min-width: 760px) {
   #app-shell[data-editor-open="true"] {
     display: block;
@@ -392,14 +379,18 @@
    and chronology controls live on the physical right. Utility panels end above this
    plane instead of covering or displacing it. */
 #app-shell > .app-tool-dock.app-footer-bar,
+#app-shell:has(#timeline-view[data-orientation="landscape"]) > .app-tool-dock.app-footer-bar,
+#app-shell:has(#timeline-view[data-orientation="portrait"]) > .app-tool-dock.app-footer-bar,
 #presentation-stage:fullscreen > .app-tool-dock.app-footer-bar {
   z-index: 1600;
   display: grid;
   pointer-events: auto;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: stretch;
+  justify-content: stretch;
   inline-size: 100%;
   max-inline-size: none;
+  overflow: hidden;
 }
 
 .app-footer-zone {
@@ -423,7 +414,9 @@
 
 .app-footer-actions {
   justify-content: center;
-  min-inline-size: max-content;
+  inline-size: clamp(132px, 33vw, 264px);
+  min-inline-size: 0;
+  max-inline-size: 100%;
 }
 
 .app-footer-actions > .app-tool {
