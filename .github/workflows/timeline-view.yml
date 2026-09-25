@@ -235,6 +235,8 @@ jobs:
       - run: "! grep -Eq '(orb-graph|leaflet|evidence-extraction)\\.bundle\\.js' dist/index.html"
       - run: node --check src/orb-graph-entry.js
       - run: node --check src/evidence-extraction-entry.js
+      - run: pnpm test:hosted-persistence
+      - run: pnpm benchmark:hosted-persistence
       - run: pnpm test:architecture
       - run: pnpm test:browser-certification-config
       - run: pnpm test:runtime-contracts
@@ -245,8 +247,6 @@ jobs:
       - run: pnpm test:retained-timeline-metrics
       - run: pnpm benchmark:retained-timeline
       - run: pnpm benchmark:graph-data
-      - run: pnpm test:hosted-persistence
-      - run: pnpm benchmark:hosted-persistence
       - run: pnpm benchmark:world-force
       - name: Certify world DAG layout quality
         run: pnpm benchmark:world-dag -- --check
