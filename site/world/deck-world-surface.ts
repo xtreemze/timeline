@@ -2230,10 +2230,7 @@ export class DeckWorldSurface implements WorldSurface {
     const touch = touchPointer(event);
     if (!touch) return;
 
-    if (
-      this.#activeDragPointerId === touch.pointerId &&
-      this.#activeDragInstanceId !== null
-    ) {
+    if (this.#activeDragPointerId === touch.pointerId && this.#activeDragInstanceId !== null) {
       event.preventDefault?.();
       event.stopPropagation?.();
       const target = this.#dragTarget({
