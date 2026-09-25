@@ -2601,6 +2601,7 @@ export class TimelineViewController {
     const width = Math.max(1, rect.width || this.surface.clientWidth || 800);
     const height = Math.max(1, rect.height || this.surface.clientHeight || 480);
     const primaryLength = this.orientation === "horizontal" ? width : height;
+    const crossLength = this.orientation === "horizontal" ? height : width;
     const axisCross = this.orientation === "horizontal" ? height / 2 : width * 0.58;
     const padding = this.axisPadding(primaryLength);
     const usable = Math.max(1, primaryLength - padding * 2);
@@ -2653,14 +2654,7 @@ export class TimelineViewController {
         if (record.contentEpoch !== this.itemEpoch) this.updateRecordContent(record);
         else this.syncRecordSelection(record);
       }
-      this.positionRecord(
-        record,
-        primaryLength,
-        axisCross,
-        padding,
-        usable,
-        this.orientation === "horizontal" ? height : width,
-      );
+      this.positionRecord(record, padding, usable, axisCross, crossLength);
     }
 
     this.positionCommittedClusters(padding, usable, axisCross);
@@ -2803,13 +2797,12 @@ export class TimelineViewController {
     record.range?.classList.toggle("is-selected", selected);
   }
 
-  positionRecord(record: SceneRecord, ...args: [number, number, number, number, number]): void;
+  positionRecord(record: SceneRecord, ...args: [number, number, number, number]): void;
   positionRecord(
     record: SceneRecord,
-    _primaryLength: number,
-    axisCross: number,
     padding: number,
     usable: number,
+    axisCross: number,
     crossExtent: number,
   ): void {
     const { item, node, terminal, connector, connectorTurn, range } = record;
@@ -2848,13 +2841,6 @@ export class TimelineViewController {
             this.retention.active,
           )
         : lane < 0;
-    const sideCorrectionStart =
-      !this.retention.active &&
-      this.orientation === "horizontal" &&
-      previousLabelBefore !== null &&
-      previousLabelBefore !== labelBefore
-        ? terminal.getBoundingClientRect()
-        : null;
     const crossGeometryChanged =
       previousCrossPosition === null ||
       Math.abs(previousCrossPosition - shiftedCross) > LAYOUT_CORRECTION_EPSILON_PX;
@@ -2883,11 +2869,6 @@ export class TimelineViewController {
         this.orientation === "horizontal" ? crossDelta : 0,
       );
     }
-    if (sideCorrectionStart) {
-      const sideCorrectionEnd = terminal.getBoundingClientRect();
-      this.animateLayoutCorrection(terminal, sideCorrectionStart.left - sideCorrectionEnd.left, 0);
-    }
-
     const terminalTabIndex = visible ? 0 : -1;
     if (terminal.tabIndex !== terminalTabIndex) terminal.tabIndex = terminalTabIndex;
 
