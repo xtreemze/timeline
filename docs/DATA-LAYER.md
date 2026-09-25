@@ -153,6 +153,14 @@ Benchmark Postgres/current indexes against SurrealDB, Neo4j, and Memgraph on the
 6. Design portable PostgreSQL/PostGIS migrations from the consolidated canonical model.
 7. Benchmark SurrealDB/Neo4j/Memgraph only after representative server-side graph queries and scale targets are defined.
 
+## Hosted persistence benchmark spike
+
+The follow-up spike in `experiments/hosted-persistence/` now keeps equivalent PostgreSQL and SurrealDB kernel schemas beside one deterministic workload corpus. It is deliberately limited to the current entity/relationship canonical kernel while #720 consolidates occurrences, places, evidence, stories, custody, lenses, and geotemporal state.
+
+`pnpm test:hosted-persistence` checks the cross-provider invariants that can be certified without external credentials. `pnpm benchmark:hosted-persistence` emits the provider-neutral corpus metadata, workload IDs, and local semantic-index hydration/neighborhood baseline. Live Supabase/PostgreSQL and SurrealDB runners must consume that same corpus and publish database/version, ingest/update latency, p50/p95 workload latency, storage footprint, recovery behavior, and client hydration time before either backend is selected.
+
+The PostgreSQL prototype remains ordinary PostgreSQL rather than a Supabase SDK contract. PostGIS is intentionally deferred until canonical place/geotemporal ownership is available instead of inventing a premature server place model. The SurrealDB prototype uses a schema-full enforced relation table but keeps revision snapshots explicit so it can be judged against the same `ProjectRepository` semantics.
+
 ## Non-goals of the current slice
 
 - connecting production Supabase/AWS/Azure credentials;
