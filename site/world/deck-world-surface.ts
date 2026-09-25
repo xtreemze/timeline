@@ -2976,15 +2976,25 @@ export class DeckWorldSurface implements WorldSurface {
     });
   }
 
+  #temporallyInteractiveHit(hit: WorldHit | null): boolean {
+    if (!hit) return false;
+    const progress = this.#temporalProgress();
+    if (hit.kind === "entity") {
+      if (!this.#projection.instances.some((instance) => instance.id === hit.worldInstanceId)) {
+        return false;
+      }
+      return this.#temporalNodeVisibility(hit.worldInstanceId, progress) >= 0.5;
+    }
+    if (hit.kind === "relationship") {
+      if (!this.#projection.edges.some((edge) => edge.id === hit.relationshipId)) return false;
+      return this.#temporalEdgeVisibility(hit.relationshipId, progress) >= 0.35;
+    }
+    return true;
+  }
+
   #selectionFromPickingInfo(info: DeckRuntimePickingInfo): WorldSelection | null {
     const hit = worldHitFromPicking(info);
-    if (
-      hit?.kind === "relationship" &&
-      !this.#projection.edges.some((edge) => edge.id === hit.relationshipId)
-    ) {
-      return null;
-    }
-    return worldSelectionFromHit(hit);
+    return this.#temporallyInteractiveHit(hit) ? worldSelectionFromHit(hit) : null;
   }
 
   readonly #handleDeckHover = (info: DeckRuntimePickingInfo): void => {
@@ -3903,13 +3913,7 @@ export class DeckWorldSurface implements WorldSurface {
       picked = null;
     }
     const hit = worldHitFromPicking(picked);
-    if (
-      hit?.kind === "relationship" &&
-      !this.#projection.edges.some((edge) => edge.id === hit.relationshipId)
-    ) {
-      return null;
-    }
-    return hit;
+    return this.#temporallyInteractiveHit(hit) ? hit : null;
   }
 
   /**
@@ -4007,6 +4011,8 @@ export class DeckWorldSurface implements WorldSurface {
     );
     this.#clearTouchHoldTimer();
     this.#clearClusterTimers();
+    this.#clearTemporalRevealTimer();
+    this.#temporalReveal = null;
     this.#clearDragFlash({ render: false });
     this.#clearDragClickSuppression();
     this.#touchHold.clear();
