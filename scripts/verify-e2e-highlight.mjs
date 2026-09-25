@@ -100,7 +100,7 @@ function measureSourceCadence(segment, formFactor) {
   if (!capture || capture.targetFps !== SHOWCASE_FPS) {
     throw new Error(`${formFactor}/${segment.name} does not target ${SHOWCASE_FPS} fps.`);
   }
-  if (capture.method !== "ffmpeg-x11grab-vp8") {
+  if (capture.method !== "ffmpeg-x11grab-rawvideo") {
     throw new Error(
       `${formFactor}/${segment.name} used ${String(capture.method)}; expected the raw X11 framebuffer capture path.`,
     );
