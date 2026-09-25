@@ -29,6 +29,10 @@ const highlightRenderer = readFileSync(
   new URL("../scripts/render-e2e-highlight.mjs", import.meta.url),
   "utf8",
 );
+const highlightVerifier = readFileSync(
+  new URL("../scripts/verify-e2e-highlight.mjs", import.meta.url),
+  "utf8",
+);
 const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
 const showcaseDocs = readFileSync(
   new URL("../docs/E2E-HIGHLIGHT-REEL.md", import.meta.url),
@@ -133,6 +137,7 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
     /playwright\.highlight\.config\.ts/,
   );
   assert.match(packageJson.scripts?.["render:e2e:showcase"] || "", /render-e2e-highlight\.mjs/);
+  assert.match(packageJson.scripts?.["verify:e2e:showcase"] || "", /verify-e2e-highlight\.mjs/);
 
   assert.match(highlightConfig, /testDir:\s*['"]\.\/tests\/highlight['"]/);
   assert.match(config, /\*\*\/highlight\/\*\*/);
@@ -141,9 +146,15 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightConfig, /viewport:\s*\{\s*width:\s*1440,\s*height:\s*900\s*\}/);
   assert.match(highlightConfig, /viewport:\s*\{\s*width:\s*390,\s*height:\s*844\s*\}/);
   assert.match(highlightConfig, /hasTouch:\s*true/);
+  assert.match(highlightConfig, /--disable-background-timer-throttling/);
+  assert.match(highlightConfig, /--disable-frame-rate-limit/);
 
   assert.match(highlightSpec, /records source-native Lūm showcase media per form factor/);
   assert.match(highlightSpec, /page\.screencast\.start/);
+  assert.match(highlightSpec, /fps:\s*SHOWCASE_FPS/);
+  assert.match(highlightSpec, /onFrame/);
+  assert.match(highlightSpec, /frameTimestampsMs/);
+  assert.match(highlightSpec, /minimumMeasuredCaptureFps/);
   assert.match(highlightSpec, /page\.screencast\.showChapter/);
   assert.match(highlightSpec, /page\.screencast\.showOverlay/);
   assert.match(highlightSpec, /page\.screenshot/);
@@ -161,6 +172,9 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightRenderer, /lum-\$\{formFactor\}-highlight\.mp4/);
   assert.match(highlightRenderer, /path\.join\(showcaseRoot, formFactor\)/);
   assert.match(highlightRenderer, /probeVisualSource/);
+  assert.match(highlightRenderer, /SHOWCASE_FPS = 60/);
+  assert.match(highlightRenderer, /assertHighFrameRate/);
+  assert.match(highlightRenderer, /assertMeasuredCapture/);
   assert.match(highlightRenderer, /libwebp_anim/);
   assert.match(highlightRenderer, /copyFile/);
   assert.match(highlightRenderer, /mediaMode === "static"/);
@@ -173,6 +187,10 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(mediaWorkflow, /Record source-native showcase media/);
   assert.match(mediaWorkflow, /pnpm test:e2e:showcase/);
   assert.match(mediaWorkflow, /pnpm render:e2e:showcase/);
+  assert.match(mediaWorkflow, /pnpm verify:e2e:showcase/);
+  assert.match(highlightVerifier, /MIN_CAPTURE_FPS = 59/);
+  assert.match(highlightVerifier, /frameTimestampsMs/);
+  assert.match(highlightVerifier, /animated WebP/);
   assert.match(mediaWorkflow, /raw\/desktop/);
   assert.match(mediaWorkflow, /raw\/mobile/);
   assert.match(mediaWorkflow, /showcase\/desktop/);
