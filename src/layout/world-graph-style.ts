@@ -37,11 +37,11 @@ export const WORLD_DARK_PALETTE: WorldGraphPalette = Object.freeze({
 });
 
 /**
- * Ordinary nodes render at roughly 30-34px including their normal border and
- * marker padding. Picking remains a separate >=44px target in WorldSurface,
- * so visual density and interaction acquisition can scale independently.
+ * Ordinary node cores render at 20-24px across before their border. Picking
+ * remains a separate >=44px target in WorldSurface, so visual density and
+ * interaction acquisition can scale independently.
  */
-export const WORLD_NODE_SCALE = 1.1;
+export const WORLD_NODE_SCALE = 1;
 /** Minimum radius of the mobile interaction footprint (44px diameter). */
 export const WORLD_ENTITY_MIN_HIT_RADIUS_PX = 22;
 
@@ -152,7 +152,7 @@ function worldNodeMetrics(input: WorldNodeStyleInput): {
   const own = styleOf(input.attributes);
   // Keep a compact visible baseline; the separate hit footprint preserves
   // mobile acquisition. Quantized radii still keep the marker atlas bounded.
-  const baseRadius = Math.round(11 + Math.min(1, Math.max(0, input.visualWeight ?? 0)) * 2);
+  const baseRadius = Math.round(10 + Math.min(1, Math.max(0, input.visualWeight ?? 0)) * 2);
   // Portable marker semantics: `size` and `diameter` are visible diameters;
   // `radius` is the only radius-valued property. Explicit authored geometry
   // is authoritative and is not multiplied by the app's default node scale.
@@ -265,7 +265,7 @@ export function worldPlaceStyle(
   const authoredRadius =
     number(marker.radius, 4, 32) ??
     number(own.radius, 4, 32) ??
-    (authoredDiameter === null ? 14 : authoredDiameter / 2);
+    (authoredDiameter === null ? 12 : authoredDiameter / 2);
   return Object.freeze({
     fill,
     border,
@@ -300,7 +300,7 @@ export interface WorldEdgeStyleInput {
   readonly inactive?: boolean;
   /** Visual de-emphasis for edges outside the active interaction neighborhood. */
   readonly subdued?: boolean;
-  /** Endpoint/category-derived colour used only when the relationship has no authored colour. */
+  /** Endpoint-derived colour used when no timeline category colour is available. */
   readonly fallbackColor?: string;
 }
 
@@ -321,7 +321,7 @@ export function worldEdgeStyle(
     number(own.width, 0.5, 10) ??
     number(own.strokeWidth, 0.5, 10) ??
     number(own.lineWidth, 0.5, 10) ??
-    1.5;
+    1;
   return Object.freeze({
     // Interaction emphasis is renderer-only so edge geometry/routing never
     // changes on hover or selection.

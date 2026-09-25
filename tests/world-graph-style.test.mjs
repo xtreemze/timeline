@@ -180,7 +180,7 @@ test("places use node-like shape, icon, border, fill, and readable footprint", (
   const fallback = worldPlaceStyle({}, false, WORLD_LIGHT_PALETTE);
   assert.equal(fallback.shape, "pin");
   assert.equal(fallback.icon, "place");
-  assert.equal(fallback.radius, 14);
+  assert.equal(fallback.radius, 12);
   assert.ok(fallback.radius < WORLD_ENTITY_MIN_HIT_RADIUS_PX);
 });
 
@@ -268,6 +268,7 @@ test("subdued edges mute while emphasis restores category or endpoint colour", (
   );
   assert.equal(emphasized.color, "#123456");
   assert.equal(emphasized.dashed, false);
+  assert.equal(emphasized.width, 1);
 
   const endpoint = worldEdgeStyle(
     {
@@ -290,7 +291,7 @@ test("subdued edges mute while emphasis restores category or endpoint colour", (
     WORLD_LIGHT_PALETTE,
   );
   assert.equal(category.color, "#aabbcc");
-  assert.equal(category.width, 1.5);
+  assert.equal(category.width, 1);
 });
 
 test("colour bytes parse short, long and alpha hex", () => {
@@ -309,7 +310,7 @@ test("node radii are whole pixels so a scene shares a few marker textures", () =
   );
   assert.deepEqual(
     [...radii].sort((a, b) => a - b),
-    [12, 13, 14],
+    [10, 11, 12],
   );
   assert.equal(
     worldNodeStyle({ type: "person", attributes: { style: { size: 12.7 } } }, WORLD_LIGHT_PALETTE)

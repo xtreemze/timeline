@@ -24,7 +24,6 @@ import {
   type WorldNodeStyle,
   worldColorBytes,
   worldEdgeStyle,
-  worldNodeFootprintRadiusPx,
   worldNodeStyle,
   worldNodeVisualFootprintRadiusPx,
   worldPlaceStyle,
@@ -311,8 +310,8 @@ export const CLUSTER_ZOOM_THRESHOLD = 4.25;
 /** Reference visible footprint radius for the compact default marker scale. */
 const WORLD_CLUSTER_BASE_NODE_RADIUS_PX = 16;
 /** Bound cluster bubbles so membership does not linearly inflate overview geometry. */
-const WORLD_CLUSTER_MARKER_MIN_RADIUS_PX = 28;
-const WORLD_CLUSTER_MARKER_MAX_RADIUS_PX = 38;
+const WORLD_CLUSTER_MARKER_MIN_RADIUS_PX = 22;
+const WORLD_CLUSTER_MARKER_MAX_RADIUS_PX = 30;
 /** Zoom distance used to resolve from cluster origins into the floating local graph. */
 const WORLD_LOCAL_GRAPH_RESOLVE_ZOOM_SPAN = 1.25;
 
@@ -321,7 +320,7 @@ function worldClusterMarkerRadiusPx(memberRadiusPx: number, memberCount: number)
   const count = Number.isFinite(memberCount) ? Math.max(1, memberCount) : 1;
   return Math.max(
     WORLD_CLUSTER_MARKER_MIN_RADIUS_PX,
-    Math.min(WORLD_CLUSTER_MARKER_MAX_RADIUS_PX, radius + 8 + Math.log2(count) * 2),
+    Math.min(WORLD_CLUSTER_MARKER_MAX_RADIUS_PX, radius + 6 + Math.log2(count) * 1.5),
   );
 }
 /** Arrow geometry is world-space, so refresh it on fine-grained zoom steps. */
@@ -827,7 +826,7 @@ type Rgba = [number, number, number, number];
 /** Theme-derived colours for the non-graph layers (basemap, labels, clusters). */
 const WORLD_TETHER_WIDTH_PX = 0.6;
 const WORLD_TETHER_ALPHA = 48;
-const WORLD_INACTIVE_EDGE_ALPHA = 96;
+const WORLD_INACTIVE_EDGE_ALPHA = 72;
 const WORLD_EMPHASIZED_EDGE_ALPHA = 242;
 const WORLD_CAMERA_FACING_FADE_END = 0.08;
 
@@ -3618,11 +3617,15 @@ export class DeckWorldSurface implements WorldSurface {
       return worldNodeMarker(style).size / 2;
     };
     const edgeFallbackColor = (edge: DeckWorldRelationshipDatum): string | undefined => {
-      const source = entityResult.byId.get(edge.sourceInstanceId);
-      const target = entityResult.byId.get(edge.targetInstanceId);
-      if (source) return this.#entityStyle(source).fill;
-      if (target) return this.#entityStyle(target).fill;
-      return undefined;
+      const endpointColor = (entity: DeckWorldEntityDatum | undefined): string | undefined => {
+        if (!entity) return undefined;
+        const style = this.#entityStyle(entity);
+        return style.fill === this.#palette.paper ? style.border : style.fill;
+      };
+      return (
+        endpointColor(entityResult.byId.get(edge.sourceInstanceId)) ??
+        endpointColor(entityResult.byId.get(edge.targetInstanceId))
+      );
     };
     const edgeAlpha = (
       edge: Pick<DeckWorldRelationshipDatum, "selected" | "emphasized">,
