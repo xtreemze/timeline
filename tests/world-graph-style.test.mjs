@@ -260,12 +260,12 @@ test("edges colour by relationship type unless they carry their own style, inclu
   assert.equal(aliased.width, 3);
 });
 
-test("subdued edges mute while emphasis restores category or endpoint colour", () => {
+test("subdued edges retain semantic hue while inactive edges mute", () => {
   const subdued = worldEdgeStyle(
     { predicate: "calls", fallbackColor: "#123456", subdued: true },
     WORLD_LIGHT_PALETTE,
   );
-  assert.equal(subdued.color, WORLD_LIGHT_PALETTE.muted);
+  assert.equal(subdued.color, "#123456");
   assert.equal(subdued.dashed, false);
 
   const inactive = worldEdgeStyle(
