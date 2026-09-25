@@ -217,7 +217,8 @@ export function createWorldViewFactory(options: WorldViewFactoryOptions): WorldV
           }
         })
         .catch(() => {});
-      const forceBackend = options.createForceBackend?.() ?? new D3WorldForceSimulation();
+      const forceBackend: WorldViewFactoryForceBackend =
+        options.createForceBackend?.() ?? new D3WorldForceSimulation();
       const runtime = new WorldViewRuntimeController({
         surface,
         forceBackend,
