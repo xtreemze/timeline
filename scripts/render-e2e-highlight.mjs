@@ -117,6 +117,11 @@ function assertMeasuredCapture(segment, formFactor) {
       `${formFactor}/${segment.name} is missing the ${SHOWCASE_FPS} fps source-capture contract.`,
     );
   }
+  if (capture.method !== "ffmpeg-x11grab-vp8") {
+    throw new Error(
+      `${formFactor}/${segment.name} used ${String(capture.method)}; expected the raw X11 framebuffer capture path.`,
+    );
+  }
   const timestamps = capture.frameTimestampsMs;
   if (!Array.isArray(timestamps) || timestamps.length < 2) {
     throw new Error(`${formFactor}/${segment.name} is missing source frame timestamps.`);
