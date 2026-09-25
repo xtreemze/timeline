@@ -1620,11 +1620,14 @@ const LABEL_MARKER_GAP_PX = 8;
 export const WORLD_CLOSE_DRAG_CAMERA_LOCK_ZOOM = 6;
 
 export function worldGraphLabelSize(
-  _datum: Pick<DeckWorldLabelDatum, "kind" | "emphasized">,
+  datum: Pick<DeckWorldLabelDatum, "kind" | "emphasized">,
 ): number {
-  // Interaction state may change color/opacity only. Text metrics stay stable
+  // Match the surrounding interface's compact 10–15px type scale. Semantic
+  // kind may establish hierarchy, but interaction state never changes metrics,
   // so hover/selection cannot trigger declutter relocation.
-  return 18;
+  if (datum.kind === "place-label" || datum.kind === "cluster-label") return 14;
+  if (datum.kind === "entity-label") return 13;
+  return 12;
 }
 
 export function worldLabelCollisionPriority(
