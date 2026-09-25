@@ -79,7 +79,8 @@ test("focused detail prioritizes Context and Evidence while navigation stays on 
   assert.doesNotMatch(source, /timeline-focus-nav-prev|timeline-focus-nav-next|Edit event/);
   assert.match(html, /id="timeline-focus-prev"/);
   assert.match(html, /id="timeline-focus-next"/);
-  assert.match(html, /id="timeline-focus-edit"/);
+  assert.doesNotMatch(html, /id="timeline-focus-edit"/);
+  assert.match(html, /id="editor-toggle"/);
   assert.match(css, /data-layout="hero-split"/);
   assert.match(css, /data-layout="evidence-dossier"/);
   assert.match(css, /data-layout="editorial-mosaic"/);
