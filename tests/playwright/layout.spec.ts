@@ -218,12 +218,13 @@ test.describe("Mobile-first Timeline layout contracts", () => {
         expect(buttonBox.height).toBeGreaterThanOrEqual(44);
       }
 
-      const [worldZoneBox, actionsZoneBox, timelineZoneBox, viewControlBox] = await Promise.all([
-        dock.locator(".app-footer-world").boundingBox(),
-        dock.locator(".app-footer-actions").boundingBox(),
-        dock.locator(".app-footer-timeline").boundingBox(),
-        viewControl.boundingBox(),
-      ]);
+      const [worldZoneBox, actionsZoneBox, timelineZoneBox, viewControlBox] =
+        await Promise.all([
+          dock.locator(".app-footer-world").boundingBox(),
+          dock.locator(".app-footer-actions").boundingBox(),
+          dock.locator(".app-footer-timeline").boundingBox(),
+          viewControl.boundingBox(),
+        ]);
       expect(worldZoneBox).not.toBeNull();
       expect(actionsZoneBox).not.toBeNull();
       expect(timelineZoneBox).not.toBeNull();
@@ -620,7 +621,9 @@ test.describe("Persistent footer and focus geometry", () => {
         ),
       ).toBeLessThanOrEqual(6);
 
-      const contextActions = page.locator(".app-footer-context-actions .timeline-context-action:visible");
+      const contextActions = page.locator(
+        ".app-footer-context-actions .timeline-context-action:visible",
+      );
       const contextActionCount = await contextActions.count();
       expect(contextActionCount).toBeGreaterThan(0);
       for (let index = 0; index < contextActionCount; index += 1) {
