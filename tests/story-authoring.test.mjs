@@ -94,6 +94,6 @@ test("item editor exposes contextual story authoring and health feedback", async
   assert.match(app, /addItemToStory\([\s\S]*selectedStoryId[\s\S]*item\.id/);
   assert.match(app, /reconcileStoryContext\([\s\S]*storyDraftPlaceIds/);
   assert.match(app, /auditStoryAuthoring\(story, state\.relationships, state\.places\)/);
-  assert.match(app, /context complete/);
+  assert.match(app, /context valid/);
   assert.match(app, /context \$\{health\.issueCount === 1 \? "gap" : "gaps"\}/);
 });
