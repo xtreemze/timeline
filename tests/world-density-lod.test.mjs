@@ -138,7 +138,7 @@ test("cluster lifecycle is discrete, force-resolved, and cleans clustered topolo
     /setClusteredPlaceIds\(\s*Object\.freeze\(\[\] as PlaceId\[\]\),\s*Object\.freeze\(\[\] as PlaceId\[\]\),?\s*\)/,
   );
 
-  assert.match(source, /clusterPhase === "collapsed"[\s\S]*placeClusters\.filter/);
+  assert.match(source, /clusterPhase === "collapsed"[\s\S]*entityResult\.datums\.filter/);
   assert.match(source, /activeTemporalRelationships = temporalRelationships\.filter/);
   assert.match(source, /visibleDirectionRelationships = relationships\.filter/);
   assert.match(source, /tetherEntities =[\s\S]*!memberIds\.has\(entity\.worldInstanceId\)/);

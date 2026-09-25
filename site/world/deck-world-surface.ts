@@ -4318,7 +4318,8 @@ export class DeckWorldSurface implements WorldSurface {
     this.#directionDatumCache = directionResult.byId;
     const focus = this.#focus;
     const pinnedEntity = (entity: DeckWorldEntityDatum) =>
-      focus?.kind === "entity" && focus.id === entity.entityId;
+      (focus?.kind === "entity" && focus.id === entity.entityId) ||
+      (this.#selection?.kind === "entity" && this.#selection.id === entity.entityId);
     const edgeExpansion = (
       edge: Pick<DeckWorldRelationshipDatum, "sourceInstanceId" | "targetInstanceId">,
     ): number => (!edgeIsClusterAffected(edge) || showActiveClusterEdges ? 1 : 0);

@@ -95,8 +95,9 @@ test("offset scale changes continuously across nearby zoom values", () => {
 
   assert.notEqual(near, low);
   assert.notEqual(farther, near);
-  assert.ok(Math.abs(near / low - 2 ** -0.01) < 1e-9);
-  assert.ok(Math.abs(farther / near - 2 ** -0.01) < 1e-9);
+  const expectedRatio = 2 ** -0.0075;
+  assert.ok(Math.abs(near / low - expectedRatio) < 1e-9);
+  assert.ok(Math.abs(farther / near - expectedRatio) < 1e-9);
 });
 
 test("decluster readability grows with node footprint but is capped by the viewport", () => {
