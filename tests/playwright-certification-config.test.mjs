@@ -155,7 +155,7 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightConfig, /--kiosk/);
   assert.match(highlightConfig, /screen:\s*\{\s*width:\s*1440,\s*height:\s*900\s*\}/);
   assert.match(highlightConfig, /screen:\s*\{\s*width:\s*390,\s*height:\s*844\s*\}/);
-  assert.doesNotMatch(highlightConfig, /headless:\s*false/);
+  assert.match(highlightConfig, /headless:\\s*false/);
 
   assert.match(highlightSpec, /records source-native Lūm showcase media per form factor/);
   assert.match(highlightSpec, /const SHOWCASE_FPS = 60/);
