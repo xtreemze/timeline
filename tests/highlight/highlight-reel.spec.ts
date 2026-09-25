@@ -208,7 +208,10 @@ async function startTabCapture(
         () => {
           void (async () => {
             try {
-              const stream = await navigator.mediaDevices.getDisplayMedia({
+              const displayMediaOptions: DisplayMediaStreamOptions & {
+                preferCurrentTab?: boolean;
+                selfBrowserSurface?: "include" | "exclude";
+              } = {
                 video: {
                   displaySurface: "browser",
                   width: { ideal: width, max: width },
@@ -218,7 +221,9 @@ async function startTabCapture(
                 audio: false,
                 preferCurrentTab: true,
                 selfBrowserSurface: "include",
-              });
+              };
+              const stream =
+                await navigator.mediaDevices.getDisplayMedia(displayMediaOptions);
               const track = stream.getVideoTracks()[0];
               if (!track) throw new Error("Current-tab capture returned no video track");
 
@@ -268,7 +273,10 @@ async function startTabCapture(
                 width: settings.width ?? null,
                 height: settings.height ?? null,
                 frameRate: settings.frameRate ?? null,
-                displaySurface: settings.displaySurface ?? null,
+                displaySurface:
+                  typeof Reflect.get(settings, "displaySurface") === "string"
+                    ? String(Reflect.get(settings, "displaySurface"))
+                    : null,
               };
               state.recording = true;
 
