@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import { realDeckWorldBindings } from "../site/world/deck-world-bindings.ts";
@@ -50,4 +51,26 @@ test("registerTimelineWorldView wires real deck.gl constructors without invoking
   assert.doesNotThrow(() => {
     registerTimelineWorldView(realDeckWorldBindings, {}, target);
   });
+});
+
+
+test("production world view defaults to live D3 force rather than the reference oracle", async () => {
+  const factory = await readFile(
+    new URL("../site/world/world-view-factory.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(factory, /new D3WorldForceSimulation\(\)/);
+  assert.doesNotMatch(factory, /new ReferenceWorldForceSimulation\(\)/);
+});
+
+test("cluster lifecycle contains no renderer position interpolation contract", async () => {
+  const source = await readFile(
+    new URL("../site/world/deck-world-surface.ts", import.meta.url),
+    "utf8",
+  );
+  assert.doesNotMatch(source, /worldClusterExpansionProgress/);
+  assert.doesNotMatch(source, /interpolateClusterPosition/);
+  assert.match(source, /WORLD_CLUSTER_EDGE_RELEASE_MS/);
+  assert.match(source, /releasingRelationships/);
+  assert.match(source, /setClusteredPlaceIds/);
 });
