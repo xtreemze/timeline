@@ -53,10 +53,12 @@ test("selected events use a shell-owned six-column detail surface with footer-ow
   assert.match(html, /id="timeline-focus-view"/);
   assert.match(html, /data-world-controls-slot/);
   assert.match(html, /class="app-footer-zone app-footer-timeline timeline-local-toolbar"/);
-  assert.match(html, /id="timeline-view-controls-toggle"/);
+  assert.match(html, /id="timeline-view-toolbar"/);
+  assert.doesNotMatch(html, /timeline-view-controls-toggle/);
   assert.match(html, /id="timeline-focus-prev"/);
   assert.match(html, /id="timeline-focus-next"/);
-  assert.match(html, /id="timeline-focus-edit"/);
+  assert.doesNotMatch(html, /id="timeline-focus-edit"/);
+  assert.equal((html.match(/id="editor-toggle"/g) ?? []).length, 1);
   assert.doesNotMatch(html, /id="timeline-detail"/);
   assert.match(js, /focusItem\(id, options = \{\}\)/);
   assert.match(js, /timelinefocuschange/);
