@@ -63,8 +63,8 @@ function assertDimensions(stream, expected, label) {
 
 function measureSourceCadence(segment, formFactor) {
   const capture = segment.capture;
-  if (!capture || capture.requestedFps !== SHOWCASE_FPS) {
-    throw new Error(`${formFactor}/${segment.name} did not request ${SHOWCASE_FPS} fps.`);
+  if (!capture || capture.targetFps !== SHOWCASE_FPS) {
+    throw new Error(`${formFactor}/${segment.name} does not target ${SHOWCASE_FPS} fps.`);
   }
   const timestamps = capture.frameTimestampsMs;
   if (!Array.isArray(timestamps) || timestamps.length < 2) {
@@ -106,6 +106,11 @@ for (const formFactor of ["desktop", "mobile"]) {
     const rawWebm = probeVisual(path.resolve(workspace, segment.video));
     assertDimensions(rawWebm, expected, `${formFactor}/${segment.name} raw WebM`);
     assertHighFrameRate(rawWebm, `${formFactor}/${segment.name} normalized WebM`);
+    if (rawWebm.codec_name !== "vp8") {
+      throw new Error(
+        `${formFactor}/${segment.name} normalized WebM uses ${String(rawWebm.codec_name)}; expected VP8.`,
+      );
+    }
 
     const published = rendered[formFactor].segments.find((entry) => entry.name === segment.name)?.published;
     if (!published?.path) throw new Error(`${formFactor}/${segment.name} has no published asset.`);
