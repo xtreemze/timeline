@@ -2944,13 +2944,7 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   #clusterTargetPlaceIds(): readonly PlaceId[] {
-    const counts = new Map<PlaceId, number>();
-    for (const instance of this.#projection.instances) {
-      const placeId = instance.geographicAnchors[0]?.placeId;
-      if (!placeId) continue;
-      counts.set(placeId, (counts.get(placeId) ?? 0) + 1);
-    }
-
+    const counts = this.#topologyIndex.placeMemberCounts;
     const footprintRadiusPx = this.#clusterEntityFootprintRadiusPx();
     const globalOverview = shouldClusterEntityDatums(
       this.#projection.instances.length,
