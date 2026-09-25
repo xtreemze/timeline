@@ -275,6 +275,18 @@ type DeckWorldLabelDatum =
       readonly position: WorldRenderPosition;
       readonly emphasized: boolean;
       readonly pixelOffset?: readonly [number, number];
+    }
+  | {
+      readonly kind: "cluster-label";
+      readonly key: string;
+      readonly clusterId: string;
+      readonly placeIds: readonly PlaceId[];
+      readonly memberEntityIds: readonly EntityId[];
+      readonly memberCount: number;
+      readonly text: string;
+      readonly position: WorldRenderPosition;
+      readonly emphasized: boolean;
+      readonly pixelOffset?: readonly [number, number];
     };
 
 export interface DeckWorldClusterMember {
@@ -294,6 +306,7 @@ export interface DeckWorldClusterDatum {
   readonly clusterId: string;
   readonly position: WorldRenderPosition;
   readonly clusterMembers: readonly DeckWorldClusterMember[];
+  readonly placeIds?: readonly PlaceId[];
   readonly visualWeight: number;
 }
 
@@ -685,6 +698,7 @@ export function clusterEntityDatumsByPlace(
             : `cluster:places:${placeIds.join("|")}`,
         position: Object.freeze([longitude, latitude, altitude]) as WorldRenderPosition,
         clusterMembers: Object.freeze(clusterMembers),
+        placeIds: Object.freeze(component.map((group) => group.placeId)),
         visualWeight: totalVisualWeight / totalWeight,
       }),
     );
@@ -1588,7 +1602,13 @@ export function worldLabelCollisionPriority(
   datum: Pick<DeckWorldLabelDatum, "kind" | "emphasized">,
 ): number {
   const semanticBase =
-    datum.kind === "place-label" ? 200 : datum.kind === "entity-label" ? 120 : 80;
+    datum.kind === "cluster-label"
+      ? 240
+      : datum.kind === "place-label"
+        ? 200
+        : datum.kind === "entity-label"
+          ? 120
+          : 80;
   return datum.emphasized ? semanticBase + 700 : semanticBase;
 }
 
@@ -1647,6 +1667,19 @@ function labelOffsetCandidates(
       [-nearHorizontal, -nearVertical],
       [nearHorizontal, nearVertical],
       [-nearHorizontal, nearVertical],
+    ]);
+  }
+
+  if (datum.kind === "cluster-label") {
+    return Object.freeze([
+      [0, nearVertical],
+      [nearHorizontal, 0],
+      [-nearHorizontal, 0],
+      [0, -nearVertical],
+      [nearHorizontal, nearVertical],
+      [-nearHorizontal, nearVertical],
+      [nearHorizontal, -nearVertical],
+      [-nearHorizontal, -nearVertical],
     ]);
   }
 
@@ -1783,16 +1816,20 @@ function placeWorldLabelDatums(
 
 function labelDatums(input: {
   readonly places: readonly DeckWorldPlaceDatum[];
+  readonly clusters: readonly DeckWorldClusterDatum[];
   readonly relationships: readonly DeckWorldRelationshipDatum[];
   readonly entities: readonly DeckWorldEntityDatum[];
   readonly clustered: boolean;
+  readonly overviewClustered: boolean;
   readonly zoom: number;
   readonly focus: WorldLabelFocus | null;
   readonly selection: WorldSelection | null;
   readonly hoverSelection: WorldSelection | null;
+  readonly hoveredClusterId: string | null;
   readonly previous: ReadonlyMap<string, DeckWorldLabelDatum>;
   readonly entityMarkerRadiusPx: (instanceId: WorldInstanceId) => number;
   readonly placeMarkerRadiusPx: (placeId: PlaceId) => number;
+  readonly clusterMarkerRadiusPx: (cluster: DeckWorldClusterDatum) => number;
 }): {
   readonly datums: readonly DeckWorldLabelDatum[];
   readonly byKey: Map<string, DeckWorldLabelDatum>;
@@ -1825,8 +1862,84 @@ function labelDatums(input: {
     priority.set(datum, [1, -importance, group]);
   };
 
+  const placeById = new Map(input.places.map((place) => [place.placeId, place] as const));
+  const clusteredPlaceIds = new Set<PlaceId>();
+  for (const cluster of input.clusters) {
+    for (const placeId of cluster.placeIds ?? []) clusteredPlaceIds.add(placeId);
+  }
+  const clusterInteracted = (cluster: DeckWorldClusterDatum): boolean => {
+    if (input.hoveredClusterId === cluster.clusterId) return true;
+    const placeIds = cluster.placeIds ?? [];
+    if (
+      placeIds.some(
+        (placeId) =>
+          (input.selection?.kind === "place" && input.selection.id === placeId) ||
+          (input.hoverSelection?.kind === "place" && input.hoverSelection.id === placeId) ||
+          (input.focus?.kind === "place" && input.focus.id === placeId),
+      )
+    ) {
+      return true;
+    }
+    return cluster.clusterMembers.some(
+      (member) =>
+        (input.selection?.kind === "entity" && input.selection.id === member.entityId) ||
+        (input.hoverSelection?.kind === "entity" && input.hoverSelection.id === member.entityId) ||
+        (input.focus?.kind === "entity" && input.focus.id === member.entityId),
+    );
+  };
+  const clusterLabelText = (cluster: DeckWorldClusterDatum): string => {
+    const placeIds = cluster.placeIds ?? [];
+    const memberCount = cluster.clusterMembers.length;
+    if (!input.overviewClustered) return `${memberCount} node${memberCount === 1 ? "" : "s"}`;
+    if (placeIds.length === 1) {
+      const place = placeById.get(placeIds[0]);
+      if (place?.label) {
+        return `${place.label} · ${memberCount} node${memberCount === 1 ? "" : "s"}`;
+      }
+    }
+    if (placeIds.length > 1) {
+      return `${placeIds.length} places · ${memberCount} nodes`;
+    }
+    return `${memberCount} node${memberCount === 1 ? "" : "s"}`;
+  };
+  const clusters = selectPrioritizedLabels(input.clusters, {
+    budget,
+    isPinned: clusterInteracted,
+    importance: (cluster) => cluster.clusterMembers.length + cluster.visualWeight,
+    key: (cluster) => cluster.clusterId,
+  });
+  for (const cluster of clusters) {
+    const text = clusterLabelText(cluster);
+    const emphasized = clusterInteracted(cluster);
+    const key = `cluster:${cluster.clusterId}`;
+    markerRadiusByKey.set(key, input.clusterMarkerRadiusPx(cluster));
+    emit(
+      key,
+      text,
+      cluster.position,
+      emphasized,
+      () =>
+        Object.freeze({
+          kind: "cluster-label",
+          key,
+          clusterId: cluster.clusterId,
+          placeIds: Object.freeze([...(cluster.placeIds ?? [])]),
+          memberEntityIds: Object.freeze(cluster.clusterMembers.map((member) => member.entityId)),
+          memberCount: cluster.clusterMembers.length,
+          text,
+          position: cluster.position,
+          emphasized,
+        }),
+      -1,
+      cluster.clusterMembers.length + cluster.visualWeight,
+    );
+  }
+
   const places = selectPrioritizedLabels(
-    input.places.filter((place) => place.label),
+    input.places.filter(
+      (place) =>
+        place.label && (!input.overviewClustered || !clusteredPlaceIds.has(place.placeId)),
+    ),
     {
       budget: Math.max(budget, WORLD_PLACE_LABEL_FLOOR),
       isPinned: (place) => focused("place", place.placeId),
@@ -1949,10 +2062,48 @@ function labelDatums(input: {
   // ordinary label LOD. Append only labels that the stable base pass omitted,
   // so labels that were already visible keep their datum identity and
   // placement while an interacted node can always identify itself.
+  const interactionLabels: DeckWorldLabelDatum[] = [];
+  const interactionPlaceIds = new Set<PlaceId>();
+  if (input.selection?.kind === "place") interactionPlaceIds.add(input.selection.id);
+  if (input.hoverSelection?.kind === "place") interactionPlaceIds.add(input.hoverSelection.id);
+  if (input.focus?.kind === "place") interactionPlaceIds.add(input.focus.id);
+  for (const place of input.places) {
+    if (place.emphasized) interactionPlaceIds.add(place.placeId);
+  }
+  for (const place of input.places) {
+    if (!place.label || !interactionPlaceIds.has(place.placeId)) continue;
+    const key = `place:${place.placeId}`;
+    if (placedByKey.has(key)) continue;
+    const text = place.label;
+    const prior = input.previous.get(key);
+    const datum =
+      prior && labelDatumUnchanged(prior, text, place.position, true)
+        ? prior
+        : Object.freeze({
+            kind: "place-label",
+            key,
+            placeId: place.placeId,
+            text,
+            position: place.position,
+            emphasized: true,
+          });
+    const footprint = labelFootprint(datum);
+    const offset =
+      labelOffsetCandidates(
+        datum,
+        footprint.width,
+        footprint.height,
+        input.placeMarkerRadiusPx(place.placeId),
+      )[0] ?? [0, 0];
+    const interactionDatum = withLabelPixelOffset(datum, offset);
+    interactionLabels.push(interactionDatum);
+    placedByKey.set(key, interactionDatum);
+    byKey.set(key, interactionDatum);
+  }
+
   const interactionEntityIds = new Set<EntityId>();
   if (input.selection?.kind === "entity") interactionEntityIds.add(input.selection.id);
   if (input.hoverSelection?.kind === "entity") interactionEntityIds.add(input.hoverSelection.id);
-  const interactionLabels: DeckWorldLabelDatum[] = [];
   if (!input.clustered && interactionEntityIds.size > 0) {
     for (const entity of input.entities) {
       if (!entity.label || !interactionEntityIds.has(entity.entityId)) continue;
@@ -2105,6 +2256,11 @@ function worldHitFromPicking(info: DeckRuntimePickingInfo | null): WorldHit | nu
   return null;
 }
 
+function clusterIdFromPicking(info: DeckRuntimePickingInfo | null): string | null {
+  if (!info || !isRecord(info.object) || info.object.kind !== "cluster") return null;
+  return typeof info.object.clusterId === "string" ? info.object.clusterId : null;
+}
+
 function clusterPositionFromPicking(
   info: DeckRuntimePickingInfo | null,
 ): WorldRenderPosition | null {
@@ -2163,6 +2319,7 @@ export class DeckWorldSurface implements WorldSurface {
   #relationshipRouteHints: ReadonlyMap<RelationshipId, WorldRelationshipRouteHint> = new Map();
   #selection: WorldSelection | null = null;
   #hoverSelection: WorldSelection | null = null;
+  #hoverClusterId: string | null = null;
   #camera: WorldCameraState;
   // True once the camera was chosen explicitly (constructor, setCamera,
   // focus, or user navigation); until then content auto-fits once.
@@ -2341,12 +2498,15 @@ export class DeckWorldSurface implements WorldSurface {
   readonly #handleDeckHover = (info: DeckRuntimePickingInfo): void => {
     if (this.#activeDragPointerId !== null) return;
     const cluster = clusterPositionFromPicking(info);
+    const nextClusterId = cluster ? clusterIdFromPicking(info) : null;
     const next = cluster ? null : this.#selectionFromPickingInfo(info);
-    const unchanged =
+    const selectionUnchanged =
       next === null ? this.#hoverSelection === null : selectionEquals(next, this.#hoverSelection);
+    const clusterUnchanged = nextClusterId === this.#hoverClusterId;
     this.#setPointerCursor(next, cluster !== null);
-    if (unchanged) return;
+    if (selectionUnchanged && clusterUnchanged) return;
     this.#hoverSelection = next;
+    this.#hoverClusterId = nextClusterId;
     this.#render();
   };
 
@@ -3744,10 +3904,12 @@ export class DeckWorldSurface implements WorldSurface {
       this.#selection?.id ?? "",
       this.#hoverSelection?.kind ?? "",
       this.#hoverSelection?.id ?? "",
+      this.#hoverClusterId ?? "",
       this.#focus?.kind ?? "",
       this.#focus?.id ?? "",
     ].join(":");
     const labelInteractionEmphasized = (datum: DeckWorldLabelDatum): boolean => {
+      if (datum.kind === "cluster-label") return datum.emphasized;
       if (datum.kind === "place-label") {
         return (
           neighborhood.placeIds.has(datum.placeId) ||
@@ -3778,24 +3940,40 @@ export class DeckWorldSurface implements WorldSurface {
         })
       : null;
     const labelEntities = iconSource;
+    const labelClusters =
+      clusterVisibility > 0
+        ? entities.filter(
+            (datum): datum is DeckWorldClusterDatum => datum.kind === "cluster",
+          )
+        : [];
     const labelRelationships = relationships.filter(
       (relationship) => edgeExpansion(relationship) > 0,
     );
     const labelResult = this.#runtime.createTextLayer
       ? labelDatums({
           places,
+          clusters: labelClusters,
           relationships: labelRelationships,
           entities: labelEntities,
           clustered: this.#clusteredLastRender,
+          overviewClustered: gridClustered,
           zoom: this.#camera.zoom,
           focus: this.#focus,
           selection: this.#selection,
           hoverSelection: this.#hoverSelection,
+          hoveredClusterId: this.#hoverClusterId,
           previous: this.#labelDatumCache,
           entityMarkerRadiusPx: visibleEntityRadiusPx,
           placeMarkerRadiusPx: (placeId) => {
             const place = placeResult.byId.get(placeId);
             return place ? worldNodeMarker(this.#placeStyle(place)).size / 2 : 0;
+          },
+          clusterMarkerRadiusPx: (cluster) => {
+            const memberRadius = cluster.clusterMembers.reduce(
+              (radius, member) => Math.max(radius, visibleEntityRadiusPx(member.worldInstanceId)),
+              0,
+            );
+            return worldClusterMarkerRadiusPx(memberRadius, cluster.clusterMembers.length);
           },
         })
       : null;
