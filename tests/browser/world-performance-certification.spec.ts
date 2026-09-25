@@ -316,7 +316,7 @@ test.describe("world performance certification (issue #445 Priority 7)", () => {
       if (existingIndex >= 0) report.scales[existingIndex] = scaleReport;
       else report.scales.push(scaleReport);
 
-      // Persist evidence before any baseline assertion can fail. This keeps
+      // Persist evidence before a baseline assertion can fail. This keeps
       // partial/retry output current instead of uploading the committed JSON.
       mkdirSync(dirname(REPORT_PATH), { recursive: true });
       writeFileSync(REPORT_PATH, JSON.stringify(report, null, 2));
