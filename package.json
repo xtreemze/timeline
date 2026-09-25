@@ -86,7 +86,9 @@
     "format:check": "biome format .",
     "check:quality": "pnpm lint && node scripts/check-quality-changed.mjs",
     "test:world-dag-layout": "node --test tests/world-dag-layout.test.mjs",
-    "test:project-persistence-browser": "playwright test --config=playwright.config.ts tests/browser/project-repository-indexeddb.spec.ts --project=\"Desktop Chrome\""
+    "test:project-persistence-browser": "playwright test --config=playwright.config.ts tests/browser/project-repository-indexeddb.spec.ts --project=\"Desktop Chrome\"",
+    "test:hosted-persistence": "node --test tests/hosted-persistence-spike.test.mjs",
+    "benchmark:hosted-persistence": "node benchmarks/hosted-persistence.mjs"
   },
   "packageManager": "pnpm@12.5.1+sha512.e3f305bc784a2bc89f5ad3b6138889470fae8d2af5f36b61216ec91c2c3d64089775f9de38aac331044ea40f245cb0d5666392dfdf65824e1907ef6a2c62de5f",
   "devDependencies": {
