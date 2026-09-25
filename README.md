@@ -66,7 +66,7 @@ The product is browser-first and backend-free. Hosting the application does not 
 
 ## Product showcase
 
-The showcase media is generated from the real application in Chrome CI. Static states use source-resolution PNG screenshots. Motion records Chromium compositor frames directly through DevTools, requires at least 59 actual source fps and 95% recording-window coverage before encoding, then verifies a one-to-one source-frame count in the VP8 WebM before publishing 60 fps animated WebP and highlight reels.
+The showcase media is generated from the real application in headed Chrome CI. Static states use source-resolution PNG screenshots. Motion is sampled from an exact-size Xvfb framebuffer at 60 Hz with FFmpeg `x11grab`, encoded to raw VP8 WebM with timestamp passthrough, and independently requires both a browser frame clock of at least 59 fps and decoded raw-source cadence of at least 59 fps across 95% of the recording window before any presentation encoding. Only then are 60 fps animated WebP and highlight reels produced and decoded again for verification.
 
 | Flow | Desktop | Mobile |
 | --- | --- | --- |
