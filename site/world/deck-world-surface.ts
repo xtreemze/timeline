@@ -85,8 +85,8 @@ import {
   worldSelectionFromHit,
 } from "../../src/layout/world-surface.ts";
 import {
-  worldTemporalRevealProgress,
   type WorldTemporalRevealProgress,
+  worldTemporalRevealProgress,
 } from "../../src/layout/world-temporal-reveal.ts";
 import type {
   ProjectedWorldEdge,
