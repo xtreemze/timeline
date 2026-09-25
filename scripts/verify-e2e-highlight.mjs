@@ -51,7 +51,9 @@ function frameRate(value) {
 function assertHighFrameRate(stream, label) {
   const rate = frameRate(stream.avg_frame_rate || stream.r_frame_rate);
   if (!Number.isFinite(rate) || rate < MIN_CAPTURE_FPS) {
-    throw new Error(`${label} reports ${rate.toFixed(2)} fps; expected at least ${MIN_CAPTURE_FPS}.`);
+    throw new Error(
+      `${label} reports ${rate.toFixed(2)} fps; expected at least ${MIN_CAPTURE_FPS}.`,
+    );
   }
 }
 
@@ -86,8 +88,7 @@ function measureSourceCadence(segment, formFactor) {
       `${formFactor}/${segment.name} contains only ${String(activeIntervals.length)} active source-frame intervals; expected at least ${String(MIN_ACTIVE_FRAME_INTERVALS)}.`,
     );
   }
-  const activeDuration =
-    activeIntervals.reduce((sum, interval) => sum + interval, 0) / 1_000;
+  const activeDuration = activeIntervals.reduce((sum, interval) => sum + interval, 0) / 1_000;
   const rate = activeIntervals.length / activeDuration;
   if (!Number.isFinite(rate) || rate < MIN_CAPTURE_FPS) {
     throw new Error(
@@ -125,7 +126,9 @@ for (const formFactor of ["desktop", "mobile"]) {
       );
     }
 
-    const published = rendered[formFactor].segments.find((entry) => entry.name === segment.name)?.published;
+    const published = rendered[formFactor].segments.find(
+      (entry) => entry.name === segment.name,
+    )?.published;
     if (!published?.path) throw new Error(`${formFactor}/${segment.name} has no published asset.`);
     const webp = probeVisual(path.resolve(workspace, published.path));
     assertDimensions(webp, expected, `${formFactor}/${segment.name} animated WebP`);
