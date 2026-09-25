@@ -16,7 +16,7 @@ Lūm treats local-first persistence as an application boundary around canonical 
 - serialized envelopes carry an explicit format and schema version.
 - migrations are pure, ordered schema transitions applied before canonical validation.
 
-The initial in-memory adapter is a deterministic reference implementation for tests and application-service development. It is not the production persistence adapter.
+The in-memory adapter is a deterministic reference implementation for tests and application-service development. `site/persistence/indexeddb-project-repository.ts` is the browser-local durable adapter behind that application contract. It stores latest and checkpoint snapshots in separate object stores but updates both inside one IndexedDB read/write transaction, preserving the same compare-and-swap contract.
 
 ## Ownership rules
 
@@ -58,17 +58,16 @@ A project newer than the supported schema fails closed. Missing migration links 
 
 ## Production adapter requirements
 
-The browser adapter under #518 should implement the same contract using IndexedDB unless measurement demonstrates a better browser-local store.
+The IndexedDB adapter under #518 now provides atomic latest/checkpoint replacement, compare-and-swap revision enforcement, deterministic reload across repository instances, explicit checkpoint recovery, and fail-closed handling of corrupt persisted snapshots. `tests/browser/project-repository-indexeddb.spec.ts` certifies these semantics in Chromium.
 
-It must additionally provide:
+Remaining production integration work:
 
-- atomic commit visibility;
-- debounced autosave without revision reordering;
-- recovery after interrupted writes;
-- quota/error reporting without destroying last-known-good state;
-- checkpoint/backup handling before destructive migration or import replacement;
-- deterministic reload behavior;
-- browser tests for persistence across navigation/reload.
+- inject the repository through the application composition root;
+- add debounced autosave without revision reordering;
+- surface quota/write errors in application save state;
+- migrate existing direct project `localStorage` state only after recovery is proven;
+- checkpoint/backup before destructive migration or import replacement;
+- certify reload/navigation recovery through the user-facing project lifecycle.
 
 Import-as-new, replace, and merge remain separate application commands. The repository must not silently reinterpret one as another.
 
@@ -79,3 +78,9 @@ Persistence revisions and undo/redo history are separate concepts.
 #519 owns the transactional command journal. A command transaction may produce a new canonical revision and trigger autosave, but renderer operations never enter either canonical persistence or undo history.
 
 Forensic provenance/audit records under #8 are also distinct from editing undo history and repository revision metadata.
+
+## Hosted and analytical extension
+
+Browser-local persistence and hosted persistence share the same application boundary. When server synchronization is introduced, the preferred canonical backend is portable PostgreSQL with PostGIS; provider services such as Supabase, Aurora/RDS PostgreSQL, or Azure Database for PostgreSQL remain infrastructure choices rather than domain dependencies. Dedicated graph databases remain rebuildable projections unless measured traversal workloads require otherwise. Arrow/Parquet and DuckDB-Wasm belong to bulk analytical paths, not project revision ownership.
+
+See [DATA-LAYER.md](DATA-LAYER.md) for the database evaluation and adoption gates.
