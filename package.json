@@ -106,6 +106,7 @@
     "@luma.gl/webgl": "9.4.2",
     "@luma.gl/webgpu": "9.4.2",
     "d3-dag": "1.2.2",
+    "d3-force": "3.0.0",
     "leaflet": "1.9.4",
     "lit": "3.3.3",
     "pdfjs-dist": "6.3.289",
