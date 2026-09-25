@@ -38,7 +38,7 @@ test("Browse and Edit close View and leave the next View click usable", async ({
   await expectViewState(page, false);
   await expect(page.locator("#timeline-browser-toggle")).toHaveAttribute("aria-expanded", "true");
   await expect(page.locator("#presentation-stage")).toHaveAttribute("inert", "");
-  await expect(page.locator(".app-tool-dock")).toHaveAttribute("inert", "");
+  await expect(page.locator(".app-tool-dock")).not.toHaveAttribute("inert", "");
 
   await page.locator("#timeline-browser-close").click();
   await expect(page.locator("#timeline-browser-toggle")).toHaveAttribute("aria-expanded", "false");
