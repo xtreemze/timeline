@@ -1,3 +1,5 @@
+import { spawn } from "node:child_process";
+import { once } from "node:events";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Locator, Page, TestInfo } from "@playwright/test";
@@ -26,7 +28,7 @@ type ShowcaseSegment = SceneIntent & {
   motionStartSeconds: number | null;
   motionDurationSeconds: number | null;
   capture: {
-    requestedFps: number;
+    targetFps: number;
     measuredFps: number;
     frameCount: number;
     durationSeconds: number;
@@ -100,6 +102,54 @@ function projectSettings(testInfo: TestInfo) {
   return settings;
 }
 
+async function encodeCapturedFrames(frames: readonly Buffer[], videoPath: string) {
+  const ffmpeg = process.env.FFMPEG_BIN ?? "ffmpeg";
+  const child = spawn(
+    ffmpeg,
+    [
+      "-loglevel",
+      "error",
+      "-f",
+      "image2pipe",
+      "-framerate",
+      String(SHOWCASE_FPS),
+      "-vcodec",
+      "mjpeg",
+      "-i",
+      "pipe:0",
+      "-y",
+      "-an",
+      "-r",
+      String(SHOWCASE_FPS),
+      "-c:v",
+      "libvpx",
+      "-deadline",
+      "realtime",
+      "-cpu-used",
+      "8",
+      "-crf",
+      "8",
+      "-b:v",
+      "0",
+      "-pix_fmt",
+      "yuv420p",
+      videoPath,
+    ],
+    { stdio: ["pipe", "inherit", "inherit"] },
+  );
+  const exited = once(child, "exit").then(([code, signal]) => {
+    if (code !== 0) throw new Error(`ffmpeg exited with ${String(code ?? signal)}`);
+  });
+  child.on("error", (error) => {
+    child.stdin.destroy(error);
+  });
+  for (const frame of frames) {
+    if (!child.stdin.write(frame)) await once(child.stdin, "drain");
+  }
+  child.stdin.end();
+  await exited;
+}
+
 async function loadSample(page: Page) {
   await page.goto("/");
   await page.locator("#project-menu-toggle").click();
@@ -171,17 +221,15 @@ async function recordSegment(
   let capture: ShowcaseSegment["capture"] = null;
 
   if (scene.mediaMode === "motion") {
-    const sourceFrameTimestampsMs: number[] = [];
+    const sourceFrames: Array<{ data: Buffer; timestamp: number }> = [];
     let motionFrameStartIndex = 0;
     let motionFrameEndIndex = 0;
 
     await page.screencast.start({
-      path: videoPath,
       quality: 92,
       size: captureSize,
-      fps: SHOWCASE_FPS,
-      onFrame: ({ timestamp }) => {
-        sourceFrameTimestampsMs.push(timestamp);
+      onFrame: ({ data, timestamp }) => {
+        sourceFrames.push({ data: Buffer.from(data), timestamp });
       },
     });
     const actions = await page.screencast.showActions({
@@ -221,10 +269,10 @@ async function recordSegment(
         duration: 1_000,
       });
       await page.waitForTimeout(1_100);
-      motionFrameStartIndex = sourceFrameTimestampsMs.length;
+      motionFrameStartIndex = sourceFrames.length;
       await body();
       await page.waitForTimeout(450);
-      motionFrameEndIndex = sourceFrameTimestampsMs.length;
+      motionFrameEndIndex = sourceFrames.length;
       await page.screenshot({
         path: screenshotPath,
         animations: "disabled",
@@ -236,10 +284,9 @@ async function recordSegment(
       if (!page.isClosed()) await page.screencast.stop().catch(() => {});
     }
 
-    const frameTimestampsMs = sourceFrameTimestampsMs.slice(
-      motionFrameStartIndex,
-      motionFrameEndIndex,
-    );
+    const frameTimestampsMs = sourceFrames
+      .slice(motionFrameStartIndex, motionFrameEndIndex)
+      .map((frame) => frame.timestamp);
     if (frameTimestampsMs.length < 2) {
       throw new Error(`${formFactor}/${scene.name} did not expose enough source frames.`);
     }
@@ -259,12 +306,16 @@ async function recordSegment(
       );
     }
     capture = {
-      requestedFps: SHOWCASE_FPS,
+      targetFps: SHOWCASE_FPS,
       measuredFps,
       frameCount: frameTimestampsMs.length,
       durationSeconds,
       frameTimestampsMs,
     };
+    await encodeCapturedFrames(
+      sourceFrames.map((frame) => frame.data),
+      videoPath,
+    );
   } else {
     await body();
     await page.waitForTimeout(250);
