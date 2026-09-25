@@ -1788,7 +1788,6 @@ function syncApplicationSurfaces() {
   }
   if (els.editorToggle) {
     els.editorToggle.setAttribute("aria-expanded", String(ui.editorOpen));
-    els.editorToggle.setAttribute("aria-pressed", String(editing));
     const label = els.editorToggle.querySelector(".app-tool-label");
     if (label) label.textContent = editing ? "Done" : "Edit";
   }
