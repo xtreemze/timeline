@@ -6,7 +6,12 @@ import {
   OrbView,
 } from "@memgraph/orb";
 import { TimelineMotion } from "../site/timeline-motion.ts";
-import { surfacePointerMayStartDirectManipulation } from "./interaction/surface-input-policy.ts";
+import { createInteractionCoordinator } from "./interaction/interaction-coordinator.ts";
+import { createSurfaceInteractionController } from "./interaction/surface-controller.ts";
+import {
+  surfaceKeyboardMayNavigate,
+  surfacePointerMayStartDirectManipulation,
+} from "./interaction/surface-input-policy.ts";
 import {
   connectedGraphComponents,
   graphComponentTopologySignature,
@@ -26,6 +31,7 @@ const GRAPH_DOUBLE_TAP_WHEEL_DELTA_PX = -280;
 const GRAPH_MIN_ZOOM = 0.002;
 const GRAPH_MAX_ZOOM = 2.5;
 const GRAPH_KEYBOARD_PAN_PX = 72;
+const GRAPH_DISCRETE_COMMIT_MS = 180;
 const DRAG_FEEDBACK_FLASH_MS = 150;
 const DRAG_Z_INDEX_OFFSET = 3;
 const INTERACTION_SETTLE_MS = 4400;
@@ -114,6 +120,10 @@ function nodeShape(type) {
 function create(container, handlers = {}) {
   if (!(container instanceof HTMLElement)) throw new TypeError("Orb graph container is required.");
 
+  const interaction = handlers.interaction ?? createInteractionCoordinator();
+  const surfaceInteraction = createSurfaceInteractionController("graph", interaction);
+  container.dataset.surfaceKeyboardNavigation = "camera";
+
   const palette = {
     ink: resolvedColor(container, "--ink", "#181716"),
     muted: resolvedColor(container, "--muted", "#79736b"),
@@ -137,6 +147,7 @@ function create(container, handlers = {}) {
   let dragFlashTimer = 0;
   let cameraGesture = null;
   let cameraInertiaAnimationFrame = 0;
+  let discreteCommitTimer = 0;
   let userOwnsCamera = false;
   let pendingAutoFit = false;
   let lastPackedTopologySignature = "";
@@ -484,9 +495,46 @@ function create(container, handlers = {}) {
     orb.setSettings({ interaction: { isZoomEnabled: enabled } });
   }
 
-  function cancelCameraInertia() {
+  function commitSettledInteraction() {
+    const snapshot = surfaceInteraction.snapshot();
+    if (snapshot.owner === "graph" && snapshot.phase === "settling") {
+      surfaceInteraction.commit();
+    }
+  }
+
+  function cancelCameraInertia({ commit = true } = {}) {
     if (cameraInertiaAnimationFrame) cancelAnimationFrame(cameraInertiaAnimationFrame);
     cameraInertiaAnimationFrame = 0;
+    if (commit) commitSettledInteraction();
+  }
+
+  function finishDiscreteInput() {
+    if (discreteCommitTimer) {
+      globalThis.clearTimeout(discreteCommitTimer);
+      discreteCommitTimer = 0;
+    }
+    const snapshot = surfaceInteraction.snapshot();
+    if (
+      snapshot.owner === "graph" &&
+      snapshot.phase === "owned" &&
+      snapshot.pointerIds.length === 0 &&
+      (snapshot.gesture === "wheel" || snapshot.gesture === "keyboard")
+    ) {
+      surfaceInteraction.finishDiscrete();
+    }
+  }
+
+  function scheduleDiscreteCommit() {
+    if (discreteCommitTimer) globalThis.clearTimeout(discreteCommitTimer);
+    discreteCommitTimer = globalThis.setTimeout(() => {
+      discreteCommitTimer = 0;
+      finishDiscreteInput();
+    }, GRAPH_DISCRETE_COMMIT_MS);
+  }
+
+  function prepareSurfaceInput() {
+    finishDiscreteInput();
+    cancelCameraInertia();
   }
 
   function markCameraOwnedByUser() {
@@ -529,9 +577,10 @@ function create(container, handlers = {}) {
       !motion?.decayVelocity ||
       velocity.magnitude < (motion.STOP_VELOCITY_PX_PER_MS || 0.012)
     ) {
+      commitSettledInteraction();
       return;
     }
-    cancelCameraInertia();
+    cancelCameraInertia({ commit: false });
     let velocityX = velocity.x;
     let velocityY = velocity.y;
     let lastFrame = 0;
@@ -539,16 +588,24 @@ function create(container, handlers = {}) {
     const step = (now) => {
       cameraInertiaAnimationFrame = 0;
       const magnitude = Math.hypot(velocityX, velocityY);
-      if (magnitude < (motion.STOP_VELOCITY_PX_PER_MS || 0.012)) return;
+      if (magnitude < (motion.STOP_VELOCITY_PX_PER_MS || 0.012)) {
+        commitSettledInteraction();
+        return;
+      }
 
       const elapsed = lastFrame ? Math.min(48, Math.max(1, now - lastFrame)) : 16;
       lastFrame = now;
       velocityX = motion.decayVelocity(velocityX, elapsed);
       velocityY = motion.decayVelocity(velocityY, elapsed);
-      if (!applyCameraPan(velocityX * elapsed, velocityY * elapsed)) return;
+      if (!applyCameraPan(velocityX * elapsed, velocityY * elapsed)) {
+        commitSettledInteraction();
+        return;
+      }
 
       if (Math.hypot(velocityX, velocityY) >= (motion.STOP_VELOCITY_PX_PER_MS || 0.012)) {
         cameraInertiaAnimationFrame = requestAnimationFrame(step);
+      } else {
+        commitSettledInteraction();
       }
     };
 
@@ -556,7 +613,7 @@ function create(container, handlers = {}) {
   }
 
   function beginCameraGesture(event, target) {
-    cancelCameraInertia();
+    prepareSurfaceInput();
     const transform = orb.canvas?.__zoom || orb?._renderer?.transform;
     if (
       !surfacePointerMayStartDirectManipulation(event) ||
@@ -568,12 +625,17 @@ function create(container, handlers = {}) {
       !motion?.responseForElapsed
     ) {
       cameraGesture = null;
-      return;
+      return false;
+    }
+    if (!surfaceInteraction.beginPointer(event.pointerId, "pan")) {
+      cameraGesture = null;
+      return false;
     }
     const startClientPoint = eventClientPoint(event);
     if (!startClientPoint) {
       cameraGesture = null;
-      return;
+      surfaceInteraction.cancel("aborted");
+      return false;
     }
     cameraGesture = {
       pointerId: event.pointerId,
@@ -590,6 +652,7 @@ function create(container, handlers = {}) {
     } catch {
       // Weighted panning still works when pointer capture is unavailable.
     }
+    return true;
   }
 
   function updateCameraGesture(event) {
@@ -625,17 +688,28 @@ function create(container, handlers = {}) {
   }
 
   function finishCameraGesture(event) {
-    if (!cameraGesture || cameraGesture.pointerId !== event.pointerId) return;
+    if (!cameraGesture || cameraGesture.pointerId !== event.pointerId) return false;
     const gesture = cameraGesture;
     cameraGesture = null;
     releaseTouchPointerCapture(event.pointerId);
-    if (event.type === "pointercancel" || !gesture.moved) return;
+    if (event.type === "pointercancel") {
+      surfaceInteraction.cancel("pointercancel");
+      return true;
+    }
+
+    surfaceInteraction.releasePointer(event.pointerId);
+    if (!gesture.moved) {
+      commitSettledInteraction();
+      return true;
+    }
+
     markCameraOwnedByUser();
     motion.appendPointerVectorSamples(gesture.samples, event);
     const velocity = motion.estimatePointerVectorVelocity(gesture.samples);
     suppressGraphClickUntil = performance.now() + 300;
     void motion.pulseHaptic?.("release");
     requestAnimationFrame(() => startCameraInertia(velocity));
+    return true;
   }
 
   function zoomGraphAtClientPoint(point) {
