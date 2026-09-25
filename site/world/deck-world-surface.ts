@@ -3449,6 +3449,17 @@ export class DeckWorldSurface implements WorldSurface {
     return 1;
   }
 
+  #temporalEdgeVisibility(
+    relationshipId: RelationshipId,
+    progress: WorldTemporalRevealProgress,
+  ): number {
+    const reveal = this.#temporalReveal;
+    if (!reveal) return 1;
+    if (reveal.enteringRelationshipIds.has(relationshipId)) return progress.edge;
+    if (reveal.exitingRelationshipIds.has(relationshipId)) return 1 - progress.edge;
+    return 1;
+  }
+
   #temporalBorderOverlayAlpha(
     instanceId: WorldInstanceId,
     progress: WorldTemporalRevealProgress,
@@ -3492,15 +3503,18 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   #beginTemporalReveal(previous: WorldProjection, delta: WorldProjectionDelta): void {
-    this.#clearTemporalRevealTimer();
-    this.#temporalReveal = null;
-
     const topologyChanged =
       delta.addedInstances.length > 0 ||
       delta.removedInstanceIds.length > 0 ||
       delta.addedEdges.length > 0 ||
       delta.removedEdgeIds.length > 0;
-    if (!topologyChanged || prefersReducedMotion()) return;
+    // Layout readback emits position-only deltas while a temporal reveal is
+    // running. Those derived updates must not restart or cancel the reveal.
+    if (!topologyChanged) return;
+
+    this.#clearTemporalRevealTimer();
+    this.#temporalReveal = null;
+    if (prefersReducedMotion()) return;
 
     const exitingInstanceIds = new Set(delta.removedInstanceIds);
     const exitingRelationshipIds = new Set(delta.removedEdgeIds);
@@ -3532,7 +3546,7 @@ export class DeckWorldSurface implements WorldSurface {
       this.#syncClusterLifecycle();
       this.#render();
       if (this.#temporalReveal) this.#scheduleTemporalRevealFrame();
-    }, Math.min(16, WORLD_TEMPORAL_REVEAL_MS));
+    }, 16);
   }
 
   #clusterTargetPlaceIds(): readonly PlaceId[] {
@@ -3652,6 +3666,8 @@ export class DeckWorldSurface implements WorldSurface {
 
   setProjection(projection: WorldProjection): void {
     this.#assertAlive();
+    this.#clearTemporalRevealTimer();
+    this.#temporalReveal = null;
     this.#projection = projection;
     this.#autoFitCamera();
     this.#syncClusterLifecycle();
@@ -3660,7 +3676,9 @@ export class DeckWorldSurface implements WorldSurface {
 
   applyProjectionDelta(delta: WorldProjectionDelta): void {
     this.#assertAlive();
-    this.#projection = applyWorldProjectionDelta(this.#projection, delta);
+    const previous = this.#projection;
+    this.#projection = applyWorldProjectionDelta(previous, delta);
+    this.#beginTemporalReveal(previous, delta);
     // Force/layout deltas are derived presentation updates. Do not re-run
     // content fit or move the camera while nodes relax.
     this.#syncClusterLifecycle();
