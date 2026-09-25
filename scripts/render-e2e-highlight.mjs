@@ -211,7 +211,9 @@ function assertManifest(manifest, formFactor) {
     throw new Error(`${formFactor} manifest must request a 60 fps showcase capture`);
   }
   if (manifest.minimumMeasuredCaptureFps !== 59) {
-    throw new Error(`${formFactor} manifest must require at least 59 measured source frames per second`);
+    throw new Error(
+      `${formFactor} manifest must require at least 59 measured source frames per second`,
+    );
   }
   if (!Array.isArray(manifest.segments) || manifest.segments.length !== 5) {
     throw new Error(`${formFactor} manifest must contain exactly five showcase scenes`);
