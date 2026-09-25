@@ -81,7 +81,6 @@ test("story health reports only concrete context integrity gaps", () => {
   );
 });
 
-
 test("item editor exposes contextual story authoring and health feedback", async () => {
   const [html, app] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
