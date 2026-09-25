@@ -16,7 +16,7 @@ Desktop uses the 1440×900 product layout. Mobile uses the explicit touch-capabl
 
 The showcase distinguishes motion from static presentation. Timeline navigation and relation-graph navigation are motion scenes. Focused context, evidence, and story browsing are static scenes.
 
-Static scenes hold the demonstrated state open and capture a PNG screenshot. Motion scenes run headed Chromium in an Xvfb display whose framebuffer exactly matches the certified 1440×900 desktop or 390×844 mobile surface. FFmpeg `x11grab` samples that displayed surface at 60 Hz into an ephemeral uncompressed rawvideo NUT stream with `-fps_mode passthrough`, avoiding concurrent video-encoding load during browser rendering. CI decodes those pre-encode source timestamps and requires at least 59 actual captured frames per second over at least 95% of the recording window. A separate `requestAnimationFrame` clock must also sustain at least 59 fps, so a nominally 60 fps file cannot hide a slower browser render loop.
+Static scenes hold the demonstrated state open and capture a PNG from the exact-size X11 framebuffer. Motion scenes run headed Chromium in an Xvfb display whose surface exactly matches the certified 1440×900 desktop or 390×844 mobile viewport. Chromium current-tab capture is constrained to 60 fps and VP8. A cloned capture track is read through `MediaStreamTrackProcessor`, and CI requires those source-frame timestamps to measure at least 59 actual frames per second over at least 95% of the recording window. A separate `requestAnimationFrame` clock must also sustain at least 59 fps, so a nominally 60 fps file cannot hide a slower browser render loop. The retained VP8 WebM is decoded independently with FFprobe and must clear the same cadence and coverage requirements.
 
 ## Output contract
 
@@ -69,7 +69,7 @@ The showcase config contains two structural projects:
 
 The shared scene metadata defines feature title, explanation, expected state, alt text, stable output stem, and whether the scene is `motion` or `static`. Desktop and mobile interaction routines remain separate so touch UI is not forced to mimic desktop input mechanics.
 
-Motion capture uses headed Chromium in kiosk mode on dedicated exact-size Xvfb displays. Showcase-only browser launches disable background timer throttling, renderer backgrounding, and occluded-window throttling, while retaining normal display pacing. The capture config deliberately does not use Chromium's `--disable-frame-rate-limit` or `--disable-gpu-vsync` benchmarking switches because unbounded begin-frame production competes with the fixed 60 Hz certification target on constrained CI. FFmpeg performs source sampling outside Chromium's screen-recording APIs using `x11grab` at 60 Hz into uncompressed BGR24 rawvideo in NUT with timestamp passthrough. The temporary source is intentionally uncompressed so real-time encoding cannot deprive Chromium of CPU while the browser frame clock is being certified. CI writes that ephemeral source to RAM-backed `/dev/shm`, avoiding multi-gigabyte disk I/O during the measured window, and runs the raw FFmpeg sampler at reduced CPU scheduling priority so Chromium retains the render budget. A one-second browser-frame preflight must sustain at least 59 fps before recording begins, and the full recording window is measured again afterward. Compression is deliberately deferred until after the source-cadence and browser-frame-clock gates pass; the accepted frame sequence is then encoded one-for-one to VP8 WebM. Static capture takes a one-frame PNG snapshot directly from the same exact-size X11 framebuffer, avoiding a separate browser screenshot path.
+Motion capture uses headed Chromium in kiosk mode on dedicated exact-size Xvfb displays. Showcase-only browser launches disable background timer throttling, renderer backgrounding, and occluded-window throttling while retaining normal display pacing. `--auto-accept-this-tab-capture` makes CI current-tab capture deterministic. The captured video track requests 60 fps at the certified viewport dimensions and uses VP8 MediaRecorder rather than VP9 to reduce real-time encoding pressure. `MediaStreamTrackProcessor` reads a clone of the same track to collect source-frame timestamps independently of the encoded WebM. A one-second browser-frame preflight must sustain at least 59 fps before recording begins, and the full recording window is measured again afterward. Static capture takes a one-frame PNG snapshot directly from the same exact-size X11 framebuffer, avoiding a separate browser screenshot path.
 
 A capture-only DOM overlay provides restrained Lūm branding without taking ownership of the framebuffer recorder. Static screenshots remain product-state captures.
 
@@ -78,7 +78,7 @@ A capture-only DOM overlay provides restrained Lūm branding without taking owne
 `scripts/render-e2e-highlight.mjs` uses FFmpeg rather than adding a second browser/video framework. It:
 
 - probes every visual source with FFprobe;
-- validates decoded raw-frame timestamps, at least 95% recording-window coverage, a minimum 59 fps framebuffer cadence, and a separate minimum 59 fps browser frame clock before derivative encoding begins;
+- validates `MediaStreamTrackProcessor` source-frame timestamps, at least 95% recording-window coverage, a minimum 59 fps current-tab capture cadence, and a separate minimum 59 fps browser frame clock before derivative rendering begins;
 - verifies that raw motion and static screenshots match the certified desktop/mobile viewport dimensions;
 - copies static PNG captures directly into the published showcase;
 - renders motion scenes as 60 fps animated WebP at the source viewport dimensions;
@@ -88,7 +88,7 @@ A capture-only DOM overlay provides restrained Lūm branding without taking owne
 - emits README-ready markup from the same manifest metadata;
 - measures individual and aggregate showcase payloads.
 
-There is no GIF palette stage, no reduced WebP frame rate, and no fixed animation width. The capture stage does not use FFmpeg CFR normalization: `x11grab` samples the X11 framebuffer at 60 Hz into uncompressed rawvideo NUT and `-fps_mode passthrough` preserves source timestamps. CI decodes that pre-encode stream and requires at least 59 fps before compression begins. The independently measured browser frame clock must also sustain at least 59 fps. Presentation derivatives are emitted only after both gates pass, then decoded again to verify their cadence.
+There is no GIF palette stage, no reduced WebP frame rate, and no fixed animation width. The capture stage does not use FFmpeg CFR normalization. Chromium supplies a VP8 current-tab WebM plus independent source-track timestamps; CI requires both the source-track evidence and the decoded raw WebM to sustain at least 59 fps with the required recording-window coverage. The independently measured browser frame clock must also sustain at least 59 fps. Presentation derivatives are emitted only after those gates pass, then decoded again to verify their cadence.
 
 ## CI and publication
 
