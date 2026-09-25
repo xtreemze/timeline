@@ -81,10 +81,11 @@ test("story health reports only concrete context integrity gaps", () => {
   );
 });
 
-test("item editor exposes contextual story authoring and health feedback", async () => {
-  const [html, app] = await Promise.all([
+test("item editor exposes contextual story authoring and actionable health feedback", async () => {
+  const [html, app, css] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
   ]);
 
   assert.match(html, /id="item-story-context"/);
@@ -94,5 +95,11 @@ test("item editor exposes contextual story authoring and health feedback", async
   assert.match(app, /reconcileStoryContext\([\s\S]*storyDraftPlaceIds/);
   assert.match(app, /auditStoryAuthoring\(story, state\.relationships, state\.places\)/);
   assert.match(app, /context valid/);
-  assert.match(app, /context \$\{health\.issueCount === 1 \? "gap" : "gaps"\}/);
+  assert.match(app, /story-health-inspector/);
+  assert.match(app, /edit-story-health-edge/);
+  assert.match(app, /beginGraphEdgeEdit\(relationshipId\)/);
+  assert.match(app, /edit-story-health-story/);
+  assert.match(app, /beginStoryEdit\(storyId\)/);
+  assert.match(css, /\.story-health-inspector summary[\s\S]*min-height:\s*44px/);
+  assert.match(css, /\.story-health-row[\s\S]*grid-template-columns:/);
 });
