@@ -51,9 +51,9 @@
       "nonNull": 0
     },
     "site/timeline-clustering.ts": {
-      "any": 53,
+      "any": 49,
       "asAny": 7,
-      "nonNull": 5
+      "nonNull": 4
     },
     "site/timeline-migration.ts": {
       "any": 0,
@@ -263,13 +263,13 @@
         "@media (max-width: 900px)": 6,
         "@media (max-width: 560px)": 1,
         "@media (max-width: 500px)": 2,
-        "@media (max-width: 699px)": 5,
-        "@media (max-width: 380px)": 4
+        "@media (max-width: 699px)": 4,
+        "@media (max-width: 380px)": 3
       },
       "hoverOnlySelectors": {},
       "physicalInlineProperties": {
-        "right": 34,
-        "left": 50,
+        "right": 32,
+        "left": 48,
         "border-left": 6,
         "border-right": 3
       },
@@ -292,13 +292,9 @@
         "max-width: min(58vw, 190px);": 1,
         "max-width: min(60vw, 174px);": 1,
         "width: clamp(180px, 24vw, 250px);": 1,
-        "max-inline-size: calc( 100dvw - max(0.8rem, env(safe-area-inset-left)) - max(0.8rem, env(safe-area-inset-right)) );": 1,
-        "max-inline-size: calc( 100dvw - max(0.9rem, env(safe-area-inset-left)) - max(0.9rem, env(safe-area-inset-right)) );": 1,
         "width: clamp(150px, 20vw, 220px);": 1
       },
-      "overflowXHidden": {
-        "overflow-x: hidden;": 1
-      },
+      "overflowXHidden": {},
       "rootMinWidth": {},
       "legacy100vh": 0,
       "maxWidthContainer": {},
@@ -309,9 +305,7 @@
         ".timeline-view[data-orientation=\"landscape\"] > .timeline-focus-view:popover-open => overflow: hidden;": 1,
         ".timeline-view[data-orientation=\"portrait\"] > .timeline-focus-view:popover-open => overflow: hidden;": 1,
         ".timeline-focus-view[popover][data-active-tab=\"overview\"] .timeline-focus-relations, .timeline-focus-view[popover][data-active-tab=\"overview\"] .timeline-focus-relations-backdrop, .timeline-focus-view[popover][data-active-tab=\"overview\"] .timeline-focus-relations-backdrop .temporal-graph-canvas, .timeline-focus-view[popover][data-active-tab=\"overview\"] .timeline-focus-relations-backdrop .temporal-graph-canvas canvas => overflow: hidden;": 1,
-        "#app-shell[data-graph-open=\"true\"] #timeline-view[data-orientation=\"portrait\"] .timeline-tick-label => overflow: hidden;": 1,
-        "#app-shell .timeline-view-toolbar > .toolbar-readout => overflow: hidden;": 1,
-        ".timeline-view[data-orientation=\"portrait\"] > .app-view-controls.timeline-view-toolbar[popover]:popover-open => overflow-x: hidden;": 1
+        "#app-shell[data-graph-open=\"true\"] #timeline-view[data-orientation=\"portrait\"] .timeline-tick-label => overflow: hidden;": 1
       }
     },
     "site/print.css": {

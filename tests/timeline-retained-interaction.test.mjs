@@ -46,7 +46,7 @@ test("interaction positioning performs no per-card layout read and freezes label
   const positionBody = source.slice(positionStart, positionEnd);
   assert.doesNotMatch(positionBody, /getBoundingClientRect/);
   assert.doesNotMatch(positionBody, /querySelector/);
-  assert.match(positionBody, /_primaryLength/);
+  assert.match(positionBody, /crossLength/);
   assert.match(positionBody, /labelBeforeForPosition/);
   assert.match(positionBody, /record\.labelBefore = labelBefore/);
 
@@ -138,10 +138,9 @@ test("interaction surface geometry is cached for the epoch and invalidated at co
     source,
     /beginInteraction\(\): void \{[\s\S]{0,320}this\.interactionSurfaceRect = this\.surface\.getBoundingClientRect\(\)/,
   );
-  assert.match(
-    source,
-    /commitInteraction\(\): void \{[\s\S]{0,360}this\.interactionSurfaceRect = null/,
-  );
+  const commitStart = source.indexOf("  commitInteraction(): void {");
+  const commitBody = source.slice(commitStart, source.indexOf("\n  }\n", commitStart));
+  assert.match(commitBody, /this\.interactionSurfaceRect = null/);
   const refreshStart = source.indexOf("  refreshLayout(): void {");
   const refreshEnd = source.indexOf("  runStructuralTransaction(", refreshStart);
   const refreshBody = source.slice(refreshStart, refreshEnd);
@@ -234,7 +233,7 @@ test("stable interaction-frame metadata writes are coalesced", async () => {
   const zoomBody = source.slice(zoomStart, zoomEnd);
   assert.match(zoomBody, /!this\.zoomSlider \|\| this\.retention\.active/);
   assert.match(zoomBody, /this\.zoomSlider\.disabled !== disabled/);
-  assert.match(zoomBody, /getAttribute\("aria-orientation"\) !== orientation/);
+  assert.match(zoomBody, /getAttribute\("aria-orientation"\) !== "horizontal"/);
   assert.match(zoomBody, /this\.zoomSlider\.value !== nextValue/);
   assert.match(zoomBody, /getAttribute\("aria-valuetext"\) !== label/);
 

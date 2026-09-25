@@ -895,7 +895,6 @@ function syncPresentationFullscreenState() {
       else els.presentationFullscreenToggle.prepend(icon);
     }
     syncContextualPresentationPanels();
-    syncViewControlsChrome();
     temporalGraphView?.setPresentationMode?.(presentationModeActive());
   });
   if (active && timelineView?.hasFocusedItem?.()) {

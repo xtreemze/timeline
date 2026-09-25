@@ -452,6 +452,7 @@ export class TimelineViewController {
     HTMLElement,
     { animation: Animation; deltaX: number; deltaY: number }
   >();
+  pendingSideCorrections: Array<{ node: HTMLElement; terminal: HTMLElement }> = [];
   wheelCommitTimer: ReturnType<typeof globalThis.setTimeout> | 0 = 0;
   viewportInitialized = false;
   reducedMotionQuery: MediaQueryList | null =
@@ -2016,6 +2017,30 @@ export class TimelineViewController {
     });
   }
 
+  /**
+   * A label side flip mirrors the terminal around its zero-size anchor node, so
+   * its previous layout box is the reflection of the new one. Measuring every
+   * flipped card in one read pass after all writes costs a single layout
+   * instead of a forced layout per card.
+   */
+  animatePendingSideCorrections(): void {
+    if (this.pendingSideCorrections.length === 0) return;
+    const corrections = this.pendingSideCorrections.splice(0).map(({ node, terminal }) => {
+      const anchor = node.getBoundingClientRect().left;
+      const end = terminal.getBoundingClientRect();
+      // Rects include any in-flight correction; mirror the untransformed box.
+      const existing = this.layoutCorrectionAnimations.get(terminal);
+      const progress = existing
+        ? clamp(Number(existing.animation.effect?.getComputedTiming().progress ?? 0), 0, 1)
+        : 1;
+      const inFlight = existing ? existing.deltaX * (1 - progress) : 0;
+      return { terminal, deltaX: 2 * anchor - end.left - end.right + 2 * inFlight };
+    });
+    for (const { terminal, deltaX } of corrections) {
+      this.animateLayoutCorrection(terminal, deltaX, 0);
+    }
+  }
+
   animateLayoutCorrection(target: HTMLElement, deltaX: number, deltaY: number): void {
     let startX = deltaX;
     let startY = deltaY;
@@ -2604,6 +2629,7 @@ export class TimelineViewController {
     const width = Math.max(1, rect.width || this.surface.clientWidth || 800);
     const height = Math.max(1, rect.height || this.surface.clientHeight || 480);
     const primaryLength = this.orientation === "horizontal" ? width : height;
+    const crossLength = this.orientation === "horizontal" ? height : width;
     const axisCross = this.orientation === "horizontal" ? height / 2 : width * 0.58;
     const padding = this.axisPadding(primaryLength);
     const usable = Math.max(1, primaryLength - padding * 2);
@@ -2656,15 +2682,9 @@ export class TimelineViewController {
         if (record.contentEpoch !== this.itemEpoch) this.updateRecordContent(record);
         else this.syncRecordSelection(record);
       }
-      this.positionRecord(
-        record,
-        primaryLength,
-        axisCross,
-        padding,
-        usable,
-        this.orientation === "horizontal" ? height : width,
-      );
+      this.positionRecord(record, padding, usable, axisCross, crossLength);
     }
+    this.animatePendingSideCorrections();
 
     this.positionCommittedClusters(padding, usable, axisCross);
 
@@ -2808,11 +2828,10 @@ export class TimelineViewController {
 
   positionRecord(
     record: SceneRecord,
-    _primaryLength: number,
-    axisCross: number,
     padding: number,
     usable: number,
-    crossExtent: number,
+    axisCross: number,
+    crossLength: number,
   ): void {
     const { item, node, terminal, connector, connectorTurn, range } = record;
     const coordinate = (time: number): number =>
@@ -2833,7 +2852,7 @@ export class TimelineViewController {
     const routeOffset = connectorRouteOffset(
       item.connectorRouting || "straight",
       terminalCross,
-      Math.max(1, crossExtent),
+      Math.max(1, crossLength),
       Math.abs(lane),
     );
     const shiftedCross = terminalCross + routeOffset;
@@ -2850,13 +2869,11 @@ export class TimelineViewController {
             this.retention.active,
           )
         : lane < 0;
-    const sideCorrectionStart =
+    const sideFlipped =
       !this.retention.active &&
       this.orientation === "horizontal" &&
       previousLabelBefore !== null &&
-      previousLabelBefore !== labelBefore
-        ? terminal.getBoundingClientRect()
-        : null;
+      previousLabelBefore !== labelBefore;
     const crossGeometryChanged =
       previousCrossPosition === null ||
       Math.abs(previousCrossPosition - shiftedCross) > LAYOUT_CORRECTION_EPSILON_PX;
@@ -2885,10 +2902,7 @@ export class TimelineViewController {
         this.orientation === "horizontal" ? crossDelta : 0,
       );
     }
-    if (sideCorrectionStart) {
-      const sideCorrectionEnd = terminal.getBoundingClientRect();
-      this.animateLayoutCorrection(terminal, sideCorrectionStart.left - sideCorrectionEnd.left, 0);
-    }
+    if (sideFlipped) this.pendingSideCorrections.push({ node, terminal });
 
     const terminalTabIndex = visible ? 0 : -1;
     if (terminal.tabIndex !== terminalTabIndex) terminal.tabIndex = terminalTabIndex;

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("retained timeline preserves weighted drag response and decaying release inertia", async () => {
+test("retained timeline tracks drags directly and keeps decaying release inertia", async () => {
   const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
 
   assert.match(source, /TimelineMotion as motion/);
@@ -11,13 +11,14 @@ test("retained timeline preserves weighted drag response and decaying release in
     source,
     /motion\.appendPointerSamples\(this\.pointerDrag\.samples, event, this\.orientation\)/,
   );
-  assert.match(source, /motion\.responseForElapsed\(now - drag\.lastTime\)/);
+  // The viewport follows the pointer 1:1; weighting applies only to release inertia.
+  assert.match(source, /start: drag\.viewport\.start \+ temporalDelta/);
   assert.match(source, /motion\.estimatePointerVelocity\(drag\.samples\)/);
   assert.match(
     source,
-    /Math\.abs\(releaseVelocity\) >= motion\.STOP_VELOCITY_PX_PER_MS[\s\S]*this\.startInertia\(releaseVelocity, length\)/,
+    /Math\.abs\(releaseVelocity\) >= motion\.STOP_VELOCITY_PX_PER_MS[\s\S]*this\.startInertia\(releaseVelocity, drag\.usableLength\)/,
   );
-  assert.match(source, /startInertia\(initialVelocityPxPerMs: number, pixelLength: number\)/);
+  assert.match(source, /startInertia\(initialVelocityPxPerMs: number, usableLength: number\)/);
   assert.match(source, /motion\.decayVelocity\(velocity, elapsed\)/);
   assert.match(source, /this\.emitViewport\(false\)/);
   assert.match(source, /this\.inertiaAnimationFrame = requestAnimationFrame\(step\)/);
