@@ -379,9 +379,9 @@
    and chronology controls live on the physical right. Utility panels end above this
    plane instead of covering or displacing it. */
 #app-shell > .app-tool-dock.app-footer-bar,
+#presentation-stage:fullscreen > .app-tool-dock.app-footer-bar,
 #app-shell:has(#timeline-view[data-orientation="landscape"]) > .app-tool-dock.app-footer-bar,
-#app-shell:has(#timeline-view[data-orientation="portrait"]) > .app-tool-dock.app-footer-bar,
-#presentation-stage:fullscreen > .app-tool-dock.app-footer-bar {
+#app-shell:has(#timeline-view[data-orientation="portrait"]) > .app-tool-dock.app-footer-bar {
   z-index: 1600;
   display: grid;
   pointer-events: auto;
