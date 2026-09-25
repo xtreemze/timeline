@@ -243,6 +243,11 @@ test("optional deck collision filtering is attached only to the text label layer
   assert.ok(labelLayer);
   assert.deepEqual(labelLayer.props.extensions, [extension]);
   assert.equal(labelLayer.props.collisionGroup, "lum-world-labels");
+  assert.equal(
+    labelLayer.props.collisionEnabled,
+    false,
+    "GPU collision filtering stays inert while CPU label placement is authoritative",
+  );
 
   const placeLabel = labelLayer.props.data.find((datum) => datum.kind === "place-label");
   const entityLabel = labelLayer.props.data.find((datum) => datum.kind === "entity-label");

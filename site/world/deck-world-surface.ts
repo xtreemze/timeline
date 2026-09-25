@@ -1555,9 +1555,11 @@ function labelDatumUnchanged(
  * Semantic label LOD. Text comes only from renderer-neutral projection
  * metadata (instance/anchor/edge labels). A zoom-dependent budget limits
  * optional labels per kind, preferring higher visual weight; explicit focus
- * may pin a label. Hover and selection are visual-only and never alter label
- * membership or geometry. While entities are clustered individual labels are
- * suppressed because their positions are presentation-merged into clusters.
+ * may pin a label. Hover and selection leave the ordinary declutter result
+ * stable, but an interacted entity whose label was suppressed by LOD or
+ * collision placement is appended as an interaction override. While entities
+ * are clustered individual labels are suppressed because their positions are
+ * presentation-merged into clusters.
  */
 const LABEL_HALO_PX = 3;
 /** Same family as the app shell (site/styles.css) instead of deck's monospace default. */
@@ -1786,6 +1788,8 @@ function labelDatums(input: {
   readonly clustered: boolean;
   readonly zoom: number;
   readonly focus: WorldLabelFocus | null;
+  readonly selection: WorldSelection | null;
+  readonly hoverSelection: WorldSelection | null;
   readonly previous: ReadonlyMap<string, DeckWorldLabelDatum>;
   readonly entityMarkerRadiusPx: (instanceId: WorldInstanceId) => number;
   readonly placeMarkerRadiusPx: (placeId: PlaceId) => number;
@@ -1940,12 +1944,61 @@ function labelDatums(input: {
     (datum) => markerRadiusByKey.get(datum.key) ?? 0,
   );
   const placedByKey = new Map(placed.map((datum) => [datum.key, datum] as const));
+
+  // Hovered and selected entities are an explicit interaction exception to
+  // ordinary label LOD. Append only labels that the stable base pass omitted,
+  // so labels that were already visible keep their datum identity and
+  // placement while an interacted node can always identify itself.
+  const interactionEntityIds = new Set<EntityId>();
+  if (input.selection?.kind === "entity") interactionEntityIds.add(input.selection.id);
+  if (input.hoverSelection?.kind === "entity") interactionEntityIds.add(input.hoverSelection.id);
+  const interactionLabels: DeckWorldLabelDatum[] = [];
+  if (!input.clustered && interactionEntityIds.size > 0) {
+    for (const entity of input.entities) {
+      if (!entity.label || !interactionEntityIds.has(entity.entityId)) continue;
+      const key = `entity:${entity.worldInstanceId}`;
+      if (placedByKey.has(key)) continue;
+
+      const text = entity.label;
+      const emphasized = focused("entity", entity.entityId);
+      const prior = input.previous.get(key);
+      const datum =
+        prior && labelDatumUnchanged(prior, text, entity.position, emphasized)
+          ? prior
+          : Object.freeze({
+              kind: "entity-label",
+              key,
+              entityId: entity.entityId,
+              worldInstanceId: entity.worldInstanceId,
+              text,
+              position: entity.position,
+              emphasized,
+            });
+      const footprint = labelFootprint(datum);
+      const offset =
+        labelOffsetCandidates(
+          datum,
+          footprint.width,
+          footprint.height,
+          input.entityMarkerRadiusPx(entity.worldInstanceId),
+        )[0] ?? [0, 0];
+      const interactionDatum = withLabelPixelOffset(datum, offset);
+      interactionLabels.push(interactionDatum);
+      placedByKey.set(key, interactionDatum);
+      byKey.set(key, interactionDatum);
+    }
+  }
+
   for (const key of [...byKey.keys()]) {
     const placedDatum = placedByKey.get(key);
     if (placedDatum) byKey.set(key, placedDatum);
     else byKey.delete(key);
   }
-  return { datums: placed, byKey };
+  const datums =
+    interactionLabels.length === 0
+      ? placed
+      : Object.freeze([...placed, ...interactionLabels]);
+  return { datums, byKey };
 }
 
 function screenPointFromDoubleClickEvent(event: DoubleClickEvent): ScreenPoint | null {
@@ -3736,6 +3789,8 @@ export class DeckWorldSurface implements WorldSurface {
           clustered: this.#clusteredLastRender,
           zoom: this.#camera.zoom,
           focus: this.#focus,
+          selection: this.#selection,
+          hoverSelection: this.#hoverSelection,
           previous: this.#labelDatumCache,
           entityMarkerRadiusPx: visibleEntityRadiusPx,
           placeMarkerRadiusPx: (placeId) => {
@@ -4136,6 +4191,11 @@ export class DeckWorldSurface implements WorldSurface {
                 ? {
                     extensions: [this.#labelCollisionExtension],
                     collisionGroup: "lum-world-labels",
+                    // CPU LOD/placement already owns collision handling. The
+                    // extra GPU collision pass can suppress the whole TextLayer
+                    // under GlobeView, so keep it inert until that path is
+                    // independently certified.
+                    collisionEnabled: false,
                     getCollisionPriority: worldLabelCollisionPriority,
                   }
                 : {}),
