@@ -206,6 +206,9 @@ test.describe("Mobile-first Timeline layout contracts", () => {
       await expect(viewControl).toBeVisible();
       await expect(page.locator(".timeline-local-toolbar")).toBeVisible();
       await expect(dock.locator(".app-footer-world .world-camera-controls")).toBeVisible();
+      const layoutControls = dock.locator(".app-footer-world .world-layout-controls");
+      await expect(layoutControls).toBeVisible();
+      await expect(layoutControls.locator(".world-layout-control")).toHaveCount(2);
 
       const visibleFooterButtons = dock.locator("button:visible");
       const visibleFooterButtonCount = await visibleFooterButtons.count();
