@@ -34,6 +34,10 @@ test("footer controls share a 44px target and explicit focus treatment", async (
   assert.match(css, /--app-footer-control-size:\s*44px/);
   assert.match(
     css,
+    /\.app-footer-world \.world-layout-control\s*\{[\s\S]*inline-size:\s*var\(--app-footer-control-size\)/,
+  );
+  assert.match(
+    css,
     /app-footer-timeline\.timeline-local-toolbar\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) auto/,
   );
   assert.match(css, /app-footer-context-actions\s*\{[\s\S]*overflow-x:\s*auto/);
