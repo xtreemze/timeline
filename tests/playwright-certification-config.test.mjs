@@ -149,6 +149,7 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightConfig, /--disable-background-timer-throttling/);
   assert.match(highlightConfig, /--disable-renderer-backgrounding/);
   assert.match(highlightConfig, /--disable-backgrounding-occluded-windows/);
+  assert.match(highlightConfig, /--auto-accept-this-tab-capture/);
   assert.doesNotMatch(highlightConfig, /--disable-frame-rate-limit|--disable-gpu-vsync/);
   assert.match(highlightConfig, /--kiosk/);
   assert.match(highlightConfig, /screen:\s*\{\s*width:\s*1440,\s*height:\s*900\s*\}/);
@@ -159,31 +160,24 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightSpec, /const SHOWCASE_FPS = 60/);
   assert.match(highlightSpec, /const MIN_CAPTURE_FPS = 59/);
   assert.match(highlightSpec, /const MIN_CAPTURE_COVERAGE = 0\.95/);
-  assert.match(highlightSpec, /ffmpeg-x11grab-rawvideo-nut/);
-  assert.match(highlightSpec, /"rawvideo"/);
-  assert.match(highlightSpec, /"nut"/);
-  assert.match(highlightSpec, /\.source\.nut/);
-  assert.match(highlightSpec, /encodeSourceCapture/);
-  assert.match(highlightSpec, /screenWidth/);
-  assert.match(highlightSpec, /screenHeight/);
-  assert.match(highlightSpec, /"-f",\s*"x11grab"/);
-  assert.match(highlightSpec, /"-framerate",\s*String\(SHOWCASE_FPS\)/);
-  assert.match(highlightSpec, /"-fps_mode",\s*"passthrough"/);
-  assert.match(highlightSpec, /"-c:v",\s*"libvpx"/);
-  assert.match(highlightSpec, /probeDecodedFrameTimestamps/);
+  assert.match(highlightSpec, /get-display-media-current-tab-vp8/);
+  assert.match(highlightSpec, /getDisplayMedia/);
+  assert.match(highlightSpec, /preferCurrentTab:\s*true/);
+  assert.match(highlightSpec, /MediaStreamTrackProcessor/);
+  assert.match(highlightSpec, /MediaRecorder/);
+  assert.match(highlightSpec, /video\/webm;codecs=vp8/);
+  assert.match(highlightSpec, /frameRate:\s*\{\s*ideal:\s*targetFps,\s*max:\s*targetFps\s*\}/);
   assert.match(highlightSpec, /frameTimestampsMs/);
   assert.match(highlightSpec, /recordingWindowSeconds/);
   assert.match(highlightSpec, /startCaptureHeartbeat/);
   assert.match(highlightSpec, /waitForBrowserFrameBudget/);
-  assert.match(highlightSpec, /SHOWCASE_CAPTURE_TMPDIR/);
-  assert.match(highlightSpec, /spawn\("nice", \["-n", "10"/);
   assert.match(highlightSpec, /lum-showcase-capture-heartbeat/);
   assert.match(highlightSpec, /requestAnimationFrame/);
   assert.match(highlightSpec, /measureFrameCadence/);
   assert.match(highlightSpec, /installCaptureBrand/);
   assert.doesNotMatch(
     highlightSpec,
-    /getDisplayMedia|MediaRecorder|Page\.startScreenRecording|Page\.startScreencast|page\.screencast\.start/,
+    /Page\.startScreenRecording|Page\.startScreencast|page\.screencast\.start/,
   );
   assert.match(highlightSpec, /captureX11Still/);
   assert.match(highlightSpec, /"-frames:v",\s*"1"/);
@@ -229,7 +223,6 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(mediaWorkflow, /pnpm exec playwright install --with-deps chromium/);
   assert.match(mediaWorkflow, /playwright test --config=playwright\.highlight\.config\.ts/);
   assert.match(mediaWorkflow, /xvfb-run/);
-  assert.match(mediaWorkflow, /SHOWCASE_CAPTURE_TMPDIR:\s*\/dev\/shm\/lum-showcase/);
   assert.match(mediaWorkflow, /-screen 0 1440x900x24/);
   assert.match(mediaWorkflow, /-screen 0 390x844x24/);
   assert.match(mediaWorkflow, /--project="Desktop Showcase"/);
@@ -274,7 +267,7 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
 
   assert.match(showcaseDocs, /five desktop scenes/i);
   assert.match(showcaseDocs, /five mobile scenes/i);
-  assert.match(showcaseDocs, /minimum 59 fps framebuffer cadence/i);
+  assert.match(showcaseDocs, /minimum 59 fps current-tab capture cadence/i);
   assert.match(showcaseDocs, /raw VP8 WebM/i);
   assert.match(showcaseDocs, /95% recording-window coverage/i);
   assert.match(showcaseDocs, /60 fps animated WebP/i);
