@@ -27,6 +27,18 @@ export interface WorldSpatialPosition {
   readonly altitudeMeters: number;
 }
 
+/**
+ * Exact presentation state for one rendered entity at a projection boundary.
+ * The position and presentation transform belong together: semantic offset
+ * magnification and screen-space float must be inverted with the same values
+ * that produced the visible frame.
+ */
+export interface WorldRenderContinuitySample {
+  readonly position: WorldSpatialPosition;
+  readonly offsetScale: number;
+  readonly floatMeters: number;
+}
+
 export type WorldSelection =
   | { readonly kind: "entity"; readonly id: EntityId }
   | { readonly kind: "relationship"; readonly id: RelationshipId }
@@ -71,10 +83,26 @@ export interface WorldSurface {
   setSelection(selection: WorldSelection | null): void;
 
   /**
-   * Optional presentation snapshot for projection handoffs. Implementations
-   * return the exact world positions currently shown for canonical instances,
-   * allowing a committed temporal reprojection to start from the user's
-   * visible state without introducing per-preview work.
+   * Optional presentation snapshot for committed projection handoffs.
+   * Implementations return the exact visible position together with the
+   * presentation transform that produced it.
+   */
+  getRenderedInstanceContinuity?(): ReadonlyMap<WorldInstanceId, WorldRenderContinuitySample>;
+
+  /**
+   * Keeps the captured presentation transform active while a committed
+   * projection begins relaxing. Implementations may converge these overrides
+   * toward their ordinary semantic presentation during subsequent layout
+   * deltas, but the first committed frame must use the captured transform.
+   */
+  setProjectionHandoffPresentation?(
+    samples: ReadonlyMap<WorldInstanceId, WorldRenderContinuitySample>,
+  ): void;
+  clearProjectionHandoffPresentation?(): void;
+
+  /**
+   * Legacy position-only snapshot retained for non-Deck surfaces. New
+   * implementations should provide getRenderedInstanceContinuity.
    */
   getRenderedInstancePositions?(): ReadonlyMap<WorldInstanceId, WorldSpatialPosition>;
 
