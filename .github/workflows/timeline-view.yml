@@ -65,6 +65,7 @@ on:
       - 'tests/browser/retained-structural-composition.spec.ts'
       - 'tests/browser/semantic-chronology.spec.ts'
       - 'tests/browser/focus-sidebar.spec.ts'
+      - 'tests/browser/investigation-workspace.spec.ts'
       - 'tests/playwright/**'
       - 'playwright.config.ts'
       - 'tests/playwright-certification-config.test.mjs'
@@ -366,15 +367,19 @@ jobs:
       - name: Verify application shell browser test discovery
         continue-on-error: true
         run: |
-          pnpm exec playwright test --config=playwright.config.ts tests/playwright/layout.spec.ts tests/playwright/mobile-screen.spec.ts --list | tee /tmp/application-shell-playwright-list.txt
+          pnpm exec playwright test --config=playwright.config.ts tests/playwright/layout.spec.ts tests/playwright/mobile-screen.spec.ts tests/browser/investigation-workspace.spec.ts --list | tee /tmp/application-shell-playwright-list.txt
           grep -F 'layout.spec.ts' /tmp/application-shell-playwright-list.txt
           grep -F 'mobile-screen.spec.ts' /tmp/application-shell-playwright-list.txt
+          grep -F 'investigation-workspace.spec.ts' /tmp/application-shell-playwright-list.txt
       - name: Run application shell browser tests
         continue-on-error: true
         run: pnpm exec playwright test --config=playwright.config.ts tests/playwright/layout.spec.ts --project="Mobile Chrome" --project="Mobile Chrome Landscape" --project="Tablet Touch"
       - name: Run narrow mobile screen contracts
         continue-on-error: true
         run: pnpm exec playwright test --config=playwright.config.ts tests/playwright/mobile-screen.spec.ts --project="Mobile Chrome"
+      - name: Certify investigation methodology workspace on narrow mobile
+        continue-on-error: true
+        run: pnpm exec playwright test --config=playwright.config.ts tests/browser/investigation-workspace.spec.ts --project="Mobile Chrome"
 
   interaction-browser:
     continue-on-error: true
