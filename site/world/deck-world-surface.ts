@@ -51,7 +51,7 @@ import {
   selectPrioritizedLabels,
   typicalLocalOffsetMeters,
   WORLD_CLUSTER_MERGE_PX,
-  WORLD_ENTITY_FLOAT_PX,
+  worldEntityFloatPx,
   WORLD_LOCAL_GRAPH_MAX_PLACE_SHARE,
   WORLD_LOCAL_GRAPH_RADIUS_PX,
   WORLD_PLACE_LABEL_FLOOR,
@@ -4480,15 +4480,14 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   /**
-   * Entities float a constant on-screen height above the terrain (places
-   * stay on it). Screen-space conversion is continuous; render throttling
-   * controls update frequency without introducing quarter-zoom position jumps.
-   * D3 owns cluster gather/scatter altitude; camera zoom only converts the
-   * stable screen-space float target into metres.
+   * Entities float above the terrain (places stay on it), but the apparent
+   * separation tapers as the camera moves into detail. Screen-space conversion
+   * remains continuous; D3 still owns cluster gather/scatter altitude while
+   * semantic zoom controls only the presentation lift.
    */
   #nextFloatMeters(zoom = this.#camera.zoom, latitude = 0): number {
     if (this.#projection.instances.length === 0 || this.#typicalOffsetMeters() <= 0) return 0;
-    return worldLocalRadiusPx(1, zoom, latitude) ** -1 * WORLD_ENTITY_FLOAT_PX;
+    return worldLocalRadiusPx(1, zoom, latitude) ** -1 * worldEntityFloatPx(zoom);
   }
 
   #instanceLatitude(instance: ProjectedWorldInstance): number {
