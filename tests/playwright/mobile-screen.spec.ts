@@ -46,7 +46,7 @@ test.describe("Narrow mobile screen contracts", () => {
     );
     await expect.poll(() => copies.count()).toBeGreaterThan(1);
 
-    const visibleCards = [];
+    const visibleCards: Rect[] = [];
     for (let index = 0; index < (await copies.count()); index += 1) {
       const copy = copies.nth(index);
       const box = await copy.boundingBox();
@@ -72,7 +72,7 @@ test.describe("Narrow mobile screen contracts", () => {
     expect(visibleCards.length).toBeGreaterThan(1);
     for (let first = 0; first < visibleCards.length; first += 1) {
       for (let second = first + 1; second < visibleCards.length; second += 1) {
-        const intersection = overlap(visibleCards[first], visibleCards[second]);
+        const intersection = overlap(visibleCards[first]!, visibleCards[second]!);
         expect(
           intersection.x > 2 && intersection.y > 2,
           `mobile timeline cards ${first} and ${second} overlap by ${Math.max(0, intersection.x).toFixed(1)}×${Math.max(0, intersection.y).toFixed(1)}px`,
@@ -145,7 +145,7 @@ test.describe("Narrow mobile screen contracts", () => {
 
     for (let first = 0; first < boxes.length; first += 1) {
       for (let second = first + 1; second < boxes.length; second += 1) {
-        const intersection = overlap(boxes[first], boxes[second]);
+        const intersection = overlap(boxes[first]!, boxes[second]!);
         expect(
           intersection.x > 2 && intersection.y > 2,
           `compact horizontal timeline cards ${first} and ${second} overlap by ${Math.max(0, intersection.x).toFixed(1)}×${Math.max(0, intersection.y).toFixed(1)}px`,
@@ -204,7 +204,13 @@ test.describe("Narrow mobile screen contracts", () => {
       const buttons = dock.locator("button:visible");
       const buttonCount = await buttons.count();
       expect(buttonCount).toBeGreaterThanOrEqual(10);
-      const buttonGeometry = [];
+      const buttonGeometry: Array<{
+        position: string;
+        width: number;
+        height: number;
+        top: number;
+        bottom: number;
+      }> = [];
       for (let index = 0; index < buttonCount; index += 1) {
         const button = buttons.nth(index);
         const geometry = await button.evaluate((element) => {
