@@ -69,10 +69,7 @@ test("cross-place relationships participate in one DAG and influence nodes back 
   const layout = createWorldDagLayout(
     createWorldProjection({
       instances: [departure, encounter, returnHome],
-      edges: [
-        edge("cross-out", departure, encounter),
-        edge("cross-back", encounter, returnHome),
-      ],
+      edges: [edge("cross-out", departure, encounter), edge("cross-back", encounter, returnHome)],
     }),
     {
       reorganize: true,
@@ -639,4 +636,3 @@ test("explicit reorganization bypasses cached place layout while preserving geog
     "the place itself never becomes a DAG node",
   );
 });
-
