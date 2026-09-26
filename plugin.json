@@ -1,0 +1,29 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "lum-continuum",
+  "version": "0.3.0",
+  "description": "Use the live Lūm browser continuum through its validated MCP authoring and verification tools.",
+  "author": {
+    "name": "xtreemze"
+  },
+  "homepage": "https://xtreemze.github.io/timeline/",
+  "repository": "https://github.com/xtreemze/timeline",
+  "keywords": [
+    "timeline",
+    "continuum",
+    "evidence",
+    "graph",
+    "mcp"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Lūm Continuum",
+        "shortDescription": "Inspect, ingest, audit, and edit a live Lūm continuum.",
+        "developerName": "xtreemze",
+        "websiteURL": "https://xtreemze.github.io/timeline/",
+        "defaultPrompt": "Audit the open Lūm continuum against its graph contract and summarize any issues."
+      }
+    }
+  }
+}
