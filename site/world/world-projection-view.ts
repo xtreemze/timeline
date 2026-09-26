@@ -381,10 +381,15 @@ export class WorldProjectionView {
       }
     }
     this.#relationshipIdsByItem = new Map(
-      [...relationshipIdsByItem].map(([itemId, ids]) => [
-        itemId,
-        Object.freeze([...new Set(ids)].sort((left, right) => String(left).localeCompare(String(right)))),
-      ]),
+      [...relationshipIdsByItem].map(
+        ([itemId, ids]) =>
+          [
+            itemId,
+            Object.freeze(
+              [...new Set(ids)].sort((left, right) => String(left).localeCompare(String(right))),
+            ),
+          ] as const,
+      ),
     );
 
     this.#relationships = canonicalRelationships(
