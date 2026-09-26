@@ -152,6 +152,9 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
 
   assert.match(highlightSpec, /records source-native Lūm showcase media per form factor/);
   assert.match(highlightSpec, /x11grab/);
+  assert.doesNotMatch(highlightSpec, /-use_wallclock_as_timestamps/);
+  assert.match(highlightSpec, /-enc_time_base/);
+  assert.match(highlightSpec, /demux/);
   assert.match(highlightSpec, /-fps_mode/);
   assert.match(highlightSpec, /passthrough/);
   assert.match(highlightSpec, /libvpx/);
@@ -164,6 +167,10 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightSpec, /captured\.fps\s*>\s*MAX_CAPTURE_FPS/);
   assert.match(highlightSpec, /browser\.fps\s*<\s*MIN_CAPTURE_FPS/);
   assert.match(highlightSpec, /browser\.fps\s*>\s*MAX_CAPTURE_FPS/);
+  assert.match(highlightSpec, /current\s*<=\s*previous/);
+  assert.match(highlightSpec, /duplicated or non-increasing timestamp/);
+  assert.match(highlightSpec, /SHOWCASE_X11_WIDTH/);
+  assert.match(highlightSpec, /SHOWCASE_X11_HEIGHT/);
   assert.match(highlightSpec, /\.frames\.json/);
   assert.doesNotMatch(highlightSpec, /getDisplayMedia|MediaRecorder/);
   assert.match(highlightSpec, /page\.screencast\.showChapter/);
@@ -193,6 +200,8 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightRenderer, /video\.codec !== "vp8"/);
   assert.match(highlightRenderer, /minimumMeasuredCaptureFps/);
   assert.match(highlightRenderer, /maximumMeasuredCaptureFps/);
+  assert.match(highlightRenderer, /nonIncreasingIntervals/);
+  assert.match(highlightRenderer, /duplicated or non-increasing/);
   assert.match(highlightRenderer, /libwebp_anim/);
   assert.doesNotMatch(highlightRenderer, /"-r",\s*String\(manifest\.captureFps\)/);
   assert.ok(
@@ -213,8 +222,14 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightRenderer, /mobile/);
 
   assert.match(mediaWorkflow, /Record source-native showcase media/);
-  assert.match(mediaWorkflow, /xvfb-run/);
-  assert.match(mediaWorkflow, /-screen 0 1920x1080x24/);
+  assert.match(mediaWorkflow, /xserver-xorg-video-dummy/);
+  assert.match(mediaWorkflow, /Xorg :99/);
+  assert.match(mediaWorkflow, /xorg-dummy-60\.conf/);
+  assert.match(mediaWorkflow, /xrandr --current/);
+  assert.match(mediaWorkflow, /1920x1080_60\\\.00/);
+  assert.match(mediaWorkflow, /SHOWCASE_X11_WIDTH=1920/);
+  assert.match(mediaWorkflow, /SHOWCASE_X11_HEIGHT=1080/);
+  assert.doesNotMatch(mediaWorkflow, /xvfb-run/);
   assert.match(mediaWorkflow, /pnpm test:e2e:showcase/);
   assert.match(mediaWorkflow, /pnpm render:e2e:showcase/);
   assert.match(mediaWorkflow, /raw\/desktop/);
