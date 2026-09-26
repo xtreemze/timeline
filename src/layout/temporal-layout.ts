@@ -629,10 +629,16 @@ export function planCommittedTemporalLayout(
       .map(({ lane }) => lane);
 
     const previousLane = input.previous?.lanes?.[occurrence.id];
-    const lane = chooseStableLane(
-      previousLane,
-      legalLanes.length ? legalLanes : Array.from({ length: laneCapacity }, (_, index) => index),
-    );
+    const isRange = Number.isFinite(occurrence.end) && Number(occurrence.end) > occurrence.start;
+    const lane =
+      !isRange && legalLanes.includes(0)
+        ? 0
+        : chooseStableLane(
+            previousLane,
+            legalLanes.length
+              ? legalLanes
+              : Array.from({ length: laneCapacity }, (_, index) => index),
+          );
     lanes[occurrence.id] = lane;
     laneIntervals[lane]?.push({ start: startPx, end: endPx });
     placements.push(
