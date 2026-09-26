@@ -98,6 +98,15 @@ const SIMPLEX_LAYER_MAX_NODES = 128;
 const SIMPLEX_LAYER_MAX_EDGES = 384;
 const PAIRWISE_METRIC_MAX_NODES = 256;
 const ROUTE_METRIC_MAX_SEGMENTS = 512;
+/**
+ * Sugiyama remains a local readability aid, not a global-scale solver. Large
+ * or highly connected neighborhoods are already owned by collision, LOD, and
+ * clustering; entering d3-dag first only to discard an oversized layout can
+ * turn a bounded fallback into minutes of synchronous work.
+ */
+const DAG_LAYOUT_MAX_NODES = 256;
+const DAG_LAYOUT_MAX_EDGES = 1_024;
+const DAG_DENSE_EDGE_FACTOR = 6;
 const LAYOUT_HYSTERESIS_SCORE_RATIO = 1.12;
 const COMPARE_LAYERING_HYSTERESIS_NODES = 4;
 const COMPARE_LAYERING_HYSTERESIS_EDGES = 16;
@@ -976,6 +985,24 @@ function chooseCandidate(
   if (nodeIds.length === 0) {
     return Object.freeze({
       name: "sparse-force-only",
+      targets: Object.freeze([]),
+      routes: Object.freeze([]),
+      width: 0,
+      height: 0,
+      crossingCount: null,
+      meanEdgeLengthMeters: 0,
+      minSeparationMeters: null,
+      meanStableDisplacementMeters: 0,
+    });
+  }
+
+  const forceOwned =
+    nodeIds.length > DAG_LAYOUT_MAX_NODES ||
+    edges.length > DAG_LAYOUT_MAX_EDGES ||
+    edges.length > Math.max(COMPARE_LAYERING_MAX_EDGES, nodeIds.length * DAG_DENSE_EDGE_FACTOR);
+  if (forceOwned) {
+    return Object.freeze({
+      name: "longest-two-layer-greedy-force-only",
       targets: Object.freeze([]),
       routes: Object.freeze([]),
       width: 0,
