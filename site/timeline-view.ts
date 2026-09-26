@@ -497,6 +497,7 @@ export class TimelineViewController {
   retention: TemporalRetentionState = commitRetention(this.renderWindow);
   focusedId: string | null = null;
   focusMediaIndex = 0;
+  focusTab: "overview" | "evidence" = "overview";
   orientation: Orientation = loadViewPreferences().orientation;
   scene = new Map<string, SceneRecord>();
   tickScene = new Map<string, HTMLDivElement>();
@@ -1186,7 +1187,7 @@ export class TimelineViewController {
       button.setAttribute("aria-current", String(item.id === this.focusedId));
       button.addEventListener("click", () => {
         if (this.focusedId === item.id) {
-          this.closeFocus();
+          this.ensureFocusPopover();
         } else {
           this.focusItem(item.id);
         }
@@ -3415,9 +3416,17 @@ export class TimelineViewController {
       controls.setAttribute("role", "group");
       controls.setAttribute("aria-label", "Event images");
 
-      const step = (delta: number) => {
-        this.focusMediaIndex = (activeIndex + delta + media.length) % media.length;
+      const selectMedia = (index: number, focusSelector: string) => {
+        this.focusMediaIndex = (index + media.length) % media.length;
         this.renderFocus(item);
+        requestAnimationFrame(() => {
+          this.focusView
+            .querySelector<HTMLButtonElement>(focusSelector)
+            ?.focus({ preventScroll: true });
+        });
+      };
+      const step = (delta: number, focusSelector: string) => {
+        selectMedia(activeIndex + delta, focusSelector);
       };
       const previous = document.createElement("button");
       previous.type = "button";
@@ -3428,19 +3437,19 @@ export class TimelineViewController {
           ? presentation.createIcon("chevron-left", { size: 20 })
           : null;
       if (previousIcon) previous.append(previousIcon);
-      previous.addEventListener("click", () => step(-1));
+      previous.addEventListener("click", () => step(-1, ".timeline-focus-media-control.is-previous"));
       controls.append(previous);
 
       media.forEach((_, index) => {
         const dot = document.createElement("button");
         dot.type = "button";
         dot.className = "timeline-focus-slide-dot";
+        dot.dataset.slideIndex = String(index);
         dot.setAttribute("aria-label", `Show image ${index + 1} of ${media.length}`);
         dot.setAttribute("aria-current", index === activeIndex ? "true" : "false");
         dot.classList.toggle("is-active", index === activeIndex);
         dot.addEventListener("click", () => {
-          this.focusMediaIndex = index;
-          this.renderFocus(item);
+          selectMedia(index, `[data-slide-index="${index}"]`);
         });
         controls.append(dot);
       });
@@ -3453,7 +3462,7 @@ export class TimelineViewController {
           ? presentation.createIcon("chevron-right", { size: 20 })
           : null;
       if (nextIcon) next.append(nextIcon);
-      next.addEventListener("click", () => step(1));
+      next.addEventListener("click", () => step(1, ".timeline-focus-media-control.is-next"));
       controls.append(next);
       hero.append(controls);
     }
@@ -3465,7 +3474,7 @@ export class TimelineViewController {
     this.focusView.tabIndex = -1;
     this.focusView.style.setProperty("--event-color", item.color || "var(--accent)");
     this.focusView.dataset.layout = item.layoutVariant || "evidence-dossier";
-    this.focusView.dataset.activeTab = "overview";
+    this.focusView.dataset.activeTab = this.focusTab;
     this.focusView.setAttribute("aria-labelledby", "timeline-focus-heading");
 
     const hero = this.createFocusHero(item);
@@ -3474,6 +3483,9 @@ export class TimelineViewController {
     summary.id = "timeline-focus-context-panel";
     summary.className = "timeline-focus-section timeline-focus-summary";
     summary.setAttribute("aria-label", "Context");
+    summary.setAttribute("role", "tabpanel");
+    summary.setAttribute("aria-labelledby", "timeline-focus-context-tab");
+    summary.tabIndex = 0;
     const description = document.createElement("p");
     description.className = "timeline-focus-description";
     description.textContent =
@@ -3481,15 +3493,20 @@ export class TimelineViewController {
     const summaryToolbar = document.createElement("div");
     summaryToolbar.className = "timeline-focus-section-toolbar";
     const summaryEdit = this.createFocusEditButton(item, "description", "Edit context");
-    if (summaryEdit) summaryToolbar.append(summaryEdit);
-    summary.append(summaryToolbar, description);
+    if (summaryEdit) {
+      summaryToolbar.append(summaryEdit);
+      summary.append(summaryToolbar);
+    }
+    summary.append(description);
 
     const evidence = document.createElement("section");
     evidence.id = "timeline-focus-evidence-panel";
     evidence.className = "timeline-focus-section timeline-focus-evidence";
     evidence.setAttribute("aria-label", "Evidence");
     evidence.setAttribute("role", "tabpanel");
-    evidence.hidden = true;
+    evidence.setAttribute("aria-labelledby", "timeline-focus-evidence-tab");
+    evidence.tabIndex = 0;
+    evidence.hidden = this.focusTab !== "evidence";
     const evidenceRecords = (item.evidence || []).filter(isRecord).slice(0, 6);
     if (evidenceRecords.length) {
       const grid = document.createElement("div");
@@ -3588,35 +3605,52 @@ export class TimelineViewController {
     tabs.setAttribute("aria-label", "Focused event views");
     const overviewTab = document.createElement("button");
     overviewTab.type = "button";
-    overviewTab.className = "timeline-focus-tab is-active";
+    overviewTab.id = "timeline-focus-context-tab";
+    overviewTab.className = "timeline-focus-tab";
     overviewTab.textContent = "Context";
     overviewTab.setAttribute("role", "tab");
-    overviewTab.setAttribute("aria-selected", "true");
     overviewTab.setAttribute("aria-controls", "timeline-focus-context-panel");
     const evidenceTab = document.createElement("button");
     evidenceTab.type = "button";
+    evidenceTab.id = "timeline-focus-evidence-tab";
     evidenceTab.className = "timeline-focus-tab";
     evidenceTab.textContent = "Evidence";
     evidenceTab.setAttribute("role", "tab");
-    evidenceTab.setAttribute("aria-selected", "false");
     evidenceTab.setAttribute("aria-controls", "timeline-focus-evidence-panel");
     const close = document.createElement("button");
     close.type = "button";
-    close.className = "button primary timeline-focus-close";
-    close.textContent = "Close";
+    close.className = "timeline-focus-close timeline-focus-icon-action";
     close.setAttribute("aria-label", "Return to timeline");
+    close.title = "Return to timeline";
+    const closeIcon =
+      presentation && typeof presentation.createIcon === "function"
+        ? presentation.createIcon("close", { size: 16 })
+        : null;
+    if (closeIcon) close.append(closeIcon);
+    const closeLabel = document.createElement("span");
+    closeLabel.className = "sr-only";
+    closeLabel.textContent = "Return to timeline";
+    close.append(closeLabel);
     close.addEventListener("click", () => this.closeFocus());
+
+    const applyFocusTab = (name: "overview" | "evidence"): void => {
+      const evidenceActive = name === "evidence";
+      this.focusTab = name;
+      this.focusView.dataset.activeTab = name;
+      summary.hidden = evidenceActive;
+      evidence.hidden = !evidenceActive;
+      overviewTab.classList.toggle("is-active", !evidenceActive);
+      evidenceTab.classList.toggle("is-active", evidenceActive);
+      overviewTab.setAttribute("aria-selected", String(!evidenceActive));
+      evidenceTab.setAttribute("aria-selected", String(evidenceActive));
+      overviewTab.tabIndex = evidenceActive ? -1 : 0;
+      evidenceTab.tabIndex = evidenceActive ? 0 : -1;
+    };
 
     const setFocusTab = (name: "overview" | "evidence"): void => {
       const evidenceActive = name === "evidence";
       const apply = () => {
-        this.focusView.dataset.activeTab = name;
-        summary.hidden = evidenceActive;
-        evidence.hidden = !evidenceActive;
-        overviewTab.classList.toggle("is-active", !evidenceActive);
-        evidenceTab.classList.toggle("is-active", evidenceActive);
-        overviewTab.setAttribute("aria-selected", String(!evidenceActive));
-        evidenceTab.setAttribute("aria-selected", String(evidenceActive));
+        applyFocusTab(name);
       };
       if (
         !this.reducedMotionQuery?.matches &&
@@ -3641,7 +3675,29 @@ export class TimelineViewController {
     };
     overviewTab.addEventListener("click", () => setFocusTab("overview"));
     evidenceTab.addEventListener("click", () => setFocusTab("evidence"));
+    tabs.addEventListener("keydown", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLButtonElement) || !target.classList.contains("timeline-focus-tab")) {
+        return;
+      }
+      let next: "overview" | "evidence" | null = null;
+      if (event.key === "ArrowLeft" || event.key === "ArrowUp" || event.key === "Home") {
+        next = "overview";
+      } else if (
+        event.key === "ArrowRight" ||
+        event.key === "ArrowDown" ||
+        event.key === "End"
+      ) {
+        next = "evidence";
+      }
+      if (!next) return;
+      event.preventDefault();
+      setFocusTab(next);
+      const nextTab = next === "evidence" ? evidenceTab : overviewTab;
+      nextTab.focus({ preventScroll: true });
+    });
     tabs.append(overviewTab, evidenceTab, close);
+    applyFocusTab(this.focusTab);
 
     this.focusView.replaceChildren(tabs, hero, summary, evidence);
     this.root.dispatchEvent(
@@ -3685,7 +3741,10 @@ export class TimelineViewController {
     const item = this.items.find((candidate) => candidate.id === id);
     if (!item) return false;
     const moveViewport = options.moveViewport !== false;
-    if (this.focusedId !== id) this.focusMediaIndex = 0;
+    if (this.focusedId !== id) {
+      this.focusMediaIndex = 0;
+      this.focusTab = "overview";
+    }
 
     const update = () => {
       this.focusedId = id;
@@ -3754,6 +3813,8 @@ export class TimelineViewController {
       this.focusView.removeAttribute("aria-labelledby");
       delete this.focusView.dataset.layout;
       delete this.focusView.dataset.activeTab;
+      this.focusTab = "overview";
+      this.focusMediaIndex = 0;
       this.render();
       this.root.dispatchEvent(
         new CustomEvent("timelinefocuschange", {
