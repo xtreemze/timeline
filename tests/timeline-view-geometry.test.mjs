@@ -44,6 +44,23 @@ test("trackpad pinch keeps wheel units but amplifies Ctrl-modified deltas like d
   assert.equal(geometry.normalizeWheelDelta({ deltaY: 1, deltaMode: 2, ctrlKey: false }, 800), 800);
 });
 
+
+test("timeline axis placement resolves CSS percentages and pixels without JavaScript overriding layout", () => {
+  assert.ok(Math.abs(geometry.axisCrossFromCss("46%", 253.2, 0.5) - 116.472) < 0.001);
+  assert.equal(geometry.axisCrossFromCss("68%", 300, 0.58), 204);
+  assert.equal(geometry.axisCrossFromCss("92px", 240, 0.5), 92);
+  assert.equal(geometry.axisCrossFromCss("500px", 240, 0.5), 240);
+  assert.equal(geometry.axisCrossFromCss("invalid", 240, 0.5), 120);
+});
+
+test("compact horizontal rails cap visible lanes before cards consume the world surface", () => {
+  assert.equal(geometry.committedLaneLimit("horizontal", 184), 2);
+  assert.equal(geometry.committedLaneLimit("horizontal", 253), 2);
+  assert.equal(geometry.committedLaneLimit("horizontal", 299.9), 2);
+  assert.equal(geometry.committedLaneLimit("horizontal", 300), 3);
+  assert.equal(geometry.committedLaneLimit("vertical", 168), 3);
+});
+
 test("selected events use a shell-owned six-column detail surface with footer-owned controls", async () => {
   const [html, js, css] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
