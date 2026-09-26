@@ -374,6 +374,8 @@ const els = {
   browserStoryCount: requiredElement<HTMLElement>("#browser-story-count"),
   focusPrev: requiredElement<HTMLButtonElement>("#timeline-focus-prev"),
   focusNext: requiredElement<HTMLButtonElement>("#timeline-focus-next"),
+  worldFocusRelated: requiredElement<HTMLButtonElement>("#world-focus-related"),
+  worldFitRelated: requiredElement<HTMLButtonElement>("#world-fit-related"),
   loadSample: requiredElement<HTMLButtonElement>("#load-sample"),
   importJson: requiredElement<HTMLInputElement>("#import-json"),
   importInterchange: requiredElement<HTMLInputElement>("#import-interchange"),
@@ -1580,6 +1582,12 @@ function syncTimelineContextControls() {
   els.focusNext.hidden = !focused;
   els.focusPrev.disabled = !focused || navigation?.previous !== true;
   els.focusNext.disabled = !focused || navigation?.next !== true;
+
+  const worldContextAvailable = focused && focusedGraphContextAvailable;
+  els.worldFocusRelated.hidden = !worldContextAvailable;
+  els.worldFitRelated.hidden = !worldContextAvailable;
+  els.worldFocusRelated.disabled = !worldContextAvailable;
+  els.worldFitRelated.disabled = !worldContextAvailable;
 
   if (els.editorToggle) {
     const editableFocus = focused && navigation?.editable === true;
@@ -4381,6 +4389,12 @@ els.focusNext.addEventListener("click", () => {
   advancePresentation(1);
   syncTimelineContextControls();
 });
+els.worldFocusRelated.addEventListener("click", () => {
+  temporalGraphView?.zoomToFocus?.();
+});
+els.worldFitRelated.addEventListener("click", () => {
+  temporalGraphView?.fitFocus?.();
+});
 
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
@@ -5214,6 +5228,7 @@ els.timelineViewRoot.addEventListener("timelinefocusrender", () => {
 els.graphViewRoot.addEventListener("graphcontextchange", (event) => {
   focusedGraphContextAvailable = Boolean(event.detail?.hasContext);
   syncContextualPresentationPanels();
+  syncTimelineContextControls();
   schedulePresentationGeometryRefresh({ recenterGraph: true });
 });
 els.timelineViewRoot.addEventListener("timelinefocusedit", (event) => {
