@@ -64,6 +64,15 @@ const CITATION_RELATIONS = Object.freeze([
   "impeaches",
   "mentions",
 ] as const);
+const HYPOTHESIS_KINDS = Object.freeze([
+  "general",
+  "identity",
+  "causal",
+  "sequence",
+  "source",
+] as const);
+const IDENTITY_CANDIDATE_SCOPES = Object.freeze(["entity", "none-known"] as const);
+
 const CITATION_LOCATOR_TYPES = Object.freeze([
   "page",
   "bates",
@@ -265,6 +274,19 @@ export function normalizeRecord(
     record.observationIds = idList(raw.observationIds);
     record.assertionIds = idList(raw.assertionIds);
     record.assessment = text(raw.assessment, 80) || "open";
+    const hypothesisKind = text(raw.hypothesisKind ?? raw.kind, 80);
+    record.hypothesisKind = HYPOTHESIS_KINDS.includes(hypothesisKind as any)
+      ? hypothesisKind
+      : "general";
+    record.alternativeGroupId = text(raw.alternativeGroupId, 160);
+    record.unknownEntityId = text(raw.unknownEntityId, 160);
+    record.candidateEntityId = text(raw.candidateEntityId, 160);
+    const candidateScope = text(raw.candidateScope, 80);
+    record.candidateScope = IDENTITY_CANDIDATE_SCOPES.includes(candidateScope as any)
+      ? candidateScope
+      : record.candidateEntityId
+        ? "entity"
+        : "";
   } else if (type === "proposition") {
     record.assertionIds = idList(raw.assertionIds);
     record.level = text(raw.level, 80);
@@ -390,6 +412,12 @@ export function dependencyIds(record: Record<string, any>): string[] {
       result.push(id);
     }
   }
+  for (const field of ["unknownEntityId", "candidateEntityId"]) {
+    const id = text(record[field], 160);
+    if (!id || id === record.id || seen.has(id)) continue;
+    seen.add(id);
+    result.push(id);
+  }
   return result;
 }
 
@@ -401,12 +429,89 @@ function indexReasoning(reasoning: any, externalIds: unknown[] = []) {
   return { normalized, records, recordById, knownIds };
 }
 
+function hypothesisCell(
+  evidenceId: string,
+  hypothesis: Record<string, any>,
+  normalized: Record<string, any>,
+) {
+  const edges = normalized.edges.filter(
+    (edge: any) => edge.fromId === evidenceId && edge.toId === hypothesis.id,
+  );
+  const predicates = new Set(edges.map((edge: any) => edge.predicate));
+  const supports = [...predicates].some((predicate) => SUPPORT_PREDICATES.has(predicate));
+  const contradicts = [...predicates].some((predicate) =>
+    CONTRADICTION_PREDICATES.has(predicate),
+  );
+  const explicitlyLinked =
+    hypothesis.observationIds?.includes(evidenceId) ||
+    hypothesis.assertionIds?.includes(evidenceId) ||
+    hypothesis.inputIds?.includes(evidenceId);
+  let assessment = "unknown";
+  if (supports && contradicts) assessment = "mixed";
+  else if (contradicts) assessment = "contradicts";
+  else if (supports) assessment = "supports";
+  else if (predicates.size > 0 || explicitlyLinked) assessment = "contextual";
+
+  return {
+    hypothesisId: hypothesis.id,
+    assessment,
+    edgeIds: edges.map((edge: any) => edge.id).sort(),
+  };
+}
+
+export function competingHypothesisMatrix(reasoning: any, alternativeGroupId: unknown) {
+  const normalized = normalizeReasoning(reasoning);
+  const groupId = text(alternativeGroupId, 160);
+  const hypotheses = normalized.hypotheses
+    .filter((hypothesis: any) => hypothesis.alternativeGroupId === groupId)
+    .sort((left: any, right: any) => left.id.localeCompare(right.id));
+  const hypothesisIds = new Set(hypotheses.map((hypothesis: any) => hypothesis.id));
+
+  const evidenceCandidates = [
+    ...normalized.observations,
+    ...normalized.assertions,
+    ...normalized.citations,
+  ];
+  const evidence = evidenceCandidates
+    .filter((record: any) => {
+      if (
+        hypotheses.some(
+          (hypothesis: any) =>
+            hypothesis.observationIds?.includes(record.id) ||
+            hypothesis.assertionIds?.includes(record.id) ||
+            hypothesis.inputIds?.includes(record.id),
+        )
+      ) {
+        return true;
+      }
+      return normalized.edges.some(
+        (edge: any) => edge.fromId === record.id && hypothesisIds.has(edge.toId),
+      );
+    })
+    .sort((left: any, right: any) => left.id.localeCompare(right.id));
+
+  return {
+    alternativeGroupId: groupId,
+    hypotheses,
+    evidenceRows: evidence.map((record: any) => ({
+      evidenceId: record.id,
+      evidenceType: record.type,
+      cells: hypotheses.map((hypothesis: any) =>
+        hypothesisCell(record.id, hypothesis, normalized),
+      ),
+    })),
+  };
+}
+
 function incomingEdges(id: string, normalized: Record<string, any>): Record<string, any>[] {
   return normalized.edges.filter((edge: any) => edge.toId === id);
 }
 
 export function traceDependencies(id: unknown, reasoning: any, options: any = {}) {
-  const { normalized, recordById, knownIds } = indexReasoning(reasoning, options.externalIds);
+  const { normalized, recordById, knownIds } = indexReasoning(reasoning, [
+    ...idList(options.externalIds),
+    ...idList(options.entityIds),
+  ]);
   if (!knownIds.has(String(id)))
     return { rootId: id, records: [], externalIds: [], edges: [], missingIds: [id] };
 
@@ -521,7 +626,7 @@ interface ValidationFinding {
 export function validateReasoning(reasoning: any, options: any = {}): ValidationFinding[] {
   const { normalized, records, recordById, knownIds } = indexReasoning(
     reasoning,
-    options.externalIds,
+    [...idList(options.externalIds), ...idList(options.entityIds)],
   );
   const findings: ValidationFinding[] = [];
 
@@ -601,13 +706,69 @@ export function validateReasoning(reasoning: any, options: any = {}): Validation
       }
     }
 
-    if (record.type === "hypothesis" && dependencyIds(record).length === 0) {
+    if (
+      record.type === "hypothesis" &&
+      [
+        ...idList(record.observationIds),
+        ...idList(record.assertionIds),
+        ...idList(record.sourceIds),
+        ...idList(record.inputIds),
+      ].length === 0 &&
+      incomingEdges(record.id, normalized).length === 0
+    ) {
       add(
         "warning",
         "unsupported-hypothesis",
         record.id,
-        "Hypothesis has no linked observations, assertions, sources, or inputs.",
+        "Hypothesis has no linked observations, assertions, sources, inputs, or analytical support edges.",
       );
+    }
+    if (record.type === "hypothesis" && record.hypothesisKind === "identity") {
+      if (!record.unknownEntityId) {
+        add(
+          "error",
+          "identity-unknown-missing",
+          record.id,
+          "Identity hypothesis must identify the unresolved entity being tested.",
+        );
+      }
+      if (!record.alternativeGroupId) {
+        add(
+          "error",
+          "identity-alternative-group-missing",
+          record.id,
+          "Identity hypothesis must belong to an alternative group.",
+        );
+      }
+      if (record.candidateScope === "none-known") {
+        if (record.candidateEntityId) {
+          add(
+            "error",
+            "identity-none-known-has-candidate",
+            record.id,
+            "A none-known alternative must not identify a candidate entity.",
+          );
+        }
+      } else if (!record.candidateEntityId) {
+        add(
+          "error",
+          "identity-candidate-missing",
+          record.id,
+          "Identity hypothesis must identify a candidate entity or use candidateScope none-known.",
+        );
+      }
+      if (
+        record.unknownEntityId &&
+        record.candidateEntityId &&
+        record.unknownEntityId === record.candidateEntityId
+      ) {
+        add(
+          "error",
+          "identity-self-candidate",
+          record.id,
+          "An unresolved entity cannot be its own candidate identity hypothesis.",
+        );
+      }
     }
     if (
       record.type === "analysis" &&
@@ -638,6 +799,43 @@ export function validateReasoning(reasoning: any, options: any = {}): Validation
         "legal-rule-gap",
         record.id,
         "Legal issue has no linked rule or authority-derived rule.",
+      );
+    }
+  }
+
+  const identityGroups = new Map<string, Record<string, any>[]>();
+  for (const hypothesis of normalized.hypotheses) {
+    if (hypothesis.hypothesisKind !== "identity" || !hypothesis.alternativeGroupId) continue;
+    const group = identityGroups.get(hypothesis.alternativeGroupId) ?? [];
+    group.push(hypothesis);
+    identityGroups.set(hypothesis.alternativeGroupId, group);
+  }
+  for (const [groupId, hypotheses] of identityGroups) {
+    const unknownIds = new Set(
+      hypotheses.map((hypothesis) => hypothesis.unknownEntityId).filter(Boolean),
+    );
+    if (unknownIds.size > 1) {
+      add(
+        "error",
+        "identity-group-mixed-unknowns",
+        groupId,
+        "Identity alternative group mixes hypotheses about different unresolved entities.",
+      );
+    }
+    if (hypotheses.length < 2) {
+      add(
+        "warning",
+        "identity-alternatives-required",
+        groupId,
+        "Identity analysis should retain at least two competing alternatives.",
+      );
+    }
+    if (!hypotheses.some((hypothesis) => hypothesis.candidateScope === "none-known")) {
+      add(
+        "warning",
+        "identity-open-world-alternative-missing",
+        groupId,
+        "Identity analysis has no explicit none-of-the-known-candidates alternative.",
       );
     }
   }
@@ -736,6 +934,8 @@ const TimelineCaseReasoningObj = {
   EDGE_PREDICATES,
   CITATION_RELATIONS,
   CITATION_LOCATOR_TYPES,
+  HYPOTHESIS_KINDS,
+  IDENTITY_CANDIDATE_SCOPES,
   STANDARDS_BASELINE,
   normalizeCitationLocator,
   normalizeRecord,
@@ -746,6 +946,7 @@ const TimelineCaseReasoningObj = {
   traceDependencies,
   summarizeSupport,
   collectAssertionCitations,
+  competingHypothesisMatrix,
   validateReasoning,
   orderedRecords,
 } as const;
