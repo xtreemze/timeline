@@ -8,7 +8,7 @@ async function installReasoningFixture(page) {
     const raw = localStorage.getItem("timeline:v2");
     if (!raw) throw new Error("Timeline state was not initialized.");
     const state = JSON.parse(raw);
-    const assertions = Array.from({ length: 30 }, (_, index) => ({
+    const assertions = Array.from({ length: 29 }, (_, index) => ({
       id: `fact-${index + 1}`,
       text: `Evidence row ${index + 1}`,
     }));
@@ -27,6 +27,25 @@ async function installReasoningFixture(page) {
       alternativeGroupId: "identity-a",
       assertionIds: assertions.map((assertion) => assertion.id),
     }));
+    const linkedItemId = state.items?.[0]?.id || "";
+    const linkedRelationshipId = state.relationships?.[0]?.id || "";
+    const linkedPlaceId = state.places?.[0]?.id || "";
+    const linkedEntityId = state.entities?.[0]?.id || "";
+    const linkedStart = state.items?.[0]?.start || "2026-09-26T21:10:00+03:00";
+    const linkedEnd = state.items?.[0]?.end || linkedStart;
+    state.evidence = [
+      ...(state.evidence || []).filter((record) => record.id !== "ev-track"),
+      {
+        id: "ev-track",
+        type: "note",
+        title: "GNSS track source",
+        sourceName: "Recorder A",
+        url: "https://example.test/track",
+        note: "Dense trajectory source retained outside the reasoning ledger.",
+        publishedAt: "2026-09-26",
+        file: null,
+      },
+    ];
     state.entities = [
       ...(state.entities || []),
       {
@@ -48,6 +67,19 @@ async function installReasoningFixture(page) {
       })),
     ];
     state.reasoning = {
+      observations: [
+        {
+          id: "obs-track",
+          text: "Trajectory observation near the incident area.",
+          evidenceIds: ["ev-track"],
+          itemIds: linkedItemId ? [linkedItemId] : [],
+          relationshipIds: linkedRelationshipId ? [linkedRelationshipId] : [],
+          placeIds: linkedPlaceId ? [linkedPlaceId] : [],
+          entityIds: linkedEntityId ? [linkedEntityId] : [],
+          trajectoryIds: ["track-high-res"],
+          temporalScope: { start: linkedStart, end: linkedEnd },
+        },
+      ],
       assertions,
       hypotheses,
       assumptions: [
@@ -94,18 +126,26 @@ async function installReasoningFixture(page) {
           limitations: "Carrier is not independently established.",
         },
       ],
-      edges: assertions.flatMap((assertion, index) =>
-        index < 2
-          ? [
-              {
-                id: `support-${index}`,
-                fromId: assertion.id,
-                toId: "hyp-alice",
-                predicate: "supports",
-              },
-            ]
-          : [],
-      ),
+      edges: [
+        ...assertions.flatMap((assertion, index) =>
+          index < 2
+            ? [
+                {
+                  id: `support-${index}`,
+                  fromId: assertion.id,
+                  toId: "hyp-alice",
+                  predicate: "supports",
+                },
+              ]
+            : [],
+        ),
+        {
+          id: "track-contextualizes-carol",
+          fromId: "obs-track",
+          toId: "hyp-carol",
+          predicate: "contextualizes",
+        },
+      ],
     };
     localStorage.setItem("timeline:v2", JSON.stringify(state));
   });
@@ -130,6 +170,13 @@ test("mobile investigation workspace renders dense alternatives without applicat
   await expect(matrixRows).toHaveCount(30);
   await expect(sheet.locator(".investigation-matrix thead th")).toHaveCount(5);
 
+  await sheet.getByRole("button", { name: "Trajectory observation near the incident area." }).click();
+  const drilldown = sheet.locator(".investigation-evidence-drilldown");
+  await expect(drilldown).toContainText("GNSS track source");
+  await expect(drilldown).toContainText("trajectory track-high-res");
+  await expect(drilldown.getByRole("button", { name: "Open source" })).toBeVisible();
+  await expect(drilldown.getByRole("button", { name: "Focus context" })).toBeVisible();
+
   const geometry = await sheet.evaluate((element) => {
     const rect = element.getBoundingClientRect();
     const matrix = element.querySelector(".investigation-matrix-scroll");
@@ -147,6 +194,11 @@ test("mobile investigation workspace renders dense alternatives without applicat
   expect(geometry.bodyOverflow).toBeLessThanOrEqual(2);
   expect(geometry.matrixScrolls).toBe(true);
 
+  await drilldown.getByRole("button", { name: "Focus context" }).click();
+  await expect(sheet).toBeHidden();
+  await expect(page.locator("#status")).toContainText(/Focused (trajectory context|timeline context)/);
+
+  await page.locator("#investigation-workspace-toggle").click();
   await page.keyboard.press("Escape");
   await expect(sheet).toBeHidden();
   await expect(toggle).toHaveAttribute("aria-expanded", "false");
@@ -191,4 +243,45 @@ test("line-of-enquiry editor enforces rationale and persists through the app com
         record.rationale.includes("unavailable"),
     ),
   ).toBe(true);
+});
+
+
+test("quality and indicator records are editable and remain qualitative", async ({ page }) => {
+  await installReasoningFixture(page);
+  await page.locator("#investigation-workspace-toggle").click();
+
+  await page.getByRole("tab", { name: "Quality" }).click();
+  const qualityForm = page.locator(".investigation-panel:not([hidden]) .investigation-form");
+  await qualityForm.locator("textarea").nth(0).fill("Track source conflicts with witness timing.");
+  await qualityForm.getByLabel("Information-quality finding").selectOption("conflicted");
+  await qualityForm.locator('input[placeholder*="evidence"]').fill("ev-track");
+  await qualityForm.locator('textarea[placeholder*="limitations"]').fill("Clock offset remains unresolved.");
+  await qualityForm.getByRole("button", { name: "Add quality review" }).click();
+  await expect(page.locator(".investigation-panel:not([hidden]) .investigation-card")).toContainText(
+    "Track source conflicts with witness timing.",
+  );
+  await expect(page.getByRole("button", { name: "Open GNSS track source" })).toBeVisible();
+
+  await page.getByRole("tab", { name: "Indicators" }).click();
+  const indicatorForm = page.locator(".investigation-panel:not([hidden]) .investigation-form");
+  await indicatorForm.locator("textarea").nth(0).fill("A matching track reaches the west exit.");
+  await indicatorForm.getByLabel("Indicator state").selectOption("observed");
+  await indicatorForm.locator('input[placeholder="observation IDs"]').fill("obs-track");
+  await indicatorForm.locator('input[placeholder="hypothesis IDs"]').fill("hyp-carol");
+  await indicatorForm.getByRole("button", { name: "Add indicator" }).click();
+  await expect(page.locator(".investigation-panel:not([hidden]) .investigation-card")).toContainText(
+    "A matching track reaches the west exit.",
+  );
+
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("timeline:v2") || "{}"));
+  const quality = stored.reasoning.informationReviews.find(
+    (record) => record.text === "Track source conflicts with witness timing.",
+  );
+  const indicator = stored.reasoning.indicators.find(
+    (record) => record.text === "A matching track reaches the west exit.",
+  );
+  expect(quality.finding).toBe("conflicted");
+  expect(quality.score).toBeUndefined();
+  expect(indicator.state).toBe("observed");
+  expect(indicator.score).toBeUndefined();
 });
