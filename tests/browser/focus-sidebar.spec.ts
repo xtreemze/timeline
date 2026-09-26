@@ -137,7 +137,9 @@ test("portrait preserves the right timeline rail while focused detail layers ins
   expect(overlapArea(focusBox, graphBox)).toBeGreaterThan(100);
 });
 
-test("Browse and persistent View controls do not discard the focused occurrence", async ({ page }) => {
+test("Browse and persistent View controls do not discard the focused occurrence", async ({
+  page,
+}) => {
   await focusOccurrence(page);
 
   await page.locator("#timeline-browser-toggle").click();
