@@ -722,6 +722,9 @@ export class TimelineViewController {
         event.target instanceof Element
           ? event.target.closest("button, a, input, select, textarea")
           : null;
+      const focusDetailTarget =
+        event.target instanceof Element ? event.target.closest(".timeline-focus-view") : null;
+      if (focusDetailTarget) return;
       const timelineInteractionTarget =
         interactiveTarget instanceof HTMLElement &&
         interactiveTarget.matches(
