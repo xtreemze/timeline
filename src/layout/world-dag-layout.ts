@@ -107,6 +107,15 @@ const ROUTE_METRIC_MAX_SEGMENTS = 512;
 const DAG_LAYOUT_MAX_NODES = 256;
 const DAG_LAYOUT_MAX_EDGES = 1_024;
 const DAG_DENSE_EDGE_FACTOR = 6;
+
+function isForceOwnedTopology(nodeCount: number, edgeCount: number): boolean {
+  return (
+    nodeCount > DAG_LAYOUT_MAX_NODES ||
+    edgeCount > DAG_LAYOUT_MAX_EDGES ||
+    edgeCount > Math.max(COMPARE_LAYERING_MAX_EDGES, nodeCount * DAG_DENSE_EDGE_FACTOR)
+  );
+}
+
 const LAYOUT_HYSTERESIS_SCORE_RATIO = 1.12;
 const COMPARE_LAYERING_HYSTERESIS_NODES = 4;
 const COMPARE_LAYERING_HYSTERESIS_EDGES = 16;
@@ -375,12 +384,11 @@ function localAcyclicEdges(
   nodeIds: ReadonlySet<WorldInstanceId>,
   candidates: readonly ProjectedWorldEdge[],
 ): readonly LocalDagEdge[] {
-  const componentByNode = stronglyConnectedComponentIndex(nodeIds, candidates);
+  const scopedCandidates = candidates.filter(
+    (edge) => nodeIds.has(edge.sourceInstanceId) && nodeIds.has(edge.targetInstanceId),
+  );
   const accepted: LocalDagEdge[] = [];
   const acceptedPairs = new Set<string>();
-  const internalAdjacency = new Map<WorldInstanceId, Set<WorldInstanceId>>(
-    [...nodeIds].map((id) => [id, new Set()] as const),
-  );
 
   const append = (edge: ProjectedWorldEdge): void => {
     const pairKey = JSON.stringify([String(edge.sourceInstanceId), String(edge.targetInstanceId)]);
@@ -397,8 +405,20 @@ function localAcyclicEdges(
     );
   };
 
-  for (const edge of candidates) {
-    if (!nodeIds.has(edge.sourceInstanceId) || !nodeIds.has(edge.targetInstanceId)) continue;
+  // Once force/collision owns the topology, SCC analysis cannot affect a DAG
+  // route because no DAG targets or routes will be emitted. Skip recursive
+  // Tarjan traversal entirely so very large connected fixtures remain bounded.
+  if (isForceOwnedTopology(nodeIds.size, scopedCandidates.length)) {
+    for (const edge of scopedCandidates) append(edge);
+    return Object.freeze(accepted);
+  }
+
+  const componentByNode = stronglyConnectedComponentIndex(nodeIds, scopedCandidates);
+  const internalAdjacency = new Map<WorldInstanceId, Set<WorldInstanceId>>(
+    [...nodeIds].map((id) => [id, new Set()] as const),
+  );
+
+  for (const edge of scopedCandidates) {
     const sourceComponent = componentByNode.get(edge.sourceInstanceId);
     const targetComponent = componentByNode.get(edge.targetInstanceId);
     if (sourceComponent === undefined || targetComponent === undefined) continue;
@@ -996,11 +1016,7 @@ function chooseCandidate(
     });
   }
 
-  const forceOwned =
-    nodeIds.length > DAG_LAYOUT_MAX_NODES ||
-    edges.length > DAG_LAYOUT_MAX_EDGES ||
-    edges.length > Math.max(COMPARE_LAYERING_MAX_EDGES, nodeIds.length * DAG_DENSE_EDGE_FACTOR);
-  if (forceOwned) {
+  if (isForceOwnedTopology(nodeIds.length, edges.length)) {
     return Object.freeze({
       name: "longest-two-layer-greedy-force-only",
       targets: Object.freeze([]),
