@@ -89,15 +89,32 @@ async function probeFrameTimestamps(filePath) {
 
 function decodedFrameStats(timestamps) {
   if (timestamps.length < 2) {
-    return { frames: timestamps.length, duration: 0, fps: 0 };
+    return {
+      frames: timestamps.length,
+      duration: 0,
+      fps: 0,
+      nonIncreasingIntervals: 0,
+      maxInterval: 0,
+    };
   }
   const first = timestamps[0];
   const last = timestamps.at(-1);
   const duration = last - first;
+  let nonIncreasingIntervals = 0;
+  let maxInterval = 0;
+  for (let index = 1; index < timestamps.length; index += 1) {
+    const previous = timestamps[index - 1];
+    const current = timestamps[index];
+    const interval = current - previous;
+    if (interval <= 0) nonIncreasingIntervals += 1;
+    maxInterval = Math.max(maxInterval, interval);
+  }
   return {
     frames: timestamps.length,
     duration,
     fps: duration > 0 ? (timestamps.length - 1) / duration : 0,
+    nonIncreasingIntervals,
+    maxInterval,
   };
 }
 
@@ -133,6 +150,11 @@ async function verifyMeasuredCapture(videoPath, manifest) {
   const minimumFps = manifest.minimumMeasuredCaptureFps;
   const maximumFps = manifest.maximumMeasuredCaptureFps;
   const captured = decodedFrameStats(timestamps);
+  if (captured.nonIncreasingIntervals > 0) {
+    throw new Error(
+      `${videoPath} raw X11 timing evidence contains ${String(captured.nonIncreasingIntervals)} duplicated or non-increasing frame timestamps.`,
+    );
+  }
   if (
     !Number.isFinite(captured.fps) ||
     captured.fps < minimumFps ||
@@ -145,6 +167,11 @@ async function verifyMeasuredCapture(videoPath, manifest) {
 
   const browserSeconds = browserTimestamps.map((timestamp) => timestamp / 1000);
   const browser = decodedFrameStats(browserSeconds);
+  if (browser.nonIncreasingIntervals > 0) {
+    throw new Error(
+      `${videoPath} browser animation evidence contains ${String(browser.nonIncreasingIntervals)} duplicated or non-increasing timestamps.`,
+    );
+  }
   if (
     !Number.isFinite(browser.fps) ||
     browser.fps < minimumFps ||
@@ -162,6 +189,11 @@ async function verifyMeasuredCapture(videoPath, manifest) {
 
   const decodedTimestamps = await probeFrameTimestamps(videoPath);
   const decoded = decodedFrameStats(decodedTimestamps);
+  if (decoded.nonIncreasingIntervals > 0) {
+    throw new Error(
+      `${videoPath} raw WebM contains ${String(decoded.nonIncreasingIntervals)} duplicated or non-increasing decoded frame timestamps.`,
+    );
+  }
   if (
     !Number.isFinite(decoded.fps) ||
     decoded.fps < minimumFps ||
@@ -380,6 +412,11 @@ async function renderFormFactor(formFactor, manifest) {
 
     const publishedWebpTimestamps = await probeFrameTimestamps(webpOutput);
     const publishedWebp = decodedFrameStats(publishedWebpTimestamps);
+    if (publishedWebp.nonIncreasingIntervals > 0) {
+      throw new Error(
+        `${webpOutput} contains ${String(publishedWebp.nonIncreasingIntervals)} duplicated or non-increasing presentation timestamps.`,
+      );
+    }
     if (
       !Number.isFinite(publishedWebp.fps) ||
       publishedWebp.fps < manifest.minimumMeasuredCaptureFps ||
@@ -464,6 +501,11 @@ async function renderFormFactor(formFactor, manifest) {
   await run(ffmpeg, args);
   const reelTimestamps = await probeFrameTimestamps(reelPath);
   const reelProbe = decodedFrameStats(reelTimestamps);
+  if (reelProbe.nonIncreasingIntervals > 0) {
+    throw new Error(
+      `${reelPath} contains ${String(reelProbe.nonIncreasingIntervals)} duplicated or non-increasing presentation timestamps.`,
+    );
+  }
   if (
     !Number.isFinite(reelProbe.fps) ||
     reelProbe.fps < manifest.minimumMeasuredCaptureFps ||
