@@ -314,6 +314,7 @@ jobs:
           grep -F 'semantic-chronology.spec.ts' /tmp/playwright-list.txt
           grep -F 'focus-sidebar.spec.ts' /tmp/playwright-list.txt
           grep -F 'playwright/layout.spec.ts' /tmp/playwright-list.txt
+          grep -F 'playwright/mobile-screen.spec.ts' /tmp/playwright-list.txt
           grep -F 'playwright/interaction.spec.ts' /tmp/playwright-list.txt
           grep -F 'playwright/graph-touch.spec.ts' /tmp/playwright-list.txt
           grep -F '[Desktop Chrome]' /tmp/playwright-list.txt
@@ -365,11 +366,15 @@ jobs:
       - name: Verify application shell browser test discovery
         continue-on-error: true
         run: |
-          pnpm exec playwright test --config=playwright.config.ts tests/playwright/layout.spec.ts --list | tee /tmp/application-shell-playwright-list.txt
+          pnpm exec playwright test --config=playwright.config.ts tests/playwright/layout.spec.ts tests/playwright/mobile-screen.spec.ts --list | tee /tmp/application-shell-playwright-list.txt
           grep -F 'layout.spec.ts' /tmp/application-shell-playwright-list.txt
+          grep -F 'mobile-screen.spec.ts' /tmp/application-shell-playwright-list.txt
       - name: Run application shell browser tests
         continue-on-error: true
         run: pnpm exec playwright test --config=playwright.config.ts tests/playwright/layout.spec.ts --project="Mobile Chrome" --project="Mobile Chrome Landscape" --project="Tablet Touch"
+      - name: Run narrow mobile screen contracts
+        continue-on-error: true
+        run: pnpm exec playwright test --config=playwright.config.ts tests/playwright/mobile-screen.spec.ts --project="Mobile Chrome"
 
   interaction-browser:
     continue-on-error: true
