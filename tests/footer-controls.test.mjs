@@ -22,8 +22,9 @@ test("footer owns one persistent View group and one Edit action", async () => {
   );
   assert.match(
     index,
-    /id="timeline-view-toolbar" class="timeline-view-toolbar app-view-controls app-footer-view-controls" role="group"/,
+    /id="timeline-view-toolbar" class="app-footer-zone app-footer-timeline timeline-local-toolbar" role="group"/,
   );
+  assert.doesNotMatch(index, /app-view-controls|app-footer-view-controls|view-display-controls/);
   assert.doesNotMatch(index, /id="timeline-view-toolbar"[^>]*popover=/);
   assert.doesNotMatch(index, /timeline-view-controls-toggle/);
   assert.doesNotMatch(index, /timeline-focus-edit/);
@@ -50,11 +51,13 @@ test("every footer button shares the canonical 44px toolbar-control contract", a
     css,
     /\.app-footer-bar \.toolbar-control:focus-visible,[\s\S]*outline:\s*2px solid var\(--focus\)[\s\S]*outline-offset:\s*-3px/,
   );
+  assert.doesNotMatch(css, /\.app-footer-view-controls\.timeline-view-toolbar/);
+  assert.match(css, /\.app-footer-bar \.toolbar-control-wide/);
+  assert.match(css, /\.app-footer-bar \.toolbar-control-value/);
   assert.match(
     css,
-    /\.app-footer-view-controls\.timeline-view-toolbar\s*\{[\s\S]*position:\s*static/,
+    /\.app-footer-bar \.toolbar-control:is\(:focus-visible, :focus-within\)/,
   );
-  assert.match(css, /\.toolbar-range-control[\s\S]*\.toolbar-number-control/);
 
   for (const id of [
     "project-menu-toggle",
@@ -68,4 +71,14 @@ test("every footer button shares the canonical 44px toolbar-control contract", a
   ]) {
     assert.match(index, new RegExp(`id="${id}" class="[^"]*toolbar-control`));
   }
+
+  assert.match(
+    index,
+    /class="toolbar-control toolbar-control-wide toolbar-range-control"[\s\S]*id="timeline-zoom-level" data-view-control/,
+  );
+  assert.match(
+    index,
+    /class="toolbar-control toolbar-control-value toolbar-number-control"[\s\S]*id="timeline-auto-seconds" data-view-control/,
+  );
+  assert.equal((index.match(/id="editor-toggle"/g) ?? []).length, 1);
 });

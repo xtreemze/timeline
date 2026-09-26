@@ -372,7 +372,6 @@ const els = {
   browserClose: requiredElement<HTMLButtonElement>("#timeline-browser-close"),
   browserStoryList: requiredElement<HTMLElement>("#browser-story-list"),
   browserStoryCount: requiredElement<HTMLElement>("#browser-story-count"),
-  viewControls: requiredElement<HTMLElement>("#timeline-view-toolbar"),
   focusPrev: requiredElement<HTMLButtonElement>("#timeline-focus-prev"),
   focusNext: requiredElement<HTMLButtonElement>("#timeline-focus-next"),
   loadSample: requiredElement<HTMLButtonElement>("#load-sample"),
@@ -1546,8 +1545,8 @@ function syncApplicationSurfaces() {
   if (els.editorToggle) {
     els.editorToggle.setAttribute("aria-expanded", String(ui.editorOpen));
   }
-  for (const control of els.viewControls.querySelectorAll<HTMLButtonElement | HTMLInputElement>(
-    "button, input",
+  for (const control of els.appToolDock.querySelectorAll<HTMLButtonElement | HTMLInputElement>(
+    "[data-view-control]",
   )) {
     control.disabled = editing;
   }
