@@ -182,7 +182,7 @@ function connectorRouteOffset(
   if (routing !== "orthogonal") return 0;
   const anchor = Number(position);
   const available = Number(extent);
-  if (!(Number.isFinite(anchor) && Number.isFinite(available) ) || available <= 0) return 0;
+  if (!(Number.isFinite(anchor) && Number.isFinite(available)) || available <= 0) return 0;
   const inset = Math.min(CONNECTOR_ROUTE_EDGE_INSET_PX, available / 2);
   const min = inset;
   const max = Math.max(inset, available - inset);
@@ -247,8 +247,7 @@ function formatElapsedDuration(durationMs: number): string {
   let remaining = durationMs;
   const parts: string[] = [];
   for (const [label, size] of units) {
-    const amount =
-      label === "second" ? Math.round(remaining / size) : Math.floor(remaining / size);
+    const amount = label === "second" ? Math.round(remaining / size) : Math.floor(remaining / size);
     if (amount <= 0) continue;
     parts.push(`${amount} ${label}${amount === 1 ? "" : "s"}`);
     remaining = Math.max(0, remaining - amount * size);
@@ -318,7 +317,8 @@ class TimelineViewController {
 
   constructor(root: HTMLElement) {
     this.root = root;
-    this.surface = root.querySelector("#timeline-surface") || root.querySelector(".timeline-surface") || root;
+    this.surface =
+      root.querySelector("#timeline-surface") || root.querySelector(".timeline-surface") || root;
     this.focusView =
       root.querySelector("#timeline-focus-view") ||
       root.querySelector(".timeline-focus-view") ||
@@ -326,7 +326,9 @@ class TimelineViewController {
       root.parentElement?.querySelector(".timeline-focus-view") ||
       root;
     this.readout =
-      root.querySelector("#timeline-window-readout") || root.querySelector(".timeline-window-readout") || root;
+      root.querySelector("#timeline-window-readout") ||
+      root.querySelector(".timeline-window-readout") ||
+      root;
     this.orientationToggle = root.querySelector("#timeline-orientation-toggle");
     this.zoomSlider = root.querySelector("#timeline-zoom-level");
 
@@ -398,7 +400,8 @@ class TimelineViewController {
 
     const releasePointerCapture = (pointerId: number): void => {
       try {
-        if (this.surface.hasPointerCapture(pointerId)) this.surface.releasePointerCapture(pointerId);
+        if (this.surface.hasPointerCapture(pointerId))
+          this.surface.releasePointerCapture(pointerId);
       } catch {
         // Lifecycle cancellation may already have released capture.
       }
@@ -417,11 +420,14 @@ class TimelineViewController {
       this.pointerDrag = {
         pointerId,
         coordinate,
-        lastTime: sourceEvent ? Number(sourceEvent.timeStamp) || performance.now() : performance.now(),
+        lastTime: sourceEvent
+          ? Number(sourceEvent.timeStamp) || performance.now()
+          : performance.now(),
         viewport: { ...this.viewport },
         samples: [],
       };
-      if (sourceEvent) motion.appendPointerSamples(this.pointerDrag.samples, sourceEvent, this.orientation);
+      if (sourceEvent)
+        motion.appendPointerSamples(this.pointerDrag.samples, sourceEvent, this.orientation);
       try {
         if (!this.surface.hasPointerCapture(pointerId)) this.surface.setPointerCapture(pointerId);
       } catch {
@@ -737,7 +743,6 @@ class TimelineViewController {
       if (this.pointerDrag || this.pinch || this.touchPointers.size) abortSurfaceGesture();
     });
 
-
     this.surface.addEventListener("keydown", (event) => {
       if (!this.items.length) return;
       if (event.key === "Home") {
@@ -755,7 +760,12 @@ class TimelineViewController {
         this.commitInteraction();
         return;
       }
-      if (event.key === "ArrowLeft" || event.key === "ArrowRight" || event.key === "ArrowUp" || event.key === "ArrowDown") {
+      if (
+        event.key === "ArrowLeft" ||
+        event.key === "ArrowRight" ||
+        event.key === "ArrowUp" ||
+        event.key === "ArrowDown"
+      ) {
         const alongAxis =
           this.orientation === "horizontal"
             ? event.key === "ArrowLeft" || event.key === "ArrowRight"
@@ -788,9 +798,10 @@ class TimelineViewController {
       if (!clusterId) return;
       const cluster = this.committedLayout.clusters.find((c) => c.id === clusterId);
       if (!cluster) return;
-      const target = event.target instanceof Element
-        ? (event.target as Element).closest<HTMLElement>("[data-cluster-item-id]")
-        : null;
+      const target =
+        event.target instanceof Element
+          ? (event.target as Element).closest<HTMLElement>("[data-cluster-item-id]")
+          : null;
       const selectedId = target?.dataset.clusterItemId || cluster.itemIds[0];
       if (selectedId) this.activateCommittedCluster(cluster, selectedId);
     });
@@ -973,14 +984,13 @@ class TimelineViewController {
       .filter((item) => item.id !== anchor.id && item.start !== anchor.start)
       .map((item) => Math.abs(item.start - anchor.start))
       .filter((distance) => distance > 0);
-    const nearestDistance = distinctDistances.length ? Math.min(...distinctDistances) : DEFAULT_SPAN_MS;
+    const nearestDistance = distinctDistances.length
+      ? Math.min(...distinctDistances)
+      : DEFAULT_SPAN_MS;
     const ownSpan = Math.max(MIN_SPAN_MS, Math.abs(anchorEnd - anchor.start));
     const contextSpan = Math.max(MIN_SPAN_MS, context.end - context.start);
     const minimumRequired = Math.max(MIN_SPAN_MS, ownSpan * 1.4);
-    const preferred = Math.max(
-      MIN_SPAN_MS,
-      Math.min(nearestDistance * 0.45, contextSpan * 0.45),
-    );
+    const preferred = Math.max(MIN_SPAN_MS, Math.min(nearestDistance * 0.45, contextSpan * 0.45));
     const isolatedSpan = Math.min(contextSpan, Math.max(minimumRequired, preferred));
     const isolated = {
       start: anchorCenter - isolatedSpan / 2,
@@ -990,7 +1000,11 @@ class TimelineViewController {
     return { all, context, isolated };
   }
 
-  interpolateSemanticViewport(from: TemporalWindow, to: TemporalWindow, ratio: number): TemporalWindow {
+  interpolateSemanticViewport(
+    from: TemporalWindow,
+    to: TemporalWindow,
+    ratio: number,
+  ): TemporalWindow {
     const t = clamp(ratio, 0, 1);
     const fromSpan = Math.max(MIN_SPAN_MS, from.end - from.start);
     const toSpan = Math.max(MIN_SPAN_MS, to.end - to.start);
@@ -1019,7 +1033,11 @@ class TimelineViewController {
     const next =
       normalized <= 50
         ? this.interpolateSemanticViewport(targets.all, targets.context, normalized / 50)
-        : this.interpolateSemanticViewport(targets.context, targets.isolated, (normalized - 50) / 50);
+        : this.interpolateSemanticViewport(
+            targets.context,
+            targets.isolated,
+            (normalized - 50) / 50,
+          );
 
     this.cancelInertia();
     this.beginInteraction();
@@ -1039,11 +1057,14 @@ class TimelineViewController {
     }
   }
 
-  semanticZoomValueForSpan(span: number, targets: {
-    all: TemporalWindow;
-    context: TemporalWindow;
-    isolated: TemporalWindow;
-  }): number {
+  semanticZoomValueForSpan(
+    span: number,
+    targets: {
+      all: TemporalWindow;
+      context: TemporalWindow;
+      isolated: TemporalWindow;
+    },
+  ): number {
     const currentSpan = Math.max(MIN_SPAN_MS, span);
     const allSpan = Math.max(MIN_SPAN_MS, targets.all.end - targets.all.start);
     const contextSpan = Math.max(MIN_SPAN_MS, targets.context.end - targets.context.start);
@@ -1068,7 +1089,9 @@ class TimelineViewController {
     if (this.zoomSlider.disabled || this.retention.active) return;
     const targets = this.semanticZoomTargets();
     if (!targets) return;
-    const value = Math.round(this.semanticZoomValueForSpan(this.viewport.end - this.viewport.start, targets));
+    const value = Math.round(
+      this.semanticZoomValueForSpan(this.viewport.end - this.viewport.start, targets),
+    );
     this.zoomSlider.value = String(value);
     const label = this.semanticZoomValueText(value);
     this.zoomSlider.setAttribute("aria-valuetext", label);
@@ -1101,10 +1124,7 @@ class TimelineViewController {
     );
   }
 
-  measuredQueryOccurrences(
-    items: readonly TimelineItem[],
-    extent: TemporalWindow,
-  ): TimelineItem[] {
+  measuredQueryOccurrences(items: readonly TimelineItem[], extent: TemporalWindow): TimelineItem[] {
     const started = performance.now();
     const result = queryOccurrences(items, extent);
     this.pendingQueryDurationMs += performance.now() - started;
@@ -1153,10 +1173,10 @@ class TimelineViewController {
       node.remove();
       return;
     }
-    const animation = node.animate(
-      [{ opacity: 1 }, { opacity: 0 }],
-      { duration: 120, easing: "ease-out" },
-    );
+    const animation = node.animate([{ opacity: 1 }, { opacity: 0 }], {
+      duration: 120,
+      easing: "ease-out",
+    });
     animation.addEventListener(
       "finish",
       () => {
@@ -1441,8 +1461,8 @@ class TimelineViewController {
       if (!coloredItem) {
         const subjectId = (relationship as Record<string, string>).subjectId;
         if (subjectId) {
-          coloredItem = this.items.find((item) =>
-            item.id.includes(subjectId) || item.label?.includes(subjectId)
+          coloredItem = this.items.find(
+            (item) => item.id.includes(subjectId) || item.label?.includes(subjectId),
           );
         }
       }
@@ -1457,8 +1477,14 @@ class TimelineViewController {
       segment.setAttribute("aria-hidden", String(!visible));
       if (!visible) continue;
 
-      const clippedStart = Math.max(this.viewport.start, Math.min(relationship.start, relationship.end));
-      const clippedEnd = Math.min(this.viewport.end, Math.max(relationship.start, relationship.end));
+      const clippedStart = Math.max(
+        this.viewport.start,
+        Math.min(relationship.start, relationship.end),
+      );
+      const clippedEnd = Math.min(
+        this.viewport.end,
+        Math.max(relationship.start, relationship.end),
+      );
       const startPosition = padding + scale.coordinateFor(clippedStart, this.viewport, usable);
       const endPosition = padding + scale.coordinateFor(clippedEnd, this.viewport, usable);
       const low = Math.min(startPosition, endPosition);
@@ -1573,7 +1599,11 @@ class TimelineViewController {
     this.cancelInertia();
     this.renderWindow = createRenderWindow(this.viewport, { overscanRatio: OVERSCAN_RATIO });
     this.retention = commitRetention(this.renderWindow);
-    this.root.dataset.sceneState = this.focusedId ? "focused" : this.items.length ? "populated" : "empty";
+    this.root.dataset.sceneState = this.focusedId
+      ? "focused"
+      : this.items.length
+        ? "populated"
+        : "empty";
     this.render();
     this.measureCommittedGeometry();
     this.reconcileCommittedLayout();
@@ -1614,10 +1644,7 @@ class TimelineViewController {
   measureCommittedGeometry(): void {
     if (this.retention.active) return;
     for (const [sceneKey, record] of this.scene) {
-      const key = geometryMeasurementKey(
-        sceneKey,
-        this.itemContentRevision(record.item),
-      );
+      const key = geometryMeasurementKey(sceneKey, this.itemContentRevision(record.item));
       const cached = this.geometryMeasurements.get(record.item.id);
       if (cached?.key === key) continue;
 
@@ -1746,9 +1773,10 @@ class TimelineViewController {
     // Add click handler directly to button
     terminal.addEventListener("click", (event) => {
       event.stopPropagation();
-      const target = event.target instanceof Element
-        ? (event.target as Element).closest<HTMLElement>("[data-cluster-item-id]")
-        : null;
+      const target =
+        event.target instanceof Element
+          ? (event.target as Element).closest<HTMLElement>("[data-cluster-item-id]")
+          : null;
       const selectedId = target?.dataset.clusterItemId || cluster.itemIds[0];
       if (selectedId) this.activateCommittedCluster(cluster, selectedId);
     });
@@ -1818,10 +1846,7 @@ class TimelineViewController {
   positionCommittedClusters(padding: number, usable: number, axisCross: number): void {
     for (const record of this.clusterScene.values()) {
       const { cluster, node, terminal } = record;
-      const visible = itemOverlapsWindow(
-        { start: cluster.start, end: cluster.end },
-        this.viewport,
-      );
+      const visible = itemOverlapsWindow({ start: cluster.start, end: cluster.end }, this.viewport);
       node.hidden = !visible;
       terminal.tabIndex = visible ? 0 : -1;
       if (!visible) continue;
@@ -1829,16 +1854,14 @@ class TimelineViewController {
       const anchor = cluster.start + (cluster.end - cluster.start) / 2;
       const primary = padding + scale.coordinateFor(anchor, this.viewport, usable);
       const representative =
-        cluster.itemIds
-          .map((id) => this.items.find((item) => item.id === id))
-          .find(Boolean) || null;
+        cluster.itemIds.map((id) => this.items.find((item) => item.id === id)).find(Boolean) ||
+        null;
       const lane = representative ? this.visualLaneFor(representative) : -1;
       const laneDistance = 72 + Math.max(0, Math.abs(lane) - 1) * 62;
       const terminalCross = axisCross + (lane < 0 ? -laneDistance : laneDistance);
       const segment = connectorSegment(axisCross, terminalCross);
 
-      const labelBefore =
-        this.orientation === "horizontal" ? primary > usable / 2 : lane < 0;
+      const labelBefore = this.orientation === "horizontal" ? primary > usable / 2 : lane < 0;
       node.dataset.side = labelBefore ? "before" : "after";
       node.classList.toggle("label-before", labelBefore);
       if (this.orientation === "horizontal") {
@@ -1872,10 +1895,7 @@ class TimelineViewController {
 
     this.expandedClusterItemIds = new Set(cluster.itemIds);
     const rect = this.surface.getBoundingClientRect();
-    const primaryLength = Math.max(
-      1,
-      this.orientation === "horizontal" ? rect.width : rect.height,
-    );
+    const primaryLength = Math.max(1, this.orientation === "horizontal" ? rect.width : rect.height);
     const usable = Math.max(1, primaryLength - this.axisPadding(primaryLength) * 2);
     const expansion = clustering.clusterExpansionViewport(
       items,
@@ -1899,8 +1919,7 @@ class TimelineViewController {
     this.performanceMetrics.recordFrame({
       phase,
       durationMs: finished - started,
-      inputLatencyMs:
-        inputStartedAt === null ? undefined : Math.max(0, finished - inputStartedAt),
+      inputLatencyMs: inputStartedAt === null ? undefined : Math.max(0, finished - inputStartedAt),
       createdNodes: this.frameCreatedObjects,
       destroyedNodes: this.frameDestroyedObjects,
       retainedNodes: this.retainedObjectCount(),
@@ -2016,7 +2035,11 @@ class TimelineViewController {
       }
     }
 
-    this.stage.dataset.sceneState = this.retention.active ? "interacting" : this.focusedId ? "focused" : "populated";
+    this.stage.dataset.sceneState = this.retention.active
+      ? "interacting"
+      : this.focusedId
+        ? "focused"
+        : "populated";
     this.syncZoomSlider();
     this.updateReadout();
   }
@@ -2123,9 +2146,7 @@ class TimelineViewController {
 
     const primaryTag = item.tags?.[0];
     const iconName =
-      typeof primaryTag === "object" && primaryTag?.icon
-        ? primaryTag.icon
-        : "milestone";
+      typeof primaryTag === "object" && primaryTag?.icon ? primaryTag.icon : "milestone";
     const media = item.media?.[0];
     const mediaSignature = [media?.src || "", iconName].join("\u0001");
     if (visual.dataset.signature !== mediaSignature) {
@@ -2213,8 +2234,7 @@ class TimelineViewController {
     );
     const shiftedCross = terminalCross + routeOffset;
 
-    const labelBefore =
-      this.orientation === "horizontal" ? primary > primaryLength / 2 : lane < 0;
+    const labelBefore = this.orientation === "horizontal" ? primary > primaryLength / 2 : lane < 0;
     node.dataset.side = labelBefore ? "before" : "after";
     node.classList.toggle("label-before", labelBefore);
     node.classList.toggle("is-buffered", !itemOverlapsWindow(item, this.viewport));
@@ -2277,7 +2297,10 @@ class TimelineViewController {
   animateEntry(record: SceneRecord): void {
     if (this.reducedMotionQuery?.matches || typeof record.terminal.animate !== "function") return;
     record.terminal.animate(
-      [{ opacity: 0, scale: "0.97" }, { opacity: 1, scale: "1" }],
+      [
+        { opacity: 0, scale: "0.97" },
+        { opacity: 1, scale: "1" },
+      ],
       { duration: 150, easing: "cubic-bezier(.2,.8,.2,1)" },
     );
     record.range?.animate([{ opacity: 0 }, { opacity: 1 }], {
@@ -2673,7 +2696,10 @@ class TimelineViewController {
     overviewTab.textContent = "Overview";
     overviewTab.setAttribute("role", "tab");
     overviewTab.setAttribute("aria-selected", "true");
-    overviewTab.setAttribute("aria-controls", "timeline-focus-context-panel timeline-focus-place-panel");
+    overviewTab.setAttribute(
+      "aria-controls",
+      "timeline-focus-context-panel timeline-focus-place-panel",
+    );
     const evidenceTab = document.createElement("button");
     evidenceTab.type = "button";
     evidenceTab.className = "timeline-focus-tab";
