@@ -154,6 +154,20 @@ ChatGPT web does not attach directly to a localhost/stdio MCP process. For devel
 
 In ChatGPT, the user-facing integration should be treated as a **custom MCP app/plugin**. Current OpenAI packaging supports plugins that combine MCP configuration and optional skills, and ChatGPT and Codex share the plugin directory. The repository's portable `plugin.json` is therefore the local/package identity for Lūm, but the bundled local stdio relay is not itself suitable for public ChatGPT submission: public distribution requires a stable remote HTTPS MCP endpoint.
 
+For private/developer-mode ChatGPT testing, start the relay directly with:
+
+```bash
+pnpm mcp:relay
+```
+
+or let Secure MCP Tunnel launch it as its stdio command. A typical tunnel profile points `--mcp-command` at:
+
+```text
+pnpm --dir /absolute/path/to/timeline run mcp:relay
+```
+
+After the tunnel is healthy, create a developer-mode app in ChatGPT Plugins and choose **Tunnel** as the connection. The tunnel is transport only: the Lūm browser tab still needs to be open with `?mcp-relay=1` (or have `TimelineMCPRelay.connect()` invoked) so the relay has a live WebMCP source.
+
 The existing Lūm write annotations and graph-contract checks remain authoritative regardless of client. ChatGPT may add its own confirmation step for consequential/write actions; that confirmation is additional UX, not a replacement for Lūm validation.
 
 ## Registered Timeline tools
