@@ -211,7 +211,7 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightRenderer, /raw Matroska decodes at/);
   assert.match(highlightRenderer, /expected native/);
   assert.match(highlightRenderer, /browser animation clock is/);
-  assert.match(highlightRenderer, /expected display-paced/);
+  assert.match(highlightRenderer, /expected at least/);
   assert.match(highlightRenderer, /video\.codec !== "h264"/);
   assert.match(highlightRenderer, /minimumMeasuredCaptureFps/);
   assert.match(highlightRenderer, /maximumMeasuredCaptureFps/);
