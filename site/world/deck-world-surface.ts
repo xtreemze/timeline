@@ -3503,6 +3503,12 @@ export class DeckWorldSurface implements WorldSurface {
     this.#reframe("content");
   }
 
+  /** Fits the current projection, then advances one semantic camera step for inspection. */
+  zoomToContent(): void {
+    this.fitToContent();
+    this.setCamera({ ...this.#camera, zoom: Math.min(18, this.#camera.zoom + 0.85) });
+  }
+
   /** Shows the whole rotatable globe, turned towards the content. */
   showWholeGlobe(): void {
     this.#reframe("globe");
