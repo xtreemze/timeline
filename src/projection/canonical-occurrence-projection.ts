@@ -90,11 +90,11 @@ export function projectCanonicalOccurrences(
   const projected: CanonicalProjectedOccurrence[] = [];
 
   for (const occurrence of project.occurrences ?? []) {
+    const extent = groupedExtent(occurrence, relationshipsById, sortKey);
+    if (!extent) continue;
     for (const relationshipId of occurrence.relationshipIds) {
       groupedRelationshipIds.add(String(relationshipId));
     }
-    const extent = groupedExtent(occurrence, relationshipsById, sortKey);
-    if (!extent) continue;
     const placeId = groupedPlace(occurrence, relationshipsById);
     const occurrenceType = groupedType(occurrence, relationshipsById);
     projected.push(
