@@ -75,6 +75,56 @@ export function surfaceActivationFromKeyboard(event: SurfaceKeyboardEventLike): 
   return null;
 }
 
+const NATIVE_KEYBOARD_TARGET_TAGS = new Set([
+  "A",
+  "BUTTON",
+  "INPUT",
+  "SELECT",
+  "SUMMARY",
+  "TEXTAREA",
+]);
+
+/**
+ * Camera/navigation keys must not steal browser shortcuts or focused native
+ * controls. This structural check stays renderer-neutral.
+ */
+export function surfaceKeyboardMayNavigate(event: unknown): boolean {
+  const keyboardEvent = record(event);
+  if (!keyboardEvent) return true;
+  if (
+    keyboardEvent["defaultPrevented"] === true ||
+    keyboardEvent["altKey"] === true ||
+    keyboardEvent["ctrlKey"] === true ||
+    keyboardEvent["metaKey"] === true
+  ) {
+    return false;
+  }
+
+  const target = record(keyboardEvent["target"]);
+  if (!target) return true;
+  if (target["isContentEditable"] === true) return false;
+  const tagName =
+    typeof target["tagName"] === "string" ? target["tagName"].toUpperCase() : "";
+  return !NATIVE_KEYBOARD_TARGET_TAGS.has(tagName);
+}
+
+/**
+ * A focused renderer surface may own local camera navigation. Global timeline
+ * presentation shortcuts use this marker to yield rather than double-handle
+ * the same arrow/zoom key.
+ */
+export function surfaceKeyboardTargetOwnsNavigation(event: unknown): boolean {
+  const keyboardEvent = record(event);
+  const target = record(keyboardEvent?.["target"]);
+  const closest = target?.["closest"];
+  if (typeof closest !== "function") return false;
+  try {
+    return Boolean(closest.call(target, "[data-surface-keyboard-navigation]"));
+  } catch {
+    return false;
+  }
+}
+
 export function surfaceCursor(
   intent: SurfaceCursorIntent,
   options: Readonly<{ dragging?: boolean }> = {},
