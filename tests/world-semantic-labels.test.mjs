@@ -153,6 +153,48 @@ function parallelProjection() {
   });
 }
 
+function crossingRelationshipProjection() {
+  const make = (index, placeId, longitude, latitude) =>
+    instance(index, {
+      geographicAnchors: [
+        {
+          placeId,
+          label: placeId,
+          longitude,
+          latitude,
+          influence: 1,
+        },
+      ],
+    });
+  const northwest = make(100, "crossing-northwest", 11, 42);
+  const southeast = make(101, "crossing-southeast", 13, 40);
+  const southwest = make(102, "crossing-southwest", 11, 40);
+  const northeast = make(103, "crossing-northeast", 13, 42);
+  return createWorldProjection({
+    instances: [northwest, southeast, southwest, northeast],
+    edges: [
+      createProjectedWorldEdge({
+        id: "diagonal-a",
+        label: "crosses southeast",
+        sourceInstanceId: northwest.id,
+        targetInstanceId: southeast.id,
+        temporalWeight: 1,
+        visible: true,
+        retained: false,
+      }),
+      createProjectedWorldEdge({
+        id: "diagonal-b",
+        label: "crosses northeast",
+        sourceInstanceId: southwest.id,
+        targetInstanceId: northeast.id,
+        temporalWeight: 1,
+        visible: true,
+        retained: false,
+      }),
+    ],
+  });
+}
+
 function denseProjection(count) {
   const instances = [];
   for (let index = 0; index < count; index += 1) {
@@ -949,6 +991,111 @@ test("parallel and reciprocal relationships fan into distinct curved paths with 
     "direction markers follow the separate curve tangents",
   );
   assert.equal(relationships.props.transitions, undefined);
+});
+
+test("relationship labels avoid every rendered edge and remain fixed across selection", () => {
+  const h = harness();
+  const surface = new DeckWorldSurface({}, h.runtime, {
+    longitude: 12,
+    latitude: 41,
+    zoom: 9,
+    bearing: 0,
+    pitch: 0,
+  });
+  surface.setProjection(crossingRelationshipProjection());
+
+  const beforeLayers = h.lastLayers();
+  const relationshipLayer = layer(beforeLayers, DECK_WORLD_LAYER_IDS.relationships);
+  const labelLayer = layer(beforeLayers, DECK_WORLD_LAYER_IDS.labels);
+  const relationshipLabels = labelLayer.props.data.filter(
+    (datum) => datum.kind === "relationship-label",
+  );
+  assert.equal(relationshipLabels.length, 2, "both crossing relationships retain readable labels");
+
+  const scale = (512 / 360) * 2 ** 9;
+  const point = (position) => {
+    const latitudeScale = Math.max(0.2, Math.cos((position[1] * Math.PI) / 180));
+    return [position[0] * scale * latitudeScale, -position[1] * scale];
+  };
+  const orientation = (a, b, c) =>
+    (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+  const segmentsIntersect = (a, b, c, d) => {
+    const boundsOverlap =
+      Math.max(Math.min(a[0], b[0]), Math.min(c[0], d[0])) <=
+        Math.min(Math.max(a[0], b[0]), Math.max(c[0], d[0])) &&
+      Math.max(Math.min(a[1], b[1]), Math.min(c[1], d[1])) <=
+        Math.min(Math.max(a[1], b[1]), Math.max(c[1], d[1]));
+    if (!boundsOverlap) return false;
+    return (
+      orientation(a, b, c) * orientation(a, b, d) <= 0 &&
+      orientation(c, d, a) * orientation(c, d, b) <= 0
+    );
+  };
+  const segmentCrossesBox = (a, b, box) => {
+    const inside = (candidate) =>
+      candidate[0] >= box.left &&
+      candidate[0] <= box.right &&
+      candidate[1] >= box.top &&
+      candidate[1] <= box.bottom;
+    if (inside(a) || inside(b)) return true;
+    const topLeft = [box.left, box.top];
+    const topRight = [box.right, box.top];
+    const bottomRight = [box.right, box.bottom];
+    const bottomLeft = [box.left, box.bottom];
+    return (
+      segmentsIntersect(a, b, topLeft, topRight) ||
+      segmentsIntersect(a, b, topRight, bottomRight) ||
+      segmentsIntersect(a, b, bottomRight, bottomLeft) ||
+      segmentsIntersect(a, b, bottomLeft, topLeft)
+    );
+  };
+
+  const paths = relationshipLayer.props.data.map((datum) =>
+    relationshipLayer.props.getPath(datum),
+  );
+  const beforeGeometry = new Map();
+  for (const datum of relationshipLabels) {
+    const anchor = point(labelLayer.props.getPosition(datum));
+    const [offsetX, offsetY] = labelLayer.props.getPixelOffset(datum);
+    const size = 12;
+    const width = datum.text.length * size * 0.6 + 6;
+    const height = size * 0.9 + 6;
+    const clearance = 7;
+    const box = {
+      left: anchor[0] + offsetX - width / 2 - clearance,
+      right: anchor[0] + offsetX + width / 2 + clearance,
+      top: anchor[1] + offsetY - height / 2 - clearance,
+      bottom: anchor[1] + offsetY + height / 2 + clearance,
+    };
+    for (const path of paths) {
+      for (let index = 0; index < path.length - 1; index += 1) {
+        assert.equal(
+          segmentCrossesBox(point(path[index]), point(path[index + 1]), box),
+          false,
+          `${datum.relationshipId} label must not be crossed by any rendered relationship segment`,
+        );
+      }
+    }
+    beforeGeometry.set(datum.key, {
+      position: labelLayer.props.getPosition(datum),
+      pixelOffset: labelLayer.props.getPixelOffset(datum),
+    });
+  }
+
+  surface.setSelection({ kind: "relationship", id: "diagonal-a" });
+  const selectedLayer = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
+  for (const [key, geometry] of beforeGeometry) {
+    const datum = selectedLayer.props.data.find((candidate) => candidate.key === key);
+    assert.ok(datum, `${key} remains visible after selection`);
+    assert.deepEqual(
+      {
+        position: selectedLayer.props.getPosition(datum),
+        pixelOffset: selectedLayer.props.getPixelOffset(datum),
+      },
+      geometry,
+      `${key} must not reflow when another relationship is selected`,
+    );
+  }
 });
 
 test("each rendered directed relationship has a visible marker preserving source/target identity", () => {

@@ -43,7 +43,9 @@ const INTERACTION_EDGE_MAX_STRETCH_SCALE = 8;
 /** Bound post-drop target error so a distant release cannot inject a one-frame force spike. */
 const INTERACTION_FORCE_MAX_ERROR_METERS = 6_000;
 const DRAG_MOVE_ALPHA_FLOOR = 0.04;
-const CROSS_PLACE_COLLISION_TICKS = 3;
+const CROSS_PLACE_INTERACTION_TICKS = 3;
+/** Keep cross-anchor rejection local while matching the ordinary force radius. */
+const CROSS_PLACE_REJECTION_DISTANCE_METERS = 7_200;
 const EARTH_RADIUS_METERS = 6_371_008.8;
 const POLAR_COSINE_EPSILON = 1e-9;
 
@@ -61,7 +63,7 @@ interface D3WorldLink extends SimulationLinkDatum<D3WorldNodeState> {
   readonly edge: WorldForceEdge;
 }
 
-interface D3CrossPlaceCollisionProbe extends SimulationNodeDatum {
+interface D3CrossPlaceInteractionProbe extends SimulationNodeDatum {
   readonly state: D3WorldNodeState;
   readonly collisionRadiusMeters: number;
 }
@@ -251,6 +253,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
   #clusteredPlaces = new Set<string>();
   #detachedLinkPlaces = new Set<string>();
   #pin: WorldForcePin | null = null;
+  #interactionInstanceId: WorldInstanceId | null = null;
   #interactionGroupKey: string | null = null;
   #interactionCollisionGroupKeys = new Set<string>();
   #requestReason: WorldSimulationRequest["reason"] = "idle";
@@ -296,12 +299,21 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     this.#dirtyStateIds = new Set(next.keys());
     if (this.#pin && !this.#states.has(this.#pin.instanceId)) this.#pin = null;
     if (this.#pin) {
+      this.#interactionInstanceId = this.#pin.instanceId;
       this.#interactionGroupKey = this.#states.get(this.#pin.instanceId)?.group ?? null;
-    } else if (
-      this.#interactionGroupKey !== null &&
-      ![...this.#states.values()].some((state) => state.group === this.#interactionGroupKey)
-    ) {
-      this.#interactionGroupKey = null;
+    } else {
+      if (
+        this.#interactionInstanceId !== null &&
+        !this.#states.has(this.#interactionInstanceId)
+      ) {
+        this.#interactionInstanceId = null;
+      }
+      if (
+        this.#interactionGroupKey !== null &&
+        ![...this.#states.values()].some((state) => state.group === this.#interactionGroupKey)
+      ) {
+        this.#interactionGroupKey = null;
+      }
     }
     this.#rebuildGroups(true);
     this.#settled = false;
@@ -344,6 +356,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       nextState.fx = pin.eastMeters;
       nextState.fy = pin.northMeters;
       if (changed) this.#dirtyStateIds.add(nextState.id);
+      this.#interactionInstanceId = nextState.id;
       this.#interactionGroupKey = nextState.group;
 
       // A pointer update must not reconstruct every D3 simulation. Keep the
@@ -355,8 +368,10 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       }
       this.#running = true;
     } else if (previousState) {
-      // Preserve the released group through post-drop settling so unrelated
-      // places stay asleep.
+      // Preserve the released node and group through post-drop settling so
+      // nearby foreign-anchor nodes continue participating while remote places
+      // remain asleep.
+      this.#interactionInstanceId = previousState.id;
       this.#interactionGroupKey = previousState.group;
     }
 
@@ -407,7 +422,10 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     if (!interactionReason && previousInteractionGroupKey !== null) {
       const previousInteractionGroup = this.#groups.get(previousInteractionGroupKey);
       if (previousInteractionGroup) this.#refreshGroupForceStrengths(previousInteractionGroup);
-      if (!this.#pin) this.#interactionGroupKey = null;
+      if (!this.#pin) {
+        this.#interactionInstanceId = null;
+        this.#interactionGroupKey = null;
+      }
       this.#interactionCollisionGroupKeys.clear();
     }
 
@@ -454,7 +472,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       if (group.simulation.alpha() > group.simulation.alphaMin()) settled = false;
     }
 
-    if (this.#requestReason === "drag" && this.#stepCrossPlaceDragCollision()) {
+    if (interactionReason && this.#stepCrossPlaceInteractionForces()) {
       settled = false;
     }
 
@@ -523,6 +541,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     this.#states.clear();
     this.#dirtyStateIds.clear();
     this.#pin = null;
+    this.#interactionInstanceId = null;
     this.#interactionGroupKey = null;
     this.#interactionCollisionGroupKeys.clear();
     this.#requestReason = "idle";
@@ -649,86 +668,89 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     });
   }
 
-  #stepCrossPlaceDragCollision(): boolean {
-    if (!this.#pin) return false;
-    const pinnedState = this.#states.get(this.#pin.instanceId);
-    if (!pinnedState?.anchor) return false;
-    const pinnedPosition = geographicPosition(pinnedState);
-    if (!pinnedPosition) return false;
+  #stepCrossPlaceInteractionForces(): boolean {
+    const interactionId = this.#pin?.instanceId ?? this.#interactionInstanceId;
+    if (!interactionId) return false;
+    const focalState = this.#states.get(interactionId);
+    if (!focalState?.anchor) return false;
+    const focalPosition = geographicPosition(focalState);
+    if (!focalPosition) return false;
 
     const partners = [...this.#states.values()].flatMap((state) => {
-      if (state.group === pinnedState.group || !state.anchor) return [];
+      if (state.id === focalState.id || state.group === focalState.group || !state.anchor) return [];
       const position = geographicPosition(state);
       if (!position) return [];
       const collisionDistance =
-        pinnedState.node.collisionRadiusMeters + state.node.collisionRadiusMeters;
-      if (surfaceDistanceMeters(pinnedPosition, position) >= collisionDistance) return [];
-      const [eastMeters, northMeters] = tangentOffsetMeters(pinnedPosition, position);
-      return [
-        {
-          state,
-          position,
-          eastMeters,
-          northMeters,
-        },
-      ];
+        focalState.node.collisionRadiusMeters + state.node.collisionRadiusMeters;
+      const interactionDistance = Math.max(
+        CROSS_PLACE_REJECTION_DISTANCE_METERS,
+        collisionDistance * 4,
+      );
+      if (surfaceDistanceMeters(focalPosition, position) > interactionDistance) return [];
+      const [eastMeters, northMeters] = tangentOffsetMeters(focalPosition, position);
+      return [{ state, eastMeters, northMeters }];
     });
     if (partners.length === 0) return false;
 
-    const probes: D3CrossPlaceCollisionProbe[] = [
-      {
-        state: pinnedState,
-        collisionRadiusMeters: pinnedState.node.collisionRadiusMeters,
-        x: 0,
-        y: 0,
-        vx: 0,
-        vy: 0,
-        fx: 0,
-        fy: 0,
-      },
-      ...partners.map(({ state, eastMeters, northMeters }) => ({
+    const participants = [
+      { state: focalState, eastMeters: 0, northMeters: 0 },
+      ...partners,
+    ];
+    const pinFocal = this.#pin?.instanceId === focalState.id;
+    const probes: D3CrossPlaceInteractionProbe[] = participants.map(
+      ({ state, eastMeters, northMeters }, index) => ({
         state,
         collisionRadiusMeters: state.node.collisionRadiusMeters,
         x: eastMeters,
         y: northMeters,
         vx: 0,
         vy: 0,
-      })),
-    ];
+        ...(pinFocal && index === 0 ? { fx: 0, fy: 0 } : {}),
+      }),
+    );
 
-    const collisionSimulation = forceSimulation<D3CrossPlaceCollisionProbe>(probes)
+    const interactionSimulation = forceSimulation<D3CrossPlaceInteractionProbe>(probes)
       .stop()
+      .alpha(DEFAULT_ALPHA)
       .alphaMin(ALPHA_MIN)
       .alphaDecay(ALPHA_DECAY)
       .alphaTarget(0);
-    collisionSimulation.force(
+    interactionSimulation.force(
+      "charge",
+      forceManyBody<D3CrossPlaceInteractionProbe>()
+        .strength(NORMAL_MANY_BODY_STRENGTH)
+        .distanceMin(
+          Math.max(1, Math.min(...probes.map((probe) => probe.collisionRadiusMeters))),
+        )
+        .distanceMax(CROSS_PLACE_REJECTION_DISTANCE_METERS),
+    );
+    interactionSimulation.force(
       "collision",
-      forceCollide<D3CrossPlaceCollisionProbe>()
+      forceCollide<D3CrossPlaceInteractionProbe>()
         .radius((probe) => probe.collisionRadiusMeters)
         .strength(COLLISION_STRENGTH)
         .iterations(COLLISION_ITERATIONS),
     );
-    collisionSimulation.tick(CROSS_PLACE_COLLISION_TICKS);
-    collisionSimulation.stop();
+    interactionSimulation.tick(CROSS_PLACE_INTERACTION_TICKS);
+    interactionSimulation.stop();
 
     let moved = false;
-    for (let index = 1; index < probes.length; index += 1) {
+    for (let index = pinFocal ? 1 : 0; index < probes.length; index += 1) {
       const probe = probes[index];
-      if (!probe?.state.anchor) continue;
-      const partner = partners[index - 1];
-      if (!partner) continue;
+      const participant = participants[index];
+      if (!probe?.state.anchor || !participant) continue;
 
-      const nextEast = probe.x ?? partner.eastMeters;
-      const nextNorth = probe.y ?? partner.northMeters;
+      const nextEast = probe.x ?? participant.eastMeters;
+      const nextNorth = probe.y ?? participant.northMeters;
       if (
-        Math.abs(nextEast - partner.eastMeters) <= Number.EPSILON &&
-        Math.abs(nextNorth - partner.northMeters) <= Number.EPSILON
+        Math.abs(nextEast - participant.eastMeters) <= Number.EPSILON &&
+        Math.abs(nextNorth - participant.northMeters) <= Number.EPSILON
       ) {
         continue;
       }
 
       const nextGeographic = geographicFromTangentOffset(
-        pinnedPosition,
+        focalPosition,
         nextEast,
         nextNorth,
       );
@@ -741,7 +763,10 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       probe.state.vx = 0;
       probe.state.vy = 0;
       this.#dirtyStateIds.add(probe.state.id);
-      this.#interactionCollisionGroupKeys.add(probe.state.group);
+
+      if (probe.state.group !== focalState.group) {
+        this.#interactionCollisionGroupKeys.add(probe.state.group);
+      }
       const group = this.#groups.get(probe.state.group);
       if (group) {
         group.simulation.alpha(Math.max(group.simulation.alpha(), DRAG_MOVE_ALPHA_FLOOR));

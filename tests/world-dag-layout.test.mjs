@@ -117,6 +117,52 @@ test("cross-place relationships participate in one DAG and influence nodes back 
   );
 });
 
+test("Sugiyama flow follows viewport orientation", () => {
+  const source = instance("orientation-source");
+  const target = instance("orientation-target");
+  const projection = createWorldProjection({
+    instances: [source, target],
+    edges: [edge("orientation-edge", source, target)],
+  });
+
+  const portrait = createWorldDagLayout(projection, {
+    reorganize: true,
+    orientation: "top-to-bottom",
+  });
+  const landscape = createWorldDagLayout(projection, {
+    reorganize: true,
+    orientation: "left-to-right",
+  });
+  const portraitSource = portrait.targets.find((entry) => entry.instanceId === source.id);
+  const portraitTarget = portrait.targets.find((entry) => entry.instanceId === target.id);
+  const landscapeSource = landscape.targets.find((entry) => entry.instanceId === source.id);
+  const landscapeTarget = landscape.targets.find((entry) => entry.instanceId === target.id);
+
+  assert.ok(portraitSource && portraitTarget && landscapeSource && landscapeTarget);
+  const portraitEast = portraitTarget.eastMeters - portraitSource.eastMeters;
+  const portraitNorth = portraitTarget.northMeters - portraitSource.northMeters;
+  const landscapeEast = landscapeTarget.eastMeters - landscapeSource.eastMeters;
+  const landscapeNorth = landscapeTarget.northMeters - landscapeSource.northMeters;
+
+  assert.ok(
+    Math.abs(portraitNorth) > Math.abs(portraitEast),
+    "portrait hierarchy should advance primarily north/south",
+  );
+  assert.ok(
+    Math.abs(landscapeEast) > Math.abs(landscapeNorth),
+    "landscape hierarchy should advance primarily west/east",
+  );
+  assert.ok(
+    landscapeEast > 0,
+    "left-to-right hierarchy should advance toward positive local east",
+  );
+  assert.equal(
+    landscape.metrics.crossingCount,
+    portrait.metrics.crossingCount,
+    "rotating the hierarchy must preserve crossing minimization",
+  );
+});
+
 test("anchored place footprint participates in local DAG spacing", () => {
   const a = instance("place-clearance-a");
   const b = instance("place-clearance-b");
@@ -635,3 +681,92 @@ test("explicit reorganization bypasses cached place layout while preserving geog
   );
 });
 
+
+
+test("high-degree landscape hubs allocate deterministic edge-port lanes", () => {
+  const hub = instance("port-hub");
+  const targets = Array.from({ length: 4 }, (_, index) => instance(`port-target-${index}`));
+  const projection = createWorldProjection({
+    instances: [hub, ...targets],
+    edges: targets.map((target, index) => edge(`port-edge-${index}`, hub, target)),
+  });
+  const layout = createWorldDagLayout(projection, {
+    reorganize: true,
+    orientation: "left-to-right",
+  });
+  const positions = new Map(layout.targets.map((target) => [target.instanceId, target]));
+  const source = positions.get(hub.id);
+  const fan = layout.routes
+    .filter((route) => route.sourceId === hub.id)
+    .map((route) => ({
+      route,
+      target: positions.get(route.targetId),
+      sourcePort: route.points[1],
+    }))
+    .filter((entry) => entry.target && entry.sourcePort)
+    .sort((left, right) => left.target.northMeters - right.target.northMeters);
+
+  assert.ok(source);
+  assert.equal(fan.length, targets.length);
+  assert.ok(
+    fan.every(({ route }) => route.points.length >= 4),
+    "fan-out routes reserve explicit source and target approach stubs",
+  );
+  assert.equal(
+    new Set(fan.map(({ sourcePort }) => Math.round(sourcePort.northMeters))).size,
+    fan.length,
+    "each outgoing relationship receives a distinct cross-axis source lane",
+  );
+  assert.ok(
+    fan.every(({ sourcePort }) => sourcePort.eastMeters > source.eastMeters),
+    "landscape source stubs leave the hub on the forward/east side",
+  );
+  for (let index = 1; index < fan.length; index += 1) {
+    assert.ok(
+      fan[index - 1].sourcePort.northMeters < fan[index].sourcePort.northMeters,
+      "source port ordering follows target ordering so the fan does not locally cross",
+    );
+  }
+});
+
+test("high-degree landscape targets allocate deterministic incoming approach lanes", () => {
+  const sources = Array.from({ length: 4 }, (_, index) => instance(`approach-source-${index}`));
+  const hub = instance("approach-hub");
+  const projection = createWorldProjection({
+    instances: [...sources, hub],
+    edges: sources.map((source, index) => edge(`approach-edge-${index}`, source, hub)),
+  });
+  const layout = createWorldDagLayout(projection, {
+    reorganize: true,
+    orientation: "left-to-right",
+  });
+  const positions = new Map(layout.targets.map((target) => [target.instanceId, target]));
+  const target = positions.get(hub.id);
+  const fan = layout.routes
+    .filter((route) => route.targetId === hub.id)
+    .map((route) => ({
+      route,
+      source: positions.get(route.sourceId),
+      targetPort: route.points.at(-2),
+    }))
+    .filter((entry) => entry.source && entry.targetPort)
+    .sort((left, right) => left.source.northMeters - right.source.northMeters);
+
+  assert.ok(target);
+  assert.equal(fan.length, sources.length);
+  assert.equal(
+    new Set(fan.map(({ targetPort }) => Math.round(targetPort.northMeters))).size,
+    fan.length,
+    "each incoming relationship receives a distinct target approach lane",
+  );
+  assert.ok(
+    fan.every(({ targetPort }) => targetPort.eastMeters < target.eastMeters),
+    "landscape target stubs approach the hub from the west side",
+  );
+  for (let index = 1; index < fan.length; index += 1) {
+    assert.ok(
+      fan[index - 1].targetPort.northMeters < fan[index].targetPort.northMeters,
+      "target port ordering follows source ordering so converging edges do not swap lanes",
+    );
+  }
+});
