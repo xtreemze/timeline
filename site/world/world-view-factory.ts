@@ -26,6 +26,8 @@ export interface WorldApplicationView {
   setFocus(id: string | number | null): void;
   setPresentationMode(active: boolean): void;
   hasContext(): boolean;
+  zoomToFocus(): void;
+  fitFocus(): void;
   refreshLayout(): void;
   reorganizeDag(): boolean;
   relaxForce(): boolean;
@@ -171,6 +173,16 @@ class ScheduledWorldProjectionView implements WorldApplicationView {
   hasContext(): boolean {
     this.#assertAlive();
     return this.#view.hasContext();
+  }
+
+  zoomToFocus(): void {
+    this.#assertAlive();
+    this.#view.zoomToFocus();
+  }
+
+  fitFocus(): void {
+    this.#assertAlive();
+    this.#view.fitFocus();
   }
 
   refreshLayout(): void {
