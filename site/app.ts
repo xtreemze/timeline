@@ -38,6 +38,7 @@ import {
 } from "./story-authoring.js";
 // Import ESM modules
 import { TimelineTemporal } from "./temporal-standards.ts";
+import { TimelineView } from "./timeline-view.ts";
 import { createSettledTemporalWindowSink } from "./world/settled-temporal-window.ts";
 import { selectPrimarySpatialViewFactory } from "./world/world-view-selection.ts";
 
@@ -663,7 +664,8 @@ function setSemanticControlIcon(element, iconName, label) {
 
 decorateSemanticControls();
 
-const timelineView = globalThis.TimelineView?.create(els.timelineViewRoot) || null;
+const timelineView = TimelineView.create(els.timelineViewRoot);
+if (!timelineView) throw new Error("TimelineView could not initialize the timeline root.");
 let temporalGraphView: ReturnType<typeof temporalGraphFactory.create> | null = null;
 try {
   temporalGraphView = temporalGraphFactory.create(els.graphViewRoot);
