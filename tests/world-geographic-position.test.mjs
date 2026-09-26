@@ -168,6 +168,39 @@ test("inverse local drag conversion preserves unplaced semantics", () => {
   assert.equal(resolveWorldLocalLayoutPosition(projected, [18.0686, 59.3293, 1000]), null);
 });
 
+test("unchanged anchors preserve logical force state instead of semantic-zoom magnification", () => {
+  const before = createWorldProjection({
+    instances: [instance({ localOffset: { eastMeters: 100, northMeters: 50 } })],
+    edges: [],
+  });
+  const after = createWorldProjection({
+    instances: [instance({ temporalWeight: 0.5 })],
+    edges: [],
+  });
+  const renderedPositions = new Map([
+    [
+      before.instances[0].id,
+      Object.freeze({
+        longitude: 18.2,
+        latitude: 59.4,
+        altitudeMeters: 1600,
+      }),
+    ],
+  ]);
+
+  const reconciled = preserveWorldProjectionRenderContinuity(
+    before,
+    after,
+    renderedPositions,
+  );
+
+  assert.deepEqual(reconciled.instances[0].localOffset, {
+    eastMeters: 100,
+    northMeters: 50,
+  });
+  assert.equal(reconciled.instances[0].temporalWeight, 0.5);
+});
+
 test("committed temporal reprojection can preserve the renderer's exact visible position", () => {
   const before = createWorldProjection({
     instances: [instance({ localOffset: { eastMeters: 100, northMeters: 50 } })],
