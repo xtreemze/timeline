@@ -2,6 +2,7 @@ export * from "./claim.ts";
 export * from "./entity.ts";
 export * from "./geotemporal.ts";
 export * from "./ids.ts";
+export * from "./occurrence.ts";
 export * from "./occurrence-type.ts";
 export * from "./project.ts";
 export * from "./relationship.ts";
