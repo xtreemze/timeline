@@ -49,6 +49,7 @@ test("built Pages shell boots application runtime on mobile", async ({ page }) =
   await page.keyboard.press("Escape");
 
   await edit.click();
+  expect(pageErrors).toEqual([]);
   await expect(shell).toHaveAttribute("data-mode", "edit");
   await expect(page.locator("#control-panel")).toBeVisible();
   await expect(edit.locator(".app-tool-label")).toHaveText("Done");
