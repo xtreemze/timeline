@@ -43,6 +43,17 @@ const INTERACTION_EDGE_MAX_STRETCH_SCALE = 8;
 /** Bound post-drop target error so a distant release cannot inject a one-frame force spike. */
 const INTERACTION_FORCE_MAX_ERROR_METERS = 6_000;
 const DRAG_MOVE_ALPHA_FLOOR = 0.04;
+/**
+ * A committed temporal re-anchor can rebase a survivor hundreds or thousands
+ * of kilometres from its new place while preserving the exact visible frame.
+ * Ordinary anchor forces are alpha-scaled and can cool before traversing that
+ * distance, so changed-place survivors get one temporary D3 force whose
+ * acceleration is independent of alpha. It releases once the node is back
+ * inside ordinary local-graph scale; the normal anchor/DAG/link forces then
+ * own final equilibrium.
+ */
+const PROJECTION_HANDOFF_FORCE_STRENGTH = 0.03;
+const PROJECTION_HANDOFF_RELEASE_ERROR_METERS = 1_000;
 const CROSS_PLACE_COLLISION_TICKS = 3;
 const EARTH_RADIUS_METERS = 6_371_008.8;
 const POLAR_COSINE_EPSILON = 1e-9;
@@ -53,6 +64,7 @@ interface D3WorldNodeState extends SimulationNodeDatum {
   readonly group: string;
   readonly placeId: PlaceId | null;
   readonly anchor: WorldForceAnchor | null;
+  projectionHandoff: boolean;
   z: number;
   vz: number;
 }
@@ -231,6 +243,37 @@ function sameStringSet(left: ReadonlySet<string>, right: ReadonlySet<string>): b
   return left.size === right.size && [...left].every((value) => right.has(value));
 }
 
+type D3ProjectionHandoffForce = ((alpha: number) => void) & {
+  initialize(nodes: D3WorldNodeState[]): void;
+};
+
+function projectionHandoffForce(): D3ProjectionHandoffForce {
+  let nodes: D3WorldNodeState[] = [];
+  const force = ((_alpha: number) => {
+    for (const state of nodes) {
+      if (!state.projectionHandoff || !state.anchor) continue;
+
+      const x = state.x ?? 0;
+      const y = state.y ?? 0;
+      const error = Math.hypot(x, y);
+      if (error <= PROJECTION_HANDOFF_RELEASE_ERROR_METERS) {
+        state.projectionHandoff = false;
+        continue;
+      }
+
+      // D3 applies velocity decay and integrates position after all forces run.
+      // Keeping this impulse independent of alpha lets a geographic handoff
+      // finish within the bounded scheduler run without ever teleporting.
+      state.vx = (state.vx ?? 0) - x * PROJECTION_HANDOFF_FORCE_STRENGTH;
+      state.vy = (state.vy ?? 0) - y * PROJECTION_HANDOFF_FORCE_STRENGTH;
+    }
+  }) as D3ProjectionHandoffForce;
+  force.initialize = (next) => {
+    nodes = next;
+  };
+  return force;
+}
+
 /**
  * Live, frame-stepped D3 force backend.
  *
@@ -270,6 +313,8 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       const group = groupKey(anchor);
       const prior = previous.get(node.id);
       const explicit = node.initialEastMeters !== 0 || node.initialNorthMeters !== 0;
+      const sameGroup = prior?.group === group;
+      const changedPlaceHandoff = prior !== undefined && !sameGroup && explicit;
       const [seedX, seedY] = explicit
         ? [node.initialEastMeters, node.initialNorthMeters]
         : seededOffset(node.id);
@@ -280,14 +325,15 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
         group,
         placeId: anchor?.placeId ?? null,
         anchor,
-        x: prior?.group === group ? (prior.x ?? seedX) : seedX,
-        y: prior?.group === group ? (prior.y ?? seedY) : seedY,
-        vx: prior?.group === group ? (prior.vx ?? 0) : 0,
-        vy: prior?.group === group ? (prior.vy ?? 0) : 0,
-        fx: prior?.group === group ? prior.fx : null,
-        fy: prior?.group === group ? prior.fy : null,
-        z: prior?.group === group ? prior.z : node.targetVisualAltitudeMeters,
-        vz: prior?.group === group ? prior.vz : 0,
+        projectionHandoff: changedPlaceHandoff,
+        x: sameGroup ? (prior.x ?? seedX) : seedX,
+        y: sameGroup ? (prior.y ?? seedY) : seedY,
+        vx: sameGroup ? (prior.vx ?? 0) : 0,
+        vy: sameGroup ? (prior.vy ?? 0) : 0,
+        fx: sameGroup ? prior.fx : null,
+        fy: sameGroup ? prior.fy : null,
+        z: sameGroup ? prior.z : node.targetVisualAltitudeMeters,
+        vz: sameGroup ? prior.vz : 0,
       });
     }
 
@@ -600,6 +646,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       );
       simulation.force("anchor-x", anchorXForce);
       simulation.force("anchor-y", anchorYForce);
+      simulation.force("projection-handoff", projectionHandoffForce());
 
       // Preserve the current d3-dag organizational targets as soft forces.
       // They guide expanded topology without snapping and are disabled while
