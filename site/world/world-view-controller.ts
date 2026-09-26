@@ -1,4 +1,4 @@
-import type { PlaceId } from "../../src/domain/ids.ts";
+import type { PlaceId, RelationshipId } from "../../src/domain/ids.ts";
 import {
   createInteractionCoordinator,
   type InteractionCompletionReason,
