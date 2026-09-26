@@ -582,7 +582,10 @@ export function createInvestigationWorkspace(
       drilldownHost.replaceChildren(renderEvidenceDrilldown(selected));
     };
 
-    selector.addEventListener("change", draw);
+    selector.addEventListener("change", () => {
+      selectedMatrixRecordId = "";
+      draw();
+    });
     draw();
   }
 
