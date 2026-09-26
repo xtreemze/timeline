@@ -260,8 +260,10 @@ jobs:
         run: pnpm benchmark:retained-timeline
       - continue-on-error: true
         run: pnpm benchmark:graph-data
-      - continue-on-error: true
+      - name: Benchmark world-force scaling
+        continue-on-error: true
         run: pnpm benchmark:world-force
+        timeout-minutes: 5
       - name: Certify world DAG layout quality
         continue-on-error: true
         run: pnpm benchmark:world-dag -- --check
