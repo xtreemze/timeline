@@ -157,7 +157,10 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightSpec, /demux/);
   assert.match(highlightSpec, /-fps_mode/);
   assert.match(highlightSpec, /passthrough/);
-  assert.match(highlightSpec, /libvpx/);
+  assert.match(highlightSpec, /libx264/);
+  assert.match(highlightSpec, /ultrafast/);
+  assert.match(highlightSpec, /zerolatency/);
+  assert.match(highlightSpec, /threads",\s*"2"/);
   assert.match(highlightSpec, /best_effort_timestamp_time/);
   assert.match(highlightSpec, /requestAnimationFrame/);
   assert.match(highlightSpec, /CAPTURE_FPS\s*=\s*60/);
@@ -193,11 +196,11 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightRenderer, /verifyMeasuredCapture/);
   assert.match(highlightRenderer, /best_effort_timestamp_time/);
   assert.match(highlightRenderer, /probeFrameTimestamps/);
-  assert.match(highlightRenderer, /raw WebM decodes at/);
+  assert.match(highlightRenderer, /raw Matroska decodes at/);
   assert.match(highlightRenderer, /expected native/);
   assert.match(highlightRenderer, /browser animation clock is/);
   assert.match(highlightRenderer, /expected display-paced/);
-  assert.match(highlightRenderer, /video\.codec !== "vp8"/);
+  assert.match(highlightRenderer, /video\.codec !== "h264"/);
   assert.match(highlightRenderer, /minimumMeasuredCaptureFps/);
   assert.match(highlightRenderer, /maximumMeasuredCaptureFps/);
   assert.match(highlightRenderer, /nonIncreasingIntervals/);
