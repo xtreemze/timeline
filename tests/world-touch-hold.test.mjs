@@ -171,6 +171,8 @@ function surfaceHarness() {
       pickResult = value;
     },
     touch(type, pointerId, x, y, timeStamp = Date.now()) {
+      let defaultPrevented = false;
+      let propagationStopped = false;
       listeners.get(type)?.({
         pointerType: "touch",
         pointerId,
@@ -179,7 +181,14 @@ function surfaceHarness() {
         clientX: x,
         clientY: y,
         timeStamp,
+        preventDefault() {
+          defaultPrevented = true;
+        },
+        stopPropagation() {
+          propagationStopped = true;
+        },
       });
+      return { defaultPrevented, propagationStopped };
     },
     dragStart(pointerId, pointerType = "touch", source = {}) {
       return entityLayer().props.onDragStart(
@@ -251,6 +260,41 @@ test("a long press on an entity then drag claims the node drag", (t) => {
   h.touch("pointerup", 4, 160, 280);
   assert.deepEqual(h.releases, [4]);
   assert.equal(h.dataset.worldTouchDrag, undefined);
+});
+
+test("owned long-press release reaches deck so its touch contact terminates", (t) => {
+  t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: 10_000 });
+  const h = surfaceHarness();
+  h.setPickResult({ object: h.alice() });
+
+  h.touch("pointerdown", 4, 118, 259);
+  t.mock.timers.tick(WORLD_TOUCH_HOLD_MS + 1);
+  assert.equal(h.dataset.worldTouchDrag, "active");
+
+  const move = h.touch("pointermove", 4, 160, 280);
+  assert.equal(move.defaultPrevented, true);
+  assert.equal(
+    move.propagationStopped,
+    true,
+    "claimed drag movement must stay out of deck's camera controller",
+  );
+
+  const release = h.touch("pointerup", 4, 160, 280);
+  assert.equal(release.defaultPrevented, true);
+  assert.equal(
+    release.propagationStopped,
+    false,
+    "deck saw pointerdown before the hold; its matching pointerup must reach the recognizer",
+  );
+  assert.deepEqual(h.releases, [4]);
+  assert.equal(h.dataset.worldTouchDrag, undefined);
+
+  h.touch("pointerdown", 5, 118, 259);
+  assert.equal(
+    h.dataset.worldTouchDrag,
+    "holding",
+    "the next single contact starts a fresh one-finger gesture epoch",
+  );
 });
 
 test("long-press pickup flashes and lifts only the actively dragged node", (t) => {
