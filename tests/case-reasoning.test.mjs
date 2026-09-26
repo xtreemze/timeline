@@ -389,3 +389,218 @@ test("identity analysis warns when it forces a closed candidate set", () => {
     ),
   );
 });
+
+
+test("exposes established structured analytic methods without treating them as truth engines", () => {
+  const methods = new Map(reasoning.ANALYTIC_METHODS.map((method) => [method.id, method]));
+  assert.equal(methods.get("ach").name, "Analysis of Competing Hypotheses");
+  assert.equal(methods.get("key-assumptions-check").family, "diagnostic");
+  assert.equal(methods.get("reasonable-lines-of-enquiry").family, "investigative");
+  assert.equal(methods.get("alternative-propositions").source, "ISO 21043-4:2025");
+  assert.equal(reasoning.analyticMethod("devils-advocacy").family, "contrarian");
+  assert.equal(reasoning.analyticMethod("custom-method"), null);
+});
+
+test("normalizes assumptions, questions, enquiries, indicators, and information reviews", () => {
+  const normalized = reasoning.normalizeReasoning({
+    assumptions: [
+      {
+        id: "assume-device-owner",
+        text: "The phone was carried by its registered owner.",
+        status: "challenged",
+        basisIds: ["obs-registration"],
+        hypothesisIds: ["hyp-alice"],
+        rationale: "Device possession may differ from account ownership.",
+      },
+    ],
+    questions: [
+      {
+        id: "q-carol-location",
+        text: "Where was Carol during the incident window?",
+        hypothesisIds: ["hyp-carol"],
+        status: "open",
+      },
+    ],
+    linesOfEnquiry: [
+      {
+        id: "loe-camera-six",
+        text: "Review Camera 6 for west-exit movement.",
+        questionIds: ["q-carol-location"],
+        hypothesisIds: ["hyp-carol", "hyp-none-known"],
+        testType: "discriminate",
+        status: "active",
+        expectedDiscriminator: "A time-matched exit observation that distinguishes the alternatives.",
+      },
+    ],
+    indicators: [
+      {
+        id: "indicator-west-exit",
+        text: "A matching person exits through the west door.",
+        hypothesisIds: ["hyp-carol"],
+        state: "unknown",
+      },
+    ],
+    informationReviews: [
+      {
+        id: "quality-witness-one",
+        text: "Witness account has not been independently corroborated.",
+        targetIds: ["ev-witness-one"],
+        finding: "uncorroborated",
+        limitations: "Lighting was poor.",
+      },
+    ],
+  });
+
+  assert.equal(normalized.assumptions[0].status, "challenged");
+  assert.equal(normalized.questions[0].status, "open");
+  assert.equal(normalized.linesOfEnquiry[0].testType, "discriminate");
+  assert.equal(normalized.indicators[0].state, "unknown");
+  assert.equal(normalized.informationReviews[0].finding, "uncorroborated");
+  assert.equal("score" in normalized.informationReviews[0], false);
+});
+
+test("tradecraft validation requires rationale for consciously unpursued enquiries", () => {
+  const findings = reasoning.validateReasoning({
+    linesOfEnquiry: [
+      {
+        id: "loe-deferred",
+        text: "Obtain an additional camera source.",
+        status: "not-pursued",
+        testType: "discover",
+      },
+    ],
+  });
+
+  assert.ok(findings.some((finding) => finding.code === "enquiry-rationale-required"));
+});
+
+test("methodology review exposes gaps and disconfirming coverage without selecting a winner", () => {
+  const model = {
+    assumptions: [
+      {
+        id: "assume-device-owner",
+        text: "The phone was carried by its registered owner.",
+        status: "challenged",
+        inputIds: ["fact-phone-registration"],
+        hypothesisIds: ["hyp-alice"],
+        rationale: "Possession is not established by registration alone.",
+      },
+    ],
+    questions: [
+      {
+        id: "q-carol-location",
+        text: "Where was Carol?",
+        status: "open",
+        hypothesisIds: ["hyp-carol"],
+      },
+    ],
+    assertions: [
+      { id: "fact-phone-registration", text: "The phone account was registered to Alice." },
+      { id: "fact-bob-alibi", text: "Bob was documented elsewhere." },
+    ],
+    hypotheses: [
+      {
+        id: "hyp-alice",
+        hypothesisKind: "identity",
+        unknownEntityId: "unknown-person-a",
+        candidateEntityId: "alice",
+        alternativeGroupId: "identity-a",
+        assertionIds: ["fact-phone-registration"],
+      },
+      {
+        id: "hyp-bob",
+        hypothesisKind: "identity",
+        unknownEntityId: "unknown-person-a",
+        candidateEntityId: "bob",
+        alternativeGroupId: "identity-a",
+        assertionIds: ["fact-bob-alibi"],
+      },
+      {
+        id: "hyp-carol",
+        hypothesisKind: "identity",
+        unknownEntityId: "unknown-person-a",
+        candidateEntityId: "carol",
+        alternativeGroupId: "identity-a",
+      },
+      {
+        id: "hyp-none-known",
+        hypothesisKind: "identity",
+        unknownEntityId: "unknown-person-a",
+        candidateScope: "none-known",
+        alternativeGroupId: "identity-a",
+      },
+    ],
+    linesOfEnquiry: [
+      {
+        id: "loe-alibi-test",
+        text: "Test Bob's alibi against independent time/location evidence.",
+        status: "active",
+        testType: "falsify",
+        hypothesisIds: ["hyp-bob"],
+        targetIds: ["fact-bob-alibi"],
+      },
+    ],
+    indicators: [
+      {
+        id: "indicator-camera",
+        text: "A matching person appears on Camera 6.",
+        state: "unknown",
+        hypothesisIds: ["hyp-carol"],
+      },
+    ],
+    informationReviews: [
+      {
+        id: "quality-registration",
+        text: "Registration establishes account ownership, not possession.",
+        finding: "limited",
+        targetIds: ["fact-phone-registration"],
+        limitations: "No evidence yet establishes who carried the device.",
+      },
+    ],
+  };
+
+  const review = reasoning.methodologyReview(model, {
+    entityIds: ["unknown-person-a", "alice", "bob", "carol"],
+  });
+
+  assert.deepEqual(review.openQuestionIds, ["q-carol-location"]);
+  assert.deepEqual(review.assumptionIdsNeedingReview, ["assume-device-owner"]);
+  assert.deepEqual(review.activeEnquiryIds, ["loe-alibi-test"]);
+  assert.deepEqual(review.unknownIndicatorIds, ["indicator-camera"]);
+  assert.deepEqual(review.unresolvedInformationReviewIds, ["quality-registration"]);
+  assert.deepEqual(review.alternativeGroupsWithoutDisconfirmingTest, []);
+  assert.equal("winner" in review, false);
+  assert.equal("score" in review, false);
+});
+
+test("methodology review identifies alternative groups with no discriminating or falsifying enquiry", () => {
+  const review = reasoning.methodologyReview(
+    {
+      assertions: [{ id: "fact-1" }],
+      hypotheses: [
+        {
+          id: "h1",
+          text: "Alternative one",
+          alternativeGroupId: "group-1",
+          assertionIds: ["fact-1"],
+        },
+        {
+          id: "h2",
+          text: "Alternative two",
+          alternativeGroupId: "group-1",
+          assertionIds: ["fact-1"],
+        },
+      ],
+      linesOfEnquiry: [
+        {
+          id: "loe-corroborate",
+          text: "Seek another copy of the same record.",
+          status: "active",
+          testType: "corroborate",
+          hypothesisIds: ["h1"],
+        },
+      ],
+    },
+  );
+  assert.deepEqual(review.alternativeGroupsWithoutDisconfirmingTest, ["group-1"]);
+});
