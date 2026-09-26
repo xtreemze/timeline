@@ -661,7 +661,6 @@
     overflow-x: auto;
     overflow-y: hidden;
     overscroll-behavior-inline: contain;
-    scroll-behavior: smooth;
     scroll-padding-inline: max(0.35rem, env(safe-area-inset-left));
     touch-action: pan-x;
     -webkit-overflow-scrolling: touch;
