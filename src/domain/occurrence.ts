@@ -72,6 +72,25 @@ export function validateOccurrence(
     findings.push("Occurrence confidence must be null or a number from 0 to 1.");
   }
 
+  if (occurrence.time !== null) {
+    if (occurrence.time.type !== "instant" && occurrence.time.type !== "interval") {
+      findings.push("Occurrence time type must be instant or interval.");
+    }
+    if (
+      occurrence.time.start !== null &&
+      (typeof occurrence.time.start !== "object" || Array.isArray(occurrence.time.start))
+    ) {
+      findings.push("Occurrence time start must be null or an object.");
+    }
+    if (
+      occurrence.time.end !== undefined &&
+      occurrence.time.end !== null &&
+      (typeof occurrence.time.end !== "object" || Array.isArray(occurrence.time.end))
+    ) {
+      findings.push("Occurrence time end must be null or an object when present.");
+    }
+  }
+
   if (
     occurrence.participantContexts.length === 0 &&
     occurrence.relationshipIds.length === 0
