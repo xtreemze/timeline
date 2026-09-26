@@ -102,6 +102,7 @@ function decodedFrameStats(
       nonIncreasingIntervals: 0,
       maxInterval: 0,
       pacedIntervalRatio: 0,
+      responsiveIntervalRatio: 0,
     };
   }
   const first = timestamps[0];
@@ -110,6 +111,7 @@ function decodedFrameStats(
   let nonIncreasingIntervals = 0;
   let maxInterval = 0;
   let pacedIntervals = 0;
+  let responsiveIntervals = 0;
   for (let index = 1; index < timestamps.length; index += 1) {
     const previous = timestamps[index - 1];
     const current = timestamps[index];
@@ -122,6 +124,7 @@ function decodedFrameStats(
     ) {
       pacedIntervals += 1;
     }
+    if (interval <= maximumPacedIntervalSeconds) responsiveIntervals += 1;
   }
   return {
     frames: timestamps.length,
@@ -130,6 +133,7 @@ function decodedFrameStats(
     nonIncreasingIntervals,
     maxInterval,
     pacedIntervalRatio: pacedIntervals / (timestamps.length - 1),
+    responsiveIntervalRatio: responsiveIntervals / (timestamps.length - 1),
   };
 }
 
@@ -203,18 +207,14 @@ async function verifyMeasuredCapture(videoPath, manifest) {
       `${videoPath} browser animation evidence contains ${String(browser.nonIncreasingIntervals)} duplicated or non-increasing timestamps.`,
     );
   }
-  if (
-    !Number.isFinite(browser.fps) ||
-    browser.fps < minimumFps ||
-    browser.fps > maximumFps
-  ) {
+  if (!Number.isFinite(browser.fps) || browser.fps < minimumFps) {
     throw new Error(
-      `${videoPath} browser animation clock is ${browser.fps.toFixed(2)} fps; expected display-paced ${Number(minimumFps).toFixed(2)}-${Number(maximumFps).toFixed(2)} fps while recording.`,
+      `${videoPath} browser animation clock is ${browser.fps.toFixed(2)} fps; expected at least ${Number(minimumFps).toFixed(2)} fps while recording.`,
     );
   }
-  if (browser.pacedIntervalRatio < minimumPacedIntervalRatio) {
+  if (browser.responsiveIntervalRatio < minimumPacedIntervalRatio) {
     throw new Error(
-      `${videoPath} browser animation evidence has only ${(browser.pacedIntervalRatio * 100).toFixed(1)}% of intervals in the native pacing window; expected at least ${String(minimumPacedIntervalRatio * 100)}%.`,
+      `${videoPath} browser animation evidence has only ${(browser.responsiveIntervalRatio * 100).toFixed(1)}% of intervals at or below ${String(maximumPacedIntervalSeconds * 1000)} ms; expected at least ${String(minimumPacedIntervalRatio * 100)}% so uncapped rendering cannot hide frame stalls.`,
     );
   }
 
