@@ -526,6 +526,16 @@
   overflow: visible;
 }
 
+.app-footer-world .world-camera-controls {
+  position: static;
+  inset: auto;
+  z-index: auto;
+  flex-direction: row;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
 .app-footer-world .world-layout-controls {
   margin-inline-start: 0.12rem;
   padding-inline-start: 0.12rem;
