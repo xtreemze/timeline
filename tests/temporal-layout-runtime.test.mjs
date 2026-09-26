@@ -51,6 +51,12 @@ test("cross-axis lane offsets use measured extents and preserve nearest-first pa
   });
   assert.ok(offsets[0] < offsets[1]);
   assert.ok(offsets[1] < offsets[2]);
+
+  const sparse = planLaneCrossOffsets(
+    [{ lane: 2, blockSize: 300 }],
+    { axisOffsetPx: 44, laneGapPx: 16, routingSlackPx: 44 },
+  );
+  assert.deepEqual(sparse, { 2: 44 });
 });
 
 test("measurement identity changes only with scene identity or content revision", () => {
