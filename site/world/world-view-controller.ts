@@ -214,6 +214,16 @@ export class WorldViewRuntimeController {
     this.#surface.focusPlace(id);
   }
 
+  zoomToOccurrences(ids: readonly RelationshipId[]): void {
+    this.#assertAlive();
+    this.#surface.zoomToOccurrences?.(ids);
+  }
+
+  fitOccurrences(ids: readonly RelationshipId[]): void {
+    this.#assertAlive();
+    this.#surface.fitOccurrences?.(ids);
+  }
+
   beginNodeDrag(
     pointerId: number,
     instanceId: WorldInstanceId,
