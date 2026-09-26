@@ -140,6 +140,8 @@ test("changed-place temporal handoffs converge without a first-frame teleport", 
     nodes: [
       node(id, rebasedEastMeters, 180, {
         initialNorthMeters: 0,
+        initialVisualAltitudeMeters: 8_000,
+        targetVisualAltitudeMeters: 1_000,
       }),
     ],
     edges: [],
@@ -153,12 +155,20 @@ test("changed-place temporal handoffs converge without a first-frame teleport", 
     firstFrame.eastMeters > rebasedEastMeters * 0.95,
     "the first physics frame must advance continuously rather than teleport to the new anchor",
   );
+  assert.ok(
+    firstFrame.visualAltitudeMeters > 7_000,
+    "continuity altitude must begin from the visible seed instead of snapping to its target",
+  );
 
   for (let index = 1; index < 240; index += 1) simulation.step(1000 / 60);
   const settled = simulation.getSnapshot()[0];
   assert.ok(
     Math.hypot(settled.eastMeters, settled.northMeters) < 2_000,
     "an intercontinental handoff must return to local-graph scale within the four-second run budget",
+  );
+  assert.ok(
+    Math.abs(settled.visualAltitudeMeters - 1_000) < 1,
+    "continuity altitude must relax to the committed projection target",
   );
 });
 
