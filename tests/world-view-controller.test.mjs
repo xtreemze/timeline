@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { WorldViewRuntimeController } from "../site/world/world-view-controller.ts";
+import { resolveWorldRenderPosition } from "../src/layout/world-geographic-position.ts";
 import {
   createProjectedWorldEdge,
   createProjectedWorldInstance,
@@ -68,6 +69,7 @@ function harness({
   emptyReadback = false,
   delta = false,
   gpuBridge = false,
+  renderedPositions = null,
 } = {}) {
   const calls = [];
   const diagnostics = { running: false, settled, energy: 0, iteration: 0 };
@@ -115,6 +117,9 @@ function harness({
 
   if (delta) {
     surface.applyProjectionDelta = (value) => calls.push(["surface:delta", value]);
+  }
+  if (renderedPositions) {
+    surface.getRenderedInstancePositions = () => renderedPositions;
   }
 
   const backend = {
@@ -197,6 +202,67 @@ test("projection updates feed force scene and WorldSurface from one revision", (
   assert.ok(calls[1][1].length > 0, "local DAG route hints reach the renderer");
   assert.equal(calls[2][0], "force:apply");
   assert.deepEqual(calls[3], ["surface:projection", input]);
+});
+
+test("committed temporal anchor changes keep the exact rendered position for the force handoff", () => {
+  const aliceId = worldInstanceId("alice", "meeting");
+  const visiblePosition = Object.freeze({
+    longitude: 18.2,
+    latitude: 59.4,
+    altitudeMeters: 1600,
+  });
+  const { calls, controller } = harness({
+    readback: true,
+    delta: true,
+    renderedPositions: new Map([[aliceId, visiblePosition]]),
+  });
+  const initial = projection();
+
+  controller.setProjection(initial);
+  controller.step(16);
+
+  const next = createWorldProjection({
+    instances: initial.instances.map((instance) =>
+      instance.canonicalId === "alice"
+        ? createProjectedWorldInstance({
+            ...instance,
+            geographicAnchors: [
+              {
+                placeId: "copenhagen",
+                longitude: 12.5683,
+                latitude: 55.6761,
+                influence: 1,
+              },
+            ],
+            temporalWeight: 0.75,
+          })
+        : instance,
+    ),
+    edges: initial.edges,
+  });
+
+  controller.setProjection(next);
+
+  const after = controller.getRenderProjection();
+  const afterAlice = after.instances.find((instance) => instance.canonicalId === "alice");
+  const afterPosition = resolveWorldRenderPosition(afterAlice);
+  assert.ok(afterPosition);
+  assert.ok(Math.abs(afterPosition[0] - visiblePosition.longitude) < 1e-9);
+  assert.ok(Math.abs(afterPosition[1] - visiblePosition.latitude) < 1e-9);
+  assert.ok(Math.abs(afterPosition[2] - visiblePosition.altitudeMeters) < 1e-9);
+  assert.equal(afterAlice.geographicAnchors[0].placeId, "copenhagen");
+  assert.equal(afterAlice.temporalWeight, 0.75);
+
+  const latestScene = calls.filter(([name]) => name === "force:scene").at(-1)?.[1];
+  const forceAlice = latestScene.nodes.find((node) => node.canonicalId === "alice");
+  assert.equal(forceAlice.initialEastMeters, afterAlice.localOffset.eastMeters);
+  assert.equal(forceAlice.initialNorthMeters, afterAlice.localOffset.northMeters);
+
+  const latestDelta = calls.filter(([name]) => name === "surface:delta").at(-1)?.[1];
+  const handoffAlice = latestDelta.updatedInstances.find(
+    (instance) => instance.canonicalId === "alice",
+  );
+  assert.deepEqual(handoffAlice.localOffset, afterAlice.localOffset);
 });
 
 test("runtime delegates temporal window and canonical selection to WorldSurface", () => {
