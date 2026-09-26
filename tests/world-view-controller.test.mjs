@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { WorldViewRuntimeController } from "../site/world/world-view-controller.ts";
+import { resolveWorldRenderPosition } from "../src/layout/world-geographic-position.ts";
 import {
   createProjectedWorldEdge,
   createProjectedWorldInstance,
@@ -197,6 +198,63 @@ test("projection updates feed force scene and WorldSurface from one revision", (
   assert.ok(calls[1][1].length > 0, "local DAG route hints reach the renderer");
   assert.equal(calls[2][0], "force:apply");
   assert.deepEqual(calls[3], ["surface:projection", input]);
+});
+
+
+test("committed temporal anchor changes keep the current rendered position for the force handoff", () => {
+  const { calls, controller } = harness({ readback: true, delta: true });
+  const initial = projection();
+
+  controller.setProjection(initial);
+  controller.step(16);
+
+  const before = controller.getRenderProjection();
+  const beforeAlice = before.instances.find((instance) => instance.canonicalId === "alice");
+  const beforePosition = resolveWorldRenderPosition(beforeAlice);
+  assert.ok(beforePosition);
+
+  const next = createWorldProjection({
+    instances: initial.instances.map((instance) =>
+      instance.canonicalId === "alice"
+        ? createProjectedWorldInstance({
+            ...instance,
+            geographicAnchors: [
+              {
+                placeId: "copenhagen",
+                longitude: 12.5683,
+                latitude: 55.6761,
+                influence: 1,
+              },
+            ],
+            temporalWeight: 0.75,
+          })
+        : instance,
+    ),
+    edges: initial.edges,
+  });
+
+  controller.setProjection(next);
+
+  const after = controller.getRenderProjection();
+  const afterAlice = after.instances.find((instance) => instance.canonicalId === "alice");
+  const afterPosition = resolveWorldRenderPosition(afterAlice);
+  assert.ok(afterPosition);
+  assert.ok(Math.abs(afterPosition[0] - beforePosition[0]) < 1e-9);
+  assert.ok(Math.abs(afterPosition[1] - beforePosition[1]) < 1e-9);
+  assert.ok(Math.abs(afterPosition[2] - beforePosition[2]) < 1e-9);
+  assert.equal(afterAlice.geographicAnchors[0].placeId, "copenhagen");
+  assert.equal(afterAlice.temporalWeight, 0.75);
+
+  const latestScene = calls.filter(([name]) => name === "force:scene").at(-1)?.[1];
+  const forceAlice = latestScene.nodes.find((node) => node.canonicalId === "alice");
+  assert.equal(forceAlice.initialEastMeters, afterAlice.localOffset.eastMeters);
+  assert.equal(forceAlice.initialNorthMeters, afterAlice.localOffset.northMeters);
+
+  const latestDelta = calls.filter(([name]) => name === "surface:delta").at(-1)?.[1];
+  const handoffAlice = latestDelta.updatedInstances.find(
+    (instance) => instance.canonicalId === "alice",
+  );
+  assert.deepEqual(handoffAlice.localOffset, afterAlice.localOffset);
 });
 
 test("runtime delegates temporal window and canonical selection to WorldSurface", () => {
