@@ -117,6 +117,8 @@ test("Lit composer is a touch-safe ARIA combobox with live-context guidance", as
   assert.match(source, /Move the timeline or World while this is open/);
   assert.match(source, /occurrencecomposeropenrequest/);
   assert.match(source, /occurrencecommit/);
+  assert.match(source, /explicitPlaceCenter/);
+  assert.match(source, /placeholder=\$\{\`Who did what to whom · at/);
 });
 
 test("application keeps timeline and World live while composer uses their centers as defaults", async () => {
@@ -125,8 +127,10 @@ test("application keeps timeline and World live while composer uses their center
   assert.match(source, /requiredElement<LuumOccurrenceComposerElement>\("#occurrence-composer"\)/);
   assert.match(
     source,
-    /presentationStage\.inert = Boolean\(ui\.browserOpen \|\| ui\.editorOpen\)/,
+    /presentationStage\.inert = Boolean\([\s\S]*ui\.browserOpen[\s\S]*ui\.investigationOpen[\s\S]*ui\.editorOpen/,
   );
+  assert.match(source, /const titleEditing = ui\.editorOpen/);
+  assert.match(source, /occurrenceComposer\.hidden = Boolean\([\s\S]*ui\.investigationOpen/);
   assert.match(
     source,
     /timelineviewportchange[\s\S]*setTimelineCenter\([\s\S]*viewport\.start[\s\S]*viewport\.end/,
