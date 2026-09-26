@@ -758,6 +758,12 @@ function focusedPresentationItem() {
 }
 
 function renderPresentationMap() {
+  // Integrated focus detail deliberately emits no map slot. Keep this guard so
+  // stale map state is torn down without duplicating location inside the card.
+  if (!els.timelineViewRoot?.querySelector("[data-focus-map-slot]")) {
+    destroyPresentationMap();
+    return false;
+  }
   const item = focusedPresentationItem();
   const mapApi = globalThis.TimelineLocationMap;
   const place = item ? placeForItem(item.id) : null;
@@ -814,10 +820,9 @@ function renderPresentationMap() {
 
 function syncContextualPresentationPanels() {
   const focused = Boolean(timelineView?.hasFocusedItem?.());
-  // Focus detail is now an extension of the timeline card. Location remains
-  // spatial context in the world view rather than consuming detail-card width.
-  destroyPresentationMap();
-  const mapVisible = false;
+  // Focus detail emits no map slot, so this returns false and disposes any stale
+  // map instance while preserving the shared map machinery for other surfaces.
+  const mapVisible = focused ? renderPresentationMap() : (destroyPresentationMap(), false);
 
   if (els.graphLens) els.graphLens.hidden = false;
   if (els.presentationMapPanel) els.presentationMapPanel.hidden = true;
