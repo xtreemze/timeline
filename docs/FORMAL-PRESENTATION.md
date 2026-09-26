@@ -180,7 +180,7 @@ For product demonstrations, release reviews, talks, and slide/web presentations,
 - `artifacts/e2e-media/reels/lum-desktop-highlight.mp4`;
 - `artifacts/e2e-media/reels/lum-mobile-highlight.mp4`;
 - source-resolution PNG screenshots for static product states;
-- source-dimension, 60 fps animated WebP for motion scenes, produced only after CI verifies at least 59 decoded raw X11 frames per second and at least 59 browser animation frames per second before publication encoding.
+- source-dimension animated WebP for motion scenes whose strictly increasing H.264/Matroska source timestamps remain within 59–61 fps on the explicit 60 Hz Xorg display and at least 95% of frame intervals stay within 12–22 ms; Chromium may render above 60 to avoid virtual-display throttling, but its animation clock must sustain at least 59 fps with at least 95% of frame gaps at or below 22 ms. CI rejects duplicate timestamps, bursty or sub-60 raw capture, renderer stalls, and FFmpeg frame-rate normalization that would manufacture cadence.
 
 The desktop and mobile collections demonstrate the same five product capabilities with layout-appropriate interactions. Stable mixed showcase media lives under `/timeline/showcase/desktop/` and `/timeline/showcase/mobile/`. Static states should remain screenshots; animation is reserved for interactions where motion itself communicates behavior.
 

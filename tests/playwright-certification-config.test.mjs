@@ -152,15 +152,36 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
 
   assert.match(highlightSpec, /records source-native Lūm showcase media per form factor/);
   assert.match(highlightSpec, /x11grab/);
+  assert.doesNotMatch(highlightSpec, /-use_wallclock_as_timestamps/);
+  assert.match(highlightSpec, /-enc_time_base/);
+  assert.match(highlightSpec, /demux/);
   assert.match(highlightSpec, /-fps_mode/);
   assert.match(highlightSpec, /passthrough/);
-  assert.match(highlightSpec, /libvpx/);
+  assert.match(highlightSpec, /libx264/);
+  assert.match(highlightSpec, /ultrafast/);
+  assert.match(highlightSpec, /zerolatency/);
+  assert.match(highlightSpec, /threads",\s*"2"/);
   assert.match(highlightSpec, /best_effort_timestamp_time/);
+  assert.match(highlightSpec, /"-of",\s*"json"/);
+  assert.match(highlightSpec, /JSON\.parse\(stdout\)/);
   assert.match(highlightSpec, /requestAnimationFrame/);
   assert.match(highlightSpec, /CAPTURE_FPS\s*=\s*60/);
   assert.match(highlightSpec, /MIN_CAPTURE_FPS\s*=\s*CAPTURE_FPS\s*-\s*1/);
+  assert.match(highlightSpec, /MAX_CAPTURE_FPS\s*=\s*CAPTURE_FPS\s*\+\s*1/);
+  assert.match(highlightSpec, /MIN_PACED_INTERVAL_SECONDS\s*=\s*0\.012/);
+  assert.match(highlightSpec, /MAX_PACED_INTERVAL_SECONDS\s*=\s*0\.022/);
+  assert.match(highlightSpec, /MIN_PACED_INTERVAL_RATIO\s*=\s*0\.95/);
   assert.match(highlightSpec, /captured\.fps\s*<\s*MIN_CAPTURE_FPS/);
+  assert.match(highlightSpec, /captured\.fps\s*>\s*MAX_CAPTURE_FPS/);
   assert.match(highlightSpec, /browser\.fps\s*<\s*MIN_CAPTURE_FPS/);
+  assert.doesNotMatch(highlightSpec, /browser\.fps\s*>\s*MAX_CAPTURE_FPS/);
+  assert.match(highlightSpec, /responsiveIntervalRatio/);
+  assert.match(highlightSpec, /current\s*<=\s*previous/);
+  assert.match(highlightSpec, /duplicated or non-increasing timestamp/);
+  assert.match(highlightSpec, /pacedIntervalRatio/);
+  assert.match(highlightSpec, /MIN_PACED_INTERVAL_RATIO/);
+  assert.match(highlightSpec, /SHOWCASE_X11_WIDTH/);
+  assert.match(highlightSpec, /SHOWCASE_X11_HEIGHT/);
   assert.match(highlightSpec, /\.frames\.json/);
   assert.doesNotMatch(highlightSpec, /getDisplayMedia|MediaRecorder/);
   assert.match(highlightSpec, /page\.screencast\.showChapter/);
@@ -183,11 +204,30 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightRenderer, /verifyMeasuredCapture/);
   assert.match(highlightRenderer, /best_effort_timestamp_time/);
   assert.match(highlightRenderer, /probeFrameTimestamps/);
-  assert.match(highlightRenderer, /raw WebM decodes at only/);
-  assert.match(highlightRenderer, /browser animation clock is only/);
-  assert.match(highlightRenderer, /video\.codec !== "vp8"/);
+  assert.match(highlightRenderer, /"-of",\s*"json"/);
+  assert.match(highlightRenderer, /minimumPacedIntervalRatio/);
+  assert.match(highlightRenderer, /pacedIntervalRatio/);
+  assert.match(highlightRenderer, /responsiveIntervalRatio/);
+  assert.match(highlightRenderer, /raw Matroska decodes at/);
+  assert.match(highlightRenderer, /expected native/);
+  assert.match(highlightRenderer, /browser animation clock is/);
+  assert.match(highlightRenderer, /expected at least/);
+  assert.match(highlightRenderer, /video\.codec !== "h264"/);
   assert.match(highlightRenderer, /minimumMeasuredCaptureFps/);
+  assert.match(highlightRenderer, /maximumMeasuredCaptureFps/);
+  assert.match(highlightRenderer, /nonIncreasingIntervals/);
+  assert.match(highlightRenderer, /duplicated or non-increasing/);
   assert.match(highlightRenderer, /libwebp_anim/);
+  assert.doesNotMatch(highlightRenderer, /"-r",\s*String\(manifest\.captureFps\)/);
+  assert.ok(
+    [...highlightRenderer.matchAll(/"-fps_mode",\s*"passthrough"/g)].length >= 3,
+    "motion derivatives and reel output must preserve source timestamps",
+  );
+  assert.equal(
+    [...highlightRenderer.matchAll(/fps=\$\{reelProfile\.fps\}/g)].length,
+    1,
+    "only synthetic still segments may be generated at the reel cadence",
+  );
   assert.match(highlightRenderer, /copyFile/);
   assert.match(highlightRenderer, /mediaMode === "static"/);
   assert.match(highlightRenderer, /combinedShowcaseBytes/);
@@ -197,8 +237,14 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightRenderer, /mobile/);
 
   assert.match(mediaWorkflow, /Record source-native showcase media/);
-  assert.match(mediaWorkflow, /xvfb-run/);
-  assert.match(mediaWorkflow, /-screen 0 1920x1080x24/);
+  assert.match(mediaWorkflow, /xserver-xorg-video-dummy/);
+  assert.match(mediaWorkflow, /Xorg :99/);
+  assert.match(mediaWorkflow, /xorg-dummy-60\.conf/);
+  assert.match(mediaWorkflow, /xrandr --current/);
+  assert.match(mediaWorkflow, /1920x1080_60\\\.00/);
+  assert.match(mediaWorkflow, /SHOWCASE_X11_WIDTH=1920/);
+  assert.match(mediaWorkflow, /SHOWCASE_X11_HEIGHT=1080/);
+  assert.doesNotMatch(mediaWorkflow, /xvfb-run/);
   assert.match(mediaWorkflow, /pnpm test:e2e:showcase/);
   assert.match(mediaWorkflow, /pnpm render:e2e:showcase/);
   assert.match(mediaWorkflow, /raw\/desktop/);

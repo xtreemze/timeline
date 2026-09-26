@@ -78,26 +78,59 @@ async function probeFrameTimestamps(filePath) {
     "-show_entries",
     "frame=best_effort_timestamp_time",
     "-of",
-    "csv=p=0",
+    "json",
     filePath,
   ]);
-  return stdout
-    .split(/\r?\n/u)
-    .map((value) => Number(value.trim()))
-    .filter((value) => Number.isFinite(value));
+  const parsed = JSON.parse(stdout);
+  return Array.isArray(parsed.frames)
+    ? parsed.frames
+        .map((frame) => Number(frame.best_effort_timestamp_time))
+        .filter((value) => Number.isFinite(value))
+    : [];
 }
 
-function decodedFrameStats(timestamps) {
+function decodedFrameStats(
+  timestamps,
+  minimumPacedIntervalSeconds = 0.012,
+  maximumPacedIntervalSeconds = 0.022,
+) {
   if (timestamps.length < 2) {
-    return { frames: timestamps.length, duration: 0, fps: 0 };
+    return {
+      frames: timestamps.length,
+      duration: 0,
+      fps: 0,
+      nonIncreasingIntervals: 0,
+      maxInterval: 0,
+      pacedIntervalRatio: 0,
+      responsiveIntervalRatio: 0,
+    };
   }
   const first = timestamps[0];
   const last = timestamps.at(-1);
   const duration = last - first;
+  let nonIncreasingIntervals = 0;
+  let maxInterval = 0;
+  let pacedIntervals = 0;
+  let responsiveIntervals = 0;
+  for (let index = 1; index < timestamps.length; index += 1) {
+    const previous = timestamps[index - 1];
+    const current = timestamps[index];
+    const interval = current - previous;
+    if (interval <= 0) nonIncreasingIntervals += 1;
+    maxInterval = Math.max(maxInterval, interval);
+    if (interval >= minimumPacedIntervalSeconds && interval <= maximumPacedIntervalSeconds) {
+      pacedIntervals += 1;
+    }
+    if (interval <= maximumPacedIntervalSeconds) responsiveIntervals += 1;
+  }
   return {
     frames: timestamps.length,
     duration,
     fps: duration > 0 ? (timestamps.length - 1) / duration : 0,
+    nonIncreasingIntervals,
+    maxInterval,
+    pacedIntervalRatio: pacedIntervals / (timestamps.length - 1),
+    responsiveIntervalRatio: responsiveIntervals / (timestamps.length - 1),
   };
 }
 
@@ -123,36 +156,85 @@ async function verifyMeasuredCapture(videoPath, manifest) {
   if (timing.minimumFps !== manifest.minimumMeasuredCaptureFps) {
     throw new Error(`${videoPath} timing evidence does not match the minimum capture rate`);
   }
-  if (timing.codec !== "vp8") {
-    throw new Error(`${videoPath} timing evidence must identify the raw capture codec as VP8`);
+  if (timing.maximumFps !== manifest.maximumMeasuredCaptureFps) {
+    throw new Error(`${videoPath} timing evidence does not match the maximum capture rate`);
+  }
+  if (timing.codec !== "h264") {
+    throw new Error(`${videoPath} timing evidence must identify the raw capture codec as H.264`);
   }
 
   const minimumFps = manifest.minimumMeasuredCaptureFps;
-  const captured = decodedFrameStats(timestamps);
-  if (!Number.isFinite(captured.fps) || captured.fps < minimumFps) {
+  const maximumFps = manifest.maximumMeasuredCaptureFps;
+  const minimumPacedIntervalSeconds = manifest.minimumPacedIntervalSeconds;
+  const maximumPacedIntervalSeconds = manifest.maximumPacedIntervalSeconds;
+  const minimumPacedIntervalRatio = manifest.minimumPacedIntervalRatio;
+  const captured = decodedFrameStats(
+    timestamps,
+    minimumPacedIntervalSeconds,
+    maximumPacedIntervalSeconds,
+  );
+  if (captured.nonIncreasingIntervals > 0) {
     throw new Error(
-      `${videoPath} raw X11 timing evidence is only ${captured.fps.toFixed(2)} fps; expected at least ${Number(minimumFps).toFixed(2)} fps before publication encoding.`,
+      `${videoPath} raw X11 timing evidence contains ${String(captured.nonIncreasingIntervals)} duplicated or non-increasing frame timestamps.`,
+    );
+  }
+  if (!Number.isFinite(captured.fps) || captured.fps < minimumFps || captured.fps > maximumFps) {
+    throw new Error(
+      `${videoPath} raw X11 timing evidence is ${captured.fps.toFixed(2)} fps; expected native ${Number(minimumFps).toFixed(2)}-${Number(maximumFps).toFixed(2)} fps before publication encoding.`,
+    );
+  }
+  if (captured.pacedIntervalRatio < minimumPacedIntervalRatio) {
+    throw new Error(
+      `${videoPath} raw X11 timing evidence has only ${(captured.pacedIntervalRatio * 100).toFixed(1)}% of intervals in the native pacing window; expected at least ${String(minimumPacedIntervalRatio * 100)}%.`,
     );
   }
 
   const browserSeconds = browserTimestamps.map((timestamp) => timestamp / 1000);
-  const browser = decodedFrameStats(browserSeconds);
+  const browser = decodedFrameStats(
+    browserSeconds,
+    minimumPacedIntervalSeconds,
+    maximumPacedIntervalSeconds,
+  );
+  if (browser.nonIncreasingIntervals > 0) {
+    throw new Error(
+      `${videoPath} browser animation evidence contains ${String(browser.nonIncreasingIntervals)} duplicated or non-increasing timestamps.`,
+    );
+  }
   if (!Number.isFinite(browser.fps) || browser.fps < minimumFps) {
     throw new Error(
-      `${videoPath} browser animation clock is only ${browser.fps.toFixed(2)} fps; expected at least ${Number(minimumFps).toFixed(2)} fps while recording.`,
+      `${videoPath} browser animation clock is ${browser.fps.toFixed(2)} fps; expected at least ${Number(minimumFps).toFixed(2)} fps while recording.`,
+    );
+  }
+  if (browser.responsiveIntervalRatio < minimumPacedIntervalRatio) {
+    throw new Error(
+      `${videoPath} browser animation evidence has only ${(browser.responsiveIntervalRatio * 100).toFixed(1)}% of intervals at or below ${String(maximumPacedIntervalSeconds * 1000)} ms; expected at least ${String(minimumPacedIntervalRatio * 100)}% so uncapped rendering cannot hide frame stalls.`,
     );
   }
 
   const video = await probeVisualSource(videoPath);
-  if (video.codec !== "vp8") {
-    throw new Error(`${videoPath} raw WebM codec is ${String(video.codec)}; expected VP8`);
+  if (video.codec !== "h264") {
+    throw new Error(`${videoPath} raw Matroska codec is ${String(video.codec)}; expected H.264`);
   }
 
   const decodedTimestamps = await probeFrameTimestamps(videoPath);
-  const decoded = decodedFrameStats(decodedTimestamps);
-  if (!Number.isFinite(decoded.fps) || decoded.fps < minimumFps) {
+  const decoded = decodedFrameStats(
+    decodedTimestamps,
+    minimumPacedIntervalSeconds,
+    maximumPacedIntervalSeconds,
+  );
+  if (decoded.nonIncreasingIntervals > 0) {
     throw new Error(
-      `${videoPath} raw WebM decodes at only ${decoded.fps.toFixed(2)} fps from ${String(decoded.frames)} actual frames; expected at least ${Number(minimumFps).toFixed(2)} fps.`,
+      `${videoPath} raw Matroska contains ${String(decoded.nonIncreasingIntervals)} duplicated or non-increasing decoded frame timestamps.`,
+    );
+  }
+  if (!Number.isFinite(decoded.fps) || decoded.fps < minimumFps || decoded.fps > maximumFps) {
+    throw new Error(
+      `${videoPath} raw Matroska decodes at ${decoded.fps.toFixed(2)} fps from ${String(decoded.frames)} actual frames; expected native ${Number(minimumFps).toFixed(2)}-${Number(maximumFps).toFixed(2)} fps.`,
+    );
+  }
+  if (decoded.pacedIntervalRatio < minimumPacedIntervalRatio) {
+    throw new Error(
+      `${videoPath} raw Matroska has only ${(decoded.pacedIntervalRatio * 100).toFixed(1)}% of frame intervals in the native pacing window; expected at least ${String(minimumPacedIntervalRatio * 100)}%.`,
     );
   }
   if (decoded.frames !== timing.capturedFrames || decoded.frames !== timestamps.length) {
@@ -208,7 +290,25 @@ function assertManifest(manifest, formFactor) {
     throw new Error(`${formFactor} manifest must request a 60 fps showcase capture`);
   }
   if (manifest.minimumMeasuredCaptureFps !== 59) {
-    throw new Error(`${formFactor} manifest must require at least 59 measured source frames per second`);
+    throw new Error(
+      `${formFactor} manifest must require at least 59 measured source frames per second`,
+    );
+  }
+  if (manifest.maximumMeasuredCaptureFps !== 61) {
+    throw new Error(
+      `${formFactor} manifest must reject uncapped capture above 61 measured frames per second`,
+    );
+  }
+  if (manifest.minimumPacedIntervalSeconds !== 0.012) {
+    throw new Error(`${formFactor} manifest must require native frame intervals of at least 12 ms`);
+  }
+  if (manifest.maximumPacedIntervalSeconds !== 0.022) {
+    throw new Error(`${formFactor} manifest must require native frame intervals of at most 22 ms`);
+  }
+  if (manifest.minimumPacedIntervalRatio !== 0.95) {
+    throw new Error(
+      `${formFactor} manifest must require at least 95% native-paced frame intervals`,
+    );
   }
   if (!Array.isArray(manifest.segments) || manifest.segments.length !== 5) {
     throw new Error(`${formFactor} manifest must contain exactly five showcase scenes`);
@@ -222,7 +322,8 @@ function assertManifest(manifest, formFactor) {
     );
   }
   for (const segment of motion) {
-    if (!segment.video) throw new Error(`Motion scene ${segment.name} is missing its WebM source`);
+    if (!segment.video)
+      throw new Error(`Motion scene ${segment.name} is missing its Matroska source`);
   }
 }
 
@@ -335,8 +436,8 @@ async function renderFormFactor(formFactor, manifest) {
       "4",
       "-loop",
       "0",
-      "-r",
-      String(manifest.captureFps),
+      "-fps_mode",
+      "passthrough",
       webpOutput,
     ]);
 
@@ -360,13 +461,28 @@ async function renderFormFactor(formFactor, manifest) {
     });
 
     const publishedWebpTimestamps = await probeFrameTimestamps(webpOutput);
-    const publishedWebp = decodedFrameStats(publishedWebpTimestamps);
+    const publishedWebp = decodedFrameStats(
+      publishedWebpTimestamps,
+      manifest.minimumPacedIntervalSeconds,
+      manifest.maximumPacedIntervalSeconds,
+    );
+    if (publishedWebp.nonIncreasingIntervals > 0) {
+      throw new Error(
+        `${webpOutput} contains ${String(publishedWebp.nonIncreasingIntervals)} duplicated or non-increasing presentation timestamps.`,
+      );
+    }
     if (
       !Number.isFinite(publishedWebp.fps) ||
-      publishedWebp.fps < manifest.minimumMeasuredCaptureFps
+      publishedWebp.fps < manifest.minimumMeasuredCaptureFps ||
+      publishedWebp.fps > manifest.maximumMeasuredCaptureFps
     ) {
       throw new Error(
-        `${webpOutput} decodes at only ${publishedWebp.fps.toFixed(2)} fps; expected a verified 60 fps presentation derivative.`,
+        `${webpOutput} decodes at ${publishedWebp.fps.toFixed(2)} fps; expected source-paced 59-61 fps without publication retiming.`,
+      );
+    }
+    if (publishedWebp.pacedIntervalRatio < manifest.minimumPacedIntervalRatio) {
+      throw new Error(
+        `${webpOutput} has only ${(publishedWebp.pacedIntervalRatio * 100).toFixed(1)}% of frame intervals in the native pacing window.`,
       );
     }
 
@@ -380,7 +496,9 @@ async function renderFormFactor(formFactor, manifest) {
       "-i",
       videoPath,
       "-vf",
-      `scale=${reelProfile.width}:${reelProfile.height}:force_original_aspect_ratio=decrease,pad=${reelProfile.width}:${reelProfile.height}:(ow-iw)/2:(oh-ih)/2:color=0x0b0c10,setsar=1,fps=${reelProfile.fps},format=yuv420p`,
+      `scale=${reelProfile.width}:${reelProfile.height}:force_original_aspect_ratio=decrease,pad=${reelProfile.width}:${reelProfile.height}:(ow-iw)/2:(oh-ih)/2:color=0x0b0c10,setsar=1,format=yuv420p`,
+      "-fps_mode",
+      "passthrough",
       "-an",
       "-c:v",
       "libx264",
@@ -424,8 +542,8 @@ async function renderFormFactor(formFactor, manifest) {
     filters.join(";"),
     "-map",
     `[${currentLabel}]`,
-    "-r",
-    String(manifest.captureFps),
+    "-fps_mode",
+    "passthrough",
     "-an",
     "-c:v",
     "libx264",
@@ -441,10 +559,28 @@ async function renderFormFactor(formFactor, manifest) {
   );
   await run(ffmpeg, args);
   const reelTimestamps = await probeFrameTimestamps(reelPath);
-  const reelProbe = decodedFrameStats(reelTimestamps);
-  if (!Number.isFinite(reelProbe.fps) || reelProbe.fps < manifest.minimumMeasuredCaptureFps) {
+  const reelProbe = decodedFrameStats(
+    reelTimestamps,
+    manifest.minimumPacedIntervalSeconds,
+    manifest.maximumPacedIntervalSeconds,
+  );
+  if (reelProbe.nonIncreasingIntervals > 0) {
     throw new Error(
-      `${reelPath} decodes at only ${reelProbe.fps.toFixed(2)} fps; expected a verified 60 fps reel.`,
+      `${reelPath} contains ${String(reelProbe.nonIncreasingIntervals)} duplicated or non-increasing presentation timestamps.`,
+    );
+  }
+  if (
+    !Number.isFinite(reelProbe.fps) ||
+    reelProbe.fps < manifest.minimumMeasuredCaptureFps ||
+    reelProbe.fps > manifest.maximumMeasuredCaptureFps
+  ) {
+    throw new Error(
+      `${reelPath} decodes at ${reelProbe.fps.toFixed(2)} fps; expected source-paced 59-61 fps reel output.`,
+    );
+  }
+  if (reelProbe.pacedIntervalRatio < manifest.minimumPacedIntervalRatio) {
+    throw new Error(
+      `${reelPath} has only ${(reelProbe.pacedIntervalRatio * 100).toFixed(1)}% of frame intervals in the native pacing window.`,
     );
   }
 
@@ -506,7 +642,7 @@ const pagesBase = process.env.SHOWCASE_BASE_URL ?? "https://xtreemze.github.io/t
 const markdown = [
   "## Lūm showcase",
   "",
-  "These assets are generated from the real Chromium application exercised by CI. Motion capture targets 60 fps by sampling the headed Xvfb framebuffer directly. CI requires at least 59 decoded raw WebM frames per second and at least 59 browser animation frames per second before publication encoding; animated WebP and highlight reels are then independently verified for 60 fps cadence. Static states use source-resolution PNG screenshots.",
+  "These assets are generated from the real Chromium application exercised by CI. Motion must be display-paced at native 60 fps: browser animation timing and raw X11 capture must both remain within 59–61 fps, at least 95% of frame intervals must stay within 12–22 ms, and publication preserves source timestamps instead of manufacturing cadence with FFmpeg frame-rate normalization. Static states use source-resolution PNG screenshots.",
   "",
   ...formFactors.flatMap((formFactor) => [
     `### ${formFactor === "desktop" ? "Desktop" : "Mobile"}`,

@@ -7,8 +7,14 @@ import { expect, test } from "@playwright/test";
 const OUTPUT_ROOT = path.resolve(process.env.E2E_MEDIA_DIR ?? "artifacts/e2e-media");
 const CAPTURE_FPS = 60;
 const MIN_CAPTURE_FPS = CAPTURE_FPS - 1;
+const MAX_CAPTURE_FPS = CAPTURE_FPS + 1;
+const MIN_PACED_INTERVAL_SECONDS = 0.012;
+const MAX_PACED_INTERVAL_SECONDS = 0.022;
+const MIN_PACED_INTERVAL_RATIO = 0.95;
 const FFMPEG = process.env.FFMPEG_BIN ?? "ffmpeg";
 const FFPROBE = process.env.FFPROBE_BIN ?? "ffprobe";
+const X11_DISPLAY_WIDTH = Number.parseInt(process.env.SHOWCASE_X11_WIDTH ?? "1920", 10);
+const X11_DISPLAY_HEIGHT = Number.parseInt(process.env.SHOWCASE_X11_HEIGHT ?? "1080", 10);
 
 type FormFactor = "desktop" | "mobile";
 
@@ -19,6 +25,8 @@ type CaptureGeometry = {
   height: number;
   screenWidth: number;
   screenHeight: number;
+  displayWidth: number;
+  displayHeight: number;
   screenX: number;
   screenY: number;
   outerWidth: number;
@@ -30,13 +38,19 @@ type CaptureGeometry = {
 type CaptureStats = {
   requestedFps: number;
   minimumFps: number;
+  maximumFps: number;
   capturedFrames: number;
   capturedDurationSeconds: number;
   measuredFps: number;
   browserFrames: number;
   browserDurationSeconds: number;
   browserFps: number;
-  codec: "vp8";
+  capturedMaxIntervalSeconds: number;
+  browserMaxIntervalSeconds: number;
+  capturedPacedIntervalRatio: number;
+  browserPacedIntervalRatio: number;
+  browserResponsiveIntervalRatio: number;
+  codec: "h264";
   geometry: CaptureGeometry;
   timestamps: number[];
   browserTimestamps: number[];
@@ -171,18 +185,20 @@ async function probeFrameTimestamps(filePath: string) {
     "-show_entries",
     "frame=best_effort_timestamp_time",
     "-of",
-    "csv=p=0",
+    "json",
     filePath,
   ]);
-  return stdout
-    .split(/\r?\n/u)
-    .map((value) => Number(value.trim()))
+  const parsed = JSON.parse(stdout) as {
+    frames?: Array<{ best_effort_timestamp_time?: string }>;
+  };
+  return (parsed.frames ?? [])
+    .map((frame) => Number(frame.best_effort_timestamp_time))
     .filter((value) => Number.isFinite(value));
 }
 
-function measureTimestamps(timestamps: number[], scale = 1) {
+function measureTimestamps(timestamps: number[], scale = 1, label = "Showcase motion capture") {
   if (timestamps.length < 2) {
-    throw new Error("Showcase motion capture produced fewer than two timing samples");
+    throw new Error(`${label} produced fewer than two timing samples`);
   }
   const firstTimestamp = timestamps[0];
   const lastTimestamp = timestamps.at(-1);
@@ -192,16 +208,42 @@ function measureTimestamps(timestamps: number[], scale = 1) {
     !Number.isFinite(firstTimestamp) ||
     !Number.isFinite(lastTimestamp)
   ) {
-    throw new Error("Showcase motion capture did not provide usable timestamps");
+    throw new Error(`${label} did not provide usable timestamps`);
   }
+
+  let maxIntervalSeconds = 0;
+  let pacedIntervals = 0;
+  let responsiveIntervals = 0;
+  for (let index = 1; index < timestamps.length; index += 1) {
+    const previous = timestamps[index - 1];
+    const current = timestamps[index];
+    if (previous === undefined || current === undefined || current <= previous) {
+      throw new Error(
+        `${label} contains a duplicated or non-increasing timestamp at frame ${String(index + 1)}`,
+      );
+    }
+    const intervalSeconds = (current - previous) / scale;
+    maxIntervalSeconds = Math.max(maxIntervalSeconds, intervalSeconds);
+    if (
+      intervalSeconds >= MIN_PACED_INTERVAL_SECONDS &&
+      intervalSeconds <= MAX_PACED_INTERVAL_SECONDS
+    ) {
+      pacedIntervals += 1;
+    }
+    if (intervalSeconds <= MAX_PACED_INTERVAL_SECONDS) responsiveIntervals += 1;
+  }
+
   const durationSeconds = (lastTimestamp - firstTimestamp) / scale;
   if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) {
-    throw new Error("Showcase motion capture duration is invalid");
+    throw new Error(`${label} duration is invalid`);
   }
   return {
     frames: timestamps.length,
     durationSeconds,
     fps: (timestamps.length - 1) / durationSeconds,
+    maxIntervalSeconds,
+    pacedIntervalRatio: pacedIntervals / (timestamps.length - 1),
+    responsiveIntervalRatio: responsiveIntervals / (timestamps.length - 1),
   };
 }
 
@@ -209,7 +251,16 @@ async function captureGeometry(
   page: Page,
   captureSize: { width: number; height: number },
 ): Promise<CaptureGeometry> {
-  const geometry = await page.evaluate(() => {
+  if (
+    !Number.isInteger(X11_DISPLAY_WIDTH) ||
+    !Number.isInteger(X11_DISPLAY_HEIGHT) ||
+    X11_DISPLAY_WIDTH <= 0 ||
+    X11_DISPLAY_HEIGHT <= 0
+  ) {
+    throw new Error("Showcase X11 display dimensions are invalid");
+  }
+
+  const browserGeometry = await page.evaluate(() => {
     const horizontalInset = Math.max(0, Math.round((window.outerWidth - window.innerWidth) / 2));
     const topInset = Math.max(
       0,
@@ -230,6 +281,11 @@ async function captureGeometry(
       innerHeight: window.innerHeight,
     };
   });
+  const geometry: CaptureGeometry = {
+    ...browserGeometry,
+    displayWidth: X11_DISPLAY_WIDTH,
+    displayHeight: X11_DISPLAY_HEIGHT,
+  };
 
   if (geometry.innerWidth !== captureSize.width || geometry.innerHeight !== captureSize.height) {
     throw new Error(
@@ -239,11 +295,11 @@ async function captureGeometry(
   if (
     geometry.x < 0 ||
     geometry.y < 0 ||
-    geometry.x + geometry.width > geometry.screenWidth ||
-    geometry.y + geometry.height > geometry.screenHeight
+    geometry.x + geometry.width > geometry.displayWidth ||
+    geometry.y + geometry.height > geometry.displayHeight
   ) {
     throw new Error(
-      `Showcase X11 capture region ${String(geometry.x)},${String(geometry.y)} ${String(geometry.width)}x${String(geometry.height)} exceeds ${String(geometry.screenWidth)}x${String(geometry.screenHeight)} display`,
+      `Showcase X11 capture region ${String(geometry.x)},${String(geometry.y)} ${String(geometry.width)}x${String(geometry.height)} exceeds physical ${String(geometry.displayWidth)}x${String(geometry.displayHeight)} display`,
     );
   }
   return geometry;
@@ -296,25 +352,23 @@ async function startX11Capture(videoPath: string, geometry: CaptureGeometry) {
     `${String(geometry.width)}x${String(geometry.height)}`,
     "-draw_mouse",
     "0",
-    "-use_wallclock_as_timestamps",
-    "1",
     "-i",
     `${display}+${String(geometry.x)},${String(geometry.y)}`,
     "-an",
     "-c:v",
-    "libvpx",
-    "-deadline",
-    "realtime",
-    "-cpu-used",
-    "8",
+    "libx264",
+    "-preset",
+    "ultrafast",
+    "-tune",
+    "zerolatency",
     "-threads",
-    "4",
+    "2",
     "-crf",
-    "12",
-    "-b:v",
-    "0",
+    "18",
     "-pix_fmt",
     "yuv420p",
+    "-enc_time_base",
+    "demux",
     "-fps_mode",
     "passthrough",
     videoPath,
@@ -353,30 +407,46 @@ async function persistMeasuredCapture(
   geometry: CaptureGeometry,
 ) {
   const timestamps = await probeFrameTimestamps(videoPath);
-  const captured = measureTimestamps(timestamps);
-  if (captured.fps < MIN_CAPTURE_FPS) {
+  const captured = measureTimestamps(timestamps, 1, "Showcase raw X11 Matroska");
+  if (captured.fps < MIN_CAPTURE_FPS || captured.fps > MAX_CAPTURE_FPS) {
     throw new Error(
-      `Showcase raw X11 WebM decoded ${String(captured.frames)} actual frames across ${captured.durationSeconds.toFixed(3)}s (${captured.fps.toFixed(2)} fps); expected at least ${MIN_CAPTURE_FPS.toFixed(2)} fps before publication encoding.`,
+      `Showcase raw X11 Matroska decoded ${String(captured.frames)} actual frames across ${captured.durationSeconds.toFixed(3)}s (${captured.fps.toFixed(2)} fps); expected native ${MIN_CAPTURE_FPS.toFixed(2)}-${MAX_CAPTURE_FPS.toFixed(2)} fps before publication encoding.`,
+    );
+  }
+  if (captured.pacedIntervalRatio < MIN_PACED_INTERVAL_RATIO) {
+    throw new Error(
+      `Showcase raw X11 Matroska has only ${(captured.pacedIntervalRatio * 100).toFixed(1)}% of frame intervals in the native ${String(MIN_PACED_INTERVAL_SECONDS * 1000)}-${String(MAX_PACED_INTERVAL_SECONDS * 1000)} ms pacing window; expected at least ${String(MIN_PACED_INTERVAL_RATIO * 100)}%.`,
     );
   }
 
-  const browser = measureTimestamps(browserTimestamps, 1000);
+  const browser = measureTimestamps(browserTimestamps, 1000, "Showcase browser animation clock");
   if (browser.fps < MIN_CAPTURE_FPS) {
     throw new Error(
       `Showcase browser scheduled ${String(browser.frames)} animation frames across ${browser.durationSeconds.toFixed(3)}s (${browser.fps.toFixed(2)} fps); expected at least ${MIN_CAPTURE_FPS.toFixed(2)} fps while recording.`,
+    );
+  }
+  if (browser.responsiveIntervalRatio < MIN_PACED_INTERVAL_RATIO) {
+    throw new Error(
+      `Showcase browser animation clock has only ${(browser.responsiveIntervalRatio * 100).toFixed(1)}% of frame intervals at or below ${String(MAX_PACED_INTERVAL_SECONDS * 1000)} ms; expected at least ${String(MIN_PACED_INTERVAL_RATIO * 100)}% so uncapped rendering cannot hide frame stalls.`,
     );
   }
 
   const stats: CaptureStats = {
     requestedFps: CAPTURE_FPS,
     minimumFps: MIN_CAPTURE_FPS,
+    maximumFps: MAX_CAPTURE_FPS,
     capturedFrames: captured.frames,
     capturedDurationSeconds: captured.durationSeconds,
     measuredFps: captured.fps,
     browserFrames: browser.frames,
     browserDurationSeconds: browser.durationSeconds,
     browserFps: browser.fps,
-    codec: "vp8",
+    capturedMaxIntervalSeconds: captured.maxIntervalSeconds,
+    browserMaxIntervalSeconds: browser.maxIntervalSeconds,
+    capturedPacedIntervalRatio: captured.pacedIntervalRatio,
+    browserPacedIntervalRatio: browser.pacedIntervalRatio,
+    browserResponsiveIntervalRatio: browser.responsiveIntervalRatio,
+    codec: "h264",
     geometry,
     timestamps,
     browserTimestamps,
@@ -431,7 +501,7 @@ async function recordSegment(
 ): Promise<ShowcaseSegment> {
   const rawDir = path.join(OUTPUT_ROOT, "raw", formFactor);
   await mkdir(rawDir, { recursive: true });
-  const videoPath = path.join(rawDir, `${scene.name}.webm`);
+  const videoPath = path.join(rawDir, `${scene.name}.mkv`);
   const screenshotPath = path.join(rawDir, `${scene.name}.png`);
 
   if (scene.mediaMode === "motion") {
@@ -658,6 +728,10 @@ test("records source-native Lūm showcase media per form factor", async ({ page 
         captureViewport: settings.size,
         captureFps: CAPTURE_FPS,
         minimumMeasuredCaptureFps: MIN_CAPTURE_FPS,
+        maximumMeasuredCaptureFps: MAX_CAPTURE_FPS,
+        minimumPacedIntervalSeconds: MIN_PACED_INTERVAL_SECONDS,
+        maximumPacedIntervalSeconds: MAX_PACED_INTERVAL_SECONDS,
+        minimumPacedIntervalRatio: MIN_PACED_INTERVAL_RATIO,
         transitionSeconds: 0.28,
         stillSeconds: 0.9,
         motionSceneCount: segments.filter((segment) => segment.mediaMode === "motion").length,
