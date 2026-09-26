@@ -1,3 +1,5 @@
+import "../investigation-workspace.css";
+
 export interface InvestigationMethod {
   readonly id: string;
   readonly name: string;
