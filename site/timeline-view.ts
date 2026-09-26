@@ -245,6 +245,12 @@ function committedLaneLimit(
   return MAX_COMMITTED_LANES;
 }
 
+function fallbackLaneIndex(id: string, maxLanes: number): number {
+  const capacity = Math.max(1, Math.trunc(Number(maxLanes)) || 1);
+  const stableIndex = Math.max(0, Math.abs(stableLane(id, null)) - 1);
+  return Math.min(capacity - 1, stableIndex);
+}
+
 function normalizeWheelDelta(
   event: Pick<WheelEvent, "deltaY" | "deltaMode" | "ctrlKey">,
   pageLength: number,
@@ -2236,13 +2242,17 @@ export class TimelineViewController {
     ].join("\u0003");
   }
 
-  laneIndexFor(item: TimelineItem): number {
+  laneIndexFor(item: TimelineItem, fallbackLaneCount = MAX_COMMITTED_LANES): number {
     if (Number.isInteger(item.lane)) {
       return Math.max(0, Math.abs(Number(item.lane)) - 1);
     }
     const laneIndex = this.committedLayout.lanes[item.id];
     if (Number.isInteger(laneIndex)) return Math.max(0, Number(laneIndex));
-    return Math.max(0, Math.abs(stableLane(item.id, null)) - 1);
+
+    // Retained overscan records can exist before they join the committed
+    // viewport plan. Keep their deterministic fallback inside the same compact
+    // lane budget used by visible cards.
+    return fallbackLaneIndex(item.id, fallbackLaneCount);
   }
 
   visualLaneFor(item: TimelineItem): number {
@@ -2978,7 +2988,7 @@ export class TimelineViewController {
 
   positionRecord(
     record: SceneRecord,
-    _primaryLength: number,
+    primaryLength: number,
     axisCross: number,
     padding: number,
     usable: number,
@@ -2994,8 +3004,8 @@ export class TimelineViewController {
       visibleIntervalAnchor(item, this.renderWindow, anchorRatio) ??
       item.start;
     const primary = coordinate(anchor);
-    const laneIndex = this.laneIndexFor(item);
-    const lane = this.visualLaneFor(item);
+    const fallbackLaneCount = committedLaneLimit(this.orientation, crossExtent, primaryLength);
+    const laneIndex = this.laneIndexFor(item, fallbackLaneCount);
     const clusterId = this.committedClusterByItem.get(item.id);
     const hiddenByCluster = Boolean(clusterId) && item.id !== this.focusedId;
     if (node.hidden !== hiddenByCluster) node.hidden = hiddenByCluster;
@@ -3741,6 +3751,7 @@ export const TimelineView = Object.freeze({
     selectEdgeAccents,
     axisCrossFromCss,
     committedLaneLimit,
+    fallbackLaneIndex,
     timelineViewportCenter,
     adjacentTimelineItem,
   }),
