@@ -280,6 +280,16 @@ test("committed temporal anchor changes preserve exact Deck presentation for for
   const forceAlice = latestScene.nodes.find((node) => node.canonicalId === "alice");
   assert.equal(forceAlice.initialEastMeters, afterAlice.localOffset.eastMeters);
   assert.equal(forceAlice.initialNorthMeters, afterAlice.localOffset.northMeters);
+  assert.equal(forceAlice.initialVisualAltitudeMeters, afterAlice.visualAltitude);
+  assert.equal(
+    forceAlice.targetVisualAltitudeMeters,
+    next.instances.find((instance) => instance.canonicalId === "alice").visualAltitude,
+  );
+  assert.notEqual(
+    forceAlice.initialVisualAltitudeMeters,
+    forceAlice.targetVisualAltitudeMeters,
+    "continuity altitude must seed the force without replacing the committed target",
+  );
 
   const latestDelta = calls.filter(([name]) => name === "surface:delta").at(-1)?.[1];
   const handoffAlice = latestDelta.updatedInstances.find(
