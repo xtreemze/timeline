@@ -21,6 +21,11 @@ import { TimelineGraphInference } from "./graph-inference.ts";
 import { TimelineInterchangeAdapter } from "./interchange-adapter.ts";
 import { TimelineSpatial } from "./spatial.ts";
 import {
+  createInvestigationWorkspace,
+  type InvestigationFocusTarget,
+  type InvestigationWorkspaceController,
+} from "./ui/investigation-workspace.ts";
+import {
   addItemToStory,
   auditStoryAuthoring,
   reconcileStoryContext,
@@ -621,8 +626,10 @@ const ui = {
   mode: "view",
   editorOpen: false,
   browserOpen: false,
+  investigationOpen: false,
   collapsedCategoryIds: new Set(state.categories.map((category) => category.id)),
 };
+let investigationWorkspace: InvestigationWorkspaceController | null = null;
 
 function decorateSemanticControls() {
   for (const element of els.semanticIconTargets) {
@@ -1552,6 +1559,7 @@ function syncApplicationSurfaces() {
     els.appShell.dataset.mode = ui.mode;
     els.appShell.dataset.editorOpen = String(ui.editorOpen);
     els.appShell.dataset.browserOpen = String(ui.browserOpen);
+    els.appShell.dataset.investigationOpen = String(ui.investigationOpen);
     els.appShell.dataset.graphOpen = "true";
   }
 
@@ -1563,7 +1571,8 @@ function syncApplicationSurfaces() {
     els.browserSheet.hidden = !ui.browserOpen;
     els.browserSheet.setAttribute("aria-hidden", String(!ui.browserOpen));
   }
-  if (els.presentationStage) els.presentationStage.inert = Boolean(ui.browserOpen || editing);
+  if (els.presentationStage)
+    els.presentationStage.inert = Boolean(ui.browserOpen || ui.investigationOpen || editing);
   if (els.appToolDock) els.appToolDock.inert = false;
   if (els.title) {
     els.title.readOnly = !editing;
@@ -1595,6 +1604,10 @@ function syncApplicationSurfaces() {
 function closeLargeUtilitySurfaces(except = "") {
   if (except !== "editor") ui.editorOpen = false;
   if (except !== "browser") ui.browserOpen = false;
+  if (except !== "investigation") {
+    ui.investigationOpen = false;
+    investigationWorkspace?.setOpen(false);
+  }
 }
 
 function closeFocusedEventForUtility() {
@@ -1651,6 +1664,18 @@ function setBrowserSurfaceOpen(open) {
       (firstStory || firstCategory || els.search)?.focus({ preventScroll: true });
     });
   }
+}
+
+function setInvestigationSurfaceOpen(open) {
+  if (ui.mode === "edit") return;
+  ui.investigationOpen = Boolean(open);
+  if (ui.investigationOpen) {
+    closeLargeUtilitySurfaces("investigation");
+    closeProjectMenu();
+    closeFocusedEventForUtility();
+  }
+  investigationWorkspace?.setOpen(ui.investigationOpen);
+  syncApplicationSurfaces();
 }
 
 function setActivePanel(name, { open = true } = {}) {
@@ -5452,6 +5477,69 @@ const agentApi = Object.freeze({
 });
 
 globalThis.TimelineAgentAPI = agentApi;
+
+function investigationExternalIds(): string[] {
+  return [
+    ...state.items.map((record) => record.id),
+    ...state.evidence.map((record) => record.id),
+    ...state.relationships.map((record) => record.id),
+    ...state.places.map((record) => record.id),
+    ...state.stories.map((record) => record.id),
+    ...state.categories.map((record) => record.id),
+  ];
+}
+
+function reasoningRecordStringList(record: Record<string, unknown> | undefined, key: string) {
+  const value = record?.[key];
+  return Array.isArray(value)
+    ? value.filter((entry): entry is string => typeof entry === "string" && Boolean(entry.trim()))
+    : [];
+}
+
+function focusInvestigationTarget(target: InvestigationFocusTarget) {
+  if (target.kind === "entity") {
+    setInvestigationSurfaceOpen(false);
+    temporalGraphView?.focusEntity?.(target.id as never);
+    showStatus(`Focused entity ${target.id}.`);
+    return;
+  }
+
+  const itemIds = reasoningRecordStringList(target.record, "itemIds");
+  const evidenceIds = reasoningRecordStringList(target.record, "evidenceIds");
+  const item =
+    itemIds.map(getItem).find(isTimelineItem) ||
+    state.items.find((candidate) =>
+      evidenceIds.some((evidenceId) => candidate.evidenceIds?.includes(evidenceId)),
+    );
+  if (item) {
+    setInvestigationSurfaceOpen(false);
+    timelineView?.focusItem(item.id);
+    showStatus(`Focused ${item.title || item.id} from the investigation workspace.`);
+    return;
+  }
+  showStatus(`Reasoning record ${target.id} has no direct timeline/world target yet.`);
+}
+
+function applyInvestigationReasoning(nextReasoning: Record<string, unknown>, status: string) {
+  state.reasoning = caseReasoning.normalizeReasoning(nextReasoning);
+  persist();
+  renderAll();
+  investigationWorkspace?.render();
+  showStatus(status);
+}
+
+investigationWorkspace = createInvestigationWorkspace({
+  shell: els.appShell,
+  footerActions: requiredElement<HTMLElement>(".app-footer-actions"),
+  reasoningApi: caseReasoning,
+  createIcon: (name, options) => presentation.createIcon(name, options),
+  getReasoning: () => state.reasoning,
+  getEntityIds: () => state.entities.map((record) => record.id),
+  getExternalIds: investigationExternalIds,
+  onRequestOpen: setInvestigationSurfaceOpen,
+  onCommit: applyInvestigationReasoning,
+  onFocus: focusInvestigationTarget,
+});
 
 async function importProjectFile(file: File, statusPrefix = "Imported"): Promise<boolean> {
   try {
