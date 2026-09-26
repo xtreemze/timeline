@@ -57,19 +57,116 @@ function weightedGlobeEasing(progress: number): number {
   return (1 - Math.exp(-WEIGHTED_GLOBE_DECAY * t)) * WEIGHTED_GLOBE_NORMALIZATION;
 }
 
+type GlobeControllerEvent = Parameters<
+  InstanceType<typeof GlobeController>["handleEvent"]
+>[0];
+
+interface TouchBearingConstraintState {
+  bearing: number | null;
+  singleTouchPan: boolean;
+  awaitingTransitionEnd: boolean;
+  inTransition: boolean;
+}
+
+function pointerTypeForGlobeEvent(event: GlobeControllerEvent): string | undefined {
+  const candidate = event as GlobeControllerEvent & {
+    readonly pointerType?: unknown;
+    readonly srcEvent?: { readonly pointerType?: unknown };
+  };
+  if (typeof candidate.pointerType === "string") return candidate.pointerType;
+  return typeof candidate.srcEvent?.pointerType === "string"
+    ? candidate.srcEvent.pointerType
+    : undefined;
+}
+
 /**
- * deck.gl already owns globe keyboard/pointer recognition. Override only its
- * discrete keyboard transition physics so arrows use the same duration and
- * exponential-friction character as direct globe release inertia.
+ * deck.gl owns globe gesture recognition and weighted fling physics. Lūm adds
+ * one mobile geographic convention: a one-finger touch pan may change
+ * longitude/latitude, but it must not introduce camera roll. Preserve the
+ * bearing present at touch-down through direct manipulation and any resulting
+ * inertia transition. Explicit two-finger rotation, mouse rotation and
+ * keyboard rotation remain untouched.
  */
 class TimelineWeightedGlobeController extends GlobeController {
-  constructor(...args: ConstructorParameters<typeof GlobeController>) {
-    super(...args);
+  readonly #touchBearing: TouchBearingConstraintState;
+
+  constructor(options: ConstructorParameters<typeof GlobeController>[0]) {
+    const touchBearing: TouchBearingConstraintState = {
+      bearing: null,
+      singleTouchPan: false,
+      awaitingTransitionEnd: false,
+      inTransition: false,
+    };
+    const clearTouchBearing = () => {
+      touchBearing.bearing = null;
+      touchBearing.awaitingTransitionEnd = false;
+    };
+
+    super({
+      ...options,
+      onViewStateChange: (parameters) => {
+        const shouldLockBearing =
+          touchBearing.bearing !== null &&
+          (touchBearing.singleTouchPan || touchBearing.awaitingTransitionEnd);
+        options.onViewStateChange({
+          ...parameters,
+          viewState: shouldLockBearing
+            ? { ...parameters.viewState, bearing: touchBearing.bearing }
+            : parameters.viewState,
+        });
+      },
+      onStateChange: (interactionState) => {
+        if (interactionState.inTransition === true) {
+          touchBearing.inTransition = true;
+        } else if (interactionState.inTransition === false) {
+          touchBearing.inTransition = false;
+          if (touchBearing.awaitingTransitionEnd && !touchBearing.singleTouchPan) {
+            clearTouchBearing();
+          }
+        }
+        options.onStateChange(interactionState);
+      },
+    });
+
+    this.#touchBearing = touchBearing;
     this.transition = {
       ...this.transition,
       transitionDuration: TimelineMotion.INERTIA_TAU_MS,
       transitionEasing: weightedGlobeEasing,
     };
+  }
+
+  override handleEvent(event: GlobeControllerEvent): boolean {
+    if (event.type === "panstart") {
+      if (pointerTypeForGlobeEvent(event) === "touch") {
+        const { bearing = 0 } = this.controllerState.getViewportProps();
+        this.#touchBearing.bearing = bearing;
+        this.#touchBearing.singleTouchPan = true;
+        this.#touchBearing.awaitingTransitionEnd = false;
+      } else {
+        this.#touchBearing.bearing = null;
+        this.#touchBearing.singleTouchPan = false;
+        this.#touchBearing.awaitingTransitionEnd = false;
+      }
+    }
+
+    const endsSingleTouchPan =
+      event.type === "panend" && this.#touchBearing.singleTouchPan;
+    if (endsSingleTouchPan) {
+      this.#touchBearing.awaitingTransitionEnd = true;
+    }
+
+    const handled = super.handleEvent(event);
+
+    if (endsSingleTouchPan) {
+      this.#touchBearing.singleTouchPan = false;
+      if (!this.#touchBearing.inTransition) {
+        this.#touchBearing.bearing = null;
+        this.#touchBearing.awaitingTransitionEnd = false;
+      }
+    }
+
+    return handled;
   }
 }
 
