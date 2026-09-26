@@ -25,6 +25,137 @@ Because WebMCP is still preview browser functionality, Timeline feature-detects 
 
 WebMCP is an in-page tool registry, not a backend MCP server. It does not itself open an HTTP/SSE/stdio listener.
 
+## Local LLM host (Ollama)
+
+WebMCP defines the tool surface; an LLM runtime still needs a host that presents those tools to the model and executes requested calls. Lūm includes a browser-local host for Ollama so the active in-browser continuum remains the state authority.
+
+The host reuses `toolDefinitions(agentApi)` directly. It does not maintain a second project copy and it does not create a parallel mutation API. Ollama tool calls are translated back to the canonical `timeline.*` tool definitions, whose existing graph-contract version checks, strict validation, persistence, and rendering remain authoritative.
+
+The browser global is:
+
+```js
+TimelineLocalLLM
+```
+
+Read-only verification is the default:
+
+```js
+await TimelineLocalLLM.runOllama({
+  model: "gpt-oss:20b",
+  prompt: "Audit the current continuum. Read the graph contract and project, then report validation problems.",
+  ollamaOptions: { num_ctx: 32768 },
+});
+```
+
+Mutation tools are not even advertised to the model unless the caller opts in for that run:
+
+```js
+await TimelineLocalLLM.runOllama({
+  model: "gpt-oss:20b",
+  prompt:
+    "Use the extracted evidence already attached to the project to reconcile supported entities and actions. Apply only supported facts, then audit and validate the final project.",
+  allowMutations: true,
+  ollamaOptions: { num_ctx: 32768 },
+});
+```
+
+When mutation access is enabled, the model is instructed to follow the normal authoring workflow: read `timeline.get_graph_contract`, read `timeline.get_project`, reason from evidence, and write through `timeline.apply_transaction` with the exact contract version.
+
+The host does not rely on the model to perform final verification. After the latest mutation and before accepting a final response, it runs `timeline.audit_graph` and `timeline.validate_project` itself. A failed canonical audit or validation aborts the local-agent run. The deterministic runtime also rejects invalid writes at mutation time.
+
+### Ollama setup
+
+Use a model that advertises tool support. Ollama exposes tool calling through its local chat API and recommends larger context windows for MCP/tool-heavy work.
+
+Example:
+
+```bash
+ollama pull gpt-oss:20b
+ollama show gpt-oss:20b
+ollama serve
+```
+
+The browser must be allowed to call the local Ollama origin. For local Vite development, configure Ollama to allow the page origin before starting the server, for example:
+
+```bash
+OLLAMA_ORIGINS=http://localhost:5173 ollama serve
+```
+
+For a deployed Lūm page, use that page's exact origin instead. Do not use a wildcard origin for normal use.
+
+The default endpoint is `http://127.0.0.1:11434/api/chat`. It can be overridden per run with `endpoint`.
+
+The adapter converts MCP names such as `timeline.get_project` to Ollama-safe function names such as `timeline__get_project` only at the model boundary. Canonical WebMCP/MCP tool names are unchanged.
+
+References:
+
+- https://ollama.com/blog/tool-support
+- https://ollama.com/blog/streaming-tool
+- https://ollama.com/blog/building-llm-powered-web-apps
+
+### External MCP clients using Ollama
+
+The local host above is intended for a model served directly by Ollama in the browser workflow. If Ollama is used through an agent application that is already an MCP client (for example an Ollama-launched coding agent), keep using the normal WebMCP-to-MCP bridge path. Lūm does not require that external client to use the local host.
+
+MCP-B and compatible bridges can translate Lūm's `document.modelContext` tools to standard MCP transports for those clients. The canonical tools and validation behavior are the same on both paths.
+
+## Standard MCP clients: Codex, Claude, and ChatGPT
+
+Lūm can expose the exact same live browser tools to ordinary MCP clients through the MCP-B local relay. This is a transport adapter only: the open browser tab remains the canonical project owner, and every relayed mutation still executes the same `timeline.*` implementation and deterministic validators.
+
+The relay integration is opt-in. Lūm does not load third-party MCP-B runtime code during normal browsing. Enable it either by opening Lūm with:
+
+```text
+?mcp-relay=1
+```
+
+or explicitly in the browser console:
+
+```js
+await TimelineMCPRelay.connect();
+```
+
+The bridge pins MCP-B to `5.1.0`. If the browser does not already provide `document.modelContext`, the opt-in bridge first loads the pinned MCP-B WebMCP runtime and then loads the relay embed. Normal Lūm operation remains independent of those scripts.
+
+### Local MCP configuration
+
+The repository includes two equivalent local configurations:
+
+- `.mcp.json` — native/local MCP-client configuration for Claude Code/Desktop and other clients that understand the common `mcpServers` layout;
+- `plugin.json` + `mcp.json` — portable Agent Plugins packaging for clients such as Codex that support the Agent Plugins specification.
+
+Both start the pinned local relay using stdio and restrict browser sources to the Lūm development/preview origins and the GitHub Pages origin:
+
+```json
+{
+  "type": "stdio",
+  "command": "npx",
+  "args": [
+    "-y",
+    "@mcp-b/webmcp-local-relay@5.1.0",
+    "--widget-origin",
+    "http://localhost:5173,http://localhost:4173,https://xtreemze.github.io"
+  ]
+}
+```
+
+The relay binds to loopback and dynamically publishes tools from the open Lūm tab. Use `webmcp_list_sources` and `webmcp_list_tools` from the MCP client to inspect connected tabs and currently available tools.
+
+If Lūm is hosted under another origin, copy the MCP configuration and change the `--widget-origin` allowlist rather than widening it to `*`.
+
+References:
+
+- https://github.com/WebMCP-org/npm-packages/tree/main/packages/webmcp-local-relay
+- https://agent-plugins.org/specification
+
+### ChatGPT chat
+
+ChatGPT web does not attach directly to a localhost/stdio MCP process. For development or private use, run the same local relay and connect it to ChatGPT using OpenAI Secure MCP Tunnel. For a deployed/public integration, expose a Streamable HTTP MCP endpoint over HTTPS instead.
+
+In ChatGPT, the user-facing integration should be treated as a **custom MCP app/plugin**. Current OpenAI packaging supports plugins that combine MCP configuration and optional skills, and ChatGPT and Codex share the plugin directory. The repository's portable `plugin.json` is therefore the local/package identity for Lūm, but the bundled local stdio relay is not itself suitable for public ChatGPT submission: public distribution requires a stable remote HTTPS MCP endpoint.
+
+The existing Lūm write annotations and graph-contract checks remain authoritative regardless of client. ChatGPT may add its own confirmation step for consequential/write actions; that confirmation is additional UX, not a replacement for Lūm validation.
+
 ## Registered Timeline tools
 
 Timeline registers eight tools.
