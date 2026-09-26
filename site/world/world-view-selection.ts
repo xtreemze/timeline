@@ -9,6 +9,7 @@ export interface CompatibleSpatialView {
   hasContext?(): boolean;
   fitContext?(): boolean;
   zoomContext?(): boolean;
+  focusEntity?(id: string): void;
   refreshLayout?(): void;
   getCamera?(): WorldCameraState;
   destroy?(): void;
