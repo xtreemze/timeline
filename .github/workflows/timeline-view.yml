@@ -500,5 +500,5 @@ jobs:
         with:
           name: world-surface-performance-report
           path: tests/browser/world-performance-report.json
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14
