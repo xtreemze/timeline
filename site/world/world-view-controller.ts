@@ -17,6 +17,7 @@ import {
   createWorldForceScene,
   type WorldForceScenePolicy,
 } from "../../src/layout/world-force-scene.ts";
+import { preserveWorldProjectionRenderContinuity } from "../../src/layout/world-geographic-position.ts";
 import {
   createWorldSimulationCoordinator,
   type WorldForceSimulationBackend,
@@ -116,19 +117,34 @@ export class WorldViewRuntimeController {
 
   setProjection(projection: WorldProjection): void {
     this.#assertAlive();
-    const previous = this.#sourceProjection;
+
+    // Materialize the currently rendered force state only at a committed
+    // projection boundary. Timeline scrubbing/previews never call this path.
+    const previous = this.#sourceProjection ? this.getRenderProjection() : null;
+    const renderProjection = previous
+      ? preserveWorldProjectionRenderContinuity(previous, projection)
+      : projection;
+
     this.#sourceProjection = projection;
-    this.#renderProjection = projection;
+    this.#renderProjection = renderProjection;
     this.#sourceInstances = new Map(
       projection.instances.map((instance) => [instance.id, instance] as const),
     );
-    this.#renderOverrides.clear();
+    this.#renderOverrides = new Map(
+      renderProjection.instances.flatMap((instance) => {
+        const source = this.#sourceInstances.get(instance.id);
+        return source && source !== instance ? [[instance.id, instance] as const] : [];
+      }),
+    );
     this.#renderProjectionDirty = false;
     this.#projectionRevision += 1;
 
+    // Seed force from the same continuity-preserving projection that reaches
+    // the renderer. The first visible committed frame and the first physics
+    // frame therefore share one position instead of producing a one-frame snap.
     const forceScene = this.#forcePolicy
-      ? createWorldForceScene(projection, this.#forcePolicy)
-      : createWorldForceScene(projection);
+      ? createWorldForceScene(renderProjection, this.#forcePolicy)
+      : createWorldForceScene(renderProjection);
     this.#forceBackend.setScene(forceScene);
     this.#surface.setRelationshipRoutes?.(forceScene.relationshipRoutes ?? Object.freeze([]));
     this.#simulation.request({
@@ -138,12 +154,12 @@ export class WorldViewRuntimeController {
     });
 
     if (previous && this.#surface.applyProjectionDelta) {
-      const delta = diffWorldProjection(previous, projection);
+      const delta = diffWorldProjection(previous, renderProjection);
       if (!isEmptyWorldProjectionDelta(delta)) this.#surface.applyProjectionDelta(delta);
       return;
     }
 
-    this.#surface.setProjection(projection);
+    this.#surface.setProjection(renderProjection);
   }
 
   setTemporalWindow(window: WorldTemporalWindow): void {
