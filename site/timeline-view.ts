@@ -223,10 +223,16 @@ function axisCrossFromCss(
   return fallback;
 }
 
-function committedLaneLimit(orientation: Orientation, crossExtent: number): number {
+function committedLaneLimit(
+  orientation: Orientation,
+  crossExtent: number,
+  primaryExtent: number,
+): number {
   if (
     orientation === "horizontal" &&
     Number.isFinite(crossExtent) &&
+    Number.isFinite(primaryExtent) &&
+    primaryExtent < 700 &&
     crossExtent < COMPACT_HORIZONTAL_RAIL_MAX_PX
   ) {
     return COMPACT_HORIZONTAL_MAX_LANES;
@@ -2313,7 +2319,7 @@ export class TimelineViewController {
       viewport: this.viewport,
       occurrences,
       pixelLength: usable,
-      maxLanes: committedLaneLimit(this.orientation, crossExtent),
+      maxLanes: committedLaneLimit(this.orientation, crossExtent, primaryLength),
       clusterThresholds: {
         enterPx: CLUSTER_ENTER_PX,
         exitPx: CLUSTER_EXIT_PX,
