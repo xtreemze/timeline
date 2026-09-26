@@ -142,7 +142,13 @@ export function createWorldTouchDragArbiter() {
 
     claim(pointerId: number, now: number): boolean {
       if (ownerPointerId !== null) return ownerPointerId === pointerId;
-      if (candidatePointerId !== pointerId || !hold.isArmed(pointerId, now)) return false;
+      if (
+        disposition !== "ready" ||
+        candidatePointerId !== pointerId ||
+        !hold.isArmed(pointerId, now)
+      ) {
+        return false;
+      }
 
       hold.commit(pointerId);
       ownerPointerId = pointerId;
