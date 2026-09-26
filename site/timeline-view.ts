@@ -1134,9 +1134,15 @@ export class TimelineViewController {
       this.viewportInitialized = true;
     }
 
+    const requestedFocusItem = options.focusId
+      ? this.items.find((item) => item.id === options.focusId) || null
+      : null;
+    const revealRequestedFocus =
+      requestedFocusItem !== null && !itemOverlapsViewport(requestedFocusItem, this.viewport);
+
     this.focusedId =
-      options.focusId && this.items.some((item) => item.id === options.focusId)
-        ? options.focusId
+      requestedFocusItem
+        ? requestedFocusItem.id
         : this.focusedId && this.items.some((item) => item.id === this.focusedId)
           ? this.focusedId
           : null;
@@ -1150,7 +1156,9 @@ export class TimelineViewController {
     this.render();
     this.emitViewport(true);
 
-    if (options.focusId) this.focusItem(options.focusId, { moveViewport: false });
+    if (requestedFocusItem) {
+      this.focusItem(requestedFocusItem.id, { moveViewport: revealRequestedFocus });
+    }
   }
 
   semanticChronologyLabel(item: TimelineItem): string {

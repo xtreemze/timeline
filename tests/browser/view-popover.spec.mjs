@@ -38,6 +38,34 @@ test("Browse keeps persistent View controls available", async ({ page }) => {
   await expect(toolbar.locator("#timeline-orientation-toggle")).toBeEnabled();
 });
 
+test("Browse opens an example story into visible timeline context", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator("#timeline-browser-toggle").click();
+
+  const browser = page.locator("#timeline-browser-sheet");
+  const storyCards = browser.locator(".browser-story-card");
+  await expect(storyCards.first()).toBeVisible();
+  expect(await storyCards.count()).toBeGreaterThanOrEqual(3);
+
+  const story = storyCards.last();
+  const title = (await story.locator("strong").textContent())?.trim() || "";
+  expect(title).not.toBe("");
+  await story.click();
+
+  await expect(browser).toBeHidden();
+  await expect(page.locator("#timeline-browser-toggle")).toHaveAttribute("aria-expanded", "false");
+  await expect(page.locator("#presentation-stage")).not.toHaveAttribute("inert", "");
+  await expect(page.locator("#story-focus")).toBeVisible();
+  await expect(page.locator("#story-focus-title")).toHaveText(title);
+  await expect
+    .poll(() =>
+      page
+        .locator(".timeline-event:not(.timeline-cluster) .timeline-event-terminal:visible")
+        .count(),
+    )
+    .toBeGreaterThan(0);
+});
+
 test("Edit leaves View in the toolbar but disables conflicting View controls", async ({ page }) => {
   const toolbar = page.locator(viewToolbar);
 
