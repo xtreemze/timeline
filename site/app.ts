@@ -37,6 +37,7 @@ import {
   storyIdsForItem,
 } from "./story-authoring.js";
 // Import ESM modules
+import "./components/timeline-element.ts";
 import { TimelineTemporal } from "./temporal-standards.ts";
 import { TimelineView } from "./timeline-view.ts";
 import { createSettledTemporalWindowSink } from "./world/settled-temporal-window.ts";
