@@ -35,68 +35,39 @@ function overlap(a: Rect, b: Rect) {
 
 test.describe("Narrow mobile screen contracts", () => {
   test("fresh bundled sample initializes the timeline controller", async ({ page }) => {
-    const runtimeMessages: string[] = [];
-    page.on("console", (message) => {
-      if (message.type() === "error" || message.type() === "warning") {
-        runtimeMessages.push(`${message.type()}: ${message.text()}`);
-      }
-    });
-    page.on("pageerror", (error) => runtimeMessages.push(`pageerror: ${error.message}`));
+    const pageErrors: string[] = [];
+    page.on("pageerror", (error) => pageErrors.push(error.message));
+
     await page.setViewportSize(NARROW_PORTRAIT);
     await page.goto("/");
     await expect(page.locator("#timeline-view")).toBeVisible();
 
-    const diagnostic = await page.evaluate(() => {
-      const sample = globalThis.TimelineSampleCase;
+    const counts = await page.evaluate(() => {
       const project = globalThis.TimelineAgentAPI?.getProject?.();
       const root = document.querySelector("#timeline-view");
       const view = root instanceof HTMLElement ? globalThis.TimelineView?.create(root) : null;
-      const validation = sample ? globalThis.TimelineAgentAPI?.validateProject?.(sample) : null;
       return {
-        sample: {
-          items: sample?.items?.length ?? -1,
-          stories: sample?.stories?.length ?? -1,
-          relationships: sample?.relationships?.length ?? -1,
-        },
-        project: {
-          title: project?.title ?? "",
-          items: project?.items?.length ?? -1,
-          stories: project?.stories?.length ?? -1,
-          relationships: project?.relationships?.length ?? -1,
-        },
-        validation,
-        controller: {
-          items: view?.items?.length ?? -1,
-          viewport: view?.getViewport?.() ?? null,
-          scene: view?.scene?.size ?? -1,
-          dataEmpty: root instanceof HTMLElement ? root.dataset.empty ?? "" : "",
-          elementOwnsController:
-            root instanceof HTMLElement && "controller" in root
-              ? Reflect.get(root, "controller") === view
-              : false,
-        },
-        browser: {
-          visibleCount: document.querySelector("#visible-count")?.textContent ?? "",
-          itemCount: document.querySelector("#item-count")?.textContent ?? "",
-          title: (document.querySelector("#timeline-title") as HTMLInputElement | null)?.value ?? "",
-        },
-        dom: {
-          events: document.querySelectorAll(".timeline-event").length,
-          buffered: document.querySelectorAll(".timeline-event.is-buffered").length,
-          terminals: document.querySelectorAll(".timeline-event-terminal").length,
-        },
+        projectItems: project?.items?.length ?? 0,
+        controllerItems: view?.items?.length ?? 0,
       };
     });
+    expect(counts.projectItems).toBeGreaterThan(0);
+    expect(counts.controllerItems).toBe(counts.projectItems);
 
-    console.log(
-      "BUNDLED_SAMPLE_DIAGNOSTIC",
-      JSON.stringify({ ...diagnostic, runtimeMessages }),
-    );
-    expect(diagnostic.sample.items).toBeGreaterThan(0);
-    expect(diagnostic.project.items).toBeGreaterThan(0);
-    expect(diagnostic.controller.items).toBeGreaterThan(0);
-    expect(diagnostic.dom.events).toBeGreaterThan(0);
-    expect(diagnostic.dom.buffered).toBeLessThan(diagnostic.dom.events);
+    const surface = page.locator("#timeline-surface");
+    const terminal = page
+      .locator(".timeline-event:not(.is-buffered) .timeline-event-terminal:visible")
+      .first();
+    await expect(terminal).toBeVisible();
+
+    const [surfaceBox, terminalBox] = await Promise.all([surface.boundingBox(), terminal.boundingBox()]);
+    expect(surfaceBox).not.toBeNull();
+    expect(terminalBox).not.toBeNull();
+    if (!surfaceBox || !terminalBox) throw new Error("Bundled sample timeline has no visible geometry.");
+    const intersection = overlap(surfaceBox, terminalBox);
+    expect(intersection.x).toBeGreaterThan(0);
+    expect(intersection.y).toBeGreaterThan(0);
+    expect(pageErrors).toEqual([]);
   });
   test("portrait event cards remain readable at the screen edge without overlapping", async ({
     page,
