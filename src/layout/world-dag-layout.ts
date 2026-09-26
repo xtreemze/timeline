@@ -516,8 +516,8 @@ function routingDemand(
   nodeIds: readonly WorldInstanceId[],
   edges: readonly LocalDagEdge[],
 ): ReadonlyMap<string, { readonly incoming: number; readonly outgoing: number }> {
-  const demand = new Map(
-    nodeIds.map((id) => [String(id), { incoming: 0, outgoing: 0 }] as const),
+  const demand = new Map<string, { incoming: number; outgoing: number }>(
+    nodeIds.map((id) => [String(id), { incoming: 0, outgoing: 0 }]),
   );
   for (const edge of edges) {
     const source = demand.get(String(edge.sourceId));
