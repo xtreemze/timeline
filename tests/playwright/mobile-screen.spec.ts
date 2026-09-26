@@ -1,9 +1,12 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+type Viewport = { width: number; height: number };
+type Rect = Viewport & { x: number; y: number };
 
 const NARROW_PORTRAIT = { width: 360, height: 780 };
 const NARROW_LANDSCAPE = { width: 780, height: 360 };
 
-async function ensureOrientation(page, orientation: "portrait" | "landscape") {
+async function ensureOrientation(page: Page, orientation: "portrait" | "landscape") {
   const timeline = page.locator("#timeline-view");
   const toggle = page.locator("#timeline-orientation-toggle");
   await expect(timeline).toBeVisible();
@@ -14,7 +17,7 @@ async function ensureOrientation(page, orientation: "portrait" | "landscape") {
   await expect(timeline).toHaveAttribute("data-orientation", orientation);
 }
 
-async function expectNoPageScroll(page, viewport: { width: number; height: number }) {
+async function expectNoPageScroll(page: Page, viewport: Viewport) {
   const dimensions = await page.evaluate(() => ({
     width: document.documentElement.scrollWidth,
     height: document.documentElement.scrollHeight,
@@ -23,7 +26,7 @@ async function expectNoPageScroll(page, viewport: { width: number; height: numbe
   expect(dimensions.height).toBeLessThanOrEqual(viewport.height + 2);
 }
 
-function overlap(a, b) {
+function overlap(a: Rect, b: Rect) {
   return {
     x: Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x),
     y: Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y),
@@ -107,7 +110,7 @@ test.describe("Narrow mobile screen contracts", () => {
       expect(["auto", "scroll"]).toContain(metrics.overflowX);
       expect(metrics.scrollWidth).toBeGreaterThan(metrics.clientWidth);
 
-      const buttons = dock.locator("button");
+      const buttons = dock.locator("button:visible");
       const buttonCount = await buttons.count();
       expect(buttonCount).toBeGreaterThanOrEqual(10);
       for (let index = 0; index < buttonCount; index += 1) {
