@@ -8,6 +8,9 @@ const OUTPUT_ROOT = path.resolve(process.env.E2E_MEDIA_DIR ?? "artifacts/e2e-med
 const CAPTURE_FPS = 60;
 const MIN_CAPTURE_FPS = CAPTURE_FPS - 1;
 const MAX_CAPTURE_FPS = CAPTURE_FPS + 1;
+const MIN_PACED_INTERVAL_SECONDS = 0.012;
+const MAX_PACED_INTERVAL_SECONDS = 0.022;
+const MIN_PACED_INTERVAL_RATIO = 0.95;
 const FFMPEG = process.env.FFMPEG_BIN ?? "ffmpeg";
 const FFPROBE = process.env.FFPROBE_BIN ?? "ffprobe";
 const X11_DISPLAY_WIDTH = Number.parseInt(process.env.SHOWCASE_X11_WIDTH ?? "1920", 10);
@@ -44,6 +47,8 @@ type CaptureStats = {
   browserFps: number;
   capturedMaxIntervalSeconds: number;
   browserMaxIntervalSeconds: number;
+  capturedPacedIntervalRatio: number;
+  browserPacedIntervalRatio: number;
   codec: "h264";
   geometry: CaptureGeometry;
   timestamps: number[];
@@ -179,12 +184,14 @@ async function probeFrameTimestamps(filePath: string) {
     "-show_entries",
     "frame=best_effort_timestamp_time",
     "-of",
-    "csv=p=0",
+    "json",
     filePath,
   ]);
-  return stdout
-    .split(/\r?\n/u)
-    .map((value) => Number(value.trim()))
+  const parsed = JSON.parse(stdout) as {
+    frames?: Array<{ best_effort_timestamp_time?: string }>;
+  };
+  return (parsed.frames ?? [])
+    .map((frame) => Number(frame.best_effort_timestamp_time))
     .filter((value) => Number.isFinite(value));
 }
 
@@ -204,6 +211,7 @@ function measureTimestamps(timestamps: number[], scale = 1, label = "Showcase mo
   }
 
   let maxIntervalSeconds = 0;
+  let pacedIntervals = 0;
   for (let index = 1; index < timestamps.length; index += 1) {
     const previous = timestamps[index - 1];
     const current = timestamps[index];
@@ -212,7 +220,14 @@ function measureTimestamps(timestamps: number[], scale = 1, label = "Showcase mo
         `${label} contains a duplicated or non-increasing timestamp at frame ${String(index + 1)}`,
       );
     }
-    maxIntervalSeconds = Math.max(maxIntervalSeconds, (current - previous) / scale);
+    const intervalSeconds = (current - previous) / scale;
+    maxIntervalSeconds = Math.max(maxIntervalSeconds, intervalSeconds);
+    if (
+      intervalSeconds >= MIN_PACED_INTERVAL_SECONDS &&
+      intervalSeconds <= MAX_PACED_INTERVAL_SECONDS
+    ) {
+      pacedIntervals += 1;
+    }
   }
 
   const durationSeconds = (lastTimestamp - firstTimestamp) / scale;
@@ -224,6 +239,7 @@ function measureTimestamps(timestamps: number[], scale = 1, label = "Showcase mo
     durationSeconds,
     fps: (timestamps.length - 1) / durationSeconds,
     maxIntervalSeconds,
+    pacedIntervalRatio: pacedIntervals / (timestamps.length - 1),
   };
 }
 
@@ -393,11 +409,21 @@ async function persistMeasuredCapture(
       `Showcase raw X11 Matroska decoded ${String(captured.frames)} actual frames across ${captured.durationSeconds.toFixed(3)}s (${captured.fps.toFixed(2)} fps); expected native ${MIN_CAPTURE_FPS.toFixed(2)}-${MAX_CAPTURE_FPS.toFixed(2)} fps before publication encoding.`,
     );
   }
+  if (captured.pacedIntervalRatio < MIN_PACED_INTERVAL_RATIO) {
+    throw new Error(
+      `Showcase raw X11 Matroska has only ${(captured.pacedIntervalRatio * 100).toFixed(1)}% of frame intervals in the native ${String(MIN_PACED_INTERVAL_SECONDS * 1000)}-${String(MAX_PACED_INTERVAL_SECONDS * 1000)} ms pacing window; expected at least ${String(MIN_PACED_INTERVAL_RATIO * 100)}%.`,
+    );
+  }
 
   const browser = measureTimestamps(browserTimestamps, 1000, "Showcase browser animation clock");
   if (browser.fps < MIN_CAPTURE_FPS || browser.fps > MAX_CAPTURE_FPS) {
     throw new Error(
       `Showcase browser scheduled ${String(browser.frames)} animation frames across ${browser.durationSeconds.toFixed(3)}s (${browser.fps.toFixed(2)} fps); expected display-paced ${MIN_CAPTURE_FPS.toFixed(2)}-${MAX_CAPTURE_FPS.toFixed(2)} fps while recording.`,
+    );
+  }
+  if (browser.pacedIntervalRatio < MIN_PACED_INTERVAL_RATIO) {
+    throw new Error(
+      `Showcase browser animation clock has only ${(browser.pacedIntervalRatio * 100).toFixed(1)}% of frame intervals in the native ${String(MIN_PACED_INTERVAL_SECONDS * 1000)}-${String(MAX_PACED_INTERVAL_SECONDS * 1000)} ms pacing window; expected at least ${String(MIN_PACED_INTERVAL_RATIO * 100)}%.`,
     );
   }
 
@@ -413,6 +439,8 @@ async function persistMeasuredCapture(
     browserFps: browser.fps,
     capturedMaxIntervalSeconds: captured.maxIntervalSeconds,
     browserMaxIntervalSeconds: browser.maxIntervalSeconds,
+    capturedPacedIntervalRatio: captured.pacedIntervalRatio,
+    browserPacedIntervalRatio: browser.pacedIntervalRatio,
     codec: "h264",
     geometry,
     timestamps,
