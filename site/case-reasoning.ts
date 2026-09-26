@@ -374,6 +374,7 @@ export function normalizeRecord(
     record.testType = ENQUIRY_TEST_TYPES.includes(testType as any) ? testType : "discover";
     record.questionIds = idList(raw.questionIds);
     record.hypothesisIds = idList(raw.hypothesisIds);
+    record.propositionIds = idList(raw.propositionIds);
     record.targetIds = idList(raw.targetIds);
     record.resultIds = idList(raw.resultIds);
     record.expectedDiscriminator = text(
@@ -1125,9 +1126,9 @@ export function validateReasoning(reasoning: any, options: any = {}): Validation
   );
 }
 
-export function methodologyReview(reasoning: any) {
+export function methodologyReview(reasoning: any, options: any = {}) {
   const normalized = normalizeReasoning(reasoning);
-  const findings = validateReasoning(reasoning);
+  const findings = validateReasoning(reasoning, options);
   const alternativeGroups = new Map<string, Record<string, any>[]>();
 
   for (const hypothesis of normalized.hypotheses) {
