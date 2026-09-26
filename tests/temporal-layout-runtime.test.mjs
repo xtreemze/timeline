@@ -91,6 +91,81 @@ test("committed layout planning is deterministic and capped at three lanes by de
   assert.ok(Object.values(first.lanes).every((lane) => lane >= 0 && lane <= 2));
 });
 
+
+test("long ranges move their card away from the temporal midpoint while instants keep exact positions", () => {
+  const plan = planCommittedTemporalLayout({
+    viewport: { start: 0, end: 1_000 },
+    pixelLength: 1_000,
+    occurrences: [
+      { id: "range", start: 100, end: 900 },
+      { id: "instant", start: 500 },
+    ],
+    measurements: {
+      range: { inlineSize: 120, blockSize: 52 },
+      instant: { inlineSize: 120, blockSize: 52 },
+    },
+  });
+
+  assert.ok([0.24, 0.76].includes(plan.anchorRatios.range));
+  assert.equal(plan.anchorRatios.instant, 0.5);
+  const instant = plan.placements.find((placement) => placement.id === "instant");
+  const range = plan.placements.find((placement) => placement.id === "range");
+  assert.equal(instant?.position, 500);
+  assert.notEqual(range?.position, 500);
+});
+
+test("range anchor selection avoids exact-date card pressure when an alternate quarter is available", () => {
+  const plan = planCommittedTemporalLayout({
+    viewport: { start: 0, end: 1_000 },
+    pixelLength: 1_000,
+    occurrences: [
+      { id: "range", start: 100, end: 900 },
+      { id: "instant", start: 292 },
+    ],
+    measurements: {
+      range: { inlineSize: 120, blockSize: 52 },
+      instant: { inlineSize: 120, blockSize: 52 },
+    },
+  });
+
+  assert.equal(plan.anchorRatios.range, 0.76);
+});
+
+test("range anchor hysteresis keeps the previous side when its score remains near-optimal", () => {
+  const plan = planCommittedTemporalLayout({
+    viewport: { start: 0, end: 1_000 },
+    pixelLength: 1_000,
+    occurrences: [{ id: "range", start: 100, end: 900 }],
+    previous: {
+      anchorRatios: { range: 0.24 },
+    },
+    measurements: {
+      range: { inlineSize: 120, blockSize: 52 },
+    },
+  });
+
+  assert.equal(plan.anchorRatios.range, 0.24);
+});
+
+test("short ranges stay centered and yield the nearest lane to coincident instants", () => {
+  const plan = planCommittedTemporalLayout({
+    viewport: { start: 0, end: 1_000 },
+    pixelLength: 1_000,
+    occurrences: [
+      { id: "range", start: 480, end: 520 },
+      { id: "instant", start: 500 },
+    ],
+    measurements: {
+      range: { inlineSize: 120, blockSize: 52 },
+      instant: { inlineSize: 120, blockSize: 52 },
+    },
+  });
+
+  assert.equal(plan.anchorRatios.range, 0.5);
+  assert.equal(plan.lanes.instant, 0);
+  assert.equal(plan.lanes.range, 1);
+});
+
 test("three nearby occurrences use lanes before a fourth forces clustering", () => {
   const common = {
     viewport: { start: 0, end: 1_000 },
@@ -176,6 +251,8 @@ test("renderer performs global layout planning only through commit reconciliatio
   const reconcileEnd = source.indexOf("  reconcileClusterScene(", reconcileStart);
   const reconcileBody = source.slice(reconcileStart, reconcileEnd);
   assert.match(reconcileBody, /planCommittedTemporalLayout/);
+  assert.match(reconcileBody, /anchorRatios: this\.committedLayout\.anchorRatios/);
+  assert.match(reconcileBody, /anchorRatios: planned\.anchorRatios/);
 
   const commitStart = source.indexOf("  commitInteraction(): void {");
   const commitEnd = source.indexOf("  scheduleRender(", commitStart);
@@ -188,6 +265,8 @@ test("renderer aligns cards with padded temporal coordinates and defers geometry
   const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
 
   assert.match(source, /padding \+ scale\.coordinateFor\(time, this\.viewport, usable\)/);
+  assert.match(source, /const anchorRatio = this\.committedLayout\.anchorRatios\[item\.id\] \?\? 0\.5/);
+  assert.match(source, /visibleIntervalAnchor\(item, this\.viewport, anchorRatio\)/);
   assert.match(source, /positionRecord\(record, padding, usable, axisCross, crossLength\)/);
   assert.doesNotMatch(
     source,
