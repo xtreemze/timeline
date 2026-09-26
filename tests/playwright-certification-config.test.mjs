@@ -83,6 +83,7 @@ test("CI discovers core browser contracts and runs each browser lane fatally", (
     "retained-structural-composition.spec.ts",
     "semantic-chronology.spec.ts",
     "playwright/layout.spec.ts",
+    "playwright/mobile-screen.spec.ts",
     "playwright/interaction.spec.ts",
     "playwright/graph-touch.spec.ts",
   ]) {
@@ -241,4 +242,13 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(showcaseDocs, /lum-desktop-highlight\.mp4/);
   assert.match(showcaseDocs, /lum-mobile-highlight\.mp4/);
   assert.match(formalPresentation, /CI-generated product showcase media/);
+});
+
+
+test("application shell CI explicitly certifies narrow mobile screen contracts", () => {
+  assert.match(workflow, /playwright\/mobile-screen\.spec\.ts/);
+  assert.match(
+    workflow,
+    /mobile-screen\.spec\.ts --project="Mobile Chrome"/,
+  );
 });
