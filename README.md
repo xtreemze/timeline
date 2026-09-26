@@ -66,7 +66,7 @@ The product is browser-first and backend-free. Hosting the application does not 
 
 ## Product showcase
 
-The showcase media is generated from the real application in Chromium CI. Static states use source-resolution PNG screenshots. Motion must run natively at display-paced 60 fps: CI provides Chromium an explicit 1920×1080@60 Xorg display, requires both browser animation timing and strictly monotonic raw X11 H.264/Matroska capture to remain within 59–61 fps with at least 95% of intervals between 12 and 22 ms, and publication preserves those source timestamps instead of using FFmpeg frame-rate filters or output-rate padding to manufacture 60 fps.
+The showcase media is generated from the real application in Chromium CI. Static states use source-resolution PNG screenshots. Motion capture uses an explicit 1920×1080@60 Xorg display. Chromium is allowed to render faster than the virtual refresh rate so CI cannot throttle application animation below 60 fps, but its animation clock must sustain at least 59 fps with at least 95% of frame gaps at or below 22 ms. The raw X11 H.264/Matroska source remains strictly 59–61 fps with at least 95% of intervals between 12 and 22 ms, and publication preserves those source timestamps instead of using FFmpeg frame-rate filters or output-rate padding to manufacture 60 fps.
 
 | Flow | Desktop | Mobile |
 | --- | --- | --- |
