@@ -310,6 +310,19 @@ class TemporalGraphViewController {
     return this.hasFocusedContext;
   }
 
+  fitContext(): boolean {
+    if (!this.focusedId || !this.hasFocusedContext) return false;
+    this.surface.recenter();
+    return true;
+  }
+
+  zoomContext(): boolean {
+    if (!this.focusedId || !this.hasFocusedContext) return false;
+    this.surface.recenter();
+    this.surface.zoomIn();
+    return true;
+  }
+
   private selectForInteraction(
     selection: CanonicalSelection,
     interaction: "long-press-drag",

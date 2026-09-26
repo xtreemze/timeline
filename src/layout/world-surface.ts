@@ -84,6 +84,10 @@ export interface WorldSurface {
   focusEntity(id: EntityId): void;
   focusOccurrence(id: RelationshipId): void;
   focusPlace(id: PlaceId): void;
+  /** Reframe the current projection without changing canonical selection. */
+  fitToContent?(): void;
+  /** Reframe then move one camera step closer to the current projection. */
+  zoomToContent?(): void;
 
   project(position: WorldSpatialPosition): ScreenPoint | null;
   unproject(point: ScreenPoint, targetAltitudeMeters: number): WorldSpatialPosition | null;

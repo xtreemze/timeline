@@ -234,6 +234,20 @@ export class WorldViewRuntimeController {
     this.#surface.focusPlace(id);
   }
 
+  fitToContent(): boolean {
+    this.#assertAlive();
+    if (!this.#surface.fitToContent) return false;
+    this.#surface.fitToContent();
+    return true;
+  }
+
+  zoomToContent(): boolean {
+    this.#assertAlive();
+    if (!this.#surface.zoomToContent) return false;
+    this.#surface.zoomToContent();
+    return true;
+  }
+
   beginNodeDrag(
     pointerId: number,
     instanceId: WorldInstanceId,

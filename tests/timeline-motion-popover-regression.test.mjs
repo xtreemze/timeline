@@ -34,10 +34,10 @@ test("focused popover emits the surviving rich presentation contract", async () 
   assert.match(source, /timeline-focus-tabs/);
   assert.match(source, /timeline-focus-hero/);
   assert.match(source, /timeline-focus-summary/);
-  assert.match(source, /timeline-focus-place/);
+  assert.doesNotMatch(source, /timeline-focus-place-panel/);
   assert.match(source, /timeline-focus-evidence/);
-  assert.match(source, /placeBackdrop\.dataset\.focusMapSlot = ""/);
-  assert.match(source, /timeline-focus-section-content/);
+  assert.match(source, /timeline-focus-edit/);
+  assert.match(source, /timeline-focus-media-control/);
   assert.match(source, /timeline-focus-close/);
   assert.match(source, /data-active-tab|dataset\.activeTab/);
   assert.match(source, /timelinefocusrender/);
@@ -57,31 +57,17 @@ test("empty timeline resets retained camera authority before later content loads
   );
 });
 
-test("persistent graph owns the complementary canvas while focused place uses interactive map space", async () => {
-  const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
+test("focused detail attaches to the retained card while location stays in the world view", async () => {
+  const [timeline, shell] = await Promise.all([
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/spatial-shell.css", import.meta.url), "utf8"),
+  ]);
 
-  assert.match(
-    css,
-    /#presentation-stage\s*>\s*\.graph-lens:not\(\[hidden\]\)[\s\S]{0,140}\{[\s\S]{0,500}position:\s*absolute/,
-  );
-  assert.match(
-    css,
-    /\.timeline-view\[data-orientation="landscape"\]\s*>\s*\.timeline-focus-view:popover-open\s*\{[\s\S]{0,500}inline-size:\s*min\(640px,/,
-  );
-  assert.match(
-    css,
-    /\.timeline-focus-place\s+\.timeline-focus-section-content\s*\{[\s\S]{0,300}width:\s*min\(48%,\s*18rem\)/,
-  );
-  assert.match(
-    css,
-    /\.timeline-view\[data-orientation="landscape"\]\s*>\s*\.timeline-focus-view:popover-open\s*\{[\s\S]{0,500}inline-size:\s*min\(640px,\s*calc\(100% - 8rem\)\)/,
-  );
-  assert.match(
-    css,
-    /\.timeline-view\[data-orientation="portrait"\]\s*>\s*\.timeline-focus-view:popover-open\s*\{[\s\S]{0,500}inline-size:\s*min\(560px,\s*calc\(100% - 10rem\)\)/,
-  );
-  assert.match(
-    css,
-    /\.timeline-focus-place-backdrop\s+\.presentation-map[\s\S]{0,450}pointer-events:\s*auto/,
-  );
+  assert.match(timeline, /syncFocusAttachment\(\)/);
+  assert.match(timeline, /data-focus-anchor/);
+  assert.doesNotMatch(timeline, /timeline-focus-place-panel/);
+  assert.match(shell, /timeline-focus-anchor-local-x/);
+  assert.match(shell, /data-anchor-orientation="landscape"/);
+  assert.match(shell, /data-anchor-orientation="portrait"/);
+  assert.match(shell, /> \.timeline-focus-summary[\s\S]{0,160}grid-column:\s*1 \/ -1/);
 });

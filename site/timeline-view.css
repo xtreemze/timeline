@@ -5055,3 +5055,92 @@
   > .timeline-surface {
   inset-block-end: var(--workspace-footer-block-size, 64px);
 }
+
+
+/* Focused occurrence card-extension interactions. Small visual controls retain coarse-pointer hit areas. */
+.timeline-focus-hero-image {
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.timeline-focus-hero-veil {
+  pointer-events: none;
+}
+
+.timeline-focus-edit,
+.timeline-focus-media-control {
+  position: relative;
+  z-index: 8;
+  display: grid;
+  inline-size: 44px;
+  block-size: 44px;
+  min-inline-size: 44px;
+  min-block-size: 44px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  color: var(--ink);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.timeline-focus-edit:is(:hover, :focus-visible),
+.timeline-focus-media-control:is(:hover, :focus-visible) {
+  outline: 2px solid color-mix(in srgb, var(--event-color, var(--accent)) 76%, white);
+  outline-offset: 2px;
+}
+
+.timeline-focus-hero-edit,
+.timeline-focus-media-edit {
+  position: absolute;
+  inset-block-start: 0.55rem;
+}
+
+.timeline-focus-hero-edit {
+  inset-inline-end: 0.55rem;
+}
+
+.timeline-focus-media-edit {
+  inset-inline-start: 0.55rem;
+}
+
+.timeline-focus-section-toolbar {
+  display: flex;
+  min-block-size: 44px;
+  align-items: center;
+  justify-content: flex-end;
+  margin-block: -0.35rem 0.15rem;
+}
+
+.timeline-focus-media-control {
+  background: color-mix(in srgb, black 46%, transparent);
+  color: white;
+}
+
+.timeline-focus-slideshow-controls {
+  gap: 0.1rem;
+}
+
+.timeline-focus-slide-dot,
+.timeline-focus-tab,
+.timeline-focus-close {
+  touch-action: manipulation;
+}
+
+.timeline-event-terminal[data-focus-anchor] {
+  isolation: isolate;
+}
+
+@media (pointer: coarse) {
+  .timeline-focus-edit,
+  .timeline-focus-media-control,
+  .timeline-focus-slide-dot,
+  .timeline-focus-tab,
+  .timeline-focus-close {
+    min-inline-size: 48px;
+    min-block-size: 48px;
+  }
+}

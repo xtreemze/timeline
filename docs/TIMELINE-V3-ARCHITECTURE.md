@@ -353,18 +353,19 @@ Collapsed chronology state:
 - minimal temporal label;
 - optional category/status affordance.
 
-Selecting one item is a deliberate viewing operation. Focus never replaces the spatial shell. Instead, the chronology becomes a persistent edge rail, the relation graph remains mounted in the remaining canvas, and focused detail becomes a bounded shell-owned surface placed opposite the timeline: above the graph when time is horizontal and to the left of the graph when time is vertical. The focused detail is not a browser top-layer popover, so DOM/top-layer order cannot make the graph or application chrome unexpectedly steal its interactions.
+Selecting one item is a deliberate viewing operation. Focus never replaces the spatial shell. Instead, the chronology becomes a persistent edge rail, the relation graph remains mounted in the remaining canvas, and focused detail becomes a bounded shell-owned extension of the selected retained timeline card. In horizontal chronology it docks directly above the bottom rail; in vertical chronology it docks directly to the left of the right rail. A presentation-only bridge follows the retained card as the timeline settles, without reparenting the card or changing its canonical temporal coordinate. The focused detail is not a browser top-layer popover, so DOM/top-layer order cannot make the graph or application chrome unexpectedly steal its interactions.
 
 Focus owns a viewport contract. Opening focused detail zooms the chronology inward around the selected event instead of preserving a broad overview. The nearest preceding/following chronology items may remain as relative context when they fit inside that local frame, but distant neighbours never cause focus to zoom out. If the selected event is inside a collision cluster, the viewport zooms further until its projected terminal is unique when temporal separation permits it. Equal timestamps remain lane-separated rather than pretending equal temporal coordinates can diverge.
 
 Focused composition is content-first:
 - images and the hero title receive the strongest visual emphasis;
-- Context is the first detail tab and contains the narrative description plus compact place context;
+- Context is the first detail tab and uses the full detail width for narrative description;
+- location is not repeated inside detail; geographic context remains visible and actionable in the persistent world view;
 - Evidence is the second detail tab and can replace the contextual region without moving the timeline rail;
 - semantic tags, compact time/range information and provenance remain available without competing with the image/content hierarchy;
 - relationship exploration remains in the persistent graph rather than duplicating a second graph inside detail.
 
-Previous, Next, Edit and View are timeline-owned controls. They live with the chronology rather than inside the detail composition. Previous/Next preserve the focused local scale unless the next target requires additional collision separation. Edit remains the only transition from focused viewing into mutation mode. Moving these actions out of detail keeps the detail surface dedicated to understanding the selected occurrence and keeps navigation available in a consistent place even as Context/Evidence content changes.
+Previous, Next and world-camera commands are timeline-owned controls. They live in the persistent footer rather than inside the detail composition. Previous/Next preserve the focused local scale unless the next target requires additional collision separation. “Zoom to related nodes” and “Fit related nodes” operate on the relationships attached to the focused chronology item through `relationship.itemIds[]`. Small edit affordances may appear beside directly editable detail content; they are shortcuts into the same explicit Edit mode, not inline mutation. Moving navigation and camera actions out of detail keeps the detail surface dedicated to understanding the selected occurrence and keeps controls available in a consistent place as Context/Evidence content changes.
 
 The focused item must not mutate its temporal coordinate or chronology order. Escape or an explicit return action restores the ordinary chronology. Fullscreen may recompose the same shell for the physical viewport, but it must preserve focused detail, timeline context, and graph continuity rather than depending on browser top-layer restoration.
 
@@ -453,14 +454,13 @@ The variant is stored under `item.presentation.variant`. The content and evidenc
 
 ## Focus composition grid
 
-Focused event presentation uses the 12-column system as a composition constraint rather than a generic equal-column dashboard.
+Focused event presentation uses the six-column overlay system as a composition constraint rather than a generic equal-column dashboard.
 
-- common lower row: Place and Relations remain explicit semantic sections, with their interactive map/graph reused as subdued section backdrops;
-- focused overlays use a compact six-column grid; the timeline stage itself has no column grid;
-- following row: evidence spans all six overlay columns;
-- hero split: four-column visual field with a two-column context rail;
-- evidence dossier: balanced three-column hero and three-column reading field;
-- editorial mosaic: two-column context field opposite a four-column media field.
+- Context spans the full six-column reading width; Location is intentionally absent from the detail surface;
+- Evidence spans all six overlay columns when its tab is active;
+- landscape chronology favors a shallow, wide hero so the extension sits immediately above the bottom timeline rail;
+- portrait chronology favors a taller media field while the extension sits immediately left of the right timeline rail;
+- image navigation uses explicit previous/next controls plus position dots, with coarse-pointer hit areas of at least 48 CSS pixels;
 - there is no separate Chronology section: the fullscreen timeline is the chronology, and the hero is the focused event selected from it.
 
 Hero titles use container-relative `cqi` sizing rather than viewport width and deliberately become larger on focus because they are the primary identity of the selected timeline event. Cap/alphabetic `text-box` trimming is not used on the hero heading because display-face glyph bounds can be clipped. The heading retains block padding, balanced wrapping, and break-word protection for unusually long identifiers.

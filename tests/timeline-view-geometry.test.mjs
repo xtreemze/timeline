@@ -133,12 +133,17 @@ test("selected events use a shell-owned six-column detail surface with footer-ow
   assert.doesNotMatch(html, /timeline-view-controls-toggle|app-view-controls|app-footer-view-controls/);
   assert.match(html, /id="timeline-focus-prev"/);
   assert.match(html, /id="timeline-focus-next"/);
+  assert.match(html, /id="timeline-related-zoom"/);
+  assert.match(html, /id="timeline-related-fit"/);
   assert.doesNotMatch(html, /id="timeline-focus-edit"/);
   assert.equal((html.match(/id="editor-toggle"/g) ?? []).length, 1);
   assert.doesNotMatch(html, /id="timeline-detail"/);
   assert.match(js, /focusItem\(id, options = \{\}\)/);
   assert.match(js, /timelinefocuschange/);
   assert.match(js, /createFocusHero/);
+  assert.match(js, /syncFocusAttachment\(\)/);
+  assert.match(js, /createFocusEditButton/);
+  assert.doesNotMatch(js, /timeline-focus-place-panel/);
   assert.match(js, /focusNavigationState\(\)/);
   assert.doesNotMatch(js, /timeline-focus-nav-prev|timeline-focus-nav-next|Edit event/);
   assert.match(css, /Persistent footer control plane/);
@@ -159,6 +164,8 @@ test("selected events use a shell-owned six-column detail surface with footer-ow
     /\.timeline-focus-sidebar:not\(\[hidden\]\)\s*\{[\s\S]*grid-template-columns:\s*repeat\(12,/,
   );
   assert.doesNotMatch(css, /position-anchor:\s*--timeline-detail-anchor/);
+  assert.match(css, /timeline-focus-anchor-local-x/);
+  assert.match(css, /> \.timeline-focus-summary[\s\S]*grid-column:\s*1 \/ -1/);
 });
 
 

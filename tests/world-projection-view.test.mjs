@@ -23,6 +23,14 @@ function harness() {
     focusPlace(id) {
       calls.push(["focus:place", id]);
     },
+    fitToContent() {
+      calls.push(["fit:content"]);
+      return true;
+    },
+    zoomToContent() {
+      calls.push(["zoom:content"]);
+      return true;
+    },
     refresh() {
       calls.push(["refresh"]);
     },
@@ -243,6 +251,33 @@ test("focus resolves canonical entity relationship and place IDs through the wor
       ["focus:occurrence", "meeting"],
       ["focus:place", "stockholm"],
     ],
+  );
+});
+
+test("timeline occurrence focus scopes and frames its related world nodes", () => {
+  const { calls, view, getProjection } = harness();
+  view.setModel({
+    ...model,
+    items: [{ id: "meeting-item" }],
+    relationships: model.relationships.map((relationship) =>
+      relationship.id === "meeting" ? { ...relationship, itemIds: ["meeting-item"] } : relationship,
+    ),
+  });
+
+  view.setFocus("meeting-item");
+  assert.equal(view.hasContext(), true);
+  assert.deepEqual(
+    getProjection().edges.map((edge) => edge.id),
+    ["meeting"],
+  );
+  assert.equal(view.zoomContext(), true);
+  assert.equal(view.fitContext(), true);
+  assert.deepEqual(calls.slice(-2), [["zoom:content"], ["fit:content"]]);
+
+  view.setFocus(null);
+  assert.deepEqual(
+    getProjection().edges.map((edge) => edge.id),
+    ["meeting", "timeless"],
   );
 });
 
