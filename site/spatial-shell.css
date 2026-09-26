@@ -685,6 +685,50 @@
   max-inline-size: var(--toolbar-control-size);
 }
 
+@media (min-width: 700px) {
+  /* Desktop is not the mobile strip stretched wider. Keep the three semantic
+     zones visually distinct, preserve the centered application actions, and
+     let the edge-owned control groups use the physical edges of the window. */
+  #app-shell > .app-tool-dock.app-footer-bar,
+  #presentation-stage:fullscreen > .app-tool-dock.app-footer-bar,
+  #app-shell:has(#timeline-view[data-orientation="landscape"]) > .app-tool-dock.app-footer-bar,
+  #app-shell:has(#timeline-view[data-orientation="portrait"]) > .app-tool-dock.app-footer-bar {
+    --toolbar-control-gap: clamp(0.18rem, 0.24vw, 0.32rem);
+    --toolbar-zone-gap: clamp(0.55rem, 1vw, 1rem);
+    column-gap: var(--toolbar-zone-gap);
+    padding-inline: max(0.65rem, env(safe-area-inset-left))
+      max(0.65rem, env(safe-area-inset-right));
+  }
+
+  #app-shell .app-footer-bar .app-footer-zone {
+    padding-inline: 0;
+  }
+
+  #app-shell .app-footer-bar .app-footer-actions {
+    min-inline-size: 0;
+    max-inline-size: none;
+    padding-inline: clamp(0.18rem, 0.35vw, 0.34rem);
+  }
+
+  #app-shell .app-footer-bar .app-footer-world,
+  #app-shell .app-footer-bar .app-footer-timeline {
+    scroll-padding-inline: 0.35rem;
+  }
+
+  #app-shell .app-footer-bar .app-footer-world .world-layout-controls {
+    margin-inline-start: clamp(0.28rem, 0.5vw, 0.48rem);
+    padding-inline-start: clamp(0.28rem, 0.5vw, 0.48rem);
+  }
+}
+
+@media (min-width: 1024px) {
+  /* At desktop widths the chronology controls should read as the right-hand
+     counterpart to the world controls instead of clustering around the center. */
+  #app-shell .app-footer-bar .app-footer-timeline.timeline-local-toolbar {
+    justify-content: flex-end;
+  }
+}
+
 @media (max-width: 699px) {
   /* The narrow footer is one physical toolbar. All groups stay in normal flow
      and the footer itself owns horizontal scrolling. */
