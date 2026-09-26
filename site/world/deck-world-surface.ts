@@ -3264,6 +3264,7 @@ export class DeckWorldSurface implements WorldSurface {
           this.#cameraOwned = true;
           this.#autoFitted = false;
           this.#camera = next;
+          this.#publishCameraContext();
           // Replacing the deck view/controller while a pinch, wheel gesture,
           // pan, rotate, or inertia transition still owns input can strand the
           // recognizer at the globe/local threshold. Keep the current
@@ -3765,6 +3766,7 @@ export class DeckWorldSurface implements WorldSurface {
     this.#autoFitted = true;
     this.#autoFitMode = mode;
     this.#camera = fitted;
+    this.#publishCameraContext();
     this.#syncSpatialMode();
     this.#deck.setProps({ viewState: this.#camera });
   }
@@ -3806,11 +3808,27 @@ export class DeckWorldSurface implements WorldSurface {
     return this.#camera;
   }
 
+  #publishCameraContext(): void {
+    this.#container.dispatchEvent?.(
+      new CustomEvent("worldviewportchange", {
+        bubbles: true,
+        detail: {
+          camera: this.#camera,
+          center: {
+            longitude: this.#camera.longitude,
+            latitude: this.#camera.latitude,
+          },
+        },
+      }),
+    );
+  }
+
   setCamera(camera: WorldCameraState): void {
     this.#assertAlive();
     this.#cameraOwned = true;
     this.#autoFitted = false;
     this.#camera = createWorldCameraState(camera);
+    this.#publishCameraContext();
     this.#syncSpatialMode();
     this.#syncClusterLifecycle();
     // When the zoom changes LOD or the offset magnification, layers and
