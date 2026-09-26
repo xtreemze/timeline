@@ -127,7 +127,11 @@ function initialPosition(node: WorldForceNode): readonly [number, number, number
   const [east, north] = hasExplicitOffset
     ? [node.initialEastMeters, node.initialNorthMeters]
     : seededOffset(node.id);
-  return Object.freeze([east, north, node.targetVisualAltitudeMeters]);
+  return Object.freeze([
+    east,
+    north,
+    node.initialVisualAltitudeMeters ?? node.targetVisualAltitudeMeters,
+  ]);
 }
 
 function groupFor(anchor: WorldForceAnchor | null): string {

@@ -103,6 +103,120 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
       .not.toBeCloseTo(before.zoom, 5);
   });
 
+  test("committed temporal re-anchor preserves the real Deck node position on the first frame", async ({
+    page,
+  }) => {
+    test.skip(!(await gotoHarness(page)), "WebGL2 unavailable in this environment.");
+
+    const result = await page.evaluate(async () => {
+      const helpersModulePath = "/world-test-helpers.mjs";
+      const {
+        createProjectedWorldInstance,
+        createWorldProjection,
+        preserveWorldProjectionRenderContinuity,
+      } = await import(helpersModulePath);
+      const harness = window.__worldPerfHarness;
+      const instance = createProjectedWorldInstance({
+        canonicalId: "entity-temporal-continuity",
+        occurrenceId: "occ-before",
+        geographicAnchors: [
+          {
+            placeId: "stockholm",
+            longitude: 18.0686,
+            latitude: 59.3293,
+            sourceAltitude: 20,
+            influence: 1,
+          },
+        ],
+        localOffset: { eastMeters: 180, northMeters: -90 },
+        temporalWeight: 1,
+        visualWeight: 1,
+        retained: false,
+        visualAltitude: 1_200,
+      });
+      const initial = createWorldProjection({ instances: [instance], edges: [] });
+
+      harness.surface.setCamera({
+        longitude: 18.0686,
+        latitude: 59.3293,
+        zoom: 6,
+        bearing: 0,
+        pitch: 20,
+      });
+      harness.surface.setProjection(initial);
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      );
+
+      const before = harness.surface.getRenderedInstanceContinuity().get(instance.id);
+      if (!before) throw new Error("Temporal continuity fixture did not render.");
+      const beforeScreen = harness.surface.project(before.position);
+
+      const nextInstance = createProjectedWorldInstance({
+        ...instance,
+        occurrenceId: "occ-after",
+        geographicAnchors: [
+          {
+            placeId: "copenhagen",
+            longitude: 12.5683,
+            latitude: 55.6761,
+            sourceAltitude: 5,
+            influence: 1,
+          },
+        ],
+        localOffset: undefined,
+        temporalWeight: 0.75,
+      });
+      const canonicalNext = createWorldProjection({
+        instances: [nextInstance],
+        edges: [],
+      });
+      const snapshot = harness.surface.getRenderedInstanceContinuity();
+      const handoff = preserveWorldProjectionRenderContinuity(
+        initial,
+        canonicalNext,
+        snapshot,
+      );
+
+      harness.surface.setProjectionHandoffPresentation(snapshot);
+      harness.surface.setProjection(handoff);
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+      const after = harness.surface.getRenderedInstanceContinuity().get(instance.id);
+      if (!after) throw new Error("Temporal continuity handoff did not render.");
+      const afterScreen = harness.surface.project(after.position);
+
+      return {
+        before,
+        after,
+        beforeScreen,
+        afterScreen,
+      };
+    });
+
+    expect(result.before.offsetScale).toBeGreaterThan(1);
+    expect(result.before.floatMeters).toBeGreaterThan(0);
+    expect(result.after.offsetScale).toBeCloseTo(result.before.offsetScale, 10);
+    expect(result.after.floatMeters).toBeCloseTo(result.before.floatMeters, 10);
+    expect(result.after.position.longitude).toBeCloseTo(result.before.position.longitude, 9);
+    expect(result.after.position.latitude).toBeCloseTo(result.before.position.latitude, 9);
+    expect(result.after.position.altitudeMeters).toBeCloseTo(
+      result.before.position.altitudeMeters,
+      6,
+    );
+
+    if (!result.beforeScreen || !result.afterScreen) {
+      throw new Error("Temporal continuity positions did not project to the viewport.");
+    }
+    expect(
+      Math.hypot(
+        result.afterScreen.x - result.beforeScreen.x,
+        result.afterScreen.y - result.beforeScreen.y,
+      ),
+      "the committed temporal boundary must not visibly snap the node",
+    ).toBeLessThan(0.5);
+  });
+
   test("picking resolves a click at a known entity's projected screen point", async ({ page }) => {
     test.skip(!(await gotoHarness(page)), "WebGL2 unavailable in this environment.");
 

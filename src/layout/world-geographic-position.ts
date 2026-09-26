@@ -6,7 +6,10 @@ import {
   type WorldInstanceId,
   type WorldProjection,
 } from "../projection/world-projection.ts";
-import type { WorldSpatialPosition } from "./world-surface.ts";
+import type {
+  WorldRenderContinuitySample,
+  WorldSpatialPosition,
+} from "./world-surface.ts";
 
 export type WorldRenderPosition = readonly [longitude: number, latitude: number, altitude: number];
 
@@ -63,21 +66,6 @@ export function worldPrimarySpatialAnchor(
         (right.certainty ?? -1) - (left.certainty ?? -1) ||
         String(left.placeId).localeCompare(String(right.placeId)),
     )[0] ?? null
-  );
-}
-
-function samePrimarySpatialFrame(
-  left: Pick<ProjectedWorldInstance, "geographicAnchors">,
-  right: Pick<ProjectedWorldInstance, "geographicAnchors">,
-): boolean {
-  const leftAnchor = worldPrimarySpatialAnchor(left);
-  const rightAnchor = worldPrimarySpatialAnchor(right);
-  if (!leftAnchor || !rightAnchor) return leftAnchor === rightAnchor;
-  return (
-    leftAnchor.placeId === rightAnchor.placeId &&
-    leftAnchor.longitude === rightAnchor.longitude &&
-    leftAnchor.latitude === rightAnchor.latitude &&
-    (leftAnchor.sourceAltitude ?? 0) === (rightAnchor.sourceAltitude ?? 0)
   );
 }
 
@@ -175,7 +163,8 @@ export function resolveWorldLocalLayoutPosition(
 export function preserveWorldProjectionRenderContinuity(
   previous: WorldProjection,
   next: WorldProjection,
-  renderedPositions?: ReadonlyMap<WorldInstanceId, WorldSpatialPosition>,
+  renderedContinuity?: ReadonlyMap<WorldInstanceId, WorldRenderContinuitySample>,
+  legacyRenderedPositions?: ReadonlyMap<WorldInstanceId, WorldSpatialPosition>,
 ): WorldProjection {
   const previousById = new Map(
     previous.instances.map((instance) => [instance.id, instance] as const),
@@ -186,13 +175,8 @@ export function preserveWorldProjectionRenderContinuity(
     const prior = previousById.get(instance.id);
     if (!prior) return instance;
 
-    // When the anchor frame is unchanged, keep the solver's logical local
-    // state rather than baking semantic-zoom magnification back into physics.
-    // A changed place/anchor uses the exact visible renderer position so the
-    // handoff remains visually continuous across the geographic rebase.
-    const rendered = samePrimarySpatialFrame(prior, instance)
-      ? undefined
-      : renderedPositions?.get(instance.id);
+    const continuity = renderedContinuity?.get(instance.id);
+    const rendered = continuity?.position ?? legacyRenderedPositions?.get(instance.id);
     const priorPosition = rendered
       ? (Object.freeze([
           rendered.longitude,
@@ -202,7 +186,16 @@ export function preserveWorldProjectionRenderContinuity(
       : resolveWorldRenderPosition(prior);
     if (!priorPosition) return instance;
 
-    const local = resolveWorldLocalLayoutPosition(instance, priorPosition);
+    // The visible position must be inverted with the same presentation
+    // transform that produced it. This keeps semantic zoom magnification and
+    // screen-space float out of the D3 solver while still allowing a changed
+    // temporal anchor to begin at the exact position the user was seeing.
+    const local = resolveWorldLocalLayoutPosition(
+      instance,
+      priorPosition,
+      continuity?.offsetScale ?? 1,
+      continuity?.floatMeters ?? 0,
+    );
     if (!local) return instance;
 
     const rebased = createProjectedWorldInstance({

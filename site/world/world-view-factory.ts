@@ -150,7 +150,13 @@ class ScheduledWorldProjectionView implements WorldApplicationView {
 
   setWindow(viewport: WorldViewViewport | null): void {
     this.#assertAlive();
-    if (this.#view.setWindow(viewport)) this.#schedule();
+    if (!this.#view.setWindow(viewport)) return;
+
+    // High-frequency timeline motion comes through previewWindow and never
+    // touches the force budget. A committed temporal projection is a new
+    // bounded layout epoch and must not inherit an already-spent run.
+    this.#restartBudget();
+    this.#schedule();
   }
 
   previewWindow(viewport: WorldViewViewport | null): void {
@@ -221,9 +227,9 @@ class ScheduledWorldProjectionView implements WorldApplicationView {
   }
 
   /**
-   * New data or an explicit wake (drag, drop) starts a fresh layout budget.
-   * Window changes do not: the timeline updates its window continuously and
-   * would otherwise keep the budget from ever running out.
+   * New data, committed temporal projections, and explicit wakes start a fresh
+   * bounded layout budget. Transient timeline motion is routed through
+   * previewWindow, so it cannot keep extending a force run.
    */
   #restartBudget(): void {
     this.#runStartedAt = null;

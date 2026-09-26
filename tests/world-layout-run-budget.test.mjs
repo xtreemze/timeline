@@ -110,12 +110,16 @@ test("a layout that never settles stops animating once its run budget is spent",
   assert.equal(built.scheduled.size, 0, "no frame left scheduled");
   assert.ok(built.stops() >= 1, "the backend was stopped");
 
-  // Window updates do not restart the spent budget...
-  view.setWindow({ start: 0, end: 1 });
-  built.runFrames(1_000, 300);
+  // Transient temporal previews remain presentation-only and do not create
+  // another force run after the previous budget has been spent.
+  view.previewWindow({ start: 0, end: 1, activeOccurrenceIds: [] });
   assert.equal(built.scheduled.size, 0);
 
-  // ...but new data does.
+  // A committed temporal projection is a new bounded layout epoch.
+  view.setWindow({ start: 0, end: 1, activeOccurrenceIds: [] });
+  assert.ok(built.runFrames(3, 16) >= 1);
+
+  // New canonical data also starts a fresh run.
   view.setModel(model());
   assert.ok(built.runFrames(3, 16) >= 1);
 });

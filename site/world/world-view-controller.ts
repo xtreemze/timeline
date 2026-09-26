@@ -25,6 +25,7 @@ import {
   type WorldForceSimulationBackend,
 } from "../../src/layout/world-force-simulation.ts";
 import type {
+  WorldRenderContinuitySample,
   WorldSelection,
   WorldSurface,
   WorldTemporalWindow,
@@ -123,12 +124,30 @@ export class WorldViewRuntimeController {
     // Materialize the currently rendered force state only at a committed
     // projection boundary. Timeline scrubbing/previews never call this path.
     const previous = this.#sourceProjection ? this.getRenderProjection() : null;
-    const renderedPositions = previous
-      ? this.#surface.getRenderedInstancePositions?.()
+    const renderedContinuity: ReadonlyMap<
+      WorldInstanceId,
+      WorldRenderContinuitySample
+    > | undefined = previous
+      ? this.#surface.getRenderedInstanceContinuity?.()
       : undefined;
+    const legacyRenderedPositions =
+      previous && !renderedContinuity
+        ? this.#surface.getRenderedInstancePositions?.()
+        : undefined;
     const renderProjection = previous
-      ? preserveWorldProjectionRenderContinuity(previous, projection, renderedPositions)
+      ? preserveWorldProjectionRenderContinuity(
+          previous,
+          projection,
+          renderedContinuity,
+          legacyRenderedPositions,
+        )
       : projection;
+
+    if (renderedContinuity && renderedContinuity.size > 0) {
+      this.#surface.setProjectionHandoffPresentation?.(renderedContinuity);
+    } else if (previous) {
+      this.#surface.clearProjectionHandoffPresentation?.();
+    }
 
     this.#sourceProjection = projection;
     this.#renderProjection = renderProjection;
@@ -143,12 +162,17 @@ export class WorldViewRuntimeController {
     this.#renderProjectionDirty = false;
     this.#projectionRevision += 1;
 
-    // Seed force from the same continuity-preserving projection that reaches
-    // the renderer. The first visible committed frame and the first physics
-    // frame therefore share one position instead of producing a one-frame snap.
+    // Canonical/new projection data owns force targets and topology. The
+    // continuity projection supplies only the initial pose so the first
+    // visible committed frame and the first physics frame share one position
+    // without turning handoff offsets/altitude into permanent targets.
     const forceScene = this.#forcePolicy
-      ? createWorldForceScene(renderProjection, this.#forcePolicy)
-      : createWorldForceScene(renderProjection);
+      ? createWorldForceScene(projection, this.#forcePolicy, {
+          initialProjection: renderProjection,
+        })
+      : createWorldForceScene(projection, undefined, {
+          initialProjection: renderProjection,
+        });
     this.#forceBackend.setScene(forceScene);
     this.#surface.setRelationshipRoutes?.(forceScene.relationshipRoutes ?? Object.freeze([]));
     this.#simulation.request({
@@ -282,6 +306,7 @@ export class WorldViewRuntimeController {
     }
 
     if (diagnostics.settled) {
+      this.#surface.clearProjectionHandoffPresentation?.();
       this.#simulation.release("projection-update");
       this.#simulation.release("spatial-anchor-update");
       this.#simulation.release("topology");
@@ -301,6 +326,7 @@ export class WorldViewRuntimeController {
     this.#assertAlive();
     this.#forceBackend.stop();
     this.#pushLayout();
+    this.#surface.clearProjectionHandoffPresentation?.();
     this.#simulation.release("projection-update");
     this.#simulation.release("spatial-anchor-update");
     this.#simulation.release("topology");
