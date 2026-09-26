@@ -3339,9 +3339,12 @@
 @media (max-width: 699px) {
   #app-shell[data-graph-open="true"] #presentation-stage {
     --mobile-relations-inline-rail: clamp(156px, 44dvw, 196px);
-    /* Horizontal chronology stays docked to the footer but uses a compact rail,
-       leaving more of the stage to the world view on tall phones. */
-    --mobile-relations-block-rail: clamp(200px, 42dvh, 360px);
+    /* On a physically portrait phone the world is the primary manipulation
+       surface. Keep the horizontal chronology edge-docked to the footer and
+       reserve roughly one third of the pre-footer height for it, leaving about
+       two thirds for the world view. Short physical landscape keeps its tighter
+       override below. */
+    --mobile-relations-block-rail: clamp(188px, 30dvh, 280px);
     --mobile-bottom-chrome: max(3.95rem, calc(env(safe-area-inset-bottom) + 3.65rem));
   }
 
