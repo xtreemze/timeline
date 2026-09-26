@@ -34,6 +34,51 @@ function overlap(a: Rect, b: Rect) {
 }
 
 test.describe("Narrow mobile screen contracts", () => {
+  test("fresh bundled sample initializes the timeline controller", async ({ page }) => {
+    await page.setViewportSize(NARROW_PORTRAIT);
+    await page.goto("/");
+    await expect(page.locator("#timeline-view")).toBeVisible();
+
+    const diagnostic = await page.evaluate(() => {
+      const sample = globalThis.TimelineSampleCase;
+      const project = globalThis.TimelineAgentAPI?.getProject?.();
+      const root = document.querySelector("#timeline-view");
+      const view = root instanceof HTMLElement ? globalThis.TimelineView?.create(root) : null;
+      const validation = sample ? globalThis.TimelineAgentAPI?.validateProject?.(sample) : null;
+      return {
+        sample: {
+          items: sample?.items?.length ?? -1,
+          stories: sample?.stories?.length ?? -1,
+          relationships: sample?.relationships?.length ?? -1,
+        },
+        project: {
+          title: project?.title ?? "",
+          items: project?.items?.length ?? -1,
+          stories: project?.stories?.length ?? -1,
+          relationships: project?.relationships?.length ?? -1,
+        },
+        validation,
+        controller: {
+          items: view?.items?.length ?? -1,
+          viewport: view?.getViewport?.() ?? null,
+          scene: view?.scene?.size ?? -1,
+          dataEmpty: root instanceof HTMLElement ? root.dataset.empty ?? "" : "",
+        },
+        dom: {
+          events: document.querySelectorAll(".timeline-event").length,
+          buffered: document.querySelectorAll(".timeline-event.is-buffered").length,
+          terminals: document.querySelectorAll(".timeline-event-terminal").length,
+        },
+      };
+    });
+
+    console.log("BUNDLED_SAMPLE_DIAGNOSTIC", JSON.stringify(diagnostic));
+    expect(diagnostic.sample.items).toBeGreaterThan(0);
+    expect(diagnostic.project.items).toBeGreaterThan(0);
+    expect(diagnostic.controller.items).toBeGreaterThan(0);
+    expect(diagnostic.dom.events).toBeGreaterThan(0);
+    expect(diagnostic.dom.buffered).toBeLessThan(diagnostic.dom.events);
+  });
   test("portrait event cards remain readable at the screen edge without overlapping", async ({
     page,
   }) => {
