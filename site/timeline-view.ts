@@ -62,6 +62,8 @@ const TIMELINE_CARD_LANE_GAP_PX = 16;
 const TIMELINE_CARD_ROUTING_SLACK_PX = CONNECTOR_ROUTE_OFFSET_PX * 2;
 const TIMELINE_CARD_DEFAULT_CROSS_SIZE_PX = 240;
 const MAX_COMMITTED_LANES = 3;
+const COMPACT_HORIZONTAL_RAIL_MAX_PX = 300;
+const COMPACT_HORIZONTAL_MAX_LANES = 2;
 const CLUSTER_ENTER_PX = 80;
 const CLUSTER_EXIT_PX = 120;
 const TEMPORAL_LABEL_GAP_PX = 10;
@@ -200,6 +202,42 @@ interface LastTouchTap {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+function axisCrossFromCss(
+  value: string,
+  crossExtent: number,
+  fallbackRatio: number,
+): number {
+  const extent = Math.max(1, Number(crossExtent) || 1);
+  const fallback = extent * clamp(Number(fallbackRatio) || 0, 0, 1);
+  const normalized = String(value || "").trim();
+  if (!normalized) return fallback;
+
+  const parsed = Number.parseFloat(normalized);
+  if (!Number.isFinite(parsed)) return fallback;
+  if (normalized.endsWith("%")) return clamp((parsed / 100) * extent, 0, extent);
+  if (normalized.endsWith("px") || /^-?\d+(?:\.\d+)?$/.test(normalized)) {
+    return clamp(parsed, 0, extent);
+  }
+  return fallback;
+}
+
+function committedLaneLimit(
+  orientation: Orientation,
+  crossExtent: number,
+  primaryExtent: number,
+): number {
+  if (
+    orientation === "horizontal" &&
+    Number.isFinite(crossExtent) &&
+    Number.isFinite(primaryExtent) &&
+    primaryExtent < 700 &&
+    crossExtent < COMPACT_HORIZONTAL_RAIL_MAX_PX
+  ) {
+    return COMPACT_HORIZONTAL_MAX_LANES;
+  }
+  return MAX_COMMITTED_LANES;
 }
 
 function normalizeWheelDelta(
@@ -452,7 +490,6 @@ export class TimelineViewController {
   interactionSurfaceRect: DOMRect | null = null;
   lastRenderedAxisCross: number | null = null;
   lastRenderedAxisOrientation: Orientation | null = null;
-  lastAxisCrossCss = "";
   lastReadoutKey = "";
   layoutCorrectionAnimations = new Map<
     HTMLElement,
@@ -2075,6 +2112,20 @@ export class TimelineViewController {
     this.layoutCorrectionAnimations.clear();
   }
 
+  resolvedAxisCross(crossExtent: number): number {
+    if (
+      this.retention.active &&
+      this.lastRenderedAxisCross !== null &&
+      this.lastRenderedAxisOrientation === this.orientation
+    ) {
+      return this.lastRenderedAxisCross;
+    }
+
+    const fallbackRatio = this.orientation === "horizontal" ? 0.5 : 0.58;
+    const cssValue = getComputedStyle(this.surface).getPropertyValue("--timeline-axis-cross");
+    return axisCrossFromCss(cssValue, crossExtent, fallbackRatio);
+  }
+
   stabilizeStructuralAxisCross(axisCross: number): void {
     const previous =
       this.lastRenderedAxisOrientation === this.orientation ? this.lastRenderedAxisCross : null;
@@ -2244,12 +2295,10 @@ export class TimelineViewController {
   reconcileCommittedLayout(): void {
     if (this.retention.active || !this.items.length) return;
     const rect = this.surface.getBoundingClientRect();
-    const primaryLength = Math.max(
-      1,
-      this.orientation === "horizontal"
-        ? rect.width || this.surface.clientWidth
-        : rect.height || this.surface.clientHeight,
-    );
+    const width = Math.max(1, rect.width || this.surface.clientWidth || 800);
+    const height = Math.max(1, rect.height || this.surface.clientHeight || 480);
+    const primaryLength = this.orientation === "horizontal" ? width : height;
+    const crossExtent = this.orientation === "horizontal" ? height : width;
     const usable = Math.max(1, primaryLength - this.axisPadding(primaryLength) * 2);
     const occurrences = this.measuredQueryOccurrences(this.items, this.viewport);
     const focused = this.focusedId
@@ -2270,7 +2319,7 @@ export class TimelineViewController {
       viewport: this.viewport,
       occurrences,
       pixelLength: usable,
-      maxLanes: MAX_COMMITTED_LANES,
+      maxLanes: committedLaneLimit(this.orientation, crossExtent, primaryLength),
       clusterThresholds: {
         enterPx: CLUSTER_ENTER_PX,
         exitPx: CLUSTER_EXIT_PX,
@@ -2659,15 +2708,11 @@ export class TimelineViewController {
     const width = Math.max(1, rect.width || this.surface.clientWidth || 800);
     const height = Math.max(1, rect.height || this.surface.clientHeight || 480);
     const primaryLength = this.orientation === "horizontal" ? width : height;
-    const axisCross = this.orientation === "horizontal" ? height / 2 : width * 0.58;
+    const crossExtent = this.orientation === "horizontal" ? height : width;
+    const axisCross = this.resolvedAxisCross(crossExtent);
     const padding = this.axisPadding(primaryLength);
     const usable = Math.max(1, primaryLength - padding * 2);
     this.stabilizeStructuralAxisCross(axisCross);
-    const axisCrossCss = `${axisCross}px`;
-    if (this.lastAxisCrossCss !== axisCrossCss) {
-      this.surface.style.setProperty("--timeline-axis-cross", axisCrossCss);
-      this.lastAxisCrossCss = axisCrossCss;
-    }
 
     this.renderWindow = createRenderWindow(this.viewport, {
       overscanRatio: OVERSCAN_RATIO,
@@ -3624,5 +3669,7 @@ export const TimelineView = Object.freeze({
     normalizeWheelDelta,
     wheelZoomFactor,
     selectEdgeAccents,
+    axisCrossFromCss,
+    committedLaneLimit,
   }),
 });

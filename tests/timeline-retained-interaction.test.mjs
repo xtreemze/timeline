@@ -219,14 +219,14 @@ test("committed lane and side corrections are short, cancelable, and reduced-mot
 test("stable interaction-frame metadata writes are coalesced", async () => {
   const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
 
-  assert.match(source, /lastAxisCrossCss = ""/);
   assert.match(source, /lastReadoutKey = ""/);
 
   const sceneStart = source.indexOf("  renderScene(): void {");
   const sceneEnd = source.indexOf("  createRecord(", sceneStart);
   const sceneBody = source.slice(sceneStart, sceneEnd);
   assert.match(sceneBody, /this\.root\.dataset\.empty !== emptyState/);
-  assert.match(sceneBody, /this\.lastAxisCrossCss !== axisCrossCss/);
+  assert.match(sceneBody, /const axisCross = this\.resolvedAxisCross\(crossExtent\)/);
+  assert.doesNotMatch(sceneBody, /style\.setProperty\("--timeline-axis-cross"/);
   assert.match(sceneBody, /this\.stage\.dataset\.sceneState !== sceneState/);
 
   const zoomStart = source.indexOf("  syncZoomSlider(): void {");
@@ -261,10 +261,18 @@ test("structural axis relocation keeps the retained scene visually continuous", 
   assert.match(stabilizeBody, /record\.crossPosition = record\.crossPosition \+ axisShift/);
   assert.match(stabilizeBody, /this\.animateLayoutCorrection\([\s\S]*this\.stage/);
 
+  const resolverStart = source.indexOf("  resolvedAxisCross(");
+  const resolverEnd = source.indexOf("  stabilizeStructuralAxisCross(", resolverStart);
+  const resolverBody = source.slice(resolverStart, resolverEnd);
+  assert.match(resolverBody, /getComputedStyle\(this\.surface\)\.getPropertyValue\("--timeline-axis-cross"\)/);
+  assert.match(resolverBody, /this\.retention\.active/);
+  assert.match(resolverBody, /this\.lastRenderedAxisCross/);
+
   const sceneStart = source.indexOf("  renderScene(): void {");
   const sceneEnd = source.indexOf("  createRecord(", sceneStart);
   const sceneBody = source.slice(sceneStart, sceneEnd);
   assert.match(sceneBody, /this\.stabilizeStructuralAxisCross\(axisCross\)/);
+  assert.doesNotMatch(sceneBody, /style\.setProperty\("--timeline-axis-cross"/);
 
   const orientationStart = source.indexOf("  setOrientation(");
   const orientationEnd = source.indexOf("  getOrientation(", orientationStart);
