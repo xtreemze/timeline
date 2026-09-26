@@ -2,10 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  preserveWorldProjectionRenderContinuity,
   resolveWorldLocalLayoutPosition,
   resolveWorldRenderPosition,
 } from "../src/layout/world-geographic-position.ts";
-import { createProjectedWorldInstance } from "../src/projection/world-projection.ts";
+import {
+  createProjectedWorldInstance,
+  createWorldProjection,
+} from "../src/projection/world-projection.ts";
 
 function instance(overrides = {}) {
   return createProjectedWorldInstance({
@@ -162,4 +166,45 @@ test("inverse local drag conversion preserves unplaced semantics", () => {
   const projected = instance({ geographicAnchors: [] });
 
   assert.equal(resolveWorldLocalLayoutPosition(projected, [18.0686, 59.3293, 1000]), null);
+});
+
+
+test("committed temporal reprojection preserves surviving node world position", () => {
+  const beforeInstance = instance({
+    localOffset: { eastMeters: 1250, northMeters: -750 },
+    visualAltitude: 1450,
+  });
+  const before = createWorldProjection({ instances: [beforeInstance], edges: [] });
+  const after = createWorldProjection({
+    instances: [
+      instance({
+        geographicAnchors: [
+          {
+            placeId: "copenhagen",
+            longitude: 12.5683,
+            latitude: 55.6761,
+            sourceAltitude: 5,
+            certainty: 1,
+            influence: 1,
+          },
+        ],
+        temporalWeight: 0.75,
+        visualAltitude: 1000,
+      }),
+    ],
+    edges: [],
+  });
+
+  const beforePosition = resolveWorldRenderPosition(before.instances[0]);
+  const reconciled = preserveWorldProjectionRenderContinuity(before, after);
+  const afterPosition = resolveWorldRenderPosition(reconciled.instances[0]);
+
+  assert.ok(beforePosition);
+  assert.ok(afterPosition);
+  assert.ok(Math.abs(afterPosition[0] - beforePosition[0]) < 1e-9);
+  assert.ok(Math.abs(afterPosition[1] - beforePosition[1]) < 1e-9);
+  assert.ok(Math.abs(afterPosition[2] - beforePosition[2]) < 1e-9);
+  assert.equal(reconciled.instances[0].geographicAnchors[0].placeId, "copenhagen");
+  assert.equal(reconciled.instances[0].temporalWeight, 0.75);
+  assert.notDeepEqual(reconciled.instances[0].localOffset, after.instances[0].localOffset);
 });
