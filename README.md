@@ -58,7 +58,7 @@ Lūm combines a retained chronology with synchronized relational and spatial con
 - reusable places, evidence/source provenance, analytical records, stories, and categories;
 - focused occurrence context, evidence inspection, narrative traversal, search, filtering, and responsive presentation;
 - local-first project persistence, import/export, validation, and migration;
-- WebMCP tools for agent-driven reads and validated mutations;
+- WebMCP tools for agent-driven reads and validated mutations, with provider-neutral MCP relay support for Codex/Claude and a browser-local Ollama tool host;
 - optional browser-native AI/OCR inference that proposes structured data without bypassing deterministic validation;
 - keyboard, touch, pointer, gamepad, reduced-motion, and mobile-first interaction paths.
 
