@@ -111,6 +111,10 @@ const COMPARE_LAYERING_HYSTERESIS_NODES = 4;
 const COMPARE_LAYERING_HYSTERESIS_EDGES = 16;
 const SIMPLEX_LAYER_HYSTERESIS_NODES = 16;
 const SIMPLEX_LAYER_HYSTERESIS_EDGES = 64;
+const DAG_PORT_LANE_MIN_PITCH_METERS = 180;
+const DAG_PORT_LANE_MAX_PITCH_METERS = 420;
+const DAG_PORT_STUB_MIN_METERS = 180;
+const DAG_PORT_STUB_MAX_METERS = 720;
 
 interface LocalDagEdge {
   readonly relationshipId: RelationshipId;
@@ -147,6 +151,8 @@ interface RawRoute {
   readonly relationshipId: RelationshipId;
   readonly sourceId: WorldInstanceId;
   readonly targetId: WorldInstanceId;
+  /** Structural importance used only to break ties between crossing-equivalent layouts. */
+  readonly importance: number;
   readonly points: readonly WorldDagRoutePoint[];
 }
 
@@ -157,6 +163,7 @@ interface CandidateLayout {
   readonly width: number;
   readonly height: number;
   readonly crossingCount: number | null;
+  readonly weightedCrossingCost: number;
   readonly meanEdgeLengthMeters: number;
   readonly minSeparationMeters: number | null;
   readonly meanStableDisplacementMeters: number;
@@ -505,13 +512,220 @@ function routeSegments(
   return Object.freeze(segments);
 }
 
+function routingDemand(
+  nodeIds: readonly WorldInstanceId[],
+  edges: readonly LocalDagEdge[],
+): ReadonlyMap<string, { readonly incoming: number; readonly outgoing: number }> {
+  const demand = new Map<string, { incoming: number; outgoing: number }>(
+    nodeIds.map((id) => [String(id), { incoming: 0, outgoing: 0 }]),
+  );
+  for (const edge of edges) {
+    const source = demand.get(String(edge.sourceId));
+    const target = demand.get(String(edge.targetId));
+    if (source) demand.set(String(edge.sourceId), { ...source, outgoing: source.outgoing + 1 });
+    if (target) demand.set(String(edge.targetId), { ...target, incoming: target.incoming + 1 });
+  }
+  return demand;
+}
+
+function routingAwareNodeSizes(
+  nodeIds: readonly WorldInstanceId[],
+  edges: readonly LocalDagEdge[],
+  sizes: ReadonlyMap<string, readonly [number, number]>,
+  orientation: WorldDagLayoutOrientation,
+): ReadonlyMap<string, readonly [number, number]> {
+  const demand = routingDemand(nodeIds, edges);
+  return new Map(
+    nodeIds.map((id) => {
+      const key = String(id);
+      const [width, height] = sizes.get(key) ?? [
+        DAG_FALLBACK_NODE_SIZE_METERS,
+        DAG_FALLBACK_NODE_SIZE_METERS,
+      ];
+      const ports = demand.get(key);
+      const portCount = Math.max(ports?.incoming ?? 0, ports?.outgoing ?? 0);
+      if (portCount <= 1) {
+        return [
+          key,
+          Object.freeze([width, height]) as readonly [number, number],
+        ] as const;
+      }
+
+      const crossSize = orientation === "left-to-right" ? height : width;
+      const pitch = Math.max(
+        DAG_PORT_LANE_MIN_PITCH_METERS,
+        Math.min(DAG_PORT_LANE_MAX_PITCH_METERS, crossSize * 0.35),
+      );
+      const expandedCross = crossSize + (portCount - 1) * pitch;
+      return [
+        key,
+        orientation === "left-to-right"
+          ? (Object.freeze([width, expandedCross]) as readonly [number, number])
+          : (Object.freeze([expandedCross, height]) as readonly [number, number]),
+      ] as const;
+    }),
+  );
+}
+
+function allocateRoutePorts(
+  routes: readonly RawRoute[],
+  targets: readonly RawTarget[],
+  sizes: ReadonlyMap<string, readonly [number, number]>,
+  orientation: WorldDagLayoutOrientation,
+): readonly RawRoute[] {
+  if (routes.length === 0) return routes;
+
+  const targetById = new Map(targets.map((target) => [target.id, target] as const));
+  const outgoing = new Map<string, RawRoute[]>();
+  const incoming = new Map<string, RawRoute[]>();
+  for (const route of routes) {
+    const sourceKey = String(route.sourceId);
+    const targetKey = String(route.targetId);
+    const sourceGroup = outgoing.get(sourceKey);
+    if (sourceGroup) sourceGroup.push(route);
+    else outgoing.set(sourceKey, [route]);
+    const targetGroup = incoming.get(targetKey);
+    if (targetGroup) targetGroup.push(route);
+    else incoming.set(targetKey, [route]);
+  }
+
+  const crossCoordinate = (target: RawTarget | undefined): number => {
+    if (!target) return Number.POSITIVE_INFINITY;
+    return orientation === "left-to-right" ? target.northMeters : target.eastMeters;
+  };
+  const pitchFor = (nodeId: string, count: number): number => {
+    if (count <= 1) return 0;
+    const [width, height] = sizes.get(nodeId) ?? [
+      DAG_FALLBACK_NODE_SIZE_METERS,
+      DAG_FALLBACK_NODE_SIZE_METERS,
+    ];
+    const crossSize = orientation === "left-to-right" ? height : width;
+    return Math.max(
+      DAG_PORT_LANE_MIN_PITCH_METERS,
+      Math.min(DAG_PORT_LANE_MAX_PITCH_METERS, crossSize / (count + 1)),
+    );
+  };
+  const sourceOffsets = new Map<RelationshipId, number>();
+  const targetOffsets = new Map<RelationshipId, number>();
+
+  for (const [sourceId, group] of outgoing) {
+    group.sort(
+      (left, right) =>
+        crossCoordinate(targetById.get(String(left.targetId))) -
+          crossCoordinate(targetById.get(String(right.targetId))) ||
+        String(left.relationshipId).localeCompare(String(right.relationshipId)),
+    );
+    const pitch = pitchFor(sourceId, group.length);
+    group.forEach((route, index) => {
+      sourceOffsets.set(route.relationshipId, (index - (group.length - 1) / 2) * pitch);
+    });
+  }
+  for (const [targetId, group] of incoming) {
+    group.sort(
+      (left, right) =>
+        crossCoordinate(targetById.get(String(left.sourceId))) -
+          crossCoordinate(targetById.get(String(right.sourceId))) ||
+        String(left.relationshipId).localeCompare(String(right.relationshipId)),
+    );
+    const pitch = pitchFor(targetId, group.length);
+    group.forEach((route, index) => {
+      targetOffsets.set(route.relationshipId, (index - (group.length - 1) / 2) * pitch);
+    });
+  }
+
+  return Object.freeze(
+    routes.map((route) => {
+      const sourceId = String(route.sourceId);
+      const targetId = String(route.targetId);
+      const sourceGroupCount = outgoing.get(sourceId)?.length ?? 0;
+      const targetGroupCount = incoming.get(targetId)?.length ?? 0;
+      if (sourceGroupCount <= 1 && targetGroupCount <= 1) return route;
+
+      const source = targetById.get(sourceId);
+      const target = targetById.get(targetId);
+      if (!source || !target) return route;
+      const [sourceWidth, sourceHeight] = sizes.get(sourceId) ?? [
+        DAG_FALLBACK_NODE_SIZE_METERS,
+        DAG_FALLBACK_NODE_SIZE_METERS,
+      ];
+      const [targetWidth, targetHeight] = sizes.get(targetId) ?? [
+        DAG_FALLBACK_NODE_SIZE_METERS,
+        DAG_FALLBACK_NODE_SIZE_METERS,
+      ];
+      const sourceHalfFlow =
+        (orientation === "left-to-right" ? sourceWidth : sourceHeight) / 2;
+      const targetHalfFlow =
+        (orientation === "left-to-right" ? targetWidth : targetHeight) / 2;
+      const flowDistance =
+        orientation === "left-to-right"
+          ? target.eastMeters - source.eastMeters
+          : source.northMeters - target.northMeters;
+      const clearFlow = flowDistance - sourceHalfFlow - targetHalfFlow;
+      if (!(clearFlow > 2)) return route;
+
+      const preferredStub = Math.max(
+        DAG_PORT_STUB_MIN_METERS,
+        Math.min(
+          DAG_PORT_STUB_MAX_METERS,
+          Math.min(sourceHalfFlow, targetHalfFlow) * 0.8,
+        ),
+      );
+      const stub = Math.max(1, Math.min(preferredStub, clearFlow * 0.28));
+      const sourceOffset = sourceOffsets.get(route.relationshipId) ?? 0;
+      const targetOffset = targetOffsets.get(route.relationshipId) ?? 0;
+      const sourcePort: WorldDagRoutePoint =
+        orientation === "left-to-right"
+          ? Object.freeze({
+              eastMeters: source.eastMeters + sourceHalfFlow + stub,
+              northMeters: source.northMeters + sourceOffset,
+            })
+          : Object.freeze({
+              eastMeters: source.eastMeters + sourceOffset,
+              northMeters: source.northMeters - sourceHalfFlow - stub,
+            });
+      const targetPort: WorldDagRoutePoint =
+        orientation === "left-to-right"
+          ? Object.freeze({
+              eastMeters: target.eastMeters - targetHalfFlow - stub,
+              northMeters: target.northMeters + targetOffset,
+            })
+          : Object.freeze({
+              eastMeters: target.eastMeters + targetOffset,
+              northMeters: target.northMeters + targetHalfFlow + stub,
+            });
+
+      const interior = route.points.slice(1, -1).filter((point) =>
+        orientation === "left-to-right"
+          ? point.eastMeters > sourcePort.eastMeters + 1 &&
+            point.eastMeters < targetPort.eastMeters - 1
+          : point.northMeters < sourcePort.northMeters - 1 &&
+            point.northMeters > targetPort.northMeters + 1,
+      );
+      return Object.freeze({
+        ...route,
+        points: Object.freeze([
+          Object.freeze({ eastMeters: source.eastMeters, northMeters: source.northMeters }),
+          sourcePort,
+          ...interior,
+          targetPort,
+          Object.freeze({ eastMeters: target.eastMeters, northMeters: target.northMeters }),
+        ]),
+      });
+    }),
+  );
+}
+
 function candidateMetrics(
   targets: readonly RawTarget[],
   routes: readonly RawRoute[],
   previousTargets: ReadonlyMap<string, WorldDagLayoutTarget>,
 ): Pick<
   CandidateLayout,
-  "crossingCount" | "meanEdgeLengthMeters" | "minSeparationMeters" | "meanStableDisplacementMeters"
+  | "crossingCount"
+  | "weightedCrossingCost"
+  | "meanEdgeLengthMeters"
+  | "minSeparationMeters"
+  | "meanStableDisplacementMeters"
 > {
   const segmentedRoutes = routes.map((route) => ({ route, segments: routeSegments(route) }));
   let totalLength = 0;
@@ -531,6 +745,7 @@ function candidateMetrics(
   }
 
   let crossingCount: number | null = 0;
+  let weightedCrossingCost = 0;
   if (segmentCount > ROUTE_METRIC_MAX_SEGMENTS) {
     crossingCount = null;
   } else {
@@ -560,6 +775,7 @@ function candidateMetrics(
               )
             ) {
               crossingCount += 1;
+              weightedCrossingCost += left.route.importance * right.route.importance;
             }
           }
         }
@@ -600,6 +816,7 @@ function candidateMetrics(
 
   return {
     crossingCount,
+    weightedCrossingCost,
     meanEdgeLengthMeters: measuredRoutes > 0 ? totalLength / measuredRoutes : 0,
     minSeparationMeters,
     meanStableDisplacementMeters: stableCount > 0 ? stableDisplacement / stableCount : 0,
@@ -712,6 +929,7 @@ function scaledCandidate(
   candidate: Omit<
     CandidateLayout,
     | "crossingCount"
+    | "weightedCrossingCost"
     | "meanEdgeLengthMeters"
     | "minSeparationMeters"
     | "meanStableDisplacementMeters"
@@ -747,6 +965,7 @@ function scaledCandidate(
       targets: Object.freeze([]),
       routes: Object.freeze([]),
       crossingCount: null,
+      weightedCrossingCost: 0,
       meanEdgeLengthMeters: 0,
       minSeparationMeters: null,
       meanStableDisplacementMeters: 0,
@@ -801,6 +1020,7 @@ function candidateScore(candidate: CandidateLayout): number {
     Math.max(1, Math.min(candidate.width, candidate.height));
   return (
     crossings * 100_000 +
+    candidate.weightedCrossingCost * 25_000 +
     candidate.meanEdgeLengthMeters +
     Math.max(0, aspect - 3) * 500 +
     candidate.meanStableDisplacementMeters * 0.5
@@ -858,7 +1078,9 @@ function runLayoutCandidate(
     indegree.set(edge.targetId, (indegree.get(edge.targetId) ?? 0) + 1);
   }
 
-  const layoutSizes = new Map<string, readonly [number, number]>(sizes);
+  const layoutSizes = new Map<string, readonly [number, number]>(
+    routingAwareNodeSizes(nodeIds, edges, sizes, orientation),
+  );
   layoutSizes.set(rootId, rootSize);
   for (const obstacle of placeObstacles) layoutSizes.set(obstacle.id, obstacle.size);
   const dagSizes = new Map(
@@ -924,6 +1146,7 @@ function runLayoutCandidate(
       width: orientation === "left-to-right" ? dimensions.height : dimensions.width,
       height: orientation === "left-to-right" ? dimensions.width : dimensions.height,
       crossingCount: 0,
+      weightedCrossingCost: 0,
       meanEdgeLengthMeters: 0,
       minSeparationMeters: null,
       meanStableDisplacementMeters: 0,
@@ -968,6 +1191,8 @@ function runLayoutCandidate(
         relationshipId,
         sourceId: semantic.sourceId,
         targetId: semantic.targetId,
+        importance:
+          Math.max(0.1, Math.min(1, semantic.temporalWeight)) * (semantic.retained ? 1.25 : 1),
         points: Object.freeze(
           link.points.map(([x, y]) => {
             const [eastMeters, northMeters] = toWorldCoordinates(x, y);
@@ -978,12 +1203,14 @@ function runLayoutCandidate(
     );
   }
 
+  const portRouted = allocateRoutePorts(routes, targets, layoutSizes, orientation);
+
   return scaledCandidate(
     {
       name,
       targets,
       routes: Object.freeze(
-        routes.sort((left, right) =>
+        [...portRouted].sort((left, right) =>
           String(left.relationshipId).localeCompare(String(right.relationshipId)),
         ),
       ),
@@ -1046,6 +1273,7 @@ function chooseCandidate(
       width: 0,
       height: 0,
       crossingCount: null,
+      weightedCrossingCost: 0,
       meanEdgeLengthMeters: 0,
       minSeparationMeters: null,
       meanStableDisplacementMeters: 0,
