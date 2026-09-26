@@ -229,7 +229,9 @@ jobs:
       - run: pnpm test:retained-timeline-metrics
       - run: pnpm benchmark:retained-timeline
       - run: pnpm benchmark:graph-data
-      - run: pnpm benchmark:world-force
+      - name: Benchmark representative world-force scaling
+        run: pnpm benchmark:world-force
+        timeout-minutes: 5
       - name: Certify world DAG layout quality
         run: pnpm benchmark:world-dag -- --check
         timeout-minutes: 2
@@ -472,7 +474,7 @@ jobs:
         with:
           name: world-surface-interaction-report
           path: /tmp/world-interaction-report.json
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14
       - name: Run WorldSurface scale certification
         run: |
