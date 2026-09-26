@@ -612,3 +612,41 @@ test("methodology review identifies alternative groups with no discriminating or
   );
   assert.deepEqual(review.alternativeGroupsWithoutDisconfirmingTest, ["group-1"]);
 });
+
+
+test("trajectory-derived observations preserve world, timeline, source, and trajectory context references", () => {
+  const normalized = reasoning.normalizeReasoning({
+    observations: [
+      {
+        id: "obs-track",
+        text: "A recorded journey passed through the incident area.",
+        evidenceIds: ["ev-track"],
+        itemIds: ["item-journey"],
+        relationshipIds: ["rel-journey"],
+        placeIds: ["place-incident"],
+        entityIds: ["alice"],
+        trajectoryIds: ["track-high-res"],
+        temporalScope: {
+          start: "2026-09-26T21:10:00+03:00",
+          end: "2026-09-26T21:20:00+03:00",
+        },
+      },
+    ],
+  });
+
+  assert.deepEqual(normalized.observations[0].evidenceIds, ["ev-track"]);
+  assert.deepEqual(normalized.observations[0].itemIds, ["item-journey"]);
+  assert.deepEqual(normalized.observations[0].relationshipIds, ["rel-journey"]);
+  assert.deepEqual(normalized.observations[0].placeIds, ["place-incident"]);
+  assert.deepEqual(normalized.observations[0].entityIds, ["alice"]);
+  assert.deepEqual(normalized.observations[0].trajectoryIds, ["track-high-res"]);
+
+  const findings = reasoning.validateReasoning(normalized, {
+    entityIds: ["alice"],
+    externalIds: ["ev-track", "item-journey", "rel-journey", "place-incident"],
+  });
+  assert.equal(
+    findings.some((finding) => finding.severity === "error"),
+    false,
+  );
+});
