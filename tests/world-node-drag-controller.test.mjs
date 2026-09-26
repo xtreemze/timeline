@@ -196,12 +196,47 @@ test("negative visual altitude is rejected as presentation state", () => {
   assert.equal(interaction.snapshot().phase, "idle");
 });
 
-test("a new world drag cannot start until the previous release is committed", () => {
-  const { controller } = harness();
+test("a new world drag preempts post-drop settling from the previous release", () => {
+  const { controller, interaction, simulation } = harness();
 
   assert.equal(controller.begin(7, target), true);
   assert.equal(controller.release(7), true);
-  assert.equal(controller.begin(8, target), false);
-  assert.equal(controller.commit(), true);
+  assert.equal(controller.state().settling, true);
+  assert.equal(simulation.getState().reason, "post-drop");
+
   assert.equal(controller.begin(8, target), true);
+  assert.deepEqual(controller.state(), {
+    active: true,
+    instanceId: '["alice","meeting"]',
+    pointerId: 8,
+    settling: false,
+  });
+  assert.equal(interaction.snapshot().phase, "owned");
+  assert.equal(interaction.snapshot().owner, "world");
+  assert.equal(interaction.snapshot().gesture, "node-drag");
+  assert.equal(simulation.getState().reason, "drag");
+});
+
+test("world nodes can be long-press dragged repeatedly without waiting for settling", () => {
+  const { controller, interaction } = harness();
+
+  for (let index = 0; index < 32; index += 1) {
+    const pointerId = 100 + index;
+    assert.equal(controller.begin(pointerId, target), true, `drag ${index + 1} should begin`);
+    assert.equal(
+      controller.update(pointerId, {
+        eastMeters: 40 + index,
+        northMeters: -20 + index,
+        visualAltitudeMeters: 1200,
+      }),
+      true,
+      `drag ${index + 1} should update`,
+    );
+    assert.equal(controller.release(pointerId), true, `drag ${index + 1} should release`);
+  }
+
+  assert.equal(controller.state().active, false);
+  assert.equal(controller.state().settling, true);
+  assert.equal(interaction.snapshot().phase, "settling");
+  assert.equal(interaction.snapshot().owner, "world");
 });

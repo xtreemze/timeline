@@ -28,6 +28,14 @@ test("footer owns one persistent View group and one Edit action", async () => {
   assert.doesNotMatch(index, /id="timeline-view-toolbar"[^>]*popover=/);
   assert.doesNotMatch(index, /timeline-view-controls-toggle/);
   assert.doesNotMatch(index, /timeline-focus-edit/);
+  assert.doesNotMatch(index, /id="timeline-focus-prev"[^>]*\shidden(?:\s|>)/);
+  assert.doesNotMatch(index, /id="timeline-focus-next"[^>]*\shidden(?:\s|>)/);
+  assert.match(app, /els\.focusPrev\.hidden = false/);
+  assert.match(app, /els\.focusNext\.hidden = false/);
+  assert.match(app, /els\.focusPrev\.disabled = false/);
+  assert.match(app, /els\.focusNext\.disabled = false/);
+  assert.match(app, /focusAdjacent\(-1, \{ reference: "viewport" \}\)/);
+  assert.match(app, /focusAdjacent\(1, \{ reference: "viewport" \}\)/);
   assert.equal((index.match(/id="editor-toggle"/g) ?? []).length, 1);
   assert.doesNotMatch(index, /id="editor-toggle"[^>]*aria-pressed=/);
   assert.doesNotMatch(app, /editorToggle\.setAttribute\("aria-pressed"/);

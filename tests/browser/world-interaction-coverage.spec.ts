@@ -103,6 +103,58 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
       .not.toBeCloseTo(before.zoom, 5);
   });
 
+  test("pinch across the globe/local threshold leaves touch panning responsive", async ({
+    page,
+    browserName,
+    isMobile,
+  }) => {
+    test.skip(!isMobile, "Desktop projects certify wheel/trackpad zoom separately.");
+    test.skip(browserName !== "chromium", "CDP multi-touch certification is Chromium-only.");
+    test.skip(!(await gotoHarness(page)), "WebGL2 unavailable in this environment.");
+
+    const viewport = page.viewportSize();
+    if (!viewport) throw new Error("WorldSurface pinch certification requires a viewport.");
+
+    await page.evaluate(async () => {
+      const helpersModulePath = "/world-test-helpers.mjs";
+      const { createWorldProjection } = await import(helpersModulePath);
+      const harness = window.__worldPerfHarness;
+      harness.surface.setProjection(createWorldProjection({ instances: [], edges: [] }));
+      harness.surface.setCamera({
+        longitude: 12,
+        latitude: 30,
+        zoom: 12.6,
+        bearing: 0,
+        pitch: 0,
+      });
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      );
+    });
+
+    await pinch(page, { x: viewport.width / 2, y: viewport.height / 2 }, 2);
+
+    await expect
+      .poll(() => page.evaluate(() => window.__worldPerfHarness.surface.getCamera().zoom), {
+        message: "pinch should cross into local precision zoom",
+      })
+      .toBeGreaterThan(12.75);
+
+    const afterPinch = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera());
+    await swipe(
+      page,
+      { x: viewport.width / 2, y: viewport.height / 2 },
+      { dx: 100, dy: 0 },
+      { speed: 260 },
+    );
+
+    await expect
+      .poll(() => page.evaluate(() => window.__worldPerfHarness.surface.getCamera().longitude), {
+        message: "touch pan should remain responsive after the precision-view handoff",
+      })
+      .not.toBeCloseTo(afterPinch.longitude, 5);
+  });
+
   test("picking resolves a click at a known entity's projected screen point", async ({ page }) => {
     test.skip(!(await gotoHarness(page)), "WebGL2 unavailable in this environment.");
 

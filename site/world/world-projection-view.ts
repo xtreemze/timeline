@@ -32,6 +32,8 @@ export interface WorldProjectionRuntime {
   focusEntity(id: EntityId): void;
   focusOccurrence(id: RelationshipId): void;
   focusPlace(id: PlaceId): void;
+  fitToContent(): boolean;
+  zoomToContent(): boolean;
   refresh(): void;
   getRenderProjection(): WorldProjection | null;
   destroy(): void;
@@ -307,6 +309,7 @@ export class WorldProjectionView {
   #entityIds = new Set<string>();
   #entityPresentation = new Map<EntityId, WorldEntityPresentation>();
   #placeIds = new Set<string>();
+  #relationshipIdsByItem = new Map<string, readonly RelationshipId[]>();
 
   constructor(runtime: WorldProjectionRuntime) {
     this.#runtime = runtime;
@@ -363,6 +366,31 @@ export class WorldProjectionView {
         break;
       }
     }
+
+    const relationshipIdsByItem = new Map<string, RelationshipId[]>();
+    for (const raw of Array.isArray(model.relationships) ? model.relationships : []) {
+      const rawId = text(raw.id);
+      if (!rawId || !Array.isArray(raw.itemIds)) continue;
+      const canonicalId = relationshipId(rawId);
+      for (const rawItemId of raw.itemIds) {
+        const itemId = text(rawItemId);
+        if (!itemId) continue;
+        const ids = relationshipIdsByItem.get(itemId) ?? [];
+        ids.push(canonicalId);
+        relationshipIdsByItem.set(itemId, ids);
+      }
+    }
+    this.#relationshipIdsByItem = new Map(
+      [...relationshipIdsByItem].map(
+        ([itemId, ids]) =>
+          [
+            itemId,
+            Object.freeze(
+              [...new Set(ids)].sort((left, right) => String(left).localeCompare(String(right))),
+            ),
+          ] as const,
+      ),
+    );
 
     this.#relationships = canonicalRelationships(
       Array.isArray(model.relationships) ? model.relationships : [],
@@ -434,8 +462,13 @@ export class WorldProjectionView {
   }
 
   setFocus(id: string | number | null): void {
-    this.#focusId = id === null || id === undefined ? null : String(id);
-    this.#focusCurrent();
+    const next = id === null || id === undefined ? null : String(id);
+    if (next === this.#focusId) return;
+    const previousContextual = Boolean(this.#focusId && this.#relationshipIdsByItem.has(this.#focusId));
+    const nextContextual = Boolean(next && this.#relationshipIdsByItem.has(next));
+    this.#focusId = next;
+    if (previousContextual || nextContextual) this.#render();
+    else this.#focusCurrent();
   }
 
   setPresentationMode(active: boolean): void {
@@ -445,10 +478,23 @@ export class WorldProjectionView {
   hasContext(): boolean {
     const projection = this.#runtime.getRenderProjection();
     if (!this.#focusId || !projection) return false;
+    if (this.#relationshipIdsByItem.has(this.#focusId)) {
+      return projection.instances.length > 0 && projection.edges.length > 0;
+    }
     return (
       projection.edges.some((edge) => String(edge.id) === this.#focusId) ||
       projection.instances.some((instance) => String(instance.canonicalId) === this.#focusId)
     );
+  }
+
+  fitContext(): boolean {
+    if (!this.hasContext()) return false;
+    return this.#runtime.fitToContent();
+  }
+
+  zoomContext(): boolean {
+    if (!this.hasContext()) return false;
+    return this.#runtime.zoomToContent();
   }
 
   refreshLayout(): void {
@@ -464,9 +510,20 @@ export class WorldProjectionView {
   }
 
   #render(): void {
-    const { activeIds, weights } = this.#sharedActiveIds
+    const base = this.#sharedActiveIds
       ? this.#sharedActivation(this.#sharedActiveIds)
       : this.#standaloneActivation();
+    const contextualIds = this.#focusId ? this.#relationshipIdsByItem.get(this.#focusId) : undefined;
+    const activeIds = contextualIds?.length
+      ? Object.freeze(
+          contextualIds.filter((id) =>
+            this.#relationships.some((relationship) => relationship.id === id),
+          ),
+        )
+      : base.activeIds;
+    const weights = contextualIds?.length
+      ? new Map(activeIds.map((id) => [id, base.weights.get(id) ?? 1] as const))
+      : base.weights;
 
     const projection = projectWorldOccurrences(
       this.#relationships,

@@ -392,19 +392,25 @@ test("timeline event cards pack inward on measured one-sided lanes", async () =>
   const laneBody = source.slice(laneStart, laneEnd);
   assert.match(laneBody, /return -\(this\.laneIndexFor\(item\) \+ 1\)/);
   assert.match(laneBody, /committedLaneCrossOffsets/);
-  assert.match(laneBody, /TIMELINE_CARD_DEFAULT_CROSS_SIZE_PX/);
+  assert.match(laneBody, /TIMELINE_CARD_DEFAULT_HORIZONTAL_CROSS_SIZE_PX/);
+  assert.match(laneBody, /TIMELINE_CARD_DEFAULT_VERTICAL_CROSS_SIZE_PX/);
+  assert.match(laneBody, /connectorRouting === "orthogonal"/);
 
   const reconcileStart = source.indexOf("  reconcileCommittedLayout(): void {");
   const reconcileEnd = source.indexOf("  reconcileClusterScene(", reconcileStart);
   const reconcileBody = source.slice(reconcileStart, reconcileEnd);
   assert.match(reconcileBody, /planLaneCrossOffsets\(crossAxisPlacements/);
-  assert.match(reconcileBody, /routingSlackPx: TIMELINE_CARD_ROUTING_SLACK_PX/);
+  assert.match(reconcileBody, /item\.connectorRouting === "orthogonal"/);
+  assert.match(reconcileBody, /routingSlackPx: 0/);
 
   const positionStart = source.indexOf("  positionRecord(");
   const positionEnd = source.indexOf("  animateEntry(", positionStart);
   const positionBody = source.slice(positionStart, positionEnd);
   assert.match(positionBody, /const terminalCross = axisCross - laneDistance/);
-  assert.match(positionBody, /const laneDistance = this\.crossDistanceForLaneIndex\(laneIndex\)/);
+  assert.match(
+    positionBody,
+    /this\.crossDistanceForLaneIndex\([\s\S]{0,100}laneIndex,[\s\S]{0,100}item\.connectorRouting \|\| "straight"/,
+  );
   assert.match(positionBody, /this\.orientation === "horizontal"[\s\S]*: true;/);
   assert.doesNotMatch(positionBody, /axisCross \+ \(lane < 0/);
 

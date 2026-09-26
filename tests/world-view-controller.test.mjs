@@ -394,6 +394,39 @@ test("world drag lifecycle is coordinated with force pin and post-drop settling"
   assert.equal(controller.getInteractionCoordinator().snapshot().phase, "committed");
 });
 
+test("a fresh node drag can interrupt post-drop settling immediately", () => {
+  const { controller } = harness();
+  const input = projection();
+  const alice = input.instances.find((instance) => instance.canonicalId === "alice");
+  const bob = input.instances.find((instance) => instance.canonicalId === "bob");
+
+  controller.setProjection(input);
+
+  assert.equal(
+    controller.beginNodeDrag(7, alice.id, {
+      eastMeters: 10,
+      northMeters: 20,
+      visualAltitudeMeters: 1200,
+    }),
+    true,
+  );
+  assert.equal(controller.releaseNodeDrag(7), true);
+  assert.equal(controller.state().settlingDrag, true);
+
+  assert.equal(
+    controller.beginNodeDrag(8, bob.id, {
+      eastMeters: -15,
+      northMeters: 30,
+      visualAltitudeMeters: 1200,
+    }),
+    true,
+    "input must not wait for the previous force settle",
+  );
+  assert.equal(controller.state().dragging, true);
+  assert.equal(controller.state().settlingDrag, false);
+  assert.equal(controller.getInteractionCoordinator().snapshot().pointerIds[0], 8);
+});
+
 test("GPU layout bridge advances render state without CPU projection rebuild", () => {
   const { calls, controller } = harness({ gpuBridge: true });
   const input = projection();

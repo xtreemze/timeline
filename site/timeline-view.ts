@@ -60,7 +60,12 @@ const CONNECTOR_ROUTE_EDGE_INSET_PX = 32;
 const TIMELINE_CARD_AXIS_OFFSET_PX = 44;
 const TIMELINE_CARD_LANE_GAP_PX = 16;
 const TIMELINE_CARD_ROUTING_SLACK_PX = CONNECTOR_ROUTE_OFFSET_PX * 2;
-const TIMELINE_CARD_DEFAULT_CROSS_SIZE_PX = 240;
+// Fallback geometry is used by overscan/retained records that are deliberately
+// materialized before they participate in the committed layout plan. A single
+// 240 px fallback treated horizontal card height like portrait card width and
+// could push a buffered third lane more than 600 px away from the axis.
+const TIMELINE_CARD_DEFAULT_HORIZONTAL_CROSS_SIZE_PX = 64;
+const TIMELINE_CARD_DEFAULT_VERTICAL_CROSS_SIZE_PX = 240;
 const MAX_COMMITTED_LANES = 3;
 const COMPACT_HORIZONTAL_RAIL_MAX_PX = 300;
 const COMPACT_HORIZONTAL_MAX_LANES = 2;
@@ -240,6 +245,12 @@ function committedLaneLimit(
   return MAX_COMMITTED_LANES;
 }
 
+function fallbackLaneIndex(id: string, maxLanes: number): number {
+  const capacity = Math.max(1, Math.trunc(Number(maxLanes)) || 1);
+  const stableIndex = Math.max(0, Math.abs(stableLane(id, null)) - 1);
+  return Math.min(capacity - 1, stableIndex);
+}
+
 function normalizeWheelDelta(
   event: Pick<WheelEvent, "deltaY" | "deltaMode" | "ctrlKey">,
   pageLength: number,
@@ -391,6 +402,49 @@ function normalizedViewport(start: number, end: number): TemporalWindow {
   if (!Number.isFinite(start) || !Number.isFinite(end)) return { start: 0, end: DEFAULT_SPAN_MS };
   if (end > start) return { start, end };
   return { start: start - DEFAULT_SPAN_MS / 2, end: start + DEFAULT_SPAN_MS / 2 };
+}
+
+function timelineViewportCenter(viewport: TemporalWindow): number {
+  return viewport.start + (viewport.end - viewport.start) / 2;
+}
+
+function adjacentTimelineItem<T extends Pick<TimelineItem, "id" | "start">>(
+  items: readonly T[],
+  direction: number,
+  referenceTime: number,
+  focusedId: string | null = null,
+  options: { wrap?: boolean } = {},
+): T | null {
+  if (!items.length) return null;
+  const ordered = [...items].sort(
+    (left, right) => left.start - right.start || left.id.localeCompare(right.id),
+  );
+  const step = direction < 0 ? -1 : 1;
+  const currentIndex = focusedId
+    ? ordered.findIndex((item) => item.id === focusedId)
+    : -1;
+
+  if (currentIndex >= 0) {
+    let nextIndex = currentIndex + step;
+    if (options.wrap) nextIndex = (nextIndex + ordered.length) % ordered.length;
+    return ordered[nextIndex] ?? null;
+  }
+
+  const reference = Number.isFinite(referenceTime)
+    ? referenceTime
+    : (ordered[0]?.start ?? Number.NaN);
+  if (!Number.isFinite(reference)) return null;
+
+  if (step < 0) {
+    for (let index = ordered.length - 1; index >= 0; index -= 1) {
+      const candidate = ordered[index];
+      if (candidate && candidate.start < reference) return candidate;
+    }
+    return options.wrap ? ordered.at(-1) ?? null : null;
+  }
+
+  const candidate = ordered.find((item) => item.start > reference);
+  return candidate ?? (options.wrap ? ordered[0] ?? null : null);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -2188,13 +2242,17 @@ export class TimelineViewController {
     ].join("\u0003");
   }
 
-  laneIndexFor(item: TimelineItem): number {
+  laneIndexFor(item: TimelineItem, fallbackLaneCount = MAX_COMMITTED_LANES): number {
     if (Number.isInteger(item.lane)) {
       return Math.max(0, Math.abs(Number(item.lane)) - 1);
     }
     const laneIndex = this.committedLayout.lanes[item.id];
     if (Number.isInteger(laneIndex)) return Math.max(0, Number(laneIndex));
-    return Math.max(0, Math.abs(stableLane(item.id, null)) - 1);
+
+    // Retained overscan records can exist before they join the committed
+    // viewport plan. Keep their deterministic fallback inside the same compact
+    // lane budget used by visible cards.
+    return fallbackLaneIndex(item.id, fallbackLaneCount);
   }
 
   visualLaneFor(item: TimelineItem): number {
@@ -2204,14 +2262,22 @@ export class TimelineViewController {
     return -(this.laneIndexFor(item) + 1);
   }
 
-  crossDistanceForLaneIndex(laneIndex: number): number {
+  crossDistanceForLaneIndex(laneIndex: number, connectorRouting = "straight"): number {
     const normalized = Math.max(0, Math.trunc(laneIndex));
     const committed = this.committedLaneCrossOffsets[normalized];
     if (Number.isFinite(committed)) return Number(committed);
-    const pitch =
-      TIMELINE_CARD_DEFAULT_CROSS_SIZE_PX +
-      TIMELINE_CARD_LANE_GAP_PX +
-      TIMELINE_CARD_ROUTING_SLACK_PX;
+
+    // Buffered overscan records are rendered before they are members of the
+    // committed viewport plan. Keep their fallback lane pitch representative of
+    // the cross-axis dimension: card height for horizontal time, card width for
+    // vertical time. Straight connectors do not need orthogonal routing slack.
+    const defaultCrossSize =
+      this.orientation === "horizontal"
+        ? TIMELINE_CARD_DEFAULT_HORIZONTAL_CROSS_SIZE_PX
+        : TIMELINE_CARD_DEFAULT_VERTICAL_CROSS_SIZE_PX;
+    const routingSlack =
+      connectorRouting === "orthogonal" ? TIMELINE_CARD_ROUTING_SLACK_PX : 0;
+    const pitch = defaultCrossSize + TIMELINE_CARD_LANE_GAP_PX + routingSlack;
     return TIMELINE_CARD_AXIS_OFFSET_PX + normalized * pitch;
   }
 
@@ -2357,16 +2423,26 @@ export class TimelineViewController {
       )
       .map((placement) => {
         const item = occurrenceById.get(placement.id);
-        if (!item || !Number.isInteger(item.lane)) return placement;
-        return {
+        if (!item) return placement;
+        const routedPlacement = {
           ...placement,
+          blockSize:
+            placement.blockSize +
+            (item.connectorRouting === "orthogonal" ? TIMELINE_CARD_ROUTING_SLACK_PX : 0),
+        };
+        if (!Number.isInteger(item.lane)) return routedPlacement;
+        return {
+          ...routedPlacement,
           lane: Math.max(0, Math.abs(Number(item.lane)) - 1),
         };
       });
     this.committedLaneCrossOffsets = planLaneCrossOffsets(crossAxisPlacements, {
       axisOffsetPx: TIMELINE_CARD_AXIS_OFFSET_PX,
       laneGapPx: TIMELINE_CARD_LANE_GAP_PX,
-      routingSlackPx: TIMELINE_CARD_ROUTING_SLACK_PX,
+      // Routing clearance is folded only into placements that actually use
+      // orthogonal connectors; applying it to every lane made straight cards
+      // drift progressively farther from the chronology rail.
+      routingSlackPx: 0,
     });
 
     this.committedLayout = {
@@ -2640,6 +2716,7 @@ export class TimelineViewController {
     const started = performance.now();
     const inputStartedAt = this.pendingInputStartedAt;
     this.renderScene();
+    this.syncFocusAttachment();
     const finished = performance.now();
     this.pendingInputStartedAt = null;
     this.performanceMetrics.recordFrame({
@@ -2805,11 +2882,11 @@ export class TimelineViewController {
     this.geometryObserver?.observe(terminal);
     terminal.addEventListener("click", () => {
       if (this.focusedId === item.id) {
-        this.closeFocus();
-      } else {
-        this.focusItem(item.id);
-        void motion.pulseHaptic("selection");
+        this.ensureFocusPopover();
+        return;
       }
+      this.focusItem(item.id);
+      void motion.pulseHaptic("selection");
     });
 
     let range: HTMLButtonElement | null = null;
@@ -2820,11 +2897,11 @@ export class TimelineViewController {
       range.dataset.id = item.id;
       range.addEventListener("click", () => {
         if (this.focusedId === item.id) {
-          this.closeFocus();
-        } else {
-          this.focusItem(item.id);
-          void motion.pulseHaptic("selection");
+          this.ensureFocusPopover();
+          return;
         }
+        this.focusItem(item.id);
+        void motion.pulseHaptic("selection");
       });
       this.stage.append(range);
     }
@@ -2907,12 +2984,39 @@ export class TimelineViewController {
     if (record.selected === selected) return;
     record.selected = selected;
     record.node.setSelected(selected);
+    record.terminal.toggleAttribute("data-focus-anchor", selected);
     record.range?.classList.toggle("is-selected", selected);
+  }
+
+  syncFocusAttachment(): void {
+    if (!this.focusedId || this.focusView.hidden) return;
+    const record = [...this.scene.values()].find((candidate) => candidate.item.id === this.focusedId);
+    const stage = this.focusView.parentElement;
+    if (!record || !stage) return;
+    const anchor = record.terminal.getBoundingClientRect();
+    const host = stage.getBoundingClientRect();
+    const centerX = clamp(anchor.left + anchor.width / 2 - host.left, 0, host.width);
+    const centerY = clamp(anchor.top + anchor.height / 2 - host.top, 0, host.height);
+    this.focusView.style.setProperty("--timeline-focus-anchor-x", `${centerX}px`);
+    this.focusView.style.setProperty("--timeline-focus-anchor-y", `${centerY}px`);
+    this.focusView.style.setProperty("--timeline-focus-anchor-width", `${anchor.width}px`);
+    this.focusView.style.setProperty("--timeline-focus-anchor-height", `${anchor.height}px`);
+    const detail = this.focusView.getBoundingClientRect();
+    this.focusView.style.setProperty(
+      "--timeline-focus-anchor-local-x",
+      `${clamp(anchor.left + anchor.width / 2 - detail.left, 24, Math.max(24, detail.width - 24))}px`,
+    );
+    this.focusView.style.setProperty(
+      "--timeline-focus-anchor-local-y",
+      `${clamp(anchor.top + anchor.height / 2 - detail.top, 24, Math.max(24, detail.height - 24))}px`,
+    );
+    this.focusView.dataset.anchorOrientation =
+      this.orientation === "horizontal" ? "landscape" : "portrait";
   }
 
   positionRecord(
     record: SceneRecord,
-    _primaryLength: number,
+    primaryLength: number,
     axisCross: number,
     padding: number,
     usable: number,
@@ -2928,13 +3032,16 @@ export class TimelineViewController {
       visibleIntervalAnchor(item, this.renderWindow, anchorRatio) ??
       item.start;
     const primary = coordinate(anchor);
-    const laneIndex = this.laneIndexFor(item);
-    const lane = this.visualLaneFor(item);
+    const fallbackLaneCount = committedLaneLimit(this.orientation, crossExtent, primaryLength);
+    const laneIndex = this.laneIndexFor(item, fallbackLaneCount);
     const clusterId = this.committedClusterByItem.get(item.id);
     const hiddenByCluster = Boolean(clusterId) && item.id !== this.focusedId;
     if (node.hidden !== hiddenByCluster) node.hidden = hiddenByCluster;
     if (range && range.hidden !== hiddenByCluster) range.hidden = hiddenByCluster;
-    const laneDistance = this.crossDistanceForLaneIndex(laneIndex);
+    const laneDistance = this.crossDistanceForLaneIndex(
+      laneIndex,
+      item.connectorRouting || "straight",
+    );
     const terminalCross = axisCross - laneDistance;
     const routeOffset = connectorRouteOffset(
       item.connectorRouting || "straight",
@@ -3101,14 +3208,11 @@ export class TimelineViewController {
   }
 
   focusNavigationState(): { previous: boolean; next: boolean; editable: boolean } {
-    const ordered = [...this.items].sort(
-      (left, right) => left.start - right.start || left.id.localeCompare(right.id),
-    );
-    const currentIndex = ordered.findIndex((item) => item.id === this.focusedId);
-    const current = currentIndex >= 0 ? ordered[currentIndex] : null;
+    const current = this.items.find((item) => item.id === this.focusedId) ?? null;
+    const hasItems = this.items.length > 0;
     return {
-      previous: currentIndex > 0,
-      next: currentIndex >= 0 && currentIndex < ordered.length - 1,
+      previous: hasItems,
+      next: hasItems,
       editable: Boolean(current && current.editable !== false),
     };
   }
@@ -3216,6 +3320,35 @@ export class TimelineViewController {
     commit();
   }
 
+  createFocusEditButton(
+    item: TimelineItem,
+    field: "title" | "description" | "media",
+    label: string,
+  ): HTMLButtonElement | null {
+    if (item.editable === false) return null;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "timeline-focus-edit";
+    button.setAttribute("aria-label", label);
+    button.title = label;
+    const icon =
+      presentation && typeof presentation.createIcon === "function"
+        ? presentation.createIcon("edit", { size: 16 })
+        : null;
+    if (icon) button.append(icon);
+    else button.textContent = "Edit";
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      this.root.dispatchEvent(
+        new CustomEvent("timelinefocusedit", {
+          bubbles: true,
+          detail: { id: item.id, field },
+        }),
+      );
+    });
+    return button;
+  }
+
   createFocusHero(item: TimelineItem): HTMLElement {
     const hero = document.createElement("section");
     hero.className = "timeline-focus-hero";
@@ -3229,6 +3362,7 @@ export class TimelineViewController {
       image.src = active.src;
       image.alt = active.alt || "";
       image.decoding = "async";
+      image.draggable = false;
       hero.append(image);
     } else {
       hero.classList.add("has-no-media");
@@ -3262,12 +3396,40 @@ export class TimelineViewController {
 
     veil.append(kicker, heading, time);
     hero.append(veil);
+    const heroEdit = this.createFocusEditButton(item, "title", "Edit occurrence");
+    if (heroEdit) {
+      heroEdit.classList.add("timeline-focus-hero-edit");
+      hero.append(heroEdit);
+    }
+    if (active?.src) {
+      const mediaEdit = this.createFocusEditButton(item, "media", "Edit occurrence images");
+      if (mediaEdit) {
+        mediaEdit.classList.add("timeline-focus-media-edit");
+        hero.append(mediaEdit);
+      }
+    }
 
     if (media.length > 1) {
       const controls = document.createElement("div");
       controls.className = "timeline-focus-slideshow-controls";
       controls.setAttribute("role", "group");
       controls.setAttribute("aria-label", "Event images");
+
+      const step = (delta: number) => {
+        this.focusMediaIndex = (activeIndex + delta + media.length) % media.length;
+        this.renderFocus(item);
+      };
+      const previous = document.createElement("button");
+      previous.type = "button";
+      previous.className = "timeline-focus-media-control is-previous";
+      previous.setAttribute("aria-label", "Previous image");
+      const previousIcon =
+        presentation && typeof presentation.createIcon === "function"
+          ? presentation.createIcon("chevron-left", { size: 20 })
+          : null;
+      if (previousIcon) previous.append(previousIcon);
+      previous.addEventListener("click", () => step(-1));
+      controls.append(previous);
 
       media.forEach((_, index) => {
         const dot = document.createElement("button");
@@ -3282,6 +3444,17 @@ export class TimelineViewController {
         });
         controls.append(dot);
       });
+      const next = document.createElement("button");
+      next.type = "button";
+      next.className = "timeline-focus-media-control is-next";
+      next.setAttribute("aria-label", "Next image");
+      const nextIcon =
+        presentation && typeof presentation.createIcon === "function"
+          ? presentation.createIcon("chevron-right", { size: 20 })
+          : null;
+      if (nextIcon) next.append(nextIcon);
+      next.addEventListener("click", () => step(1));
+      controls.append(next);
       hero.append(controls);
     }
 
@@ -3305,48 +3478,11 @@ export class TimelineViewController {
     description.className = "timeline-focus-description";
     description.textContent =
       item.description || "No narrative description has been recorded for this event.";
-    summary.append(description);
-
-    const place = document.createElement("section");
-    place.id = "timeline-focus-place-panel";
-    place.className = "timeline-focus-section timeline-focus-place";
-    place.setAttribute("aria-label", "Place");
-    const placeBackdrop = document.createElement("div");
-    placeBackdrop.className = "timeline-focus-section-backdrop timeline-focus-place-backdrop";
-    placeBackdrop.dataset.focusMapSlot = "";
-    const placeContent = document.createElement("div");
-    placeContent.className = "timeline-focus-section-content";
-    const location = isRecord(item.location) ? item.location : null;
-    const placeName =
-      item.locationName ||
-      recordString(location, "name") ||
-      recordString(location, "geographicIdentifier") ||
-      recordString(location, "address");
-    if (placeName) {
-      const name = document.createElement("p");
-      name.className = "timeline-focus-place-name";
-      name.textContent = placeName;
-      placeContent.append(name);
-    } else {
-      const missing = document.createElement("p");
-      missing.className = "timeline-focus-muted";
-      missing.textContent = "No location assigned.";
-      placeContent.append(missing);
-    }
-    const geometry = location && isRecord(location.geometry) ? location.geometry : null;
-    const coordinates = geometry?.coordinates;
-    if (
-      Array.isArray(coordinates) &&
-      coordinates.length >= 2 &&
-      typeof coordinates[0] === "number" &&
-      typeof coordinates[1] === "number"
-    ) {
-      const coordinateText = document.createElement("p");
-      coordinateText.className = "timeline-focus-place-coordinates";
-      coordinateText.textContent = `${coordinates[1]}, ${coordinates[0]}`;
-      placeContent.append(coordinateText);
-    }
-    place.append(placeBackdrop, placeContent);
+    const summaryToolbar = document.createElement("div");
+    summaryToolbar.className = "timeline-focus-section-toolbar";
+    const summaryEdit = this.createFocusEditButton(item, "description", "Edit context");
+    if (summaryEdit) summaryToolbar.append(summaryEdit);
+    summary.append(summaryToolbar, description);
 
     const evidence = document.createElement("section");
     evidence.id = "timeline-focus-evidence-panel";
@@ -3456,10 +3592,7 @@ export class TimelineViewController {
     overviewTab.textContent = "Context";
     overviewTab.setAttribute("role", "tab");
     overviewTab.setAttribute("aria-selected", "true");
-    overviewTab.setAttribute(
-      "aria-controls",
-      "timeline-focus-context-panel timeline-focus-place-panel",
-    );
+    overviewTab.setAttribute("aria-controls", "timeline-focus-context-panel");
     const evidenceTab = document.createElement("button");
     evidenceTab.type = "button";
     evidenceTab.className = "timeline-focus-tab";
@@ -3479,7 +3612,6 @@ export class TimelineViewController {
       const apply = () => {
         this.focusView.dataset.activeTab = name;
         summary.hidden = evidenceActive;
-        place.hidden = evidenceActive;
         evidence.hidden = !evidenceActive;
         overviewTab.classList.toggle("is-active", !evidenceActive);
         evidenceTab.classList.toggle("is-active", evidenceActive);
@@ -3511,7 +3643,7 @@ export class TimelineViewController {
     evidenceTab.addEventListener("click", () => setFocusTab("evidence"));
     tabs.append(overviewTab, evidenceTab, close);
 
-    this.focusView.replaceChildren(tabs, hero, summary, place, evidence);
+    this.focusView.replaceChildren(tabs, hero, summary, evidence);
     this.root.dispatchEvent(
       new CustomEvent("timelinefocusrender", {
         bubbles: true,
@@ -3520,19 +3652,18 @@ export class TimelineViewController {
     );
   }
 
-  focusAdjacent(delta: number, options: { wrap?: boolean } = {}): boolean {
-    if (!this.items.length) return false;
-    const ordered = [...this.items].sort(
-      (left, right) => left.start - right.start || left.id.localeCompare(right.id),
+  focusAdjacent(
+    delta: number,
+    options: { wrap?: boolean; reference?: "focused" | "viewport" } = {},
+  ): boolean {
+    const referenceFocusedId = options.reference === "viewport" ? null : this.focusedId;
+    const next = adjacentTimelineItem(
+      this.items,
+      delta,
+      timelineViewportCenter(this.viewport),
+      referenceFocusedId,
+      options,
     );
-    const currentIndex = ordered.findIndex((item) => item.id === this.focusedId);
-    let nextIndex =
-      currentIndex < 0 ? (delta < 0 ? ordered.length - 1 : 0) : currentIndex + (delta < 0 ? -1 : 1);
-
-    if (options.wrap) nextIndex = (nextIndex + ordered.length) % ordered.length;
-    if (nextIndex < 0 || nextIndex >= ordered.length) return false;
-
-    const next = ordered[nextIndex];
     if (!next) return false;
     this.focusMediaIndex = 0;
     return this.focusItem(next.id);
@@ -3676,5 +3807,8 @@ export const TimelineView = Object.freeze({
     selectEdgeAccents,
     axisCrossFromCss,
     committedLaneLimit,
+    fallbackLaneIndex,
+    timelineViewportCenter,
+    adjacentTimelineItem,
   }),
 });

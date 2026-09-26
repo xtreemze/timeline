@@ -371,15 +371,15 @@ jobs:
           grep -F 'layout.spec.ts' /tmp/application-shell-playwright-list.txt
           grep -F 'mobile-screen.spec.ts' /tmp/application-shell-playwright-list.txt
           grep -F 'investigation-workspace.spec.ts' /tmp/application-shell-playwright-list.txt
+      - name: Certify investigation methodology workspace on narrow mobile
+        continue-on-error: true
+        run: pnpm exec playwright test --config=playwright.config.ts tests/browser/investigation-workspace.spec.ts --project="Mobile Chrome"
       - name: Run application shell browser tests
         continue-on-error: true
         run: pnpm exec playwright test --config=playwright.config.ts tests/playwright/layout.spec.ts --project="Mobile Chrome" --project="Mobile Chrome Landscape" --project="Tablet Touch"
       - name: Run narrow mobile screen contracts
         continue-on-error: true
         run: pnpm exec playwright test --config=playwright.config.ts tests/playwright/mobile-screen.spec.ts --project="Mobile Chrome"
-      - name: Certify investigation methodology workspace on narrow mobile
-        continue-on-error: true
-        run: pnpm exec playwright test --config=playwright.config.ts tests/browser/investigation-workspace.spec.ts --project="Mobile Chrome"
 
   interaction-browser:
     continue-on-error: true

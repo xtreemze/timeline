@@ -53,6 +53,19 @@ test("timeline axis placement resolves CSS percentages and pixels without JavaSc
   assert.equal(geometry.axisCrossFromCss("invalid", 240, 0.5), 120);
 });
 
+test("landscape timeline mirrors portrait edge bias across desktop and compact rails", async () => {
+  const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
+
+  assert.match(
+    css,
+    /@media \(min-width: 700px\)[\s\S]*#timeline-view\[data-orientation="portrait"\][\s\S]*--timeline-axis-cross:\s*68%[\s\S]*#timeline-view\[data-orientation="landscape"\][\s\S]*--timeline-axis-cross:\s*68%/,
+  );
+  assert.match(
+    css,
+    /@media \(max-width: 699px\)[\s\S]*#timeline-view\[data-orientation="portrait"\][\s\S]*--timeline-axis-cross:\s*58%[\s\S]*#timeline-view\[data-orientation="landscape"\][\s\S]*--timeline-axis-cross:\s*58%/,
+  );
+});
+
 test("compact horizontal mobile rails cap visible lanes before cards consume the world surface", () => {
   assert.equal(geometry.committedLaneLimit("horizontal", 184, 360), 2);
   assert.equal(geometry.committedLaneLimit("horizontal", 253, 390), 2);
@@ -61,6 +74,48 @@ test("compact horizontal mobile rails cap visible lanes before cards consume the
   assert.equal(geometry.committedLaneLimit("horizontal", 253, 700), 3);
   assert.equal(geometry.committedLaneLimit("horizontal", 253, 1024), 3);
   assert.equal(geometry.committedLaneLimit("vertical", 168, 390), 3);
+});
+
+test("buffered fallback lanes obey the compact lane budget", () => {
+  for (const id of ["a", "b", "c", "snow-mirror", "buffered-occurrence"]) {
+    const compactLane = geometry.fallbackLaneIndex(id, 2);
+    assert.ok(compactLane >= 0 && compactLane <= 1, `${id} escaped the two-lane compact budget`);
+
+    const regularLane = geometry.fallbackLaneIndex(id, 3);
+    assert.ok(regularLane >= 0 && regularLane <= 2);
+  }
+
+  assert.equal(geometry.fallbackLaneIndex("anything", 1), 0);
+  assert.equal(geometry.fallbackLaneIndex("anything", 0), 0);
+});
+
+test("event navigation falls back to the timeline midpoint when nothing is focused", () => {
+  const items = [
+    { id: "early", start: 100 },
+    { id: "center", start: 500 },
+    { id: "late", start: 900 },
+  ];
+  const viewport = { start: 300, end: 700 };
+  const center = geometry.timelineViewportCenter(viewport);
+
+  assert.equal(center, 500);
+  assert.equal(geometry.adjacentTimelineItem(items, -1, center)?.id, "early");
+  assert.equal(geometry.adjacentTimelineItem(items, 1, center)?.id, "late");
+  assert.equal(geometry.adjacentTimelineItem(items, -1, 700)?.id, "center");
+  assert.equal(geometry.adjacentTimelineItem(items, 1, 700)?.id, "late");
+});
+
+test("focused event navigation keeps chronological adjacency instead of re-evaluating the midpoint", () => {
+  const items = [
+    { id: "a", start: 100 },
+    { id: "b", start: 500 },
+    { id: "c", start: 900 },
+  ];
+
+  assert.equal(geometry.adjacentTimelineItem(items, -1, 850, "b")?.id, "a");
+  assert.equal(geometry.adjacentTimelineItem(items, 1, 150, "b")?.id, "c");
+  assert.equal(geometry.adjacentTimelineItem(items, -1, 500, "a"), null);
+  assert.equal(geometry.adjacentTimelineItem(items, 1, 500, "c"), null);
 });
 
 test("selected events use a shell-owned six-column detail surface with footer-owned controls", async () => {
@@ -78,12 +133,17 @@ test("selected events use a shell-owned six-column detail surface with footer-ow
   assert.doesNotMatch(html, /timeline-view-controls-toggle|app-view-controls|app-footer-view-controls/);
   assert.match(html, /id="timeline-focus-prev"/);
   assert.match(html, /id="timeline-focus-next"/);
+  assert.match(html, /id="timeline-related-zoom"/);
+  assert.match(html, /id="timeline-related-fit"/);
   assert.doesNotMatch(html, /id="timeline-focus-edit"/);
   assert.equal((html.match(/id="editor-toggle"/g) ?? []).length, 1);
   assert.doesNotMatch(html, /id="timeline-detail"/);
   assert.match(js, /focusItem\(id, options = \{\}\)/);
   assert.match(js, /timelinefocuschange/);
   assert.match(js, /createFocusHero/);
+  assert.match(js, /syncFocusAttachment\(\)/);
+  assert.match(js, /createFocusEditButton/);
+  assert.doesNotMatch(js, /timeline-focus-place-panel/);
   assert.match(js, /focusNavigationState\(\)/);
   assert.doesNotMatch(js, /timeline-focus-nav-prev|timeline-focus-nav-next|Edit event/);
   assert.match(css, /Persistent footer control plane/);
@@ -104,6 +164,8 @@ test("selected events use a shell-owned six-column detail surface with footer-ow
     /\.timeline-focus-sidebar:not\(\[hidden\]\)\s*\{[\s\S]*grid-template-columns:\s*repeat\(12,/,
   );
   assert.doesNotMatch(css, /position-anchor:\s*--timeline-detail-anchor/);
+  assert.match(css, /timeline-focus-anchor-local-x/);
+  assert.match(css, /> \.timeline-focus-summary[\s\S]*grid-column:\s*1 \/ -1/);
 });
 
 

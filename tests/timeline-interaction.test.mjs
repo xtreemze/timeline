@@ -564,7 +564,7 @@ test("coarse-pointer timeline controls and ranges retain a 44 CSS px interaction
   );
 });
 
-test("focused event detail keeps event semantics compact and image controls dot-only", async () => {
+test("focused event detail keeps event semantics compact with explicit image controls", async () => {
   const [source, cssSource, fictionDocs, architectureDocs] = await Promise.all([
     readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
@@ -575,12 +575,16 @@ test("focused event detail keeps event semantics compact and image controls dot-
   assert.ok(source.includes("function formatElapsedDuration"));
   assert.ok(source.includes("Duration ${duration}"));
   assert.ok(source.includes("timeline-focus-slide-dot"));
+  assert.ok(source.includes("timeline-focus-media-control"));
+  assert.ok(source.includes('setAttribute("aria-label", "Previous image")'));
+  assert.ok(source.includes('setAttribute("aria-label", "Next image")'));
   assert.ok(source.includes("Show image ${index + 1} of ${media.length}"));
+  assert.ok(source.includes("createFocusEditButton"));
   assert.equal(source.includes("timeline-focus-slide-count"), false);
   assert.equal(source.includes("timeline-focus-media-caption"), false);
   assert.equal(source.includes('createElement("h3", "timeline-focus-section-heading"'), false);
   assert.ok(source.includes('summary.setAttribute("aria-label", "Context")'));
-  assert.ok(source.includes('place.setAttribute("aria-label", "Place")'));
+  assert.equal(source.includes('place.setAttribute("aria-label", "Place")'), false);
   assert.ok(source.includes('evidence.setAttribute("aria-label", "Evidence")'));
   assert.match(
     cssSource,

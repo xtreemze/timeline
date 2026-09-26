@@ -5,6 +5,8 @@ export interface CompatibleSpatialView {
   setFocus(id: string | number | null): void;
   setPresentationMode?(active: boolean): void;
   hasContext?(): boolean;
+  fitContext?(): boolean;
+  zoomContext?(): boolean;
   refreshLayout?(): void;
   destroy?(): void;
 }

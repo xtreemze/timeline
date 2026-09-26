@@ -64,6 +64,34 @@ test.beforeEach(async ({ page }) => {
   await expect(page.locator("#timeline-view")).toBeVisible();
 });
 
+test("landscape matches portrait timeline spacing at the physical edge", async ({ page }) => {
+  const outerEdgeRatio = async (orientation: "landscape" | "portrait") => {
+    await ensureOrientation(page, orientation);
+    const [surfaceBox, axisBox] = await Promise.all([
+      page.locator(".timeline-surface").boundingBox(),
+      page.locator(".timeline-axis").boundingBox(),
+    ]);
+    expect(surfaceBox).not.toBeNull();
+    expect(axisBox).not.toBeNull();
+    if (!surfaceBox || !axisBox) throw new Error(`${orientation} timeline geometry is unavailable.`);
+
+    if (orientation === "landscape") {
+      const axisCenter = axisBox.y + axisBox.height / 2;
+      return (surfaceBox.y + surfaceBox.height - axisCenter) / surfaceBox.height;
+    }
+
+    const axisCenter = axisBox.x + axisBox.width / 2;
+    return (surfaceBox.x + surfaceBox.width - axisCenter) / surfaceBox.width;
+  };
+
+  const portraitEdgeRatio = await outerEdgeRatio("portrait");
+  const landscapeEdgeRatio = await outerEdgeRatio("landscape");
+
+  expect(portraitEdgeRatio).toBeGreaterThan(0.29);
+  expect(portraitEdgeRatio).toBeLessThan(0.35);
+  expect(Math.abs(landscapeEdgeRatio - portraitEdgeRatio)).toBeLessThanOrEqual(0.02);
+});
+
 test("focused detail is shell-owned while contextual actions stay in the footer", async ({
   page,
 }) => {
@@ -78,15 +106,27 @@ test("focused detail is shell-owned while contextual actions stay in the footer"
   await expect(focus.getByRole("tab", { name: "Context" })).toBeVisible();
   await expect(focus.getByRole("tab", { name: "Evidence" })).toBeVisible();
   await expect(focus.locator(".timeline-focus-actions")).toHaveCount(0);
+  await expect(focus.getByRole("region", { name: "Place" })).toHaveCount(0);
+  await expect(focus.locator(".timeline-focus-edit").first()).toBeVisible();
 
   await expect(page.locator("#timeline-focus-prev")).toBeVisible();
   await expect(page.locator("#timeline-focus-next")).toBeVisible();
+  await expect(page.locator("#timeline-related-zoom")).toBeVisible();
+  await expect(page.locator("#timeline-related-fit")).toBeVisible();
   await expect(page.locator("#timeline-focus-edit")).toHaveCount(0);
   await expect(page.locator("#editor-toggle")).toHaveAttribute("aria-label", "Edit focused event");
   await expect(page.locator("#timeline-view-toolbar")).toBeVisible();
 
   await focus.locator(".timeline-focus-close").click();
   await expect(focus).toBeHidden();
+});
+
+test("clicking the selected card keeps its attached detail open", async ({ page }) => {
+  const terminal = await ensureSample(page);
+  const focus = await focusOccurrence(page);
+  await terminal.evaluate((button: HTMLButtonElement) => button.click());
+  await expect(focus).toBeVisible();
+  await expect(page.locator("#app-shell")).toHaveClass(/is-event-focused/);
 });
 
 test("landscape preserves the bottom timeline rail while focused detail layers over the graph", async ({
