@@ -1617,10 +1617,10 @@ function closeFocusedEventForUtility() {
 function syncTimelineContextControls() {
   const focused = Boolean(timelineView?.hasFocusedItem?.());
   const navigation = focused ? timelineView?.focusNavigationState?.() : null;
-  els.focusPrev.hidden = !focused;
-  els.focusNext.hidden = !focused;
-  els.focusPrev.disabled = !focused || navigation?.previous !== true;
-  els.focusNext.disabled = !focused || navigation?.next !== true;
+  els.focusPrev.hidden = false;
+  els.focusNext.hidden = false;
+  els.focusPrev.disabled = false;
+  els.focusNext.disabled = false;
 
   if (els.editorToggle) {
     const editableFocus = focused && navigation?.editable === true;
@@ -4438,11 +4438,11 @@ els.browserSheet.addEventListener("click", (event) => {
   if (event.target === els.browserSheet) setBrowserSurfaceOpen(false);
 });
 els.focusPrev.addEventListener("click", () => {
-  advancePresentation(-1);
+  timelineView?.focusAdjacent(-1, { reference: "viewport" });
   syncTimelineContextControls();
 });
 els.focusNext.addEventListener("click", () => {
-  advancePresentation(1);
+  timelineView?.focusAdjacent(1, { reference: "viewport" });
   syncTimelineContextControls();
 });
 
