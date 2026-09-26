@@ -4,6 +4,7 @@ import {
   createWorldDagLayout,
   WORLD_DAG_TARGET_STRENGTH,
   type WorldDagLayoutNodeSize,
+  type WorldDagLayoutOrientation,
   type WorldDagLayoutTarget,
 } from "./world-dag-layout.ts";
 import type {
@@ -33,6 +34,8 @@ export interface WorldForceSceneBuildOptions {
    * Anchors remain geographic constraints and never become force nodes.
    */
   readonly reorganizeDag?: boolean;
+  /** Structural flow direction selected from the current world viewport shape. */
+  readonly dagOrientation?: WorldDagLayoutOrientation;
 }
 
 /**
@@ -181,6 +184,7 @@ export function createWorldForceScene(
   const dagLayout = createWorldDagLayout(projection, {
     nodeSizes,
     placeSizes,
+    orientation: options.dagOrientation ?? "top-to-bottom",
     reorganize: options.reorganizeDag === true,
   });
   const dagTargets = new Map(
