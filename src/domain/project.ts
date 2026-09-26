@@ -1,6 +1,8 @@
 import type { CanonicalEntity } from "./entity.ts";
-import type { OccurrenceId, RelationshipId } from "./ids.ts";
+import type { OccurrenceId, RelationshipId, TrajectoryId } from "./ids.ts";
 import type { CanonicalOccurrence } from "./occurrence.ts";
+import type { TrajectoryArtifact } from "./trajectory.ts";
+import { validateTrajectoryArtifact } from "./trajectory.ts";
 import { validateOccurrence } from "./occurrence.ts";
 import type { CanonicalRelationship } from "./relationship.ts";
 import { relationshipFactKey, validateRelationship } from "./relationship.ts";
@@ -14,6 +16,13 @@ export interface CanonicalProject {
   readonly entities: readonly CanonicalEntity[];
   readonly relationships: readonly CanonicalRelationship[];
   readonly occurrences?: readonly CanonicalOccurrence[];
+  readonly trajectories?: readonly TrajectoryArtifact[];
+}
+
+export interface RecordTrajectoryResult {
+  readonly status: "created";
+  readonly project: CanonicalProject;
+  readonly trajectory: TrajectoryArtifact;
 }
 
 export interface RecordOccurrenceResult {
@@ -183,6 +192,12 @@ export function recordOccurrence(
   if ((project.occurrences ?? []).some((occurrence) => occurrence.id === candidate.id)) {
     throw new Error(`Occurrence ID ${String(candidate.id)} already exists.`);
   }
+  const trajectoryIds = new Set((project.trajectories ?? []).map((trajectory) => String(trajectory.id)));
+  for (const id of candidate.trajectoryIds ?? []) {
+    if (!trajectoryIds.has(String(id))) {
+      throw new Error(`Occurrence trajectory ${String(id)} does not resolve.`);
+    }
+  }
 
   return {
     status: "created",
@@ -199,4 +214,35 @@ export function findOccurrence(
   id: OccurrenceId,
 ): CanonicalOccurrence | undefined {
   return (project.occurrences ?? []).find((occurrence) => occurrence.id === id);
+}
+
+
+export function recordTrajectory(
+  project: CanonicalProject,
+  candidate: TrajectoryArtifact,
+): RecordTrajectoryResult {
+  const entityIds = new Set(project.entities.map((entity) => String(entity.id)));
+  const findings = validateTrajectoryArtifact(candidate, entityIds);
+  if (findings.length > 0) {
+    throw new Error(findings.join(" "));
+  }
+  if ((project.trajectories ?? []).some((trajectory) => trajectory.id === candidate.id)) {
+    throw new Error(`Trajectory ID ${String(candidate.id)} already exists.`);
+  }
+
+  return {
+    status: "created",
+    trajectory: candidate,
+    project: {
+      ...project,
+      trajectories: [...(project.trajectories ?? []), candidate],
+    },
+  };
+}
+
+export function findTrajectory(
+  project: CanonicalProject,
+  id: TrajectoryId,
+): TrajectoryArtifact | undefined {
+  return (project.trajectories ?? []).find((trajectory) => trajectory.id === id);
 }
