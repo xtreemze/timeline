@@ -372,6 +372,7 @@ export function createInvestigationWorkspace(
       const start = Number(source.startMs);
       const end = Number(source.endMs);
       if (!Number.isFinite(start)) return "";
+      // biome-ignore lint/correctness/useQwikValidLexicalScope: This module uses direct DOM listeners, not Qwik resumability.
       const seconds = (value: number) => (value / 1000).toFixed(1).replace(/\.0$/, "");
       return Number.isFinite(end) && end >= start
         ? `${seconds(start)}–${seconds(end)} s`
@@ -512,6 +513,7 @@ export function createInvestigationWorkspace(
     const drilldownHost = createElement("div", "investigation-evidence-drilldown-host");
     root.append(matrixHost, drilldownHost);
 
+    // biome-ignore lint/correctness/useQwikValidLexicalScope: This is a local DOM redraw closure, not a Qwik lexical scope.
     const draw = () => {
       matrixHost.replaceChildren();
       const matrix = reasoningApi.competingHypothesisMatrix(reasoning, selector.value);
