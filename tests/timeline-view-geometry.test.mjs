@@ -53,12 +53,14 @@ test("timeline axis placement resolves CSS percentages and pixels without JavaSc
   assert.equal(geometry.axisCrossFromCss("invalid", 240, 0.5), 120);
 });
 
-test("compact horizontal rails cap visible lanes before cards consume the world surface", () => {
-  assert.equal(geometry.committedLaneLimit("horizontal", 184), 2);
-  assert.equal(geometry.committedLaneLimit("horizontal", 253), 2);
-  assert.equal(geometry.committedLaneLimit("horizontal", 299.9), 2);
-  assert.equal(geometry.committedLaneLimit("horizontal", 300), 3);
-  assert.equal(geometry.committedLaneLimit("vertical", 168), 3);
+test("compact horizontal mobile rails cap visible lanes before cards consume the world surface", () => {
+  assert.equal(geometry.committedLaneLimit("horizontal", 184, 360), 2);
+  assert.equal(geometry.committedLaneLimit("horizontal", 253, 390), 2);
+  assert.equal(geometry.committedLaneLimit("horizontal", 299.9, 699), 2);
+  assert.equal(geometry.committedLaneLimit("horizontal", 300, 390), 3);
+  assert.equal(geometry.committedLaneLimit("horizontal", 253, 700), 3);
+  assert.equal(geometry.committedLaneLimit("horizontal", 253, 1024), 3);
+  assert.equal(geometry.committedLaneLimit("vertical", 168, 390), 3);
 });
 
 test("selected events use a shell-owned six-column detail surface with footer-owned controls", async () => {
