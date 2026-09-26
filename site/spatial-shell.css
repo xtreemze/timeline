@@ -647,6 +647,89 @@
   }
 }
 
+@media (max-width: 699px) {
+  /* Narrow screens use one physical horizontal control strip. Individual zones
+     never become independent scrollers and no control is taken out of flow. */
+  #app-shell > .app-tool-dock.app-footer-bar,
+  #presentation-stage:fullscreen > .app-tool-dock.app-footer-bar,
+  #app-shell:has(#timeline-view[data-orientation="landscape"]) > .app-tool-dock.app-footer-bar,
+  #app-shell:has(#timeline-view[data-orientation="portrait"]) > .app-tool-dock.app-footer-bar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: var(--toolbar-control-gap);
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-inline: contain;
+    scroll-behavior: smooth;
+    scroll-padding-inline: max(0.35rem, env(safe-area-inset-left));
+    touch-action: pan-x;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  #app-shell > .app-tool-dock.app-footer-bar::-webkit-scrollbar,
+  #presentation-stage:fullscreen > .app-tool-dock.app-footer-bar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .app-footer-bar .app-footer-zone {
+    flex: 0 0 auto;
+    inline-size: max-content;
+    min-inline-size: max-content;
+    max-inline-size: none;
+    padding-inline: 0;
+    overflow: visible;
+    container-type: normal;
+  }
+
+  .app-footer-bar .app-footer-world,
+  .app-footer-bar .app-footer-timeline.timeline-local-toolbar {
+    overflow: visible;
+    overscroll-behavior: auto;
+    scrollbar-width: auto;
+  }
+
+  .app-footer-bar .app-footer-actions {
+    justify-content: flex-start;
+    min-inline-size: 0;
+    max-inline-size: none;
+  }
+
+  .app-footer-bar .app-footer-zone + .app-footer-zone {
+    margin-inline-start: 0.18rem;
+    padding-inline-start: 0.24rem;
+    border-inline-start: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+  }
+
+  .app-footer-bar .toolbar-control,
+  .app-footer-bar .app-tool {
+    position: static;
+    z-index: auto;
+    flex: 0 0 var(--toolbar-control-size);
+    inline-size: var(--toolbar-control-size);
+    min-inline-size: var(--toolbar-control-size);
+    max-inline-size: var(--toolbar-control-size);
+    block-size: var(--toolbar-control-size);
+    min-block-size: var(--toolbar-control-size);
+    max-block-size: var(--toolbar-control-size);
+  }
+
+  .app-footer-bar .toolbar-control-wide {
+    flex-basis: 104px;
+    inline-size: 104px;
+    min-inline-size: 104px;
+    max-inline-size: 104px;
+  }
+
+  .app-footer-bar .toolbar-control-value {
+    flex-basis: auto;
+    inline-size: auto;
+    min-inline-size: 54px;
+    max-inline-size: none;
+  }
+}
+
 @media (forced-colors: active) {
   .app-footer-bar .toolbar-control:is(:focus-visible, :focus-within) {
     outline-color: Highlight;
