@@ -267,7 +267,10 @@ test("renderer aligns cards with padded temporal coordinates and defers geometry
   assert.match(source, /padding \+ scale\.coordinateFor\(time, this\.viewport, usable\)/);
   assert.match(source, /const anchorRatio = this\.committedLayout\.anchorRatios\[item\.id\] \?\? 0\.5/);
   assert.match(source, /visibleIntervalAnchor\(item, this\.viewport, anchorRatio\)/);
-  assert.match(source, /positionRecord\(record, padding, usable, axisCross, crossLength\)/);
+  assert.match(
+    source,
+    /this\.positionRecord\([\s\S]{0,180}record,[\s\S]{0,120}primaryLength,[\s\S]{0,120}axisCross,[\s\S]{0,120}padding,[\s\S]{0,120}usable/,
+  );
   assert.doesNotMatch(
     source,
     /positionRecord[\s\S]{0,1800}this\.surface\.getBoundingClientRect\(\)/,
