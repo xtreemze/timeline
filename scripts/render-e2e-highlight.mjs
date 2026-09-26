@@ -78,16 +78,22 @@ async function probeFrameTimestamps(filePath) {
     "-show_entries",
     "frame=best_effort_timestamp_time",
     "-of",
-    "csv=p=0",
+    "json",
     filePath,
   ]);
-  return stdout
-    .split(/\r?\n/u)
-    .map((value) => Number(value.trim()))
-    .filter((value) => Number.isFinite(value));
+  const parsed = JSON.parse(stdout);
+  return Array.isArray(parsed.frames)
+    ? parsed.frames
+        .map((frame) => Number(frame.best_effort_timestamp_time))
+        .filter((value) => Number.isFinite(value))
+    : [];
 }
 
-function decodedFrameStats(timestamps) {
+function decodedFrameStats(
+  timestamps,
+  minimumPacedIntervalSeconds = 0.012,
+  maximumPacedIntervalSeconds = 0.022,
+) {
   if (timestamps.length < 2) {
     return {
       frames: timestamps.length,
@@ -95,6 +101,7 @@ function decodedFrameStats(timestamps) {
       fps: 0,
       nonIncreasingIntervals: 0,
       maxInterval: 0,
+      pacedIntervalRatio: 0,
     };
   }
   const first = timestamps[0];
@@ -102,12 +109,19 @@ function decodedFrameStats(timestamps) {
   const duration = last - first;
   let nonIncreasingIntervals = 0;
   let maxInterval = 0;
+  let pacedIntervals = 0;
   for (let index = 1; index < timestamps.length; index += 1) {
     const previous = timestamps[index - 1];
     const current = timestamps[index];
     const interval = current - previous;
     if (interval <= 0) nonIncreasingIntervals += 1;
     maxInterval = Math.max(maxInterval, interval);
+    if (
+      interval >= minimumPacedIntervalSeconds &&
+      interval <= maximumPacedIntervalSeconds
+    ) {
+      pacedIntervals += 1;
+    }
   }
   return {
     frames: timestamps.length,
@@ -115,6 +129,7 @@ function decodedFrameStats(timestamps) {
     fps: duration > 0 ? (timestamps.length - 1) / duration : 0,
     nonIncreasingIntervals,
     maxInterval,
+    pacedIntervalRatio: pacedIntervals / (timestamps.length - 1),
   };
 }
 
@@ -149,7 +164,14 @@ async function verifyMeasuredCapture(videoPath, manifest) {
 
   const minimumFps = manifest.minimumMeasuredCaptureFps;
   const maximumFps = manifest.maximumMeasuredCaptureFps;
-  const captured = decodedFrameStats(timestamps);
+  const minimumPacedIntervalSeconds = manifest.minimumPacedIntervalSeconds;
+  const maximumPacedIntervalSeconds = manifest.maximumPacedIntervalSeconds;
+  const minimumPacedIntervalRatio = manifest.minimumPacedIntervalRatio;
+  const captured = decodedFrameStats(
+    timestamps,
+    minimumPacedIntervalSeconds,
+    maximumPacedIntervalSeconds,
+  );
   if (captured.nonIncreasingIntervals > 0) {
     throw new Error(
       `${videoPath} raw X11 timing evidence contains ${String(captured.nonIncreasingIntervals)} duplicated or non-increasing frame timestamps.`,
@@ -164,9 +186,18 @@ async function verifyMeasuredCapture(videoPath, manifest) {
       `${videoPath} raw X11 timing evidence is ${captured.fps.toFixed(2)} fps; expected native ${Number(minimumFps).toFixed(2)}-${Number(maximumFps).toFixed(2)} fps before publication encoding.`,
     );
   }
+  if (captured.pacedIntervalRatio < minimumPacedIntervalRatio) {
+    throw new Error(
+      `${videoPath} raw X11 timing evidence has only ${(captured.pacedIntervalRatio * 100).toFixed(1)}% of intervals in the native pacing window; expected at least ${String(minimumPacedIntervalRatio * 100)}%.`,
+    );
+  }
 
   const browserSeconds = browserTimestamps.map((timestamp) => timestamp / 1000);
-  const browser = decodedFrameStats(browserSeconds);
+  const browser = decodedFrameStats(
+    browserSeconds,
+    minimumPacedIntervalSeconds,
+    maximumPacedIntervalSeconds,
+  );
   if (browser.nonIncreasingIntervals > 0) {
     throw new Error(
       `${videoPath} browser animation evidence contains ${String(browser.nonIncreasingIntervals)} duplicated or non-increasing timestamps.`,
@@ -181,6 +212,11 @@ async function verifyMeasuredCapture(videoPath, manifest) {
       `${videoPath} browser animation clock is ${browser.fps.toFixed(2)} fps; expected display-paced ${Number(minimumFps).toFixed(2)}-${Number(maximumFps).toFixed(2)} fps while recording.`,
     );
   }
+  if (browser.pacedIntervalRatio < minimumPacedIntervalRatio) {
+    throw new Error(
+      `${videoPath} browser animation evidence has only ${(browser.pacedIntervalRatio * 100).toFixed(1)}% of intervals in the native pacing window; expected at least ${String(minimumPacedIntervalRatio * 100)}%.`,
+    );
+  }
 
   const video = await probeVisualSource(videoPath);
   if (video.codec !== "h264") {
@@ -188,7 +224,11 @@ async function verifyMeasuredCapture(videoPath, manifest) {
   }
 
   const decodedTimestamps = await probeFrameTimestamps(videoPath);
-  const decoded = decodedFrameStats(decodedTimestamps);
+  const decoded = decodedFrameStats(
+    decodedTimestamps,
+    minimumPacedIntervalSeconds,
+    maximumPacedIntervalSeconds,
+  );
   if (decoded.nonIncreasingIntervals > 0) {
     throw new Error(
       `${videoPath} raw Matroska contains ${String(decoded.nonIncreasingIntervals)} duplicated or non-increasing decoded frame timestamps.`,
@@ -201,6 +241,11 @@ async function verifyMeasuredCapture(videoPath, manifest) {
   ) {
     throw new Error(
       `${videoPath} raw Matroska decodes at ${decoded.fps.toFixed(2)} fps from ${String(decoded.frames)} actual frames; expected native ${Number(minimumFps).toFixed(2)}-${Number(maximumFps).toFixed(2)} fps.`,
+    );
+  }
+  if (decoded.pacedIntervalRatio < minimumPacedIntervalRatio) {
+    throw new Error(
+      `${videoPath} raw Matroska has only ${(decoded.pacedIntervalRatio * 100).toFixed(1)}% of frame intervals in the native pacing window; expected at least ${String(minimumPacedIntervalRatio * 100)}%.`,
     );
   }
   if (decoded.frames !== timing.capturedFrames || decoded.frames !== timestamps.length) {
