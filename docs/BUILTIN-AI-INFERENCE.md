@@ -142,6 +142,12 @@ Built-in model inference is browser/device capability-dependent. The feature mus
 
 As of the current Chrome documentation, foundation-model APIs such as Prompt API run on supported desktop Chrome environments and are not supported on Android/iOS. Timeline therefore keeps manual graph editing and WebMCP authoring as first-class alternatives. OCR itself is progressive: embedded PDF text extraction remains available without the language model; platform `TextDetector` is attempted when present; built-in vision transcription is the final local fallback.
 
+## Local Ollama host
+
+The same MCP/WebMCP tool contract can be driven by a local Ollama model without replacing the browser-native Prompt API. `TimelineLocalLLM.runOllama(...)` presents the existing tool definitions to Ollama's tool-calling API and executes requested calls against the live in-browser project. Read-only verification is the default; mutation tools require explicit `allowMutations: true` for that run. After a mutation, the host itself runs the canonical graph audit and full project validation before it accepts the model's final response.
+
+This path is useful when the browser's built-in model is unavailable, when a larger local model is preferred, or when an agent needs the complete project/audit tool surface. It does not weaken the deterministic graph validator. Standard MCP clients such as Codex and Claude can use the WebMCP-to-MCP relay described in [WEBMCP-MEMGRAPH.md](WEBMCP-MEMGRAPH.md#standard-mcp-clients-codex-claude-and-chatgpt).
+
 ## External LLM / agent use
 
 An external agent connected through WebMCP can already perform the same semantic extraction using:
