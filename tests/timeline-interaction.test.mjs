@@ -592,3 +592,43 @@ test("focused event detail keeps event semantics compact and image controls dot-
   );
   assert.match(architectureDocs, /explicit duration for ranged events/);
 });
+
+
+test("graph normalization scopes occurrence-backed biography fields to actor entities", () => {
+  assert.equal(
+    graph.validateEntityNode({
+      id: "person-a",
+      type: "person",
+      name: "Alice",
+      attributes: { employer: "Example Corp" },
+    }).valid,
+    false,
+  );
+
+  const normalized = graph.normalizeGraphData({
+    entities: [
+      {
+        id: "artifact-a",
+        type: "object",
+        name: "Artifact A",
+        attributes: { role: "ceremonial object" },
+      },
+      { id: "person-a", type: "person", name: "Alice", attributes: {} },
+    ],
+    relationships: [
+      {
+        id: "rel-a",
+        subjectId: "person-a",
+        objectId: "artifact-a",
+        predicate: "created",
+        attributes: { profession: "source wording retained on occurrence context" },
+      },
+    ],
+  });
+
+  assert.equal(normalized.entities.find((entity) => entity.id === "artifact-a")?.attributes.role, "ceremonial object");
+  assert.equal(
+    normalized.relationships[0]?.attributes?.profession,
+    "source wording retained on occurrence context",
+  );
+});
