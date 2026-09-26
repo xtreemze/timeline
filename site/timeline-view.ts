@@ -7,6 +7,8 @@
  */
 
 import { surfacePointerMayStartDirectManipulation } from "../src/interaction/surface-input-policy.ts";
+import { TimelinePresentation } from "./event-presentation.ts";
+import { TimelineScale } from "./time-scale.ts";
 import {
   geometryMeasurementKey,
   planCommittedTemporalLayout,
@@ -39,8 +41,8 @@ import { LuumEventCardElement } from "./components/timeline-event-card.ts";
 import { TimelineClustering as clustering } from "./timeline-clustering.ts";
 import { TimelineMotion as motion } from "./timeline-motion.ts";
 
-const scale = globalThis.TimelineScale;
-const presentation = globalThis.TimelinePresentation;
+const scale = TimelineScale;
+const presentation = TimelinePresentation;
 
 const VIEW_STORAGE_KEY = "timeline:view:v1";
 const DEFAULT_SPAN_MS = 86_400_000;

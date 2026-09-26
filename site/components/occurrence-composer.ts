@@ -252,8 +252,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
     }
   `;
 
-  active = false;
-  editing = false;
+  declare active: boolean;
+  declare editing: boolean;
 
   private value = "";
   private data: OccurrenceComposerData = Object.freeze({
@@ -266,6 +266,12 @@ export class LuumOccurrenceComposerElement extends LitElement {
   private activeSuggestion = 0;
   private externalError = "";
   private explicitPlaceContext: ComposerWorldContext | null = null;
+
+  constructor() {
+    super();
+    this.active = false;
+    this.editing = false;
+  }
 
   setData(data: OccurrenceComposerData): void {
     this.data = Object.freeze({

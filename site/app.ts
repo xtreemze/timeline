@@ -4,9 +4,10 @@
  */
 
 import { projectTimelineOccurrences } from "../src/projection/timeline-projection.ts";
-import {
+import "./components/occurrence-composer.ts";
+import type {
   LuumOccurrenceComposerElement,
-  type OccurrenceCommitDetail,
+  OccurrenceCommitDetail,
 } from "./components/occurrence-composer.ts";
 import type { ComposerEntityReference } from "./occurrence-composer-model.ts";
 import {
@@ -37,7 +38,9 @@ import {
   storyIdsForItem,
 } from "./story-authoring.js";
 // Import ESM modules
+import "./components/timeline-element.ts";
 import { TimelineTemporal } from "./temporal-standards.ts";
+import { TimelineView } from "./timeline-view.ts";
 import { createSettledTemporalWindowSink } from "./world/settled-temporal-window.ts";
 import { selectPrimarySpatialViewFactory } from "./world/world-view-selection.ts";
 
@@ -663,7 +666,8 @@ function setSemanticControlIcon(element, iconName, label) {
 
 decorateSemanticControls();
 
-const timelineView = globalThis.TimelineView?.create(els.timelineViewRoot) || null;
+const timelineView = TimelineView.create(els.timelineViewRoot);
+if (!timelineView) throw new Error("TimelineView could not initialize the timeline root.");
 let temporalGraphView: ReturnType<typeof temporalGraphFactory.create> | null = null;
 try {
   temporalGraphView = temporalGraphFactory.create(els.graphViewRoot);

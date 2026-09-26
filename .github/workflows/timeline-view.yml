@@ -364,6 +364,12 @@ jobs:
         run: pnpm install --frozen-lockfile
       - continue-on-error: true
         run: pnpm exec playwright install --with-deps chromium
+      - name: Certify bundled sample renders on narrow mobile
+        run: >-
+          pnpm exec playwright test --config=playwright.config.ts
+          tests/playwright/mobile-screen.spec.ts
+          --project="Mobile Chrome"
+          --grep="fresh bundled sample initializes the timeline controller"
       - name: Verify application shell browser test discovery
         continue-on-error: true
         run: |
