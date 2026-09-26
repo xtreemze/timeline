@@ -11,7 +11,9 @@ import {
   Deck,
   _GlobeController as GlobeController,
   _GlobeView as GlobeView,
+  _GlobeViewport as GlobeViewport,
   MapView,
+  WebMercatorViewport,
 } from "@deck.gl/core";
 import { CollisionFilterExtension } from "@deck.gl/extensions";
 import {
@@ -223,11 +225,19 @@ function createRealDeckWorldBindings(webgpuAdapter?: WebGpuAdapter): DeckWorldBi
     globeView(props) {
       return new GlobeView(props as ConstructorParameters<typeof GlobeView>[0]);
     },
+    globeViewport(props) {
+      return new GlobeViewport(props as ConstructorParameters<typeof GlobeViewport>[0]);
+    },
     globeControllerType() {
       return TimelineWeightedGlobeController;
     },
     mapView(props) {
       return new MapView(props as ConstructorParameters<typeof MapView>[0]);
+    },
+    mapViewport(props) {
+      return new WebMercatorViewport(
+        props as ConstructorParameters<typeof WebMercatorViewport>[0],
+      );
     },
     scatterplotLayer(props) {
       return new ScatterplotLayer(props as ConstructorParameters<typeof ScatterplotLayer>[0]);
