@@ -42,7 +42,7 @@ function time(value = "2026-01-02") {
     start: {
       value,
       precision: "day",
-      certainty: "stated",
+      certainty: "exact",
       calendar: "gregorian",
       timeZone: null,
       utcOffset: null,
