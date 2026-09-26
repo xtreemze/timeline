@@ -1,5 +1,7 @@
 import type { CanonicalEntity } from "./entity.ts";
-import type { RelationshipId } from "./ids.ts";
+import type { OccurrenceId, RelationshipId } from "./ids.ts";
+import type { CanonicalOccurrence } from "./occurrence.ts";
+import { validateOccurrence } from "./occurrence.ts";
 import type { CanonicalRelationship } from "./relationship.ts";
 import { relationshipFactKey, validateRelationship } from "./relationship.ts";
 import type {
@@ -11,6 +13,13 @@ export interface CanonicalProject {
   readonly schemaVersion: number;
   readonly entities: readonly CanonicalEntity[];
   readonly relationships: readonly CanonicalRelationship[];
+  readonly occurrences?: readonly CanonicalOccurrence[];
+}
+
+export interface RecordOccurrenceResult {
+  readonly status: "created";
+  readonly project: CanonicalProject;
+  readonly occurrence: CanonicalOccurrence;
 }
 
 export type RecordRelationshipResult =
@@ -160,4 +169,34 @@ export function findRelationship(
   id: RelationshipId,
 ): CanonicalRelationship | undefined {
   return project.relationships.find((relationship) => relationship.id === id);
+}
+
+
+export function recordOccurrence(
+  project: CanonicalProject,
+  candidate: CanonicalOccurrence,
+): RecordOccurrenceResult {
+  const findings = validateOccurrence(candidate, project.entities, project.relationships);
+  if (findings.length > 0) {
+    throw new Error(findings.join(" "));
+  }
+  if ((project.occurrences ?? []).some((occurrence) => occurrence.id === candidate.id)) {
+    throw new Error(`Occurrence ID ${String(candidate.id)} already exists.`);
+  }
+
+  return {
+    status: "created",
+    occurrence: candidate,
+    project: {
+      ...project,
+      occurrences: [...(project.occurrences ?? []), candidate],
+    },
+  };
+}
+
+export function findOccurrence(
+  project: CanonicalProject,
+  id: OccurrenceId,
+): CanonicalOccurrence | undefined {
+  return (project.occurrences ?? []).find((occurrence) => occurrence.id === id);
 }
