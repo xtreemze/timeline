@@ -118,10 +118,7 @@ function decodedFrameStats(
     const interval = current - previous;
     if (interval <= 0) nonIncreasingIntervals += 1;
     maxInterval = Math.max(maxInterval, interval);
-    if (
-      interval >= minimumPacedIntervalSeconds &&
-      interval <= maximumPacedIntervalSeconds
-    ) {
+    if (interval >= minimumPacedIntervalSeconds && interval <= maximumPacedIntervalSeconds) {
       pacedIntervals += 1;
     }
     if (interval <= maximumPacedIntervalSeconds) responsiveIntervals += 1;
@@ -181,11 +178,7 @@ async function verifyMeasuredCapture(videoPath, manifest) {
       `${videoPath} raw X11 timing evidence contains ${String(captured.nonIncreasingIntervals)} duplicated or non-increasing frame timestamps.`,
     );
   }
-  if (
-    !Number.isFinite(captured.fps) ||
-    captured.fps < minimumFps ||
-    captured.fps > maximumFps
-  ) {
+  if (!Number.isFinite(captured.fps) || captured.fps < minimumFps || captured.fps > maximumFps) {
     throw new Error(
       `${videoPath} raw X11 timing evidence is ${captured.fps.toFixed(2)} fps; expected native ${Number(minimumFps).toFixed(2)}-${Number(maximumFps).toFixed(2)} fps before publication encoding.`,
     );
@@ -234,11 +227,7 @@ async function verifyMeasuredCapture(videoPath, manifest) {
       `${videoPath} raw Matroska contains ${String(decoded.nonIncreasingIntervals)} duplicated or non-increasing decoded frame timestamps.`,
     );
   }
-  if (
-    !Number.isFinite(decoded.fps) ||
-    decoded.fps < minimumFps ||
-    decoded.fps > maximumFps
-  ) {
+  if (!Number.isFinite(decoded.fps) || decoded.fps < minimumFps || decoded.fps > maximumFps) {
     throw new Error(
       `${videoPath} raw Matroska decodes at ${decoded.fps.toFixed(2)} fps from ${String(decoded.frames)} actual frames; expected native ${Number(minimumFps).toFixed(2)}-${Number(maximumFps).toFixed(2)} fps.`,
     );
