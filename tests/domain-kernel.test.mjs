@@ -3,13 +3,16 @@ import test from "node:test";
 
 import {
   entityId,
+  occurrenceId,
   occurrenceTypeDefinition,
+  recordOccurrence,
   recordRelationship,
   relationshipFactKey,
   relationshipId,
   sourceId,
   validateActionPredicate,
   validateEntity,
+  validateOccurrence,
 } from "../src/domain/index.ts";
 import { projectRelationshipMatrix } from "../src/projection/relationship-matrix.ts";
 
@@ -315,4 +318,66 @@ test("relationship matrix filters source coverage without mutating canonical rel
   );
   assert.equal(aliceToBob.hiddenRelationshipCount, 1);
   assert.equal(JSON.stringify(project), before);
+});
+
+
+test("multi-participant occurrences keep one shared identity without event nodes", () => {
+  const carol = {
+    id: entityId("carol"),
+    type: "person",
+    name: "Carol",
+    alternateNames: [],
+    sourceIds: [],
+    attributes: {},
+  };
+  const parentA = {
+    ...baseRelationship,
+    id: relationshipId("parent-a"),
+    subjectId: bob.id,
+    objectId: alice.id,
+    predicate: "parented",
+  };
+  const parentB = {
+    ...baseRelationship,
+    id: relationshipId("parent-b"),
+    subjectId: carol.id,
+    objectId: alice.id,
+    predicate: "parented",
+  };
+  const birth = {
+    id: occurrenceId("birth-alice"),
+    title: "Birth of Alice",
+    occurrenceType: "birth",
+    time: { type: "instant", start: { value: "100" } },
+    participantContexts: [
+      { entityId: alice.id, roleType: "born-person" },
+      { entityId: bob.id, roleType: "parent" },
+      { entityId: carol.id, roleType: "parent" },
+    ],
+    relationshipIds: [parentA.id, parentB.id],
+    sourceIds: [sourceId("birth-record")],
+    confidence: 1,
+    attributes: {},
+  };
+
+  assert.deepEqual(
+    validateOccurrence(birth, [alice, bob, carol], [parentA, parentB]),
+    [],
+  );
+  const created = recordOccurrence(
+    {
+      schemaVersion: 3,
+      entities: [alice, bob, carol],
+      relationships: [parentA, parentB],
+    },
+    birth,
+  );
+  assert.equal(created.project.occurrences?.length, 1);
+  assert.equal(created.project.entities.length, 3);
+  assert.throws(() =>
+    recordOccurrence(created.project, {
+      ...birth,
+      id: occurrenceId("parent-a"),
+    }),
+  );
 });
