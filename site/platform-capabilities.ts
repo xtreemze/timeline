@@ -124,8 +124,12 @@ export async function saveNativeProjectFile(
 
 export function canShareProjectFile(): boolean {
   if (typeof navigator.share !== "function" || typeof navigator.canShare !== "function") return false;
-  const probe = new File(["{}"], "project.luum", { type: "application/json" });
-  return navigator.canShare({ files: [probe] });
+  try {
+    const probe = new File(["{}"], "project.luum", { type: "application/json" });
+    return navigator.canShare({ files: [probe] });
+  } catch {
+    return false;
+  }
 }
 
 export async function shareProjectFile(
