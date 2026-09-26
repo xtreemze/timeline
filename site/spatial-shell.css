@@ -426,6 +426,117 @@
   font-size: clamp(0.58rem, calc(0.54rem + 0.12vw), 0.68rem);
 }
 
+/* Canonical persistent toolbar contract.
+   Buttons and compound inputs share one surface, state, focus, and target language. */
+.app-footer-bar {
+  --toolbar-control-size: 44px;
+  --toolbar-control-radius: 0.58rem;
+  --toolbar-control-gap: 0.14rem;
+}
+
+.app-footer-zone {
+  container-type: inline-size;
+  gap: var(--toolbar-control-gap);
+  padding-inline: 0.06rem;
+}
+
+.app-footer-actions {
+  gap: var(--toolbar-control-gap);
+}
+
+.app-footer-bar .toolbar-control {
+  appearance: none;
+  display: grid;
+  place-items: center;
+  flex: 0 0 var(--toolbar-control-size);
+  inline-size: var(--toolbar-control-size);
+  block-size: var(--toolbar-control-size);
+  min-inline-size: var(--toolbar-control-size);
+  min-block-size: var(--toolbar-control-size);
+  margin: 0;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--toolbar-control-radius);
+  background: transparent;
+  color: var(--muted);
+  box-shadow: none;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.app-footer-actions > .app-tool.toolbar-control {
+  flex: 0 0 var(--toolbar-control-size);
+  inline-size: var(--toolbar-control-size);
+  min-inline-size: var(--toolbar-control-size);
+  min-block-size: var(--toolbar-control-size);
+  padding: 0;
+}
+
+.app-footer-bar .toolbar-control :is(.semantic-icon, img),
+.app-footer-bar .toolbar-control > .semantic-icon {
+  inline-size: 20px;
+  block-size: 20px;
+}
+
+.app-footer-bar .toolbar-control > .semantic-icon {
+  stroke-width: 1.9;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .app-footer-bar .toolbar-control:is(:hover, :focus-visible, :focus-within) {
+    border-color: color-mix(in srgb, var(--line-strong) 70%, transparent);
+    background: var(--paper-2);
+    color: var(--ink);
+  }
+}
+
+.app-footer-bar .toolbar-control:is(:focus-visible, :focus-within) {
+  outline: 2px solid var(--focus);
+  outline-offset: -3px;
+  box-shadow: none;
+}
+
+#app-shell[data-editor-open="true"] .app-footer-bar #editor-toggle,
+#app-shell[data-browser-open="true"] .app-footer-bar #timeline-browser-toggle,
+.app-footer-bar #project-menu-toggle[aria-expanded="true"],
+.app-footer-bar .toolbar-control[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--line-strong) 82%, transparent);
+  background: var(--paper-2);
+  color: var(--ink);
+}
+
+.app-footer-bar .toolbar-control:disabled,
+.app-footer-bar .toolbar-control:has([data-view-control]:disabled) {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.app-footer-world {
+  gap: var(--toolbar-control-gap);
+}
+
+.app-footer-world .world-camera-controls,
+.app-footer-world .world-layout-controls {
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--toolbar-control-gap);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  overflow: visible;
+}
+
+.app-footer-world .world-layout-controls {
+  margin-inline-start: 0.12rem;
+  padding-inline-start: 0.12rem;
+  border-inline-start: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+}
+
+.app-footer-world .world-camera-control + .world-camera-control {
+  border-block-start-color: transparent;
+  border-inline-start-color: transparent;
+}
+
 .app-footer-timeline.timeline-local-toolbar {
   display: flex;
   align-items: center;
