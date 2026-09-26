@@ -168,6 +168,47 @@ test("inverse local drag conversion preserves unplaced semantics", () => {
   assert.equal(resolveWorldLocalLayoutPosition(projected, [18.0686, 59.3293, 1000]), null);
 });
 
+test("committed temporal reprojection can preserve the renderer's exact visible position", () => {
+  const before = createWorldProjection({
+    instances: [instance({ localOffset: { eastMeters: 100, northMeters: 50 } })],
+    edges: [],
+  });
+  const after = createWorldProjection({
+    instances: [
+      instance({
+        geographicAnchors: [
+          {
+            placeId: "copenhagen",
+            longitude: 12.5683,
+            latitude: 55.6761,
+            influence: 1,
+          },
+        ],
+        localOffset: undefined,
+      }),
+    ],
+    edges: [],
+  });
+  const renderedPosition = Object.freeze({
+    longitude: 18.2,
+    latitude: 59.4,
+    altitudeMeters: 1600,
+  });
+  const renderedPositions = new Map([[before.instances[0].id, renderedPosition]]);
+
+  const reconciled = preserveWorldProjectionRenderContinuity(
+    before,
+    after,
+    renderedPositions,
+  );
+  const position = resolveWorldRenderPosition(reconciled.instances[0]);
+
+  assert.ok(position);
+  assert.ok(Math.abs(position[0] - renderedPosition.longitude) < 1e-9);
+  assert.ok(Math.abs(position[1] - renderedPosition.latitude) < 1e-9);
+  assert.ok(Math.abs(position[2] - renderedPosition.altitudeMeters) < 1e-9);
+});
+
 test("committed temporal reprojection preserves surviving node world position", () => {
   const beforeInstance = instance({
     localOffset: { eastMeters: 1250, northMeters: -750 },
