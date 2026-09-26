@@ -129,6 +129,90 @@ test("clicking the selected card keeps its attached detail open", async ({ page 
   await expect(page.locator("#app-shell")).toHaveClass(/is-event-focused/);
 });
 
+test("focused detail tabs use roving keyboard focus and proper tabpanel semantics", async ({ page }) => {
+  const focus = await focusOccurrence(page);
+  const contextTab = focus.getByRole("tab", { name: "Context" });
+  const evidenceTab = focus.getByRole("tab", { name: "Evidence" });
+  const contextPanel = focus.locator("#timeline-focus-context-panel");
+  const evidencePanel = focus.locator("#timeline-focus-evidence-panel");
+
+  await expect(contextTab).toHaveAttribute("aria-selected", "true");
+  await expect(contextTab).toHaveAttribute("tabindex", "0");
+  await expect(evidenceTab).toHaveAttribute("tabindex", "-1");
+  await expect(contextPanel).toHaveAttribute("role", "tabpanel");
+  await expect(contextPanel).toHaveAttribute("aria-labelledby", "timeline-focus-context-tab");
+  await expect(evidencePanel).toHaveAttribute("aria-labelledby", "timeline-focus-evidence-tab");
+
+  await contextTab.focus();
+  await contextTab.press("ArrowRight");
+  await expect(evidenceTab).toBeFocused();
+  await expect(evidenceTab).toHaveAttribute("aria-selected", "true");
+  await expect(evidenceTab).toHaveAttribute("tabindex", "0");
+  await expect(contextTab).toHaveAttribute("tabindex", "-1");
+  await expect(contextPanel).toBeHidden();
+  await expect(evidencePanel).toBeVisible();
+
+  await evidenceTab.press("Home");
+  await expect(contextTab).toBeFocused();
+  await expect(contextTab).toHaveAttribute("aria-selected", "true");
+  await expect(contextPanel).toBeVisible();
+});
+
+test("hero image changes preserve the active detail tab and keyboard focus", async ({ page }) => {
+  await page.locator("#load-sample").evaluate((button: HTMLButtonElement) => button.click());
+  const mediaTerminal = page
+    .locator("#timeline-view .timeline-event-terminal:has(.timeline-event-art):visible")
+    .first();
+  await expect(mediaTerminal).toBeVisible();
+  await mediaTerminal.evaluate((button: HTMLButtonElement) => button.click());
+
+  const focus = page.locator("#timeline-focus-view");
+  const evidenceTab = focus.getByRole("tab", { name: "Evidence" });
+  await evidenceTab.click();
+  await expect(focus).toHaveAttribute("data-active-tab", "evidence");
+
+  const next = focus.locator(".timeline-focus-media-control.is-next");
+  await expect(next).toBeVisible();
+  const before = await focus.locator(".timeline-focus-slide-dot.is-active").getAttribute("data-slide-index");
+  await next.click();
+
+  await expect(focus).toHaveAttribute("data-active-tab", "evidence");
+  await expect(focus.getByRole("tab", { name: "Evidence" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await expect(focus.locator(".timeline-focus-media-control.is-next")).toBeFocused();
+  const after = await focus.locator(".timeline-focus-slide-dot.is-active").getAttribute("data-slide-index");
+  expect(after).not.toBe(before);
+});
+
+test("focus edit affordances keep large hit targets with compact visible icons", async ({ page }) => {
+  const focus = await focusOccurrence(page);
+  const edit = focus.locator(".timeline-focus-edit").first();
+  await expect(edit).toBeVisible();
+  const [buttonBox, iconBox] = await Promise.all([
+    edit.boundingBox(),
+    edit.locator(".semantic-icon").boundingBox(),
+  ]);
+  expect(buttonBox).not.toBeNull();
+  expect(iconBox).not.toBeNull();
+  if (!buttonBox || !iconBox) return;
+  expect(buttonBox.width).toBeGreaterThanOrEqual(44);
+  expect(buttonBox.height).toBeGreaterThanOrEqual(44);
+  expect(iconBox.width).toBeLessThanOrEqual(20);
+  expect(iconBox.height).toBeLessThanOrEqual(20);
+});
+
+test("semantic activation of the selected occurrence keeps explicit-close focus open", async ({
+  page,
+}) => {
+  const focus = await focusOccurrence(page);
+  const semantic = page.locator('.timeline-semantic-occurrence[aria-current="true"]').first();
+  await semantic.evaluate((button: HTMLButtonElement) => button.click());
+  await expect(focus).toBeVisible();
+  await expect(page.locator("#app-shell")).toHaveClass(/is-event-focused/);
+});
+
 test("landscape preserves the bottom timeline rail while focused detail layers over the graph", async ({
   page,
 }) => {

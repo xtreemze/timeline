@@ -18,11 +18,23 @@ test("footer owns one persistent View group and one Edit action", async () => {
 
   assert.match(
     index,
-    /app-footer-timeline timeline-local-toolbar" role="group" aria-label="Timeline controls"/,
+    /app-footer-timeline timeline-local-toolbar" role="group" aria-label="Timeline and view controls"/,
   );
   assert.match(
     index,
     /id="timeline-view-toolbar" class="app-footer-zone app-footer-timeline timeline-local-toolbar" role="group"/,
+  );
+  assert.match(
+    index,
+    /app-footer-world" data-world-controls-slot role="group" aria-label="World view controls"/,
+  );
+  assert.match(
+    index,
+    /id="timeline-related-zoom"[^>]*data-semantic-icon="zoom-in"[^>]*aria-controls="temporal-graph-view"/,
+  );
+  assert.match(
+    index,
+    /id="timeline-related-fit"[^>]*data-semantic-icon="fit"[^>]*aria-controls="temporal-graph-view"/,
   );
   assert.doesNotMatch(index, /app-view-controls|app-footer-view-controls|view-display-controls/);
   assert.doesNotMatch(index, /id="timeline-view-toolbar"[^>]*popover=/);
@@ -73,6 +85,8 @@ test("every footer button shares the canonical 44px toolbar-control contract", a
     "timeline-browser-toggle",
     "timeline-focus-prev",
     "timeline-focus-next",
+    "timeline-related-zoom",
+    "timeline-related-fit",
     "timeline-orientation-toggle",
     "presentation-fullscreen-toggle",
     "timeline-auto-toggle",
