@@ -200,7 +200,6 @@ test("projection updates feed force scene and WorldSurface from one revision", (
   assert.deepEqual(calls[3], ["surface:projection", input]);
 });
 
-
 test("committed temporal anchor changes keep the current rendered position for the force handoff", () => {
   const { calls, controller } = harness({ readback: true, delta: true });
   const initial = projection();
