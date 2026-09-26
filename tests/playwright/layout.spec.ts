@@ -384,6 +384,66 @@ test.describe("Mobile-first Timeline layout contracts", () => {
     });
   }
 
+  test("desktop footer keeps balanced zones and deliberate control spacing", async ({ page }) => {
+    await page.setViewportSize(DESKTOP_LANDSCAPE);
+    await page.goto("/");
+    await ensureTimelineOrientation(page, "landscape");
+
+    const dock = page.locator(".app-tool-dock.app-footer-bar");
+    const world = dock.locator(".app-footer-world");
+    const actions = dock.locator(".app-footer-actions");
+    const timeline = dock.locator(".app-footer-timeline");
+
+    const [dockBox, worldBox, actionsBox, timelineBox] = await Promise.all([
+      dock.boundingBox(),
+      world.boundingBox(),
+      actions.boundingBox(),
+      timeline.boundingBox(),
+    ]);
+    expect(dockBox).not.toBeNull();
+    expect(worldBox).not.toBeNull();
+    expect(actionsBox).not.toBeNull();
+    expect(timelineBox).not.toBeNull();
+    if (!dockBox || !worldBox || !actionsBox || !timelineBox) {
+      throw new Error("Desktop footer zones have no live bounds.");
+    }
+
+    expect(Math.abs(actionsBox.x + actionsBox.width / 2 - DESKTOP_LANDSCAPE.width / 2)).toBeLessThanOrEqual(2);
+    expect(worldBox.x - dockBox.x).toBeGreaterThanOrEqual(8);
+    expect(dockBox.x + dockBox.width - (timelineBox.x + timelineBox.width)).toBeGreaterThanOrEqual(8);
+
+    const leftZoneGap = actionsBox.x - (worldBox.x + worldBox.width);
+    const rightZoneGap = timelineBox.x - (actionsBox.x + actionsBox.width);
+    expect(leftZoneGap).toBeGreaterThanOrEqual(8);
+    expect(rightZoneGap).toBeGreaterThanOrEqual(8);
+    expect(Math.abs(leftZoneGap - rightZoneGap)).toBeLessThanOrEqual(2);
+
+    const rhythm = await dock.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        controlGap: Number.parseFloat(style.getPropertyValue("--toolbar-control-gap")),
+        zoneGap: Number.parseFloat(style.getPropertyValue("--toolbar-zone-gap")),
+      };
+    });
+    expect(rhythm.controlGap).toBeGreaterThanOrEqual(2.5);
+    expect(rhythm.zoneGap).toBeGreaterThanOrEqual(8);
+
+    const firstWorldControl = world.locator(".toolbar-control:visible").first();
+    const lastTimelineControl = timeline.locator(".toolbar-control:visible").last();
+    const [firstWorldBox, lastTimelineBox] = await Promise.all([
+      firstWorldControl.boundingBox(),
+      lastTimelineControl.boundingBox(),
+    ]);
+    expect(firstWorldBox).not.toBeNull();
+    expect(lastTimelineBox).not.toBeNull();
+    if (!firstWorldBox || !lastTimelineBox) {
+      throw new Error("Desktop footer edge controls have no live bounds.");
+    }
+
+    expect(Math.abs(firstWorldBox.x - worldBox.x)).toBeLessThanOrEqual(2);
+    expect(Math.abs(lastTimelineBox.x + lastTimelineBox.width - (timelineBox.x + timelineBox.width))).toBeLessThanOrEqual(2);
+  });
+
   test("orientation changes retain rendered occurrence identity and update control semantics", async ({
     page,
   }) => {
