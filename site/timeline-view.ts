@@ -1087,6 +1087,7 @@ export class TimelineViewController {
   }
 
   setItems(items: TimelineItem[], options: SetItemsOptions = {}): void {
+    const previousItemIds = new Set(this.items.map((item) => item.id));
     this.items = (items || []).filter(
       (item) => item && typeof item.id === "string" && Number.isFinite(item.start),
     );
@@ -1137,8 +1138,12 @@ export class TimelineViewController {
     const requestedFocusItem = options.focusId
       ? this.items.find((item) => item.id === options.focusId) || null
       : null;
+    const itemSetChanged =
+      previousItemIds.size !== this.items.length ||
+      this.items.some((item) => !previousItemIds.has(item.id));
     const revealRequestedFocus =
-      requestedFocusItem !== null && !itemOverlapsViewport(requestedFocusItem, this.viewport);
+      requestedFocusItem !== null &&
+      (itemSetChanged || !itemOverlapsViewport(requestedFocusItem, this.viewport));
 
     this.focusedId =
       requestedFocusItem
