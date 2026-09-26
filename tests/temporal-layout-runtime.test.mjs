@@ -166,6 +166,29 @@ test("short ranges stay centered and yield the nearest lane to coincident instan
   assert.equal(plan.lanes.range, 1);
 });
 
+test("exact-date events reclaim lane zero from a previously centered range when it becomes legal", () => {
+  const plan = planCommittedTemporalLayout({
+    viewport: { start: 0, end: 1_000 },
+    pixelLength: 1_000,
+    occurrences: [
+      { id: "range", start: 100, end: 900 },
+      { id: "instant", start: 500 },
+    ],
+    previous: {
+      lanes: { range: 0, instant: 1 },
+      anchorRatios: { range: 0.24, instant: 0.5 },
+    },
+    measurements: {
+      range: { inlineSize: 120, blockSize: 52 },
+      instant: { inlineSize: 120, blockSize: 52 },
+    },
+  });
+
+  assert.equal(plan.lanes.instant, 0);
+  assert.equal(plan.anchorRatios.instant, 0.5);
+});
+
+
 test("three nearby occurrences use lanes before a fourth forces clustering", () => {
   const common = {
     viewport: { start: 0, end: 1_000 },
