@@ -5,6 +5,8 @@ export interface DeferredSpatialView {
   setFocus(id: string | number | null): void;
   setPresentationMode?(active: boolean): void;
   hasContext?(): boolean;
+  fitContext?(): boolean;
+  zoomContext?(): boolean;
   refreshLayout?(): void;
   destroy?(): void;
 }
@@ -117,6 +119,12 @@ export function createDeferredSpatialViewFactory(
         },
         hasContext(): boolean {
           return delegate?.hasContext?.() ?? false;
+        },
+        fitContext(): boolean {
+          return delegate?.fitContext?.() ?? false;
+        },
+        zoomContext(): boolean {
+          return delegate?.zoomContext?.() ?? false;
         },
         refreshLayout(): void {
           refreshPending = true;
