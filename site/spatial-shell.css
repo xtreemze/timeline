@@ -193,8 +193,10 @@
   inset-block-start: max(0.35rem, env(safe-area-inset-top));
   inset-inline-start: max(0.35rem, env(safe-area-inset-left));
   max-block-size: calc(
-    100% - var(--relations-bottom-safe, var(--workspace-footer-block-size, 64px)) -
-    var(--focus-timeline-block-size) - 0.7rem
+    100% -
+    var(--relations-bottom-safe, var(--workspace-footer-block-size, 64px)) -
+    var(--focus-timeline-block-size) -
+    0.7rem
   );
 }
 
@@ -364,8 +366,10 @@
     inline-size: min(560px, calc(100% - 1.1rem));
     max-inline-size: calc(100% - 1.1rem);
     max-block-size: calc(
-      100% - var(--relations-bottom-safe, var(--workspace-footer-block-size, 64px)) -
-      var(--focus-timeline-block-size) - 1.1rem
+      100% -
+      var(--relations-bottom-safe, var(--workspace-footer-block-size, 64px)) -
+      var(--focus-timeline-block-size) -
+      1.1rem
     );
   }
 
