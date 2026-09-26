@@ -65,7 +65,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("landscape matches portrait timeline spacing at the physical edge", async ({ page }) => {
-  const outerEdgeRatio = async (orientation: "landscape" | "portrait") => {
+  const outerEdgePixels = async (orientation: "landscape" | "portrait") => {
     await ensureOrientation(page, orientation);
     const [surfaceBox, axisBox] = await Promise.all([
       page.locator(".timeline-surface").boundingBox(),
@@ -77,19 +77,19 @@ test("landscape matches portrait timeline spacing at the physical edge", async (
 
     if (orientation === "landscape") {
       const axisCenter = axisBox.y + axisBox.height / 2;
-      return (surfaceBox.y + surfaceBox.height - axisCenter) / surfaceBox.height;
+      return surfaceBox.y + surfaceBox.height - axisCenter;
     }
 
     const axisCenter = axisBox.x + axisBox.width / 2;
-    return (surfaceBox.x + surfaceBox.width - axisCenter) / surfaceBox.width;
+    return surfaceBox.x + surfaceBox.width - axisCenter;
   };
 
-  const portraitEdgeRatio = await outerEdgeRatio("portrait");
-  const landscapeEdgeRatio = await outerEdgeRatio("landscape");
+  const portraitEdgePixels = await outerEdgePixels("portrait");
+  const landscapeEdgePixels = await outerEdgePixels("landscape");
 
-  expect(portraitEdgeRatio).toBeGreaterThan(0.29);
-  expect(portraitEdgeRatio).toBeLessThan(0.35);
-  expect(Math.abs(landscapeEdgeRatio - portraitEdgeRatio)).toBeLessThanOrEqual(0.02);
+  expect(landscapeEdgePixels).toBeGreaterThanOrEqual(63);
+  expect(landscapeEdgePixels).toBeLessThanOrEqual(94);
+  expect(Math.abs(landscapeEdgePixels - portraitEdgePixels)).toBeLessThanOrEqual(2);
 });
 
 test("focused detail is shell-owned while contextual actions stay in the footer", async ({

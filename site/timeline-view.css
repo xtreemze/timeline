@@ -3239,6 +3239,10 @@
   #app-shell[data-graph-open="true"] #presentation-stage {
     --relations-inline-rail: clamp(280px, 28dvw, 400px);
     --relations-block-rail: clamp(200px, 27dvh, 288px);
+    /* The horizontal rail's existing 68% axis leaves 32% of its block size
+       outside the axis. Reuse that physical distance for the vertical rail so
+       portrait and landscape have the same edge gutter in pixels. */
+    --timeline-edge-gutter: clamp(64px, 8.64dvh, 92.16px);
     --relations-right-safe: max(0.55rem, env(safe-area-inset-right));
     --relations-bottom-safe: max(4.45rem, calc(env(safe-area-inset-bottom) + 4.1rem));
   }
@@ -3259,7 +3263,7 @@
   #app-shell[data-graph-open="true"]
     #timeline-view[data-orientation="portrait"]
     > .timeline-surface {
-    --timeline-axis-cross: 68%;
+    --timeline-axis-cross: calc(100% - var(--timeline-edge-gutter));
     top: 0;
     right: var(--relations-right-safe);
     bottom: 0;
@@ -3314,9 +3318,9 @@
   #app-shell[data-graph-open="true"]
     #timeline-view[data-orientation="landscape"]
     > .timeline-surface {
-    /* Match portrait's outer-edge spacing: chronology content expands inward
-       while date context keeps the same compact gutter at the physical edge. */
-    --timeline-axis-cross: 68%;
+    /* Share the same physical edge gutter as portrait rather than merely the
+       same percentage of differently sized rails. */
+    --timeline-axis-cross: calc(100% - var(--timeline-edge-gutter));
     top: auto;
     right: 0;
     bottom: var(--relations-bottom-safe);
