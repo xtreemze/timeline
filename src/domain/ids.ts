@@ -6,6 +6,7 @@ export type TimelineId<Kind extends string> = string & {
 
 export type EntityId = TimelineId<"entity">;
 export type RelationshipId = TimelineId<"relationship">;
+export type OccurrenceId = TimelineId<"occurrence">;
 export type PlaceId = TimelineId<"place">;
 export type EvidenceId = TimelineId<"evidence">;
 export type StoryId = TimelineId<"story">;
@@ -25,6 +26,8 @@ function canonicalId<Kind extends string>(value: string, label: string): Timelin
 export const entityId = (value: string): EntityId => canonicalId<"entity">(value, "Entity ID");
 export const relationshipId = (value: string): RelationshipId =>
   canonicalId<"relationship">(value, "Relationship ID");
+export const occurrenceId = (value: string): OccurrenceId =>
+  canonicalId<"occurrence">(value, "Occurrence ID");
 export const placeId = (value: string): PlaceId => canonicalId<"place">(value, "Place ID");
 export const evidenceId = (value: string): EvidenceId =>
   canonicalId<"evidence">(value, "Evidence ID");

@@ -1,10 +1,23 @@
 import type { EntityId, SourceId } from "./ids.ts";
+import type {
+  CanonicalAppellation,
+  CanonicalIdentifier,
+  ExternalSemanticMapping,
+} from "./semantics.ts";
+import {
+  validateCanonicalAppellations,
+  validateCanonicalIdentifiers,
+  validateExternalSemanticMappings,
+} from "./semantics.ts";
 
 export interface CanonicalEntity {
   readonly id: EntityId;
   readonly type: string;
   readonly name: string;
   readonly alternateNames: readonly string[];
+  readonly identifiers?: readonly CanonicalIdentifier[];
+  readonly appellations?: readonly CanonicalAppellation[];
+  readonly semanticMappings?: readonly ExternalSemanticMapping[];
   readonly sourceIds: readonly SourceId[];
   readonly attributes: Readonly<Record<string, unknown>>;
 }
@@ -54,6 +67,48 @@ const ENTITY_CONTEXT_KEYS = new Set([
   "radiusmeters",
 ]);
 
+const ACTOR_ENTITY_TYPES = new Set([
+  "person",
+  "organization",
+  "organisation",
+  "group",
+  "company",
+  "corporation",
+  "institution",
+  "legalentity",
+  "juridicalperson",
+]);
+
+const ACTOR_OCCURRENCE_KEYS = new Set([
+  "birthplace",
+  "birthdate",
+  "dateofbirth",
+  "deathplace",
+  "deathdate",
+  "dateofdeath",
+  "school",
+  "education",
+  "workplace",
+  "employer",
+  "employment",
+  "profession",
+  "occupation",
+  "community",
+  "association",
+  "membership",
+  "residence",
+  "citizenship",
+  "nationality",
+  "role",
+  "office",
+  "appointment",
+  "representation",
+  "representedentityid",
+  "formationdate",
+  "foundingdate",
+  "dissolutiondate",
+]);
+
 const ACTION_NAME_PATTERN =
   /^(?:called|calls|met|meets|sent|sends|transferred|transfers|paid|pays|visited|visits|arrived|arrives|departed|departs|left|leaves|built|builds|created|creates|attacked|attacks|ordered|orders|warned|warns|approved|approves|authorized|authorizes|signed|signs|moved|moves|travelled|traveled|travels|fled|flees|married|marries|danced|dances|consulted|consults|poisoned|poisons|searched|searches|found|finds|lost|loses|gave|gives|took|takes|received|receives)\b/i;
 
@@ -68,6 +123,9 @@ export function validateEntity(entity: {
   readonly name?: string;
   readonly type?: string;
   readonly attributes?: Readonly<Record<string, unknown>>;
+  readonly identifiers?: unknown;
+  readonly appellations?: unknown;
+  readonly semanticMappings?: unknown;
 }): ValidationResult {
   const name = entity.name?.trim().slice(0, 180) ?? "";
   const type = entity.type?.trim().slice(0, 60) || "entity";
@@ -101,6 +159,27 @@ export function validateEntity(entity: {
         message: `Entity attribute "${invalidKey}" is spatiotemporal context and does not belong on the entity.`,
       };
     }
+
+    if (ACTOR_ENTITY_TYPES.has(typeKey)) {
+      const occurrenceKey = Object.keys(entity.attributes).find((key) =>
+        ACTOR_OCCURRENCE_KEYS.has(semanticKey(key)),
+      );
+      if (occurrenceKey) {
+        return {
+          valid: false,
+          message: `Actor attribute "${occurrenceKey}" is historical or role context. Record it as an occurrence/assertion and derive profile summaries from that history.`,
+        };
+      }
+    }
+  }
+
+  const semanticFindings = [
+    ...validateCanonicalIdentifiers(entity.identifiers),
+    ...validateCanonicalAppellations(entity.appellations),
+    ...validateExternalSemanticMappings(entity.semanticMappings),
+  ];
+  if (semanticFindings.length > 0) {
+    return { valid: false, message: semanticFindings[0] ?? "Entity semantic metadata is invalid." };
   }
 
   return { valid: true, message: "" };

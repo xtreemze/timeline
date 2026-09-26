@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createSemanticGraphIndex } from "../src/application/semantic-graph-index.ts";
-import { entityId, relationshipId } from "../src/domain/ids.ts";
+import { entityId, occurrenceId, relationshipId } from "../src/domain/ids.ts";
 
 function entity(id) {
   return {
@@ -160,4 +160,34 @@ test("replace rebuilds topology atomically and updates the revision", () => {
   assert.equal(index.revision(), before + 1);
   assert.deepEqual(index.degree(entityId("b")), { incoming: 1, outgoing: 1, total: 2 });
   assert.equal(index.entity(entityId("c"))?.name, "c");
+});
+
+
+test("standalone occurrences never become SemanticGraphIndex nodes", () => {
+  const entities = [entity("a"), entity("b")];
+  const relationships = [relationship("r-ab", "a", "b", "called")];
+  const index = createSemanticGraphIndex({
+    ...project(entities, relationships),
+    occurrences: [
+      {
+        id: occurrenceId("meeting"),
+        occurrenceType: "meeting",
+        time: null,
+        participantContexts: [
+          { entityId: entityId("a"), roleType: "participant" },
+          { entityId: entityId("b"), roleType: "participant" },
+        ],
+        relationshipIds: [relationshipId("r-ab")],
+        sourceIds: [],
+        confidence: null,
+        attributes: {},
+      },
+    ],
+  });
+
+  assert.deepEqual(index.snapshot().entityIds, ["a", "b"]);
+  assert.deepEqual(
+    index.snapshot().relationships.map((entry) => entry.id),
+    ["r-ab"],
+  );
 });
