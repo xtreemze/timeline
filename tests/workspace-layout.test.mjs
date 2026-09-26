@@ -182,6 +182,12 @@ test("investigation methodology workspace is a bounded utility surface with inte
   assert.match(workspace, /competingHypothesisMatrix/);
   assert.match(workspace, /methodologyReview/);
   assert.match(workspace, /Deferred or not-pursued enquiries require a recorded rationale/);
+  assert.match(workspace, /renderEvidenceDrilldown/);
+  assert.match(workspace, /renderInformationQuality/);
+  assert.match(workspace, /renderIndicators/);
+  assert.match(app, /focusTrajectory/);
+  assert.match(app, /reasoningTemporalWindow/);
+  assert.match(app, /openEvidenceRecord/);
   assert.doesNotMatch(workspace, /suspectScore|guiltScore|truthScore|winner\s*:/);
   assert.match(styles, /\.investigation-workspace-sheet\s*\{[\s\S]*position:\s*fixed/);
   assert.match(styles, /\.investigation-matrix-scroll\s*\{[\s\S]*overflow:\s*auto/);
