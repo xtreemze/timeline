@@ -8,9 +8,13 @@ import {
 import {
   representativeWorldNodeRadiusPx,
   typicalLocalOffsetMeters,
+  WORLD_ENTITY_FLOAT_DETAIL_ZOOM,
+  WORLD_ENTITY_FLOAT_MIN_PX,
+  WORLD_ENTITY_FLOAT_PX,
   WORLD_FLOATING_GRAPH_MAX_EXPANSION,
   WORLD_LOCAL_GRAPH_RADIUS_PX,
   WORLD_PLACE_CLUSTER_RADIUS_PX,
+  worldEntityFloatPx,
   worldFloatingGraphRadiusPx,
   worldLocalRadiusPx,
   worldPlaceClusterRadiusPx,
@@ -58,6 +62,29 @@ test("offset scale keeps overview topology readable and expands it at detail zoo
     WORLD_LOCAL_GRAPH_RADIUS_PX * WORLD_FLOATING_GRAPH_MAX_EXPANSION,
     "detail expansion is bounded",
   );
+});
+
+test("entity altitude separation tapers continuously as detail zoom increases", () => {
+  assert.equal(worldEntityFloatPx(WORLD_ENTITY_FLOAT_DETAIL_ZOOM - 1), WORLD_ENTITY_FLOAT_PX);
+  assert.equal(worldEntityFloatPx(WORLD_ENTITY_FLOAT_DETAIL_ZOOM), WORLD_ENTITY_FLOAT_PX);
+  assert.ok(
+    Math.abs(worldEntityFloatPx(WORLD_ENTITY_FLOAT_DETAIL_ZOOM + 2) - WORLD_ENTITY_FLOAT_PX / 2) <
+      1e-9,
+  );
+  assert.ok(
+    Math.abs(worldEntityFloatPx(WORLD_ENTITY_FLOAT_DETAIL_ZOOM + 4) - WORLD_ENTITY_FLOAT_PX / 4) <
+      1e-9,
+  );
+  assert.equal(worldEntityFloatPx(WORLD_ENTITY_FLOAT_DETAIL_ZOOM + 6), WORLD_ENTITY_FLOAT_MIN_PX);
+  assert.equal(worldEntityFloatPx(30), WORLD_ENTITY_FLOAT_MIN_PX);
+
+  let previous = worldEntityFloatPx(WORLD_ENTITY_FLOAT_DETAIL_ZOOM);
+  for (let zoom = WORLD_ENTITY_FLOAT_DETAIL_ZOOM + 0.25; zoom <= 18; zoom += 0.25) {
+    const current = worldEntityFloatPx(zoom);
+    assert.ok(current <= previous, `float height must not grow at zoom ${zoom}`);
+    assert.ok(current >= WORLD_ENTITY_FLOAT_MIN_PX);
+    previous = current;
+  }
 });
 
 test("latitude-local scaling produces the same apparent radius at distant anchors", () => {
