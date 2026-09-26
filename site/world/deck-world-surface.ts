@@ -128,6 +128,26 @@ interface DeckRuntimeViewState {
   readonly pitch?: number;
 }
 
+interface DeckRuntimeInteractionState {
+  readonly inTransition?: boolean;
+  readonly isDragging?: boolean;
+  readonly isPanning?: boolean;
+  readonly isRotating?: boolean;
+  readonly isZooming?: boolean;
+}
+
+function deckCameraInteractionActive(
+  state: DeckRuntimeInteractionState | undefined,
+): boolean {
+  return (
+    state?.inTransition === true ||
+    state?.isDragging === true ||
+    state?.isPanning === true ||
+    state?.isRotating === true ||
+    state?.isZooming === true
+  );
+}
+
 export interface DeckRuntimePickingInfo {
   readonly object?: unknown;
   readonly layer?: { readonly id?: string };
@@ -2827,6 +2847,8 @@ export class DeckWorldSurface implements WorldSurface {
   #offsetScale = 1;
   #floatMeters = 0;
   #spatialMode: WorldSpatialMode = "globe";
+  #cameraInteractionActive = false;
+  #pendingSpatialModeSync = false;
   #nodeDragSink: DeckWorldNodeDragSink | null = null;
   #clusterForceSink: DeckWorldClusterForceSink | null = null;
   #clusterPhase: WorldClusterLifecyclePhase = "expanded";
@@ -3222,7 +3244,14 @@ export class DeckWorldSurface implements WorldSurface {
         if (!this.#autoFitted || this.#destroyed) return;
         this.#reframe(this.#autoFitMode);
       },
-      onViewStateChange: ({ viewState }: { readonly viewState: DeckRuntimeViewState }) => {
+      onViewStateChange: ({
+        viewState,
+        interactionState,
+      }: {
+        readonly viewState: DeckRuntimeViewState;
+        readonly interactionState?: DeckRuntimeInteractionState;
+      }) => {
+        this.#cameraInteractionActive = deckCameraInteractionActive(interactionState);
         // At close/detail zoom direct manipulation owns the gesture. Reject
         // controller inertia/orbit updates until the node drag ends so the
         // geographic frame and its place anchors stay visually locked.
@@ -3235,12 +3264,22 @@ export class DeckWorldSurface implements WorldSurface {
           this.#cameraOwned = true;
           this.#autoFitted = false;
           this.#camera = next;
-          this.#syncSpatialMode();
+          // Replacing the deck view/controller while a pinch, wheel gesture,
+          // pan, rotate, or inertia transition still owns input can strand the
+          // recognizer at the globe/local threshold. Keep the current
+          // controller alive until deck reports that interaction has settled.
+          this.#syncSpatialMode({ deferDuringInteraction: true });
           this.#syncClusterLifecycle();
           // The camera is controlled (`viewState` prop): hand deck the new
           // state or the globe snaps back and cannot be rotated or panned.
           if (this.#zoomNeedsRender()) this.#render(true);
           else this.#deck.setProps({ viewState: this.#camera });
+        }
+      },
+      onInteractionStateChange: (interactionState: DeckRuntimeInteractionState) => {
+        this.#cameraInteractionActive = deckCameraInteractionActive(interactionState);
+        if (!this.#cameraInteractionActive && this.#pendingSpatialModeSync) {
+          this.#syncSpatialMode();
         }
       },
     });
@@ -4302,10 +4341,22 @@ export class DeckWorldSurface implements WorldSurface {
     else dataset.worldTouchDrag = state;
   }
 
-  #syncSpatialMode(): void {
+  #syncSpatialMode(
+    {
+      deferDuringInteraction = false,
+    }: { readonly deferDuringInteraction?: boolean } = {},
+  ): void {
     const nextMode =
       this.#localView === null ? "globe" : selectWorldSpatialMode(this.#camera, this.#spatialMode);
-    if (nextMode === this.#spatialMode) return;
+    if (nextMode === this.#spatialMode) {
+      this.#pendingSpatialModeSync = false;
+      return;
+    }
+    if (deferDuringInteraction && this.#cameraInteractionActive) {
+      this.#pendingSpatialModeSync = true;
+      return;
+    }
+    this.#pendingSpatialModeSync = false;
 
     // A node drag mid-flight has no well-defined meaning across a
     // globe<->local view swap (the drag's screen-space geometry is tied to
