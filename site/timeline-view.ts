@@ -60,7 +60,12 @@ const CONNECTOR_ROUTE_EDGE_INSET_PX = 32;
 const TIMELINE_CARD_AXIS_OFFSET_PX = 44;
 const TIMELINE_CARD_LANE_GAP_PX = 16;
 const TIMELINE_CARD_ROUTING_SLACK_PX = CONNECTOR_ROUTE_OFFSET_PX * 2;
-const TIMELINE_CARD_DEFAULT_CROSS_SIZE_PX = 240;
+// Fallback geometry is used by overscan/retained records that are deliberately
+// materialized before they participate in the committed layout plan. A single
+// 240 px fallback treated horizontal card height like portrait card width and
+// could push a buffered third lane more than 600 px away from the axis.
+const TIMELINE_CARD_DEFAULT_HORIZONTAL_CROSS_SIZE_PX = 64;
+const TIMELINE_CARD_DEFAULT_VERTICAL_CROSS_SIZE_PX = 240;
 const MAX_COMMITTED_LANES = 3;
 const COMPACT_HORIZONTAL_RAIL_MAX_PX = 300;
 const COMPACT_HORIZONTAL_MAX_LANES = 2;
@@ -2204,14 +2209,22 @@ export class TimelineViewController {
     return -(this.laneIndexFor(item) + 1);
   }
 
-  crossDistanceForLaneIndex(laneIndex: number): number {
+  crossDistanceForLaneIndex(laneIndex: number, connectorRouting = "straight"): number {
     const normalized = Math.max(0, Math.trunc(laneIndex));
     const committed = this.committedLaneCrossOffsets[normalized];
     if (Number.isFinite(committed)) return Number(committed);
-    const pitch =
-      TIMELINE_CARD_DEFAULT_CROSS_SIZE_PX +
-      TIMELINE_CARD_LANE_GAP_PX +
-      TIMELINE_CARD_ROUTING_SLACK_PX;
+
+    // Buffered overscan records are rendered before they are members of the
+    // committed viewport plan. Keep their fallback lane pitch representative of
+    // the cross-axis dimension: card height for horizontal time, card width for
+    // vertical time. Straight connectors do not need orthogonal routing slack.
+    const defaultCrossSize =
+      this.orientation === "horizontal"
+        ? TIMELINE_CARD_DEFAULT_HORIZONTAL_CROSS_SIZE_PX
+        : TIMELINE_CARD_DEFAULT_VERTICAL_CROSS_SIZE_PX;
+    const routingSlack =
+      connectorRouting === "orthogonal" ? TIMELINE_CARD_ROUTING_SLACK_PX : 0;
+    const pitch = defaultCrossSize + TIMELINE_CARD_LANE_GAP_PX + routingSlack;
     return TIMELINE_CARD_AXIS_OFFSET_PX + normalized * pitch;
   }
 
@@ -2357,16 +2370,26 @@ export class TimelineViewController {
       )
       .map((placement) => {
         const item = occurrenceById.get(placement.id);
-        if (!item || !Number.isInteger(item.lane)) return placement;
-        return {
+        if (!item) return placement;
+        const routedPlacement = {
           ...placement,
+          blockSize:
+            placement.blockSize +
+            (item.connectorRouting === "orthogonal" ? TIMELINE_CARD_ROUTING_SLACK_PX : 0),
+        };
+        if (!Number.isInteger(item.lane)) return routedPlacement;
+        return {
+          ...routedPlacement,
           lane: Math.max(0, Math.abs(Number(item.lane)) - 1),
         };
       });
     this.committedLaneCrossOffsets = planLaneCrossOffsets(crossAxisPlacements, {
       axisOffsetPx: TIMELINE_CARD_AXIS_OFFSET_PX,
       laneGapPx: TIMELINE_CARD_LANE_GAP_PX,
-      routingSlackPx: TIMELINE_CARD_ROUTING_SLACK_PX,
+      // Routing clearance is folded only into placements that actually use
+      // orthogonal connectors; applying it to every lane made straight cards
+      // drift progressively farther from the chronology rail.
+      routingSlackPx: 0,
     });
 
     this.committedLayout = {
@@ -2934,7 +2957,10 @@ export class TimelineViewController {
     const hiddenByCluster = Boolean(clusterId) && item.id !== this.focusedId;
     if (node.hidden !== hiddenByCluster) node.hidden = hiddenByCluster;
     if (range && range.hidden !== hiddenByCluster) range.hidden = hiddenByCluster;
-    const laneDistance = this.crossDistanceForLaneIndex(laneIndex);
+    const laneDistance = this.crossDistanceForLaneIndex(
+      laneIndex,
+      item.connectorRouting || "straight",
+    );
     const terminalCross = axisCross - laneDistance;
     const routeOffset = connectorRouteOffset(
       item.connectorRouting || "straight",
