@@ -168,7 +168,6 @@ test("inverse local drag conversion preserves unplaced semantics", () => {
   assert.equal(resolveWorldLocalLayoutPosition(projected, [18.0686, 59.3293, 1000]), null);
 });
 
-
 test("committed temporal reprojection preserves surviving node world position", () => {
   const beforeInstance = instance({
     localOffset: { eastMeters: 1250, northMeters: -750 },
