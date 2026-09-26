@@ -9,7 +9,10 @@
   "background_color": "#111111",
   "theme_color": "#111111",
   "orientation": "any",
-  "categories": ["productivity", "utilities"],
+  "categories": [
+    "productivity",
+    "utilities"
+  ],
   "icons": [
     {
       "src": "./pwa-icon-192.png",
@@ -40,6 +43,19 @@
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "maskable"
+    }
+  ],
+  "launch_handler": {
+    "client_mode": "focus-existing"
+  },
+  "file_handlers": [
+    {
+      "action": "./",
+      "accept": {
+        "application/json": [
+          ".luum"
+        ]
+      }
     }
   ]
 }
