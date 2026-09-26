@@ -104,6 +104,7 @@ interface EntityNode {
   type: string;
   name: string;
   alternateNames: string[];
+  identityResolution?: "identified" | "unresolved" | "disputed";
   identifiers: any[];
   appellations: any[];
   semanticMappings: any[];
@@ -764,6 +765,9 @@ function normalizeEntity(raw: any, index: number): EntityNode | null {
     type: text(raw.type, 60) || "entity",
     name: text(raw.name || raw.label || raw.title, 180) || id,
     alternateNames: textList(raw.alternateNames || raw.aliases, { maxItems: 48, maxLength: 180 }),
+    identityResolution: ["identified", "unresolved", "disputed"].includes(raw.identityResolution)
+      ? raw.identityResolution
+      : undefined,
     identifiers: Array.isArray(raw.identifiers) ? cloneJson(raw.identifiers) : [],
     appellations: Array.isArray(raw.appellations) ? cloneJson(raw.appellations) : [],
     semanticMappings: Array.isArray(raw.semanticMappings) ? cloneJson(raw.semanticMappings) : [],
