@@ -16,7 +16,9 @@ import {
   worldGraphLabelSize,
   worldLabelCollisionPriority,
 } from "../site/world/deck-world-surface.ts";
-import { preserveWorldProjectionRenderContinuity } from "../src/layout/world-geographic-position.ts";
+import {
+  preserveWorldProjectionRenderContinuity,
+} from "../src/layout/world-geographic-position.ts";
 import { selectWorldSpatialMode } from "../src/layout/world-spatial-mode.ts";
 import {
   createProjectedWorldEdge,
