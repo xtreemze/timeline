@@ -306,6 +306,15 @@ function assertManifest(manifest, formFactor) {
   if (manifest.maximumMeasuredCaptureFps !== 61) {
     throw new Error(`${formFactor} manifest must reject uncapped capture above 61 measured frames per second`);
   }
+  if (manifest.minimumPacedIntervalSeconds !== 0.012) {
+    throw new Error(`${formFactor} manifest must require native frame intervals of at least 12 ms`);
+  }
+  if (manifest.maximumPacedIntervalSeconds !== 0.022) {
+    throw new Error(`${formFactor} manifest must require native frame intervals of at most 22 ms`);
+  }
+  if (manifest.minimumPacedIntervalRatio !== 0.95) {
+    throw new Error(`${formFactor} manifest must require at least 95% native-paced frame intervals`);
+  }
   if (!Array.isArray(manifest.segments) || manifest.segments.length !== 5) {
     throw new Error(`${formFactor} manifest must contain exactly five showcase scenes`);
   }
@@ -318,7 +327,7 @@ function assertManifest(manifest, formFactor) {
     );
   }
   for (const segment of motion) {
-    if (!segment.video) throw new Error(`Motion scene ${segment.name} is missing its WebM source`);
+    if (!segment.video) throw new Error(`Motion scene ${segment.name} is missing its Matroska source`);
   }
 }
 
@@ -456,7 +465,11 @@ async function renderFormFactor(formFactor, manifest) {
     });
 
     const publishedWebpTimestamps = await probeFrameTimestamps(webpOutput);
-    const publishedWebp = decodedFrameStats(publishedWebpTimestamps);
+    const publishedWebp = decodedFrameStats(
+      publishedWebpTimestamps,
+      manifest.minimumPacedIntervalSeconds,
+      manifest.maximumPacedIntervalSeconds,
+    );
     if (publishedWebp.nonIncreasingIntervals > 0) {
       throw new Error(
         `${webpOutput} contains ${String(publishedWebp.nonIncreasingIntervals)} duplicated or non-increasing presentation timestamps.`,
@@ -469,6 +482,11 @@ async function renderFormFactor(formFactor, manifest) {
     ) {
       throw new Error(
         `${webpOutput} decodes at ${publishedWebp.fps.toFixed(2)} fps; expected source-paced 59-61 fps without publication retiming.`,
+      );
+    }
+    if (publishedWebp.pacedIntervalRatio < manifest.minimumPacedIntervalRatio) {
+      throw new Error(
+        `${webpOutput} has only ${(publishedWebp.pacedIntervalRatio * 100).toFixed(1)}% of frame intervals in the native pacing window.`,
       );
     }
 
@@ -545,7 +563,11 @@ async function renderFormFactor(formFactor, manifest) {
   );
   await run(ffmpeg, args);
   const reelTimestamps = await probeFrameTimestamps(reelPath);
-  const reelProbe = decodedFrameStats(reelTimestamps);
+  const reelProbe = decodedFrameStats(
+    reelTimestamps,
+    manifest.minimumPacedIntervalSeconds,
+    manifest.maximumPacedIntervalSeconds,
+  );
   if (reelProbe.nonIncreasingIntervals > 0) {
     throw new Error(
       `${reelPath} contains ${String(reelProbe.nonIncreasingIntervals)} duplicated or non-increasing presentation timestamps.`,
@@ -558,6 +580,11 @@ async function renderFormFactor(formFactor, manifest) {
   ) {
     throw new Error(
       `${reelPath} decodes at ${reelProbe.fps.toFixed(2)} fps; expected source-paced 59-61 fps reel output.`,
+    );
+  }
+  if (reelProbe.pacedIntervalRatio < manifest.minimumPacedIntervalRatio) {
+    throw new Error(
+      `${reelPath} has only ${(reelProbe.pacedIntervalRatio * 100).toFixed(1)}% of frame intervals in the native pacing window.`,
     );
   }
 
@@ -619,7 +646,7 @@ const pagesBase = process.env.SHOWCASE_BASE_URL ?? "https://xtreemze.github.io/t
 const markdown = [
   "## Lūm showcase",
   "",
-  "These assets are generated from the real Chromium application exercised by CI. Motion must be display-paced at native 60 fps: browser animation timing and raw X11 capture must both remain within 59–61 fps, and publication preserves source timestamps instead of manufacturing cadence with FFmpeg frame-rate normalization. Static states use source-resolution PNG screenshots.",
+  "These assets are generated from the real Chromium application exercised by CI. Motion must be display-paced at native 60 fps: browser animation timing and raw X11 capture must both remain within 59–61 fps, at least 95% of frame intervals must stay within 12–22 ms, and publication preserves source timestamps instead of manufacturing cadence with FFmpeg frame-rate normalization. Static states use source-resolution PNG screenshots.",
   "",
   ...formFactors.flatMap((formFactor) => [
     `### ${formFactor === "desktop" ? "Desktop" : "Mobile"}`,
