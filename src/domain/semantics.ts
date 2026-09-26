@@ -73,18 +73,18 @@ export function validateExternalSemanticMappings(value: unknown): string[] {
       findings.push(`Semantic mapping ${index + 1} must be an object.`);
       return;
     }
-    if (!nonEmptyString(entry.scheme)) {
+    if (!nonEmptyString(entry["scheme"])) {
       findings.push(`Semantic mapping ${index + 1} requires a scheme.`);
     }
-    if (!nonEmptyString(entry.identifier)) {
+    if (!nonEmptyString(entry["identifier"])) {
       findings.push(`Semantic mapping ${index + 1} requires an identifier.`);
     }
-    if (!MAPPING_RELATIONS.has(entry.relation as SemanticMappingRelation)) {
+    if (!MAPPING_RELATIONS.has(entry["relation"] as SemanticMappingRelation)) {
       findings.push(
         `Semantic mapping ${index + 1} relation must be exact, broader, narrower, or related.`,
       );
     }
-    if (entry.version !== undefined && !nonEmptyString(entry.version)) {
+    if (entry["version"] !== undefined && !nonEmptyString(entry["version"])) {
       findings.push(`Semantic mapping ${index + 1} version must be a non-empty string.`);
     }
   });
@@ -101,16 +101,16 @@ export function validateCanonicalIdentifiers(value: unknown): string[] {
       findings.push(`Entity identifier ${index + 1} must be an object.`);
       return;
     }
-    if (!nonEmptyString(entry.scheme)) {
+    if (!nonEmptyString(entry["scheme"])) {
       findings.push(`Entity identifier ${index + 1} requires a scheme.`);
     }
-    if (!nonEmptyString(entry.value)) {
+    if (!nonEmptyString(entry["value"])) {
       findings.push(`Entity identifier ${index + 1} requires a value.`);
     }
-    if (entry.issuer !== undefined && !nonEmptyString(entry.issuer)) {
+    if (entry["issuer"] !== undefined && !nonEmptyString(entry["issuer"])) {
       findings.push(`Entity identifier ${index + 1} issuer must be a non-empty string.`);
     }
-    findings.push(...validateSourceIdList(entry.sourceIds, `Entity identifier ${index + 1} sourceIds`));
+    findings.push(...validateSourceIdList(entry["sourceIds"], `Entity identifier ${index + 1} sourceIds`));
   });
   return findings;
 }
@@ -125,21 +125,21 @@ export function validateCanonicalAppellations(value: unknown): string[] {
       findings.push(`Entity appellation ${index + 1} must be an object.`);
       return;
     }
-    if (!nonEmptyString(entry.value)) {
+    if (!nonEmptyString(entry["value"])) {
       findings.push(`Entity appellation ${index + 1} requires a value.`);
     }
     if (
-      entry.kind !== undefined &&
-      !APPELLATION_KINDS.has(entry.kind as AppellationKind)
+      entry["kind"] !== undefined &&
+      !APPELLATION_KINDS.has(entry["kind"] as AppellationKind)
     ) {
       findings.push(
         `Entity appellation ${index + 1} kind must be preferred, alias, legal, historical, or other.`,
       );
     }
-    if (entry.languageTag !== undefined && !nonEmptyString(entry.languageTag)) {
+    if (entry["languageTag"] !== undefined && !nonEmptyString(entry["languageTag"])) {
       findings.push(`Entity appellation ${index + 1} languageTag must be a non-empty string.`);
     }
-    findings.push(...validateSourceIdList(entry.sourceIds, `Entity appellation ${index + 1} sourceIds`));
+    findings.push(...validateSourceIdList(entry["sourceIds"], `Entity appellation ${index + 1} sourceIds`));
   });
   return findings;
 }
@@ -163,9 +163,9 @@ export function validateActorParticipationContext(
   }
 
   const representedEntityId =
-    typeof value.representedEntityId === "string" ? value.representedEntityId.trim() : "";
+    typeof value["representedEntityId"] === "string" ? value["representedEntityId"].trim() : "";
   const organizationId =
-    typeof value.organizationId === "string" ? value.organizationId.trim() : "";
+    typeof value["organizationId"] === "string" ? value["organizationId"].trim() : "";
 
   if (entityIds && representedEntityId && !entityIds.has(representedEntityId)) {
     findings.push(`Represented entity ${representedEntityId} does not resolve.`);
@@ -175,9 +175,9 @@ export function validateActorParticipationContext(
   }
 
   findings.push(
-    ...validateSourceIdList(value.authoritySourceIds, "Actor participation authoritySourceIds"),
+    ...validateSourceIdList(value["authoritySourceIds"], "Actor participation authoritySourceIds"),
   );
-  findings.push(...validateExternalSemanticMappings(value.externalMappings));
+  findings.push(...validateExternalSemanticMappings(value["externalMappings"]));
   return findings;
 }
 
@@ -186,7 +186,7 @@ export function participationFactIdentity(
 ): readonly [string, string | null, string | null] {
   return [
     value?.roleType?.trim().toLocaleLowerCase() ?? "",
-    value?.representedEntityId ? String(value.representedEntityId) : null,
-    value?.organizationId ? String(value.organizationId) : null,
+    value?.representedEntityId ? String(value["representedEntityId"]) : null,
+    value?.organizationId ? String(value["organizationId"]) : null,
   ];
 }
