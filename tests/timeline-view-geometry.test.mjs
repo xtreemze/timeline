@@ -87,6 +87,25 @@ test("selected events use a shell-owned six-column detail surface with footer-ow
   assert.doesNotMatch(css, /position-anchor:\s*--timeline-detail-anchor/);
 });
 
+
+
+test("portrait-phone horizontal chronology reserves about one third of height for the edge rail", async () => {
+  const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
+
+  assert.match(
+    css,
+    /@media \(max-width: 699px\)[\s\S]*--mobile-relations-block-rail:\s*clamp\(188px,\s*30dvh,\s*280px\)/,
+  );
+  assert.match(
+    css,
+    /#presentation-stage:has\(> #timeline-view\[data-orientation="landscape"\]\)[\s\S]*> \.graph-lens:not\(\[hidden\]\)[\s\S]*bottom:\s*calc\(var\(--mobile-bottom-chrome\) \+ var\(--mobile-relations-block-rail\)\)/,
+  );
+  assert.match(
+    css,
+    /#timeline-view\[data-orientation="landscape"\][\s\S]*> \.timeline-surface[\s\S]*bottom:\s*var\(--mobile-bottom-chrome\)[\s\S]*height:\s*var\(--mobile-relations-block-rail\)/,
+  );
+});
+
 test("close zoom keeps every timeline item whose temporal extent intersects the viewport", () => {
   const viewport = { start: 400, end: 700 };
 
