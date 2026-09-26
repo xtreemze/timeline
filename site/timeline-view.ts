@@ -2293,10 +2293,25 @@ export class TimelineViewController {
     }
 
     const hiddenClusterItemIds = new Set(clusters.flatMap((cluster) => cluster.itemIds));
-    const crossAxisPlacements = planned.placements.filter(
-      (placement) =>
-        !hiddenClusterItemIds.has(placement.id) || placement.id === this.focusedId,
+    const clusterRepresentativeIds = new Set(
+      clusters.flatMap((cluster) => (cluster.itemIds[0] ? [cluster.itemIds[0]] : [])),
     );
+    const occurrenceById = new Map(occurrences.map((item) => [item.id, item]));
+    const crossAxisPlacements = planned.placements
+      .filter(
+        (placement) =>
+          !hiddenClusterItemIds.has(placement.id) ||
+          clusterRepresentativeIds.has(placement.id) ||
+          placement.id === this.focusedId,
+      )
+      .map((placement) => {
+        const item = occurrenceById.get(placement.id);
+        if (!item || !Number.isInteger(item.lane)) return placement;
+        return {
+          ...placement,
+          lane: Math.max(0, Math.abs(Number(item.lane)) - 1),
+        };
+      });
     this.committedLaneCrossOffsets = planLaneCrossOffsets(crossAxisPlacements, {
       axisOffsetPx: TIMELINE_CARD_AXIS_OFFSET_PX,
       laneGapPx: TIMELINE_CARD_LANE_GAP_PX,
