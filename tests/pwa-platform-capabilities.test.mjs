@@ -9,11 +9,18 @@ test("installed Lūm registers its project file type and launch behavior", async
     await readFile(new URL("site/public/manifest.webmanifest", root), "utf8"),
   );
 
-  assert.equal(manifest.launch_handler?.client_mode, "focus-existing");
+  assert.equal(manifest.launch_handler?.client_mode, "navigate-existing");
   assert.ok(Array.isArray(manifest.file_handlers));
   const handler = manifest.file_handlers.find((candidate) => candidate.action === "./");
   assert.ok(handler);
   assert.ok(handler.accept?.["application/json"]?.includes(".luum"));
+
+  assert.ok(
+    manifest.shortcuts?.some((shortcut) => shortcut.url === "./?shortcut=new-event"),
+  );
+  assert.ok(
+    manifest.shortcuts?.some((shortcut) => shortcut.url === "./?shortcut=browse"),
+  );
 });
 
 test("platform capability layer progressively enhances installed app behavior", async () => {
@@ -53,4 +60,7 @@ test("project menu exposes native-capability entry points with fallbacks", async
   assert.match(app, /registerProjectLaunchConsumer/);
   assert.match(app, /requestPersistentStorage/);
   assert.match(app, /setPresentationWakeLock/);
+  assert.match(app, /applyInstalledAppShortcut/);
+  assert.match(app, /shortcut === "new-event"/);
+  assert.match(app, /shortcut === "browse"/);
 });
