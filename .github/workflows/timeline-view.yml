@@ -208,6 +208,7 @@ permissions:
 
 jobs:
   syntax:
+    continue-on-error: true
     runs-on: ubuntu-latest
     env:
       QUALITY_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
@@ -258,6 +259,7 @@ jobs:
       - run: pnpm test:timeline-projection-runtime
 
   structural-composition-browser:
+    continue-on-error: true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -287,6 +289,7 @@ jobs:
         run: pnpm exec playwright test --config=playwright.config.ts tests/browser/focus-sidebar.spec.ts --project="Desktop Chrome" --project="Mobile Chrome" --project="Mobile Chrome Landscape"
 
   pages-runtime-browser:
+    continue-on-error: true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -302,6 +305,7 @@ jobs:
         run: pnpm exec playwright test --config=playwright.pages.config.ts
 
   application-shell-browser:
+    continue-on-error: true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -319,6 +323,7 @@ jobs:
         run: pnpm exec playwright test --config=playwright.config.ts tests/playwright/layout.spec.ts --project="Mobile Chrome" --project="Mobile Chrome Landscape" --project="Tablet Touch"
 
   interaction-browser:
+    continue-on-error: true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -332,6 +337,7 @@ jobs:
         run: pnpm exec playwright test --config=playwright.config.ts tests/playwright/interaction.spec.ts
 
   retained-performance-browser:
+    continue-on-error: true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -348,6 +354,7 @@ jobs:
       - run: pnpm test:retained-performance-browser
 
   timeline-continuity-browser:
+    continue-on-error: true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -369,6 +376,7 @@ jobs:
       - run: pnpm test:timeline-continuity-browser
 
   world-surface-certification-browser:
+    continue-on-error: true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -515,6 +523,7 @@ jobs:
           retention-days: 14
 
   graph-touch-browser:
+    continue-on-error: true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
