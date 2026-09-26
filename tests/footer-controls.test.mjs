@@ -82,3 +82,25 @@ test("every footer button shares the canonical 44px toolbar-control contract", a
   );
   assert.equal((index.match(/id="editor-toggle"/g) ?? []).length, 1);
 });
+
+
+test("narrow footer has one scroll owner and uniform in-flow controls", async () => {
+  const css = await readFile(shellUrl, "utf8");
+
+  assert.match(
+    css,
+    /@media \(max-width: 699px\)[\s\S]*\.app-tool-dock\.app-footer-bar[\s\S]*display:\s*flex[\s\S]*overflow-x:\s*auto/,
+  );
+  assert.match(
+    css,
+    /#app-shell \.app-footer-bar \.app-footer-zone\s*\{[\s\S]*overflow:\s*visible/,
+  );
+  assert.match(
+    css,
+    /\.app-footer-bar[\s\S]*\.toolbar-control[\s\S]*position:\s*static[\s\S]*block-size:\s*var\(--toolbar-control-size\)/,
+  );
+  assert.match(
+    css,
+    /\.toolbar-control:not\(\.toolbar-control-wide\):not\(\.toolbar-control-value\)[\s\S]*inline-size:\s*var\(--toolbar-control-size\)/,
+  );
+});
