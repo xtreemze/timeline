@@ -3614,6 +3614,58 @@ export class DeckWorldSurface implements WorldSurface {
     );
   }
 
+  #positionsForRelationships(ids: readonly RelationshipId[]): readonly WorldRenderPosition[] {
+    const relationshipIds = new Set(ids.map(String));
+    if (!relationshipIds.size) return Object.freeze([]);
+
+    const instanceIds = new Set<WorldInstanceId>();
+    for (const edge of this.#projection.edges) {
+      if (!relationshipIds.has(String(edge.id))) continue;
+      instanceIds.add(edge.sourceInstanceId);
+      instanceIds.add(edge.targetInstanceId);
+    }
+
+    const positions: WorldRenderPosition[] = [];
+    for (const instance of this.#projection.instances) {
+      if (!instanceIds.has(instance.id)) continue;
+      const position = anchorPosition(
+        instance,
+        this.#offsetScaleForInstance(instance),
+        this.#floatMetersForInstance(instance),
+      );
+      if (position) positions.push(position);
+    }
+    return Object.freeze(positions);
+  }
+
+  fitOccurrences(ids: readonly RelationshipId[]): void {
+    this.#assertAlive();
+    const positions = this.#positionsForRelationships(ids);
+    if (!positions.length) return;
+    if (positions.length === 1) {
+      this.#focusPosition(positions[0] ?? null);
+      return;
+    }
+    const width = Number(this.#container.clientWidth) || 1024;
+    const height = Number(this.#container.clientHeight) || 768;
+    const fitted = fitWorldCamera(positions, { width, height }, this.#camera);
+    if (fitted) this.setCamera(fitted);
+  }
+
+  zoomToOccurrences(ids: readonly RelationshipId[]): void {
+    this.#assertAlive();
+    const positions = this.#positionsForRelationships(ids);
+    if (!positions.length) return;
+    const width = Number(this.#container.clientWidth) || 1024;
+    const height = Number(this.#container.clientHeight) || 768;
+    const fitted = fitWorldCamera(positions, { width, height }, this.#camera);
+    if (!fitted) return;
+    this.setCamera({
+      ...fitted,
+      zoom: Math.max(fitted.zoom, this.#detailFocusZoom(this.#camera.zoom + 0.75)),
+    });
+  }
+
   project(position: WorldSpatialPosition): ScreenPoint | null {
     this.#assertAlive();
     const viewport = this.#deck.getViewports()[0];
