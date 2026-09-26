@@ -650,9 +650,28 @@ export function createInvestigationWorkspace(
         );
         const detail = createElement("p");
         detail.textContent = entry.missingHypothesisIds.length
-          ? `Missing explicit discriminating/falsification tests for: ${entry.missingHypothesisIds.join(", ")}`
+          ? "Missing explicit discriminating/falsification tests for:"
           : "Every hypothesis has at least one explicit discriminating or falsification enquiry.";
         card.append(detail);
+        if (entry.missingHypothesisIds.length) {
+          const links = createElement("div", "investigation-gap-links");
+          for (const hypothesisId of entry.missingHypothesisIds) {
+            const hypothesis = collection(reasoning, "hypotheses").find(
+              (record) => recordId(record) === hypothesisId,
+            );
+            const candidateId = stringValue(hypothesis?.candidateEntityId);
+            links.append(
+              focusButton(
+                candidateId
+                  ? { kind: "entity", id: candidateId, record: hypothesis }
+                  : { kind: "reasoning", id: hypothesisId, record: hypothesis },
+                hypothesis ? labelFor(hypothesis, hypothesisId) : hypothesisId,
+                onFocus,
+              ),
+            );
+          }
+          card.append(links);
+        }
         coverage.append(card);
       }
     }
