@@ -2635,6 +2635,45 @@ test("a globe<->local view switch carries the current camera into the new view's
   assert.deepEqual(viewSwitch.viewState, nextCamera);
 });
 
+test("live zoom defers the globe/local controller swap until interaction settles", () => {
+  const { calls, runtime } = harnessWithLocalView();
+  const surface = new DeckWorldSurface(
+    {},
+    runtime,
+    { longitude: 18.0686, latitude: 59.3293, zoom: 12.6, bearing: 0, pitch: 20 },
+  );
+  const mapSwitchCount = () =>
+    calls.setProps.filter((props) => props.views?.[0]?.type === "map").length;
+
+  calls.deckProps.onViewStateChange({
+    viewState: {
+      longitude: 18.0686,
+      latitude: 59.3293,
+      zoom: 13,
+      bearing: 0,
+      pitch: 20,
+    },
+    interactionState: { isZooming: true },
+  });
+
+  assert.equal(surface.getCamera().zoom, 13);
+  assert.equal(
+    mapSwitchCount(),
+    0,
+    "the active pinch/zoom keeps its current controller instead of swapping it mid-gesture",
+  );
+
+  calls.deckProps.onInteractionStateChange({
+    isZooming: false,
+    inTransition: false,
+  });
+
+  assert.equal(mapSwitchCount(), 1);
+  const viewSwitch = calls.setProps.find((props) => props.views?.[0]?.type === "map");
+  assert.ok(viewSwitch);
+  assert.deepEqual(viewSwitch.viewState, surface.getCamera());
+});
+
 test("a spatial-mode crossing with no drag in flight does not touch the drag sink", () => {
   const { runtime } = harnessWithLocalView();
   const surface = new DeckWorldSurface({}, runtime);
