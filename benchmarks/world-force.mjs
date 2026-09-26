@@ -1,7 +1,6 @@
 import { performance } from "node:perf_hooks";
 
 import { ReferenceWorldForceSimulation } from "../src/layout/reference-world-force-simulation.ts";
-import { createWorldDagLayout } from "../src/layout/world-dag-layout.ts";
 import {
   applyWorldForceLayoutUpdate,
   updateWorldForceLayoutInstance,
@@ -169,18 +168,6 @@ for (const nodeCount of sizes) {
   }, iterations);
 
   forceScene = createWorldForceScene(projection);
-  const dagQuality = createWorldDagLayout(projection, {
-    nodeSizes: new Map(
-      forceScene.nodes.map((node) => [
-        node.id,
-        {
-          widthMeters: node.collisionRadiusMeters * 2,
-          heightMeters: node.collisionRadiusMeters * 2,
-        },
-      ]),
-    ),
-  }).metrics;
-
   const solverSetup = measure(() => {
     const simulation = new ReferenceWorldForceSimulation();
     simulation.setScene(forceScene);
@@ -264,7 +251,6 @@ for (const nodeCount of sizes) {
     dragChangedNodes,
     sparseInstanceUpdate,
     sparseLayoutApply,
-    dagQuality,
     settling,
     diagnostics,
   });
