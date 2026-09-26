@@ -10,6 +10,8 @@ const MIN_CAPTURE_FPS = CAPTURE_FPS - 1;
 const MAX_CAPTURE_FPS = CAPTURE_FPS + 1;
 const FFMPEG = process.env.FFMPEG_BIN ?? "ffmpeg";
 const FFPROBE = process.env.FFPROBE_BIN ?? "ffprobe";
+const X11_DISPLAY_WIDTH = Number.parseInt(process.env.SHOWCASE_X11_WIDTH ?? "1920", 10);
+const X11_DISPLAY_HEIGHT = Number.parseInt(process.env.SHOWCASE_X11_HEIGHT ?? "1080", 10);
 
 type FormFactor = "desktop" | "mobile";
 
@@ -20,6 +22,8 @@ type CaptureGeometry = {
   height: number;
   screenWidth: number;
   screenHeight: number;
+  displayWidth: number;
+  displayHeight: number;
   screenX: number;
   screenY: number;
   outerWidth: number;
@@ -38,6 +42,8 @@ type CaptureStats = {
   browserFrames: number;
   browserDurationSeconds: number;
   browserFps: number;
+  capturedMaxIntervalSeconds: number;
+  browserMaxIntervalSeconds: number;
   codec: "vp8";
   geometry: CaptureGeometry;
   timestamps: number[];
@@ -182,9 +188,9 @@ async function probeFrameTimestamps(filePath: string) {
     .filter((value) => Number.isFinite(value));
 }
 
-function measureTimestamps(timestamps: number[], scale = 1) {
+function measureTimestamps(timestamps: number[], scale = 1, label = "Showcase motion capture") {
   if (timestamps.length < 2) {
-    throw new Error("Showcase motion capture produced fewer than two timing samples");
+    throw new Error(`${label} produced fewer than two timing samples`);
   }
   const firstTimestamp = timestamps[0];
   const lastTimestamp = timestamps.at(-1);
@@ -194,16 +200,30 @@ function measureTimestamps(timestamps: number[], scale = 1) {
     !Number.isFinite(firstTimestamp) ||
     !Number.isFinite(lastTimestamp)
   ) {
-    throw new Error("Showcase motion capture did not provide usable timestamps");
+    throw new Error(`${label} did not provide usable timestamps`);
   }
+
+  let maxIntervalSeconds = 0;
+  for (let index = 1; index < timestamps.length; index += 1) {
+    const previous = timestamps[index - 1];
+    const current = timestamps[index];
+    if (previous === undefined || current === undefined || current <= previous) {
+      throw new Error(
+        `${label} contains a duplicated or non-increasing timestamp at frame ${String(index + 1)}`,
+      );
+    }
+    maxIntervalSeconds = Math.max(maxIntervalSeconds, (current - previous) / scale);
+  }
+
   const durationSeconds = (lastTimestamp - firstTimestamp) / scale;
   if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) {
-    throw new Error("Showcase motion capture duration is invalid");
+    throw new Error(`${label} duration is invalid`);
   }
   return {
     frames: timestamps.length,
     durationSeconds,
     fps: (timestamps.length - 1) / durationSeconds,
+    maxIntervalSeconds,
   };
 }
 
@@ -211,7 +231,16 @@ async function captureGeometry(
   page: Page,
   captureSize: { width: number; height: number },
 ): Promise<CaptureGeometry> {
-  const geometry = await page.evaluate(() => {
+  if (
+    !Number.isInteger(X11_DISPLAY_WIDTH) ||
+    !Number.isInteger(X11_DISPLAY_HEIGHT) ||
+    X11_DISPLAY_WIDTH <= 0 ||
+    X11_DISPLAY_HEIGHT <= 0
+  ) {
+    throw new Error("Showcase X11 display dimensions are invalid");
+  }
+
+  const browserGeometry = await page.evaluate(() => {
     const horizontalInset = Math.max(0, Math.round((window.outerWidth - window.innerWidth) / 2));
     const topInset = Math.max(
       0,
@@ -232,6 +261,11 @@ async function captureGeometry(
       innerHeight: window.innerHeight,
     };
   });
+  const geometry: CaptureGeometry = {
+    ...browserGeometry,
+    displayWidth: X11_DISPLAY_WIDTH,
+    displayHeight: X11_DISPLAY_HEIGHT,
+  };
 
   if (geometry.innerWidth !== captureSize.width || geometry.innerHeight !== captureSize.height) {
     throw new Error(
@@ -241,11 +275,11 @@ async function captureGeometry(
   if (
     geometry.x < 0 ||
     geometry.y < 0 ||
-    geometry.x + geometry.width > geometry.screenWidth ||
-    geometry.y + geometry.height > geometry.screenHeight
+    geometry.x + geometry.width > geometry.displayWidth ||
+    geometry.y + geometry.height > geometry.displayHeight
   ) {
     throw new Error(
-      `Showcase X11 capture region ${String(geometry.x)},${String(geometry.y)} ${String(geometry.width)}x${String(geometry.height)} exceeds ${String(geometry.screenWidth)}x${String(geometry.screenHeight)} display`,
+      `Showcase X11 capture region ${String(geometry.x)},${String(geometry.y)} ${String(geometry.width)}x${String(geometry.height)} exceeds physical ${String(geometry.displayWidth)}x${String(geometry.displayHeight)} display`,
     );
   }
   return geometry;
@@ -298,8 +332,6 @@ async function startX11Capture(videoPath: string, geometry: CaptureGeometry) {
     `${String(geometry.width)}x${String(geometry.height)}`,
     "-draw_mouse",
     "0",
-    "-use_wallclock_as_timestamps",
-    "1",
     "-i",
     `${display}+${String(geometry.x)},${String(geometry.y)}`,
     "-an",
@@ -317,6 +349,8 @@ async function startX11Capture(videoPath: string, geometry: CaptureGeometry) {
     "0",
     "-pix_fmt",
     "yuv420p",
+    "-enc_time_base",
+    "demux",
     "-fps_mode",
     "passthrough",
     videoPath,
@@ -355,14 +389,14 @@ async function persistMeasuredCapture(
   geometry: CaptureGeometry,
 ) {
   const timestamps = await probeFrameTimestamps(videoPath);
-  const captured = measureTimestamps(timestamps);
+  const captured = measureTimestamps(timestamps, 1, "Showcase raw X11 WebM");
   if (captured.fps < MIN_CAPTURE_FPS || captured.fps > MAX_CAPTURE_FPS) {
     throw new Error(
       `Showcase raw X11 WebM decoded ${String(captured.frames)} actual frames across ${captured.durationSeconds.toFixed(3)}s (${captured.fps.toFixed(2)} fps); expected native ${MIN_CAPTURE_FPS.toFixed(2)}-${MAX_CAPTURE_FPS.toFixed(2)} fps before publication encoding.`,
     );
   }
 
-  const browser = measureTimestamps(browserTimestamps, 1000);
+  const browser = measureTimestamps(browserTimestamps, 1000, "Showcase browser animation clock");
   if (browser.fps < MIN_CAPTURE_FPS || browser.fps > MAX_CAPTURE_FPS) {
     throw new Error(
       `Showcase browser scheduled ${String(browser.frames)} animation frames across ${browser.durationSeconds.toFixed(3)}s (${browser.fps.toFixed(2)} fps); expected display-paced ${MIN_CAPTURE_FPS.toFixed(2)}-${MAX_CAPTURE_FPS.toFixed(2)} fps while recording.`,
@@ -379,6 +413,8 @@ async function persistMeasuredCapture(
     browserFrames: browser.frames,
     browserDurationSeconds: browser.durationSeconds,
     browserFps: browser.fps,
+    capturedMaxIntervalSeconds: captured.maxIntervalSeconds,
+    browserMaxIntervalSeconds: browser.maxIntervalSeconds,
     codec: "vp8",
     geometry,
     timestamps,
