@@ -3,8 +3,10 @@ import {
   createWorldProjection,
   type ProjectedWorldInstance,
   type SpatialAnchor,
+  type WorldInstanceId,
   type WorldProjection,
 } from "../projection/world-projection.ts";
+import type { WorldSpatialPosition } from "./world-surface.ts";
 
 export type WorldRenderPosition = readonly [longitude: number, latitude: number, altitude: number];
 
@@ -158,6 +160,7 @@ export function resolveWorldLocalLayoutPosition(
 export function preserveWorldProjectionRenderContinuity(
   previous: WorldProjection,
   next: WorldProjection,
+  renderedPositions?: ReadonlyMap<WorldInstanceId, WorldSpatialPosition>,
 ): WorldProjection {
   const previousById = new Map(
     previous.instances.map((instance) => [instance.id, instance] as const),
@@ -168,7 +171,14 @@ export function preserveWorldProjectionRenderContinuity(
     const prior = previousById.get(instance.id);
     if (!prior) return instance;
 
-    const priorPosition = resolveWorldRenderPosition(prior);
+    const rendered = renderedPositions?.get(instance.id);
+    const priorPosition = rendered
+      ? (Object.freeze([
+          rendered.longitude,
+          rendered.latitude,
+          rendered.altitudeMeters,
+        ]) as WorldRenderPosition)
+      : resolveWorldRenderPosition(prior);
     if (!priorPosition) return instance;
 
     const local = resolveWorldLocalLayoutPosition(instance, priorPosition);
