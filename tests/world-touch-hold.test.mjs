@@ -129,14 +129,25 @@ function surfaceHarness() {
     }),
   );
   const begins = [];
+  const updates = [];
+  const releases = [];
+  const cancels = [];
   surface.setNodeDragSink({
     begin(pointerId, instanceId) {
       begins.push([pointerId, instanceId]);
       return true;
     },
-    update: () => true,
-    release: () => true,
-    cancel() {},
+    update(pointerId, position) {
+      updates.push([pointerId, position]);
+      return true;
+    },
+    release(pointerId) {
+      releases.push(pointerId);
+      return true;
+    },
+    cancel(reason) {
+      cancels.push(reason);
+    },
   });
   const entityLayer = () =>
     scatter.filter((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entities).at(-1);
@@ -149,6 +160,9 @@ function surfaceHarness() {
     listeners,
     dataset,
     begins,
+    updates,
+    releases,
+    cancels,
     alice,
     aliceIcon,
     entityLayer,
@@ -204,12 +218,17 @@ test("a long press on an entity then drag claims the node drag", (t) => {
   t.mock.timers.tick(WORLD_TOUCH_HOLD_MS);
   assert.equal(h.dataset.worldTouchDrag, "active");
   assert.deepEqual(h.surface.getAccessibleSnapshot().selection, { kind: "entity", id: "alice" });
+  assert.deepEqual(
+    h.begins,
+    [[4, worldInstanceId("alice", "meeting")]],
+    "the hold threshold itself claims the node before any drag move",
+  );
 
   h.touch("pointermove", 4, 160, 280);
-  assert.equal(h.dragStart(4), true);
-  assert.deepEqual(h.begins, [[4, worldInstanceId("alice", "meeting")]]);
+  assert.equal(h.updates.length, 1, "capture-phase touch movement updates the claimed node directly");
 
   h.touch("pointerup", 4, 160, 280);
+  assert.deepEqual(h.releases, [4]);
   assert.equal(h.dataset.worldTouchDrag, undefined);
 });
 
@@ -225,6 +244,7 @@ test("long-press pickup flashes and lifts only the actively dragged node", (t) =
 
   h.touch("pointerdown", 4, 118, 259);
   t.mock.timers.tick(WORLD_TOUCH_HOLD_MS);
+  assert.deepEqual(h.begins, [[4, worldInstanceId("alice", "meeting")]]);
 
   const flashedLayer = h.entityIconLayer();
   const flashedDatum = h.aliceIcon();
@@ -233,7 +253,6 @@ test("long-press pickup flashes and lifts only the actively dragged node", (t) =
     "long-press activation should visibly flash the node",
   );
 
-  assert.equal(h.dragStart(4), true);
   const draggedLayer = h.entityIconLayer();
   const draggedPosition = draggedLayer.props.getPosition(h.aliceIcon());
   assert.ok(
@@ -241,7 +260,8 @@ test("long-press pickup flashes and lifts only the actively dragged node", (t) =
     "the active node should lift slightly while it is being dragged",
   );
 
-  assert.equal(h.dragEnd(4), true);
+  h.touch("pointerup", 4, 118, 259);
+  assert.deepEqual(h.releases, [4]);
   const releasedLayer = h.entityIconLayer();
   const releasedDatum = h.aliceIcon();
   assert.deepEqual(

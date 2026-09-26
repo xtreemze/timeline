@@ -523,6 +523,12 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
       await finger.move([point]);
       await expect(container).toHaveAttribute("data-world-touch-drag", "holding");
       await expect(container).toHaveAttribute("data-world-touch-drag", "active");
+      await expect
+        .poll(() => page.evaluate(() => window.__worldPerfHarness.dragSinkCalls.begin))
+        .toBe(1);
+      await expect
+        .poll(() => page.evaluate(() => window.__worldPerfHarness.dragSinkCalls.cancel))
+        .toBe(0);
       for (const [dx, dy] of [
         [20, 8],
         [45, 18],
