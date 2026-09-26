@@ -24,7 +24,15 @@ export interface WorldDagLayoutNodeSize {
   readonly heightMeters: number;
 }
 
+export type WorldDagLayoutOrientation = "top-to-bottom" | "left-to-right";
+
 export interface WorldDagLayoutOptions {
+  /**
+   * Direction of structural flow in the rendered world region. Sugiyama still
+   * runs in its native top-to-bottom coordinate system; targets and route hints
+   * are rotated into geographic tangent space after layout.
+   */
+  readonly orientation?: WorldDagLayoutOrientation;
   readonly nodeSizes?: ReadonlyMap<WorldInstanceId, WorldDagLayoutNodeSize>;
   /** Layout-only footprint reserved around each authored geographic anchor. */
   readonly placeSizes?: ReadonlyMap<PlaceId, WorldDagLayoutNodeSize>;
@@ -448,9 +456,11 @@ function topologyKey(
   edges: readonly LocalDagEdge[],
   sizes: ReadonlyMap<string, readonly [number, number]>,
   placeSize: readonly [number, number],
+  orientation: WorldDagLayoutOrientation,
 ): string {
   return JSON.stringify([
     String(placeId),
+    orientation,
     [Math.round(placeSize[0]), Math.round(placeSize[1])],
     nodeIds.map((id) => {
       const [width, height] = sizes.get(String(id)) ?? [
@@ -600,10 +610,19 @@ function mirrorForStability(
   targets: readonly RawTarget[],
   routes: readonly RawRoute[],
   previousTargets: ReadonlyMap<string, WorldDagLayoutTarget>,
+  orientation: WorldDagLayoutOrientation,
 ): { readonly targets: readonly RawTarget[]; readonly routes: readonly RawRoute[] } {
   let directCost = 0;
   let mirroredCost = 0;
   let comparisons = 0;
+
+  const mirroredCoordinates = (
+    eastMeters: number,
+    northMeters: number,
+  ): readonly [eastMeters: number, northMeters: number] =>
+    orientation === "left-to-right"
+      ? Object.freeze([eastMeters, -northMeters])
+      : Object.freeze([-eastMeters, northMeters]);
 
   for (const target of targets) {
     const previous = previousTargets.get(target.id);
@@ -611,9 +630,13 @@ function mirrorForStability(
     directCost +=
       (target.eastMeters - previous.eastMeters) ** 2 +
       (target.northMeters - previous.northMeters) ** 2;
+    const [mirroredEast, mirroredNorth] = mirroredCoordinates(
+      target.eastMeters,
+      target.northMeters,
+    );
     mirroredCost +=
-      (-target.eastMeters - previous.eastMeters) ** 2 +
-      (target.northMeters - previous.northMeters) ** 2;
+      (mirroredEast - previous.eastMeters) ** 2 +
+      (mirroredNorth - previous.northMeters) ** 2;
     comparisons += 1;
   }
 
@@ -623,19 +646,26 @@ function mirrorForStability(
 
   return {
     targets: Object.freeze(
-      targets.map((target) => Object.freeze({ ...target, eastMeters: -target.eastMeters })),
+      targets.map((target) => {
+        const [eastMeters, northMeters] = mirroredCoordinates(
+          target.eastMeters,
+          target.northMeters,
+        );
+        return Object.freeze({ ...target, eastMeters, northMeters });
+      }),
     ),
     routes: Object.freeze(
       routes.map((route) =>
         Object.freeze({
           ...route,
           points: Object.freeze(
-            route.points.map((point) =>
-              Object.freeze({
-                eastMeters: -point.eastMeters,
-                northMeters: point.northMeters,
-              }),
-            ),
+            route.points.map((point) => {
+              const [eastMeters, northMeters] = mirroredCoordinates(
+                point.eastMeters,
+                point.northMeters,
+              );
+              return Object.freeze({ eastMeters, northMeters });
+            }),
           ),
         }),
       ),
@@ -689,6 +719,7 @@ function scaledCandidate(
   nodeCount: number,
   sizes: ReadonlyMap<string, readonly [number, number]>,
   previousTargets: ReadonlyMap<string, WorldDagLayoutTarget>,
+  orientation: WorldDagLayoutOrientation,
 ): CandidateLayout {
   const maxRawRadius = candidate.targets.reduce(
     (radius, target) => Math.max(radius, Math.hypot(target.eastMeters, target.northMeters)),
@@ -753,7 +784,7 @@ function scaledCandidate(
           ),
         );
 
-  const stable = mirrorForStability(targets, routes, previousTargets);
+  const stable = mirrorForStability(targets, routes, previousTargets, orientation);
   return Object.freeze({
     ...candidate,
     targets: stable.targets,
@@ -778,17 +809,28 @@ function candidateScore(candidate: CandidateLayout): number {
 
 function priorOrderInitializer(
   previousTargets: ReadonlyMap<string, WorldDagLayoutTarget>,
+  orientation: WorldDagLayoutOrientation,
 ): Decross<string, DagLinkData> {
   return (layers) => {
+    const crossCoordinate = (target: WorldDagLayoutTarget | undefined): number => {
+      if (!target) return Number.POSITIVE_INFINITY;
+      // d3-dag orders nodes along its X axis. After a left-to-right rotation,
+      // that axis maps to negative local north; otherwise it maps to local east.
+      return orientation === "left-to-right" ? -target.northMeters : target.eastMeters;
+    };
     const value = (node: (typeof layers)[number][number]): number => {
       const data = node.data;
       if (data.role === "node") {
-        return previousTargets.get(data.node.data)?.eastMeters ?? Number.POSITIVE_INFINITY;
+        return crossCoordinate(previousTargets.get(data.node.data));
       }
-      const source = previousTargets.get(data.link.source.data)?.eastMeters;
-      const target = previousTargets.get(data.link.target.data)?.eastMeters;
-      if (source !== undefined && target !== undefined) return (source + target) / 2;
-      return source ?? target ?? Number.POSITIVE_INFINITY;
+      const source = previousTargets.get(data.link.source.data);
+      const target = previousTargets.get(data.link.target.data);
+      const sourceValue = crossCoordinate(source);
+      const targetValue = crossCoordinate(target);
+      if (Number.isFinite(sourceValue) && Number.isFinite(targetValue)) {
+        return (sourceValue + targetValue) / 2;
+      }
+      return Number.isFinite(sourceValue) ? sourceValue : targetValue;
     };
 
     for (const layer of layers) {
@@ -804,6 +846,7 @@ function runLayoutCandidate(
   sizes: ReadonlyMap<string, readonly [number, number]>,
   gap: readonly [number, number],
   previousTargets: ReadonlyMap<string, WorldDagLayoutTarget>,
+  orientation: WorldDagLayoutOrientation,
   layering: "longest" | "simplex",
   decross: "opt" | "two-layer",
   placeObstacles: readonly DagPlaceObstacle[] = Object.freeze([]),
@@ -818,6 +861,18 @@ function runLayoutCandidate(
   const layoutSizes = new Map<string, readonly [number, number]>(sizes);
   layoutSizes.set(rootId, rootSize);
   for (const obstacle of placeObstacles) layoutSizes.set(obstacle.id, obstacle.size);
+  const dagSizes = new Map(
+    [...layoutSizes].map(([id, [width, height]]) => [
+      id,
+      orientation === "left-to-right"
+        ? (Object.freeze([height, width]) as readonly [number, number])
+        : (Object.freeze([width, height]) as readonly [number, number]),
+    ] as const),
+  );
+  const dagGap =
+    orientation === "left-to-right"
+      ? (Object.freeze([gap[1], gap[0]]) as readonly [number, number])
+      : gap;
 
   const links: DagLinkData[] = [];
   if (placeObstacles.length === 0) {
@@ -850,13 +905,13 @@ function runLayoutCandidate(
   const defaultTwoLayer = decrossTwoLayer();
   const twoLayer = defaultTwoLayer
     .passes(nodeIds.length > 64 ? 8 : nodeIds.length > 24 ? 16 : 24)
-    .inits([priorOrderInitializer(previousTargets), ...defaultTwoLayer.inits()]);
+    .inits([priorOrderInitializer(previousTargets, orientation), ...defaultTwoLayer.inits()]);
   const layout = sugiyama()
     .layering(layering === "longest" ? layeringLongestPath() : layeringSimplex())
     .decross(decross === "opt" ? decrossOpt() : twoLayer)
     .coord(coordGreedy())
-    .nodeSize((node: GraphNode<string, DagLinkData>) => layoutSizes.get(node.data) ?? [1, 1])
-    .gap(gap);
+    .nodeSize((node: GraphNode<string, DagLinkData>) => dagSizes.get(node.data) ?? [1, 1])
+    .gap(dagGap);
   const dimensions = layout(graph);
 
   const graphNodes = [...graph.nodes()];
@@ -875,17 +930,27 @@ function runLayoutCandidate(
     });
   }
 
+  const toWorldCoordinates = (
+    x: number,
+    y: number,
+  ): readonly [eastMeters: number, northMeters: number] => {
+    const cross = x - root.x;
+    const layer = y - root.y;
+    return orientation === "left-to-right"
+      ? Object.freeze([layer, -cross])
+      : Object.freeze([cross, -layer]);
+  };
+
   const targets = Object.freeze(
     graphNodes
-      .map((node) =>
-        Object.freeze({
+      .map((node) => {
+        const [eastMeters, northMeters] = toWorldCoordinates(node.x, node.y);
+        return Object.freeze({
           id: node.data,
-          eastMeters: node.x - root.x,
-          // Sugiyama is top-to-bottom in screen coordinates; local north is
-          // positive upward, so invert Y while keeping geography authoritative.
-          northMeters: -(node.y - root.y),
-        }),
-      )
+          eastMeters,
+          northMeters,
+        });
+      })
       .sort((left, right) => left.id.localeCompare(right.id)),
   );
 
@@ -904,12 +969,10 @@ function runLayoutCandidate(
         sourceId: semantic.sourceId,
         targetId: semantic.targetId,
         points: Object.freeze(
-          link.points.map(([x, y]) =>
-            Object.freeze({
-              eastMeters: x - root.x,
-              northMeters: -(y - root.y),
-            }),
-          ),
+          link.points.map(([x, y]) => {
+            const [eastMeters, northMeters] = toWorldCoordinates(x, y);
+            return Object.freeze({ eastMeters, northMeters });
+          }),
         ),
       }),
     );
@@ -924,12 +987,13 @@ function runLayoutCandidate(
           String(left.relationshipId).localeCompare(String(right.relationshipId)),
         ),
       ),
-      width: dimensions.width,
-      height: dimensions.height,
+      width: orientation === "left-to-right" ? dimensions.height : dimensions.width,
+      height: orientation === "left-to-right" ? dimensions.width : dimensions.height,
     },
     nodeIds.length + placeObstacles.length,
     layoutSizes,
     previousTargets,
+    orientation,
   );
 }
 
@@ -964,6 +1028,7 @@ function chooseCandidate(
   edges: readonly LocalDagEdge[],
   sizes: ReadonlyMap<string, readonly [number, number]>,
   previousTargets: ReadonlyMap<string, WorldDagLayoutTarget>,
+  orientation: WorldDagLayoutOrientation,
   previousAlgorithm?: string,
   placeObstacles: readonly DagPlaceObstacle[] = Object.freeze([]),
   rootSize: readonly [number, number] = Object.freeze([1, 1]),
@@ -998,6 +1063,7 @@ function chooseCandidate(
           sizes,
           gap,
           previousTargets,
+          orientation,
           "longest",
           "opt",
           placeObstacles,
@@ -1015,6 +1081,7 @@ function chooseCandidate(
         sizes,
         gap,
         previousTargets,
+        orientation,
         "longest",
         "two-layer",
         placeObstacles,
@@ -1027,6 +1094,7 @@ function chooseCandidate(
         sizes,
         gap,
         previousTargets,
+        orientation,
         "simplex",
         "two-layer",
         placeObstacles,
@@ -1085,6 +1153,7 @@ function chooseCandidate(
     sizes,
     gap,
     previousTargets,
+    orientation,
     useSimplexLayering ? "simplex" : "longest",
     "two-layer",
     placeObstacles,
@@ -1100,6 +1169,7 @@ function layoutPlace(
   revision: number,
   crossPlaceInstanceIds: ReadonlySet<WorldInstanceId>,
 ): PlaceLayoutCache["result"] {
+  const orientation = options.orientation ?? "top-to-bottom";
   const nodeIds = instances.map((instance) => instance.id);
   const nodeIdSet = new Set(nodeIds);
   const sizes = nodeSizeMap(nodeIds, options.nodeSizes);
@@ -1114,7 +1184,7 @@ function layoutPlace(
     if (nodeIdSet.has(id)) structuredNodeSet.add(id);
   }
   const structuredNodeIds = nodeIds.filter((id) => structuredNodeSet.has(id));
-  const key = topologyKey(placeId, nodeIds, edges, sizes, placeSize);
+  const key = topologyKey(placeId, nodeIds, edges, sizes, placeSize, orientation);
   const cacheKey = String(placeId);
   const cached = placeCache.get(cacheKey);
 
@@ -1133,6 +1203,7 @@ function layoutPlace(
     edges,
     sizes,
     previousTargets,
+    orientation,
     options.reorganize ? undefined : cached?.result.metrics.algorithm,
     Object.freeze([]),
     placeSize,
@@ -1223,6 +1294,7 @@ function crossPlaceTopologyKey(
   sizes: ReadonlyMap<string, readonly [number, number]>,
   places: ReadonlyMap<WorldInstanceId, PlaceId>,
   placeSizes: ReadonlyMap<PlaceId, WorldDagLayoutNodeSize> | undefined,
+  orientation: WorldDagLayoutOrientation,
 ): string {
   const usedPlaces = [
     ...new Set(
@@ -1234,6 +1306,7 @@ function crossPlaceTopologyKey(
 
   return JSON.stringify([
     "cross-place",
+    orientation,
     nodeIds.map((id) => {
       const [width, height] = sizes.get(String(id)) ?? [
         DAG_FALLBACK_NODE_SIZE_METERS,
@@ -1257,6 +1330,7 @@ function layoutCrossPlaceTopology(
   options: WorldDagLayoutOptions,
   revision: number,
 ): CrossPlaceLayoutCache | null {
+  const orientation = options.orientation ?? "top-to-bottom";
   const connectedIds = crossPlaceConnectedNodeIds(index);
   if (connectedIds.size === 0) {
     crossPlaceCache = null;
@@ -1299,6 +1373,7 @@ function layoutCrossPlaceTopology(
     sizes,
     index.primaryPlaceByInstance,
     options.placeSizes,
+    orientation,
   );
 
   if (!options.reorganize && crossPlaceCache?.topologyKey === key) {
@@ -1316,6 +1391,7 @@ function layoutCrossPlaceTopology(
     edges,
     sizes,
     previousTargets,
+    orientation,
     options.reorganize ? undefined : crossPlaceCache?.algorithm,
     placeObstacles,
   );
