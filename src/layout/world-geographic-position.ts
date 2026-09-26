@@ -1,4 +1,10 @@
-import type { ProjectedWorldInstance, SpatialAnchor } from "../projection/world-projection.ts";
+import {
+  createProjectedWorldInstance,
+  createWorldProjection,
+  type ProjectedWorldInstance,
+  type SpatialAnchor,
+  type WorldProjection,
+} from "../projection/world-projection.ts";
 
 export type WorldRenderPosition = readonly [longitude: number, latitude: number, altitude: number];
 
@@ -133,4 +139,51 @@ export function resolveWorldLocalLayoutPosition(
     northMeters: northMeters / scale,
     visualAltitudeMeters,
   });
+}
+
+
+/**
+ * Carries the current derived world position into a newly committed projection.
+ *
+ * Temporal projection commits intentionally replace canonical anchors/weights,
+ * but the renderer must not briefly reset surviving nodes to those anchors
+ * before the force solver publishes its first frame. Rebase each surviving
+ * instance's derived local offset into the new anchor frame so the committed
+ * handoff starts at the position the user was already seeing. The force scene
+ * then relaxes from this state toward the new topology; entering instances use
+ * their normal deterministic seed.
+ *
+ * This runs only at committed projection boundaries. High-frequency temporal
+ * previews remain presentation-only and never pay this O(n) reconciliation.
+ */
+export function preserveWorldProjectionRenderContinuity(
+  previous: WorldProjection,
+  next: WorldProjection,
+): WorldProjection {
+  const previousById = new Map(previous.instances.map((instance) => [instance.id, instance] as const));
+  let changed = false;
+
+  const instances = next.instances.map((instance) => {
+    const prior = previousById.get(instance.id);
+    if (!prior) return instance;
+
+    const priorPosition = resolveWorldRenderPosition(prior);
+    if (!priorPosition) return instance;
+
+    const local = resolveWorldLocalLayoutPosition(instance, priorPosition);
+    if (!local) return instance;
+
+    const rebased = createProjectedWorldInstance({
+      ...instance,
+      localOffset: Object.freeze({
+        eastMeters: local.eastMeters,
+        northMeters: local.northMeters,
+      }),
+      visualAltitude: local.visualAltitudeMeters,
+    });
+    changed ||= rebased !== instance;
+    return rebased;
+  });
+
+  return changed ? createWorldProjection({ instances, edges: next.edges }) : next;
 }
