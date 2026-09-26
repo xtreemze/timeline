@@ -16,7 +16,7 @@ Desktop uses the 1440×900 product layout. Mobile uses the explicit touch-capabl
 
 The showcase distinguishes motion from static presentation. Timeline navigation and relation-graph navigation are motion scenes. Focused context, evidence, and story browsing are static scenes.
 
-Static scenes hold the demonstrated state open and capture a PNG screenshot. Motion scenes must be display-paced at native 60 fps. Chromium keeps its normal frame limiter and vsync scheduling; only background/occlusion throttling is disabled. CI starts a dummy Xorg display with an explicit 1920×1080@60 modeline, and FFmpeg samples that X11 framebuffer at 60 fps into low-latency H.264. The encoder uses the X11 demuxer's timing base with `-enc_time_base demux` and `-fps_mode passthrough`; raw frame timestamps must be strictly increasing, while both the decoded raw cadence and browser `requestAnimationFrame()` clock must remain within 59–61 fps.
+Static scenes hold the demonstrated state open and capture a PNG screenshot. Motion scenes must be display-paced at native 60 fps. Chromium keeps its normal frame limiter and vsync scheduling; only background/occlusion throttling is disabled. CI starts a dummy Xorg display with an explicit 1920×1080@60 modeline, and FFmpeg samples that X11 framebuffer at 60 fps into low-latency H.264. The encoder uses the X11 demuxer's timing base with `-enc_time_base demux` and `-fps_mode passthrough`; raw frame timestamps must be strictly increasing, both the decoded raw cadence and browser `requestAnimationFrame()` clock must remain within 59–61 fps, and at least 95% of intervals must stay within 12–22 ms.
 
 ## Output contract
 
@@ -58,7 +58,7 @@ artifacts/e2e-media/
 └── playwright/
 ```
 
-Each form factor publishes two native-cadence animated WebP motion assets and three PNG stills. Raw Matroska exists only for motion scenes; every motion WebM has a `.frames.json` timing sidecar containing decoded raw-frame timestamps, browser animation timestamps, capture geometry, codec, measured raw cadence, measured browser cadence, and frame counts. Every scene also keeps a raw PNG capture.
+Each form factor publishes two native-cadence animated WebP motion assets and three PNG stills. Raw Matroska exists only for motion scenes; every motion Matroska file has a `.frames.json` timing sidecar containing decoded raw-frame timestamps, browser animation timestamps, capture geometry, codec, measured raw cadence, measured browser cadence, and frame counts. Every scene also keeps a raw PNG capture.
 
 ## Capture architecture
 
@@ -71,7 +71,7 @@ The showcase config contains two structural projects:
 
 The shared scene metadata defines feature title, explanation, expected state, alt text, stable output stem, and whether the scene is `motion` or `static`. Desktop and mobile interaction routines remain separate so touch UI is not forced to mimic desktop input mechanics.
 
-Motion capture does not use Playwright 1.63's built-in screencast file recorder, which hard-codes its video output to 25 fps. It also does not depend on Chromium's DevTools screencast or tab-media capture transports: CI measurements showed those transports could not sustain the required cadence. The media workflow instead starts Xorg with the dummy video driver and an explicit 1920×1080@60 modeline, verifies that mode with `xrandr`, runs headed Chromium on that display, and records the viewport region directly with FFmpeg `x11grab`. Chromium background and occlusion throttling are disabled, but `--disable-frame-rate-limit` and `--disable-gpu-vsync` are intentionally forbidden because they would uncap the browser instead of certifying native 60 Hz pacing. Raw H.264 encoding with x264 ultrafast/zerolatency preserves the demuxer time base and passthrough timestamps; duplicated or non-increasing timestamps fail certification.
+Motion capture does not use Playwright 1.63's built-in screencast file recorder, which hard-codes its video output to 25 fps. It also does not depend on Chromium's DevTools screencast or tab-media capture transports: CI measurements showed those transports could not sustain the required cadence. The media workflow instead starts Xorg with the dummy video driver and an explicit 1920×1080@60 modeline, verifies that mode with `xrandr`, runs headed Chromium on that display, and records the viewport region directly with FFmpeg `x11grab`. Chromium background and occlusion throttling are disabled, but `--disable-frame-rate-limit` and `--disable-gpu-vsync` are intentionally forbidden because they would uncap the browser instead of certifying native 60 Hz pacing. Raw H.264 encoding with x264 ultrafast/zerolatency preserves the demuxer time base and passthrough timestamps; duplicated or non-increasing timestamps fail certification, as does bursty timing with fewer than 95% of intervals in the 12–22 ms pacing window.
 
 Playwright native screencast overlays provide restrained Lūm branding and feature chapters for motion capture without modifying production UI only for recording. Static screenshots remain product-state captures rather than chapter cards.
 
@@ -80,7 +80,7 @@ Playwright native screencast overlays provide restrained Lūm branding and featu
 `scripts/render-e2e-highlight.mjs` uses FFmpeg rather than adding a second browser/video framework. It:
 
 - requires the browser `requestAnimationFrame()` clock to remain within 59–61 fps while recording;
-- decodes raw X11 WebM frame timestamps with FFprobe, rejects duplicated/non-increasing timestamps, and requires the source to remain within the same 59–61 fps native window before publication encoding;
+- decodes raw X11 Matroska frame timestamps with FFprobe, rejects duplicated/non-increasing timestamps, and requires the source to remain within the same 59–61 fps native window before publication encoding;
 - verifies the raw Matroska codec is H.264 and that decoded frame counts exactly match the timing evidence;
 - probes every visual source with FFprobe;
 - preserves each published asset independently at its own source dimensions;
