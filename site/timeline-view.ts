@@ -1270,8 +1270,8 @@ export class TimelineViewController {
     if (!this.zoomSlider || this.retention.active) return;
 
     const applicationDisabled =
-      this.zoomSlider.closest<HTMLElement>("#timeline-view-toolbar")?.dataset.applicationDisabled ===
-      "true";
+      this.zoomSlider.closest<HTMLElement>("#timeline-view-toolbar")?.dataset
+        .applicationDisabled === "true";
     const disabled = !this.items.length || applicationDisabled;
     if (this.zoomSlider.disabled !== disabled) this.zoomSlider.disabled = disabled;
 
