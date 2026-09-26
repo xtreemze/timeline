@@ -63,6 +63,35 @@ test("compact horizontal mobile rails cap visible lanes before cards consume the
   assert.equal(geometry.committedLaneLimit("vertical", 168, 390), 3);
 });
 
+test("event navigation falls back to the timeline midpoint when nothing is focused", () => {
+  const items = [
+    { id: "early", start: 100 },
+    { id: "center", start: 500 },
+    { id: "late", start: 900 },
+  ];
+  const viewport = { start: 300, end: 700 };
+  const center = geometry.timelineViewportCenter(viewport);
+
+  assert.equal(center, 500);
+  assert.equal(geometry.adjacentTimelineItem(items, -1, center)?.id, "early");
+  assert.equal(geometry.adjacentTimelineItem(items, 1, center)?.id, "late");
+  assert.equal(geometry.adjacentTimelineItem(items, -1, 700)?.id, "center");
+  assert.equal(geometry.adjacentTimelineItem(items, 1, 700)?.id, "late");
+});
+
+test("focused event navigation keeps chronological adjacency instead of re-evaluating the midpoint", () => {
+  const items = [
+    { id: "a", start: 100 },
+    { id: "b", start: 500 },
+    { id: "c", start: 900 },
+  ];
+
+  assert.equal(geometry.adjacentTimelineItem(items, -1, 850, "b")?.id, "a");
+  assert.equal(geometry.adjacentTimelineItem(items, 1, 150, "b")?.id, "c");
+  assert.equal(geometry.adjacentTimelineItem(items, -1, 500, "a"), null);
+  assert.equal(geometry.adjacentTimelineItem(items, 1, 500, "c"), null);
+});
+
 test("selected events use a shell-owned six-column detail surface with footer-owned controls", async () => {
   const [html, js, css] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
