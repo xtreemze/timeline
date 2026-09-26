@@ -1674,6 +1674,28 @@ function setOccurrenceComposerOpen(open: boolean): void {
     closeProjectMenu();
     closeFocusedEventForUtility();
     syncOccurrenceComposerData();
+
+    const timelineViewport = timelineView?.getViewport?.();
+    if (
+      timelineViewport &&
+      Number.isFinite(timelineViewport.start) &&
+      Number.isFinite(timelineViewport.end)
+    ) {
+      els.occurrenceComposer.setTimelineViewport(
+        Number(timelineViewport.start),
+        Number(timelineViewport.end),
+      );
+    }
+
+    const worldCamera = temporalGraphView?.getCamera?.();
+    if (worldCamera) {
+      els.occurrenceComposer.setWorldContext(
+        Number(worldCamera.longitude),
+        Number(worldCamera.latitude),
+        Number(worldCamera.zoom),
+      );
+    }
+
     els.occurrenceComposer.show();
   } else {
     els.occurrenceComposer.hide();
@@ -1764,6 +1786,7 @@ function composerPlace(
   explicitName: string | null,
   longitude: number | null,
   latitude: number | null,
+  accuracyMeters: number | null,
   draft: TimelineState,
 ): PlaceRecord {
   const requested = explicitName?.trim() || "";
@@ -1816,6 +1839,10 @@ function composerPlace(
     name: generatedName,
     latitude,
     longitude,
+    radiusMeters:
+      accuracyMeters !== null && Number.isFinite(accuracyMeters) && accuracyMeters >= 0
+        ? accuracyMeters
+        : undefined,
     icon: "place",
     markerShape: "pin",
   });
@@ -1863,9 +1890,10 @@ function composerTime(
   const explicit = detail.draft.time;
   const kind = explicit?.kind === "range" ? "range" : "event";
   const fallback =
-    detail.defaults.timeMs !== null && Number.isFinite(detail.defaults.timeMs)
+    detail.defaults.timeValue ||
+    (detail.defaults.timeMs !== null && Number.isFinite(detail.defaults.timeMs)
       ? new Date(detail.defaults.timeMs).toISOString()
-      : "";
+      : "");
   const start = explicit?.start || fallback;
   const end = explicit?.kind === "range" ? explicit.end || "" : null;
   const extent = temporal.normalizeExtent(null, start, end, kind);
@@ -1905,6 +1933,7 @@ function commitOccurrenceComposer(detail: OccurrenceCommitDetail): void {
       detail.draft.place?.name ?? null,
       detail.defaults.longitude,
       detail.defaults.latitude,
+      detail.defaults.accuracyMeters,
       draft,
     );
     const { extent, kind, startValue, endValue } = composerTime(detail);
@@ -5612,8 +5641,9 @@ const settledSpatialWindow = createSettledTemporalWindowSink<unknown>(
 els.timelineViewRoot.addEventListener("timelineviewportchange", (event) => {
   const viewport = event.detail?.viewport || null;
   if (viewport && Number.isFinite(viewport.start) && Number.isFinite(viewport.end)) {
-    els.occurrenceComposer.setTimelineCenter(
-      Number(viewport.start) + (Number(viewport.end) - Number(viewport.start)) / 2,
+    els.occurrenceComposer.setTimelineViewport(
+      Number(viewport.start),
+      Number(viewport.end),
     );
   }
   settledSpatialWindow.push(viewport, Boolean(event.detail?.committed));
@@ -5661,12 +5691,14 @@ els.graphViewRoot.addEventListener("graphcontextchange", (event) => {
 
 els.graphViewRoot.addEventListener("worldviewportchange", (event) => {
   const detail = (event as CustomEvent<{
+    camera?: { longitude?: unknown; latitude?: unknown; zoom?: unknown };
     center?: { longitude?: unknown; latitude?: unknown };
   }>).detail;
-  const longitude = Number(detail?.center?.longitude);
-  const latitude = Number(detail?.center?.latitude);
-  if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return;
-  els.occurrenceComposer.setWorldCenter(longitude, latitude);
+  const longitude = Number(detail?.camera?.longitude ?? detail?.center?.longitude);
+  const latitude = Number(detail?.camera?.latitude ?? detail?.center?.latitude);
+  const zoom = Number(detail?.camera?.zoom);
+  if (!Number.isFinite(longitude) || !Number.isFinite(latitude) || !Number.isFinite(zoom)) return;
+  els.occurrenceComposer.setWorldContext(longitude, latitude, zoom);
 });
 
 els.occurrenceComposer.addEventListener("occurrencecomposeropenrequest", () => {

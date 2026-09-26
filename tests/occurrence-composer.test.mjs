@@ -3,6 +3,13 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
+  formatTimelineCenter,
+  spatialAccuracyForWorldZoom,
+  temporalPrecisionForViewportSpan,
+  timelineContextFromViewport,
+  worldContextFromCamera,
+} from "../site/occurrence-composer-context.ts";
+import {
   occurrenceComposerSuggestions,
   parseOccurrenceSentence,
   replaceComposerTail,
@@ -103,6 +110,59 @@ test("completed grammar offers live World and timeline defaults without writing 
   );
 });
 
+test("timeline viewport span derives a bounded authoring precision", () => {
+  const day = 86_400_000;
+  assert.equal(temporalPrecisionForViewportSpan(20 * 365.2425 * day), "year");
+  assert.equal(temporalPrecisionForViewportSpan(365 * day), "month");
+  assert.equal(temporalPrecisionForViewportSpan(30 * day), "day");
+  assert.equal(temporalPrecisionForViewportSpan(24 * 60 * 60 * 1000), "hour");
+  assert.equal(temporalPrecisionForViewportSpan(2 * 60 * 60 * 1000), "minute");
+  assert.equal(temporalPrecisionForViewportSpan(10 * 60 * 1000), "second");
+});
+
+test("timeline context formats the viewport center without manufacturing millisecond precision", () => {
+  const center = Date.UTC(2026, 8, 26, 14, 37, 42, 987);
+  const broad = timelineContextFromViewport(
+    center - 30 * 86_400_000,
+    center + 30 * 86_400_000,
+  );
+  const narrow = timelineContextFromViewport(center - 5 * 60_000, center + 5 * 60_000);
+
+  assert.equal(broad?.precision, "day");
+  assert.equal(broad?.value, "2026-09-26");
+  assert.equal(narrow?.precision, "second");
+  assert.equal(narrow?.value, "2026-09-26T14:37:42Z");
+  assert.equal(formatTimelineCenter(center, "month"), "2026-09");
+});
+
+test("World zoom derives coarser accuracy when zoomed out", () => {
+  const continent = spatialAccuracyForWorldZoom(3, 0);
+  const street = spatialAccuracyForWorldZoom(17, 0);
+  assert.ok(continent !== null && street !== null);
+  assert.ok(continent > street);
+  assert.ok(continent >= 100_000);
+  assert.ok(street <= 100);
+});
+
+test("World authoring context labels coordinates at accuracy-appropriate precision", () => {
+  const coarse = worldContextFromCamera({
+    longitude: 18.0686,
+    latitude: 59.3293,
+    zoom: 4,
+  });
+  const fine = worldContextFromCamera({
+    longitude: 18.0686,
+    latitude: 59.3293,
+    zoom: 18,
+  });
+
+  assert.ok(coarse && fine);
+  assert.ok(coarse.accuracyMeters > fine.accuracyMeters);
+  assert.match(coarse.label, /±/);
+  assert.match(fine.label, /±/);
+  assert.ok(fine.label.length > coarse.label.length);
+});
+
 test("Lit composer is a touch-safe ARIA combobox with live-context guidance", async () => {
   const source = await readFile(
     new URL("../site/components/occurrence-composer.ts", import.meta.url),
@@ -117,7 +177,10 @@ test("Lit composer is a touch-safe ARIA combobox with live-context guidance", as
   assert.match(source, /Move the timeline or World while this is open/);
   assert.match(source, /occurrencecomposeropenrequest/);
   assert.match(source, /occurrencecommit/);
-  assert.match(source, /explicitPlaceCenter/);
+  assert.match(source, /explicitPlaceContext/);
+  assert.match(source, /accuracyMeters/);
+  assert.match(source, /setTimelineViewport/);
+  assert.match(source, /setWorldContext/);
   assert.match(source, /placeholder=\$\{\`Who did what to whom · at/);
 });
 
@@ -133,15 +196,42 @@ test("application keeps timeline and World live while composer uses their center
   assert.match(source, /occurrenceComposer\.hidden = Boolean\([\s\S]*ui\.investigationOpen/);
   assert.match(
     source,
-    /timelineviewportchange[\s\S]*setTimelineCenter\([\s\S]*viewport\.start[\s\S]*viewport\.end/,
+    /timelineviewportchange[\s\S]*setTimelineViewport\([\s\S]*viewport\.start[\s\S]*viewport\.end/,
   );
-  assert.match(source, /worldviewportchange[\s\S]*setWorldCenter\(longitude, latitude\)/);
+  assert.match(
+    source,
+    /setOccurrenceComposerOpen[\s\S]*timelineView\?\.getViewport\?\.\(\)[\s\S]*setTimelineViewport/,
+  );
+  assert.match(
+    source,
+    /setOccurrenceComposerOpen[\s\S]*temporalGraphView\?\.getCamera\?\.\(\)[\s\S]*setWorldContext/,
+  );
+  assert.match(
+    source,
+    /worldviewportchange[\s\S]*camera\?\.zoom[\s\S]*setWorldContext\(longitude, latitude, zoom\)/,
+  );
   assert.match(source, /const draft = clone\(state\) as TimelineState/);
   assert.match(source, /draft\.entities\.push\(entity\)/);
+  assert.match(source, /radiusMeters:[\s\S]*accuracyMeters/);
   assert.match(source, /draft\.places\.push\(place\)/);
   assert.match(source, /draft\.items\.push\(item\)/);
   assert.match(source, /draft\.relationships\.push\(relationship\)/);
   assert.match(source, /state = normalizeTimeline\(draft, \{ strictGraph: true \}\)/);
+});
+
+test("World application view exposes current camera for immediate composer initialization", async () => {
+  const source = await readFile(
+    new URL("../site/world/world-view-factory.ts", import.meta.url),
+    "utf8",
+  );
+  const selection = await readFile(
+    new URL("../site/world/world-view-selection.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /getCamera\(\): WorldCameraState/);
+  assert.match(source, /return this\.#surface\.getCamera\(\)/);
+  assert.match(selection, /getCamera\?\(\): WorldCameraState/);
 });
 
 test("World surface publishes camera-center changes without persisting camera state", async () => {

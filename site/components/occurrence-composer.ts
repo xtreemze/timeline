@@ -1,5 +1,11 @@
 import { LitElement, css, html, nothing } from "lit";
 import {
+  timelineContextFromViewport,
+  worldContextFromCamera,
+  type ComposerTimelineContext,
+  type ComposerWorldContext,
+} from "../occurrence-composer-context.ts";
+import {
   occurrenceComposerSuggestions,
   parseOccurrenceSentence,
   replaceComposerTail,
@@ -21,27 +27,13 @@ export interface OccurrenceCommitDetail {
   readonly draft: OccurrenceSentenceDraft;
   readonly defaults: {
     readonly timeMs: number | null;
+    readonly timeValue: string | null;
+    readonly timePrecision: string | null;
     readonly longitude: number | null;
     readonly latitude: number | null;
+    readonly worldZoom: number | null;
+    readonly accuracyMeters: number | null;
   };
-}
-
-function temporalLabel(value: number | null): string | null {
-  if (value === null || !Number.isFinite(value)) return null;
-  const iso = new Date(value).toISOString();
-  return iso.endsWith("T00:00:00.000Z") ? iso.slice(0, 10) : iso.replace(".000Z", "Z");
-}
-
-function spatialLabel(longitude: number | null, latitude: number | null): string | null {
-  if (
-    longitude === null ||
-    latitude === null ||
-    !Number.isFinite(longitude) ||
-    !Number.isFinite(latitude)
-  ) {
-    return null;
-  }
-  return `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
 }
 
 export class LuumOccurrenceComposerElement extends LitElement {
@@ -269,12 +261,11 @@ export class LuumOccurrenceComposerElement extends LitElement {
     places: Object.freeze([]),
     categories: Object.freeze([]),
   });
-  private timeMs: number | null = null;
-  private longitude: number | null = null;
-  private latitude: number | null = null;
+  private timelineContext: ComposerTimelineContext | null = null;
+  private worldContext: ComposerWorldContext | null = null;
   private activeSuggestion = 0;
   private externalError = "";
-  private explicitPlaceCenter: { readonly longitude: number; readonly latitude: number } | null = null;
+  private explicitPlaceContext: ComposerWorldContext | null = null;
 
   setData(data: OccurrenceComposerData): void {
     this.data = Object.freeze({
@@ -285,14 +276,13 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.requestUpdate();
   }
 
-  setTimelineCenter(timeMs: number | null): void {
-    this.timeMs = Number.isFinite(timeMs) ? timeMs : null;
+  setTimelineViewport(start: number | null, end: number | null): void {
+    this.timelineContext = timelineContextFromViewport(start, end);
     this.requestUpdate();
   }
 
-  setWorldCenter(longitude: number | null, latitude: number | null): void {
-    this.longitude = Number.isFinite(longitude) ? longitude : null;
-    this.latitude = Number.isFinite(latitude) ? latitude : null;
+  setWorldContext(longitude: number | null, latitude: number | null, zoom: number | null): void {
+    this.worldContext = worldContextFromCamera({ longitude, latitude, zoom });
     this.requestUpdate();
   }
 
@@ -321,7 +311,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
   markCommitted(): void {
     this.value = "";
-    this.explicitPlaceCenter = null;
+    this.explicitPlaceContext = null;
     this.externalError = "";
     this.activeSuggestion = 0;
     this.requestUpdate();
@@ -339,8 +329,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
       entities: this.data.entities,
       places: this.data.places,
       categories: this.data.categories,
-      timelineDefault: temporalLabel(this.timeMs),
-      locationDefault: spatialLabel(this.longitude, this.latitude),
+      timelineDefault: this.timelineContext?.value ?? null,
+      locationDefault: this.worldContext?.label ?? null,
     });
   }
 
@@ -361,18 +351,9 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.value = value;
     const nextPlace = this.parsed().place?.name ?? null;
     if (!nextPlace) {
-      this.explicitPlaceCenter = null;
-    } else if (
-      nextPlace !== previousPlace &&
-      this.longitude !== null &&
-      this.latitude !== null &&
-      Number.isFinite(this.longitude) &&
-      Number.isFinite(this.latitude)
-    ) {
-      this.explicitPlaceCenter = Object.freeze({
-        longitude: this.longitude,
-        latitude: this.latitude,
-      });
+      this.explicitPlaceContext = null;
+    } else if (nextPlace !== previousPlace && this.worldContext) {
+      this.explicitPlaceContext = this.worldContext;
     }
     this.externalError = "";
     this.activeSuggestion = 0;
@@ -415,15 +396,25 @@ export class LuumOccurrenceComposerElement extends LitElement {
           text: this.value.trim(),
           draft,
           defaults: {
-            timeMs: this.timeMs,
+            timeMs: this.timelineContext?.centerMs ?? null,
+            timeValue: this.timelineContext?.value ?? null,
+            timePrecision: this.timelineContext?.precision ?? null,
             longitude:
-              draft.place && this.explicitPlaceCenter
-                ? this.explicitPlaceCenter.longitude
-                : this.longitude,
+              draft.place && this.explicitPlaceContext
+                ? this.explicitPlaceContext.longitude
+                : (this.worldContext?.longitude ?? null),
             latitude:
-              draft.place && this.explicitPlaceCenter
-                ? this.explicitPlaceCenter.latitude
-                : this.latitude,
+              draft.place && this.explicitPlaceContext
+                ? this.explicitPlaceContext.latitude
+                : (this.worldContext?.latitude ?? null),
+            worldZoom:
+              draft.place && this.explicitPlaceContext
+                ? this.explicitPlaceContext.zoom
+                : (this.worldContext?.zoom ?? null),
+            accuracyMeters:
+              draft.place && this.explicitPlaceContext
+                ? this.explicitPlaceContext.accuracyMeters
+                : (this.worldContext?.accuracyMeters ?? null),
           },
         },
       }),
@@ -481,9 +472,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
   override render() {
     const parsed = this.parsed();
-    const timeLabel = parsed.time?.start ?? temporalLabel(this.timeMs);
-    const placeLabel =
-      parsed.place?.name ?? spatialLabel(this.longitude, this.latitude) ?? "World center";
+    const timeLabel = parsed.time?.start ?? this.timelineContext?.label ?? null;
+    const placeLabel = parsed.place?.name ?? this.worldContext?.label ?? "World center";
     const suggestions = this.suggestions();
     const diagnostic = this.externalError || parsed.diagnostics[0] || "";
 
@@ -547,7 +537,9 @@ export class LuumOccurrenceComposerElement extends LitElement {
             ${parsed.place ? "Place" : "World center"}: ${placeLabel}
           </span>
           <span class="chip">
-            ${parsed.time ? "Time" : "Timeline center"}: ${timeLabel ?? "not available"}
+            ${parsed.time
+              ? "Time"
+              : `Timeline center (${this.timelineContext?.precision ?? "unresolved"})`}: ${timeLabel ?? "not available"}
           </span>
           ${parsed.options.category
             ? html`<span class="chip">Category: ${parsed.options.category}</span>`
