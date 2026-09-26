@@ -647,6 +647,34 @@
   }
 }
 
+/* The canonical 44px button geometry must outrank legacy .app-tool
+   minimums in every orientation and viewport size. */
+#app-shell:has(#timeline-view[data-orientation="landscape"])
+  .app-footer-bar
+  .toolbar-control,
+#app-shell:has(#timeline-view[data-orientation="portrait"])
+  .app-footer-bar
+  .toolbar-control {
+  box-sizing: border-box;
+  position: static;
+  z-index: auto;
+  block-size: var(--toolbar-control-size);
+  min-block-size: var(--toolbar-control-size);
+  max-block-size: var(--toolbar-control-size);
+}
+
+#app-shell:has(#timeline-view[data-orientation="landscape"])
+  .app-footer-bar
+  .toolbar-control:not(.toolbar-control-wide):not(.toolbar-control-value),
+#app-shell:has(#timeline-view[data-orientation="portrait"])
+  .app-footer-bar
+  .toolbar-control:not(.toolbar-control-wide):not(.toolbar-control-value) {
+  flex: 0 0 var(--toolbar-control-size);
+  inline-size: var(--toolbar-control-size);
+  min-inline-size: var(--toolbar-control-size);
+  max-inline-size: var(--toolbar-control-size);
+}
+
 @media (max-width: 699px) {
   /* The narrow footer is one physical toolbar. All groups stay in normal flow
      and the footer itself owns horizontal scrolling. */
@@ -707,34 +735,6 @@
     margin-inline-start: 0.18rem;
     padding-inline-start: 0.24rem;
     border-inline-start: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
-  }
-
-  /* styles.css still carries legacy 52px app-action minimums. The footer's
-     canonical 44px contract wins here for every ordinary button. */
-  #app-shell:has(#timeline-view[data-orientation="landscape"])
-    .app-footer-bar
-    .toolbar-control,
-  #app-shell:has(#timeline-view[data-orientation="portrait"])
-    .app-footer-bar
-    .toolbar-control {
-    box-sizing: border-box;
-    position: static;
-    z-index: auto;
-    block-size: var(--toolbar-control-size);
-    min-block-size: var(--toolbar-control-size);
-    max-block-size: var(--toolbar-control-size);
-  }
-
-  #app-shell:has(#timeline-view[data-orientation="landscape"])
-    .app-footer-bar
-    .toolbar-control:not(.toolbar-control-wide):not(.toolbar-control-value),
-  #app-shell:has(#timeline-view[data-orientation="portrait"])
-    .app-footer-bar
-    .toolbar-control:not(.toolbar-control-wide):not(.toolbar-control-value) {
-    flex: 0 0 var(--toolbar-control-size);
-    inline-size: var(--toolbar-control-size);
-    min-inline-size: var(--toolbar-control-size);
-    max-inline-size: var(--toolbar-control-size);
   }
 
   #app-shell .app-footer-bar .toolbar-control-wide {
