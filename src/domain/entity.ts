@@ -10,11 +10,14 @@ import {
   validateExternalSemanticMappings,
 } from "./semantics.ts";
 
+export type EntityIdentityResolution = "identified" | "unresolved" | "disputed";
+
 export interface CanonicalEntity {
   readonly id: EntityId;
   readonly type: string;
   readonly name: string;
   readonly alternateNames: readonly string[];
+  readonly identityResolution?: EntityIdentityResolution;
   readonly identifiers?: readonly CanonicalIdentifier[];
   readonly appellations?: readonly CanonicalAppellation[];
   readonly semanticMappings?: readonly ExternalSemanticMapping[];
@@ -123,6 +126,7 @@ export function validateEntity(entity: {
   readonly name?: string;
   readonly type?: string;
   readonly attributes?: Readonly<Record<string, unknown>>;
+  readonly identityResolution?: unknown;
   readonly identifiers?: unknown;
   readonly appellations?: unknown;
   readonly semanticMappings?: unknown;
@@ -133,6 +137,16 @@ export function validateEntity(entity: {
 
   if (!name) {
     return { valid: false, message: "An entity name is required." };
+  }
+
+  if (
+    entity.identityResolution !== undefined &&
+    !["identified", "unresolved", "disputed"].includes(String(entity.identityResolution))
+  ) {
+    return {
+      valid: false,
+      message: "Entity identityResolution must be identified, unresolved, or disputed.",
+    };
   }
 
   if (NON_ENTITY_NODE_TYPES.has(typeKey)) {
