@@ -88,6 +88,76 @@ test("nearby sparse places may expand their nodes when the shared region has eno
   );
 });
 
+test("narrow mobile detail zoom releases modest clusters even when the readability floor exceeds the viewport cap", () => {
+  const projection = narrowMobileMultiPlaceProjection();
+  const nodeRadiusPx = 22;
+  const phoneAvailableRadius = 360 * 0.42;
+
+  const regional = clusterTargetPlaceIds(
+    projection.instances,
+    projection.edges,
+    6,
+    nodeRadiusPx,
+    phoneAvailableRadius,
+    "collapsed",
+  );
+  assert.equal(regional.length, 8, "the same component remains aggregated before detail zoom");
+
+  assert.deepEqual(
+    clusterTargetPlaceIds(
+      projection.instances,
+      projection.edges,
+      7,
+      nodeRadiusPx,
+      phoneAvailableRadius,
+      "collapsed",
+    ),
+    [],
+    "a 360px phone can resolve a modest 13-node component once detail zoom is intentional",
+  );
+
+  assert.equal(
+    clusterTargetPlaceIds(
+      projection.instances,
+      projection.edges,
+      14,
+      nodeRadiusPx,
+      0,
+      "collapsed",
+    ).length,
+    8,
+    "an invalid/zero viewport budget never forces topology open",
+  );
+});
+
+test("pannable mobile overflow remains bounded for high-cardinality clusters", () => {
+  const instances = Array.from({ length: 33 }, (_, index) =>
+    createProjectedWorldInstance({
+      id: worldInstanceId(`bounded-${index}`, `occ-bounded-${index}`),
+      canonicalId: `bounded-${index}`,
+      occurrenceId: `occ-bounded-${index}`,
+      geographicAnchors: [
+        {
+          placeId: "bounded-place",
+          longitude: 18.0686,
+          latitude: 59.3293,
+          sourceAltitude: 0,
+          influence: 1,
+        },
+      ],
+      temporalWeight: 1,
+      visualWeight: 1,
+      retained: false,
+    }),
+  );
+
+  assert.deepEqual(
+    clusterTargetPlaceIds(instances, [], 14, 22, 220, "collapsed"),
+    ["bounded-place"],
+    "detail overflow is not permission to explode a graph above the bounded mobile member count",
+  );
+});
+
 test("nearby dense places still collapse when their combined semantic load exceeds the region", () => {
   const instances = Array.from({ length: 64 }, (_, index) =>
     createProjectedWorldInstance({
@@ -372,6 +442,44 @@ function clusterableProjection() {
     ],
     edges: base.edges,
   });
+}
+
+function narrowMobileMultiPlaceProjection() {
+  const instances = Array.from({ length: 13 }, (_, index) => {
+    const placeIndex = index % 8;
+    return createProjectedWorldInstance({
+      id: worldInstanceId(`mobile-${index}`, `mobile-occ-${index}`),
+      canonicalId: `mobile-${index}`,
+      occurrenceId: `mobile-occ-${index}`,
+      geographicAnchors: [
+        {
+          placeId: `mobile-place-${placeIndex}`,
+          longitude: 18.0686 + placeIndex * 0.0001,
+          latitude: 59.3293,
+          sourceAltitude: 0,
+          influence: 1,
+        },
+      ],
+      temporalWeight: 1,
+      visualWeight: 1,
+      retained: false,
+      localOffset: {
+        eastMeters: ((index % 5) - 2) * 90,
+        northMeters: ((index % 3) - 1) * 90,
+      },
+    });
+  });
+  const edges = Array.from({ length: instances.length - 1 }, (_, index) =>
+    createProjectedWorldEdge({
+      id: `mobile-edge-${index}`,
+      sourceInstanceId: instances[index].id,
+      targetInstanceId: instances[index + 1].id,
+      temporalWeight: 1,
+      visible: true,
+      retained: false,
+    }),
+  );
+  return createWorldProjection({ instances, edges });
 }
 
 test("world graph label scale matches the compact interface hierarchy", () => {
@@ -1146,6 +1254,60 @@ test("overview clusters drill into their members instead of selecting an arbitra
     null,
     "drilling into a cluster must not choose a hidden member",
   );
+});
+
+test("multi-place cluster drill-in reveals nodes on a 360px viewport and overview zoom restores clustering", () => {
+  const originalSetTimeout = globalThis.setTimeout;
+  try {
+    globalThis.setTimeout = (callback) => {
+      callback();
+      return 0;
+    };
+
+    const { calls, runtime } = harness();
+    const surface = new DeckWorldSurface(
+      { style: {}, clientWidth: 360, clientHeight: 780 },
+      runtime,
+      {
+        longitude: 18.0686,
+        latitude: 59.3293,
+        zoom: 3,
+        bearing: 0,
+        pitch: 20,
+      },
+    );
+    const mobileProjection = narrowMobileMultiPlaceProjection();
+    surface.setProjection(mobileProjection);
+
+    const collapsedLayer = renderedLayer(calls, DECK_WORLD_LAYER_IDS.entities);
+    const aggregate = collapsedLayer.props.data.find(
+      (datum) => datum.kind === "cluster" && (datum.placeIds?.length ?? 0) > 1,
+    );
+    assert.ok(aggregate, "mobile fixture begins as a multi-place aggregate");
+
+    calls.deckProps.onClick({ object: aggregate });
+
+    const expandedLayer = renderedLayer(calls, DECK_WORLD_LAYER_IDS.entities);
+    const visibleMembers = expandedLayer.props.data.filter(
+      (datum) => datum.kind === "entity" && expandedLayer.props.getRadius(datum) > 0,
+    );
+    assert.equal(
+      visibleMembers.length,
+      mobileProjection.instances.length,
+      "explicit aggregate drill-in exposes canonical member nodes instead of zooming a permanent cluster",
+    );
+    assert.ok(surface.getCamera().zoom > 6);
+    assert.equal(surface.getAccessibleSnapshot().selection, null);
+
+    surface.setCamera({ ...surface.getCamera(), zoom: 3 });
+    const reclusteredLayer = renderedLayer(calls, DECK_WORLD_LAYER_IDS.entities);
+    assert.ok(
+      reclusteredLayer.props.data.some((datum) => datum.kind === "cluster"),
+      "returning to overview clears the temporary drill-in escape and restores semantic clustering",
+    );
+  } finally {
+    globalThis.setTimeout = originalSetTimeout;
+  }
 });
 
 test("canonical focus crosses the active cluster threshold before framing an entity", async () => {

@@ -14,6 +14,7 @@ import { fitWorldCamera, globeOverviewCamera } from "../../src/layout/world-came
 import {
   WORLD_CLUSTER_EDGE_RELEASE_MS,
   WORLD_CLUSTER_SETTLE_MS,
+  WORLD_CLUSTER_ZOOM_HYSTERESIS,
   type WorldClusterLifecyclePhase,
   worldClusterMutesMembers,
   worldClusterShowsActiveEdges,
@@ -447,6 +448,15 @@ export function clusterZoomThresholdForPlaceDensity(
  * load increases the required area because predicates and edge crossings also
  * consume semantic space.
  */
+/**
+ * A modest local graph may deliberately overflow the narrow viewport at detail
+ * zoom because the world surface itself pans. This prevents a phone-width
+ * viewport from becoming a permanent cluster trap while keeping genuinely
+ * dense graphs collapsed until explicit drill-in.
+ */
+const WORLD_CLUSTER_PANNABLE_OVERFLOW_RATIO = 1.35;
+const WORLD_CLUSTER_PANNABLE_MAX_MEMBERS = 32;
+
 export function clusterRequiredLocalRadiusPx(
   nodeRadiusPx: number,
   memberCount: number,
@@ -650,8 +660,27 @@ export function clusterTargetPlaceIds(
     // Nearby places share one local graph region. Proximity alone is not a
     // reason to hide topology: if their combined semantic load fits, let D3
     // use the available whitespace and reserve clustering for the place pins.
+    //
+    // On a narrow phone the viewport cap can be smaller than the readability
+    // floor itself. At detail zoom, permit a modest component to overflow the
+    // viewport slightly because the world is pannable. Bound both cardinality
+    // and overflow so large graphs do not explode merely because zoom is deep.
     // Globe overview still obeys the hard three-member minimum.
-    if (!overviewClustering && required * hysteresis <= available) continue;
+    const requiredWithHysteresis = required * hysteresis;
+    const densityReleaseZoom =
+      clusterZoomThresholdForPlaceDensity(nodeRadiusPx, memberCount) +
+      (phase === "expanded" ? 0 : WORLD_CLUSTER_ZOOM_HYSTERESIS);
+    const pannableDetailRelease =
+      memberCount <= WORLD_CLUSTER_PANNABLE_MAX_MEMBERS &&
+      available > 0 &&
+      zoom >= densityReleaseZoom &&
+      requiredWithHysteresis <= available * WORLD_CLUSTER_PANNABLE_OVERFLOW_RATIO;
+    if (
+      !overviewClustering &&
+      (requiredWithHysteresis <= available || pannableDetailRelease)
+    ) {
+      continue;
+    }
 
     for (const group of component) {
       if (component.length > 1 || group.count > 1) targets.add(group.placeId);
@@ -2796,6 +2825,10 @@ export class DeckWorldSurface implements WorldSurface {
   #clusterForceSink: DeckWorldClusterForceSink | null = null;
   #clusterPhase: WorldClusterLifecyclePhase = "expanded";
   #clusterPlaceIds: readonly PlaceId[] = Object.freeze([]);
+  // Explicit multi-place drill-in is presentation state only. It mirrors the
+  // existing selected-place escape hatch without assigning arbitrary canonical
+  // selection to an aggregate cluster.
+  #revealedClusterPlaceIds: ReadonlySet<PlaceId> = new Set();
   #clusterEdgeReleaseTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
   #clusterSettleTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
   #activeDragPointerId: number | null = null;
@@ -3046,6 +3079,7 @@ export class DeckWorldSurface implements WorldSurface {
         const next = { kind: "place", id: placeId } as const;
         this.setSelection(selectionEquals(next, this.#selection) ? null : next);
       } else {
+        this.#revealClusterPlaces(placeIds);
         this.#focusCluster(cluster, clusterMemberCountFromPicking(info));
       }
       void pulseHaptic("selection");
@@ -3432,6 +3466,34 @@ export class DeckWorldSurface implements WorldSurface {
     }
   }
 
+  #revealClusterPlaces(placeIds: readonly PlaceId[]): void {
+    const available = new Set(
+      this.#projection.instances.flatMap((instance) =>
+        instance.geographicAnchors.map((anchor) => anchor.placeId),
+      ),
+    );
+    const next = new Set<PlaceId>();
+    for (const placeId of placeIds) {
+      if (available.has(placeId)) next.add(placeId);
+    }
+    this.#revealedClusterPlaceIds = next;
+  }
+
+  #pruneRevealedClusterPlaces(): void {
+    if (this.#revealedClusterPlaceIds.size === 0) return;
+    const available = new Set(
+      this.#projection.instances.flatMap((instance) =>
+        instance.geographicAnchors.map((anchor) => anchor.placeId),
+      ),
+    );
+    const next = new Set(
+      [...this.#revealedClusterPlaceIds].filter((placeId) => available.has(placeId)),
+    );
+    if (next.size !== this.#revealedClusterPlaceIds.size) {
+      this.#revealedClusterPlaceIds = next;
+    }
+  }
+
   #clusterTargetPlaceIds(): readonly PlaceId[] {
     const targets = clusterTargetPlaceIds(
       this.#projection.instances,
@@ -3441,8 +3503,14 @@ export class DeckWorldSurface implements WorldSurface {
       this.#availableLocalGraphRadiusPx(),
       this.#clusterPhase,
     );
-    if (this.#selection?.kind !== "place") return targets;
-    return Object.freeze(targets.filter((placeId) => placeId !== this.#selection?.id));
+    const selectedPlaceId =
+      this.#selection?.kind === "place" ? this.#selection.id : null;
+    return Object.freeze(
+      targets.filter(
+        (placeId) =>
+          placeId !== selectedPlaceId && !this.#revealedClusterPlaceIds.has(placeId),
+      ),
+    );
   }
 
   #sameClusterPlaces(placeIds: readonly PlaceId[]): boolean {
@@ -3512,6 +3580,18 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   #syncClusterLifecycle(): void {
+    // Explicit drill-in persists through local pan/zoom, but returning to the
+    // overview tier restores normal semantic clustering.
+    if (
+      this.#revealedClusterPlaceIds.size > 0 &&
+      shouldClusterEntityDatums(
+        this.#projection.instances.length,
+        this.#camera.zoom,
+        this.#clusterEntityFootprintRadiusPx(),
+      )
+    ) {
+      this.#revealedClusterPlaceIds = new Set();
+    }
     const placeIds = this.#clusterTargetPlaceIds();
     if (placeIds.length === 0) {
       if (this.#clusterPhase !== "expanded") this.#beginClusterExpansion();
@@ -3550,6 +3630,7 @@ export class DeckWorldSurface implements WorldSurface {
   setProjection(projection: WorldProjection): void {
     this.#assertAlive();
     this.#projection = projection;
+    this.#pruneRevealedClusterPlaces();
     this.#autoFitCamera();
     this.#syncClusterLifecycle();
     this.#render();
@@ -3558,6 +3639,7 @@ export class DeckWorldSurface implements WorldSurface {
   applyProjectionDelta(delta: WorldProjectionDelta): void {
     this.#assertAlive();
     this.#projection = applyWorldProjectionDelta(this.#projection, delta);
+    this.#pruneRevealedClusterPlaces();
     // Force/layout deltas are derived presentation updates. Do not re-run
     // content fit or move the camera while nodes relax.
     this.#syncClusterLifecycle();
