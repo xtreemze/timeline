@@ -240,6 +240,15 @@ test("measured two-line height is preserved in placement geometry", () => {
   assert.equal(plan.placements[0].blockSize, 76);
 });
 
+test("timeline decluttering reuses DAG-style greedy stability without importing graph topology layout", async () => {
+  const source = await readFile(new URL("../src/layout/temporal-layout.ts", import.meta.url), "utf8");
+
+  assert.match(source, /function planAnchorRatios\(/);
+  assert.match(source, /collisionPressure/);
+  assert.match(source, /RANGE_ANCHOR_HYSTERESIS_SCORE_RATIO = 1\.12/);
+  assert.doesNotMatch(source, /from ["']d3-dag["']/);
+});
+
 test("renderer performs global layout planning only through commit reconciliation", async () => {
   const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
   const renderStart = source.indexOf("  render(): void {");
