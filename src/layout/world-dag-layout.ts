@@ -71,7 +71,6 @@ export interface WorldDagLayoutMetrics {
   readonly localEdgeCount: number;
   readonly routedEdgeCount: number;
   readonly crossingCount: number | null;
-  readonly weightedCrossingCost: number;
   readonly meanEdgeLengthMeters: number;
   readonly minSeparationMeters: number | null;
   readonly meanStableDisplacementMeters: number;
@@ -164,6 +163,7 @@ interface CandidateLayout {
   readonly width: number;
   readonly height: number;
   readonly crossingCount: number | null;
+  readonly weightedCrossingCost: number;
   readonly meanEdgeLengthMeters: number;
   readonly minSeparationMeters: number | null;
   readonly meanStableDisplacementMeters: number;
