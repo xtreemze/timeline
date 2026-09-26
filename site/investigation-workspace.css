@@ -236,6 +236,13 @@
   white-space: pre-wrap;
 }
 
+.investigation-gap-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+
 .investigation-card-list,
 .investigation-review-group {
   display: grid;
