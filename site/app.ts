@@ -141,6 +141,7 @@ interface EntityRecord {
   name: string;
   type?: string;
   alternateNames?: string[];
+  identityResolution?: "identified" | "unresolved" | "disputed";
   identifiers?: unknown[];
   appellations?: unknown[];
   semanticMappings?: unknown[];
