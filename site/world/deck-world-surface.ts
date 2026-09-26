@@ -1917,12 +1917,21 @@ function directionDatums(
   const result: DeckWorldDirectionDatum[] = [];
   const marked = selectPrioritizedLabels(relationships, {
     budget: worldLabelBudget(zoom),
-    isPinned: (edge) => focus?.kind === "relationship" && focus.id === edge.relationshipId,
+    isPinned: () => false,
     importance: (edge) => edge.temporalWeight,
     key: (edge) => edge.relationshipId,
   });
+  const markedIds = new Set(marked.map((edge) => edge.relationshipId));
+  const focusedEdge =
+    focus?.kind === "relationship"
+      ? relationships.find((edge) => edge.relationshipId === focus.id)
+      : undefined;
+  const stableMarked =
+    focusedEdge && !markedIds.has(focusedEdge.relationshipId)
+      ? Object.freeze([...marked, focusedEdge])
+      : marked;
 
-  for (const edge of marked) {
+  for (const edge of stableMarked) {
     const arrowLengthDegrees = arrowLengthDegreesForEdge(edge);
     const targetClearanceDegrees = targetClearanceDegreesForEdge(edge);
     const prior = previous.get(edge.relationshipId);
@@ -1979,9 +1988,9 @@ function labelDatumUnchanged(
 /**
  * Semantic label LOD. Text comes only from renderer-neutral projection
  * metadata (instance/anchor/edge labels). A zoom-dependent budget limits
- * optional labels per kind, preferring higher visual weight; explicit focus
- * may pin a label. Hover and selection leave the ordinary declutter result
- * stable, but an interacted entity whose label was suppressed by LOD or
+ * optional labels per kind, preferring higher visual weight. Hover, focus,
+ * and selection never change the base budget or declutter winners; an
+ * interacted object whose label was suppressed by LOD or
  * collision placement is appended as an interaction override. While entities
  * are clustered individual labels are suppressed because their positions are
  * presentation-merged into clusters.
@@ -2015,19 +2024,20 @@ export function worldGraphLabelSize(
 export function worldLabelCollisionPriority(
   datum: Pick<DeckWorldLabelDatum, "kind" | "emphasized">,
 ): number {
-  const semanticBase =
-    datum.kind === "cluster-label"
-      ? 240
-      : datum.kind === "place-label"
-        ? 200
-        : datum.kind === "entity-label"
-          ? 120
-          : 80;
-  return datum.emphasized ? semanticBase + 700 : semanticBase;
+  // Selection/focus may change styling, never collision winners. Otherwise
+  // choosing an object can cause unrelated labels to disappear or reflow.
+  return datum.kind === "cluster-label"
+    ? 240
+    : datum.kind === "place-label"
+      ? 200
+      : datum.kind === "entity-label"
+        ? 120
+        : 80;
 }
 
 const LABEL_PLACEMENT_CELL_PX = 128;
 const LABEL_PLACEMENT_PADDING_PX = 4;
+const LABEL_EDGE_CLEARANCE_PX = 3;
 
 function labelFootprint(datum: DeckWorldLabelDatum): {
   readonly width: number;
@@ -2137,7 +2147,9 @@ function placeWorldLabelDatums(
   datums: readonly DeckWorldLabelDatum[],
   zoom: number,
   markerRadiusPx: (datum: DeckWorldLabelDatum) => number,
+  relationships: readonly DeckWorldRelationshipDatum[] = Object.freeze([]),
 ): readonly DeckWorldLabelDatum[] {
+  if (datums.length === 0) return Object.freeze([]);
   const tierZoom = worldLabelTierFloor(zoom);
   const scale = (512 / 360) * 2 ** Math.max(0, tierZoom);
   interface Box {
@@ -2147,6 +2159,13 @@ function placeWorldLabelDatums(
     readonly bottom: number;
   }
   const grid = new Map<string, Box[]>();
+  interface EdgeSegment {
+    readonly ax: number;
+    readonly ay: number;
+    readonly bx: number;
+    readonly by: number;
+  }
+  const edgeGrid = new Map<string, EdgeSegment[]>();
   const cells = (box: Box): readonly string[] => {
     const keys: string[] = [];
     for (
@@ -2169,19 +2188,143 @@ function placeWorldLabelDatums(
     right.left < left.right &&
     left.top < right.bottom &&
     right.top < left.bottom;
+  const placementPoint = (position: WorldRenderPosition): readonly [number, number] => {
+    const latitudeScale = Math.max(0.2, Math.cos((position[1] * Math.PI) / 180));
+    return Object.freeze([
+      position[0] * scale * latitudeScale,
+      -position[1] * scale,
+    ]);
+  };
+  const pointInside = (x: number, y: number, box: Box) =>
+    x >= box.left && x <= box.right && y >= box.top && y <= box.bottom;
+  const orientation = (
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
+    cx: number,
+    cy: number,
+  ) => (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
+  const segmentCrosses = (
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
+    cx: number,
+    cy: number,
+    dx: number,
+    dy: number,
+  ) => {
+    const boundsOverlap =
+      Math.max(Math.min(ax, bx), Math.min(cx, dx)) <=
+        Math.min(Math.max(ax, bx), Math.max(cx, dx)) &&
+      Math.max(Math.min(ay, by), Math.min(cy, dy)) <=
+        Math.min(Math.max(ay, by), Math.max(cy, dy));
+    if (!boundsOverlap) return false;
+    const abC = orientation(ax, ay, bx, by, cx, cy);
+    const abD = orientation(ax, ay, bx, by, dx, dy);
+    const cdA = orientation(cx, cy, dx, dy, ax, ay);
+    const cdB = orientation(cx, cy, dx, dy, bx, by);
+    return abC * abD <= 0 && cdA * cdB <= 0;
+  };
+  const edgeIntersectsBox = (segment: EdgeSegment, box: Box): boolean => {
+    const expanded: Box = {
+      left: box.left - LABEL_EDGE_CLEARANCE_PX,
+      right: box.right + LABEL_EDGE_CLEARANCE_PX,
+      top: box.top - LABEL_EDGE_CLEARANCE_PX,
+      bottom: box.bottom + LABEL_EDGE_CLEARANCE_PX,
+    };
+    if (
+      pointInside(segment.ax, segment.ay, expanded) ||
+      pointInside(segment.bx, segment.by, expanded)
+    ) {
+      return true;
+    }
+    return (
+      segmentCrosses(
+        segment.ax,
+        segment.ay,
+        segment.bx,
+        segment.by,
+        expanded.left,
+        expanded.top,
+        expanded.right,
+        expanded.top,
+      ) ||
+      segmentCrosses(
+        segment.ax,
+        segment.ay,
+        segment.bx,
+        segment.by,
+        expanded.right,
+        expanded.top,
+        expanded.right,
+        expanded.bottom,
+      ) ||
+      segmentCrosses(
+        segment.ax,
+        segment.ay,
+        segment.bx,
+        segment.by,
+        expanded.right,
+        expanded.bottom,
+        expanded.left,
+        expanded.bottom,
+      ) ||
+      segmentCrosses(
+        segment.ax,
+        segment.ay,
+        segment.bx,
+        segment.by,
+        expanded.left,
+        expanded.bottom,
+        expanded.left,
+        expanded.top,
+      )
+    );
+  };
+
+  for (const relationship of relationships) {
+    for (let index = 0; index < relationship.path.length - 1; index += 1) {
+      const start = relationship.path[index];
+      const end = relationship.path[index + 1];
+      if (!start || !end) continue;
+      const [ax, ay] = placementPoint(start);
+      const [bx, by] = placementPoint(end);
+      const segment: EdgeSegment = { ax, ay, bx, by };
+      const bounds: Box = {
+        left: Math.min(ax, bx) - LABEL_EDGE_CLEARANCE_PX,
+        right: Math.max(ax, bx) + LABEL_EDGE_CLEARANCE_PX,
+        top: Math.min(ay, by) - LABEL_EDGE_CLEARANCE_PX,
+        bottom: Math.max(ay, by) + LABEL_EDGE_CLEARANCE_PX,
+      };
+      for (const key of cells(bounds)) {
+        const bucket = edgeGrid.get(key);
+        if (bucket) bucket.push(segment);
+        else edgeGrid.set(key, [segment]);
+      }
+    }
+  }
 
   const placed: DeckWorldLabelDatum[] = [];
   for (const datum of datums) {
     const footprint = labelFootprint(datum);
-    const latitudeScale = Math.max(0.2, Math.cos((datum.position[1] * Math.PI) / 180));
-    const anchorX = datum.position[0] * scale * latitudeScale;
-    const anchorY = -datum.position[1] * scale;
-    const candidates = labelOffsetCandidates(
+    const [anchorX, anchorY] = placementPoint(datum.position);
+    const baseCandidates = labelOffsetCandidates(
       datum,
       footprint.width,
       footprint.height,
       markerRadiusPx(datum),
     );
+    const candidates = Object.freeze([
+      ...baseCandidates,
+      ...baseCandidates.map(
+        ([x, y]) => Object.freeze([x * 1.75, y * 1.75]) as readonly [number, number],
+      ),
+      ...baseCandidates.map(
+        ([x, y]) => Object.freeze([x * 2.5, y * 2.5]) as readonly [number, number],
+      ),
+    ]);
     let chosen: readonly [number, number] | null = null;
     let chosenBox: Box | null = null;
 
@@ -2195,7 +2338,13 @@ function placeWorldLabelDatums(
         bottom: centerY + footprint.height / 2 + LABEL_PLACEMENT_PADDING_PX,
       };
       const keys = cells(box);
-      if (!keys.some((key) => grid.get(key)?.some((other) => overlaps(box, other)))) {
+      const labelBlocked = keys.some((key) =>
+        grid.get(key)?.some((other) => overlaps(box, other)),
+      );
+      const edgeBlocked = keys.some((key) =>
+        edgeGrid.get(key)?.some((segment) => edgeIntersectsBox(segment, box)),
+      );
+      if (!labelBlocked && !edgeBlocked) {
         chosen = offset;
         chosenBox = box;
         break;
@@ -2243,9 +2392,9 @@ function labelDatums(input: {
   const byKey = new Map<string, DeckWorldLabelDatum>();
   const result: DeckWorldLabelDatum[] = [];
   const markerRadiusByKey = new Map<string, number>();
-  // Declutter priority: pinned first, then importance across kinds (entity
-  // visual weight; places fixed mid-importance; relationships down-weighted),
-  // with places, entities, relationships as the tie-break order.
+  // Stable declutter priority is geometry/semantics only: entity visual
+  // weight, fixed place importance, and down-weighted relationships. Interaction
+  // styling is deliberately excluded so selection cannot reorder the pass.
   const priority = new Map<DeckWorldLabelDatum, readonly [number, number, number]>();
   const emit = (
     key: string,
@@ -2303,7 +2452,7 @@ function labelDatums(input: {
   };
   const clusters = selectPrioritizedLabels(input.clusters, {
     budget,
-    isPinned: clusterInteracted,
+    isPinned: () => false,
     importance: (cluster) => cluster.clusterMembers.length + cluster.visualWeight,
     key: (cluster) => cluster.clusterId,
   });
@@ -2338,7 +2487,7 @@ function labelDatums(input: {
     input.places.filter((place) => place.label && !clusteredPlaceIds.has(place.placeId)),
     {
       budget: Math.max(budget, WORLD_PLACE_LABEL_FLOOR),
-      isPinned: (place) => focused("place", place.placeId),
+      isPinned: () => false,
       importance: () => 0,
       key: (place) => place.placeId,
     },
@@ -2372,7 +2521,7 @@ function labelDatums(input: {
     input.entities.filter((entity) => entity.label && !input.clustered),
     {
       budget,
-      isPinned: (entity) => focused("entity", entity.entityId),
+      isPinned: () => false,
       importance: (entity) => entity.visualWeight,
       key: (entity) => entity.worldInstanceId,
     },
@@ -2411,7 +2560,7 @@ function labelDatums(input: {
       // obey the same zoom budget at every scale. Dense local graphs otherwise
       // become unreadable as soon as detail zoom is reached.
       budget,
-      isPinned: (relationship) => focused("relationship", relationship.relationshipId),
+      isPinned: () => false,
       importance: (relationship) => relationship.temporalWeight,
       key: (relationship) => relationship.relationshipId,
     },
@@ -2451,6 +2600,7 @@ function labelDatums(input: {
     ordered,
     input.zoom,
     (datum) => markerRadiusByKey.get(datum.key) ?? 0,
+    input.relationships,
   );
   const placedByKey = new Map(placed.map((datum) => [datum.key, datum] as const));
 
@@ -2459,6 +2609,45 @@ function labelDatums(input: {
   // their datum identity and placement while the active object can identify
   // itself without forcing the whole dense scene back into view.
   const interactionLabels: DeckWorldLabelDatum[] = [];
+  const queueInteractionLabel = (
+    datum: DeckWorldLabelDatum,
+    markerRadiusPx: number,
+  ): void => {
+    if (placedByKey.has(datum.key) || interactionLabels.some((item) => item.key === datum.key)) {
+      return;
+    }
+    markerRadiusByKey.set(datum.key, markerRadiusPx);
+    interactionLabels.push(datum);
+    byKey.set(datum.key, datum);
+  };
+
+  // Interaction overlays are appended after the stable base pass. They may
+  // occupy only genuinely free label/edge space and never displace base labels.
+  for (const cluster of input.clusters) {
+    if (!clusterInteracted(cluster)) continue;
+    const key = `cluster:${cluster.clusterId}`;
+    if (placedByKey.has(key)) continue;
+    const text = clusterLabelText(cluster);
+    const prior = input.previous.get(key);
+    const datum =
+      prior && labelDatumUnchanged(prior, text, cluster.position, true)
+        ? prior
+        : Object.freeze({
+            kind: "cluster-label",
+            key,
+            clusterId: cluster.clusterId,
+            placeIds: Object.freeze([...(cluster.placeIds ?? [])]),
+            memberEntityIds: Object.freeze(
+              cluster.clusterMembers.map((member) => member.entityId),
+            ),
+            memberCount: cluster.clusterMembers.length,
+            text,
+            position: cluster.position,
+            emphasized: true,
+          });
+    queueInteractionLabel(datum, input.clusterMarkerRadiusPx(cluster));
+  }
+
   const interactionPlaceIds = new Set<PlaceId>();
   if (input.selection?.kind === "place") interactionPlaceIds.add(input.selection.id);
   if (input.hoverSelection?.kind === "place") interactionPlaceIds.add(input.hoverSelection.id);
@@ -2484,17 +2673,7 @@ function labelDatums(input: {
             position: place.position,
             emphasized: true,
           });
-    const footprint = labelFootprint(datum);
-    const offset = labelOffsetCandidates(
-      datum,
-      footprint.width,
-      footprint.height,
-      input.placeMarkerRadiusPx(place.placeId),
-    )[0] ?? [0, 0];
-    const interactionDatum = withLabelPixelOffset(datum, offset);
-    interactionLabels.push(interactionDatum);
-    placedByKey.set(key, interactionDatum);
-    byKey.set(key, interactionDatum);
+    queueInteractionLabel(datum, input.placeMarkerRadiusPx(place.placeId));
   }
 
   const interactionEntityIds = new Set<EntityId>(input.contextEntityIds);
@@ -2532,17 +2711,7 @@ function labelDatums(input: {
               position: entity.position,
               emphasized,
             });
-      const footprint = labelFootprint(datum);
-      const offset = labelOffsetCandidates(
-        datum,
-        footprint.width,
-        footprint.height,
-        input.entityMarkerRadiusPx(entity.worldInstanceId),
-      )[0] ?? [0, 0];
-      const interactionDatum = withLabelPixelOffset(datum, offset);
-      interactionLabels.push(interactionDatum);
-      placedByKey.set(key, interactionDatum);
-      byKey.set(key, interactionDatum);
+      queueInteractionLabel(datum, input.entityMarkerRadiusPx(entity.worldInstanceId));
     }
   }
 
@@ -2577,24 +2746,25 @@ function labelDatums(input: {
               position,
               emphasized: true,
             });
-      const footprint = labelFootprint(datum);
-      const offset = labelOffsetCandidates(datum, footprint.width, footprint.height, 0)[0] ?? [
-        0, 0,
-      ];
-      const interactionDatum = withLabelPixelOffset(datum, offset);
-      interactionLabels.push(interactionDatum);
-      placedByKey.set(key, interactionDatum);
-      byKey.set(key, interactionDatum);
+      queueInteractionLabel(datum, 0);
     }
   }
 
+  const datums =
+    interactionLabels.length === 0
+      ? placed
+      : placeWorldLabelDatums(
+          Object.freeze([...placed, ...interactionLabels]),
+          input.zoom,
+          (datum) => markerRadiusByKey.get(datum.key) ?? 0,
+          input.relationships,
+        );
+  const finalByKey = new Map(datums.map((datum) => [datum.key, datum] as const));
   for (const key of [...byKey.keys()]) {
-    const placedDatum = placedByKey.get(key);
+    const placedDatum = finalByKey.get(key);
     if (placedDatum) byKey.set(key, placedDatum);
     else byKey.delete(key);
   }
-  const datums =
-    interactionLabels.length === 0 ? placed : Object.freeze([...placed, ...interactionLabels]);
   return { datums, byKey };
 }
 

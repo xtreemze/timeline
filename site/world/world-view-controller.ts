@@ -8,6 +8,7 @@ import {
   createWorldNodeDragController,
   type WorldNodeDragPosition,
 } from "../../src/interaction/world-node-drag-controller.ts";
+import type { WorldDagLayoutOrientation } from "../../src/layout/world-dag-layout.ts";
 import {
   applyWorldForceLayoutUpdate,
   updateWorldForceLayoutInstance,
@@ -93,6 +94,7 @@ export class WorldViewRuntimeController {
   #renderOverrides = new Map<WorldInstanceId, ProjectedWorldInstance>();
   #renderProjectionDirty = false;
   #projectionRevision = 0;
+  #dagOrientation: WorldDagLayoutOrientation = "top-to-bottom";
   #sinceLayoutPush = Number.POSITIVE_INFINITY;
   #destroyed = false;
 
@@ -146,9 +148,9 @@ export class WorldViewRuntimeController {
     // Seed force from the same continuity-preserving projection that reaches
     // the renderer. The first visible committed frame and the first physics
     // frame therefore share one position instead of producing a one-frame snap.
-    const forceScene = this.#forcePolicy
-      ? createWorldForceScene(renderProjection, this.#forcePolicy)
-      : createWorldForceScene(renderProjection);
+    const forceScene = createWorldForceScene(renderProjection, this.#forcePolicy, {
+      dagOrientation: this.#dagOrientation,
+    });
     this.#forceBackend.setScene(forceScene);
     this.#surface.setRelationshipRoutes?.(forceScene.relationshipRoutes ?? Object.freeze([]));
     this.#simulation.request({
@@ -185,6 +187,27 @@ export class WorldViewRuntimeController {
   }
 
   /**
+   * Reorient Sugiyama flow to the current viewport without changing authored
+   * geography. D3 preserves same-place live state while new targets become soft
+   * forces, so an orientation transition reorganizes instead of snapping.
+   */
+  setDagOrientation(orientation: WorldDagLayoutOrientation): boolean {
+    this.#assertAlive();
+    if (orientation === this.#dagOrientation) return false;
+    this.#dagOrientation = orientation;
+    if (!this.#sourceProjection) return true;
+
+    const projection = this.getRenderProjection() ?? this.#sourceProjection;
+    const forceScene = createWorldForceScene(projection, this.#forcePolicy, {
+      dagOrientation: this.#dagOrientation,
+    });
+    this.#forceBackend.setScene(forceScene);
+    this.#surface.setRelationshipRoutes?.(forceScene.relationshipRoutes ?? Object.freeze([]));
+    this.#reheatTopology(0.18);
+    return true;
+  }
+
+  /**
    * Rebuild local Sugiyama targets and route hints for the current projection.
    * Geographic anchors are retained verbatim; only the entity layout around
    * each anchor is reorganized, then D3 force moves toward the new soft targets.
@@ -193,13 +216,10 @@ export class WorldViewRuntimeController {
     this.#assertAlive();
     if (!this.#sourceProjection) return false;
 
-    const forceScene = this.#forcePolicy
-      ? createWorldForceScene(this.#sourceProjection, this.#forcePolicy, {
-          reorganizeDag: true,
-        })
-      : createWorldForceScene(this.#sourceProjection, undefined, {
-          reorganizeDag: true,
-        });
+    const forceScene = createWorldForceScene(this.#sourceProjection, this.#forcePolicy, {
+      reorganizeDag: true,
+      dagOrientation: this.#dagOrientation,
+    });
     this.#forceBackend.setScene(forceScene);
     this.#surface.setRelationshipRoutes?.(forceScene.relationshipRoutes ?? Object.freeze([]));
     this.#reheatTopology(0.18);

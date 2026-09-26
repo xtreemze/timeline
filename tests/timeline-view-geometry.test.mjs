@@ -53,12 +53,17 @@ test("timeline axis placement resolves CSS percentages and pixels without JavaSc
   assert.equal(geometry.axisCrossFromCss("invalid", 240, 0.5), 120);
 });
 
-test("landscape timeline mirrors portrait edge bias across desktop and compact rails", async () => {
+test("wide portrait and landscape rails share one physical edge gutter", async () => {
   const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
 
   assert.match(
     css,
-    /@media \(min-width: 700px\)[\s\S]*#timeline-view\[data-orientation="portrait"\][\s\S]*--timeline-axis-cross:\s*68%[\s\S]*#timeline-view\[data-orientation="landscape"\][\s\S]*--timeline-axis-cross:\s*68%/,
+    /@media \(min-width: 700px\)[\s\S]*--timeline-edge-gutter:\s*clamp\(64px,\s*8\.64dvh,\s*92\.16px\)/,
+  );
+  assert.equal(
+    (css.match(/--timeline-axis-cross:\s*calc\(100% - var\(--timeline-edge-gutter\)\)/g) ?? [])
+      .length,
+    2,
   );
   assert.match(
     css,
