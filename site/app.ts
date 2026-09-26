@@ -400,6 +400,8 @@ const els = {
   browserStoryCount: requiredElement<HTMLElement>("#browser-story-count"),
   focusPrev: requiredElement<HTMLButtonElement>("#timeline-focus-prev"),
   focusNext: requiredElement<HTMLButtonElement>("#timeline-focus-next"),
+  relatedZoom: requiredElement<HTMLButtonElement>("#timeline-related-zoom"),
+  relatedFit: requiredElement<HTMLButtonElement>("#timeline-related-fit"),
   loadSample: requiredElement<HTMLButtonElement>("#load-sample"),
   importJson: requiredElement<HTMLInputElement>("#import-json"),
   importInterchange: requiredElement<HTMLInputElement>("#import-interchange"),
@@ -1621,6 +1623,10 @@ function syncTimelineContextControls() {
   els.focusNext.hidden = false;
   els.focusPrev.disabled = false;
   els.focusNext.disabled = false;
+  els.relatedZoom.hidden = !focused;
+  els.relatedFit.hidden = !focused;
+  els.relatedZoom.disabled = !focusedGraphContextAvailable;
+  els.relatedFit.disabled = !focusedGraphContextAvailable;
 
   if (els.editorToggle) {
     const editableFocus = focused && navigation?.editable === true;
@@ -4445,6 +4451,16 @@ els.focusNext.addEventListener("click", () => {
   timelineView?.focusAdjacent(1, { reference: "viewport" });
   syncTimelineContextControls();
 });
+els.relatedZoom.addEventListener("click", () => {
+  if (!temporalGraphView?.zoomContext?.()) {
+    showStatus("This occurrence has no related nodes to zoom to.");
+  }
+});
+els.relatedFit.addEventListener("click", () => {
+  if (!temporalGraphView?.fitContext?.()) {
+    showStatus("This occurrence has no related nodes to fit.");
+  }
+});
 
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
@@ -5278,12 +5294,21 @@ els.timelineViewRoot.addEventListener("timelinefocusrender", () => {
 els.graphViewRoot.addEventListener("graphcontextchange", (event) => {
   focusedGraphContextAvailable = Boolean(event.detail?.hasContext);
   syncContextualPresentationPanels();
+  syncTimelineContextControls();
   schedulePresentationGeometryRefresh({ recenterGraph: true });
 });
 els.timelineViewRoot.addEventListener("timelinefocusedit", (event) => {
   if (!event.detail?.id) return;
   setEditorSurfaceOpen(true);
   beginItemEdit(event.detail.id);
+  requestAnimationFrame(() => {
+    const field = event.detail?.field;
+    if (field === "description") els.itemDescription.focus({ preventScroll: true });
+    else if (field === "media") {
+      els.itemMediaDetails.open = true;
+      els.itemMediaDetails.focus({ preventScroll: true });
+    } else els.itemTitle.focus({ preventScroll: true });
+  });
 });
 async function openEvidenceRecord(id: string) {
   const record = state.evidence.find((candidate) => candidate.id === id);
