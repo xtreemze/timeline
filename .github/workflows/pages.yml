@@ -40,6 +40,14 @@ jobs:
           test -d dist/assets
           test "$(find dist/assets -type f -name '*.js' | wc -l)" -gt 0
           test "$(find dist/assets -type f | wc -l)" -gt 1
+          test -s dist/manifest.webmanifest
+          test -s dist/sw.js
+          test -s dist/pwa-icon-192.png
+          test -s dist/pwa-icon-512.png
+          test -s dist/pwa-maskable-512.png
+          test -s dist/pwa-icon-192.svg
+          test -s dist/pwa-icon-512.svg
+          test -s dist/pwa-maskable-512.svg
           if grep -Eq 'src="[^"]+\.ts([?#][^"]*)?"' dist/index.html; then
             echo "Built entry point still references raw TypeScript modules"
             exit 1
