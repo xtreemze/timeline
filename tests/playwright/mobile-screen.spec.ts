@@ -107,8 +107,8 @@ test.describe("Narrow mobile screen contracts", () => {
 
     const axisY = axisBox.y + axisBox.height / 2;
     const axisRatio = (axisY - surfaceBox.y) / surfaceBox.height;
-    expect(axisRatio).toBeGreaterThan(0.44);
-    expect(axisRatio).toBeLessThan(0.48);
+    expect(axisRatio).toBeGreaterThan(0.56);
+    expect(axisRatio).toBeLessThan(0.6);
     expect(Math.abs(worldBox.y + worldBox.height - surfaceBox.y)).toBeLessThanOrEqual(3);
 
     const terminals = page.locator(

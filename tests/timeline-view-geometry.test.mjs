@@ -53,6 +53,19 @@ test("timeline axis placement resolves CSS percentages and pixels without JavaSc
   assert.equal(geometry.axisCrossFromCss("invalid", 240, 0.5), 120);
 });
 
+test("landscape timeline mirrors portrait edge bias across desktop and compact rails", async () => {
+  const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
+
+  assert.match(
+    css,
+    /@media \(min-width: 700px\)[\s\S]*#timeline-view\[data-orientation="portrait"\][\s\S]*--timeline-axis-cross:\s*68%[\s\S]*#timeline-view\[data-orientation="landscape"\][\s\S]*--timeline-axis-cross:\s*68%/,
+  );
+  assert.match(
+    css,
+    /@media \(max-width: 699px\)[\s\S]*#timeline-view\[data-orientation="portrait"\][\s\S]*--timeline-axis-cross:\s*58%[\s\S]*#timeline-view\[data-orientation="landscape"\][\s\S]*--timeline-axis-cross:\s*58%/,
+  );
+});
+
 test("compact horizontal mobile rails cap visible lanes before cards consume the world surface", () => {
   assert.equal(geometry.committedLaneLimit("horizontal", 184, 360), 2);
   assert.equal(geometry.committedLaneLimit("horizontal", 253, 390), 2);

@@ -3314,7 +3314,9 @@
   #app-shell[data-graph-open="true"]
     #timeline-view[data-orientation="landscape"]
     > .timeline-surface {
-    --timeline-axis-cross: 48%;
+    /* Match portrait's outer-edge spacing: chronology content expands inward
+       while date context keeps the same compact gutter at the physical edge. */
+    --timeline-axis-cross: 68%;
     top: auto;
     right: 0;
     bottom: var(--relations-bottom-safe);
@@ -3413,7 +3415,8 @@
     right: 0;
     bottom: var(--mobile-bottom-chrome);
     left: 0;
-    --timeline-axis-cross: 46%;
+    /* Compact horizontal chronology mirrors the portrait rail's edge gutter. */
+    --timeline-axis-cross: 58%;
     width: 100%;
     max-width: none;
     height: var(--mobile-relations-block-rail);
