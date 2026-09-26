@@ -1,5 +1,6 @@
 import { D3WorldForceSimulation } from "../../src/layout/d3-world-force-simulation.ts";
 import type { WorldForceLayoutSample } from "../../src/layout/world-force-layout.ts";
+import type { WorldCameraState } from "../../src/layout/world-surface.ts";
 import type { WorldForceSimulationBackend } from "../../src/layout/world-force-simulation.ts";
 import { LuumWorldSurfaceElement } from "../components/world-surface-element.ts";
 import { createIcon } from "../event-presentation.ts";
@@ -31,6 +32,7 @@ export interface WorldApplicationView {
   refreshLayout(): void;
   reorganizeDag(): boolean;
   relaxForce(): boolean;
+  getCamera(): WorldCameraState;
   destroy(): void;
 }
 
@@ -122,6 +124,7 @@ class ScheduledWorldProjectionView implements WorldApplicationView {
   readonly #view: WorldProjectionView;
   readonly #runtime: WorldViewRuntimeController;
   readonly #scheduler: WorldFrameScheduler;
+  readonly #surface: DeckWorldSurface;
   readonly #cleanup?: () => void;
 
   #frame = 0;
@@ -135,11 +138,13 @@ class ScheduledWorldProjectionView implements WorldApplicationView {
     view: WorldProjectionView,
     runtime: WorldViewRuntimeController,
     scheduler: WorldFrameScheduler,
+    surface: DeckWorldSurface,
     cleanup?: () => void,
   ) {
     this.#view = view;
     this.#runtime = runtime;
     this.#scheduler = scheduler;
+    this.#surface = surface;
     this.#cleanup = cleanup;
   }
 
@@ -208,6 +213,11 @@ class ScheduledWorldProjectionView implements WorldApplicationView {
       this.#schedule();
     }
     return changed;
+  }
+
+  getCamera(): WorldCameraState {
+    this.#assertAlive();
+    return this.#surface.getCamera();
   }
 
   wake(): void {
@@ -335,7 +345,7 @@ export function createWorldViewFactory(options: WorldViewFactoryOptions): WorldV
       });
       const view = new WorldProjectionView(runtime);
       let layoutControls: HTMLElement | null = null;
-      const scheduledView = new ScheduledWorldProjectionView(view, runtime, scheduler, () => {
+      const scheduledView = new ScheduledWorldProjectionView(view, runtime, scheduler, surface, () => {
         layoutControls?.remove();
         layoutControls = null;
       });
