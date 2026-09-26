@@ -70,6 +70,7 @@ function harness({
   delta = false,
   gpuBridge = false,
   renderedPositions = null,
+  renderedContinuity = null,
 } = {}) {
   const calls = [];
   const diagnostics = { running: false, settled, energy: 0, iteration: 0 };
@@ -121,6 +122,13 @@ function harness({
   if (renderedPositions) {
     surface.getRenderedInstancePositions = () => renderedPositions;
   }
+  if (renderedContinuity) {
+    surface.getRenderedInstanceContinuity = () => renderedContinuity;
+  }
+  surface.setProjectionHandoffPresentation = (value) =>
+    calls.push(["surface:handoff", value]);
+  surface.clearProjectionHandoffPresentation = () =>
+    calls.push(["surface:handoff-clear"]);
 
   const backend = {
     setScene(scene) {
@@ -204,17 +212,29 @@ test("projection updates feed force scene and WorldSurface from one revision", (
   assert.deepEqual(calls[3], ["surface:projection", input]);
 });
 
-test("committed temporal anchor changes keep the exact rendered position for the force handoff", () => {
+test("committed temporal anchor changes preserve exact Deck presentation for force handoff", () => {
   const aliceId = worldInstanceId("alice", "meeting");
   const visiblePosition = Object.freeze({
     longitude: 18.2,
     latitude: 59.4,
-    altitudeMeters: 1600,
+    altitudeMeters: 3_100,
   });
+  const offsetScale = 3.5;
+  const floatMeters = 2_400;
+  const renderedContinuity = new Map([
+    [
+      aliceId,
+      Object.freeze({
+        position: visiblePosition,
+        offsetScale,
+        floatMeters,
+      }),
+    ],
+  ]);
   const { calls, controller } = harness({
     readback: true,
     delta: true,
-    renderedPositions: new Map([[aliceId, visiblePosition]]),
+    renderedContinuity,
   });
   const initial = projection();
 
@@ -245,13 +265,16 @@ test("committed temporal anchor changes keep the exact rendered position for the
 
   const after = controller.getRenderProjection();
   const afterAlice = after.instances.find((instance) => instance.canonicalId === "alice");
-  const afterPosition = resolveWorldRenderPosition(afterAlice);
+  const afterPosition = resolveWorldRenderPosition(afterAlice, offsetScale, floatMeters);
   assert.ok(afterPosition);
   assert.ok(Math.abs(afterPosition[0] - visiblePosition.longitude) < 1e-9);
   assert.ok(Math.abs(afterPosition[1] - visiblePosition.latitude) < 1e-9);
   assert.ok(Math.abs(afterPosition[2] - visiblePosition.altitudeMeters) < 1e-9);
   assert.equal(afterAlice.geographicAnchors[0].placeId, "copenhagen");
   assert.equal(afterAlice.temporalWeight, 0.75);
+
+  const handoffCall = calls.filter(([name]) => name === "surface:handoff").at(-1);
+  assert.equal(handoffCall?.[1], renderedContinuity);
 
   const latestScene = calls.filter(([name]) => name === "force:scene").at(-1)?.[1];
   const forceAlice = latestScene.nodes.find((node) => node.canonicalId === "alice");
