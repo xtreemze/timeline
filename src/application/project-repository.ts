@@ -76,6 +76,7 @@ interface PersistedRecord extends Record<string, unknown> {
   readonly format?: unknown;
   readonly id?: unknown;
   readonly identifiers?: unknown;
+  readonly identityResolution?: unknown;
   readonly itemIds?: unknown;
   readonly name?: unknown;
   readonly objectContext?: unknown;
@@ -177,6 +178,14 @@ function assertEntityShape(value: unknown): CanonicalEntity {
   if (!isStringArray(value.sourceIds)) {
     throw new Error("Entity sourceIds must be a string array.");
   }
+  if (
+    value.identityResolution !== undefined &&
+    !["identified", "unresolved", "disputed"].includes(String(value.identityResolution))
+  ) {
+    throw new Error(
+      "Entity identityResolution must be identified, unresolved, or disputed when present.",
+    );
+  }
   if (!isRecord(value.attributes)) {
     throw new Error("Entity attributes must be an object.");
   }
@@ -193,6 +202,12 @@ function assertEntityShape(value: unknown): CanonicalEntity {
     type: requireNonEmptyString(value.type, "Entity type"),
     name: requireNonEmptyString(value.name, "Entity name"),
     alternateNames: [...value.alternateNames],
+    ...(typeof value.identityResolution === "string"
+      ? {
+          identityResolution:
+            value.identityResolution as NonNullable<CanonicalEntity["identityResolution"]>,
+        }
+      : {}),
     ...(identifiers
       ? { identifiers: identifiers as NonNullable<CanonicalEntity["identifiers"]> }
       : {}),
