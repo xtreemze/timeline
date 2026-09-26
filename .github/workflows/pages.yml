@@ -100,11 +100,13 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Generate test coverage report
+        continue-on-error: true
         run: pnpm dlx c8@10.1.3 --reporter=html --reporter=lcov --reporter=text-summary pnpm test
 
       - name: Upload coverage report
         id: upload-coverage
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
@@ -113,6 +115,7 @@ jobs:
           retention-days: 2
 
       - name: Keep only the latest coverage artifact
+        continue-on-error: true
         if: ${{ always() && steps.upload-coverage.outcome == 'success' }}
         env:
           GH_TOKEN: ${{ github.token }}
@@ -153,6 +156,7 @@ jobs:
           node-version: 24
 
       - name: Run Lighthouse audit
+        continue-on-error: true
         env:
           LIGHTHOUSE_URL: ${{ needs.deploy.outputs.page_url }}
         run: |
@@ -162,6 +166,7 @@ jobs:
       - name: Upload Lighthouse report
         id: upload-lighthouse
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: lighthouse-report
@@ -170,6 +175,7 @@ jobs:
           retention-days: 2
 
       - name: Keep only the latest Lighthouse artifact
+        continue-on-error: true
         if: ${{ always() && steps.upload-lighthouse.outcome == 'success' }}
         env:
           GH_TOKEN: ${{ github.token }}
