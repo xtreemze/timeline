@@ -409,6 +409,15 @@ export function normalizeRecord(
     record.linkageConfidence = text(raw.linkageConfidence ?? raw.confidence, 80);
   } else if (type === "observation") {
     record.evidenceIds = idList(raw.evidenceIds);
+    record.itemIds = idList(raw.itemIds ?? (raw.itemId ? [raw.itemId] : []));
+    record.relationshipIds = idList(
+      raw.relationshipIds ?? (raw.relationshipId ? [raw.relationshipId] : []),
+    );
+    record.placeIds = idList(raw.placeIds ?? (raw.placeId ? [raw.placeId] : []));
+    record.entityIds = idList(raw.entityIds ?? (raw.entityId ? [raw.entityId] : []));
+    record.trajectoryIds = idList(
+      raw.trajectoryIds ?? (raw.trajectoryId ? [raw.trajectoryId] : []),
+    );
     record.methodId = text(raw.methodId, 160);
     record.temporalScope =
       raw.temporalScope && typeof raw.temporalScope === "object"
@@ -553,6 +562,10 @@ export function dependencyIds(record: Record<string, any>): string[] {
     "basisIds",
     "answerAssertionIds",
     "resultIds",
+    "itemIds",
+    "relationshipIds",
+    "placeIds",
+    "entityIds",
   ];
   const result: string[] = [];
   const seen = new Set<string>();
