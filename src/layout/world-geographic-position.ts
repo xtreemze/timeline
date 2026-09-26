@@ -141,7 +141,6 @@ export function resolveWorldLocalLayoutPosition(
   });
 }
 
-
 /**
  * Carries the current derived world position into a newly committed projection.
  *
@@ -160,7 +159,9 @@ export function preserveWorldProjectionRenderContinuity(
   previous: WorldProjection,
   next: WorldProjection,
 ): WorldProjection {
-  const previousById = new Map(previous.instances.map((instance) => [instance.id, instance] as const));
+  const previousById = new Map(
+    previous.instances.map((instance) => [instance.id, instance] as const),
+  );
   let changed = false;
 
   const instances = next.instances.map((instance) => {
