@@ -290,10 +290,14 @@ function assertManifest(manifest, formFactor) {
     throw new Error(`${formFactor} manifest must request a 60 fps showcase capture`);
   }
   if (manifest.minimumMeasuredCaptureFps !== 59) {
-    throw new Error(`${formFactor} manifest must require at least 59 measured source frames per second`);
+    throw new Error(
+      `${formFactor} manifest must require at least 59 measured source frames per second`,
+    );
   }
   if (manifest.maximumMeasuredCaptureFps !== 61) {
-    throw new Error(`${formFactor} manifest must reject uncapped capture above 61 measured frames per second`);
+    throw new Error(
+      `${formFactor} manifest must reject uncapped capture above 61 measured frames per second`,
+    );
   }
   if (manifest.minimumPacedIntervalSeconds !== 0.012) {
     throw new Error(`${formFactor} manifest must require native frame intervals of at least 12 ms`);
@@ -302,7 +306,9 @@ function assertManifest(manifest, formFactor) {
     throw new Error(`${formFactor} manifest must require native frame intervals of at most 22 ms`);
   }
   if (manifest.minimumPacedIntervalRatio !== 0.95) {
-    throw new Error(`${formFactor} manifest must require at least 95% native-paced frame intervals`);
+    throw new Error(
+      `${formFactor} manifest must require at least 95% native-paced frame intervals`,
+    );
   }
   if (!Array.isArray(manifest.segments) || manifest.segments.length !== 5) {
     throw new Error(`${formFactor} manifest must contain exactly five showcase scenes`);
@@ -316,7 +322,8 @@ function assertManifest(manifest, formFactor) {
     );
   }
   for (const segment of motion) {
-    if (!segment.video) throw new Error(`Motion scene ${segment.name} is missing its Matroska source`);
+    if (!segment.video)
+      throw new Error(`Motion scene ${segment.name} is missing its Matroska source`);
   }
 }
 
