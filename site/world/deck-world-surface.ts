@@ -3548,6 +3548,10 @@ export class DeckWorldSurface implements WorldSurface {
     // stale positions.
     if (this.#zoomNeedsRender()) this.#render(true);
     else this.#deck.setProps({ viewState: this.#camera });
+    // Camera toolbar commands are discrete and should paint immediately. This
+    // also keeps the experimental WebGPU backend from waiting for a later
+    // layer invalidation before presenting the new controlled view state.
+    this.#deck.redraw(true);
   }
 
   focusEntity(id: EntityId): void {
