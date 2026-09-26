@@ -1,0 +1,9 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "lum_public": {
+      "type": "streamable-http",
+      "url": "https://YOUR-LUM-MCP-HOST.example/mcp"
+    }
+  }
+}
