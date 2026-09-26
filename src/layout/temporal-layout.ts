@@ -148,18 +148,20 @@ export function planLaneCrossOffsets(
     laneSizes.set(lane, Math.max(laneSizes.get(lane) ?? 0, size));
   }
 
-  const maxLane = Math.max(-1, ...laneSizes.keys());
-  if (maxLane < 0) return Object.freeze({});
+  const occupiedLanes = [...laneSizes.keys()].sort((left, right) => left - right);
+  if (!occupiedLanes.length) return Object.freeze({});
 
   const offsets: Record<number, number> = {};
   let offset = axisOffsetPx;
-  for (let lane = 0; lane <= maxLane; lane += 1) {
-    if (lane > 0) {
-      const previousSize = laneSizes.get(lane - 1) ?? 0;
+  let previousLane: number | null = null;
+  for (const lane of occupiedLanes) {
+    if (previousLane !== null) {
+      const previousSize = laneSizes.get(previousLane) ?? 0;
       const currentSize = laneSizes.get(lane) ?? previousSize;
       offset += Math.max(previousSize, currentSize) + laneGapPx + routingSlackPx;
     }
     offsets[lane] = offset;
+    previousLane = lane;
   }
 
   return Object.freeze(offsets);
