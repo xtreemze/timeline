@@ -1146,11 +1146,22 @@ export function methodologyReview(reasoning: any, options: any = {}) {
           ["discriminate", "falsify"].includes(enquiry.testType) &&
           enquiry.hypothesisIds.some((id: string) => hypothesisIds.has(id)),
       );
+      const coveredHypothesisIds = new Set<string>();
+      for (const enquiry of enquiries) {
+        for (const hypothesisId of enquiry.hypothesisIds) {
+          if (hypothesisIds.has(hypothesisId)) coveredHypothesisIds.add(hypothesisId);
+        }
+      }
+      const missingHypothesisIds = [...hypothesisIds]
+        .filter((hypothesisId) => !coveredHypothesisIds.has(hypothesisId))
+        .sort();
       return {
         alternativeGroupId,
         hypothesisIds: [...hypothesisIds].sort(),
         enquiryIds: enquiries.map((enquiry: any) => enquiry.id).sort(),
-        hasDisconfirmingTest: enquiries.length > 0,
+        coveredHypothesisIds: [...coveredHypothesisIds].sort(),
+        missingHypothesisIds,
+        hasDisconfirmingTest: missingHypothesisIds.length === 0,
       };
     },
   );
