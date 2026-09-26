@@ -43,12 +43,15 @@ test("render window biases overscan toward predicted pan travel", () => {
   assert.ok(100 - backward.start > backward.end - 200);
 });
 
-test("ranges are selected by interval intersection even when both endpoints are outside", () => {
+test("ranges are selected by interval intersection and can keep a stable presentation bias", () => {
   const window = { start: 400, end: 700 };
   assert.equal(itemOverlapsWindow({ start: 0, end: 1000 }, window), true);
   assert.equal(itemOverlapsWindow({ start: 0, end: 399 }, window), false);
   assert.equal(itemOverlapsWindow({ start: 701, end: 900 }, window), false);
   assert.equal(visibleIntervalAnchor({ start: 0, end: 1000 }, window), 550);
+  assert.equal(visibleIntervalAnchor({ start: 0, end: 1000 }, window, 0.24), 472);
+  assert.equal(visibleIntervalAnchor({ start: 0, end: 1000 }, window, 0.76), 628);
+  assert.equal(visibleIntervalAnchor({ start: 500, end: null }, window, 0.24), 500);
 });
 
 test("interaction retention accumulates render windows and collapses on commit", () => {

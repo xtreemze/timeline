@@ -111,6 +111,7 @@ export function itemOverlapsWindow(
 export function visibleIntervalAnchor(
   occurrence: Pick<TemporalOccurrence, "start" | "end">,
   extent: TemporalWindow,
+  ratio = 0.5,
 ): number | null {
   if (!itemOverlapsWindow(occurrence, extent)) {
     return null;
@@ -121,7 +122,8 @@ export function visibleIntervalAnchor(
   const normalized = normalizeWindow(extent);
   const visibleStart = Math.max(occurrence.start, normalized.start);
   const visibleEnd = Math.min(Number(occurrence.end), normalized.end);
-  return visibleStart + (visibleEnd - visibleStart) / 2;
+  const normalizedRatio = Math.min(1, Math.max(0, finite(ratio, 0.5)));
+  return visibleStart + (visibleEnd - visibleStart) * normalizedRatio;
 }
 
 export function createRenderWindow(
