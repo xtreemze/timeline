@@ -83,3 +83,56 @@ test("grouped relationships produce one canonical temporal occurrence identity",
     ["signing-ceremony"],
   );
 });
+
+
+test("incoherent grouped timing falls back to child relationship chronology", () => {
+  const relationships = [
+    {
+      id: relationshipId("first"),
+      subjectId: entityId("alice"),
+      objectId: entityId("agreement"),
+      predicate: "signed",
+      itemIds: [],
+      sourceIds: [],
+      confidence: 1,
+      time: { type: "instant", start: { value: "100" } },
+      attributes: {},
+    },
+    {
+      id: relationshipId("second"),
+      subjectId: entityId("bob"),
+      objectId: entityId("agreement"),
+      predicate: "signed",
+      itemIds: [],
+      sourceIds: [],
+      confidence: 1,
+      time: { type: "instant", start: { value: "200" } },
+      attributes: {},
+    },
+  ];
+  const projected = projectCanonicalOccurrences(
+    {
+      schemaVersion: 3,
+      entities: [],
+      relationships,
+      occurrences: [
+        {
+          id: occurrenceId("ambiguous-signing"),
+          occurrenceType: "meeting",
+          time: null,
+          participantContexts: [],
+          relationshipIds: relationships.map((relationship) => relationship.id),
+          sourceIds: [],
+          confidence: null,
+          attributes: {},
+        },
+      ],
+    },
+    (endpoint) => Number(endpoint?.value),
+  );
+
+  assert.deepEqual(
+    projected.map((occurrence) => String(occurrence.id)),
+    ["first", "second"],
+  );
+});
