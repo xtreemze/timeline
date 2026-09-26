@@ -17,6 +17,7 @@ on:
       - 'docs/FORMAL-PRESENTATION.md'
       - 'README.md'
       - '.github/workflows/e2e-media.yml'
+      - '.github/xorg-dummy-60.conf'
       - '.github/workflows/pages.yml'
   push:
     branches: [main]
@@ -35,6 +36,7 @@ on:
       - 'docs/FORMAL-PRESENTATION.md'
       - 'README.md'
       - '.github/workflows/e2e-media.yml'
+      - '.github/xorg-dummy-60.conf'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -66,13 +68,29 @@ jobs:
       - name: Install Chromium
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Install FFmpeg
+      - name: Install capture runtime
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg
+          sudo apt-get install -y ffmpeg xserver-xorg-core xserver-xorg-video-dummy x11-utils x11-xserver-utils
+
+      - name: Start native 60 Hz virtual display
+        run: |
+          sudo Xorg :99 -ac -noreset -nolisten tcp -config "$GITHUB_WORKSPACE/.github/xorg-dummy-60.conf" >"$RUNNER_TEMP/xorg-showcase.log" 2>&1 &
+          for attempt in $(seq 1 40); do
+            if DISPLAY=:99 xdpyinfo >/dev/null 2>&1; then
+              break
+            fi
+            sleep 0.25
+          done
+          DISPLAY=:99 xdpyinfo >/dev/null
+          DISPLAY=:99 xrandr --current
+          DISPLAY=:99 xrandr --current | grep -E '1920x1080_60\.00.*60\.00\*'
+          echo "DISPLAY=:99" >> "$GITHUB_ENV"
+          echo "SHOWCASE_X11_WIDTH=1920" >> "$GITHUB_ENV"
+          echo "SHOWCASE_X11_HEIGHT=1080" >> "$GITHUB_ENV"
 
       - name: Record source-native showcase media
-        run: xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" pnpm test:e2e:showcase
+        run: pnpm test:e2e:showcase
 
       - name: Render desktop and mobile reels and showcase assets
         run: pnpm render:e2e:showcase
