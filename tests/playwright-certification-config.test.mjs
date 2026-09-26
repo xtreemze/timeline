@@ -146,7 +146,7 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightConfig, /--disable-renderer-backgrounding/);
   assert.match(highlightConfig, /--disable-backgrounding-occluded-windows/);
   assert.doesNotMatch(highlightConfig, /--disable-frame-rate-limit/);
-  assert.doesNotMatch(highlightConfig, /--disable-gpu-vsync/);
+  assert.match(highlightConfig, /--disable-gpu-vsync/);
   assert.match(highlightConfig, /--window-position=0,0/);
   assert.doesNotMatch(highlightConfig, /auto-accept-this-tab-capture/);
 
