@@ -2999,11 +2999,14 @@ export class DeckWorldSurface implements WorldSurface {
 
     if (this.#activeDragPointerId === touch.pointerId) {
       event.preventDefault?.();
-      event.stopPropagation?.();
       this.#touchDrag.release(touch.pointerId);
       this.#clearTouchHoldTimer();
       this.#setTouchDragState(null);
       this.#finishTouchEntityDrag(touch.pointerId);
+      // deck.gl/Mjolnir already observed this contact's pointerdown before the
+      // long-press handoff. Let the matching terminal event reach it so its
+      // touch recognizer cannot retain a phantom first finger and interpret
+      // the next single touch as a two-finger rotate/pinch gesture.
       return;
     }
 
