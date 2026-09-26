@@ -208,3 +208,93 @@ for (const orientation of ["horizontal", "vertical"] as const) {
     await expect(probe).toHaveAttribute("data-continuity-identity", "probe-stable-dom");
   });
 }
+
+
+test("long range cards yield the temporal midpoint to exact-date events without moving the range", async ({
+  page,
+}) => {
+  await page.evaluate(() => {
+    const controller = Reflect.get(globalThis, "__timelineContinuityController") as
+      | {
+          setOrientation(value: string): void;
+          setItems(items: unknown[]): void;
+          fitAll(): void;
+        }
+      | undefined;
+    if (!controller) throw new Error("Timeline continuity controller is unavailable.");
+
+    const origin = Date.parse("2026-01-01T00:00:00Z");
+    const day = 86_400_000;
+    controller.setOrientation("horizontal");
+    controller.setItems([
+      {
+        id: "declutter-range",
+        kind: "range",
+        title: "Long investigation period",
+        start: origin,
+        end: origin + day * 100,
+        startLabel: "Jan 1",
+        endLabel: "Apr 11",
+      },
+      {
+        id: "declutter-instant",
+        kind: "event",
+        title: "Exact midpoint event",
+        start: origin + day * 50,
+        startLabel: "Feb 20",
+      },
+    ]);
+    controller.fitAll();
+  });
+  await twoFrames(page);
+
+  const rangeEvent = page.locator(
+    '#timeline-continuity-host .timeline-event[data-id="declutter-range"]',
+  );
+  const instantEvent = page.locator(
+    '#timeline-continuity-host .timeline-event[data-id="declutter-instant"]',
+  );
+  const rangeSegment = page.locator(
+    '#timeline-continuity-host .timeline-range-segment[data-id="declutter-range"]',
+  );
+  await expect(rangeEvent.locator(".timeline-event-terminal")).toBeVisible();
+  await expect(instantEvent.locator(".timeline-event-terminal")).toBeVisible();
+  await expect(rangeSegment).toBeVisible();
+
+  const geometry = await page.evaluate(() => {
+    const primaryTranslate = (selector: string) => {
+      const node = document.querySelector<HTMLElement>(selector);
+      if (!node) throw new Error(`Missing timeline node: ${selector}`);
+      const match = /translate3d\((-?[\d.]+)px,/.exec(node.style.transform);
+      if (!match) throw new Error(`Missing horizontal transform: ${node.style.transform}`);
+      return Number(match[1]);
+    };
+
+    const segment = document.querySelector<HTMLElement>(
+      '#timeline-continuity-host .timeline-range-segment[data-id="declutter-range"]',
+    );
+    if (!segment) throw new Error("Missing declutter range segment.");
+    const segmentStart = primaryTranslate(
+      '#timeline-continuity-host .timeline-range-segment[data-id="declutter-range"]',
+    );
+    const segmentWidth = Number.parseFloat(segment.style.width);
+    const controller = Reflect.get(globalThis, "__timelineContinuityController") as
+      | { committedLayout?: { anchorRatios?: Record<string, number> } }
+      | undefined;
+
+    return {
+      rangePrimary: primaryTranslate(
+        '#timeline-continuity-host .timeline-event[data-id="declutter-range"]',
+      ),
+      instantPrimary: primaryTranslate(
+        '#timeline-continuity-host .timeline-event[data-id="declutter-instant"]',
+      ),
+      rangeMidpoint: segmentStart + segmentWidth / 2,
+      anchorRatio: controller?.committedLayout?.anchorRatios?.["declutter-range"] ?? null,
+    };
+  });
+
+  expect(Math.abs(geometry.instantPrimary - geometry.rangeMidpoint)).toBeLessThanOrEqual(2);
+  expect(Math.abs(geometry.rangePrimary - geometry.rangeMidpoint)).toBeGreaterThan(32);
+  expect([0.24, 0.76]).toContain(geometry.anchorRatio);
+});

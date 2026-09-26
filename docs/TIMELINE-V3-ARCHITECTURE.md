@@ -185,12 +185,18 @@ The icon is semantic; terminal shape and connector style can provide redundant v
 The layout engine should:
 - assign deterministic lanes;
 - keep records with identical temporal coordinates as separate terminals and stack them perpendicular to the time axis rather than clustering them;
+- keep instant-event cards anchored to their exact temporal coordinate and prioritize those fixed cards for the lane nearest the axis;
+- treat an interval card's connector position as presentation-only: the range segment still owns the exact start/end extent, while sufficiently long visible ranges may place their card near the first or last quarter of the visible interval to keep the midpoint available for exact-date events;
+- choose interval-card anchor candidates with measured obstacle pressure, preferring positions that avoid instant cards first and other flexible ranges second;
+- preserve the previously chosen range side while it remains near-optimal so pan/zoom commits do not make cards flap between ends;
 - minimize connector crossings;
 - keep labels from obscuring ticks;
 - preserve a stable event position while zooming;
 - cluster or summarize when density exceeds available space;
-- expand a clicked/focused item without shifting the temporal coordinate;
+- expand a clicked/focused item without shifting any canonical temporal coordinate;
 - preserve keyboard focus through re-layout.
+
+The world DAG and timeline declutterers deliberately do not share the full `d3-dag` Sugiyama pass. Sugiyama layering is appropriate for relationship topology because both layout axes are derived; on a timeline the primary coordinate is evidence-bearing time and is not available for graph layout to move. The chronology instead reuses the useful DAG-layout principles—measured node footprints, greedy coordinate choice, deterministic tie breaking, and previous-layout hysteresis—inside a constrained temporal planner. Decrossing remains unnecessary for ordinary event connectors because each card has a single immutable axis anchor; timed relationship bands continue to use their separate routing layer.
 
 ## Entity model
 

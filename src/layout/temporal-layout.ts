@@ -21,6 +21,7 @@ export interface ClusterThresholds {
 
 export interface TemporalLayoutPrevious {
   readonly lanes?: Readonly<Record<string, number>>;
+  readonly anchorRatios?: Readonly<Record<string, number>>;
   readonly clusters?: readonly {
     readonly id?: string;
     readonly itemIds?: readonly string[];
@@ -50,6 +51,7 @@ export interface TemporalLayoutPlacement {
   readonly id: string;
   readonly lane: number;
   readonly position: number;
+  readonly anchorRatio: number;
   readonly inlineSize: number;
   readonly blockSize: number;
   readonly clustered: boolean;
@@ -57,6 +59,7 @@ export interface TemporalLayoutPlacement {
 
 export interface TemporalCommittedLayoutPlan {
   readonly lanes: Readonly<Record<string, number>>;
+  readonly anchorRatios: Readonly<Record<string, number>>;
   readonly clusters: readonly TemporalLayoutCluster[];
   readonly placements: readonly TemporalLayoutPlacement[];
 }
@@ -68,6 +71,14 @@ const DEFAULT_CLUSTER_THRESHOLDS: ClusterThresholds = {
   enterPx: 80,
   exitPx: 120,
 };
+
+const RANGE_ANCHOR_START_RATIO = 0.24;
+const RANGE_ANCHOR_END_RATIO = 0.76;
+const RANGE_ANCHOR_CENTER_RATIO = 0.5;
+const RANGE_ANCHOR_MIN_PROJECTED_SPAN_PX = 96;
+const RANGE_ANCHOR_MIN_CARD_RATIO = 0.62;
+const RANGE_ANCHOR_HYSTERESIS_SCORE_RATIO = 1.12;
+const RANGE_ANCHOR_HYSTERESIS_ALLOWANCE_PX = 8;
 
 function finite(value: unknown, fallback: number): number {
   const number = Number(value);
@@ -190,14 +201,210 @@ function pairKey(left: string, right: string): string {
   return left < right ? `${left}\u0000${right}` : `${right}\u0000${left}`;
 }
 
+function visibleExtent(
+  occurrence: TemporalLayoutOccurrence,
+  viewport: TemporalLayoutWindow,
+): { start: number; end: number } {
+  const end = Number.isFinite(occurrence.end) ? Number(occurrence.end) : occurrence.start;
+  return {
+    start: Math.max(occurrence.start, viewport.start),
+    end: Math.min(end, viewport.end),
+  };
+}
+
 function projectedPosition(
   occurrence: TemporalLayoutOccurrence,
   viewport: TemporalLayoutWindow,
   pixelLength: number,
+  anchorRatio = RANGE_ANCHOR_CENTER_RATIO,
 ): number {
-  const end = Number.isFinite(occurrence.end) ? Number(occurrence.end) : occurrence.start;
-  const anchor = occurrence.start + (end - occurrence.start) / 2;
+  const visible = visibleExtent(occurrence, viewport);
+  const ratio = Math.min(1, Math.max(0, finite(anchorRatio, RANGE_ANCHOR_CENTER_RATIO)));
+  const anchor = visible.start + Math.max(0, visible.end - visible.start) * ratio;
   return ((anchor - viewport.start) / (viewport.end - viewport.start)) * pixelLength;
+}
+
+interface TemporalAnchorObstacle {
+  readonly id: string;
+  readonly position: number;
+  readonly inlineSize: number;
+}
+
+function stableRangeSide(id: string): number {
+  let hash = 2166136261;
+  for (let index = 0; index < id.length; index += 1) {
+    hash ^= id.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0) % 2 === 0 ? RANGE_ANCHOR_START_RATIO : RANGE_ANCHOR_END_RATIO;
+}
+
+function collisionPressure(
+  position: number,
+  inlineSize: number,
+  obstacles: readonly TemporalAnchorObstacle[],
+  gapPx: number,
+): number {
+  let pressure = 0;
+  for (const obstacle of obstacles) {
+    const required =
+      Math.max(1, inlineSize) / 2 + Math.max(1, obstacle.inlineSize) / 2 + Math.max(0, gapPx);
+    pressure += Math.max(0, required - Math.abs(position - obstacle.position));
+  }
+  return pressure;
+}
+
+function anchorCandidateScore(
+  ratio: number,
+  occurrence: TemporalLayoutOccurrence,
+  viewport: TemporalLayoutWindow,
+  pixelLength: number,
+  measurement: TemporalLayoutMeasurement,
+  pointObstacles: readonly TemporalAnchorObstacle[],
+  rangeObstacles: readonly TemporalAnchorObstacle[],
+  laneGapPx: number,
+  offCenterEligible: boolean,
+  preferredSide: number,
+): number {
+  const position = projectedPosition(occurrence, viewport, pixelLength, ratio);
+  const half = measurement.inlineSize / 2;
+  const overflow = Math.max(0, half - position) + Math.max(0, position + half - pixelLength);
+  const pointPressure = collisionPressure(
+    position,
+    measurement.inlineSize,
+    pointObstacles,
+    laneGapPx,
+  );
+  const rangePressure = collisionPressure(
+    position,
+    measurement.inlineSize,
+    rangeObstacles,
+    laneGapPx,
+  );
+  const centerPenalty =
+    offCenterEligible && Math.abs(ratio - RANGE_ANCHOR_CENTER_RATIO) < 0.01
+      ? Math.min(56, measurement.inlineSize * 0.3)
+      : 0;
+  const stableSidePenalty =
+    offCenterEligible &&
+    Math.abs(ratio - RANGE_ANCHOR_CENTER_RATIO) >= 0.01 &&
+    Math.abs(ratio - preferredSide) >= 0.01
+      ? 0.5
+      : 0;
+
+  // Exact instants are the scarce coordinates in the chronology, so collisions
+  // with them carry much more weight than collisions between flexible ranges.
+  return (
+    overflow * 20 +
+    pointPressure * 8 +
+    rangePressure * 3 +
+    centerPenalty +
+    stableSidePenalty
+  );
+}
+
+function planAnchorRatios(
+  occurrences: readonly TemporalLayoutOccurrence[],
+  viewport: TemporalLayoutWindow,
+  pixelLength: number,
+  measurements: Readonly<Record<string, TemporalLayoutMeasurement>> | undefined,
+  previous: TemporalLayoutPrevious | undefined,
+  laneGapPx: number,
+): Readonly<Record<string, number>> {
+  const anchorRatios: Record<string, number> = {};
+  const pointObstacles: TemporalAnchorObstacle[] = [];
+  const ranges: TemporalLayoutOccurrence[] = [];
+
+  for (const occurrence of occurrences) {
+    if (Number.isFinite(occurrence.end) && Number(occurrence.end) > occurrence.start) {
+      ranges.push(occurrence);
+      continue;
+    }
+    const measurement = measurementFor(occurrence.id, measurements);
+    const position = projectedPosition(
+      occurrence,
+      viewport,
+      pixelLength,
+      RANGE_ANCHOR_CENTER_RATIO,
+    );
+    anchorRatios[occurrence.id] = RANGE_ANCHOR_CENTER_RATIO;
+    pointObstacles.push({
+      id: occurrence.id,
+      position,
+      inlineSize: measurement.inlineSize,
+    });
+  }
+
+  // Shorter ranges have less freedom, so reserve their useful positions first;
+  // longer ranges then adapt around those fixed/less-flexible obstacles.
+  ranges.sort((left, right) => {
+    const leftVisible = visibleExtent(left, viewport);
+    const rightVisible = visibleExtent(right, viewport);
+    const leftSpan = Math.max(0, leftVisible.end - leftVisible.start);
+    const rightSpan = Math.max(0, rightVisible.end - rightVisible.start);
+    return leftSpan - rightSpan || left.start - right.start || left.id.localeCompare(right.id);
+  });
+
+  const rangeObstacles: TemporalAnchorObstacle[] = [];
+  for (const occurrence of ranges) {
+    const measurement = measurementFor(occurrence.id, measurements);
+    const visible = visibleExtent(occurrence, viewport);
+    const visibleTemporalSpan = Math.max(0, visible.end - visible.start);
+    const projectedSpan =
+      (visibleTemporalSpan / Math.max(1, viewport.end - viewport.start)) * pixelLength;
+    const offCenterEligible =
+      projectedSpan >=
+      Math.max(RANGE_ANCHOR_MIN_PROJECTED_SPAN_PX, measurement.inlineSize * RANGE_ANCHOR_MIN_CARD_RATIO);
+    const preferredSide = stableRangeSide(occurrence.id);
+    const oppositeSide =
+      preferredSide === RANGE_ANCHOR_START_RATIO
+        ? RANGE_ANCHOR_END_RATIO
+        : RANGE_ANCHOR_START_RATIO;
+    const candidates = offCenterEligible
+      ? [preferredSide, oppositeSide, RANGE_ANCHOR_CENTER_RATIO]
+      : [RANGE_ANCHOR_CENTER_RATIO];
+
+    const scored = candidates
+      .map((ratio) => ({
+        ratio,
+        score: anchorCandidateScore(
+          ratio,
+          occurrence,
+          viewport,
+          pixelLength,
+          measurement,
+          pointObstacles,
+          rangeObstacles,
+          laneGapPx,
+          offCenterEligible,
+          preferredSide,
+        ),
+      }))
+      .sort((left, right) => left.score - right.score || left.ratio - right.ratio);
+    const best = scored[0] ?? { ratio: RANGE_ANCHOR_CENTER_RATIO, score: 0 };
+
+    const previousRatio = previous?.anchorRatios?.[occurrence.id];
+    const previousCandidate = scored.find(
+      (candidate) =>
+        Number.isFinite(previousRatio) &&
+        Math.abs(candidate.ratio - Number(previousRatio)) < 0.01,
+    );
+    const selected =
+      previousCandidate &&
+      previousCandidate.score <=
+        best.score * RANGE_ANCHOR_HYSTERESIS_SCORE_RATIO + RANGE_ANCHOR_HYSTERESIS_ALLOWANCE_PX
+        ? previousCandidate
+        : best;
+
+    anchorRatios[occurrence.id] = selected.ratio;
+    rangeObstacles.push({
+      id: occurrence.id,
+      position: projectedPosition(occurrence, viewport, pixelLength, selected.ratio),
+      inlineSize: measurement.inlineSize,
+    });
+  }
+
+  return Object.freeze({ ...anchorRatios });
 }
 
 function measurementFor(
@@ -342,14 +549,33 @@ export function planCommittedTemporalLayout(
         left.id.localeCompare(right.id),
     );
 
+  const anchorRatios = planAnchorRatios(
+    occurrences,
+    viewport,
+    pixelLength,
+    input.measurements,
+    input.previous,
+    laneGapPx,
+  );
   const positions = new Map(
     occurrences.map((occurrence) => [
       occurrence.id,
-      projectedPosition(occurrence, viewport, pixelLength),
+      projectedPosition(
+        occurrence,
+        viewport,
+        pixelLength,
+        anchorRatios[occurrence.id] ?? RANGE_ANCHOR_CENTER_RATIO,
+      ),
     ]),
   );
+  const clusteredOrder = [...occurrences].sort(
+    (left, right) =>
+      (positions.get(left.id) ?? 0) - (positions.get(right.id) ?? 0) ||
+      left.start - right.start ||
+      left.id.localeCompare(right.id),
+  );
   const clusters = clusterGroups(
-    occurrences,
+    clusteredOrder,
     positions,
     input.previous,
     thresholds,
@@ -365,33 +591,62 @@ export function planCommittedTemporalLayout(
   }
   const coincidentLaneCapacity = Math.max(0, ...coincidentCounts.values());
   const laneCapacity = Math.max(maxLanes, coincidentLaneCapacity);
-  const laneEnds = Array.from({ length: laneCapacity }, () => Number.NEGATIVE_INFINITY);
+  const laneIntervals = Array.from(
+    { length: laneCapacity },
+    () => [] as Array<{ start: number; end: number }>,
+  );
   const lanes: Record<string, number> = {};
   const placements: TemporalLayoutPlacement[] = [];
 
-  for (const occurrence of occurrences) {
+  // Instants are semantically fixed while range cards have flexible presentation
+  // anchors. Place instants first so the lane nearest the axis remains available
+  // for exact-date events whenever a range can move around them.
+  const placementOrder = [...occurrences].sort((left, right) => {
+    const leftRange = Number.isFinite(left.end) && Number(left.end) > left.start;
+    const rightRange = Number.isFinite(right.end) && Number(right.end) > right.start;
+    return (
+      Number(leftRange) - Number(rightRange) ||
+      (positions.get(left.id) ?? 0) - (positions.get(right.id) ?? 0) ||
+      left.start - right.start ||
+      left.id.localeCompare(right.id)
+    );
+  });
+
+  for (const occurrence of placementOrder) {
     const measurement = measurementFor(occurrence.id, input.measurements);
     const position = positions.get(occurrence.id) ?? 0;
     const half = measurement.inlineSize / 2;
     const startPx = position - half;
     const endPx = position + half;
-    const legalLanes = laneEnds
-      .map((lastEnd, lane) => ({ lastEnd, lane }))
-      .filter(({ lastEnd }) => startPx >= lastEnd + laneGapPx)
+    const legalLanes = laneIntervals
+      .map((intervals, lane) => ({ intervals, lane }))
+      .filter(({ intervals }) =>
+        intervals.every(
+          (interval) =>
+            endPx + laneGapPx <= interval.start || startPx >= interval.end + laneGapPx,
+        ),
+      )
       .map(({ lane }) => lane);
 
     const previousLane = input.previous?.lanes?.[occurrence.id];
-    const lane = chooseStableLane(
-      previousLane,
-      legalLanes.length ? legalLanes : Array.from({ length: laneCapacity }, (_, index) => index),
-    );
+    const isRange = Number.isFinite(occurrence.end) && Number(occurrence.end) > occurrence.start;
+    const lane =
+      !isRange && legalLanes.includes(0)
+        ? 0
+        : chooseStableLane(
+            previousLane,
+            legalLanes.length
+              ? legalLanes
+              : Array.from({ length: laneCapacity }, (_, index) => index),
+          );
     lanes[occurrence.id] = lane;
-    laneEnds[lane] = Math.max(laneEnds[lane] ?? Number.NEGATIVE_INFINITY, endPx);
+    laneIntervals[lane]?.push({ start: startPx, end: endPx });
     placements.push(
       Object.freeze({
         id: occurrence.id,
         lane,
         position,
+        anchorRatio: anchorRatios[occurrence.id] ?? RANGE_ANCHOR_CENTER_RATIO,
         inlineSize: measurement.inlineSize,
         blockSize: measurement.blockSize,
         clustered: clusteredIds.has(occurrence.id),
@@ -399,8 +654,14 @@ export function planCommittedTemporalLayout(
     );
   }
 
+  placements.sort(
+    (left, right) =>
+      left.position - right.position || left.lane - right.lane || left.id.localeCompare(right.id),
+  );
+
   return Object.freeze({
     lanes: Object.freeze({ ...lanes }),
+    anchorRatios,
     clusters: Object.freeze([...clusters]),
     placements: Object.freeze(placements),
   });

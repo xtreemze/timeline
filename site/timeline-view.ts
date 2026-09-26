@@ -453,6 +453,7 @@ export class TimelineViewController {
   relationshipBandZone: HTMLDivElement | null = null;
   committedLayout: TemporalCommittedLayoutPlan = {
     lanes: Object.freeze({}),
+    anchorRatios: Object.freeze({}),
     clusters: Object.freeze([]),
     placements: Object.freeze([]),
   };
@@ -2327,6 +2328,7 @@ export class TimelineViewController {
       measurements,
       previous: {
         lanes: this.committedLayout.lanes,
+        anchorRatios: this.committedLayout.anchorRatios,
         clusters: this.committedLayout.clusters,
       },
     });
@@ -2369,6 +2371,7 @@ export class TimelineViewController {
 
     this.committedLayout = {
       lanes: planned.lanes,
+      anchorRatios: planned.anchorRatios,
       clusters,
       placements: planned.placements,
     };
@@ -2691,6 +2694,7 @@ export class TimelineViewController {
       this.committedClusterByItem.clear();
       this.committedLayout = {
         lanes: Object.freeze({}),
+        anchorRatios: Object.freeze({}),
         clusters: Object.freeze([]),
         placements: Object.freeze([]),
       };
@@ -2918,9 +2922,10 @@ export class TimelineViewController {
     const coordinate = (time: number): number =>
       padding + scale.coordinateFor(time, this.viewport, usable);
 
+    const anchorRatio = this.committedLayout.anchorRatios[item.id] ?? 0.5;
     const anchor =
-      visibleIntervalAnchor(item, this.viewport) ??
-      visibleIntervalAnchor(item, this.renderWindow) ??
+      visibleIntervalAnchor(item, this.viewport, anchorRatio) ??
+      visibleIntervalAnchor(item, this.renderWindow, anchorRatio) ??
       item.start;
     const primary = coordinate(anchor);
     const laneIndex = this.laneIndexFor(item);
