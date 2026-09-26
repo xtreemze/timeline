@@ -166,6 +166,14 @@ test("mobile investigation workspace renders dense alternatives without applicat
   await expect(toggle).toHaveAttribute("aria-expanded", "true");
   await expect(page.locator("#presentation-stage")).toHaveAttribute("inert", "");
 
+  await page.getByRole("tab", { name: "Review" }).click();
+  const gapLinks = sheet.locator(".investigation-gap-links");
+  await expect(gapLinks).toBeVisible();
+  await expect(gapLinks.getByRole("button", { name: "Alice" })).toBeVisible();
+  await expect(gapLinks.getByRole("button", { name: "Carol" })).toBeVisible();
+  await expect(gapLinks.getByRole("button", { name: "None of the known candidates" })).toBeVisible();
+  await page.getByRole("tab", { name: "Matrix" }).click();
+
   const matrixRows = sheet.locator(".investigation-matrix tbody tr");
   await expect(matrixRows).toHaveCount(30);
   await expect(sheet.locator(".investigation-matrix thead th")).toHaveCount(5);
