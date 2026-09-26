@@ -218,3 +218,11 @@ document.addEventListener("visibilitychange", () => {
     void acquireWakeLock();
   }
 });
+
+window.addEventListener(
+  "pagehide",
+  () => {
+    setPresentationWakeLock(false);
+  },
+  { once: true },
+);
