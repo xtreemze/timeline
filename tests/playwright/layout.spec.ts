@@ -113,28 +113,38 @@ async function ensureTimelineOrientation(page, orientation) {
 }
 
 test.describe("Mobile-first Timeline layout contracts", () => {
-  test("phone portrait gives chronology the viewport and keeps temporal context readable", async ({
+  test("phone portrait keeps the horizontal timeline on the edge and gives the world about two-thirds of the pre-footer height", async ({
     page,
   }) => {
     await page.setViewportSize(PHONE_PORTRAIT);
     await page.goto("/");
+    await ensureTimelineOrientation(page, "landscape");
 
     const timeline = page.locator("#timeline-view");
     const surface = page.locator(".timeline-surface");
+    const world = page.locator("#presentation-stage > .graph-lens:not([hidden])");
     const dock = page.locator(".app-tool-dock");
 
     const timelineBox = await expectInsideViewport(timeline, PHONE_PORTRAIT);
     const surfaceBox = await expectInsideViewport(surface, PHONE_PORTRAIT);
+    const worldBox = await expectInsideViewport(world, PHONE_PORTRAIT);
     const dockBox = await expectInsideViewport(dock, PHONE_PORTRAIT);
 
     expect(timelineBox.width).toBeGreaterThan(PHONE_PORTRAIT.width * 0.9);
     expect(timelineBox.height).toBeGreaterThan(PHONE_PORTRAIT.height * 0.8);
     expect(surfaceBox.width).toBeGreaterThan(PHONE_PORTRAIT.width * 0.9);
-    // Landscape chronology is a compact footer-adjacent rail: tall enough for
-    // readable callouts without consuming roughly half of a portrait phone.
-    expect(surfaceBox.height).toBeGreaterThan(PHONE_PORTRAIT.height * 0.34);
-    expect(surfaceBox.height).toBeLessThan(PHONE_PORTRAIT.height * 0.46);
+    // The chronology remains a readable bottom rail, but it no longer consumes
+    // roughly forty percent of a physically portrait phone.
+    expect(surfaceBox.height).toBeGreaterThan(PHONE_PORTRAIT.height * 0.27);
+    expect(surfaceBox.height).toBeLessThan(PHONE_PORTRAIT.height * 0.34);
     expect(Math.abs(surfaceBox.y + surfaceBox.height - dockBox.y)).toBeLessThanOrEqual(3);
+
+    // World and chronology meet at one shared edge. Relative to the usable area
+    // above the footer, the world should receive approximately two thirds.
+    expect(Math.abs(worldBox.y + worldBox.height - surfaceBox.y)).toBeLessThanOrEqual(3);
+    const worldShareAboveFooter = worldBox.height / dockBox.y;
+    expect(worldShareAboveFooter).toBeGreaterThan(0.64);
+    expect(worldShareAboveFooter).toBeLessThan(0.71);
 
     const axisBox = await page.locator(".timeline-axis").boundingBox();
     expect(axisBox).not.toBeNull();
