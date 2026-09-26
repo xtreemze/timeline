@@ -49,6 +49,7 @@ type CaptureStats = {
   browserMaxIntervalSeconds: number;
   capturedPacedIntervalRatio: number;
   browserPacedIntervalRatio: number;
+  browserResponsiveIntervalRatio: number;
   codec: "h264";
   geometry: CaptureGeometry;
   timestamps: number[];
