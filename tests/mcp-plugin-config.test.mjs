@@ -53,4 +53,5 @@ test("application exposes an explicit MCP relay opt-in", async () => {
   assert.match(source, /TimelineMCPRelay/);
   assert.match(source, /searchParams\.get\("mcp-relay"\) === "1"/);
   assert.match(source, /timelineMcpRelay\.connect\(\)/);
+  assert.match(source, /webMcpRegistration\?\.registered/);
 });
