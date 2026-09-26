@@ -3,7 +3,9 @@ import test from "node:test";
 
 import {
   entityId,
+  occurrenceTypeDefinition,
   recordRelationship,
+  relationshipFactKey,
   relationshipId,
   sourceId,
   validateActionPredicate,
@@ -48,6 +50,116 @@ test("domain entity rules reject event/action semantics", () => {
   assert.equal(
     validateEntity({ name: "Alice", type: "person", attributes: { latitude: 1 } }).valid,
     false,
+  );
+});
+
+test("actor identity metadata stays canonical while biographical history stays occurrence-backed", () => {
+  assert.equal(
+    validateEntity({
+      name: "Alice",
+      type: "person",
+      identifiers: [{ scheme: "isni", value: "000000012146438X" }],
+      appellations: [
+        { value: "Alice Example", kind: "legal", languageTag: "en", sourceIds: ["source-a"] },
+      ],
+      semanticMappings: [
+        { scheme: "ISO 21127", version: "2023", identifier: "E21", relation: "exact" },
+      ],
+    }).valid,
+    true,
+  );
+  assert.equal(
+    validateEntity({ name: "Alice", type: "person", attributes: { employer: "Example Corp" } }).valid,
+    false,
+  );
+  assert.equal(
+    validateEntity({ name: "Alice", type: "person", identifiers: [{ scheme: "isni", value: "" }] })
+      .valid,
+    false,
+  );
+});
+
+test("occurrence taxonomy maps core life and organization events without owning predicates", () => {
+  assert.equal(occurrenceTypeDefinition("birth")?.externalMappings[0]?.identifier, "E67");
+  assert.equal(occurrenceTypeDefinition("formation")?.externalMappings[0]?.identifier, "E66");
+  assert.equal(occurrenceTypeDefinition("employment")?.semanticParent, "activity");
+});
+
+test("contextual capacity is part of fact identity", () => {
+  const company = {
+    id: entityId("company-a"),
+    type: "organization",
+    name: "Company A",
+    alternateNames: [],
+    sourceIds: [],
+    attributes: {},
+  };
+  const agreement = {
+    id: entityId("agreement"),
+    type: "document",
+    name: "Agreement",
+    alternateNames: [],
+    sourceIds: [],
+    attributes: {},
+  };
+  const personally = {
+    ...baseRelationship,
+    id: relationshipId("signed-personally"),
+    objectId: agreement.id,
+    predicate: "signed",
+    occurrenceType: "activity",
+  };
+  const asDirector = {
+    ...personally,
+    id: relationshipId("signed-as-director"),
+    subjectContext: {
+      roleType: "director",
+      representedEntityId: company.id,
+      organizationId: company.id,
+      authoritySourceIds: [sourceId("source-authority")],
+      externalMappings: [
+        { scheme: "ISO 5009", version: "2022", identifier: "director", relation: "related" },
+      ],
+    },
+  };
+
+  assert.notEqual(relationshipFactKey(personally), relationshipFactKey(asDirector));
+
+  const project = {
+    schemaVersion: 3,
+    entities: [alice, bob, company, agreement],
+    relationships: [],
+  };
+  const first = recordRelationship(project, personally);
+  const second = recordRelationship(first.project, asDirector);
+  assert.equal(second.status, "created");
+  assert.equal(second.project.relationships.length, 2);
+
+  assert.throws(() =>
+    recordRelationship(project, {
+      ...asDirector,
+      id: relationshipId("missing-represented"),
+      subjectContext: {
+        roleType: "director",
+        representedEntityId: entityId("missing-company"),
+      },
+    }),
+  );
+});
+
+test("place and role context distinguish otherwise identical occurrences", () => {
+  const base = {
+    ...baseRelationship,
+    predicate: "signed",
+    role: "witness",
+  };
+  assert.notEqual(
+    relationshipFactKey({ ...base, placeId: "stockholm" }),
+    relationshipFactKey({ ...base, placeId: "copenhagen" }),
+  );
+  assert.notEqual(
+    relationshipFactKey(base),
+    relationshipFactKey({ ...base, role: "director" }),
   );
 });
 

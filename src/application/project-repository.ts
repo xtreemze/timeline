@@ -46,14 +46,18 @@ interface PersistedProjectEnvelope {
 
 interface PersistedRecord extends Record<string, unknown> {
   readonly alternateNames?: unknown;
+  readonly appellations?: unknown;
   readonly attributes?: unknown;
   readonly confidence?: unknown;
   readonly entities?: unknown;
   readonly format?: unknown;
   readonly id?: unknown;
+  readonly identifiers?: unknown;
   readonly itemIds?: unknown;
   readonly name?: unknown;
+  readonly objectContext?: unknown;
   readonly objectId?: unknown;
+  readonly occurrenceType?: unknown;
   readonly placeId?: unknown;
   readonly predicate?: unknown;
   readonly project?: unknown;
@@ -63,7 +67,9 @@ interface PersistedRecord extends Record<string, unknown> {
   readonly role?: unknown;
   readonly savedAt?: unknown;
   readonly schemaVersion?: unknown;
+  readonly semanticMappings?: unknown;
   readonly sourceIds?: unknown;
+  readonly subjectContext?: unknown;
   readonly subjectId?: unknown;
   readonly time?: unknown;
   readonly type?: unknown;
@@ -75,6 +81,25 @@ function isRecord(value: unknown): value is PersistedRecord {
 
 function isStringArray(value: unknown): value is readonly string[] {
   return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+function optionalRecordArray(
+  value: unknown,
+  label: string,
+): readonly PersistedRecord[] | undefined {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value) || value.some((item) => !isRecord(item))) {
+    throw new Error(`${label} must be an array of objects when present.`);
+  }
+  return value;
+}
+
+function optionalRecord(value: unknown, label: string): PersistedRecord | undefined {
+  if (value === undefined) return undefined;
+  if (!isRecord(value)) {
+    throw new Error(`${label} must be an object when present.`);
+  }
+  return value;
 }
 
 function requireNonEmptyString(value: unknown, label: string): string {
@@ -116,11 +141,31 @@ function assertEntityShape(value: unknown): CanonicalEntity {
     throw new Error("Entity attributes must be an object.");
   }
 
+  const identifiers = optionalRecordArray(value.identifiers, "Entity identifiers");
+  const appellations = optionalRecordArray(value.appellations, "Entity appellations");
+  const semanticMappings = optionalRecordArray(
+    value.semanticMappings,
+    "Entity semanticMappings",
+  );
+
   const entity: CanonicalEntity = {
     id: entityId(requireNonEmptyString(value.id, "Entity ID")),
     type: requireNonEmptyString(value.type, "Entity type"),
     name: requireNonEmptyString(value.name, "Entity name"),
     alternateNames: [...value.alternateNames],
+    ...(identifiers
+      ? { identifiers: identifiers as NonNullable<CanonicalEntity["identifiers"]> }
+      : {}),
+    ...(appellations
+      ? { appellations: appellations as NonNullable<CanonicalEntity["appellations"]> }
+      : {}),
+    ...(semanticMappings
+      ? {
+          semanticMappings: semanticMappings as NonNullable<
+            CanonicalEntity["semanticMappings"]
+          >,
+        }
+      : {}),
     sourceIds: value.sourceIds.map(sourceId),
     attributes: value.attributes,
   };
@@ -146,6 +191,21 @@ function assertRelationshipShape(
   if (value.role !== undefined && typeof value.role !== "string") {
     throw new Error("Relationship role must be a string when present.");
   }
+  if (value.occurrenceType !== undefined) {
+    requireNonEmptyString(value.occurrenceType, "Relationship occurrenceType");
+  }
+  const subjectContext = optionalRecord(
+    value.subjectContext,
+    "Relationship subjectContext",
+  );
+  const objectContext = optionalRecord(
+    value.objectContext,
+    "Relationship objectContext",
+  );
+  const semanticMappings = optionalRecordArray(
+    value.semanticMappings,
+    "Relationship semanticMappings",
+  );
   if (value.placeId !== undefined && typeof value.placeId !== "string") {
     throw new Error("Relationship placeId must be a string when present.");
   }
@@ -177,6 +237,28 @@ function assertRelationshipShape(
     objectId: entityId(requireNonEmptyString(value.objectId, "Relationship object ID")),
     predicate: requireNonEmptyString(value.predicate, "Relationship predicate"),
     ...(typeof value.role === "string" ? { role: value.role } : {}),
+    ...(typeof value.occurrenceType === "string"
+      ? { occurrenceType: requireNonEmptyString(value.occurrenceType, "Relationship occurrenceType") }
+      : {}),
+    ...(subjectContext
+      ? {
+          subjectContext:
+            subjectContext as NonNullable<CanonicalRelationship["subjectContext"]>,
+        }
+      : {}),
+    ...(objectContext
+      ? {
+          objectContext:
+            objectContext as NonNullable<CanonicalRelationship["objectContext"]>,
+        }
+      : {}),
+    ...(semanticMappings
+      ? {
+          semanticMappings: semanticMappings as NonNullable<
+            CanonicalRelationship["semanticMappings"]
+          >,
+        }
+      : {}),
     ...(typeof value.placeId === "string" ? { placeId: placeId(value.placeId) } : {}),
     itemIds: value.itemIds as readonly TimelineId<"occurrence">[],
     sourceIds: value.sourceIds.map(sourceId),

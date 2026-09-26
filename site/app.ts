@@ -130,6 +130,8 @@ interface EntityRecord {
   type?: string;
   alternateNames?: string[];
   identifiers?: unknown[];
+  appellations?: unknown[];
+  semanticMappings?: unknown[];
   sourceIds?: string[];
   attributes?: Record<string, unknown>;
 }
@@ -142,6 +144,10 @@ interface RelationshipRecord {
   objectId: string;
   predicate: string;
   role?: string;
+  occurrenceType?: string;
+  subjectContext?: Record<string, unknown>;
+  objectContext?: Record<string, unknown>;
+  semanticMappings?: unknown[];
   placeId?: string;
   itemIds?: string[];
   initialState?: "active" | "inactive";
