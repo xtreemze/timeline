@@ -99,20 +99,39 @@ test.describe("Narrow mobile screen contracts", () => {
       await expect(dock).toBeVisible();
       await expect(timelineToolbar).toBeVisible();
 
-      const metrics = await timelineToolbar.evaluate((element) => {
+      const metrics = await dock.evaluate((element) => {
         const style = getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        const zones = [...element.querySelectorAll<HTMLElement>(".app-footer-zone")].map((zone) => {
+          const zoneStyle = getComputedStyle(zone);
+          return {
+            overflowX: zoneStyle.overflowX,
+            clientWidth: zone.clientWidth,
+            scrollWidth: zone.scrollWidth,
+          };
+        });
         return {
+          display: style.display,
           overflowX: style.overflowX,
           clientWidth: element.clientWidth,
           scrollWidth: element.scrollWidth,
+          top: rect.top,
+          bottom: rect.bottom,
+          zones,
         };
       });
+      expect(metrics.display).toBe("flex");
       expect(["auto", "scroll"]).toContain(metrics.overflowX);
-      expect(metrics.scrollWidth).toBeGreaterThan(metrics.clientWidth);
+      expect(metrics.scrollWidth).toBeGreaterThan(metrics.clientWidth + 44);
+      for (const zone of metrics.zones) {
+        expect(zone.overflowX).toBe("visible");
+        expect(zone.scrollWidth).toBeLessThanOrEqual(zone.clientWidth + 1);
+      }
 
       const buttons = dock.locator("button:visible");
       const buttonCount = await buttons.count();
       expect(buttonCount).toBeGreaterThanOrEqual(10);
+      const buttonGeometry = [];
       for (let index = 0; index < buttonCount; index += 1) {
         const button = buttons.nth(index);
         const geometry = await button.evaluate((element) => {
@@ -122,27 +141,48 @@ test.describe("Narrow mobile screen contracts", () => {
             position: style.position,
             width: rect.width,
             height: rect.height,
+            top: rect.top,
+            bottom: rect.bottom,
           };
         });
         expect(["absolute", "fixed", "sticky"]).not.toContain(geometry.position);
-        expect(geometry.width).toBeGreaterThanOrEqual(44);
-        expect(geometry.height).toBeGreaterThanOrEqual(44);
+        expect(Math.abs(geometry.width - 44)).toBeLessThanOrEqual(1);
+        expect(Math.abs(geometry.height - 44)).toBeLessThanOrEqual(1);
+        expect(geometry.top).toBeGreaterThanOrEqual(metrics.top - 1);
+        expect(geometry.bottom).toBeLessThanOrEqual(metrics.bottom + 1);
+        buttonGeometry.push(geometry);
+      }
+
+      const buttonTops = buttonGeometry.map((geometry) => geometry.top);
+      const buttonBottoms = buttonGeometry.map((geometry) => geometry.bottom);
+      expect(Math.max(...buttonTops) - Math.min(...buttonTops)).toBeLessThanOrEqual(1);
+      expect(Math.max(...buttonBottoms) - Math.min(...buttonBottoms)).toBeLessThanOrEqual(1);
+
+      const semanticIcons = dock.locator(".toolbar-control .semantic-icon:visible");
+      const semanticIconCount = await semanticIcons.count();
+      expect(semanticIconCount).toBeGreaterThanOrEqual(4);
+      for (let index = 0; index < semanticIconCount; index += 1) {
+        const box = await semanticIcons.nth(index).boundingBox();
+        expect(box).not.toBeNull();
+        if (!box) continue;
+        expect(Math.abs(box.width - 20)).toBeLessThanOrEqual(1);
+        expect(Math.abs(box.height - 20)).toBeLessThanOrEqual(1);
       }
 
       const lastControl = timelineToolbar.locator(".toolbar-control").last();
-      await timelineToolbar.evaluate((element) => {
+      await dock.evaluate((element) => {
         element.scrollLeft = element.scrollWidth;
       });
       await expect
         .poll(async () => {
-          const [toolbarBox, controlBox] = await Promise.all([
-            timelineToolbar.boundingBox(),
+          const [dockBox, controlBox] = await Promise.all([
+            dock.boundingBox(),
             lastControl.boundingBox(),
           ]);
-          if (!toolbarBox || !controlBox) return false;
+          if (!dockBox || !controlBox) return false;
           return (
-            controlBox.x + controlBox.width <= toolbarBox.x + toolbarBox.width + 2 &&
-            controlBox.x + controlBox.width >= toolbarBox.x
+            controlBox.x + controlBox.width <= dockBox.x + dockBox.width + 2 &&
+            controlBox.x + controlBox.width >= dockBox.x
           );
         })
         .toBe(true);
