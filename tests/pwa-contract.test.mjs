@@ -19,9 +19,25 @@ test("web app manifest exposes an installable standalone Lūm app", async () => 
   assert.equal(manifest.background_color, "#111111");
 
   const icons = manifest.icons ?? [];
-  assert.ok(icons.some((icon) => icon.sizes === "192x192" && icon.purpose === "any"));
-  assert.ok(icons.some((icon) => icon.sizes === "512x512" && icon.purpose === "any"));
-  assert.ok(icons.some((icon) => icon.sizes === "512x512" && icon.purpose === "maskable"));
+  assert.ok(
+    icons.some(
+      (icon) =>
+        icon.sizes === "192x192" && icon.type === "image/png" && icon.purpose === "any",
+    ),
+  );
+  assert.ok(
+    icons.some(
+      (icon) =>
+        icon.sizes === "512x512" && icon.type === "image/png" && icon.purpose === "any",
+    ),
+  );
+  assert.ok(
+    icons.some(
+      (icon) =>
+        icon.sizes === "512x512" && icon.type === "image/png" && icon.purpose === "maskable",
+    ),
+  );
+  assert.ok(icons.some((icon) => icon.sizes === "any" && icon.type === "image/svg+xml"));
 });
 
 test("application shell links the manifest and registers the scoped service worker", async () => {
