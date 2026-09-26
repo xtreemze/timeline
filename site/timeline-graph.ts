@@ -245,6 +245,21 @@ const ENTITY_CONTEXT_KEYS = new Set([
   "longitude",
   "radius",
   "radiusmeters",
+]);
+
+const ACTOR_ENTITY_TYPES = new Set([
+  "person",
+  "organization",
+  "organisation",
+  "group",
+  "company",
+  "corporation",
+  "institution",
+  "legalentity",
+  "juridicalperson",
+]);
+
+const ACTOR_OCCURRENCE_KEYS = new Set([
   "birthplace",
   "birthdate",
   "dateofbirth",
@@ -633,11 +648,19 @@ function contextPropertyKey(value: unknown): boolean {
   return ENTITY_CONTEXT_KEYS.has(semanticKey(value));
 }
 
-function cleanContextFreeAttributes(value: unknown): Record<string, any> {
+function cleanContextFreeAttributes(
+  value: unknown,
+  { actorContext = false } = {},
+): Record<string, any> {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
   const cleaned: Record<string, any> = {};
   for (const [key, entry] of Object.entries(value)) {
-    if (!contextPropertyKey(key) && !FORBIDDEN_GRAPH_TAXONOMY_KEYS.has(semanticKey(key))) {
+    const keySemantic = semanticKey(key);
+    if (
+      !contextPropertyKey(key) &&
+      !(actorContext && ACTOR_OCCURRENCE_KEYS.has(keySemantic)) &&
+      !FORBIDDEN_GRAPH_TAXONOMY_KEYS.has(keySemantic)
+    ) {
       cleaned[key] = cloneJson(entry);
     }
   }
@@ -670,6 +693,18 @@ export function validateEntityNode(raw: any): ValidationResult {
         valid: false,
         message: `Node property "${invalidKey}" is spatiotemporal context. Store time on edge.time and place on edge.placeId instead of the entity node.`,
       };
+    }
+
+    if (ACTOR_ENTITY_TYPES.has(typeKey)) {
+      const occurrenceKey = Object.keys(attributes).find((key) =>
+        ACTOR_OCCURRENCE_KEYS.has(semanticKey(key)),
+      );
+      if (occurrenceKey) {
+        return {
+          valid: false,
+          message: `Actor property "${occurrenceKey}" is historical or role context. Record it as an occurrence/assertion and derive profile summaries from that history.`,
+        };
+      }
     }
   }
   return { valid: true, message: "" };
@@ -739,6 +774,7 @@ function normalizeEntity(raw: any, index: number): EntityNode | null {
         : raw.attributes && typeof raw.attributes === "object"
           ? raw.attributes
           : {},
+      { actorContext: ACTOR_ENTITY_TYPES.has(semanticKey(raw.type || "entity")) },
     ),
   };
 }
