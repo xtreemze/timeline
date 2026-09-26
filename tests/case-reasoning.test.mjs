@@ -539,6 +539,13 @@ test("methodology review exposes gaps and disconfirming coverage without selecti
         hypothesisIds: ["hyp-bob"],
         targetIds: ["fact-bob-alibi"],
       },
+      {
+        id: "loe-camera-six",
+        text: "Review Camera 6 to discriminate Alice, Carol, and an unknown alternative.",
+        status: "proposed",
+        testType: "discriminate",
+        hypothesisIds: ["hyp-alice", "hyp-carol", "hyp-none-known"],
+      },
     ],
     indicators: [
       {
@@ -565,10 +572,11 @@ test("methodology review exposes gaps and disconfirming coverage without selecti
 
   assert.deepEqual(review.openQuestionIds, ["q-carol-location"]);
   assert.deepEqual(review.assumptionIdsNeedingReview, ["assume-device-owner"]);
-  assert.deepEqual(review.activeEnquiryIds, ["loe-alibi-test"]);
+  assert.deepEqual(review.activeEnquiryIds, ["loe-alibi-test", "loe-camera-six"]);
   assert.deepEqual(review.unknownIndicatorIds, ["indicator-camera"]);
   assert.deepEqual(review.unresolvedInformationReviewIds, ["quality-registration"]);
   assert.deepEqual(review.alternativeGroupsWithoutDisconfirmingTest, []);
+  assert.deepEqual(review.disconfirmingCoverage[0].missingHypothesisIds, []);
   assert.equal("winner" in review, false);
   assert.equal("score" in review, false);
 });
