@@ -3533,6 +3533,22 @@ export class DeckWorldSurface implements WorldSurface {
     this.#render();
   }
 
+  getRenderedInstancePositions(): ReadonlyMap<WorldInstanceId, WorldSpatialPosition> {
+    this.#assertAlive();
+    const positions = new Map<WorldInstanceId, WorldSpatialPosition>();
+    for (const [instanceId, datum] of this.#entityDatumCache) {
+      positions.set(
+        instanceId,
+        Object.freeze({
+          longitude: datum.position[0],
+          latitude: datum.position[1],
+          altitudeMeters: datum.position[2],
+        }),
+      );
+    }
+    return positions;
+  }
+
   getCamera(): WorldCameraState {
     return this.#camera;
   }
