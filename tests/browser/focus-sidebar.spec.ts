@@ -71,7 +71,11 @@ test("focused detail is shell-owned while contextual actions stay in the footer"
   await expect(focus).toHaveAttribute("data-presentation-surface", "sidebar");
   await expect(focus).not.toHaveAttribute("popover", /.+/);
   await expect
-    .poll(() => focus.evaluate((element) => element.matches(":popover-open")))
+    .poll(() =>
+      focus.evaluate(
+        (element) => element.hasAttribute("popover") && element.matches(":popover-open"),
+      ),
+    )
     .toBe(false);
 
   await expect(focus.locator(".timeline-focus-hero")).toBeVisible();
