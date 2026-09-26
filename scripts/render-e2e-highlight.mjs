@@ -143,8 +143,8 @@ async function verifyMeasuredCapture(videoPath, manifest) {
   if (timing.maximumFps !== manifest.maximumMeasuredCaptureFps) {
     throw new Error(`${videoPath} timing evidence does not match the maximum capture rate`);
   }
-  if (timing.codec !== "vp8") {
-    throw new Error(`${videoPath} timing evidence must identify the raw capture codec as VP8`);
+  if (timing.codec !== "h264") {
+    throw new Error(`${videoPath} timing evidence must identify the raw capture codec as H.264`);
   }
 
   const minimumFps = manifest.minimumMeasuredCaptureFps;
@@ -183,15 +183,15 @@ async function verifyMeasuredCapture(videoPath, manifest) {
   }
 
   const video = await probeVisualSource(videoPath);
-  if (video.codec !== "vp8") {
-    throw new Error(`${videoPath} raw WebM codec is ${String(video.codec)}; expected VP8`);
+  if (video.codec !== "h264") {
+    throw new Error(`${videoPath} raw Matroska codec is ${String(video.codec)}; expected H.264`);
   }
 
   const decodedTimestamps = await probeFrameTimestamps(videoPath);
   const decoded = decodedFrameStats(decodedTimestamps);
   if (decoded.nonIncreasingIntervals > 0) {
     throw new Error(
-      `${videoPath} raw WebM contains ${String(decoded.nonIncreasingIntervals)} duplicated or non-increasing decoded frame timestamps.`,
+      `${videoPath} raw Matroska contains ${String(decoded.nonIncreasingIntervals)} duplicated or non-increasing decoded frame timestamps.`,
     );
   }
   if (
@@ -200,7 +200,7 @@ async function verifyMeasuredCapture(videoPath, manifest) {
     decoded.fps > maximumFps
   ) {
     throw new Error(
-      `${videoPath} raw WebM decodes at ${decoded.fps.toFixed(2)} fps from ${String(decoded.frames)} actual frames; expected native ${Number(minimumFps).toFixed(2)}-${Number(maximumFps).toFixed(2)} fps.`,
+      `${videoPath} raw Matroska decodes at ${decoded.fps.toFixed(2)} fps from ${String(decoded.frames)} actual frames; expected native ${Number(minimumFps).toFixed(2)}-${Number(maximumFps).toFixed(2)} fps.`,
     );
   }
   if (decoded.frames !== timing.capturedFrames || decoded.frames !== timestamps.length) {
