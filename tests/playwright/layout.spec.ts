@@ -203,7 +203,7 @@ test.describe("Mobile-first Timeline layout contracts", () => {
       const titleBar = page.locator(".timeline-project-heading");
       const surface = page.locator(".timeline-surface");
       const actions = dock.locator(".app-footer-actions > .app-tool");
-      await expect(actions).toHaveCount(3);
+      await expect(actions).toHaveCount(4);
 
       const dockBox = await expectInsideViewport(dock, viewport);
       const titleBox = await expectInsideViewport(titleBar, viewport);
@@ -213,6 +213,7 @@ test.describe("Mobile-first Timeline layout contracts", () => {
         "#project-menu-toggle",
         "#editor-toggle",
         "#timeline-browser-toggle",
+        "#investigation-workspace-toggle",
       ]) {
         await expect(dock.locator(selector)).toBeVisible();
       }
