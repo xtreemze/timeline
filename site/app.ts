@@ -5434,7 +5434,9 @@ const timelineMcpRelay = Object.freeze({
   status: mcpRelayBridge.status,
   async connect(options: McpRelayConnectOptions = {}) {
     await mcpRelayBridge.connect(options);
-    const registration = await registerWebMcpTools();
+    const registration = webMcpRegistration?.registered
+      ? webMcpRegistration
+      : await registerWebMcpTools();
     if (!registration.registered) {
       throw new Error(registration.reason || "Lūm WebMCP tool registration failed.");
     }
