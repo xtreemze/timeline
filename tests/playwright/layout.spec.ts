@@ -246,9 +246,21 @@ test.describe("Mobile-first Timeline layout contracts", () => {
       expect(worldZoneBox.x).toBeLessThan(actionsZoneBox.x);
       expect(worldZoneBox.x + worldZoneBox.width).toBeLessThanOrEqual(actionsZoneBox.x + 2);
       expect(timelineZoneBox.x).toBeGreaterThanOrEqual(actionsZoneBox.x + actionsZoneBox.width - 2);
-      expect(
-        Math.abs(actionsZoneBox.x + actionsZoneBox.width / 2 - viewport.width / 2),
-      ).toBeLessThanOrEqual(2);
+      if (viewport.width >= 700) {
+        expect(
+          Math.abs(actionsZoneBox.x + actionsZoneBox.width / 2 - viewport.width / 2),
+        ).toBeLessThanOrEqual(2);
+      } else {
+        const mobileDock = await dock.evaluate((element) => ({
+          display: getComputedStyle(element).display,
+          overflowX: getComputedStyle(element).overflowX,
+          scrollWidth: element.scrollWidth,
+          clientWidth: element.clientWidth,
+        }));
+        expect(mobileDock.display).toBe("flex");
+        expect(["auto", "scroll"]).toContain(mobileDock.overflowX);
+        expect(mobileDock.scrollWidth).toBeGreaterThan(mobileDock.clientWidth);
+      }
       expect(viewControlsBox.y).toBeGreaterThanOrEqual(timelineZoneBox.y - 1);
       expect(viewControlsBox.y + viewControlsBox.height).toBeLessThanOrEqual(
         timelineZoneBox.y + timelineZoneBox.height + 1,
