@@ -59,6 +59,25 @@ test("domain entity rules reject event/action semantics", () => {
   );
 });
 
+test("unresolved identity is explicit without changing entity kind", () => {
+  assert.equal(
+    validateEntity({
+      name: "Unidentified person A",
+      type: "person",
+      identityResolution: "unresolved",
+    }).valid,
+    true,
+  );
+  assert.equal(
+    validateEntity({
+      name: "Candidate person",
+      type: "person",
+      identityResolution: "guessed",
+    }).valid,
+    false,
+  );
+});
+
 test("actor identity metadata stays canonical while biographical history stays occurrence-backed", () => {
   assert.equal(
     validateEntity({
