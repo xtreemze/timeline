@@ -166,3 +166,24 @@ test("inline View controls no longer require floating workspace placement", asyn
   assert.match(html, /id="timeline-view-toolbar"/);
   assert.doesNotMatch(html, /id="timeline-view-toolbar"[^>]*popover=/);
 });
+
+
+test("investigation methodology workspace is a bounded utility surface with internal matrix scrolling", async () => {
+  const [app, workspace, styles] = await Promise.all([
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/ui/investigation-workspace.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/investigation-workspace.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(app, /investigationOpen:\s*false/);
+  assert.match(app, /function setInvestigationSurfaceOpen/);
+  assert.match(app, /applyInvestigationReasoning[\s\S]*caseReasoning\.normalizeReasoning[\s\S]*persist\(\)[\s\S]*renderAll\(\)/);
+  assert.match(app, /focusInvestigationTarget[\s\S]*focusEntity[\s\S]*focusItem/);
+  assert.match(workspace, /competingHypothesisMatrix/);
+  assert.match(workspace, /methodologyReview/);
+  assert.match(workspace, /Deferred or not-pursued enquiries require a recorded rationale/);
+  assert.doesNotMatch(workspace, /suspectScore|guiltScore|truthScore|winner\s*:/);
+  assert.match(styles, /\.investigation-workspace-sheet\s*\{[\s\S]*position:\s*fixed/);
+  assert.match(styles, /\.investigation-matrix-scroll\s*\{[\s\S]*overflow:\s*auto/);
+  assert.match(styles, /@media \(max-width:\s*720px\)/);
+});
