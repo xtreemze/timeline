@@ -8,3 +8,4 @@ export * from "./project.ts";
 export * from "./relationship.ts";
 export * from "./semantics.ts";
 export * from "./temporal-constraint.ts";
+export * from "./trajectory.ts";
