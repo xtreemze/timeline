@@ -89,7 +89,39 @@ test("force nodes preserve derived local offset and target visual altitude", () 
   assert.ok(alice);
   assert.equal(alice.initialEastMeters, 40);
   assert.equal(alice.initialNorthMeters, -20);
+  assert.equal(alice.initialVisualAltitudeMeters, 1200);
   assert.equal(alice.targetVisualAltitudeMeters, 1200);
+});
+
+test("continuity projection supplies only the initial force pose", () => {
+  const target = sampleProjection();
+  const initial = createWorldProjection({
+    instances: target.instances.map((instance) =>
+      instance.canonicalId === "alice"
+        ? createProjectedWorldInstance({
+            ...instance,
+            localOffset: { eastMeters: 500_000, northMeters: -250_000 },
+            visualAltitude: 8_000,
+          })
+        : instance,
+    ),
+    edges: target.edges,
+  });
+
+  const scene = createWorldForceScene(target, undefined, {
+    initialProjection: initial,
+  });
+  const alice = scene.nodes.find((node) => node.canonicalId === "alice");
+
+  assert.ok(alice);
+  assert.equal(alice.initialEastMeters, 500_000);
+  assert.equal(alice.initialNorthMeters, -250_000);
+  assert.equal(alice.initialVisualAltitudeMeters, 8_000);
+  assert.equal(
+    alice.targetVisualAltitudeMeters,
+    1_200,
+    "handoff altitude is an initial pose; the committed projection remains the force target",
+  );
 });
 
 test("temporal weight modulates edge and anchor influence without changing topology", () => {
