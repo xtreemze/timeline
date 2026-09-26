@@ -7,12 +7,15 @@ import {
   occurrenceTypeDefinition,
   recordOccurrence,
   recordRelationship,
+  recordTrajectory,
   relationshipFactKey,
   relationshipId,
   sourceId,
+  trajectoryId,
   validateActionPredicate,
   validateEntity,
   validateOccurrence,
+  validateTrajectoryArtifact,
 } from "../src/domain/index.ts";
 import { projectRelationshipMatrix } from "../src/projection/relationship-matrix.ts";
 
@@ -379,5 +382,76 @@ test("multi-participant occurrences keep one shared identity without event nodes
       ...birth,
       id: occurrenceId("parent-a"),
     }),
+  );
+});
+
+
+test("dense trajectories stay as one manifest instead of high-frequency Places or occurrences", () => {
+  const trajectory = {
+    id: trajectoryId("track-1"),
+    sourceIds: [sourceId("gps-source")],
+    observedEntityIds: [alice.id, bob.id],
+    sampleCount: 100_000,
+    time: {
+      type: "interval",
+      start: { value: "2026-09-26T08:00:00Z" },
+      end: { value: "2026-09-26T10:00:00Z" },
+    },
+    bounds: {
+      minLongitude: 17.9,
+      minLatitude: 59.1,
+      maxLongitude: 18.2,
+      maxLatitude: 59.4,
+      minElevationMeters: 2,
+      maxElevationMeters: 143,
+    },
+    channels: [
+      { id: "position", semantic: "longitude-latitude" },
+      { id: "elevation", unit: "m" },
+      { id: "speed", unit: "m/s" },
+    ],
+    levels: [
+      { id: "raw", pointCount: 100_000 },
+      { id: "overview", pointCount: 600, toleranceMeters: 20 },
+    ],
+    storage: {
+      kind: "project-blob",
+      ref: "trajectory/track-1/raw",
+      mediaType: "application/vnd.luum.trajectory",
+    },
+    attributes: {},
+  };
+
+  assert.deepEqual(validateTrajectoryArtifact(trajectory, new Set(["alice", "bob"])), []);
+  const recorded = recordTrajectory(
+    { schemaVersion: 3, entities: [alice, bob], relationships: [] },
+    trajectory,
+  );
+  assert.equal(recorded.project.trajectories?.length, 1);
+  assert.equal(recorded.project.trajectories?.[0].sampleCount, 100_000);
+  assert.equal(recorded.project.occurrences, undefined);
+
+  const journey = recordOccurrence(recorded.project, {
+    id: occurrenceId("journey-1"),
+    occurrenceType: "migration",
+    time: trajectory.time,
+    participantContexts: [
+      { entityId: alice.id, roleType: "traveller" },
+      { entityId: bob.id, roleType: "traveller" },
+    ],
+    relationshipIds: [],
+    trajectoryIds: [trajectory.id],
+    sourceIds: [sourceId("gps-source")],
+    confidence: 1,
+    attributes: {},
+  });
+  assert.deepEqual(journey.occurrence.trajectoryIds, [trajectory.id]);
+
+  assert.notDeepEqual(
+    validateTrajectoryArtifact(
+      { ...trajectory, id: trajectoryId("bad-track"), attributes: { samples: [[1, 2, 3]] } },
+      new Set(["alice", "bob"]),
+    ),
+    [],
   );
 });
