@@ -10,6 +10,9 @@ const viteManifest = JSON.parse(await readFile(viteManifestUrl, "utf8"));
 const files = new Set([
   "index.html",
   "manifest.webmanifest",
+  "pwa-icon-192.png",
+  "pwa-icon-512.png",
+  "pwa-maskable-512.png",
   "pwa-icon-192.svg",
   "pwa-icon-512.svg",
   "pwa-maskable-512.svg",
@@ -43,7 +46,11 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     Promise.all([
       caches.keys().then((keys) =>
-        Promise.all(keys.filter((key) => key.startsWith("lum-shell-") && key !== CACHE_NAME).map((key) => caches.delete(key))),
+        Promise.all(
+          keys
+            .filter((key) => key.startsWith("lum-shell-") && key !== CACHE_NAME)
+            .map((key) => caches.delete(key)),
+        ),
       ),
       self.registration.navigationPreload?.enable?.(),
       self.clients.claim(),
