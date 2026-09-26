@@ -243,6 +243,14 @@ test("modern story guide tool supplies initial from-scratch guidance", async () 
   assert.match(guide, /Build a complete project from scratch/);
   assert.match(guide, /User verification is mandatory/);
   assert.equal(body.result.structuredContent.publicEndpointBehavior.stateless, true);
+  assert.match(
+    body.result.structuredContent.fieldReference.project.items,
+    /chronology item/i,
+  );
+  assert.equal(
+    body.result.structuredContent.minimalValidExample.stories[0].id,
+    "story-exhibit-a",
+  );
 });
 
 test("modern staging tool returns a complete proposal for later verification", async () => {
