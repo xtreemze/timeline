@@ -17,7 +17,9 @@ import {
   createWorldForceScene,
   type WorldForceScenePolicy,
 } from "../../src/layout/world-force-scene.ts";
-import { preserveWorldProjectionRenderContinuity } from "../../src/layout/world-geographic-position.ts";
+import {
+  preserveWorldProjectionRenderContinuity,
+} from "../../src/layout/world-geographic-position.ts";
 import {
   createWorldSimulationCoordinator,
   type WorldForceSimulationBackend,
