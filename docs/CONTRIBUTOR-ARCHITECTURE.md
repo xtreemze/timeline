@@ -80,6 +80,7 @@ Across surfaces:
 - Tab/Shift+Tab remain native and must never be trapped by a camera surface;
 - arrow keys and +/- stay with the active renderer/navigation controller rather than being reinterpreted by a parallel listener;
 - one-finger world touch pans unless a stationary long-press arms node dragging; a second touch yields immediately to multi-touch camera control;
+- world touch node-drag arbitration is renderer-neutral in `src/interaction/world-touch-drag-arbiter.ts`; adapters schedule browser thresholds and perform picking, but must not redefine hold timing, delayed-event classification, or pointer ownership;
 - pinch/multi-touch gestures stay renderer-owned; node/object dragging must stop propagation only after it has actually claimed the gesture;
 - every pointer-capture path must handle `pointercancel` and `lostpointercapture`; Escape/cancel/back is resolved at the owning surface or application-navigation layer.
 
