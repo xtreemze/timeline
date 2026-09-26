@@ -103,4 +103,8 @@ test("narrow footer has one scroll owner and uniform in-flow controls", async ()
     css,
     /\.toolbar-control:not\(\.toolbar-control-wide\):not\(\.toolbar-control-value\)[\s\S]*inline-size:\s*var\(--toolbar-control-size\)/,
   );
+  assert.match(
+    css,
+    /\.app-footer-world \.world-camera-controls\s*\{[\s\S]*position:\s*static[\s\S]*inset:\s*auto[\s\S]*flex-direction:\s*row[\s\S]*background:\s*transparent[\s\S]*box-shadow:\s*none/,
+  );
 });
