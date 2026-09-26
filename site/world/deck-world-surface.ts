@@ -45,7 +45,6 @@ import {
 import {
   directedEdgePathArrowhead,
   edgePathMidpoint,
-  edgePathPointAtFraction,
   medianNearestPlaceMeters,
   relationshipEdgePath,
   representativeWorldNodeRadiusPx,
@@ -2437,7 +2436,7 @@ function labelDatums(input: {
   };
   const clusters = selectPrioritizedLabels(input.clusters, {
     budget,
-    isPinned: clusterInteracted,
+    isPinned: () => false,
     importance: (cluster) => cluster.clusterMembers.length + cluster.visualWeight,
     key: (cluster) => cluster.clusterId,
   });
@@ -2472,7 +2471,7 @@ function labelDatums(input: {
     input.places.filter((place) => place.label && !clusteredPlaceIds.has(place.placeId)),
     {
       budget: Math.max(budget, WORLD_PLACE_LABEL_FLOOR),
-      isPinned: (place) => focused("place", place.placeId),
+      isPinned: () => false,
       importance: () => 0,
       key: (place) => place.placeId,
     },
@@ -2506,7 +2505,7 @@ function labelDatums(input: {
     input.entities.filter((entity) => entity.label && !input.clustered),
     {
       budget,
-      isPinned: (entity) => focused("entity", entity.entityId),
+      isPinned: () => false,
       importance: (entity) => entity.visualWeight,
       key: (entity) => entity.worldInstanceId,
     },
@@ -2545,7 +2544,7 @@ function labelDatums(input: {
       // obey the same zoom budget at every scale. Dense local graphs otherwise
       // become unreadable as soon as detail zoom is reached.
       budget,
-      isPinned: (relationship) => focused("relationship", relationship.relationshipId),
+      isPinned: () => false,
       importance: (relationship) => relationship.temporalWeight,
       key: (relationship) => relationship.relationshipId,
     },
@@ -2585,6 +2584,7 @@ function labelDatums(input: {
     ordered,
     input.zoom,
     (datum) => markerRadiusByKey.get(datum.key) ?? 0,
+    input.relationships,
   );
   const placedByKey = new Map(placed.map((datum) => [datum.key, datum] as const));
 
