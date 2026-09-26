@@ -3689,13 +3689,9 @@ export class TimelineViewController {
         return;
       }
       let next: "overview" | "evidence" | null = null;
-      if (event.key === "ArrowLeft" || event.key === "ArrowUp" || event.key === "Home") {
+      if (event.key === "ArrowLeft" || event.key === "Home") {
         next = "overview";
-      } else if (
-        event.key === "ArrowRight" ||
-        event.key === "ArrowDown" ||
-        event.key === "End"
-      ) {
+      } else if (event.key === "ArrowRight" || event.key === "End") {
         next = "evidence";
       }
       if (!next) return;
