@@ -95,6 +95,47 @@ test("stale bundled demo storage refreshes the current example stories", async (
   }
 });
 
+test("loading the example resets a stale shared temporal viewport on mobile", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.reload();
+  await expect(page.locator(viewToolbar)).toBeVisible();
+
+  await page.evaluate(() => {
+    const root = document.querySelector("#timeline-view");
+    if (!(root instanceof HTMLElement)) throw new Error("Timeline root unavailable.");
+    const view = globalThis.TimelineView?.create(root);
+    if (!view) throw new Error("Timeline controller unavailable.");
+    const start = Date.UTC(2200, 0, 1);
+    view.viewport = { start, end: start + 86_400_000 };
+    view.viewportInitialized = true;
+    view.commitInteraction();
+  });
+
+  await expect
+    .poll(() => page.locator(".timeline-event .timeline-event-terminal:visible").count())
+    .toBe(0);
+
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.locator("#project-menu-toggle").click();
+  await page.locator("#load-sample").click();
+
+  await expect(page.locator("#timeline-title")).toHaveValue(
+    "Nine classic tales — distributed fictional casebook",
+  );
+  await expect
+    .poll(() => page.locator(".timeline-event .timeline-event-terminal:visible").count())
+    .toBeGreaterThan(0);
+
+  const viewport = await page.evaluate(() => {
+    const root = document.querySelector("#timeline-view");
+    if (!(root instanceof HTMLElement)) return null;
+    return globalThis.TimelineView?.create(root)?.getViewport?.() || null;
+  });
+  expect(viewport).not.toBeNull();
+  expect(viewport.end).toBeLessThan(Date.UTC(1500, 0, 1));
+});
+
 test("Edit leaves View in the toolbar but disables conflicting View controls", async ({ page }) => {
   const toolbar = page.locator(viewToolbar);
 
