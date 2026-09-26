@@ -65,6 +65,18 @@ export interface InvestigationFocusTarget {
   readonly record?: Record<string, unknown>;
 }
 
+export interface InvestigationEvidenceRecord {
+  readonly id: string;
+  readonly title?: string;
+  readonly sourceName?: string;
+  readonly url?: string;
+  readonly note?: string;
+  readonly publishedAt?: string;
+  readonly file?: unknown;
+  readonly forensic?: unknown;
+  readonly extraction?: unknown;
+}
+
 export interface InvestigationWorkspaceOptions {
   readonly shell: HTMLElement;
   readonly footerActions: HTMLElement;
@@ -73,9 +85,11 @@ export interface InvestigationWorkspaceOptions {
   readonly getReasoning: () => unknown;
   readonly getEntityIds: () => string[];
   readonly getExternalIds: () => string[];
+  readonly getEvidenceRecords: () => readonly InvestigationEvidenceRecord[];
   readonly onRequestOpen: (open: boolean) => void;
   readonly onCommit: (reasoning: Record<string, unknown>, status: string) => void;
   readonly onFocus: (target: InvestigationFocusTarget) => void;
+  readonly onOpenEvidence: (evidenceId: string) => void;
 }
 
 export interface InvestigationWorkspaceController {
@@ -213,9 +227,11 @@ export function createInvestigationWorkspace(
     getReasoning,
     getEntityIds,
     getExternalIds,
+    getEvidenceRecords,
     onRequestOpen,
     onCommit,
     onFocus,
+    onOpenEvidence,
   } = options;
 
   const toggle = createElement("button", "toolbar-control app-tool");
@@ -290,6 +306,9 @@ export function createInvestigationWorkspace(
   let open = false;
   let editingAssumptionId = "";
   let editingEnquiryId = "";
+  let editingInformationReviewId = "";
+  let editingIndicatorId = "";
+  let selectedMatrixRecordId = "";
 
   function normalized(): Record<string, unknown> {
     return reasoningApi.normalizeReasoning(getReasoning());
@@ -327,6 +346,126 @@ export function createInvestigationWorkspace(
     }
     onCommit(next, status);
     return true;
+  }
+
+  function evidenceRecordsFor(record: ReasoningRecord | undefined): InvestigationEvidenceRecord[] {
+    if (!record) return [];
+    const ids = new Set([
+      ...stringList(record.evidenceIds),
+      ...(stringValue(record.evidenceId) ? [stringValue(record.evidenceId)] : []),
+    ]);
+    if (!ids.size) return [];
+    return getEvidenceRecords().filter((evidence) => ids.has(evidence.id));
+  }
+
+  function locatorLabel(record: ReasoningRecord): string {
+    const locator = record.locator;
+    if (!locator || typeof locator !== "object" || Array.isArray(locator)) return "";
+    const source = locator as Record<string, unknown>;
+    const type = stringValue(source.type);
+    if (type === "page") {
+      const start = Number(source.page);
+      const end = Number(source.pageEnd);
+      return Number.isFinite(end) && end >= start ? `pages ${start}–${end}` : `page ${start}`;
+    }
+    if (type === "time") {
+      const start = Number(source.startMs);
+      const end = Number(source.endMs);
+      if (!Number.isFinite(start)) return "";
+      const seconds = (value: number) => (value / 1000).toFixed(1).replace(/\.0$/, "");
+      return Number.isFinite(end) && end >= start
+        ? `${seconds(start)}–${seconds(end)} s`
+        : `${seconds(start)} s`;
+    }
+    return stringValue(source.value) || stringValue(source.label);
+  }
+
+  function contextSummary(record: ReasoningRecord): string {
+    const parts: string[] = [];
+    const trajectories = stringList(record.trajectoryIds);
+    const relationships = stringList(record.relationshipIds);
+    const places = stringList(record.placeIds);
+    const entities = stringList(record.entityIds);
+    const items = stringList(record.itemIds);
+    if (trajectories.length) parts.push(`trajectory ${trajectories.join(", ")}`);
+    if (relationships.length) parts.push(`occurrence/relation ${relationships.join(", ")}`);
+    if (places.length) parts.push(`place ${places.join(", ")}`);
+    if (entities.length) parts.push(`entity ${entities.join(", ")}`);
+    if (items.length) parts.push(`timeline ${items.join(", ")}`);
+    return parts.join(" · ");
+  }
+
+  function renderEvidenceDrilldown(record: ReasoningRecord | undefined): HTMLElement {
+    const region = createElement("section", "investigation-evidence-drilldown");
+    region.setAttribute("aria-live", "polite");
+    if (!record) {
+      region.append(emptyState("Select an evidence or observation row to inspect its source context."));
+      return region;
+    }
+
+    const heading = createElement("div", "investigation-card-heading");
+    heading.append(
+      createElement("strong", "", labelFor(record, recordId(record))),
+      statusBadge(stringValue(record.type) || "reasoning"),
+    );
+    region.append(heading);
+
+    const context = contextSummary(record);
+    const locator = locatorLabel(record);
+    if (context || locator) {
+      region.append(
+        createElement(
+          "p",
+          "investigation-card-meta",
+          [context, locator].filter(Boolean).join(" · "),
+        ),
+      );
+    }
+
+    const actions = createElement("div", "investigation-form-actions");
+    if (
+      stringList(record.itemIds).length ||
+      stringList(record.relationshipIds).length ||
+      stringList(record.placeIds).length ||
+      stringList(record.entityIds).length ||
+      stringList(record.trajectoryIds).length ||
+      record.temporalScope
+    ) {
+      const focus = createElement("button", "button secondary compact-button", "Focus context");
+      focus.type = "button";
+      focus.addEventListener("click", () =>
+        onFocus({ kind: "reasoning", id: recordId(record), record }),
+      );
+      actions.append(focus);
+    }
+
+    const sources = evidenceRecordsFor(record);
+    for (const evidence of sources) {
+      const card = createElement("article", "investigation-source-card");
+      card.append(
+        createElement("strong", "", evidence.title || evidence.id),
+        createElement(
+          "p",
+          "investigation-card-meta",
+          [evidence.sourceName, evidence.publishedAt].filter(Boolean).join(" · ") ||
+            "Source metadata",
+        ),
+      );
+      if (evidence.note) {
+        card.append(createElement("p", "investigation-source-note", evidence.note));
+      }
+      const open = createElement("button", "button secondary compact-button", "Open source");
+      open.type = "button";
+      open.addEventListener("click", () => onOpenEvidence(evidence.id));
+      card.append(open);
+      region.append(card);
+    }
+
+    if (!sources.length) {
+      region.append(createElement("p", "investigation-card-meta", "No linked source record."));
+    }
+    if (actions.childElementCount) region.append(actions);
+    return region;
   }
 
   function setPanel(id: string): void {
@@ -370,7 +509,8 @@ export function createInvestigationWorkspace(
     root.append(controls);
 
     const matrixHost = createElement("div", "investigation-matrix-scroll");
-    root.append(matrixHost);
+    const drilldownHost = createElement("div", "investigation-evidence-drilldown-host");
+    root.append(matrixHost, drilldownHost);
 
     const draw = () => {
       matrixHost.replaceChildren();
@@ -409,13 +549,20 @@ export function createInvestigationWorkspace(
         const label = record ? labelFor(record, row.evidenceId) : row.evidenceId;
         const evidenceCell = createElement("th");
         evidenceCell.scope = "row";
-        evidenceCell.append(
-          focusButton(
-            { kind: "reasoning", id: row.evidenceId, record },
-            label,
-            onFocus,
-          ),
-        );
+        const inspect = createElement("button", "investigation-link", label);
+        inspect.type = "button";
+        inspect.setAttribute("aria-expanded", String(selectedMatrixRecordId === row.evidenceId));
+        inspect.addEventListener("click", () => {
+          selectedMatrixRecordId =
+            selectedMatrixRecordId === row.evidenceId ? "" : row.evidenceId;
+          drilldownHost.replaceChildren(
+            renderEvidenceDrilldown(
+              selectedMatrixRecordId === row.evidenceId ? record : undefined,
+            ),
+          );
+          inspect.setAttribute("aria-expanded", String(Boolean(selectedMatrixRecordId)));
+        });
+        evidenceCell.append(inspect);
         tr.append(evidenceCell);
         for (const cell of row.cells) {
           const td = createElement("td");
@@ -427,6 +574,12 @@ export function createInvestigationWorkspace(
       }
       table.append(tbody);
       matrixHost.append(table);
+      const selected = [
+        ...((reasoning.observations as ReasoningRecord[] | undefined) ?? []),
+        ...((reasoning.assertions as ReasoningRecord[] | undefined) ?? []),
+        ...((reasoning.citations as ReasoningRecord[] | undefined) ?? []),
+      ].find((record) => recordId(record) === selectedMatrixRecordId);
+      drilldownHost.replaceChildren(renderEvidenceDrilldown(selected));
     };
 
     selector.addEventListener("change", draw);
@@ -730,38 +883,262 @@ export function createInvestigationWorkspace(
     root.append(enquiries.length ? list : emptyState("No lines of enquiry recorded."));
   }
 
-  function renderRecordCards(
-    panelId: "quality" | "indicators",
-    records: ReasoningRecord[],
-    badgeKey: string,
-    emptyMessage: string,
-  ): void {
-    const root = panels.get(panelId)!;
+  function renderInformationQuality(reasoning: Record<string, unknown>): void {
+    const root = panels.get("quality")!;
     root.replaceChildren();
-    if (!records.length) {
-      root.append(emptyState(emptyMessage));
-      return;
-    }
+    const records = collection(reasoning, "informationReviews");
+    const editing = records.find((record) => recordId(record) === editingInformationReviewId);
+
+    const form = createElement("form", "investigation-form");
+    const textInput = createElement("textarea");
+    textInput.rows = 2;
+    textInput.required = true;
+    textInput.value = stringValue(editing?.text);
+    textInput.placeholder = "Describe the information-quality finding.";
+    const finding = selectControl(
+      ["corroborated", "uncorroborated", "conflicted", "limited", "unknown"],
+      stringValue(editing?.finding) || "unknown",
+      "Information-quality finding",
+    );
+    const targets = createElement("input");
+    targets.type = "text";
+    targets.value = stringList(editing?.targetIds).join(", ");
+    targets.placeholder = "evidence, source, observation, or assertion IDs";
+    const limitations = createElement("textarea");
+    limitations.rows = 2;
+    limitations.value = stringValue(editing?.limitations);
+    limitations.placeholder = "Record source limitations, conflicts, or caveats.";
+    const rationale = createElement("textarea");
+    rationale.rows = 2;
+    rationale.value = stringValue(editing?.rationale);
+    rationale.placeholder = "Reason for this qualitative finding.";
+
+    const actions = createElement("div", "investigation-form-actions");
+    const save = createElement(
+      "button",
+      "button primary",
+      editing ? "Update quality review" : "Add quality review",
+    );
+    save.type = "submit";
+    const cancel = createElement("button", "button ghost", "Cancel");
+    cancel.type = "button";
+    cancel.hidden = !editing;
+    actions.append(save, cancel);
+    form.append(
+      field("Finding", textInput),
+      field("Assessment", finding),
+      field("Target IDs", targets),
+      field("Limitations", limitations),
+      field("Rationale", rationale),
+      actions,
+    );
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const record: ReasoningRecord = {
+        ...(editing ?? {}),
+        id: editing ? recordId(editing) : uniqueId("information-review"),
+        text: textInput.value.trim(),
+        finding: finding.value,
+        targetIds: parseIdList(targets.value),
+        limitations: limitations.value.trim(),
+        rationale: rationale.value.trim(),
+        methodId: "quality-of-information-check",
+      };
+      if (!stringValue(record.text)) return;
+      if (
+        commitCollection(
+          "informationReviews",
+          record,
+          editing ? "Information-quality review updated." : "Information-quality review added.",
+        )
+      ) {
+        editingInformationReviewId = "";
+        render();
+      }
+    });
+    cancel.addEventListener("click", () => {
+      editingInformationReviewId = "";
+      render();
+    });
+    root.append(form);
+
     const list = createElement("div", "investigation-card-list");
     for (const record of records) {
       const card = createElement("article", "investigation-card");
       const heading = createElement("div", "investigation-card-heading");
       heading.append(
         createElement("strong", "", labelFor(record, recordId(record))),
-        statusBadge(stringValue(record[badgeKey])),
+        statusBadge(stringValue(record.finding)),
       );
-      const detail = createElement(
-        "p",
-        "investigation-card-meta",
-        stringValue(record.limitations) ||
-          stringValue(record.rationale) ||
-          stringList(record.targetIds).join(", ") ||
-          "No additional detail recorded.",
+      card.append(
+        heading,
+        createElement(
+          "p",
+          "investigation-card-meta",
+          stringValue(record.limitations) ||
+            stringValue(record.rationale) ||
+            stringList(record.targetIds).join(", ") ||
+            "No limitations recorded.",
+        ),
       );
-      card.append(heading, detail);
+      const recordActions = createElement("div", "investigation-form-actions");
+      const edit = createElement("button", "button ghost compact-button", "Edit");
+      edit.type = "button";
+      edit.addEventListener("click", () => {
+        editingInformationReviewId = recordId(record);
+        render();
+      });
+      recordActions.append(edit);
+      for (const targetId of stringList(record.targetIds)) {
+        const evidence = getEvidenceRecords().find((candidate) => candidate.id === targetId);
+        if (!evidence) continue;
+        const open = createElement(
+          "button",
+          "button secondary compact-button",
+          `Open ${evidence.title || evidence.id}`,
+        );
+        open.type = "button";
+        open.addEventListener("click", () => onOpenEvidence(evidence.id));
+        recordActions.append(open);
+      }
+      card.append(recordActions);
       list.append(card);
     }
-    root.append(list);
+    root.append(records.length ? list : emptyState("No information-quality reviews recorded."));
+  }
+
+  function renderIndicators(reasoning: Record<string, unknown>): void {
+    const root = panels.get("indicators")!;
+    root.replaceChildren();
+    const records = collection(reasoning, "indicators");
+    const editing = records.find((record) => recordId(record) === editingIndicatorId);
+    const temporalScope =
+      editing?.temporalScope && typeof editing.temporalScope === "object" && !Array.isArray(editing.temporalScope)
+        ? (editing.temporalScope as Record<string, unknown>)
+        : {};
+
+    const form = createElement("form", "investigation-form");
+    const textInput = createElement("textarea");
+    textInput.rows = 2;
+    textInput.required = true;
+    textInput.value = stringValue(editing?.text);
+    textInput.placeholder = "State the observable indicator or signpost.";
+    const state = selectControl(
+      ["unknown", "observed", "absent"],
+      stringValue(editing?.state) || "unknown",
+      "Indicator state",
+    );
+    const observations = createElement("input");
+    observations.type = "text";
+    observations.value = stringList(editing?.observationIds).join(", ");
+    observations.placeholder = "observation IDs";
+    const hypotheses = createElement("input");
+    hypotheses.type = "text";
+    hypotheses.value = stringList(editing?.hypothesisIds).join(", ");
+    hypotheses.placeholder = "hypothesis IDs";
+    const propositions = createElement("input");
+    propositions.type = "text";
+    propositions.value = stringList(editing?.propositionIds).join(", ");
+    propositions.placeholder = "proposition IDs";
+    const start = createElement("input");
+    start.type = "text";
+    start.value = stringValue(temporalScope.start);
+    start.placeholder = "2026-09-26T21:10:00+03:00";
+    const end = createElement("input");
+    end.type = "text";
+    end.value = stringValue(temporalScope.end);
+    end.placeholder = "2026-09-26T21:25:00+03:00";
+
+    const actions = createElement("div", "investigation-form-actions");
+    const save = createElement(
+      "button",
+      "button primary",
+      editing ? "Update indicator" : "Add indicator",
+    );
+    save.type = "submit";
+    const cancel = createElement("button", "button ghost", "Cancel");
+    cancel.type = "button";
+    cancel.hidden = !editing;
+    actions.append(save, cancel);
+    form.append(
+      field("Indicator / signpost", textInput),
+      field("State", state),
+      field("Observation IDs", observations),
+      field("Hypothesis IDs", hypotheses),
+      field("Proposition IDs", propositions),
+      field("Temporal start", start),
+      field("Temporal end", end),
+      actions,
+    );
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const temporalStart = start.value.trim();
+      const temporalEnd = end.value.trim();
+      const record: ReasoningRecord = {
+        ...(editing ?? {}),
+        id: editing ? recordId(editing) : uniqueId("indicator"),
+        text: textInput.value.trim(),
+        state: state.value,
+        observationIds: parseIdList(observations.value),
+        hypothesisIds: parseIdList(hypotheses.value),
+        propositionIds: parseIdList(propositions.value),
+        temporalScope:
+          temporalStart || temporalEnd
+            ? { ...(temporalStart ? { start: temporalStart } : {}), ...(temporalEnd ? { end: temporalEnd } : {}) }
+            : null,
+      };
+      if (!stringValue(record.text)) return;
+      if (
+        commitCollection(
+          "indicators",
+          record,
+          editing ? "Indicator updated." : "Indicator added.",
+        )
+      ) {
+        editingIndicatorId = "";
+        render();
+      }
+    });
+    cancel.addEventListener("click", () => {
+      editingIndicatorId = "";
+      render();
+    });
+    root.append(form);
+
+    const list = createElement("div", "investigation-card-list");
+    for (const record of records) {
+      const card = createElement("article", "investigation-card");
+      const heading = createElement("div", "investigation-card-heading");
+      heading.append(
+        createElement("strong", "", labelFor(record, recordId(record))),
+        statusBadge(stringValue(record.state)),
+      );
+      const context = [
+        stringList(record.observationIds).length
+          ? `observations: ${stringList(record.observationIds).join(", ")}`
+          : "",
+        contextSummary(record),
+      ]
+        .filter(Boolean)
+        .join(" · ");
+      card.append(
+        heading,
+        createElement(
+          "p",
+          "investigation-card-meta",
+          context || "No linked observation or context recorded.",
+        ),
+      );
+      const edit = createElement("button", "button ghost compact-button", "Edit");
+      edit.type = "button";
+      edit.addEventListener("click", () => {
+        editingIndicatorId = recordId(record);
+        render();
+      });
+      card.append(edit);
+      list.append(card);
+    }
+    root.append(records.length ? list : emptyState("No indicators or signposts recorded."));
   }
 
   function render(): void {
@@ -770,18 +1147,8 @@ export function createInvestigationWorkspace(
     renderReview(reasoning);
     renderAssumptions(reasoning);
     renderEnquiries(reasoning);
-    renderRecordCards(
-      "quality",
-      collection(reasoning, "informationReviews"),
-      "finding",
-      "No information-quality reviews recorded.",
-    );
-    renderRecordCards(
-      "indicators",
-      collection(reasoning, "indicators"),
-      "state",
-      "No indicators or signposts recorded.",
-    );
+    renderInformationQuality(reasoning);
+    renderIndicators(reasoning);
     setPanel(activePanel);
   }
 
