@@ -1375,6 +1375,7 @@ interface TouchPointerEvent {
   readonly pointerId?: unknown;
   readonly offsetX?: unknown;
   readonly offsetY?: unknown;
+  readonly timeStamp?: unknown;
   readonly preventDefault?: () => void;
   readonly stopPropagation?: () => void;
 }
@@ -1394,6 +1395,11 @@ function touchPointer(
   if (!Number.isInteger(pointerId) || typeof x !== "number" || typeof y !== "number") return null;
   if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
   return { pointerId, point: Object.freeze({ x, y }) };
+}
+
+function touchEventTimeStamp(event: TouchPointerEvent): number | null {
+  const value = event.timeStamp;
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
 }
 
 function pointerIdFromRuntimeEvent(event: DeckRuntimePointerEvent): number | null {
@@ -2893,6 +2899,11 @@ export class DeckWorldSurface implements WorldSurface {
   // globe unless the finger first rests on an entity for the hold threshold.
   readonly #touchHold = createWorldTouchHoldGate();
   #touchHoldTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
+  #touchHoldCommitTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
+  readonly #touchPressTiming = new Map<
+    number,
+    { readonly eventTimeStamp: number | null; readonly wallTime: number }
+  >();
 
   readonly #handleTouchPointerDown = (event: TouchPointerEvent): void => {
     const touch = touchPointer(event);
@@ -2910,7 +2921,12 @@ export class DeckWorldSurface implements WorldSurface {
       return;
     }
 
-    this.#touchHold.press(touch.pointerId, touch.point, Date.now());
+    const wallTime = Date.now();
+    this.#touchPressTiming.set(touch.pointerId, {
+      eventTimeStamp: touchEventTimeStamp(event),
+      wallTime,
+    });
+    this.#touchHold.press(touch.pointerId, touch.point, wallTime);
     this.#clearTouchHoldTimer();
     if (!this.#touchHold.isPending(touch.pointerId)) {
       this.#setTouchDragState(null);
@@ -2927,29 +2943,38 @@ export class DeckWorldSurface implements WorldSurface {
       this.#touchHoldTimer = null;
       if (this.#destroyed || !this.#touchHold.isArmed(touch.pointerId, Date.now())) return;
 
-      // The hold threshold itself transfers ownership. Do not wait for
-      // deck.gl/mjolnir to emit a later layer onDragStart: a real touchscreen
-      // may already have classified tiny finger motion as camera manipulation
-      // or native long-press behavior by then.
-      if (
-        !this.#beginTouchEntityDrag(touch.pointerId, hit.worldInstanceId, touch.point)
-      ) {
-        this.#touchHold.release(touch.pointerId);
-        this.#setTouchDragState(null);
-        return;
-      }
+      // Give already-queued pointer input one task turn to invalidate a swipe
+      // that physically moved before the hold threshold but was delivered late
+      // because the main thread was busy. Ownership still transfers directly
+      // to Lūm rather than waiting for deck.gl/mjolnir onDragStart.
+      this.#touchHoldCommitTimer = globalThis.setTimeout(() => {
+        this.#touchHoldCommitTimer = null;
+        if (this.#destroyed || !this.#touchHold.isArmed(touch.pointerId, Date.now())) return;
 
-      this.#setTouchDragState("active");
-      this.#flashDragPickup(hit.worldInstanceId);
-      this.setSelection(Object.freeze({ kind: "entity" as const, id: hit.entityId }));
-      void pulseHaptic("drag");
+        if (
+          !this.#beginTouchEntityDrag(touch.pointerId, hit.worldInstanceId, touch.point)
+        ) {
+          this.#releaseTouchPointer(touch.pointerId);
+          this.#setTouchDragState(null);
+          return;
+        }
+
+        this.#setTouchDragState("active");
+        this.#flashDragPickup(hit.worldInstanceId);
+        this.setSelection(Object.freeze({ kind: "entity" as const, id: hit.entityId }));
+        void pulseHaptic("drag");
+      }, 1);
     }, WORLD_TOUCH_HOLD_MS);
   };
 
   readonly #handleTouchPointerMove = (event: TouchPointerEvent): void => {
     const touch = touchPointer(event);
     if (!touch) return;
-    this.#touchHold.move(touch.pointerId, touch.point, Date.now());
+    this.#touchHold.move(
+      touch.pointerId,
+      touch.point,
+      this.#touchEventOccurredAt(touch.pointerId, event),
+    );
 
     if (this.#activeDragPointerId === touch.pointerId) {
       event.preventDefault?.();
@@ -2971,14 +2996,23 @@ export class DeckWorldSurface implements WorldSurface {
     if (this.#activeDragPointerId === touch.pointerId) {
       event.preventDefault?.();
       event.stopPropagation?.();
-      this.#touchHold.release(touch.pointerId);
+      this.#releaseTouchPointer(touch.pointerId);
       this.#clearTouchHoldTimer();
       this.#setTouchDragState(null);
       this.#finishTouchEntityDrag(touch.pointerId);
       return;
     }
 
-    this.#touchHold.release(touch.pointerId);
+    if (this.#activeDragPointerId !== null) {
+      // A later finger is not part of the claimed drag. Its release must not
+      // clear the owner's feedback, camera lock, or active-drag state.
+      event.preventDefault?.();
+      event.stopPropagation?.();
+      this.#releaseTouchPointer(touch.pointerId);
+      return;
+    }
+
+    this.#releaseTouchPointer(touch.pointerId);
     this.#clearTouchHoldTimer();
     this.#clearDragFlash();
     this.#setTouchDragState(null);
@@ -2995,7 +3029,13 @@ export class DeckWorldSurface implements WorldSurface {
 
   readonly #handlePointerCancel = (event: PointerEvent): void => {
     if (event.pointerType === "touch") {
-      this.#touchHold.release(event.pointerId);
+      this.#releaseTouchPointer(event.pointerId);
+      if (
+        this.#activeDragPointerId !== null &&
+        event.pointerId !== this.#activeDragPointerId
+      ) {
+        return;
+      }
       this.#clearTouchHoldTimer();
       this.#setTouchDragState(null);
     }
@@ -3012,6 +3052,11 @@ export class DeckWorldSurface implements WorldSurface {
   readonly #handleLostPointerCapture = (event: PointerEvent): void => {
     if (this.#activeDragPointerId === null || event.pointerId !== this.#activeDragPointerId) {
       return;
+    }
+    if (event.pointerType === "touch") {
+      this.#releaseTouchPointer(event.pointerId);
+      this.#clearTouchHoldTimer();
+      this.#setTouchDragState(null);
     }
     this.#nodeDragSink?.cancel("lostpointercapture");
     this.#activeDragPointerId = null;
@@ -3989,6 +4034,7 @@ export class DeckWorldSurface implements WorldSurface {
       true,
     );
     this.#clearTouchHoldTimer();
+    this.#touchPressTiming.clear();
     this.#clearClusterTimers();
     this.#clearDragFlash({ render: false });
     this.#clearDragClickSuppression();
@@ -4170,10 +4216,29 @@ export class DeckWorldSurface implements WorldSurface {
     return released;
   }
 
+  #touchEventOccurredAt(pointerId: number, event: TouchPointerEvent): number {
+    const timing = this.#touchPressTiming.get(pointerId);
+    const eventTimeStamp = touchEventTimeStamp(event);
+    if (!timing || timing.eventTimeStamp === null || eventTimeStamp === null) return Date.now();
+
+    const elapsed = eventTimeStamp - timing.eventTimeStamp;
+    return Number.isFinite(elapsed) && elapsed >= 0 ? timing.wallTime + elapsed : Date.now();
+  }
+
+  #releaseTouchPointer(pointerId: number): void {
+    this.#touchHold.release(pointerId);
+    this.#touchPressTiming.delete(pointerId);
+  }
+
   #clearTouchHoldTimer(): void {
-    if (this.#touchHoldTimer === null) return;
-    globalThis.clearTimeout(this.#touchHoldTimer);
-    this.#touchHoldTimer = null;
+    if (this.#touchHoldTimer !== null) {
+      globalThis.clearTimeout(this.#touchHoldTimer);
+      this.#touchHoldTimer = null;
+    }
+    if (this.#touchHoldCommitTimer !== null) {
+      globalThis.clearTimeout(this.#touchHoldCommitTimer);
+      this.#touchHoldCommitTimer = null;
+    }
   }
 
   #clearDragFlashTimer(): void {

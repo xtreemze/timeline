@@ -170,7 +170,7 @@ function surfaceHarness() {
     setPickResult(value) {
       pickResult = value;
     },
-    touch(type, pointerId, x, y) {
+    touch(type, pointerId, x, y, timeStamp = Date.now()) {
       listeners.get(type)?.({
         pointerType: "touch",
         pointerId,
@@ -178,6 +178,7 @@ function surfaceHarness() {
         offsetY: y,
         clientX: x,
         clientY: y,
+        timeStamp,
       });
     },
     dragStart(pointerId, pointerType = "touch", source = {}) {
@@ -208,6 +209,26 @@ test("a quick one-finger touch drag starting on an entity pans the globe instead
   assert.deepEqual(h.begins, []);
 });
 
+test("a queued pre-threshold move processed after the hold timer still remains a pan", (t) => {
+  t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: 10_000 });
+  const h = surfaceHarness();
+  h.setPickResult({ object: h.alice() });
+
+  h.touch("pointerdown", 4, 118, 259, 1_000);
+  t.mock.timers.tick(WORLD_TOUCH_HOLD_MS);
+  assert.equal(h.dataset.worldTouchDrag, "holding");
+  assert.deepEqual(h.begins, []);
+
+  // This input physically happened 40 ms after pointer-down, before the hold
+  // threshold, but is only delivered after the threshold timer ran.
+  h.touch("pointermove", 4, 160, 280, 1_040);
+  t.mock.timers.tick(1);
+
+  assert.equal(h.dataset.worldTouchDrag, undefined);
+  assert.deepEqual(h.begins, [], "late delivery must not turn a swipe into a node drag");
+  assert.equal(h.dragStart(4), false, "deck keeps ownership for the camera pan");
+});
+
 test("a long press on an entity then drag claims the node drag", (t) => {
   t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: 10_000 });
   const h = surfaceHarness();
@@ -215,13 +236,13 @@ test("a long press on an entity then drag claims the node drag", (t) => {
 
   h.touch("pointerdown", 4, 118, 259);
   assert.equal(h.dataset.worldTouchDrag, "holding");
-  t.mock.timers.tick(WORLD_TOUCH_HOLD_MS);
+  t.mock.timers.tick(WORLD_TOUCH_HOLD_MS + 1);
   assert.equal(h.dataset.worldTouchDrag, "active");
   assert.deepEqual(h.surface.getAccessibleSnapshot().selection, { kind: "entity", id: "alice" });
   assert.deepEqual(
     h.begins,
     [[4, worldInstanceId("alice", "meeting")]],
-    "the hold threshold itself claims the node before any drag move",
+    "the settled hold claims the node before any drag move",
   );
 
   h.touch("pointermove", 4, 160, 280);
@@ -243,7 +264,7 @@ test("long-press pickup flashes and lifts only the actively dragged node", (t) =
   const initialPosition = initialLayer.props.getPosition(initialDatum);
 
   h.touch("pointerdown", 4, 118, 259);
-  t.mock.timers.tick(WORLD_TOUCH_HOLD_MS);
+  t.mock.timers.tick(WORLD_TOUCH_HOLD_MS + 1);
   assert.deepEqual(h.begins, [[4, worldInstanceId("alice", "meeting")]]);
 
   const flashedLayer = h.entityIconLayer();
@@ -284,12 +305,43 @@ test("a second finger during the hold cancels it and never starts a node drag", 
   h.touch("pointerdown", 4, 118, 259);
   t.mock.timers.tick(100);
   h.touch("pointerdown", 5, 180, 259);
-  t.mock.timers.tick(WORLD_TOUCH_HOLD_MS);
+  t.mock.timers.tick(WORLD_TOUCH_HOLD_MS + 1);
 
   assert.equal(h.dataset.worldTouchDrag, undefined);
   assert.equal(h.dragStart(4), false);
   assert.deepEqual(h.begins, []);
 });
+
+for (const ending of ["pointerup", "pointercancel"]) {
+  test(`a non-owning second finger ${ending} cannot clear an active node drag`, (t) => {
+    t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: 10_000 });
+    const h = surfaceHarness();
+    h.setPickResult({ object: h.alice() });
+
+    const initialPosition = h.entityIconLayer().props.getPosition(h.aliceIcon());
+    h.touch("pointerdown", 4, 118, 259);
+    t.mock.timers.tick(WORLD_TOUCH_HOLD_MS + 1);
+    assert.equal(h.dataset.worldTouchDrag, "active");
+    assert.equal(h.begins.length, 1);
+
+    h.touch("pointerdown", 5, 180, 259);
+    h.touch(ending, 5, 180, 259);
+
+    assert.equal(h.dataset.worldTouchDrag, "active");
+    assert.deepEqual(h.releases, []);
+    assert.deepEqual(h.cancels, []);
+    assert.ok(
+      h.entityIconLayer().props.getPosition(h.aliceIcon())[2] > initialPosition[2],
+      "the owning node stays lifted while the original finger remains down",
+    );
+
+    h.touch("pointermove", 4, 150, 275);
+    assert.equal(h.updates.length, 1);
+    h.touch("pointerup", 4, 150, 275);
+    assert.deepEqual(h.releases, [4]);
+    assert.equal(h.dataset.worldTouchDrag, undefined);
+  });
+}
 
 test("touch presses off any entity never arm a hold", (t) => {
   t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: 10_000 });
@@ -344,7 +396,7 @@ test("a claimed node drag stops deck event propagation so the controller never p
   assert.equal(stopped, 0, "an unclaimed touch drag stays with the camera");
 
   h.touch("pointerdown", 4, 118, 259);
-  t.mock.timers.tick(WORLD_TOUCH_HOLD_MS);
+  t.mock.timers.tick(WORLD_TOUCH_HOLD_MS + 1);
   assert.equal(
     h.entityLayer().props.onDragStart({ object: h.alice(), x: 118, y: 259 }, event("touch")),
     true,
