@@ -28,7 +28,14 @@
   <main id="workspace">
     <section id="app-shell" class="app-shell" aria-label="Lūm application" data-mode="view" data-editor-open="false" data-browser-open="false" data-graph-open="true">
       <nav class="app-tool-dock app-footer-bar" aria-label="Workspace controls">
-        <div class="app-footer-zone app-footer-world" data-world-controls-slot></div>
+        <div class="app-footer-zone app-footer-world" data-world-controls-slot>
+          <button id="timeline-related-zoom" class="toolbar-control timeline-context-action timeline-related-world-action" type="button" data-semantic-icon="relation" aria-label="Zoom to related nodes" title="Zoom to related nodes">
+            <span class="sr-only">Zoom to related nodes</span>
+          </button>
+          <button id="timeline-related-fit" class="toolbar-control timeline-context-action timeline-related-world-action" type="button" data-semantic-icon="fit" aria-label="Fit related nodes in world view" title="Fit related nodes in world view">
+            <span class="sr-only">Fit related nodes in world view</span>
+          </button>
+        </div>
         <div class="app-footer-zone app-footer-actions" role="group" aria-label="Application actions">
           <button id="project-menu-toggle" class="toolbar-control app-tool app-project-tool project-menu-toggle" type="button" popovertarget="project-menu" aria-haspopup="menu" aria-controls="project-menu" aria-expanded="false" aria-label="Project actions" title="Project actions">
             <img src="./icon.svg" alt="" width="20" height="20">
