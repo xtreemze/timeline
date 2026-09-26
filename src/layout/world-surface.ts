@@ -76,6 +76,8 @@ export interface WorldSurface {
   focusEntity(id: EntityId): void;
   focusOccurrence(id: RelationshipId): void;
   focusPlace(id: PlaceId): void;
+  zoomToOccurrences?(ids: readonly RelationshipId[]): void;
+  fitOccurrences?(ids: readonly RelationshipId[]): void;
 
   project(position: WorldSpatialPosition): ScreenPoint | null;
   unproject(point: ScreenPoint, targetAltitudeMeters: number): WorldSpatialPosition | null;
