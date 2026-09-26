@@ -70,6 +70,14 @@ export interface WorldSurface {
   setTemporalWindow(range: WorldTemporalWindow): void;
   setSelection(selection: WorldSelection | null): void;
 
+  /**
+   * Optional presentation snapshot for projection handoffs. Implementations
+   * return the exact world positions currently shown for canonical instances,
+   * allowing a committed temporal reprojection to start from the user's
+   * visible state without introducing per-preview work.
+   */
+  getRenderedInstancePositions?(): ReadonlyMap<WorldInstanceId, WorldSpatialPosition>;
+
   getCamera(): WorldCameraState;
   setCamera(camera: WorldCameraState): void;
 
