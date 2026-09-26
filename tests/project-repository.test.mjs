@@ -144,6 +144,28 @@ test("serialized project snapshots round-trip canonical state and revision metad
   assert.deepEqual(restored.project, project());
 });
 
+test("serialized project snapshots preserve unresolved identity state", () => {
+  const unresolvedProject = {
+    ...project(),
+    entities: [
+      {
+        ...alice,
+        id: entityId("unknown-person-a"),
+        name: "Unidentified person A",
+        identityResolution: "unresolved",
+      },
+      bob,
+    ],
+  };
+  const serialized = serializeProjectSnapshot({
+    projectKey: "case-unresolved",
+    revision: 1,
+    savedAt: "2026-09-26T17:20:00.000Z",
+    project: unresolvedProject,
+  });
+  assert.deepEqual(deserializeProjectSnapshot(serialized).project, unresolvedProject);
+});
+
 test("serialized project snapshots preserve standards-aware actor and occurrence semantics", () => {
   const semanticProject = {
     schemaVersion: 3,
