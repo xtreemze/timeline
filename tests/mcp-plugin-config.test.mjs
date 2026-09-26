@@ -43,8 +43,33 @@ test("portable plugin manifest identifies the Lūm MCP package", async () => {
     "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   );
   assert.equal(manifest.name, "lum-continuum");
+  assert.equal(manifest.version, "0.4.0");
   assert.match(manifest.description, /MCP/i);
   assert.equal(manifest.extensions?.["com.openai"]?.interface?.displayName, "Lūm Continuum");
+});
+
+
+test("public MCP template uses Streamable HTTP without inventing a deployment hostname", async () => {
+  const config = await readJson("mcp.public.template.json");
+  const server = config.mcpServers?.lum_public;
+
+  assert.equal(server?.type, "streamable-http");
+  assert.match(server?.url || "", /^https:\/\//);
+  assert.match(server?.url || "", /\/mcp$/);
+  assert.match(server?.url || "", /YOUR-LUM-MCP-HOST/);
+});
+
+test("portable document-to-story skill requires source-first generation and user verification", async () => {
+  const skill = await readFile(
+    new URL("../skills/document-to-lum-story/SKILL.md", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(skill, /Read all user-provided documents and text before authoring/i);
+  assert.match(skill, /lum\.get_story_authoring_guide/);
+  assert.match(skill, /lum\.stage_story_project/);
+  assert.match(skill, /Do not add facts from model memory/i);
+  assert.match(skill, /has not yet been factually verified/i);
 });
 
 test("application exposes an explicit MCP relay opt-in", async () => {
