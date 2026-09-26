@@ -13,7 +13,9 @@ import {
   entityId,
   occurrenceId,
   relationshipId,
+  sourceArtifactId,
   sourceId,
+  trajectoryId,
 } from "../src/domain/index.ts";
 
 const alice = {
@@ -218,6 +220,65 @@ test("serialized project snapshots preserve standalone multi-participant occurre
     project: occurrenceProject,
   });
   assert.deepEqual(deserializeProjectSnapshot(serialized).project, occurrenceProject);
+});
+
+test("serialized project snapshots preserve dense trajectory manifests without embedding samples", () => {
+  const trajectoryProject = {
+    ...project(),
+    trajectories: [
+      {
+        id: trajectoryId("track-1"),
+        sourceIds: [sourceId("gps-source")],
+        sourceArtifactIds: [sourceArtifactId("gpx-file")],
+        observedEntityIds: [alice.id],
+        sampleCount: 100_000,
+        time: {
+          type: "interval",
+          start: { value: "2026-09-26T08:00:00Z" },
+          end: { value: "2026-09-26T10:00:00Z" },
+        },
+        bounds: {
+          minLongitude: 17.9,
+          minLatitude: 59.1,
+          maxLongitude: 18.2,
+          maxLatitude: 59.4,
+          minElevationMeters: 2,
+          maxElevationMeters: 143,
+        },
+        channels: [{ id: "position" }, { id: "elevation", unit: "m" }],
+        levels: [
+          { id: "raw", pointCount: 100_000 },
+          { id: "overview", pointCount: 500, toleranceMeters: 25 },
+        ],
+        storage: { kind: "source-artifact", ref: "gpx-file", mediaType: "application/gpx+xml" },
+        attributes: {},
+      },
+    ],
+    occurrences: [
+      {
+        id: occurrenceId("journey-1"),
+        occurrenceType: "migration",
+        time: null,
+        participantContexts: [{ entityId: alice.id, roleType: "traveller" }],
+        relationshipIds: [],
+        trajectoryIds: [trajectoryId("track-1")],
+        sourceIds: [sourceId("gps-source")],
+        confidence: 1,
+        attributes: {},
+      },
+    ],
+  };
+
+  const serialized = serializeProjectSnapshot({
+    projectKey: "case-trajectory",
+    revision: 2,
+    savedAt: "2026-09-26T17:15:00.000Z",
+    project: trajectoryProject,
+  });
+  const restored = deserializeProjectSnapshot(serialized).project;
+  assert.deepEqual(restored, trajectoryProject);
+  assert.equal(restored.trajectories?.[0].sampleCount, 100_000);
+  assert.equal("samples" in restored.trajectories?.[0], false);
 });
 
 test("canonical project validation rejects occurrence IDs colliding with relationship IDs", () => {

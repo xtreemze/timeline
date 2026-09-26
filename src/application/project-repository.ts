@@ -6,7 +6,9 @@ import {
   occurrenceId,
   placeId,
   relationshipId,
+  sourceArtifactId,
   sourceId,
+  trajectoryId,
 } from "../domain/ids.ts";
 import type {
   CanonicalOccurrence,
@@ -15,6 +17,14 @@ import type {
 import { validateOccurrence } from "../domain/occurrence.ts";
 import type { CanonicalProject } from "../domain/project.ts";
 import type { CanonicalRelationship } from "../domain/relationship.ts";
+import type {
+  TrajectoryArtifact,
+  TrajectoryBounds,
+  TrajectoryChannel,
+  TrajectoryLevel,
+  TrajectoryStorageReference,
+} from "../domain/trajectory.ts";
+import { validateTrajectoryArtifact } from "../domain/trajectory.ts";
 import { validateRelationship } from "../domain/relationship.ts";
 
 export const CURRENT_PROJECT_SCHEMA_VERSION = 3;
@@ -72,6 +82,15 @@ interface PersistedRecord extends Record<string, unknown> {
   readonly objectId?: unknown;
   readonly occurrenceType?: unknown;
   readonly occurrences?: unknown;
+  readonly trajectories?: unknown;
+  readonly trajectoryIds?: unknown;
+  readonly observedEntityIds?: unknown;
+  readonly sourceArtifactIds?: unknown;
+  readonly sampleCount?: unknown;
+  readonly bounds?: unknown;
+  readonly channels?: unknown;
+  readonly levels?: unknown;
+  readonly storage?: unknown;
   readonly organizationId?: unknown;
   readonly participantContexts?: unknown;
   readonly placeId?: unknown;
@@ -295,6 +314,83 @@ function assertRelationshipShape(
 }
 
 
+
+function assertTrajectoryShape(
+  value: unknown,
+  entities: readonly CanonicalEntity[],
+): TrajectoryArtifact {
+  if (!isRecord(value)) {
+    throw new Error("Project trajectory must be an object.");
+  }
+  requireNonEmptyString(value.id, "Trajectory ID");
+  if (!isStringArray(value.sourceIds)) {
+    throw new Error("Trajectory sourceIds must be a string array.");
+  }
+  if (value.sourceArtifactIds !== undefined && !isStringArray(value.sourceArtifactIds)) {
+    throw new Error("Trajectory sourceArtifactIds must be a string array when present.");
+  }
+  if (value.observedEntityIds !== undefined && !isStringArray(value.observedEntityIds)) {
+    throw new Error("Trajectory observedEntityIds must be a string array when present.");
+  }
+  if (!Number.isSafeInteger(value.sampleCount) || typeof value.sampleCount !== "number" || value.sampleCount < 0) {
+    throw new Error("Trajectory sampleCount must be a non-negative safe integer.");
+  }
+  if (value.time !== null && !isRecord(value.time)) {
+    throw new Error("Trajectory time must be null or an object.");
+  }
+  if (value.bounds !== null && !isRecord(value.bounds)) {
+    throw new Error("Trajectory bounds must be null or an object.");
+  }
+  if (!Array.isArray(value.channels) || value.channels.some((entry) => !isRecord(entry))) {
+    throw new Error("Trajectory channels must be an array of objects.");
+  }
+  if (!Array.isArray(value.levels) || value.levels.some((entry) => !isRecord(entry))) {
+    throw new Error("Trajectory levels must be an array of objects.");
+  }
+  if (!isRecord(value.storage)) {
+    throw new Error("Trajectory storage must be an object.");
+  }
+  if (!isRecord(value.attributes)) {
+    throw new Error("Trajectory attributes must be an object.");
+  }
+
+  const semanticMappings = optionalRecordArray(
+    value.semanticMappings,
+    "Trajectory semanticMappings",
+  );
+  const trajectory: TrajectoryArtifact = {
+    id: trajectoryId(requireNonEmptyString(value.id, "Trajectory ID")),
+    sourceIds: value.sourceIds.map(sourceId),
+    ...(value.sourceArtifactIds
+      ? { sourceArtifactIds: value.sourceArtifactIds.map(sourceArtifactId) }
+      : {}),
+    ...(value.observedEntityIds
+      ? { observedEntityIds: value.observedEntityIds.map(entityId) }
+      : {}),
+    sampleCount: value.sampleCount,
+    time: value.time as TrajectoryArtifact["time"],
+    bounds: value.bounds as TrajectoryBounds | null,
+    channels: value.channels as unknown as readonly TrajectoryChannel[],
+    levels: value.levels as unknown as readonly TrajectoryLevel[],
+    storage: value.storage as unknown as TrajectoryStorageReference,
+    ...(semanticMappings
+      ? {
+          externalMappings:
+            semanticMappings as NonNullable<TrajectoryArtifact["externalMappings"]>,
+        }
+      : {}),
+    attributes: value.attributes,
+  };
+  const findings = validateTrajectoryArtifact(
+    trajectory,
+    new Set(entities.map((entity) => String(entity.id))),
+  );
+  if (findings.length > 0) {
+    throw new Error(findings.join(" "));
+  }
+  return trajectory;
+}
+
 function assertOccurrenceParticipantShape(value: unknown): CanonicalOccurrenceParticipant {
   if (!isRecord(value)) {
     throw new Error("Occurrence participant must be an object.");
@@ -434,6 +530,16 @@ function assertOccurrenceShape(
       : {}),
     participantContexts: value.participantContexts.map(assertOccurrenceParticipantShape),
     relationshipIds: value.relationshipIds.map(relationshipId),
+    ...(value.trajectoryIds === undefined
+      ? {}
+      : {
+          trajectoryIds: (() => {
+            if (!isStringArray(value.trajectoryIds)) {
+              throw new Error("Occurrence trajectoryIds must be a string array when present.");
+            }
+            return value.trajectoryIds.map(trajectoryId);
+          })(),
+        }),
     sourceIds: value.sourceIds.map(sourceId),
     confidence: value.confidence as number | null,
     ...(semanticMappings
@@ -486,6 +592,23 @@ export function assertCanonicalProject(value: unknown): CanonicalProject {
     relationshipIds.add(id);
   }
 
+  if (value.trajectories !== undefined && !Array.isArray(value.trajectories)) {
+    throw new Error("Canonical project trajectories must be an array when present.");
+  }
+  const trajectories = Array.isArray(value.trajectories)
+    ? value.trajectories.map((trajectory) => assertTrajectoryShape(trajectory, entities))
+    : undefined;
+  const trajectoryIds = new Set<string>();
+  if (trajectories) {
+    for (const trajectory of trajectories) {
+      const id = String(trajectory.id);
+      if (trajectoryIds.has(id)) {
+        throw new Error(`Duplicate trajectory ID "${id}".`);
+      }
+      trajectoryIds.add(id);
+    }
+  }
+
   if (value.occurrences !== undefined && !Array.isArray(value.occurrences)) {
     throw new Error("Canonical project occurrences must be an array when present.");
   }
@@ -502,6 +625,13 @@ export function assertCanonicalProject(value: unknown): CanonicalProject {
         throw new Error(`Duplicate occurrence ID "${id}".`);
       }
       occurrenceIds.add(id);
+      for (const trajectoryRef of occurrence.trajectoryIds ?? []) {
+        if (!trajectoryIds.has(String(trajectoryRef))) {
+          throw new Error(
+            `Occurrence ${id} references unknown trajectory ${String(trajectoryRef)}.`,
+          );
+        }
+      }
     }
   }
 
@@ -510,6 +640,7 @@ export function assertCanonicalProject(value: unknown): CanonicalProject {
     entities,
     relationships,
     ...(occurrences ? { occurrences } : {}),
+    ...(trajectories ? { trajectories } : {}),
   };
 }
 

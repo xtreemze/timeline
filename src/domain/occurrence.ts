@@ -5,6 +5,7 @@ import type {
   PlaceId,
   RelationshipId,
   SourceId,
+  TrajectoryId,
 } from "./ids.ts";
 import { validateOccurrenceTypeId } from "./occurrence-type.ts";
 import type { CanonicalRelationship, CanonicalTemporalExtent } from "./relationship.ts";
@@ -30,6 +31,7 @@ export interface CanonicalOccurrence {
   readonly placeId?: PlaceId;
   readonly participantContexts: readonly CanonicalOccurrenceParticipant[];
   readonly relationshipIds: readonly RelationshipId[];
+  readonly trajectoryIds?: readonly TrajectoryId[];
   readonly sourceIds: readonly SourceId[];
   readonly confidence: number | null;
   readonly semanticMappings?: readonly ExternalSemanticMapping[];
@@ -113,6 +115,11 @@ export function validateOccurrence(
       );
     }
     participantKeys.add(key);
+  }
+
+  const trajectoryIds = occurrence.trajectoryIds ?? [];
+  if (new Set(trajectoryIds.map(String)).size !== trajectoryIds.length) {
+    findings.push("Occurrence trajectoryIds must not contain duplicates.");
   }
 
   const seenRelationshipIds = new Set<string>();
