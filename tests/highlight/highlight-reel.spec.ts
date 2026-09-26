@@ -44,7 +44,7 @@ type CaptureStats = {
   browserFps: number;
   capturedMaxIntervalSeconds: number;
   browserMaxIntervalSeconds: number;
-  codec: "vp8";
+  codec: "h264";
   geometry: CaptureGeometry;
   timestamps: number[];
   browserTimestamps: number[];
@@ -336,17 +336,15 @@ async function startX11Capture(videoPath: string, geometry: CaptureGeometry) {
     `${display}+${String(geometry.x)},${String(geometry.y)}`,
     "-an",
     "-c:v",
-    "libvpx",
-    "-deadline",
-    "realtime",
-    "-cpu-used",
-    "8",
+    "libx264",
+    "-preset",
+    "ultrafast",
+    "-tune",
+    "zerolatency",
     "-threads",
-    "4",
+    "2",
     "-crf",
-    "12",
-    "-b:v",
-    "0",
+    "18",
     "-pix_fmt",
     "yuv420p",
     "-enc_time_base",
@@ -389,10 +387,10 @@ async function persistMeasuredCapture(
   geometry: CaptureGeometry,
 ) {
   const timestamps = await probeFrameTimestamps(videoPath);
-  const captured = measureTimestamps(timestamps, 1, "Showcase raw X11 WebM");
+  const captured = measureTimestamps(timestamps, 1, "Showcase raw X11 Matroska");
   if (captured.fps < MIN_CAPTURE_FPS || captured.fps > MAX_CAPTURE_FPS) {
     throw new Error(
-      `Showcase raw X11 WebM decoded ${String(captured.frames)} actual frames across ${captured.durationSeconds.toFixed(3)}s (${captured.fps.toFixed(2)} fps); expected native ${MIN_CAPTURE_FPS.toFixed(2)}-${MAX_CAPTURE_FPS.toFixed(2)} fps before publication encoding.`,
+      `Showcase raw X11 Matroska decoded ${String(captured.frames)} actual frames across ${captured.durationSeconds.toFixed(3)}s (${captured.fps.toFixed(2)} fps); expected native ${MIN_CAPTURE_FPS.toFixed(2)}-${MAX_CAPTURE_FPS.toFixed(2)} fps before publication encoding.`,
     );
   }
 
@@ -415,7 +413,7 @@ async function persistMeasuredCapture(
     browserFps: browser.fps,
     capturedMaxIntervalSeconds: captured.maxIntervalSeconds,
     browserMaxIntervalSeconds: browser.maxIntervalSeconds,
-    codec: "vp8",
+    codec: "h264",
     geometry,
     timestamps,
     browserTimestamps,
@@ -470,7 +468,7 @@ async function recordSegment(
 ): Promise<ShowcaseSegment> {
   const rawDir = path.join(OUTPUT_ROOT, "raw", formFactor);
   await mkdir(rawDir, { recursive: true });
-  const videoPath = path.join(rawDir, `${scene.name}.webm`);
+  const videoPath = path.join(rawDir, `${scene.name}.mkv`);
   const screenshotPath = path.join(rawDir, `${scene.name}.png`);
 
   if (scene.mediaMode === "motion") {
