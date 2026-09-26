@@ -3626,7 +3626,15 @@ export class TimelineViewController {
       presentation && typeof presentation.createIcon === "function"
         ? presentation.createIcon("close", { size: 16 })
         : null;
-    if (closeIcon) close.append(closeIcon);
+    if (closeIcon) {
+      close.append(closeIcon);
+    } else {
+      const fallbackIcon = document.createElement("span");
+      fallbackIcon.className = "timeline-focus-fallback-icon";
+      fallbackIcon.setAttribute("aria-hidden", "true");
+      fallbackIcon.textContent = "×";
+      close.append(fallbackIcon);
+    }
     const closeLabel = document.createElement("span");
     closeLabel.className = "sr-only";
     closeLabel.textContent = "Return to timeline";
