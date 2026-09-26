@@ -32,6 +32,8 @@ export interface WorldProjectionRuntime {
   focusEntity(id: EntityId): void;
   focusOccurrence(id: RelationshipId): void;
   focusPlace(id: PlaceId): void;
+  zoomToOccurrences?(ids: readonly RelationshipId[]): void;
+  fitOccurrences?(ids: readonly RelationshipId[]): void;
   refresh(): void;
   getRenderProjection(): WorldProjection | null;
   destroy(): void;
@@ -307,6 +309,7 @@ export class WorldProjectionView {
   #entityIds = new Set<string>();
   #entityPresentation = new Map<EntityId, WorldEntityPresentation>();
   #placeIds = new Set<string>();
+  #relationshipIdsByItemId = new Map<string, readonly RelationshipId[]>();
 
   constructor(runtime: WorldProjectionRuntime) {
     this.#runtime = runtime;
@@ -363,6 +366,23 @@ export class WorldProjectionView {
         break;
       }
     }
+
+    const relationshipIdsByItemId = new Map<string, RelationshipId[]>();
+    for (const relationship of Array.isArray(model.relationships) ? model.relationships : []) {
+      const id = text(relationship.id);
+      if (!id || !Array.isArray(relationship.itemIds)) continue;
+      const canonicalId = relationshipId(id);
+      for (const rawItemId of relationship.itemIds) {
+        const itemId = text(rawItemId);
+        if (!itemId) continue;
+        const ids = relationshipIdsByItemId.get(itemId) ?? [];
+        if (!ids.includes(canonicalId)) ids.push(canonicalId);
+        relationshipIdsByItemId.set(itemId, ids);
+      }
+    }
+    this.#relationshipIdsByItemId = new Map(
+      [...relationshipIdsByItemId].map(([itemId, ids]) => [itemId, Object.freeze([...ids])] as const),
+    );
 
     this.#relationships = canonicalRelationships(
       Array.isArray(model.relationships) ? model.relationships : [],
@@ -445,10 +465,33 @@ export class WorldProjectionView {
   hasContext(): boolean {
     const projection = this.#runtime.getRenderProjection();
     if (!this.#focusId || !projection) return false;
-    return (
-      projection.edges.some((edge) => String(edge.id) === this.#focusId) ||
+    if (
+      this.#entityIds.has(this.#focusId) ||
+      this.#placeIds.has(this.#focusId) ||
       projection.instances.some((instance) => String(instance.canonicalId) === this.#focusId)
-    );
+    ) {
+      return true;
+    }
+    const related = new Set(this.#focusRelationshipIds().map(String));
+    return projection.edges.some((edge) => related.has(String(edge.id)));
+  }
+
+  zoomToFocus(): void {
+    const relationships = this.#focusRelationshipIds();
+    if (relationships.length) {
+      this.#runtime.zoomToOccurrences?.(relationships);
+      return;
+    }
+    this.#focusCurrent();
+  }
+
+  fitFocus(): void {
+    const relationships = this.#focusRelationshipIds();
+    if (relationships.length) {
+      this.#runtime.fitOccurrences?.(relationships);
+      return;
+    }
+    this.#focusCurrent();
   }
 
   refreshLayout(): void {
@@ -528,6 +571,15 @@ export class WorldProjectionView {
     }
     for (const id of this.#timelessIds) weights.set(id, 1);
     return { activeIds, weights };
+  }
+
+  #focusRelationshipIds(): readonly RelationshipId[] {
+    if (!this.#focusId) return Object.freeze([]);
+    const direct = this.#relationships.find(
+      (relationship) => String(relationship.id) === this.#focusId,
+    );
+    if (direct) return Object.freeze([direct.id]);
+    return this.#relationshipIdsByItemId.get(this.#focusId) ?? Object.freeze([]);
   }
 
   #focusCurrent(): void {
