@@ -1988,9 +1988,9 @@ function labelDatumUnchanged(
 /**
  * Semantic label LOD. Text comes only from renderer-neutral projection
  * metadata (instance/anchor/edge labels). A zoom-dependent budget limits
- * optional labels per kind, preferring higher visual weight; explicit focus
- * may pin a label. Hover and selection leave the ordinary declutter result
- * stable, but an interacted entity whose label was suppressed by LOD or
+ * optional labels per kind, preferring higher visual weight. Hover, focus,
+ * and selection never change the base budget or declutter winners; an
+ * interacted object whose label was suppressed by LOD or
  * collision placement is appended as an interaction override. While entities
  * are clustered individual labels are suppressed because their positions are
  * presentation-merged into clusters.
@@ -2149,6 +2149,7 @@ function placeWorldLabelDatums(
   markerRadiusPx: (datum: DeckWorldLabelDatum) => number,
   relationships: readonly DeckWorldRelationshipDatum[] = Object.freeze([]),
 ): readonly DeckWorldLabelDatum[] {
+  if (datums.length === 0) return Object.freeze([]);
   const tierZoom = worldLabelTierFloor(zoom);
   const scale = (512 / 360) * 2 ** Math.max(0, tierZoom);
   interface Box {
@@ -2214,6 +2215,12 @@ function placeWorldLabelDatums(
     dx: number,
     dy: number,
   ) => {
+    const boundsOverlap =
+      Math.max(Math.min(ax, bx), Math.min(cx, dx)) <=
+        Math.min(Math.max(ax, bx), Math.max(cx, dx)) &&
+      Math.max(Math.min(ay, by), Math.min(cy, dy)) <=
+        Math.min(Math.max(ay, by), Math.max(cy, dy));
+    if (!boundsOverlap) return false;
     const abC = orientation(ax, ay, bx, by, cx, cy);
     const abD = orientation(ax, ay, bx, by, dx, dy);
     const cdA = orientation(cx, cy, dx, dy, ax, ay);
@@ -2303,12 +2310,21 @@ function placeWorldLabelDatums(
   for (const datum of datums) {
     const footprint = labelFootprint(datum);
     const [anchorX, anchorY] = placementPoint(datum.position);
-    const candidates = labelOffsetCandidates(
+    const baseCandidates = labelOffsetCandidates(
       datum,
       footprint.width,
       footprint.height,
       markerRadiusPx(datum),
     );
+    const candidates = Object.freeze([
+      ...baseCandidates,
+      ...baseCandidates.map(
+        ([x, y]) => Object.freeze([x * 1.75, y * 1.75]) as readonly [number, number],
+      ),
+      ...baseCandidates.map(
+        ([x, y]) => Object.freeze([x * 2.5, y * 2.5]) as readonly [number, number],
+      ),
+    ]);
     let chosen: readonly [number, number] | null = null;
     let chosenBox: Box | null = null;
 
@@ -2376,9 +2392,9 @@ function labelDatums(input: {
   const byKey = new Map<string, DeckWorldLabelDatum>();
   const result: DeckWorldLabelDatum[] = [];
   const markerRadiusByKey = new Map<string, number>();
-  // Declutter priority: pinned first, then importance across kinds (entity
-  // visual weight; places fixed mid-importance; relationships down-weighted),
-  // with places, entities, relationships as the tie-break order.
+  // Stable declutter priority is geometry/semantics only: entity visual
+  // weight, fixed place importance, and down-weighted relationships. Interaction
+  // styling is deliberately excluded so selection cannot reorder the pass.
   const priority = new Map<DeckWorldLabelDatum, readonly [number, number, number]>();
   const emit = (
     key: string,
