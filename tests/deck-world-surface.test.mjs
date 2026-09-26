@@ -275,6 +275,18 @@ function harness() {
   };
 }
 
+function renderedLayers(calls) {
+  const render = calls.setProps.findLast((props) => Array.isArray(props.layers));
+  assert.ok(render, "a render with layers should exist");
+  return render.layers;
+}
+
+function renderedLayer(calls, id) {
+  const layer = renderedLayers(calls).find((candidate) => candidate.props.id === id);
+  assert.ok(layer, `${id} should be rendered`);
+  return layer;
+}
+
 function projection() {
   const aliceId = worldInstanceId("alice", "meeting");
   const bobId = worldInstanceId("bob", "meeting");
@@ -2155,17 +2167,15 @@ test("incremental render reuses prior datum object references for unchanged rows
   const surface = new DeckWorldSurface({}, runtime);
 
   surface.setProjection(largeProjection(500));
-  const firstRender = calls.setProps.at(-1);
-  const firstEntities = firstRender.layers[2].props.data;
-  const firstRelationships = firstRender.layers[1].props.data;
-  const firstPlaces = firstRender.layers[0].props.data;
+  const firstEntities = renderedLayer(calls, DECK_WORLD_LAYER_IDS.entities).props.data;
+  const firstRelationships = renderedLayer(calls, DECK_WORLD_LAYER_IDS.relationships).props.data;
+  const firstPlaces = renderedLayer(calls, DECK_WORLD_LAYER_IDS.places).props.data;
 
   // Perturb a single instance's position among 500.
   surface.setProjection(largeProjection(500, { 250: { longitude: 12.3, latitude: 45.6 } }));
-  const secondRender = calls.setProps.at(-1);
-  const secondEntities = secondRender.layers[2].props.data;
-  const secondRelationships = secondRender.layers[1].props.data;
-  const secondPlaces = secondRender.layers[0].props.data;
+  const secondEntities = renderedLayer(calls, DECK_WORLD_LAYER_IDS.entities).props.data;
+  const secondRelationships = renderedLayer(calls, DECK_WORLD_LAYER_IDS.relationships).props.data;
+  const secondPlaces = renderedLayer(calls, DECK_WORLD_LAYER_IDS.places).props.data;
 
   assert.equal(secondEntities.length, firstEntities.length);
 
@@ -2214,12 +2224,10 @@ test("incremental render only replaces datums whose selection actually changed",
   const surface = new DeckWorldSurface({}, runtime);
   surface.setProjection(largeProjection(50));
 
-  const firstRender = calls.setProps.at(-1);
-  const firstEntities = firstRender.layers[2].props.data;
+  const firstEntities = renderedLayer(calls, DECK_WORLD_LAYER_IDS.entities).props.data;
 
   surface.setSelection({ kind: "entity", id: "entity-10" });
-  const secondRender = calls.setProps.at(-1);
-  const secondEntities = secondRender.layers[2].props.data;
+  const secondEntities = renderedLayer(calls, DECK_WORLD_LAYER_IDS.entities).props.data;
 
   const byId = new Map(firstEntities.map((datum) => [datum.worldInstanceId, datum]));
   let changed = 0;

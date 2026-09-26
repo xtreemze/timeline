@@ -19,7 +19,6 @@ import {
   worldClusterShowsActiveEdges,
   worldClusterShowsMembers,
   worldClusterShowsReleasingEdges,
-  worldClusterWantsCollapsed,
 } from "../../src/layout/world-cluster-transition.ts";
 import type { WorldRelationshipRouteHint } from "../../src/layout/world-force-simulation.ts";
 import {
@@ -227,6 +226,8 @@ interface DeckWorldRelationshipDatum {
 interface DeckWorldTemporalRelationshipDatum {
   readonly kind: "relationship";
   readonly relationshipId: RelationshipId;
+  readonly selected: boolean;
+  readonly emphasized: boolean;
 }
 
 interface DeckWorldTemporalRelationshipState {
@@ -385,7 +386,7 @@ export const CLUSTER_ZOOM_THRESHOLD = 4.25;
 const WORLD_CLUSTER_BASE_NODE_RADIUS_PX = 16;
 /** Bound cluster bubbles so membership does not linearly inflate overview geometry. */
 const WORLD_CLUSTER_MARKER_MIN_RADIUS_PX = 22;
-const WORLD_CLUSTER_MARKER_MAX_RADIUS_PX = 30;
+const WORLD_CLUSTER_MARKER_MAX_RADIUS_PX = 38;
 
 function worldClusterMarkerRadiusPx(memberRadiusPx: number, memberCount: number): number {
   const radius = Number.isFinite(memberRadiusPx) && memberRadiusPx > 0 ? memberRadiusPx : 0;
@@ -2396,7 +2397,7 @@ function labelDatums(input: {
   const interactionPlaceIds = new Set<PlaceId>();
   if (input.selection?.kind === "place") interactionPlaceIds.add(input.selection.id);
   if (input.hoverSelection?.kind === "place") interactionPlaceIds.add(input.hoverSelection.id);
-  if (input.focus?.kind === "place") interactionPlaceIds.add(input.focus.id);
+  if (input.focus?.kind === "place") interactionPlaceIds.add(input.focus.id as PlaceId);
   // Place labels are revealed only by direct place interaction. Neighborhood
   // emphasis from hovering/selecting nodes or relationships may style an
   // already-visible place label, but it must not resurrect one suppressed by
@@ -2485,7 +2486,9 @@ function labelDatums(input: {
   if (input.hoverSelection?.kind === "relationship") {
     interactionRelationshipIds.add(input.hoverSelection.id);
   }
-  if (input.focus?.kind === "relationship") interactionRelationshipIds.add(input.focus.id);
+  if (input.focus?.kind === "relationship") {
+    interactionRelationshipIds.add(input.focus.id as RelationshipId);
+  }
   if (interactionRelationshipIds.size > 0) {
     for (const relationship of input.relationships) {
       if (!relationship.label || !interactionRelationshipIds.has(relationship.relationshipId)) {
@@ -2925,9 +2928,7 @@ export class DeckWorldSurface implements WorldSurface {
   ): "grab" | "grabbing" | "pointer" | "zoom-in" {
     const intent =
       this.#hoverClusterId !== null
-        ? this.#hoverClusterId.startsWith("cluster:place:")
-          ? "action"
-          : "cluster"
+        ? "cluster"
         : this.#hoverSelection?.kind === "entity" && this.#nodeDragSink
           ? "draggable"
           : this.#hoverSelection
@@ -4206,6 +4207,8 @@ export class DeckWorldSurface implements WorldSurface {
             datum: Object.freeze({
               kind: "relationship" as const,
               relationshipId: relationship.relationshipId,
+              selected: relationship.selected,
+              emphasized: relationship.emphasized,
             }),
           }),
         );
@@ -4225,6 +4228,28 @@ export class DeckWorldSurface implements WorldSurface {
         !styleEqual(previous.edge.style, relationship.style)
       ) {
         styleChanged = true;
+      }
+
+      if (
+        previous &&
+        (previous.edge.selected !== relationship.selected ||
+          previous.edge.emphasized !== relationship.emphasized)
+      ) {
+        const slot = this.#temporalRelationshipSlots.get(relationship.relationshipId);
+        if (slot) {
+          this.#temporalRelationshipSlots.set(
+            relationship.relationshipId,
+            Object.freeze({
+              slot: slot.slot,
+              datum: Object.freeze({
+                kind: "relationship" as const,
+                relationshipId: relationship.relationshipId,
+                selected: relationship.selected,
+                emphasized: relationship.emphasized,
+              }),
+            }),
+          );
+        }
       }
 
       this.#temporalRelationshipState.set(
@@ -4394,13 +4419,12 @@ export class DeckWorldSurface implements WorldSurface {
       : Object.freeze([] as DeckWorldRelationshipDatum[]);
     const releasingSegments = releasingRelationshipSegments(releasingRelationships);
     const placeMarkerClusters =
-      clusterPhase === "expanded"
+      clusterPhase !== "collapsed"
         ? Object.freeze(
             clusterEntityDatumsByPlace(
               entityResult.datums,
               this.#projection.instances,
               worldPixelsToDegrees(WORLD_PLACE_MARKER_CLUSTER_MERGE_PX, this.#camera.zoom),
-              WORLD_CLUSTER_MIN_MEMBER_COUNT,
             ).filter((datum): datum is DeckWorldClusterDatum => datum.kind === "cluster"),
           )
         : Object.freeze([] as DeckWorldClusterDatum[]);
@@ -4839,7 +4863,7 @@ export class DeckWorldSurface implements WorldSurface {
             : this.#theme.clusterBorder,
         getFillColor: (datum: DeckWorldEntityRenderDatum) =>
           datum.kind === "cluster"
-            ? scaleAlpha(this.#theme.cluster, clusterVisibility)
+            ? scaleAlpha(this.#theme.cluster, 0)
             : this.#theme.hit,
         updateTriggers: {
           getPosition: [this.#dragPresentationRevision, screenScaleZoomStep(this.#camera.zoom)],
