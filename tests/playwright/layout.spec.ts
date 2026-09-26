@@ -125,15 +125,23 @@ test.describe("Mobile-first Timeline layout contracts", () => {
 
     const timelineBox = await expectInsideViewport(timeline, PHONE_PORTRAIT);
     const surfaceBox = await expectInsideViewport(surface, PHONE_PORTRAIT);
-    await expectInsideViewport(dock, PHONE_PORTRAIT);
+    const dockBox = await expectInsideViewport(dock, PHONE_PORTRAIT);
 
     expect(timelineBox.width).toBeGreaterThan(PHONE_PORTRAIT.width * 0.9);
     expect(timelineBox.height).toBeGreaterThan(PHONE_PORTRAIT.height * 0.8);
     expect(surfaceBox.width).toBeGreaterThan(PHONE_PORTRAIT.width * 0.9);
-    // With the relation graph open, chronology still owns at least half of a portrait phone.
-    await expect
-      .poll(async () => (await surface.boundingBox())?.height ?? 0)
-      .toBeGreaterThan(PHONE_PORTRAIT.height * 0.48);
+    // Landscape chronology is a compact footer-adjacent rail: tall enough for
+    // readable callouts without consuming roughly half of a portrait phone.
+    expect(surfaceBox.height).toBeGreaterThan(PHONE_PORTRAIT.height * 0.34);
+    expect(surfaceBox.height).toBeLessThan(PHONE_PORTRAIT.height * 0.46);
+    expect(Math.abs(surfaceBox.y + surfaceBox.height - dockBox.y)).toBeLessThanOrEqual(3);
+
+    const axisBox = await page.locator(".timeline-axis").boundingBox();
+    expect(axisBox).not.toBeNull();
+    if (!axisBox) throw new Error("Landscape timeline axis has no bounds.");
+    const axisRatio = (axisBox.y - surfaceBox.y) / surfaceBox.height;
+    expect(axisRatio).toBeGreaterThan(0.42);
+    expect(axisRatio).toBeLessThan(0.5);
 
     await expectVisibleChronology(page, PHONE_PORTRAIT);
     await expectNoPrimaryDocumentScroll(page, PHONE_PORTRAIT);
@@ -151,15 +159,15 @@ test.describe("Mobile-first Timeline layout contracts", () => {
 
     const timelineBox = await expectInsideViewport(timeline, PHONE_LANDSCAPE);
     const surfaceBox = await expectInsideViewport(surface, PHONE_LANDSCAPE);
-    await expectInsideViewport(dock, PHONE_LANDSCAPE);
+    const dockBox = await expectInsideViewport(dock, PHONE_LANDSCAPE);
 
     expect(timelineBox.width).toBeGreaterThan(PHONE_LANDSCAPE.width * 0.9);
     expect(timelineBox.height).toBeGreaterThan(PHONE_LANDSCAPE.height * 0.8);
     expect(surfaceBox.width).toBeGreaterThan(PHONE_LANDSCAPE.width * 0.9);
-    // Landscape keeps a substantial chronology rail while leaving graph context usable.
-    await expect
-      .poll(async () => (await surface.boundingBox())?.height ?? 0)
-      .toBeGreaterThan(PHONE_LANDSCAPE.height * 0.4);
+    // A physically short viewport keeps an even tighter bottom rail.
+    expect(surfaceBox.height).toBeGreaterThanOrEqual(150);
+    expect(surfaceBox.height).toBeLessThanOrEqual(190);
+    expect(Math.abs(surfaceBox.y + surfaceBox.height - dockBox.y)).toBeLessThanOrEqual(3);
 
     await expectVisibleChronology(page, PHONE_LANDSCAPE);
     await expectNoPrimaryDocumentScroll(page, PHONE_LANDSCAPE);
