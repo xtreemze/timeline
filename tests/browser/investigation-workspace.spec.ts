@@ -144,6 +144,7 @@ test("mobile investigation workspace renders dense alternatives without applicat
   });
   expect(geometry.top).toBeGreaterThanOrEqual(0);
   expect(geometry.bottom).toBeLessThanOrEqual(geometry.viewportHeight + 1);
+  expect(geometry.bodyOverflow).toBeLessThanOrEqual(2);
   expect(geometry.matrixScrolls).toBe(true);
 
   await page.keyboard.press("Escape");
