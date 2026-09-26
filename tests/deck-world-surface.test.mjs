@@ -494,7 +494,7 @@ test("world graph label scale matches the compact interface hierarchy", () => {
   );
 });
 
-test("world label collision priority preserves semantic order and interaction emphasis", () => {
+test("world label collision priority preserves semantic order without selection reflow", () => {
   const relationship = worldLabelCollisionPriority({
     kind: "relationship-label",
     emphasized: false,
@@ -510,7 +510,11 @@ test("world label collision priority preserves semantic order and interaction em
   assert.ok(cluster > place);
   assert.ok(place > entity);
   assert.ok(entity > relationship);
-  assert.ok(emphasizedRelationship > cluster);
+  assert.equal(
+    emphasizedRelationship,
+    relationship,
+    "selection/focus styling must not change collision winners",
+  );
 });
 
 test("optional deck collision filtering is attached only to the text label layer", () => {

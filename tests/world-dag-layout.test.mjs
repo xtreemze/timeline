@@ -117,6 +117,52 @@ test("cross-place relationships participate in one DAG and influence nodes back 
   );
 });
 
+test("Sugiyama flow follows viewport orientation", () => {
+  const source = instance("orientation-source");
+  const target = instance("orientation-target");
+  const projection = createWorldProjection({
+    instances: [source, target],
+    edges: [edge("orientation-edge", source, target)],
+  });
+
+  const portrait = createWorldDagLayout(projection, {
+    reorganize: true,
+    orientation: "top-to-bottom",
+  });
+  const landscape = createWorldDagLayout(projection, {
+    reorganize: true,
+    orientation: "left-to-right",
+  });
+  const portraitSource = portrait.targets.find((entry) => entry.instanceId === source.id);
+  const portraitTarget = portrait.targets.find((entry) => entry.instanceId === target.id);
+  const landscapeSource = landscape.targets.find((entry) => entry.instanceId === source.id);
+  const landscapeTarget = landscape.targets.find((entry) => entry.instanceId === target.id);
+
+  assert.ok(portraitSource && portraitTarget && landscapeSource && landscapeTarget);
+  const portraitEast = portraitTarget.eastMeters - portraitSource.eastMeters;
+  const portraitNorth = portraitTarget.northMeters - portraitSource.northMeters;
+  const landscapeEast = landscapeTarget.eastMeters - landscapeSource.eastMeters;
+  const landscapeNorth = landscapeTarget.northMeters - landscapeSource.northMeters;
+
+  assert.ok(
+    Math.abs(portraitNorth) > Math.abs(portraitEast),
+    "portrait hierarchy should advance primarily north/south",
+  );
+  assert.ok(
+    Math.abs(landscapeEast) > Math.abs(landscapeNorth),
+    "landscape hierarchy should advance primarily west/east",
+  );
+  assert.ok(
+    landscapeEast > 0,
+    "left-to-right hierarchy should advance toward positive local east",
+  );
+  assert.equal(
+    landscape.metrics.crossingCount,
+    portrait.metrics.crossingCount,
+    "rotating the hierarchy must preserve crossing minimization",
+  );
+});
+
 test("anchored place footprint participates in local DAG spacing", () => {
   const a = instance("place-clearance-a");
   const b = instance("place-clearance-b");

@@ -201,6 +201,63 @@ test("D3 drag and post-drop stay local and publish sparse changed positions", ()
   assert.deepEqual(remoteAfter, remoteBefore);
 });
 
+test("D3 drag rejects nearby nodes across different geographic anchors before collision", () => {
+  const simulation = new D3WorldForceSimulation();
+  const dragged = '["dragged","origin"]';
+  const nearbyA = '["nearby-a","place-a"]';
+  const nearbyB = '["nearby-b","place-b"]';
+
+  simulation.setScene({
+    nodes: [
+      node(dragged, 0, 180),
+      node(nearbyA, 0, 180),
+      node(nearbyB, 0, 180),
+    ],
+    edges: [],
+    anchors: [
+      anchor(dragged, "origin", 0, { longitude: 18, latitude: 59 }),
+      anchor(nearbyA, "place-a", 0, { longitude: 18.01, latitude: 59 }),
+      anchor(nearbyB, "place-b", 0, { longitude: 18.02, latitude: 59 }),
+    ],
+  });
+  simulation.getChangedSnapshot();
+  const before = new Map(
+    simulation.getSnapshot().map((entry) => [entry.instanceId, entry]),
+  );
+
+  simulation.setPin({
+    instanceId: dragged,
+    eastMeters: 0,
+    northMeters: 0,
+    visualAltitudeMeters: 1_000,
+  });
+  simulation.apply({ reason: "drag", excitation: 0.2, reheat: true });
+  simulation.step(1000 / 60);
+
+  const after = new Map(
+    simulation.getSnapshot().map((entry) => [entry.instanceId, entry]),
+  );
+  const changed = new Set(
+    simulation.getChangedSnapshot().map((entry) => entry.instanceId),
+  );
+
+  for (const id of [nearbyA, nearbyB]) {
+    const start = before.get(id);
+    const end = after.get(id);
+    assert.ok(start && end);
+    assert.ok(
+      Math.hypot(end.eastMeters - start.eastMeters, end.northMeters - start.northMeters) > 0,
+      `${id} should participate in cross-place rejection before marker footprints overlap`,
+    );
+    assert.ok(changed.has(id), `${id} should publish its cross-place force displacement`);
+  }
+  assert.equal(
+    after.get(dragged)?.eastMeters,
+    0,
+    "the directly manipulated node remains pointer-owned while foreign nodes reject it",
+  );
+});
+
 test("D3 drag collides with nodes registered to a different place", () => {
   const simulation = new D3WorldForceSimulation();
   const dragged = '["alice","stockholm"]';

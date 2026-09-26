@@ -1,3 +1,4 @@
+import type { WorldDagLayoutOrientation } from "../../src/layout/world-dag-layout.ts";
 import { D3WorldForceSimulation } from "../../src/layout/d3-world-force-simulation.ts";
 import type { WorldForceLayoutSample } from "../../src/layout/world-force-layout.ts";
 import type { WorldForceSimulationBackend } from "../../src/layout/world-force-simulation.ts";
@@ -55,6 +56,16 @@ export interface WorldViewFactoryOptions {
  */
 export const WORLD_LAYOUT_RUN_BUDGET_MS = 4_000;
 export const WORLD_LAYOUT_RUN_MAX_TICKS = 600;
+
+function viewportDagOrientation(
+  root: HTMLElement,
+  container: HTMLElement,
+): WorldDagLayoutOrientation {
+  const view = root.ownerDocument?.defaultView;
+  const width = view?.innerWidth || root.clientWidth || container.clientWidth;
+  const height = view?.innerHeight || root.clientHeight || container.clientHeight;
+  return width > height ? "left-to-right" : "top-to-bottom";
+}
 
 function browserScheduler(): WorldFrameScheduler {
   return Object.freeze({
@@ -335,10 +346,26 @@ export function createWorldViewFactory(options: WorldViewFactoryOptions): WorldV
       });
       const view = new WorldProjectionView(runtime);
       let layoutControls: HTMLElement | null = null;
+      let removeDagOrientationListener: (() => void) | null = null;
       const scheduledView = new ScheduledWorldProjectionView(view, runtime, scheduler, () => {
+        removeDagOrientationListener?.();
+        removeDagOrientationListener = null;
         layoutControls?.remove();
         layoutControls = null;
       });
+
+      const syncDagOrientation = (): void => {
+        if (runtime.setDagOrientation(viewportDagOrientation(root, container))) {
+          scheduledView.wake();
+        }
+      };
+      syncDagOrientation();
+      const browserWindow = root.ownerDocument?.defaultView;
+      if (browserWindow && typeof browserWindow.addEventListener === "function") {
+        browserWindow.addEventListener("resize", syncDagOrientation, { passive: true });
+        removeDagOrientationListener = () =>
+          browserWindow.removeEventListener("resize", syncDagOrientation);
+      }
 
       if (footerSlot && root.ownerDocument) {
         layoutControls = createWorldLayoutControls(root.ownerDocument, {
