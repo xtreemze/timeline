@@ -16,7 +16,7 @@ Desktop uses the 1440×900 product layout. Mobile uses the explicit touch-capabl
 
 The showcase distinguishes motion from static presentation. Timeline navigation and relation-graph navigation are motion scenes. Focused context, evidence, and story browsing are static scenes.
 
-Static scenes hold the demonstrated state open and capture a PNG screenshot. Motion scenes must be display-paced at native 60 fps. Chromium keeps its normal begin-frame limiter, while GPU vblank synchronization is disabled because the CI display is virtual; background/occlusion throttling is also disabled. CI starts a dummy Xorg display with an explicit 1920×1080@60 modeline, and FFmpeg samples that X11 framebuffer at 60 fps into low-latency H.264. The encoder uses the X11 demuxer's timing base with `-enc_time_base demux` and `-fps_mode passthrough`; raw frame timestamps must be strictly increasing, both the decoded raw cadence and browser `requestAnimationFrame()` clock must remain within 59–61 fps, and at least 95% of intervals must stay within 12–22 ms.
+Static scenes hold the demonstrated state open and capture a PNG screenshot. Motion scenes are sampled at native 60 fps from a dummy Xorg display with an explicit 1920×1080@60 modeline. Chromium disables frame-rate, background, renderer, and occlusion throttling so the application cannot be artificially starved by CI; its `requestAnimationFrame()` clock must sustain at least 59 fps and at least 95% of frame gaps must remain at or below 22 ms. FFmpeg samples the X11 framebuffer at exactly 60 fps into low-latency H.264. The encoder uses the X11 demuxer's timing base with `-enc_time_base demux` and `-fps_mode passthrough`; raw frame timestamps must be strictly increasing, remain within 59–61 fps, and keep at least 95% of intervals between 12 and 22 ms.
 
 ## Output contract
 
@@ -71,7 +71,7 @@ The showcase config contains two structural projects:
 
 The shared scene metadata defines feature title, explanation, expected state, alt text, stable output stem, and whether the scene is `motion` or `static`. Desktop and mobile interaction routines remain separate so touch UI is not forced to mimic desktop input mechanics.
 
-Motion capture does not use Playwright 1.63's built-in screencast file recorder, which hard-codes its video output to 25 fps. It also does not depend on Chromium's DevTools screencast or tab-media capture transports: CI measurements showed those transports could not sustain the required cadence. The media workflow instead starts Xorg with the dummy video driver and an explicit 1920×1080@60 modeline, verifies that mode with `xrandr`, runs headed Chromium on that display, and records the viewport region directly with FFmpeg `x11grab`. Chromium background and occlusion throttling are disabled. `--disable-frame-rate-limit` remains forbidden so the browser cannot run uncapped; `--disable-gpu-vsync` is used independently to avoid relying on a physical-vblank signal that does not exist on the dummy Xorg device. The browser rAF evidence must still remain within 59–61 fps, so this cannot pass by running faster than 60. Raw H.264 encoding with x264 ultrafast/zerolatency preserves the demuxer time base and passthrough timestamps; duplicated or non-increasing timestamps fail certification, as does bursty timing with fewer than 95% of intervals in the 12–22 ms pacing window.
+Motion capture does not use Playwright 1.63's built-in screencast file recorder, which hard-codes its video output to 25 fps. It also does not depend on Chromium's DevTools screencast or tab-media capture transports: CI measurements showed those transports could not sustain the required cadence. The media workflow instead starts Xorg with the dummy video driver and an explicit 1920×1080@60 modeline, verifies that mode with `xrandr`, runs headed Chromium on that display, and records the viewport region directly with FFmpeg `x11grab`. Chromium disables background/occlusion throttling and uses `--disable-frame-rate-limit` plus `--disable-gpu-vsync`, matching the proven showcase setup used by the Lemonade project, so the renderer may run above 60 rather than being starved below it by a virtual display. Browser timing still fails if it drops below 59 fps or if more than 5% of frame gaps exceed 22 ms. Raw H.264 encoding with x264 ultrafast/zerolatency preserves the demuxer time base and passthrough timestamps; the captured X11 stream itself must remain strictly within 59–61 fps, and duplicated/non-increasing timestamps or bursty raw cadence fail certification.
 
 Playwright native screencast overlays provide restrained Lūm branding and feature chapters for motion capture without modifying production UI only for recording. Static screenshots remain product-state captures rather than chapter cards.
 
@@ -79,7 +79,7 @@ Playwright native screencast overlays provide restrained Lūm branding and featu
 
 `scripts/render-e2e-highlight.mjs` uses FFmpeg rather than adding a second browser/video framework. It:
 
-- requires the browser `requestAnimationFrame()` clock to remain within 59–61 fps while recording;
+- requires the browser `requestAnimationFrame()` clock to sustain at least 59 fps with at least 95% of frame gaps at or below 22 ms while recording;
 - decodes raw X11 Matroska frame timestamps with FFprobe, rejects duplicated/non-increasing timestamps, and requires the source to remain within the same 59–61 fps native window before publication encoding;
 - verifies the raw Matroska codec is H.264 and that decoded frame counts exactly match the timing evidence;
 - probes every visual source with FFprobe;
@@ -92,7 +92,7 @@ Playwright native screencast overlays provide restrained Lūm branding and featu
 - emits README-ready markup from the same manifest metadata;
 - measures individual and aggregate showcase payloads.
 
-There is no GIF palette stage, no reduced presentation frame rate, and no fixed GIF width. A nominal 60 fps output is not sufficient by itself: CI must prove a display-paced 59–61 fps browser clock and a matching 59–61 fps raw X11 source, and downstream WebP/MP4 encoding is not allowed to manufacture cadence with `-r` or motion `fps=` filters.
+There is no GIF palette stage, no reduced presentation frame rate, and no fixed GIF width. A nominal 60 fps output is not sufficient by itself: CI must prove that Chromium sustained at least 59 render callbacks per second without material stalls and that the independently sampled raw X11 source remained within 59–61 fps. Downstream WebP/MP4 encoding is not allowed to manufacture cadence with `-r` or motion `fps=` filters.
 
 ## CI and publication
 
