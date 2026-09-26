@@ -129,5 +129,5 @@ jobs:
         with:
           name: lum-e2e-showcase
           path: artifacts/e2e-media/
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14
