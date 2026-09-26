@@ -107,6 +107,150 @@ export const STORY_PROJECT_TEMPLATE: JsonRecord = Object.freeze({
   extensions: {},
 });
 
+
+export const STORY_PROJECT_FIELD_REFERENCE: JsonRecord = Object.freeze({
+  project: {
+    version: "2",
+    title: "string",
+    categories: "array of { id, name, color? }; categories classify chronology items only",
+    evidence:
+      "array of { id, type, title, sourceName?, note?, publishedAt?, url?, extensions? }; keep source locators/provenance here",
+    stories: "array of { id, title, description?, itemIds[], extensions? }",
+    items:
+      "array of { id, kind:'event'|'range', start, end?, time, title, description?, categoryId?, evidenceIds[], relationChanges[], extensions? }",
+    entities:
+      "array of { id, type, name, alternateNames?, identifiers?, sourceIds?, attributes? }",
+    places:
+      "array of { id, name, geometry:{ type:'Point'|'LineString'|'MultiLineString'|'Polygon'|'MultiPolygon', coordinates }, geographicIdentifier?, address?, attributes? }",
+    relationships:
+      "array of { id, subjectId, predicate, objectId, itemIds[], sourceIds?, time?, placeId?, confidence?, attributes? }",
+    custodyActions: "optional array",
+    reasoning: "optional object",
+    extensions: "optional object",
+  },
+  temporalInstant: {
+    type: "instant",
+    start: {
+      value: "ISO date/time supported by source",
+      precision: "year|month|day|hour|minute|second",
+      certainty: "stated|inferred|approximate|uncertain",
+      calendar: "gregorian",
+      timeZone: "IANA zone or null",
+      utcOffset: "offset or null",
+      sourceText: "short source phrase supporting the temporal value",
+    },
+    end: null,
+  },
+  temporalInterval:
+    "same endpoint shape with type:'interval' and both start/end populated from source-supported bounds",
+});
+
+export const MINIMAL_STORY_PROJECT_EXAMPLE: JsonRecord = Object.freeze({
+  version: 2,
+  title: "Exhibit A chronology",
+  categories: [],
+  evidence: [
+    {
+      id: "source-exhibit-a",
+      type: "document",
+      title: "Exhibit A",
+      sourceName: "User-provided source",
+      note: "The source states that Alice warned Bob on 2026-01-02.",
+      extensions: {
+        sourceLocator: { kind: "page", value: "4" },
+      },
+    },
+  ],
+  stories: [
+    {
+      id: "story-exhibit-a",
+      title: "Exhibit A chronology",
+      description: "Events supported by Exhibit A.",
+      itemIds: ["event-alice-warns-bob"],
+    },
+  ],
+  items: [
+    {
+      id: "event-alice-warns-bob",
+      kind: "event",
+      start: "2026-01-02",
+      end: null,
+      time: {
+        type: "instant",
+        start: {
+          value: "2026-01-02",
+          precision: "day",
+          certainty: "stated",
+          calendar: "gregorian",
+          timeZone: null,
+          utcOffset: null,
+          sourceText: "on 2026-01-02",
+        },
+        end: null,
+      },
+      title: "Alice warns Bob",
+      description: "Alice warned Bob.",
+      evidenceIds: ["source-exhibit-a"],
+      relationChanges: [],
+      extensions: {
+        narrative: {
+          storyId: "story-exhibit-a",
+          sequence: 1,
+        },
+      },
+    },
+  ],
+  entities: [
+    {
+      id: "person-alice",
+      type: "person",
+      name: "Alice",
+      alternateNames: [],
+      identifiers: [],
+      sourceIds: ["source-exhibit-a"],
+      attributes: { storyId: "story-exhibit-a" },
+    },
+    {
+      id: "person-bob",
+      type: "person",
+      name: "Bob",
+      alternateNames: [],
+      identifiers: [],
+      sourceIds: ["source-exhibit-a"],
+      attributes: { storyId: "story-exhibit-a" },
+    },
+  ],
+  places: [],
+  relationships: [
+    {
+      id: "rel-alice-warns-bob",
+      subjectId: "person-alice",
+      predicate: "warns",
+      objectId: "person-bob",
+      itemIds: ["event-alice-warns-bob"],
+      sourceIds: ["source-exhibit-a"],
+      time: {
+        type: "instant",
+        start: {
+          value: "2026-01-02",
+          precision: "day",
+          certainty: "stated",
+          calendar: "gregorian",
+          timeZone: null,
+          utcOffset: null,
+          sourceText: "on 2026-01-02",
+        },
+        end: null,
+      },
+      confidence: 1,
+      attributes: {},
+    },
+  ],
+  custodyActions: [],
+  reasoning: {},
+  extensions: {},
+});
+
 function record(value: unknown): JsonRecord | null {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as JsonRecord)
@@ -396,6 +540,8 @@ export function authoringGuideResult(): JsonRecord {
     guide: DOCUMENT_STORY_GUIDE,
     graphContract: TimelineGraph.getGraphContract(),
     projectTemplate: STORY_PROJECT_TEMPLATE,
+    fieldReference: STORY_PROJECT_FIELD_REFERENCE,
+    minimalValidExample: MINIMAL_STORY_PROJECT_EXAMPLE,
     stagingSchemaVersion: "lum-story-proposal-v1",
     publicEndpointBehavior: {
       stateless: true,
