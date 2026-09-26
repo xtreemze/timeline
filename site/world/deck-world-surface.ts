@@ -103,6 +103,7 @@ import {
   worldGraticule,
 } from "./world-basemap.ts";
 import { worldNodeMarker } from "./world-node-marker.ts";
+import { WorldRenderTopologyIndex } from "./world-render-topology.ts";
 
 export const DECK_WORLD_LAYER_IDS = Object.freeze({
   places: "lum-world-places",
@@ -1771,6 +1772,7 @@ function routedRelationshipPath(
 function relationshipDatums(
   projection: WorldProjection,
   index: WorldInstanceIndex,
+  topology: WorldRenderTopologyIndex,
   selection: WorldSelection | null,
   previous: ReadonlyMap<RelationshipId, DeckWorldRelationshipDatum>,
   emphasizedRelationshipIds?: ReadonlySet<RelationshipId>,
@@ -1781,34 +1783,8 @@ function relationshipDatums(
 } {
   const byId = new Map<RelationshipId, DeckWorldRelationshipDatum>();
   const result: DeckWorldRelationshipDatum[] = [];
-  const instanceById = new Map(
-    projection.instances.map((instance) => [instance.id, instance] as const),
-  );
-  const groups = new Map<string, WorldProjection["edges"][number][]>();
-  for (const edge of projection.edges) {
-    const sourceKey = String(edge.sourceInstanceId);
-    const targetKey = String(edge.targetInstanceId);
-    const pair =
-      sourceKey.localeCompare(targetKey) <= 0
-        ? JSON.stringify([sourceKey, targetKey])
-        : JSON.stringify([targetKey, sourceKey]);
-    const group = groups.get(pair);
-    if (group) group.push(edge);
-    else groups.set(pair, [edge]);
-  }
-  const lanes = new Map<RelationshipId, number>();
-  for (const group of groups.values()) {
-    group.sort((left, right) => String(left.id).localeCompare(String(right.id)));
-    if (group.length === 1) {
-      const [onlyEdge] = group;
-      if (onlyEdge) lanes.set(onlyEdge.id, 0);
-      continue;
-    }
-    group.forEach((edge, index) => {
-      const magnitude = Math.floor(index / 2) + 1;
-      lanes.set(edge.id, index % 2 === 0 ? -magnitude : magnitude);
-    });
-  }
+  const instanceById = topology.instanceById;
+  const lanes = topology.lanes;
 
   for (const edge of projection.edges) {
     const source = index.positions.get(edge.sourceInstanceId);
@@ -2596,90 +2572,6 @@ function selectionEquals(left: WorldSelection, right: WorldSelection | null): bo
   return right !== null && left.kind === right.kind && left.id === right.id;
 }
 
-interface WorldInteractionNeighborhood {
-  readonly entityIds: ReadonlySet<EntityId>;
-  readonly relationshipIds: ReadonlySet<RelationshipId>;
-  readonly placeIds: ReadonlySet<PlaceId>;
-}
-
-function interactionNeighborhood(
-  projection: WorldProjection,
-  selections: readonly (WorldSelection | null)[],
-): WorldInteractionNeighborhood {
-  const entityIds = new Set<EntityId>();
-  const relationshipIds = new Set<RelationshipId>();
-  const placeIds = new Set<PlaceId>();
-  const entityByInstance = new Map<WorldInstanceId, EntityId>();
-  const placesByInstance = new Map<WorldInstanceId, readonly PlaceId[]>();
-  const placesByEntity = new Map<EntityId, Set<PlaceId>>();
-  for (const instance of projection.instances) {
-    entityByInstance.set(instance.id, instance.canonicalId);
-    const instancePlaceIds = Object.freeze(
-      [...new Set(instance.geographicAnchors.map((anchor) => anchor.placeId))].sort((left, right) =>
-        String(left).localeCompare(String(right)),
-      ),
-    );
-    placesByInstance.set(instance.id, instancePlaceIds);
-    const entityPlaces = placesByEntity.get(instance.canonicalId) ?? new Set<PlaceId>();
-    for (const placeId of instancePlaceIds) entityPlaces.add(placeId);
-    placesByEntity.set(instance.canonicalId, entityPlaces);
-  }
-
-  for (const selection of selections) {
-    if (!selection) continue;
-
-    if (selection.kind === "place") {
-      placeIds.add(selection.id);
-      const selectedInstanceIds = new Set<WorldInstanceId>();
-      for (const instance of projection.instances) {
-        if (!instance.geographicAnchors.some((anchor) => anchor.placeId === selection.id)) continue;
-        selectedInstanceIds.add(instance.id);
-        entityIds.add(instance.canonicalId);
-      }
-      for (const edge of projection.edges) {
-        if (
-          !selectedInstanceIds.has(edge.sourceInstanceId) &&
-          !selectedInstanceIds.has(edge.targetInstanceId)
-        ) {
-          continue;
-        }
-        relationshipIds.add(edge.id);
-        const source = entityByInstance.get(edge.sourceInstanceId);
-        const target = entityByInstance.get(edge.targetInstanceId);
-        if (source) entityIds.add(source);
-        if (target) entityIds.add(target);
-      }
-      continue;
-    }
-
-    if (selection.kind === "relationship") {
-      relationshipIds.add(selection.id);
-      const edge = projection.edges.find((candidate) => candidate.id === selection.id);
-      if (!edge) continue;
-      const source = entityByInstance.get(edge.sourceInstanceId);
-      const target = entityByInstance.get(edge.targetInstanceId);
-      if (source) entityIds.add(source);
-      if (target) entityIds.add(target);
-      for (const placeId of placesByInstance.get(edge.sourceInstanceId) ?? []) placeIds.add(placeId);
-      for (const placeId of placesByInstance.get(edge.targetInstanceId) ?? []) placeIds.add(placeId);
-      continue;
-    }
-
-    entityIds.add(selection.id);
-    for (const placeId of placesByEntity.get(selection.id) ?? []) placeIds.add(placeId);
-    for (const edge of projection.edges) {
-      const source = entityByInstance.get(edge.sourceInstanceId);
-      const target = entityByInstance.get(edge.targetInstanceId);
-      if (source !== selection.id && target !== selection.id) continue;
-      relationshipIds.add(edge.id);
-      if (source) entityIds.add(source);
-      if (target) entityIds.add(target);
-    }
-  }
-
-  return Object.freeze({ entityIds, relationshipIds, placeIds });
-}
-
 interface WorldPlaceInteractionReveal {
   readonly instanceIds: ReadonlySet<WorldInstanceId>;
   readonly relationshipIds: ReadonlySet<RelationshipId>;
@@ -2810,6 +2702,7 @@ export class DeckWorldSurface implements WorldSurface {
     instances: Object.freeze([]),
     edges: Object.freeze([]),
   });
+  readonly #topologyIndex = new WorldRenderTopologyIndex(this.#projection);
   #relationshipRouteHints: ReadonlyMap<RelationshipId, WorldRelationshipRouteHint> = new Map();
   #selection: WorldSelection | null = null;
   #hoverSelection: WorldSelection | null = null;
@@ -3682,6 +3575,7 @@ export class DeckWorldSurface implements WorldSurface {
   setProjection(projection: WorldProjection): void {
     this.#assertAlive();
     this.#projection = projection;
+    this.#topologyIndex.replace(projection);
     this.#pruneRevealedClusterPlaces();
     this.#autoFitCamera();
     this.#syncClusterLifecycle();
@@ -3691,6 +3585,7 @@ export class DeckWorldSurface implements WorldSurface {
   applyProjectionDelta(delta: WorldProjectionDelta): void {
     this.#assertAlive();
     this.#projection = applyWorldProjectionDelta(this.#projection, delta);
+    this.#topologyIndex.applyDelta(delta, this.#projection);
     this.#pruneRevealedClusterPlaces();
     // Force/layout deltas are derived presentation updates. Do not re-run
     // content fit or move the camera while nodes relax.
@@ -3814,6 +3709,7 @@ export class DeckWorldSurface implements WorldSurface {
       relationshipDatums(
         this.#projection,
         this.#instanceIndex(),
+        this.#topologyIndex,
         this.#selection,
         this.#relationshipDatumCache,
       ).datums.find((datum) => datum.relationshipId === id)?.path[0] ?? null,
@@ -3965,6 +3861,7 @@ export class DeckWorldSurface implements WorldSurface {
     const relationships = relationshipDatums(
       this.#projection,
       this.#instanceIndex(),
+      this.#topologyIndex,
       this.#selection,
       this.#relationshipDatumCache,
     ).datums.map((datum) =>
@@ -4626,7 +4523,7 @@ export class DeckWorldSurface implements WorldSurface {
   #render(withCamera = false): void {
     this.#offsetScale = this.#nextOffsetScale();
     this.#floatMeters = this.#nextFloatMeters();
-    const neighborhood = interactionNeighborhood(this.#projection, [
+    const neighborhood = this.#topologyIndex.interactionNeighborhood([
       this.#selection,
       this.#hoverSelection,
     ]);
@@ -4661,6 +4558,7 @@ export class DeckWorldSurface implements WorldSurface {
     const relationshipResult = relationshipDatums(
       this.#projection,
       instanceIndexFromEntities(entityResult.datums),
+      this.#topologyIndex,
       this.#selection,
       this.#relationshipDatumCache,
       neighborhood.relationshipIds,
