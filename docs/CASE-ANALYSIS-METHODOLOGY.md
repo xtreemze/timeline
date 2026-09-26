@@ -162,6 +162,57 @@ ACH is an analytical technique, not an ISO standard. Its value in Timeline is re
 
 Do not select a preferred hypothesis first and then collect only supporting evidence.
 
+## Structured analytic tradecraft and investigative review
+
+Lūm exposes named analytical techniques as **method profiles**, not as automatic conclusion engines.
+
+The current registry includes:
+
+- `ach` — Analysis of Competing Hypotheses;
+- `key-assumptions-check` — explicit assumption identification and challenge;
+- `quality-of-information-check` — source/information limitations and corroboration review;
+- `indicators-signposts` — observable developments that could change an assessment;
+- `devils-advocacy` — structured challenge to a prevailing view;
+- `what-if` — examination of a consequential outcome that might otherwise be dismissed;
+- `reasonable-lines-of-enquiry` — proportionate investigative enquiries that may point toward or away from a hypothesis;
+- `alternative-propositions` — forensic interpretation against alternative propositions.
+
+The first six profiles are aligned to the CIA Center for the Study of Intelligence *Tradecraft Primer*. The reasonable-lines-of-enquiry profile is aligned to College of Policing investigation guidance. The alternative-propositions profile records the conceptual requirement in ISO 21043-4:2025 to interpret observations against alternative propositions relevant to the decision question.
+
+These profiles are descriptive alignment metadata. They do not imply certification, jurisdictional compliance, or that a particular analysis was performed correctly.
+
+### First-class methodology records
+
+The reasoning ledger includes records that make investigative thinking inspectable:
+
+- **Assumption** — a premise that can remain open, become supported, be challenged, or be rejected. Assumptions identify their basis and the hypotheses/propositions they affect.
+- **Question** — an explicit analytical or investigative question. An answered question can link to the factual assertions that answer it.
+- **Line of enquiry** — an auditable investigative action or planned test. It may be discovery-oriented, discriminating, corroborative, or falsification-oriented.
+- **Indicator/signpost** — an expected observable development linked to hypotheses/propositions. Its state is unknown, observed, or absent.
+- **Information-quality review** — a qualitative review of source/evidence/observation limitations and corroboration. Findings remain categorical and reasoned; there is no generic credibility score.
+
+A deferred or deliberately unpursued line of enquiry must preserve the reason. This supports later supervision, disclosure/review, and reassessment when circumstances change.
+
+### Methodology review projection
+
+`methodologyReview()` is deterministic. It surfaces:
+
+- open questions;
+- open/challenged assumptions;
+- proposed or active lines of enquiry;
+- deferred or not-pursued enquiries;
+- unresolved information-quality concerns;
+- indicators still unknown;
+- competing-hypothesis groups with no explicit discriminating/falsification enquiry;
+- ordinary validation findings.
+
+It never returns a selected hypothesis, suspect ranking, probability of guilt, or truth score.
+
+This reflects two compatible methodological ideas:
+
+1. structured analytic techniques reduce the chance that assumptions and preferred explanations remain invisible;
+2. effective investigations should remain open-minded, pursue reasonable lines of enquiry, consider material pointing both toward and away from a suspect, and keep decision rationale reviewable.
+
 ## 6. Evaluative propositions
 
 A forensic **evaluative** question is different from an open investigative hypothesis.
@@ -375,6 +426,10 @@ Primary standards/alignment targets:
 
 Methodological references:
 
+- CIA / Center for the Study of Intelligence, *A Tradecraft Primer: Structured Analytic Techniques for Improving Intelligence Analysis* — https://www.cia.gov/resources/csi/books-monographs/a-tradecraft-primer/
+- College of Policing, *Conducting effective investigations* — https://www.college.police.uk/guidance/conducting-effective-investigations
+- College of Policing, *Investigation process* — https://www.college.police.uk/app/investigation/investigation-process
+- ISO 21043-4:2025 — https://www.iso.org/standard/72039.html
 - UK Forensic Science Regulator, *Forensic science activities: interpretation and communication (FSR-GUI-0004)*, 2026.
 - Casework Assessment and Interpretation (CAI) as described by the Forensic Science Regulator and related forensic literature.
 - Richards J. Heuer Jr., *Psychology of Intelligence Analysis*, chapter on Analysis of Competing Hypotheses.
