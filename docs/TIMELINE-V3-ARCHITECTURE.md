@@ -198,6 +198,8 @@ The layout engine should:
 
 The world DAG and timeline declutterers deliberately do not share the full `d3-dag` Sugiyama pass. Sugiyama layering is appropriate for relationship topology because both layout axes are derived; on a timeline the primary coordinate is evidence-bearing time and is not available for graph layout to move. The chronology instead reuses the useful DAG-layout principles—measured node footprints, greedy coordinate choice, deterministic tie breaking, and previous-layout hysteresis—inside a constrained temporal planner. Decrossing remains unnecessary for ordinary event connectors because each card has a single immutable axis anchor; timed relationship bands continue to use their separate routing layer.
 
+World relationship labels are a presentation constraint, not a physics input. After the orientation-aware world DAG and force pass establish stable node positions and routed relationship paths, label placement runs in deterministic screen space against both previously accepted label footprints and every rendered edge segment. It may try additional offset rings or suppress a label when no clear placement exists, but selection/focus never changes the base label budget, collision priority, or placement order. Interaction may add an overlay label only into remaining free space; it never displaces the established layout.
+
 ## Entity model
 
 Do not make "person", "place", or "evidence" special text fields on events. Introduce reusable entities and typed relationships.
