@@ -44,6 +44,8 @@ export const WORLD_DARK_PALETTE: WorldGraphPalette = Object.freeze({
 export const WORLD_NODE_SCALE = 1;
 /** Minimum visible/touch/collision radius (44px diameter). */
 export const WORLD_ENTITY_MIN_HIT_RADIUS_PX = 22;
+/** Full CSS-pixel floor for visible world strokes across device pixel ratios. */
+export const WORLD_MIN_VISIBLE_STROKE_PX = 1;
 
 export interface WorldNodeStyle {
   readonly fill: string;
