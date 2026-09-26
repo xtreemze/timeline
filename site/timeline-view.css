@@ -3238,7 +3238,7 @@
 @media (min-width: 700px) {
   #app-shell[data-graph-open="true"] #presentation-stage {
     --relations-inline-rail: clamp(280px, 28dvw, 400px);
-    --relations-block-rail: clamp(220px, 31dvh, 320px);
+    --relations-block-rail: clamp(200px, 27dvh, 288px);
     --relations-right-safe: max(0.55rem, env(safe-area-inset-right));
     --relations-bottom-safe: max(4.45rem, calc(env(safe-area-inset-bottom) + 4.1rem));
   }
@@ -3314,7 +3314,7 @@
   #app-shell[data-graph-open="true"]
     #timeline-view[data-orientation="landscape"]
     > .timeline-surface {
-    --timeline-axis-cross: 42%;
+    --timeline-axis-cross: 48%;
     top: auto;
     right: 0;
     bottom: var(--relations-bottom-safe);
@@ -3339,9 +3339,9 @@
 @media (max-width: 699px) {
   #app-shell[data-graph-open="true"] #presentation-stage {
     --mobile-relations-inline-rail: clamp(156px, 44dvw, 196px);
-    /* Chronology is the primary surface. In portrait it keeps roughly half the
-       viewport while the graph fills the complementary region. */
-    --mobile-relations-block-rail: clamp(220px, 52dvh, 460px);
+    /* Horizontal chronology stays docked to the footer but uses a compact rail,
+       leaving more of the stage to the world view on tall phones. */
+    --mobile-relations-block-rail: clamp(200px, 42dvh, 360px);
     --mobile-bottom-chrome: max(3.95rem, calc(env(safe-area-inset-bottom) + 3.65rem));
   }
 
@@ -3410,7 +3410,7 @@
     right: 0;
     bottom: var(--mobile-bottom-chrome);
     left: 0;
-    --timeline-axis-cross: 38%;
+    --timeline-axis-cross: 46%;
     width: 100%;
     max-width: none;
     height: var(--mobile-relations-block-rail);
@@ -3467,7 +3467,7 @@
       #presentation-stage:has(> #timeline-view[data-orientation="landscape"]) {
       /* A physically short landscape viewport needs a compact horizontal rail.
          Portrait phones keep the larger mobile-first chronology allocation. */
-      --mobile-relations-block-rail: clamp(156px, 42dvh, 188px);
+      --mobile-relations-block-rail: clamp(156px, 40dvh, 184px);
     }
   }
 }
