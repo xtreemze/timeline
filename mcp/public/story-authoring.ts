@@ -133,7 +133,7 @@ export const STORY_PROJECT_FIELD_REFERENCE: JsonRecord = Object.freeze({
     start: {
       value: "ISO date/time supported by source",
       precision: "year|month|day|hour|minute|second",
-      certainty: "stated|inferred|approximate|uncertain",
+      certainty: "exact|approximate|uncertain|inferred|unknown",
       calendar: "gregorian",
       timeZone: "IANA zone or null",
       utcOffset: "offset or null",
@@ -180,7 +180,7 @@ export const MINIMAL_STORY_PROJECT_EXAMPLE: JsonRecord = Object.freeze({
         start: {
           value: "2026-01-02",
           precision: "day",
-          certainty: "stated",
+          certainty: "exact",
           calendar: "gregorian",
           timeZone: null,
           utcOffset: null,
@@ -234,7 +234,7 @@ export const MINIMAL_STORY_PROJECT_EXAMPLE: JsonRecord = Object.freeze({
         start: {
           value: "2026-01-02",
           precision: "day",
-          certainty: "stated",
+          certainty: "exact",
           calendar: "gregorian",
           timeZone: null,
           utcOffset: null,
