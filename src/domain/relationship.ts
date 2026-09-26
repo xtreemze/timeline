@@ -1,5 +1,15 @@
 import type { CanonicalEntity, ValidationResult } from "./entity.ts";
 import type { EntityId, PlaceId, RelationshipId, SourceId, TimelineId } from "./ids.ts";
+import { validateOccurrenceTypeId } from "./occurrence-type.ts";
+import type {
+  ActorParticipationContext,
+  ExternalSemanticMapping,
+} from "./semantics.ts";
+import {
+  participationFactIdentity,
+  validateActorParticipationContext,
+  validateExternalSemanticMappings,
+} from "./semantics.ts";
 
 export interface CanonicalTemporalExtent {
   readonly type: "instant" | "interval";
@@ -15,6 +25,10 @@ export interface CanonicalRelationship {
   readonly objectId: EntityId;
   readonly predicate: string;
   readonly role?: string;
+  readonly occurrenceType?: string;
+  readonly subjectContext?: ActorParticipationContext;
+  readonly objectContext?: ActorParticipationContext;
+  readonly semanticMappings?: readonly ExternalSemanticMapping[];
   readonly placeId?: PlaceId;
   readonly itemIds: readonly TimelineId<"occurrence">[];
   readonly sourceIds: readonly SourceId[];
@@ -139,22 +153,47 @@ export function validateActionPredicate(value: string): ValidationResult {
 }
 
 export function validateRelationship(
-  relationship: Pick<CanonicalRelationship, "subjectId" | "objectId" | "predicate">,
+  relationship: Pick<
+    CanonicalRelationship,
+    | "subjectId"
+    | "objectId"
+    | "predicate"
+    | "occurrenceType"
+    | "subjectContext"
+    | "objectContext"
+    | "semanticMappings"
+  >,
   entities: readonly CanonicalEntity[],
 ): ValidationResult {
   if (relationship.subjectId === relationship.objectId) {
     return { valid: false, message: "A canonical relationship cannot target its source entity." };
   }
 
-  const entityIds = new Set(entities.map((entity) => entity.id));
-  if (!(entityIds.has(relationship.subjectId) && entityIds.has(relationship.objectId))) {
+  const entityIds = new Set(entities.map((entity) => String(entity.id)));
+  if (!(entityIds.has(String(relationship.subjectId)) && entityIds.has(String(relationship.objectId)))) {
     return {
       valid: false,
       message: "Both relationship endpoints must reference existing canonical entities.",
     };
   }
 
-  return validateActionPredicate(relationship.predicate);
+  const predicateValidation = validateActionPredicate(relationship.predicate);
+  if (!predicateValidation.valid) return predicateValidation;
+
+  const semanticFindings = [
+    ...validateOccurrenceTypeId(relationship.occurrenceType),
+    ...validateActorParticipationContext(relationship.subjectContext, entityIds),
+    ...validateActorParticipationContext(relationship.objectContext, entityIds),
+    ...validateExternalSemanticMappings(relationship.semanticMappings),
+  ];
+  if (semanticFindings.length > 0) {
+    return {
+      valid: false,
+      message: semanticFindings[0] ?? "Relationship semantic context is invalid.",
+    };
+  }
+
+  return { valid: true, message: "" };
 }
 
 function temporalFactKey(time: CanonicalTemporalExtent | null): string {
@@ -165,12 +204,28 @@ function temporalFactKey(time: CanonicalTemporalExtent | null): string {
 }
 
 export function relationshipFactKey(
-  relationship: Pick<CanonicalRelationship, "subjectId" | "objectId" | "predicate" | "time">,
+  relationship: Pick<
+    CanonicalRelationship,
+    | "subjectId"
+    | "objectId"
+    | "predicate"
+    | "role"
+    | "occurrenceType"
+    | "subjectContext"
+    | "objectContext"
+    | "placeId"
+    | "time"
+  >,
 ): string {
   return JSON.stringify([
     relationship.subjectId,
     semanticKey(relationship.predicate),
     relationship.objectId,
+    semanticKey(relationship.role ?? ""),
+    semanticKey(relationship.occurrenceType ?? ""),
+    participationFactIdentity(relationship.subjectContext),
+    participationFactIdentity(relationship.objectContext),
+    relationship.placeId ? String(relationship.placeId) : null,
     temporalFactKey(relationship.time),
   ]);
 }

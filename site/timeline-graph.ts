@@ -18,6 +18,9 @@ const GRAPH_MODEL_RULES = Object.freeze({
   orphanCanonicalEntities: "forbidden",
   eventActionPlaceTimeNodes: "forbidden",
   spatiotemporalContext: "relationship.time-and-relationship.placeId",
+  occurrenceType: "relationship.occurrenceType-is-semantic-classification-not-predicate",
+  actorCapacity: "relationship.subjectContext-and-objectContext",
+  representation: "actor-and-represented-entity-remain-distinct-canonical-nodes",
   categories: "chronology-items-only",
   stories: "narrative-membership-not-graph-topology",
   namedNarrativeEntities: "known-canonical-mentions-must-be-endpoints-of-contextual-action-edges",
@@ -102,6 +105,8 @@ interface EntityNode {
   name: string;
   alternateNames: string[];
   identifiers: any[];
+  appellations: any[];
+  semanticMappings: any[];
   sourceIds: string[];
   attributes: Record<string, any>;
 }
@@ -112,6 +117,10 @@ interface Relationship {
   objectId: string;
   predicate: string;
   role?: string;
+  occurrenceType?: string;
+  subjectContext?: Record<string, any>;
+  objectContext?: Record<string, any>;
+  semanticMappings?: any[];
   placeId?: string;
   itemIds?: string[];
   initialState?: "active" | "inactive";
@@ -236,6 +245,48 @@ const ENTITY_CONTEXT_KEYS = new Set([
   "longitude",
   "radius",
   "radiusmeters",
+]);
+
+const ACTOR_ENTITY_TYPES = new Set([
+  "person",
+  "organization",
+  "organisation",
+  "group",
+  "company",
+  "corporation",
+  "institution",
+  "legalentity",
+  "juridicalperson",
+]);
+
+const ACTOR_OCCURRENCE_KEYS = new Set([
+  "birthplace",
+  "birthdate",
+  "dateofbirth",
+  "deathplace",
+  "deathdate",
+  "dateofdeath",
+  "school",
+  "education",
+  "workplace",
+  "employer",
+  "employment",
+  "profession",
+  "occupation",
+  "community",
+  "association",
+  "membership",
+  "residence",
+  "citizenship",
+  "nationality",
+  "role",
+  "office",
+  "appointment",
+  "representation",
+  "representedentityid",
+  "formationdate",
+  "foundingdate",
+  "dissolutiondate",
 ]);
 
 const GENERIC_RELATION_KEYS = new Set([
@@ -446,13 +497,32 @@ function temporalFactKey(time: any): string {
   return `${type}:${start}->${end}`;
 }
 
+function participationFactIdentity(raw: any): [string, string, string] {
+  if (!raw || typeof raw !== "object") return ["", "", ""];
+  return [
+    semanticKey(raw.roleType),
+    text(raw.representedEntityId, 120),
+    text(raw.organizationId, 120),
+  ];
+}
+
 function relationshipFactKey(raw: any): string {
   if (!raw || typeof raw !== "object") return "";
   const subjectId = text(raw.subjectId ?? raw.start ?? raw.source, 120);
   const objectId = text(raw.objectId ?? raw.end ?? raw.target, 120);
   const predicate = semanticKey(raw.predicate ?? raw.label ?? raw.type);
   if (!subjectId || !objectId || !predicate) return "";
-  return JSON.stringify([subjectId, predicate, objectId, temporalFactKey(raw.time)]);
+  return JSON.stringify([
+    subjectId,
+    predicate,
+    objectId,
+    semanticKey(raw.role),
+    semanticKey(raw.occurrenceType),
+    participationFactIdentity(raw.subjectContext),
+    participationFactIdentity(raw.objectContext),
+    text(raw.placeId || raw.locationId, 120),
+    temporalFactKey(raw.time),
+  ]);
 }
 
 function findDuplicateRelationship(candidate: any, relationships: any[], excludeId = ""): any {
@@ -474,6 +544,8 @@ function findMirroredRelationship(candidate: any, relationships: any[], excludeI
     ...candidate,
     subjectId: candidate.objectId,
     objectId: candidate.subjectId,
+    subjectContext: candidate.objectContext,
+    objectContext: candidate.subjectContext,
   });
   if (!reverseKey) return null;
   return (
@@ -576,11 +648,19 @@ function contextPropertyKey(value: unknown): boolean {
   return ENTITY_CONTEXT_KEYS.has(semanticKey(value));
 }
 
-function cleanContextFreeAttributes(value: unknown): Record<string, any> {
+function cleanContextFreeAttributes(
+  value: unknown,
+  { actorContext = false } = {},
+): Record<string, any> {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
   const cleaned: Record<string, any> = {};
   for (const [key, entry] of Object.entries(value)) {
-    if (!contextPropertyKey(key) && !FORBIDDEN_GRAPH_TAXONOMY_KEYS.has(semanticKey(key))) {
+    const keySemantic = semanticKey(key);
+    if (
+      !contextPropertyKey(key) &&
+      !(actorContext && ACTOR_OCCURRENCE_KEYS.has(keySemantic)) &&
+      !FORBIDDEN_GRAPH_TAXONOMY_KEYS.has(keySemantic)
+    ) {
       cleaned[key] = cloneJson(entry);
     }
   }
@@ -613,6 +693,18 @@ export function validateEntityNode(raw: any): ValidationResult {
         valid: false,
         message: `Node property "${invalidKey}" is spatiotemporal context. Store time on edge.time and place on edge.placeId instead of the entity node.`,
       };
+    }
+
+    if (ACTOR_ENTITY_TYPES.has(typeKey)) {
+      const occurrenceKey = Object.keys(attributes).find((key) =>
+        ACTOR_OCCURRENCE_KEYS.has(semanticKey(key)),
+      );
+      if (occurrenceKey) {
+        return {
+          valid: false,
+          message: `Actor property "${occurrenceKey}" is historical or role context. Record it as an occurrence/assertion and derive profile summaries from that history.`,
+        };
+      }
     }
   }
   return { valid: true, message: "" };
@@ -673,6 +765,8 @@ function normalizeEntity(raw: any, index: number): EntityNode | null {
     name: text(raw.name || raw.label || raw.title, 180) || id,
     alternateNames: textList(raw.alternateNames || raw.aliases, { maxItems: 48, maxLength: 180 }),
     identifiers: Array.isArray(raw.identifiers) ? cloneJson(raw.identifiers) : [],
+    appellations: Array.isArray(raw.appellations) ? cloneJson(raw.appellations) : [],
+    semanticMappings: Array.isArray(raw.semanticMappings) ? cloneJson(raw.semanticMappings) : [],
     sourceIds: textList(raw.sourceIds, { maxItems: 96, maxLength: 120 }),
     attributes: cleanContextFreeAttributes(
       raw.properties && typeof raw.properties === "object"
@@ -680,6 +774,7 @@ function normalizeEntity(raw: any, index: number): EntityNode | null {
         : raw.attributes && typeof raw.attributes === "object"
           ? raw.attributes
           : {},
+      { actorContext: ACTOR_ENTITY_TYPES.has(semanticKey(raw.type || "entity")) },
     ),
   };
 }
@@ -726,6 +821,16 @@ function normalizeRelationship(raw: any, index: number, temporal: any): Relation
     objectId,
     predicate,
     role: text(raw.role, 120),
+    occurrenceType: text(raw.occurrenceType, 80),
+    subjectContext:
+      raw.subjectContext && typeof raw.subjectContext === "object" && !Array.isArray(raw.subjectContext)
+        ? cloneJson(raw.subjectContext)
+        : undefined,
+    objectContext:
+      raw.objectContext && typeof raw.objectContext === "object" && !Array.isArray(raw.objectContext)
+        ? cloneJson(raw.objectContext)
+        : undefined,
+    semanticMappings: Array.isArray(raw.semanticMappings) ? cloneJson(raw.semanticMappings) : [],
     placeId: text(raw.placeId || raw.locationId, 120),
     itemIds: textList(raw.itemIds || raw.contextItemIds || raw.eventIds, {
       maxItems: 96,
@@ -877,6 +982,14 @@ export function normalizeGraphData(
         relationship &&
         entityIds.has(String(relationship.subjectId)) &&
         entityIds.has(String(relationship.objectId)) &&
+        (!relationship.subjectContext?.representedEntityId ||
+          entityIds.has(String(relationship.subjectContext.representedEntityId))) &&
+        (!relationship.subjectContext?.organizationId ||
+          entityIds.has(String(relationship.subjectContext.organizationId))) &&
+        (!relationship.objectContext?.representedEntityId ||
+          entityIds.has(String(relationship.objectContext.representedEntityId))) &&
+        (!relationship.objectContext?.organizationId ||
+          entityIds.has(String(relationship.objectContext.organizationId))) &&
         (!relationship.placeId || placeIds.has(String(relationship.placeId))),
     );
   return { entities, places, relationships };

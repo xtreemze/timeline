@@ -137,6 +137,72 @@ test("serialized project snapshots round-trip canonical state and revision metad
   assert.deepEqual(restored.project, project());
 });
 
+test("serialized project snapshots preserve standards-aware actor and occurrence semantics", () => {
+  const semanticProject = {
+    schemaVersion: 3,
+    entities: [
+      {
+        ...alice,
+        identifiers: [{ scheme: "isni", value: "000000012146438X" }],
+        appellations: [{ value: "Alice Example", kind: "legal", languageTag: "en" }],
+        semanticMappings: [
+          { scheme: "ISO 21127", version: "2023", identifier: "E21", relation: "exact" },
+        ],
+      },
+      {
+        ...bob,
+        type: "organization",
+        semanticMappings: [
+          { scheme: "ISO 21127", version: "2023", identifier: "E74", relation: "related" },
+        ],
+      },
+    ],
+    relationships: [
+      {
+        ...relationship,
+        predicate: "signed",
+        occurrenceType: "representation",
+        subjectContext: {
+          roleType: "director",
+          representedEntityId: bob.id,
+          organizationId: bob.id,
+          authoritySourceIds: [sourceId("authority-source")],
+        },
+        semanticMappings: [
+          { scheme: "ISO 21127", version: "2023", identifier: "E7", relation: "broader" },
+        ],
+      },
+    ],
+  };
+
+  const serialized = serializeProjectSnapshot({
+    projectKey: "case-semantic",
+    revision: 2,
+    savedAt: "2026-09-26T13:45:00.000Z",
+    project: semanticProject,
+  });
+  const restored = deserializeProjectSnapshot(serialized);
+  assert.deepEqual(restored.project, semanticProject);
+});
+
+test("canonical project validation rejects unresolved contextual representation", () => {
+  assert.throws(() =>
+    assertCanonicalProject({
+      ...project(),
+      relationships: [
+        {
+          ...relationship,
+          occurrenceType: "representation",
+          subjectContext: {
+            roleType: "director",
+            representedEntityId: entityId("missing-company"),
+          },
+        },
+      ],
+    }),
+  );
+});
+
 test("migration chain advances historical project schemas before validation", () => {
   const migrated = migrateProject(project(2), [
     {
