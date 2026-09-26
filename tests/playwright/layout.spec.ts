@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 
+const NARROW_PHONE = { width: 320, height: 640 };
 const PHONE_PORTRAIT = { width: 390, height: 844 };
 const PHONE_LANDSCAPE = { width: 844, height: 390 };
 const TABLET_LANDSCAPE = { width: 1024, height: 768 };
@@ -171,6 +172,91 @@ test.describe("Mobile-first Timeline layout contracts", () => {
 
     await expectVisibleChronology(page, PHONE_LANDSCAPE);
     await expectNoPrimaryDocumentScroll(page, PHONE_LANDSCAPE);
+  });
+
+  test("narrow mobile footer is one horizontal scroller with no floating controls", async ({
+    page,
+  }) => {
+    await page.setViewportSize(NARROW_PHONE);
+    await page.goto("/");
+
+    const dock = page.locator(".app-tool-dock");
+    await expect(dock).toBeVisible();
+    await expect(dock.locator(".world-camera-controls")).toBeVisible();
+    await expect(dock.locator("#timeline-view-toolbar")).toBeVisible();
+
+    const metrics = await dock.evaluate((element) => {
+      const dockRect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      const controls = [...element.querySelectorAll<HTMLElement>(".toolbar-control")]
+        .filter((control) => {
+          const controlStyle = getComputedStyle(control);
+          return controlStyle.display !== "none" && controlStyle.visibility !== "hidden";
+        })
+        .map((control) => {
+          const rect = control.getBoundingClientRect();
+          const controlStyle = getComputedStyle(control);
+          return {
+            position: controlStyle.position,
+            width: rect.width,
+            height: rect.height,
+            top: rect.top,
+            bottom: rect.bottom,
+          };
+        });
+
+      const zones = [...element.querySelectorAll<HTMLElement>(".app-footer-zone")].map((zone) => ({
+        overflowX: getComputedStyle(zone).overflowX,
+        scrollWidth: zone.scrollWidth,
+        clientWidth: zone.clientWidth,
+      }));
+
+      return {
+        display: style.display,
+        overflowX: style.overflowX,
+        clientWidth: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+        dockTop: dockRect.top,
+        dockBottom: dockRect.bottom,
+        controls,
+        zones,
+      };
+    });
+
+    expect(metrics.display).toBe("flex");
+    expect(["auto", "scroll"]).toContain(metrics.overflowX);
+    expect(metrics.scrollWidth).toBeGreaterThan(metrics.clientWidth + 44);
+    expect(metrics.controls.length).toBeGreaterThanOrEqual(10);
+    for (const control of metrics.controls) {
+      expect(control.position).toBe("static");
+      expect(control.width).toBeGreaterThanOrEqual(44);
+      expect(control.height).toBeGreaterThanOrEqual(44);
+      expect(control.top).toBeGreaterThanOrEqual(metrics.dockTop - 1);
+      expect(control.bottom).toBeLessThanOrEqual(metrics.dockBottom + 1);
+    }
+    for (const zone of metrics.zones) {
+      expect(zone.overflowX).toBe("visible");
+      expect(zone.scrollWidth).toBeLessThanOrEqual(zone.clientWidth + 1);
+    }
+
+    await dock.evaluate((element) => {
+      element.scrollLeft = element.scrollWidth;
+    });
+    await expect
+      .poll(async () => {
+        const [dockBox, intervalBox] = await Promise.all([
+          dock.boundingBox(),
+          page.locator(".toolbar-number-control").boundingBox(),
+        ]);
+        if (!dockBox || !intervalBox) return false;
+        return (
+          intervalBox.x >= dockBox.x - 1 &&
+          intervalBox.x + intervalBox.width <= dockBox.x + dockBox.width + 1
+        );
+      })
+      .toBe(true);
+
+    await expectNoPrimaryDocumentScroll(page, NARROW_PHONE);
   });
 
   test("bottom navigation remains a conventional footer in every timeline orientation", async ({
