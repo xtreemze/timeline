@@ -45,6 +45,7 @@ import {
 import {
   directedEdgePathArrowhead,
   edgePathMidpoint,
+  edgePathPointAtFraction,
   medianNearestPlaceMeters,
   relationshipEdgePath,
   representativeWorldNodeRadiusPx,
@@ -1917,12 +1918,21 @@ function directionDatums(
   const result: DeckWorldDirectionDatum[] = [];
   const marked = selectPrioritizedLabels(relationships, {
     budget: worldLabelBudget(zoom),
-    isPinned: (edge) => focus?.kind === "relationship" && focus.id === edge.relationshipId,
+    isPinned: () => false,
     importance: (edge) => edge.temporalWeight,
     key: (edge) => edge.relationshipId,
   });
+  const markedIds = new Set(marked.map((edge) => edge.relationshipId));
+  const focusedEdge =
+    focus?.kind === "relationship"
+      ? relationships.find((edge) => edge.relationshipId === focus.id)
+      : undefined;
+  const stableMarked =
+    focusedEdge && !markedIds.has(focusedEdge.relationshipId)
+      ? Object.freeze([...marked, focusedEdge])
+      : marked;
 
-  for (const edge of marked) {
+  for (const edge of stableMarked) {
     const arrowLengthDegrees = arrowLengthDegreesForEdge(edge);
     const targetClearanceDegrees = targetClearanceDegreesForEdge(edge);
     const prior = previous.get(edge.relationshipId);
@@ -2015,19 +2025,20 @@ export function worldGraphLabelSize(
 export function worldLabelCollisionPriority(
   datum: Pick<DeckWorldLabelDatum, "kind" | "emphasized">,
 ): number {
-  const semanticBase =
-    datum.kind === "cluster-label"
-      ? 240
-      : datum.kind === "place-label"
-        ? 200
-        : datum.kind === "entity-label"
-          ? 120
-          : 80;
-  return datum.emphasized ? semanticBase + 700 : semanticBase;
+  // Selection/focus may change styling, never collision winners. Otherwise
+  // choosing an object can cause unrelated labels to disappear or reflow.
+  return datum.kind === "cluster-label"
+    ? 240
+    : datum.kind === "place-label"
+      ? 200
+      : datum.kind === "entity-label"
+        ? 120
+        : 80;
 }
 
 const LABEL_PLACEMENT_CELL_PX = 128;
 const LABEL_PLACEMENT_PADDING_PX = 4;
+const LABEL_EDGE_CLEARANCE_PX = 3;
 
 function labelFootprint(datum: DeckWorldLabelDatum): {
   readonly width: number;
@@ -2137,6 +2148,7 @@ function placeWorldLabelDatums(
   datums: readonly DeckWorldLabelDatum[],
   zoom: number,
   markerRadiusPx: (datum: DeckWorldLabelDatum) => number,
+  relationships: readonly DeckWorldRelationshipDatum[] = Object.freeze([]),
 ): readonly DeckWorldLabelDatum[] {
   const tierZoom = worldLabelTierFloor(zoom);
   const scale = (512 / 360) * 2 ** Math.max(0, tierZoom);
@@ -2147,6 +2159,13 @@ function placeWorldLabelDatums(
     readonly bottom: number;
   }
   const grid = new Map<string, Box[]>();
+  interface EdgeSegment {
+    readonly ax: number;
+    readonly ay: number;
+    readonly bx: number;
+    readonly by: number;
+  }
+  const edgeGrid = new Map<string, EdgeSegment[]>();
   const cells = (box: Box): readonly string[] => {
     const keys: string[] = [];
     for (
@@ -2169,13 +2188,122 @@ function placeWorldLabelDatums(
     right.left < left.right &&
     left.top < right.bottom &&
     right.top < left.bottom;
+  const placementPoint = (position: WorldRenderPosition): readonly [number, number] => {
+    const latitudeScale = Math.max(0.2, Math.cos((position[1] * Math.PI) / 180));
+    return Object.freeze([
+      position[0] * scale * latitudeScale,
+      -position[1] * scale,
+    ]);
+  };
+  const pointInside = (x: number, y: number, box: Box) =>
+    x >= box.left && x <= box.right && y >= box.top && y <= box.bottom;
+  const orientation = (
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
+    cx: number,
+    cy: number,
+  ) => (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
+  const segmentCrosses = (
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
+    cx: number,
+    cy: number,
+    dx: number,
+    dy: number,
+  ) => {
+    const abC = orientation(ax, ay, bx, by, cx, cy);
+    const abD = orientation(ax, ay, bx, by, dx, dy);
+    const cdA = orientation(cx, cy, dx, dy, ax, ay);
+    const cdB = orientation(cx, cy, dx, dy, bx, by);
+    return abC * abD <= 0 && cdA * cdB <= 0;
+  };
+  const edgeIntersectsBox = (segment: EdgeSegment, box: Box): boolean => {
+    const expanded: Box = {
+      left: box.left - LABEL_EDGE_CLEARANCE_PX,
+      right: box.right + LABEL_EDGE_CLEARANCE_PX,
+      top: box.top - LABEL_EDGE_CLEARANCE_PX,
+      bottom: box.bottom + LABEL_EDGE_CLEARANCE_PX,
+    };
+    if (
+      pointInside(segment.ax, segment.ay, expanded) ||
+      pointInside(segment.bx, segment.by, expanded)
+    ) {
+      return true;
+    }
+    return (
+      segmentCrosses(
+        segment.ax,
+        segment.ay,
+        segment.bx,
+        segment.by,
+        expanded.left,
+        expanded.top,
+        expanded.right,
+        expanded.top,
+      ) ||
+      segmentCrosses(
+        segment.ax,
+        segment.ay,
+        segment.bx,
+        segment.by,
+        expanded.right,
+        expanded.top,
+        expanded.right,
+        expanded.bottom,
+      ) ||
+      segmentCrosses(
+        segment.ax,
+        segment.ay,
+        segment.bx,
+        segment.by,
+        expanded.right,
+        expanded.bottom,
+        expanded.left,
+        expanded.bottom,
+      ) ||
+      segmentCrosses(
+        segment.ax,
+        segment.ay,
+        segment.bx,
+        segment.by,
+        expanded.left,
+        expanded.bottom,
+        expanded.left,
+        expanded.top,
+      )
+    );
+  };
+
+  for (const relationship of relationships) {
+    for (let index = 0; index < relationship.path.length - 1; index += 1) {
+      const start = relationship.path[index];
+      const end = relationship.path[index + 1];
+      if (!start || !end) continue;
+      const [ax, ay] = placementPoint(start);
+      const [bx, by] = placementPoint(end);
+      const segment: EdgeSegment = { ax, ay, bx, by };
+      const bounds: Box = {
+        left: Math.min(ax, bx) - LABEL_EDGE_CLEARANCE_PX,
+        right: Math.max(ax, bx) + LABEL_EDGE_CLEARANCE_PX,
+        top: Math.min(ay, by) - LABEL_EDGE_CLEARANCE_PX,
+        bottom: Math.max(ay, by) + LABEL_EDGE_CLEARANCE_PX,
+      };
+      for (const key of cells(bounds)) {
+        const bucket = edgeGrid.get(key);
+        if (bucket) bucket.push(segment);
+        else edgeGrid.set(key, [segment]);
+      }
+    }
+  }
 
   const placed: DeckWorldLabelDatum[] = [];
   for (const datum of datums) {
     const footprint = labelFootprint(datum);
-    const latitudeScale = Math.max(0.2, Math.cos((datum.position[1] * Math.PI) / 180));
-    const anchorX = datum.position[0] * scale * latitudeScale;
-    const anchorY = -datum.position[1] * scale;
+    const [anchorX, anchorY] = placementPoint(datum.position);
     const candidates = labelOffsetCandidates(
       datum,
       footprint.width,
@@ -2195,7 +2323,13 @@ function placeWorldLabelDatums(
         bottom: centerY + footprint.height / 2 + LABEL_PLACEMENT_PADDING_PX,
       };
       const keys = cells(box);
-      if (!keys.some((key) => grid.get(key)?.some((other) => overlaps(box, other)))) {
+      const labelBlocked = keys.some((key) =>
+        grid.get(key)?.some((other) => overlaps(box, other)),
+      );
+      const edgeBlocked = keys.some((key) =>
+        edgeGrid.get(key)?.some((segment) => edgeIntersectsBox(segment, box)),
+      );
+      if (!labelBlocked && !edgeBlocked) {
         chosen = offset;
         chosenBox = box;
         break;
