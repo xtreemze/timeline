@@ -123,8 +123,9 @@ export class WorldViewRuntimeController {
     // Materialize the currently rendered force state only at a committed
     // projection boundary. Timeline scrubbing/previews never call this path.
     const previous = this.#sourceProjection ? this.getRenderProjection() : null;
+    const renderedPositions = previous ? this.#surface.getRenderedInstancePositions?.() : undefined;
     const renderProjection = previous
-      ? preserveWorldProjectionRenderContinuity(previous, projection)
+      ? preserveWorldProjectionRenderContinuity(previous, projection, renderedPositions)
       : projection;
 
     this.#sourceProjection = projection;
