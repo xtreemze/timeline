@@ -1261,18 +1261,21 @@
                 <section class="project-menu-group" aria-labelledby="project-import-label">
                   <p id="project-import-label" class="project-menu-label">Import</p>
                   <button id="import-json-trigger" class="project-menu-action" type="button" role="menuitem" data-semantic-icon="object" data-project-menu-close>
-                    <span>JSON</span><small>Timeline JSON or compatible interchange JSON</small>
+                    <span>Open project</span><small>Lūm project or compatible JSON</small>
                   </button>
                   <button id="import-interchange-trigger" class="project-menu-action" type="button" role="menuitem" data-semantic-icon="relation" data-project-menu-close>
                     <span>Interchange</span><small>JSON or XML interchange document</small>
                   </button>
-                  <input id="import-json" type="file" accept="application/json,.json" hidden>
+                  <input id="import-json" type="file" accept="application/json,application/x-luum+json,.luum,.json" hidden>
                   <input id="import-interchange" type="file" accept="application/json,application/xml,text/xml,.json,.xml" hidden>
                 </section>
                 <section class="project-menu-group" aria-labelledby="project-export-label">
                   <p id="project-export-label" class="project-menu-label">Export</p>
                   <button id="export-json" class="project-menu-action" type="button" role="menuitem" data-semantic-icon="object" data-project-menu-close>
-                    <span>JSON</span><small>Canonical local project data</small>
+                    <span>Save project</span><small>Canonical Lūm project file</small>
+                  </button>
+                  <button id="share-project" class="project-menu-action" type="button" role="menuitem" data-semantic-icon="relation" data-project-menu-close hidden>
+                    <span>Share project</span><small>Send the current project through the system share sheet</small>
                   </button>
                   <button id="export-interchange" class="project-menu-action" type="button" role="menuitem" data-semantic-icon="relation" data-project-menu-close>
                     <span>Interchange JSON</span><small>Portable standards-oriented representation</small>
@@ -1283,6 +1286,9 @@
                 </section>
                 <section class="project-menu-group" aria-labelledby="project-other-label">
                   <p id="project-other-label" class="project-menu-label">Project</p>
+                  <button id="install-app" class="project-menu-action" type="button" role="menuitem" data-semantic-icon="magic" data-project-menu-close hidden>
+                    <span>Install Lūm</span><small>Open as a standalone app on this device</small>
+                  </button>
                   <a class="project-menu-action" href="https://github.com/xtreemze/timeline" role="menuitem" data-semantic-icon="note" data-project-menu-close>
                     <span>GitHub</span><small>Source, issues and project history</small>
                   </a>

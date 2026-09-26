@@ -4,6 +4,18 @@
  */
 
 import { projectTimelineOccurrences } from "../src/projection/timeline-projection.ts";
+import {
+  canShareProjectFile,
+  observeInstallAvailability,
+  openNativeProjectFile,
+  promptInstall,
+  registerProjectLaunchConsumer,
+  requestPersistentStorage,
+  saveNativeProjectFile,
+  setPresentationWakeLock,
+  shareProjectFile,
+  supportsNativeProjectOpen,
+} from "./platform-capabilities.ts";
 import { TimelineEvidence } from "./evidence-store.ts";
 import { TimelineGraphInference } from "./graph-inference.ts";
 import { TimelineInterchangeAdapter } from "./interchange-adapter.ts";
@@ -373,6 +385,8 @@ const els = {
   projectMenuToggle: requiredElement<HTMLButtonElement>("#project-menu-toggle"),
   importJsonTrigger: requiredElement<HTMLButtonElement>("#import-json-trigger"),
   importInterchangeTrigger: requiredElement<HTMLButtonElement>("#import-interchange-trigger"),
+  installApp: requiredElement<HTMLButtonElement>("#install-app"),
+  shareProject: requiredElement<HTMLButtonElement>("#share-project"),
   browserSheet: requiredElement<HTMLElement>("#timeline-browser-sheet"),
   browserToggle: requiredElement<HTMLButtonElement>("#timeline-browser-toggle"),
   browserClose: requiredElement<HTMLButtonElement>("#timeline-browser-close"),
@@ -594,6 +608,8 @@ const evidenceExtractionDrafts = new Map<string, EvidenceExtractionDraft>();
 let itemInferenceDraft: ItemInferenceDraft | null = null;
 let inferenceAbortController: AbortController | null = null;
 let statusTimer = 0;
+let persistentStorageRequested = false;
+let slideshowPlaying = false;
 let navigationController: NavigationControllerBundle | null = null;
 const ui = {
   activePanel: "items",
@@ -873,6 +889,7 @@ function schedulePresentationGeometryRefresh({ recenterGraph = false } = {}) {
 
 function syncPresentationFullscreenState() {
   const active = presentationIsFullscreen();
+  setPresentationWakeLock(active || slideshowPlaying);
   runApplicationViewTransition(() => {
     els.presentationStage?.classList.toggle("is-fullscreen", active);
     if (active) {
@@ -1412,6 +1429,10 @@ function loadState(): TimelineState {
 function persist() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    if (!persistentStorageRequested) {
+      persistentStorageRequested = true;
+      void requestPersistentStorage();
+    }
   } catch (error) {
     console.warn("Timeline state could not be saved:", error);
     showStatus("Changes are visible, but browser storage is unavailable.");
@@ -4129,6 +4150,8 @@ function showStatus(message) {
 function renderAutoAdvanceState(autoState: AutoAdvanceState): void {
   const seconds = Math.round(autoState.intervalMs / 1000);
   const playing = autoState.running && !autoState.paused;
+  slideshowPlaying = playing;
+  setPresentationWakeLock(playing || presentationIsFullscreen());
   els.autoToggle.setAttribute("aria-pressed", String(playing));
   setSemanticControlIcon(
     els.autoToggle,
@@ -4257,9 +4280,18 @@ function closeProjectMenu() {
   if (els.projectMenu?.matches?.(":popover-open")) els.projectMenu.hidePopover();
 }
 
-els.importJsonTrigger?.addEventListener("click", () => {
-  if (ui.mode !== "edit") return;
-  els.importJson?.click();
+els.importJsonTrigger?.addEventListener("click", async () => {
+  if (!supportsNativeProjectOpen()) {
+    els.importJson?.click();
+    return;
+  }
+
+  try {
+    const file = await openNativeProjectFile();
+    if (file) await importProjectFile(file, "Opened");
+  } catch (error) {
+    showStatus(error instanceof Error ? error.message : "Could not open that project file.");
+  }
 });
 els.importInterchangeTrigger?.addEventListener("click", () => {
   if (ui.mode !== "edit") return;
@@ -5420,10 +5452,7 @@ const agentApi = Object.freeze({
 
 globalThis.TimelineAgentAPI = agentApi;
 
-els.importJson.addEventListener("change", async () => {
-  if (ui.mode !== "edit") return;
-  const file = els.importJson.files?.[0];
-  if (!file) return;
+async function importProjectFile(file: File, statusPrefix = "Imported"): Promise<boolean> {
   try {
     if (file.size > 5_000_000) throw new Error("Import is limited to 5 MB.");
     const raw = JSON.parse(await file.text());
@@ -5433,16 +5462,27 @@ els.importJson.addEventListener("change", async () => {
     if (
       (state.items.length || state.stories.length) &&
       !window.confirm("Replace the current timeline with the imported file?")
-    )
-      return;
+    ) {
+      return false;
+    }
     timelineView?.closeFocus();
     applyImportedTimeline(
       imported,
-      converted ? "Imported interchange" : "Imported",
+      converted ? `${statusPrefix} interchange` : statusPrefix,
       converted?.warnings?.length || 0,
     );
+    return true;
   } catch (error) {
     showStatus(error instanceof Error ? error.message : "Could not import that file.");
+    return false;
+  }
+}
+
+els.importJson.addEventListener("change", async () => {
+  const file = els.importJson.files?.[0];
+  if (!file) return;
+  try {
+    await importProjectFile(file);
   } finally {
     els.importJson.value = "";
   }
@@ -5472,13 +5512,51 @@ els.importInterchange.addEventListener("change", async () => {
   }
 });
 
-els.exportJson.addEventListener("click", () => {
-  download(
-    `${JSON.stringify(state, null, 2)}\n`,
-    `${slug(state.title)}.json`,
-    "application/json;charset=utf-8",
-  );
-  showStatus("JSON exported.");
+function canonicalProjectJson(): string {
+  return `${JSON.stringify(state, null, 2)}\n`;
+}
+
+function canonicalProjectFilename(): string {
+  return `${slug(state.title)}.luum`;
+}
+
+els.exportJson.addEventListener("click", async () => {
+  const content = canonicalProjectJson();
+  const filename = canonicalProjectFilename();
+  try {
+    const result = await saveNativeProjectFile(content, filename);
+    if (result === "unsupported") {
+      download(content, filename, "application/json;charset=utf-8");
+      showStatus("Project downloaded.");
+      return;
+    }
+    if (result === "saved") showStatus("Project saved.");
+  } catch (error) {
+    showStatus(error instanceof Error ? error.message : "Could not save the project.");
+  }
+});
+
+els.shareProject.hidden = !canShareProjectFile();
+els.shareProject.addEventListener("click", async () => {
+  try {
+    const result = await shareProjectFile(
+      canonicalProjectJson(),
+      canonicalProjectFilename(),
+      state.title.trim() || "Lūm project",
+    );
+    if (result === "shared") showStatus("Project shared.");
+    if (result === "unsupported") showStatus("File sharing is unavailable on this device.");
+  } catch (error) {
+    showStatus(error instanceof Error ? error.message : "Could not share the project.");
+  }
+});
+
+observeInstallAvailability((available) => {
+  els.installApp.hidden = !available;
+});
+els.installApp.addEventListener("click", async () => {
+  const result = await promptInstall();
+  if (result === "accepted") showStatus("Lūm installed.");
 });
 
 els.exportInterchange.addEventListener("click", () => {
@@ -5525,6 +5603,29 @@ els.clear.addEventListener("click", () => {
   showStatus("Timeline cleared.");
 });
 
+registerProjectLaunchConsumer(async (files) => {
+  const [file] = files;
+  if (file) await importProjectFile(file, "Opened");
+});
+
+function applyInstalledAppShortcut(): void {
+  const url = new URL(window.location.href);
+  const shortcut = url.searchParams.get("shortcut");
+  if (!shortcut) return;
+
+  url.searchParams.delete("shortcut");
+  window.history.replaceState(null, "", url);
+
+  if (shortcut === "new-event") {
+    resetItemForm();
+    setActivePanel("items");
+    return;
+  }
+  if (shortcut === "browse") {
+    setBrowserSurfaceOpen(true);
+  }
+}
+
 fillTimeZoneOptions();
 resetItemForm();
 resetStoryForm();
@@ -5534,6 +5635,7 @@ resetGraphEdgeForm();
 setActivePanel("items", { open: false });
 syncApplicationSurfaces();
 renderAll();
+applyInstalledAppShortcut();
 void syncInferenceAvailability();
 
 webMcp
