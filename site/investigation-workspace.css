@@ -1,0 +1,291 @@
+.investigation-workspace-sheet {
+  position: fixed;
+  z-index: 54;
+  inset: max(0.5rem, env(safe-area-inset-top)) max(0.5rem, env(safe-area-inset-right))
+    max(4.75rem, calc(3.75rem + env(safe-area-inset-bottom)))
+    max(0.5rem, env(safe-area-inset-left));
+  display: grid;
+  place-items: stretch;
+  min-width: 0;
+  min-height: 0;
+  pointer-events: none;
+}
+
+.investigation-workspace-sheet[hidden] {
+  display: none;
+}
+
+.investigation-workspace-panel {
+  width: min(1180px, 100%);
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  justify-self: center;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  border: 1px solid var(--line-strong);
+  border-radius: 1rem;
+  overflow: clip;
+  background: color-mix(in srgb, var(--paper) 97%, transparent);
+  box-shadow: 0 24px 72px rgba(18, 16, 13, 0.2);
+  pointer-events: auto;
+  backdrop-filter: blur(18px);
+}
+
+.investigation-header {
+  border-bottom: 1px solid var(--line);
+}
+
+.investigation-method-count {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.investigation-tabs {
+  display: flex;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  border-bottom: 1px solid var(--line);
+  background: var(--paper-2);
+}
+
+.investigation-tab {
+  flex: 0 0 auto;
+  min-height: 44px;
+  border: 0;
+  border-inline-end: 1px solid var(--line);
+  padding: 0.65rem 0.8rem;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.investigation-tab:is(:hover, :focus-visible),
+.investigation-tab.is-active {
+  color: var(--ink);
+  background: var(--paper);
+}
+
+.investigation-body {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.investigation-panel {
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: clamp(0.75rem, 1.8vw, 1.25rem);
+}
+
+.investigation-panel-controls,
+.investigation-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-block-end: 1rem;
+}
+
+.investigation-field {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.investigation-field :is(input, select, textarea) {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 0.6rem;
+  padding: 0.62rem 0.7rem;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.investigation-field textarea {
+  resize: vertical;
+}
+
+.investigation-form-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.investigation-matrix-scroll {
+  min-width: 0;
+  max-width: 100%;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  background: var(--paper);
+}
+
+.investigation-matrix {
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: max(100%, 760px);
+  width: max-content;
+  font-size: 0.78rem;
+}
+
+.investigation-matrix th,
+.investigation-matrix td {
+  max-width: 18rem;
+  border-inline-end: 1px solid var(--line);
+  border-block-end: 1px solid var(--line);
+  padding: 0.58rem 0.65rem;
+  text-align: start;
+  vertical-align: top;
+}
+
+.investigation-matrix thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--paper-2);
+}
+
+.investigation-matrix tbody th {
+  position: sticky;
+  inset-inline-start: 0;
+  z-index: 1;
+  min-width: 15rem;
+  background: var(--paper);
+}
+
+.investigation-link {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-align: start;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 28%, transparent);
+  text-underline-offset: 0.2em;
+}
+
+.investigation-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.55rem;
+  padding: 0.18rem 0.45rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  background: var(--paper-2);
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: lowercase;
+}
+
+.investigation-status[data-status="contradicts"],
+.investigation-status[data-status="gap"],
+.investigation-validation-error {
+  color: var(--danger);
+}
+
+.investigation-status[data-status="supports"],
+.investigation-status[data-status="covered"],
+.investigation-ok {
+  color: #16734a;
+}
+
+.investigation-card-list,
+.investigation-review-group {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.investigation-review-group + .investigation-review-group {
+  margin-block-start: 1.1rem;
+}
+
+.investigation-review-group h3 {
+  margin: 0;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.investigation-review-list {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding-inline-start: 1.2rem;
+}
+
+.investigation-card,
+.investigation-review-card {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  background: var(--paper);
+}
+
+.investigation-card-heading,
+.investigation-review-card {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.investigation-card-meta,
+.investigation-review-card p,
+.investigation-empty,
+.investigation-ok,
+.investigation-validation-error {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+  font-size: 0.78rem;
+}
+
+#app-shell[data-investigation-open="true"] #investigation-workspace-toggle {
+  background: var(--paper-2);
+  color: var(--ink);
+}
+
+@media (max-width: 720px) {
+  .investigation-workspace-sheet {
+    inset: max(0.35rem, env(safe-area-inset-top)) 0
+      max(4.3rem, calc(3.6rem + env(safe-area-inset-bottom))) 0;
+  }
+
+  .investigation-workspace-panel {
+    width: 100%;
+    border-inline: 0;
+    border-radius: 0.85rem 0.85rem 0 0;
+  }
+
+  .investigation-panel {
+    padding: 0.65rem;
+  }
+
+  .investigation-panel-controls,
+  .investigation-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .investigation-form-actions {
+    grid-column: 1;
+  }
+
+  .investigation-matrix {
+    min-width: 680px;
+  }
+}
