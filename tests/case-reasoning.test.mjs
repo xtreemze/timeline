@@ -262,3 +262,130 @@ test("reports broken or imprecise citation links without inferring truth", () =>
   assert.ok(findings.some((finding) => finding.code === "citation-assertion-mismatch"));
   assert.equal("truthScore" in model.assertions[0], false);
 });
+
+
+test("competing identity hypotheses preserve candidates, contradictions, and open-world alternatives", () => {
+  const model = {
+    assertions: [
+      { id: "fact-route-alice", text: "Alice was observed near the relevant route." },
+      { id: "fact-alibi-bob", text: "Bob was documented elsewhere during the window." },
+      { id: "fact-carol-unknown", text: "Carol's location during the window is not established." },
+    ],
+    hypotheses: [
+      {
+        id: "hyp-alice",
+        hypothesisKind: "identity",
+        text: "The unidentified person was Alice.",
+        unknownEntityId: "unknown-person-a",
+        candidateEntityId: "alice",
+        alternativeGroupId: "unknown-person-a-identity",
+        assertionIds: ["fact-route-alice"],
+      },
+      {
+        id: "hyp-bob",
+        hypothesisKind: "identity",
+        text: "The unidentified person was Bob.",
+        unknownEntityId: "unknown-person-a",
+        candidateEntityId: "bob",
+        alternativeGroupId: "unknown-person-a-identity",
+        assertionIds: ["fact-alibi-bob"],
+      },
+      {
+        id: "hyp-carol",
+        hypothesisKind: "identity",
+        text: "The unidentified person was Carol.",
+        unknownEntityId: "unknown-person-a",
+        candidateEntityId: "carol",
+        alternativeGroupId: "unknown-person-a-identity",
+        assertionIds: ["fact-carol-unknown"],
+      },
+      {
+        id: "hyp-none-known",
+        hypothesisKind: "identity",
+        text: "The unidentified person was none of the currently known candidates.",
+        unknownEntityId: "unknown-person-a",
+        candidateScope: "none-known",
+        alternativeGroupId: "unknown-person-a-identity",
+      },
+    ],
+    edges: [
+      {
+        id: "route-supports-alice",
+        fromId: "fact-route-alice",
+        toId: "hyp-alice",
+        predicate: "supports",
+      },
+      {
+        id: "alibi-contradicts-bob",
+        fromId: "fact-alibi-bob",
+        toId: "hyp-bob",
+        predicate: "contradicts",
+      },
+      {
+        id: "carol-context",
+        fromId: "fact-carol-unknown",
+        toId: "hyp-carol",
+        predicate: "contextualizes",
+      },
+    ],
+  };
+
+  const findings = reasoning.validateReasoning(model, {
+    entityIds: ["unknown-person-a", "alice", "bob", "carol"],
+  });
+  assert.equal(findings.some((finding) => finding.severity === "error"), false);
+  assert.equal(
+    findings.some((finding) => finding.code === "identity-open-world-alternative-missing"),
+    false,
+  );
+
+  const matrix = reasoning.competingHypothesisMatrix(
+    model,
+    "unknown-person-a-identity",
+  );
+  assert.deepEqual(
+    matrix.hypotheses.map((hypothesis) => hypothesis.id),
+    ["hyp-alice", "hyp-bob", "hyp-carol", "hyp-none-known"],
+  );
+  const alibi = matrix.evidenceRows.find((row) => row.evidenceId === "fact-alibi-bob");
+  assert.equal(
+    alibi.cells.find((cell) => cell.hypothesisId === "hyp-bob").assessment,
+    "contradicts",
+  );
+  const route = matrix.evidenceRows.find((row) => row.evidenceId === "fact-route-alice");
+  assert.equal(
+    route.cells.find((cell) => cell.hypothesisId === "hyp-alice").assessment,
+    "supports",
+  );
+  assert.equal("score" in matrix, false);
+  assert.equal("winner" in matrix, false);
+});
+
+test("identity analysis warns when it forces a closed candidate set", () => {
+  const findings = reasoning.validateReasoning(
+    {
+      hypotheses: [
+        {
+          id: "hyp-a",
+          hypothesisKind: "identity",
+          unknownEntityId: "unknown-person-a",
+          candidateEntityId: "alice",
+          alternativeGroupId: "identity-group",
+        },
+        {
+          id: "hyp-b",
+          hypothesisKind: "identity",
+          unknownEntityId: "unknown-person-a",
+          candidateEntityId: "bob",
+          alternativeGroupId: "identity-group",
+        },
+      ],
+    },
+    { entityIds: ["unknown-person-a", "alice", "bob"] },
+  );
+  assert.ok(
+    findings.some(
+      (finding) => finding.code === "identity-open-world-alternative-missing",
+    ),
+  );
+});
