@@ -544,7 +544,12 @@ function routingAwareNodeSizes(
       ];
       const ports = demand.get(key);
       const portCount = Math.max(ports?.incoming ?? 0, ports?.outgoing ?? 0);
-      if (portCount <= 1) return [key, Object.freeze([width, height])] as const;
+      if (portCount <= 1) {
+        return [
+          key,
+          Object.freeze([width, height]) as readonly [number, number],
+        ] as const;
+      }
 
       const crossSize = orientation === "left-to-right" ? height : width;
       const pitch = Math.max(
@@ -555,8 +560,8 @@ function routingAwareNodeSizes(
       return [
         key,
         orientation === "left-to-right"
-          ? Object.freeze([width, expandedCross])
-          : Object.freeze([expandedCross, height]),
+          ? (Object.freeze([width, expandedCross]) as readonly [number, number])
+          : (Object.freeze([expandedCross, height]) as readonly [number, number]),
       ] as const;
     }),
   );
