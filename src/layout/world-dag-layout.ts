@@ -1065,8 +1065,7 @@ function chooseCandidate(
 
   const compareLayering =
     (nodeIds.length <= COMPARE_LAYERING_MAX_NODES && edges.length <= COMPARE_LAYERING_MAX_EDGES) ||
-    ((previousName === "longest-two-layer-greedy" ||
-      previousName === "simplex-two-layer-greedy") &&
+    ((previousName === "longest-two-layer-greedy" || previousName === "simplex-two-layer-greedy") &&
       nodeIds.length <= COMPARE_LAYERING_MAX_NODES + COMPARE_LAYERING_HYSTERESIS_NODES &&
       edges.length <= COMPARE_LAYERING_MAX_EDGES + COMPARE_LAYERING_HYSTERESIS_EDGES);
 
@@ -1216,7 +1215,6 @@ function layoutPlace(
   return result;
 }
 
-
 function crossPlaceConnectedNodeIds(index: LayoutIndex): ReadonlySet<WorldInstanceId> {
   if (index.crossPlaceInstanceIds.size === 0) return new Set();
 
@@ -1252,11 +1250,7 @@ function crossPlaceTopologyKey(
   placeSizes: ReadonlyMap<PlaceId, WorldDagLayoutNodeSize> | undefined,
 ): string {
   const usedPlaces = [
-    ...new Set(
-      nodeIds
-        .map((id) => places.get(id))
-        .filter((id): id is PlaceId => id !== undefined),
-    ),
+    ...new Set(nodeIds.map((id) => places.get(id)).filter((id): id is PlaceId => id !== undefined)),
   ].sort((left, right) => String(left).localeCompare(String(right)));
 
   return JSON.stringify([
@@ -1512,7 +1506,10 @@ export function createWorldDagLayout(
   }
 
   prunePlaceCache(revision);
-  if (crossPlaceCache && revision - crossPlaceCache.lastSeenRevision > DAG_CACHE_RETENTION_REVISIONS) {
+  if (
+    crossPlaceCache &&
+    revision - crossPlaceCache.lastSeenRevision > DAG_CACHE_RETENTION_REVISIONS
+  ) {
     crossPlaceCache = null;
   }
 
