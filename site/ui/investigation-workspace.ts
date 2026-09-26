@@ -538,13 +538,14 @@ export function createInvestigationWorkspace(
     basis.type = "text";
     basis.value = stringList(editing?.basisIds).join(", ");
     basis.placeholder = "fact-1, observation-2";
-    const affected = createElement("input");
-    affected.type = "text";
-    affected.value = [
-      ...stringList(editing?.hypothesisIds),
-      ...stringList(editing?.propositionIds),
-    ].join(", ");
-    affected.placeholder = "hypothesis IDs";
+    const hypotheses = createElement("input");
+    hypotheses.type = "text";
+    hypotheses.value = stringList(editing?.hypothesisIds).join(", ");
+    hypotheses.placeholder = "hypothesis IDs";
+    const propositions = createElement("input");
+    propositions.type = "text";
+    propositions.value = stringList(editing?.propositionIds).join(", ");
+    propositions.placeholder = "proposition IDs";
     const rationale = createElement("textarea");
     rationale.rows = 2;
     rationale.value = stringValue(editing?.rationale);
@@ -561,21 +562,21 @@ export function createInvestigationWorkspace(
       field("Assumption", textInput),
       field("Status", status),
       field("Basis IDs", basis),
-      field("Affected hypotheses / propositions", affected),
+      field("Affected hypothesis IDs", hypotheses),
+      field("Affected proposition IDs", propositions),
       field("Rationale", rationale),
       actions,
     );
     form.addEventListener("submit", (event) => {
       event.preventDefault();
-      const affectedIds = parseIdList(affected.value);
       const record: ReasoningRecord = {
         ...(editing ?? {}),
         id: editing ? recordId(editing) : uniqueId("assumption"),
         text: textInput.value.trim(),
         status: status.value,
         basisIds: parseIdList(basis.value),
-        hypothesisIds: affectedIds.filter((id) => id.startsWith("hyp")),
-        propositionIds: affectedIds.filter((id) => !id.startsWith("hyp")),
+        hypothesisIds: parseIdList(hypotheses.value),
+        propositionIds: parseIdList(propositions.value),
         rationale: rationale.value.trim(),
       };
       if (!stringValue(record.text)) return;
