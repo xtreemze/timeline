@@ -158,7 +158,7 @@ const WORLD_RELATIONSHIP_PATH_SEGMENTS = 8;
  */
 const WORLD_PARALLEL_EDGE_CONTROL_OFFSET_RATIO = 0.28;
 
-function edgePathPointAtFraction(
+export function edgePathPointAtFraction(
   path: readonly WorldRenderPosition[],
   fraction: number,
 ): WorldRenderPosition {
