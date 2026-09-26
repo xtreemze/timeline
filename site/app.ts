@@ -5285,23 +5285,46 @@ els.timelineViewRoot.addEventListener("timelinefocusedit", (event) => {
   setEditorSurfaceOpen(true);
   beginItemEdit(event.detail.id);
 });
-els.timelineViewRoot.addEventListener("timelineevidenceopen", async (event) => {
-  const id = event.detail?.id;
+async function openEvidenceRecord(id: string) {
   const record = state.evidence.find((candidate) => candidate.id === id);
-  if (!record?.file?.blobKey) return;
-  try {
-    const blob = await evidenceStore.getBlob(record.file.blobKey);
-    if (!blob) {
-      showStatus("The local PDF is not available in this browser.");
+  if (!record) {
+    showStatus(`Evidence ${id} is not available in this project.`);
+    return;
+  }
+  if (record.file?.blobKey) {
+    try {
+      const blob = await evidenceStore.getBlob(record.file.blobKey);
+      if (!blob) {
+        showStatus("The local evidence file is not available in this browser.");
+        return;
+      }
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      return;
+    } catch (error) {
+      console.warn("Could not open local evidence:", error);
+      showStatus("Could not open the local evidence file.");
       return;
     }
-    const url = URL.createObjectURL(blob);
-    window.open(url, "_blank", "noopener,noreferrer");
-    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-  } catch (error) {
-    console.warn("Could not open local evidence:", error);
-    showStatus("Could not open the local evidence file.");
   }
+  if (record.url) {
+    window.open(record.url, "_blank", "noopener,noreferrer");
+    return;
+  }
+  const linkedItem = state.items.find((item) => item.evidenceIds?.includes(id));
+  if (linkedItem) {
+    setInvestigationSurfaceOpen(false);
+    timelineView?.focusItem(linkedItem.id);
+    showStatus(`Focused ${linkedItem.title || linkedItem.id} for source ${record.title}.`);
+    return;
+  }
+  showStatus(`Source ${record.title} has metadata only; no local file or URL is available.`);
+}
+
+els.timelineViewRoot.addEventListener("timelineevidenceopen", async (event) => {
+  const id = event.detail?.id;
+  if (typeof id === "string" && id) await openEvidenceRecord(id);
 });
 
 els.title.addEventListener("input", () => {
@@ -5496,6 +5519,32 @@ function reasoningRecordStringList(record: Record<string, unknown> | undefined, 
     : [];
 }
 
+function reasoningTemporalWindow(record: Record<string, unknown> | undefined) {
+  const scope =
+    record?.temporalScope && typeof record.temporalScope === "object" && !Array.isArray(record.temporalScope)
+      ? (record.temporalScope as Record<string, unknown>)
+      : null;
+  if (!scope) return null;
+  const endpoint = (raw: unknown) => {
+    const value =
+      typeof raw === "string"
+        ? raw
+        : raw && typeof raw === "object" && !Array.isArray(raw)
+          ? String((raw as Record<string, unknown>).value || "")
+          : "";
+    const key = temporal.sortKey(value);
+    return Number.isFinite(key) ? key : null;
+  };
+  const start = endpoint(scope.start);
+  const end = endpoint(scope.end);
+  if (start === null && end === null) return null;
+  const resolvedStart = start ?? end ?? 0;
+  const resolvedEnd = end ?? start ?? resolvedStart;
+  return resolvedStart === resolvedEnd
+    ? { start: resolvedStart - 60_000, end: resolvedEnd + 60_000 }
+    : { start: Math.min(resolvedStart, resolvedEnd), end: Math.max(resolvedStart, resolvedEnd) };
+}
+
 function focusInvestigationTarget(target: InvestigationFocusTarget) {
   if (target.kind === "entity") {
     setInvestigationSurfaceOpen(false);
@@ -5504,8 +5553,57 @@ function focusInvestigationTarget(target: InvestigationFocusTarget) {
     return;
   }
 
-  const itemIds = reasoningRecordStringList(target.record, "itemIds");
-  const evidenceIds = reasoningRecordStringList(target.record, "evidenceIds");
+  const record = target.record;
+  const itemIds = reasoningRecordStringList(record, "itemIds");
+  const evidenceIds = reasoningRecordStringList(record, "evidenceIds");
+  const relationshipIds = reasoningRecordStringList(record, "relationshipIds");
+  const placeIds = reasoningRecordStringList(record, "placeIds");
+  const entityIds = reasoningRecordStringList(record, "entityIds");
+  const trajectoryIds = reasoningRecordStringList(record, "trajectoryIds");
+  const temporalWindow = reasoningTemporalWindow(record);
+  const worldView = temporalGraphView as unknown as {
+    setWindow?: (window: { start: number; end: number }) => void;
+    focusTrajectory?: (id: string) => void;
+    focusOccurrence?: (id: string) => void;
+    focusPlace?: (id: string) => void;
+    focusEntity?: (id: string) => void;
+  };
+
+  if (temporalWindow) worldView?.setWindow?.(temporalWindow);
+
+  if (trajectoryIds.length && worldView?.focusTrajectory) {
+    setInvestigationSurfaceOpen(false);
+    worldView.focusTrajectory(trajectoryIds[0]);
+    showStatus(`Focused trajectory ${trajectoryIds[0]} and its investigation time window.`);
+    return;
+  }
+  if (relationshipIds.length) {
+    setInvestigationSurfaceOpen(false);
+    worldView?.focusOccurrence?.(relationshipIds[0]);
+    showStatus(
+      trajectoryIds.length
+        ? `Focused trajectory context ${trajectoryIds.join(", ")} via occurrence/relation ${relationshipIds[0]}.`
+        : `Focused occurrence/relation ${relationshipIds[0]}.`,
+    );
+    return;
+  }
+  if (placeIds.length) {
+    setInvestigationSurfaceOpen(false);
+    worldView?.focusPlace?.(placeIds[0]);
+    showStatus(
+      trajectoryIds.length
+        ? `Focused trajectory context ${trajectoryIds.join(", ")} at place ${placeIds[0]}.`
+        : `Focused place ${placeIds[0]}.`,
+    );
+    return;
+  }
+  if (entityIds.length) {
+    setInvestigationSurfaceOpen(false);
+    worldView?.focusEntity?.(entityIds[0]);
+    showStatus(`Focused entity ${entityIds[0]} from the reasoning record.`);
+    return;
+  }
+
   const item =
     itemIds.map(getItem).find(isTimelineItem) ||
     state.items.find((candidate) =>
@@ -5514,10 +5612,18 @@ function focusInvestigationTarget(target: InvestigationFocusTarget) {
   if (item) {
     setInvestigationSurfaceOpen(false);
     timelineView?.focusItem(item.id);
-    showStatus(`Focused ${item.title || item.id} from the investigation workspace.`);
+    showStatus(
+      trajectoryIds.length
+        ? `Focused timeline context for trajectory ${trajectoryIds.join(", ")}: ${item.title || item.id}.`
+        : `Focused ${item.title || item.id} from the investigation workspace.`,
+    );
     return;
   }
-  showStatus(`Reasoning record ${target.id} has no direct timeline/world target yet.`);
+  showStatus(
+    trajectoryIds.length
+      ? `Trajectory reference ${trajectoryIds.join(", ")} is preserved, but this app projection has no linked world/timeline geometry yet.`
+      : `Reasoning record ${target.id} has no direct timeline/world target yet.`,
+  );
 }
 
 function applyInvestigationReasoning(nextReasoning: Record<string, unknown>, status: string) {
@@ -5536,9 +5642,13 @@ investigationWorkspace = createInvestigationWorkspace({
   getReasoning: () => state.reasoning,
   getEntityIds: () => state.entities.map((record) => record.id),
   getExternalIds: investigationExternalIds,
+  getEvidenceRecords: () => state.evidence,
   onRequestOpen: setInvestigationSurfaceOpen,
   onCommit: applyInvestigationReasoning,
   onFocus: focusInvestigationTarget,
+  onOpenEvidence: (evidenceId) => {
+    void openEvidenceRecord(evidenceId);
+  },
 });
 
 async function importProjectFile(file: File, statusPrefix = "Imported"): Promise<boolean> {
