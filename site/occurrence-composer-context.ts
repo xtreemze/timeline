@@ -20,6 +20,12 @@ export interface ComposerWorldCamera {
   readonly zoom: number;
 }
 
+export interface ComposerWorldCameraInput {
+  readonly longitude?: unknown;
+  readonly latitude?: unknown;
+  readonly zoom?: unknown;
+}
+
 export interface ComposerWorldContext extends ComposerWorldCamera {
   readonly accuracyMeters: number;
   readonly label: string;
@@ -148,7 +154,7 @@ function accuracyLabel(accuracyMeters: number): string {
 }
 
 export function worldContextFromCamera(
-  camera: Partial<ComposerWorldCamera> | null | undefined,
+  camera: ComposerWorldCameraInput | null | undefined,
 ): ComposerWorldContext | null {
   const longitude = finite(camera?.longitude);
   const latitude = finite(camera?.latitude);
