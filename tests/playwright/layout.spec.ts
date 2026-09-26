@@ -215,6 +215,21 @@ test.describe("Mobile-first Timeline layout contracts", () => {
       const layoutControls = dock.locator(".app-footer-world .world-layout-controls");
       await expect(layoutControls).toBeVisible();
       await expect(layoutControls.locator(".world-layout-control")).toHaveCount(2);
+      const cameraControls = dock.locator(".app-footer-world .world-camera-controls");
+      const cameraGeometry = await cameraControls.evaluate((element) => {
+        const style = getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return {
+          position: style.position,
+          flexDirection: style.flexDirection,
+          top: rect.top,
+          bottom: rect.bottom,
+        };
+      });
+      expect(cameraGeometry.position).toBe("static");
+      expect(cameraGeometry.flexDirection).toBe("row");
+      expect(cameraGeometry.top).toBeGreaterThanOrEqual(dockBox.y - 1);
+      expect(cameraGeometry.bottom).toBeLessThanOrEqual(dockBox.y + dockBox.height + 1);
 
       const visibleFooterButtons = dock.locator("button:visible");
       const visibleFooterButtonCount = await visibleFooterButtons.count();
