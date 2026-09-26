@@ -66,6 +66,21 @@ export function worldPrimarySpatialAnchor(
   );
 }
 
+function samePrimarySpatialFrame(
+  left: Pick<ProjectedWorldInstance, "geographicAnchors">,
+  right: Pick<ProjectedWorldInstance, "geographicAnchors">,
+): boolean {
+  const leftAnchor = worldPrimarySpatialAnchor(left);
+  const rightAnchor = worldPrimarySpatialAnchor(right);
+  if (!leftAnchor || !rightAnchor) return leftAnchor === rightAnchor;
+  return (
+    leftAnchor.placeId === rightAnchor.placeId &&
+    leftAnchor.longitude === rightAnchor.longitude &&
+    leftAnchor.latitude === rightAnchor.latitude &&
+    (leftAnchor.sourceAltitude ?? 0) === (rightAnchor.sourceAltitude ?? 0)
+  );
+}
+
 /**
  * `offsetScale` magnifies the local layout offset from the anchor for
  * presentation only (semantic zoom keeps a place's local graph legible);
@@ -171,7 +186,13 @@ export function preserveWorldProjectionRenderContinuity(
     const prior = previousById.get(instance.id);
     if (!prior) return instance;
 
-    const rendered = renderedPositions?.get(instance.id);
+    // When the anchor frame is unchanged, keep the solver's logical local
+    // state rather than baking semantic-zoom magnification back into physics.
+    // A changed place/anchor uses the exact visible renderer position so the
+    // handoff remains visually continuous across the geographic rebase.
+    const rendered = samePrimarySpatialFrame(prior, instance)
+      ? undefined
+      : renderedPositions?.get(instance.id);
     const priorPosition = rendered
       ? (Object.freeze([
           rendered.longitude,
