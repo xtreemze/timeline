@@ -63,6 +63,19 @@ test("compact horizontal mobile rails cap visible lanes before cards consume the
   assert.equal(geometry.committedLaneLimit("vertical", 168, 390), 3);
 });
 
+test("buffered fallback lanes obey the compact lane budget", () => {
+  for (const id of ["a", "b", "c", "snow-mirror", "buffered-occurrence"]) {
+    const compactLane = geometry.fallbackLaneIndex(id, 2);
+    assert.ok(compactLane >= 0 && compactLane <= 1, `${id} escaped the two-lane compact budget`);
+
+    const regularLane = geometry.fallbackLaneIndex(id, 3);
+    assert.ok(regularLane >= 0 && regularLane <= 2);
+  }
+
+  assert.equal(geometry.fallbackLaneIndex("anything", 1), 0);
+  assert.equal(geometry.fallbackLaneIndex("anything", 0), 0);
+});
+
 test("event navigation falls back to the timeline midpoint when nothing is focused", () => {
   const items = [
     { id: "early", start: 100 },
