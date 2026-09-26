@@ -66,8 +66,14 @@ export function createWorldNodeDragController(
   }
 
   function begin(pointerId: number, target: WorldNodeDragTarget): boolean {
-    if (activeInstanceId || settling) return false;
+    if (activeInstanceId) return false;
     const pin = forcePin(target.instanceId, target.position);
+
+    // Post-drop settling is presentation/physics work, not an input lock. A
+    // fresh long-press must be able to take ownership immediately even if the
+    // previous node has not reached the force solver's settled threshold yet.
+    // Commit the prior interaction epoch before acquiring the new pointer.
+    if (settling && !commit()) return false;
 
     if (!interaction.begin("world", pointerId)) return false;
     if (!interaction.classify("world", "node-drag")) {
