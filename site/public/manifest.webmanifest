@@ -46,7 +46,7 @@
     }
   ],
   "launch_handler": {
-    "client_mode": "focus-existing"
+    "client_mode": "navigate-existing"
   },
   "file_handlers": [
     {
@@ -56,6 +56,34 @@
           ".luum"
         ]
       }
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Add event",
+      "short_name": "Add event",
+      "description": "Open the Lūm event editor",
+      "url": "./?shortcut=new-event",
+      "icons": [
+        {
+          "src": "./pwa-icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Browse timeline",
+      "short_name": "Browse",
+      "description": "Open the Lūm timeline browser",
+      "url": "./?shortcut=browse",
+      "icons": [
+        {
+          "src": "./pwa-icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     }
   ]
 }
