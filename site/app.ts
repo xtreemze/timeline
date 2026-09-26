@@ -5842,6 +5842,7 @@ els.loadSample.addEventListener("click", () => {
   resetGraphEdgeForm();
   persist();
   renderAll();
+  timelineView?.resetViewport?.();
   showStatus("Example timeline loaded.");
 });
 
@@ -5860,6 +5861,7 @@ function applyImportedTimeline(imported, statusPrefix = "Imported", warningCount
   resetGraphEdgeForm();
   persist();
   renderAll();
+  timelineView?.resetViewport?.();
   const warningText = warningCount
     ? ` · ${warningCount} conversion ${warningCount === 1 ? "warning" : "warnings"}`
     : "";
