@@ -7,8 +7,13 @@ const STAGE_ORDER = Object.freeze([
   "observation",
   "citation",
   "assertion",
+  "assumption",
+  "question",
   "hypothesis",
   "proposition",
+  "lineOfEnquiry",
+  "indicator",
+  "informationReview",
   "analysis",
   "legalIssue",
   "claim",
@@ -20,8 +25,13 @@ const COLLECTION_TYPES = Object.freeze({
   observations: "observation",
   citations: "citation",
   assertions: "assertion",
+  assumptions: "assumption",
+  questions: "question",
   hypotheses: "hypothesis",
   propositions: "proposition",
+  linesOfEnquiry: "lineOfEnquiry",
+  indicators: "indicator",
+  informationReviews: "informationReview",
   analyses: "analysis",
   legalIssues: "legalIssue",
   claims: "claim",
@@ -72,6 +82,29 @@ const HYPOTHESIS_KINDS = Object.freeze([
   "source",
 ] as const);
 const IDENTITY_CANDIDATE_SCOPES = Object.freeze(["entity", "none-known"] as const);
+const ASSUMPTION_STATUSES = Object.freeze(["open", "supported", "challenged", "rejected"] as const);
+const QUESTION_STATUSES = Object.freeze(["open", "answered", "deferred"] as const);
+const ENQUIRY_STATUSES = Object.freeze([
+  "proposed",
+  "active",
+  "completed",
+  "deferred",
+  "not-pursued",
+] as const);
+const ENQUIRY_TEST_TYPES = Object.freeze([
+  "discover",
+  "discriminate",
+  "corroborate",
+  "falsify",
+] as const);
+const INDICATOR_STATES = Object.freeze(["unknown", "observed", "absent"] as const);
+const INFORMATION_FINDINGS = Object.freeze([
+  "corroborated",
+  "uncorroborated",
+  "conflicted",
+  "limited",
+  "unknown",
+] as const);
 
 const CITATION_LOCATOR_TYPES = Object.freeze([
   "page",
@@ -83,6 +116,78 @@ const CITATION_LOCATOR_TYPES = Object.freeze([
   "record-key",
   "uri-fragment",
 ] as const);
+
+export const ANALYTIC_METHODS = Object.freeze([
+  Object.freeze({
+    id: "ach",
+    name: "Analysis of Competing Hypotheses",
+    family: "diagnostic",
+    source: "CIA Tradecraft Primer",
+    sourceUrl: "https://www.cia.gov/resources/csi/books-monographs/a-tradecraft-primer/",
+    purpose: "compare the same evidence across reasonable alternative hypotheses, emphasizing inconsistency and diagnostic evidence",
+  }),
+  Object.freeze({
+    id: "key-assumptions-check",
+    name: "Key Assumptions Check",
+    family: "diagnostic",
+    source: "CIA Tradecraft Primer",
+    sourceUrl: "https://www.cia.gov/resources/csi/books-monographs/a-tradecraft-primer/",
+    purpose: "make assumptions explicit and challenge whether they remain necessary and well founded",
+  }),
+  Object.freeze({
+    id: "quality-of-information-check",
+    name: "Quality of Information Check",
+    family: "diagnostic",
+    source: "CIA Tradecraft Primer",
+    sourceUrl: "https://www.cia.gov/resources/csi/books-monographs/a-tradecraft-primer/",
+    purpose: "review source strengths, weaknesses, corroboration, and information gaps without collapsing them to a truth score",
+  }),
+  Object.freeze({
+    id: "indicators-signposts",
+    name: "Indicators or Signposts",
+    family: "diagnostic",
+    source: "CIA Tradecraft Primer",
+    sourceUrl: "https://www.cia.gov/resources/csi/books-monographs/a-tradecraft-primer/",
+    purpose: "state observable developments that would support, contradict, or change an analytical hypothesis",
+  }),
+  Object.freeze({
+    id: "devils-advocacy",
+    name: "Devil's Advocacy",
+    family: "contrarian",
+    source: "CIA Tradecraft Primer",
+    sourceUrl: "https://www.cia.gov/resources/csi/books-monographs/a-tradecraft-primer/",
+    purpose: "construct a serious challenge to a prevailing analytical view",
+  }),
+  Object.freeze({
+    id: "what-if",
+    name: "What If? Analysis",
+    family: "contrarian",
+    source: "CIA Tradecraft Primer",
+    sourceUrl: "https://www.cia.gov/resources/csi/books-monographs/a-tradecraft-primer/",
+    purpose: "test consequences and warning signs for an outcome that may otherwise be dismissed",
+  }),
+  Object.freeze({
+    id: "reasonable-lines-of-enquiry",
+    name: "Reasonable lines of enquiry",
+    family: "investigative",
+    source: "College of Policing investigation guidance",
+    sourceUrl: "https://www.college.police.uk/app/investigation/investigation-process",
+    purpose: "record and pursue proportionate enquiries that gather material pointing both toward and away from a hypothesis or suspect",
+  }),
+  Object.freeze({
+    id: "alternative-propositions",
+    name: "Alternative propositions",
+    family: "forensic-interpretation",
+    source: "ISO 21043-4:2025",
+    sourceUrl: "https://www.iso.org/standard/72039.html",
+    purpose: "interpret observations against alternative propositions relevant to the decision question",
+  }),
+]);
+
+export function analyticMethod(methodId: unknown) {
+  const id = text(methodId, 160);
+  return ANALYTIC_METHODS.find((method) => method.id === id) ?? null;
+}
 
 export const STANDARDS_BASELINE = Object.freeze([
   Object.freeze({
@@ -250,7 +355,49 @@ export function normalizeRecord(
     assumptionIds: idList(raw.assumptionIds),
   };
 
-  if (type === "citation") {
+  if (type === "assumption") {
+    const status = text(raw.status, 80);
+    record.status = ASSUMPTION_STATUSES.includes(status as any) ? status : "open";
+    record.hypothesisIds = idList(raw.hypothesisIds);
+    record.propositionIds = idList(raw.propositionIds);
+    record.basisIds = idList(raw.basisIds ?? raw.inputIds);
+  } else if (type === "question") {
+    const status = text(raw.status, 80);
+    record.status = QUESTION_STATUSES.includes(status as any) ? status : "open";
+    record.hypothesisIds = idList(raw.hypothesisIds);
+    record.propositionIds = idList(raw.propositionIds);
+    record.answerAssertionIds = idList(raw.answerAssertionIds);
+  } else if (type === "lineOfEnquiry") {
+    const status = text(raw.status, 80);
+    record.status = ENQUIRY_STATUSES.includes(status as any) ? status : "proposed";
+    const testType = text(raw.testType, 80);
+    record.testType = ENQUIRY_TEST_TYPES.includes(testType as any) ? testType : "discover";
+    record.questionIds = idList(raw.questionIds);
+    record.hypothesisIds = idList(raw.hypothesisIds);
+    record.targetIds = idList(raw.targetIds);
+    record.resultIds = idList(raw.resultIds);
+    record.expectedDiscriminator = text(
+      raw.expectedDiscriminator ?? raw.expectedResult,
+      12000,
+    );
+  } else if (type === "indicator") {
+    const state = text(raw.state, 80);
+    record.state = INDICATOR_STATES.includes(state as any) ? state : "unknown";
+    record.hypothesisIds = idList(raw.hypothesisIds);
+    record.propositionIds = idList(raw.propositionIds);
+    record.observationIds = idList(raw.observationIds);
+    record.temporalScope =
+      raw.temporalScope && typeof raw.temporalScope === "object"
+        ? structuredClone(raw.temporalScope)
+        : null;
+  } else if (type === "informationReview") {
+    const finding = text(raw.finding, 80);
+    record.finding = INFORMATION_FINDINGS.includes(finding as any)
+      ? finding
+      : "unknown";
+    record.targetIds = idList(raw.targetIds);
+    record.methodId = text(raw.methodId, 160) || "quality-of-information-check";
+  } else if (type === "citation") {
     record.assertionId = text(raw.assertionId, 160);
     record.evidenceId = text(raw.evidenceId, 160);
     record.evidenceIds = record.evidenceId ? [record.evidenceId] : [];
@@ -402,6 +549,9 @@ export function dependencyIds(record: Record<string, any>): string[] {
     "analysisIds",
     "claimIds",
     "targetIds",
+    "basisIds",
+    "answerAssertionIds",
+    "resultIds",
   ];
   const result: string[] = [];
   const seen = new Set<string>();
@@ -706,6 +856,115 @@ export function validateReasoning(reasoning: any, options: any = {}): Validation
       }
     }
 
+    if (record.type === "assumption") {
+      if (record.basisIds.length === 0 && record.inputIds.length === 0) {
+        add(
+          "warning",
+          "assumption-basis-missing",
+          record.id,
+          "Assumption has no linked basis, evidence, or input record.",
+        );
+      }
+      if (
+        ["challenged", "rejected"].includes(record.status) &&
+        !record.rationale &&
+        !record.limitations
+      ) {
+        add(
+          "warning",
+          "assumption-challenge-rationale-missing",
+          record.id,
+          "Challenged or rejected assumptions should record rationale or limitations.",
+        );
+      }
+    }
+    if (record.type === "question") {
+      if (record.status === "answered" && record.answerAssertionIds.length === 0) {
+        add(
+          "warning",
+          "answered-question-without-assertion",
+          record.id,
+          "Answered question has no linked answer assertion.",
+        );
+      }
+      if (record.status === "deferred" && !record.rationale) {
+        add(
+          "warning",
+          "deferred-question-rationale-missing",
+          record.id,
+          "Deferred question should record why it is not currently pursued.",
+        );
+      }
+    }
+    if (record.type === "lineOfEnquiry") {
+      if (
+        ["deferred", "not-pursued"].includes(record.status) &&
+        !record.rationale
+      ) {
+        add(
+          "error",
+          "enquiry-rationale-required",
+          record.id,
+          "Deferred or not-pursued line of enquiry requires a recorded rationale.",
+        );
+      }
+      if (record.status === "completed" && record.resultIds.length === 0) {
+        add(
+          "warning",
+          "completed-enquiry-result-missing",
+          record.id,
+          "Completed line of enquiry has no linked result, observation, or assertion.",
+        );
+      }
+      if (
+        ["discriminate", "falsify"].includes(record.testType) &&
+        record.hypothesisIds.length === 0 &&
+        record.propositionIds?.length === 0
+      ) {
+        add(
+          "warning",
+          "enquiry-alternative-target-missing",
+          record.id,
+          "Discriminating or falsification enquiry should identify the hypothesis or proposition it tests.",
+        );
+      }
+    }
+    if (record.type === "indicator") {
+      if (
+        ["observed", "absent"].includes(record.state) &&
+        record.observationIds.length === 0
+      ) {
+        add(
+          "warning",
+          "indicator-observation-missing",
+          record.id,
+          "Observed or absent indicator should link the observation establishing that state.",
+        );
+      }
+    }
+    if (record.type === "informationReview") {
+      if (record.targetIds.length === 0) {
+        add(
+          "error",
+          "information-review-target-missing",
+          record.id,
+          "Information-quality review requires at least one target source, evidence, observation, or assertion.",
+        );
+      }
+      if (
+        ["conflicted", "limited"].includes(record.finding) &&
+        !record.rationale &&
+        !record.limitations
+      ) {
+        add(
+          "warning",
+          "information-review-limitation-missing",
+          record.id,
+          "Conflicted or limited information should record the reason or limitation.",
+        );
+      }
+    }
+
     if (
       record.type === "hypothesis" &&
       [
@@ -866,6 +1125,69 @@ export function validateReasoning(reasoning: any, options: any = {}): Validation
   );
 }
 
+export function methodologyReview(reasoning: any) {
+  const normalized = normalizeReasoning(reasoning);
+  const findings = validateReasoning(reasoning);
+  const alternativeGroups = new Map<string, Record<string, any>[]>();
+
+  for (const hypothesis of normalized.hypotheses) {
+    if (!hypothesis.alternativeGroupId) continue;
+    const group = alternativeGroups.get(hypothesis.alternativeGroupId) ?? [];
+    group.push(hypothesis);
+    alternativeGroups.set(hypothesis.alternativeGroupId, group);
+  }
+
+  const disconfirmingCoverage = [...alternativeGroups.entries()].map(
+    ([alternativeGroupId, hypotheses]) => {
+      const hypothesisIds = new Set(hypotheses.map((hypothesis) => hypothesis.id));
+      const enquiries = normalized.linesOfEnquiry.filter(
+        (enquiry: any) =>
+          ["discriminate", "falsify"].includes(enquiry.testType) &&
+          enquiry.hypothesisIds.some((id: string) => hypothesisIds.has(id)),
+      );
+      return {
+        alternativeGroupId,
+        hypothesisIds: [...hypothesisIds].sort(),
+        enquiryIds: enquiries.map((enquiry: any) => enquiry.id).sort(),
+        hasDisconfirmingTest: enquiries.length > 0,
+      };
+    },
+  );
+
+  return {
+    openQuestionIds: normalized.questions
+      .filter((record: any) => record.status === "open")
+      .map((record: any) => record.id)
+      .sort(),
+    assumptionIdsNeedingReview: normalized.assumptions
+      .filter((record: any) => ["open", "challenged"].includes(record.status))
+      .map((record: any) => record.id)
+      .sort(),
+    activeEnquiryIds: normalized.linesOfEnquiry
+      .filter((record: any) => ["proposed", "active"].includes(record.status))
+      .map((record: any) => record.id)
+      .sort(),
+    deferredEnquiryIds: normalized.linesOfEnquiry
+      .filter((record: any) => ["deferred", "not-pursued"].includes(record.status))
+      .map((record: any) => record.id)
+      .sort(),
+    unresolvedInformationReviewIds: normalized.informationReviews
+      .filter((record: any) => ["conflicted", "limited", "unknown"].includes(record.finding))
+      .map((record: any) => record.id)
+      .sort(),
+    unknownIndicatorIds: normalized.indicators
+      .filter((record: any) => record.state === "unknown")
+      .map((record: any) => record.id)
+      .sort(),
+    alternativeGroupsWithoutDisconfirmingTest: disconfirmingCoverage
+      .filter((entry) => !entry.hasDisconfirmingTest)
+      .map((entry) => entry.alternativeGroupId)
+      .sort(),
+    disconfirmingCoverage,
+    validationFindings: findings,
+  };
+}
+
 export function orderedRecords(reasoning: any): Record<string, any>[] {
   const normalized = normalizeReasoning(reasoning);
   const records = recordsOf(normalized);
@@ -936,6 +1258,13 @@ const TimelineCaseReasoningObj = {
   CITATION_LOCATOR_TYPES,
   HYPOTHESIS_KINDS,
   IDENTITY_CANDIDATE_SCOPES,
+  ASSUMPTION_STATUSES,
+  QUESTION_STATUSES,
+  ENQUIRY_STATUSES,
+  ENQUIRY_TEST_TYPES,
+  INDICATOR_STATES,
+  INFORMATION_FINDINGS,
+  ANALYTIC_METHODS,
   STANDARDS_BASELINE,
   normalizeCitationLocator,
   normalizeRecord,
@@ -947,6 +1276,8 @@ const TimelineCaseReasoningObj = {
   summarizeSupport,
   collectAssertionCitations,
   competingHypothesisMatrix,
+  methodologyReview,
+  analyticMethod,
   validateReasoning,
   orderedRecords,
 } as const;
