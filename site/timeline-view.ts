@@ -1962,6 +1962,17 @@ export class TimelineViewController {
     }
   }
 
+  resetViewport(): boolean {
+    if (!this.items.length) return false;
+    this.cancelInertia();
+    this.expandedClusterItemIds.clear();
+    this.geometryMeasurements.clear();
+    this.viewport = this.initialViewport();
+    this.viewportInitialized = true;
+    this.commitInteraction();
+    return true;
+  }
+
   fitVisible(): void {
     const coordinates = this.itemCoordinates();
     if (!coordinates.length) return;
