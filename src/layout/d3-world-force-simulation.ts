@@ -332,7 +332,10 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
         vy: sameGroup ? (prior.vy ?? 0) : 0,
         fx: sameGroup ? prior.fx : null,
         fy: sameGroup ? prior.fy : null,
-        z: sameGroup ? prior.z : node.targetVisualAltitudeMeters,
+        z:
+          sameGroup
+            ? prior.z
+            : (node.initialVisualAltitudeMeters ?? node.targetVisualAltitudeMeters),
         vz: sameGroup ? prior.vz : 0,
       });
     }
