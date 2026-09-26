@@ -18,6 +18,16 @@ declare global {
   var TimelineWebMCPRegistration: any;
   var TimelineSampleCase: any;
   var TimelineAgentAPI: any;
+  var TimelineLocalLLM: ReturnType<
+    typeof import("./site/local-llm-agent.ts").createLocalLlmAgent
+  >;
+  var TimelineMCPRelay: {
+    readonly version: string;
+    status(): import("./site/mcp-relay.ts").McpRelayStatus;
+    connect(options?: import("./site/mcp-relay.ts").McpRelayConnectOptions): Promise<
+      import("./site/mcp-relay.ts").McpRelayStatus & { toolNames: string[] }
+    >;
+  };
 }
 
 export {};

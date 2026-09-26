@@ -19,6 +19,8 @@ import {
 import { TimelineEvidence } from "./evidence-store.ts";
 import { TimelineGraphInference } from "./graph-inference.ts";
 import { TimelineInterchangeAdapter } from "./interchange-adapter.ts";
+import { createLocalLlmAgent } from "./local-llm-agent.ts";
+import { createMcpRelayBridge, type McpRelayConnectOptions } from "./mcp-relay.ts";
 import { TimelineSpatial } from "./spatial.ts";
 import {
   createInvestigationWorkspace,
@@ -5477,6 +5479,39 @@ const agentApi = Object.freeze({
 });
 
 globalThis.TimelineAgentAPI = agentApi;
+Object.assign(globalThis, { TimelineLocalLLM: createLocalLlmAgent(agentApi) });
+
+const mcpRelayBridge = createMcpRelayBridge();
+
+async function registerWebMcpTools(): Promise<WebMcpRegistration> {
+  const registration = await webMcp.register(agentApi);
+  webMcpRegistration?.dispose?.();
+  webMcpRegistration = registration;
+  if (!registration.registered) {
+    console.info("Timeline WebMCP tools are unavailable in this browser:", registration.reason);
+  }
+  return registration;
+}
+
+const timelineMcpRelay = Object.freeze({
+  version: mcpRelayBridge.version,
+  status: mcpRelayBridge.status,
+  async connect(options: McpRelayConnectOptions = {}) {
+    await mcpRelayBridge.connect(options);
+    const registration = webMcpRegistration?.registered
+      ? webMcpRegistration
+      : await registerWebMcpTools();
+    if (!registration.registered) {
+      throw new Error(registration.reason || "Lūm WebMCP tool registration failed.");
+    }
+    return {
+      ...mcpRelayBridge.status(),
+      toolNames: registration.toolNames || [],
+    };
+  },
+});
+
+Object.assign(globalThis, { TimelineMCPRelay: timelineMcpRelay });
 
 function investigationExternalIds(): string[] {
   return [
@@ -5727,18 +5762,17 @@ renderAll();
 applyInstalledAppShortcut();
 void syncInferenceAvailability();
 
-webMcp
-  .register(agentApi)
-  .then((registration) => {
-    webMcpRegistration?.dispose?.();
-    webMcpRegistration = registration;
-    if (!registration.registered) {
-      console.info("Timeline WebMCP tools are unavailable in this browser:", registration.reason);
-    }
-  })
-  .catch((error) => {
-    console.warn("Timeline WebMCP registration failed:", error);
-  });
+const mcpRelayRequested = new URL(window.location.href).searchParams.get("mcp-relay") === "1";
+const initialMcpRegistration = mcpRelayRequested
+  ? timelineMcpRelay.connect()
+  : registerWebMcpTools();
+
+void initialMcpRegistration.catch((error) => {
+  console.warn(
+    mcpRelayRequested ? "Timeline MCP relay connection failed:" : "Timeline WebMCP registration failed:",
+    error,
+  );
+});
 
 const disposeWebMcpRegistration = (): void => {
   webMcpRegistration?.dispose?.();

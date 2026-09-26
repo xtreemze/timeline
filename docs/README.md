@@ -33,7 +33,8 @@ For product copy, use **Lūm**. The repository and some compatibility APIs still
 - [PROJECT-PERSISTENCE.md](PROJECT-PERSISTENCE.md) — local-first project repository boundary.
 - [INTERCHANGE.md](INTERCHANGE.md) — general import/export contract.
 - [TEMPORAL-SPATIAL-INTERCHANGE.md](TEMPORAL-SPATIAL-INTERCHANGE.md) — precise temporal/spatial serialization and browser integration.
-- [WEBMCP-MEMGRAPH.md](WEBMCP-MEMGRAPH.md) — WebMCP authoring and Memgraph relay/round-trip.
+- [WEBMCP-MEMGRAPH.md](WEBMCP-MEMGRAPH.md) — WebMCP authoring, standard MCP relay for Codex/Claude/ChatGPT, local Ollama host, and Memgraph round-trip.
+- [PUBLIC-MCP-STORY-GENERATION.md](PUBLIC-MCP-STORY-GENERATION.md) — public Streamable HTTP MCP endpoint and source-document-to-story generation/verification workflow.
 - [BUILTIN-AI-INFERENCE.md](BUILTIN-AI-INFERENCE.md) — browser-native AI/OCR proposal pipeline and safety boundaries.
 
 ## UI and presentation
