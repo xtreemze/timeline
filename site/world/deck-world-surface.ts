@@ -178,6 +178,7 @@ export interface DeckRuntimeInstance {
 
 export interface DeckWorldRuntime {
   createGlobeView(props: Readonly<Record<string, unknown>>): unknown;
+  createGlobeControllerType?(): unknown;
   createMapView?(props: Readonly<Record<string, unknown>>): unknown;
   createScatterplotLayer(props: Readonly<Record<string, unknown>>): unknown;
   createPathLayer(props: Readonly<Record<string, unknown>>): unknown;
@@ -1217,9 +1218,11 @@ function prefersReducedMotion(): boolean {
  */
 function deckControllerOptions(
   mode: WorldSpatialMode = "globe",
+  globeControllerType?: unknown,
 ): Readonly<Record<string, unknown>> {
   const reducedMotion = prefersReducedMotion();
   return Object.freeze({
+    ...(mode === "globe" && globeControllerType ? { type: globeControllerType } : {}),
     dragPan: true,
     dragRotate: true,
     // Keep wheel input direct under reduced motion. Otherwise let deck
@@ -3042,6 +3045,8 @@ export class DeckWorldSurface implements WorldSurface {
     this.#runtime = runtime;
     this.#labelCollisionExtension = runtime.createCollisionFilterExtension?.() ?? null;
     this.#container = container;
+    const keyboardDataset = (this.#container as { dataset?: DOMStringMap }).dataset;
+    if (keyboardDataset) keyboardDataset.surfaceKeyboardNavigation = "camera";
     // A caller-chosen camera is authoritative; otherwise the first projected
     // content fits the camera once (see #autoFitCamera).
     this.#cameraOwned = initialCamera !== undefined;
@@ -3052,7 +3057,10 @@ export class DeckWorldSurface implements WorldSurface {
     this.#deck = runtime.createDeck({
       parent: container,
       views: [this.#globeView],
-      controller: deckControllerOptions(this.#spatialMode),
+      controller: deckControllerOptions(
+        this.#spatialMode,
+        runtime.createGlobeControllerType?.(),
+      ),
       initialViewState: this.#camera,
       pickingRadius: WORLD_PICKING_RADIUS_PX,
       // deck.gl is the sole cursor authority for the world surface. Application
@@ -3821,6 +3829,8 @@ export class DeckWorldSurface implements WorldSurface {
     this.#container.removeEventListener?.("keydown", this.#handleKeyDown as EventListener);
     this.#liveRegion?.remove?.();
     this.#accessibleMirror?.destroy();
+    const keyboardDataset = (this.#container as { dataset?: DOMStringMap }).dataset;
+    if (keyboardDataset) delete keyboardDataset.surfaceKeyboardNavigation;
     this.#deck.finalize();
   }
 
@@ -4017,7 +4027,10 @@ export class DeckWorldSurface implements WorldSurface {
     // setProps call.
     this.#deck.setProps({
       views: [nextMode === "local" ? this.#localView : this.#globeView],
-      controller: deckControllerOptions(nextMode),
+      controller: deckControllerOptions(
+        nextMode,
+        this.#runtime.createGlobeControllerType?.(),
+      ),
       viewState: this.#camera,
     });
   }

@@ -503,6 +503,44 @@ test("deck controller uses timeline-weighted inertia and smooth pointer-anchored
   });
 });
 
+test("globe mode injects the runtime weighted controller into deck", () => {
+  const { calls, runtime } = harness();
+  class WeightedGlobeController {}
+  new DeckWorldSurface(
+    {},
+    {
+      ...runtime,
+      createGlobeControllerType() {
+        return WeightedGlobeController;
+      },
+    },
+  );
+
+  assert.equal(calls.deckProps.controller.type, WeightedGlobeController);
+  assert.equal(calls.deckProps.controller.inertia, TimelineMotion.INERTIA_TAU_MS);
+});
+
+test("real globe keyboard transition reuses the timeline weighted motion horizon", async () => {
+  const source = await readFile(
+    new URL("../site/world/deck-world-bindings.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /class TimelineWeightedGlobeController extends GlobeController/);
+  assert.match(source, /transitionDuration:\s*TimelineMotion\.INERTIA_TAU_MS/);
+  assert.match(source, /transitionEasing:\s*weightedGlobeEasing/);
+  assert.match(source, /1 - Math\.exp\(-WEIGHTED_GLOBE_DECAY \* t\)/);
+});
+
+test("world surface advertises and releases focused keyboard camera ownership", () => {
+  const { runtime } = harness();
+  const container = { dataset: {} };
+  const surface = new DeckWorldSurface(container, runtime);
+
+  assert.equal(container.dataset.surfaceKeyboardNavigation, "camera");
+  surface.destroy();
+  assert.equal(container.dataset.surfaceKeyboardNavigation, undefined);
+});
+
 test("compact world marks keep a forgiving deck picking radius", () => {
   const { calls, runtime } = harness();
   new DeckWorldSurface({}, runtime);

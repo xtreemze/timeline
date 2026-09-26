@@ -7,7 +7,12 @@
  * structural `DeckWorldBindings` interface; this module fulfils that
  * interface with the actual `@deck.gl/core` / `@deck.gl/layers` classes.
  */
-import { Deck, _GlobeView as GlobeView, MapView } from "@deck.gl/core";
+import {
+  Deck,
+  _GlobeController as GlobeController,
+  _GlobeView as GlobeView,
+  MapView,
+} from "@deck.gl/core";
 import { CollisionFilterExtension } from "@deck.gl/extensions";
 import {
   IconLayer,
@@ -17,6 +22,7 @@ import {
   TextLayer,
 } from "@deck.gl/layers";
 import { webgl2Adapter } from "@luma.gl/webgl";
+import { TimelineMotion } from "../timeline-motion.ts";
 import type { DeckWorldBindings } from "./deck-world-runtime.ts";
 import type { DeckRuntimeInstance, DeckRuntimePickingInfo } from "./deck-world-surface.ts";
 
@@ -42,6 +48,30 @@ function wrapDeckInstance(deck: InstanceType<typeof Deck>): DeckRuntimeInstance 
 }
 
 type WebGpuAdapter = typeof import("@luma.gl/webgpu")["webgpuAdapter"];
+
+const WEIGHTED_GLOBE_DECAY = 5;
+const WEIGHTED_GLOBE_NORMALIZATION = 1 / (1 - Math.exp(-WEIGHTED_GLOBE_DECAY));
+
+function weightedGlobeEasing(progress: number): number {
+  const t = Math.max(0, Math.min(1, progress));
+  return (1 - Math.exp(-WEIGHTED_GLOBE_DECAY * t)) * WEIGHTED_GLOBE_NORMALIZATION;
+}
+
+/**
+ * deck.gl already owns globe keyboard/pointer recognition. Override only its
+ * discrete keyboard transition physics so arrows use the same duration and
+ * exponential-friction character as direct globe release inertia.
+ */
+class TimelineWeightedGlobeController extends GlobeController {
+  constructor(...args: ConstructorParameters<typeof GlobeController>) {
+    super(...args);
+    this.transition = {
+      ...this.transition,
+      transitionDuration: TimelineMotion.INERTIA_TAU_MS,
+      transitionEasing: weightedGlobeEasing,
+    };
+  }
+}
 
 /**
  * WebGPU stays out of the default production graph. deck.gl 9.4 cannot pick
@@ -95,6 +125,9 @@ function createRealDeckWorldBindings(webgpuAdapter?: WebGpuAdapter): DeckWorldBi
     },
     globeView(props) {
       return new GlobeView(props as ConstructorParameters<typeof GlobeView>[0]);
+    },
+    globeControllerType() {
+      return TimelineWeightedGlobeController;
     },
     mapView(props) {
       return new MapView(props as ConstructorParameters<typeof MapView>[0]);

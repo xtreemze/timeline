@@ -349,6 +349,49 @@ test("deck world runtime exposes collision filtering only when the binding is su
   assert.equal(withoutExtension.createCollisionFilterExtension, undefined);
 });
 
+test("deck world runtime exposes an optional globe controller type lazily", () => {
+  class WeightedGlobeController {}
+  let calls = 0;
+  const runtime = createDeckWorldRuntime({
+    deck() {
+      throw new Error("not used");
+    },
+    globeView() {
+      throw new Error("not used");
+    },
+    globeControllerType() {
+      calls += 1;
+      return WeightedGlobeController;
+    },
+    scatterplotLayer() {
+      throw new Error("not used");
+    },
+    pathLayer() {
+      throw new Error("not used");
+    },
+  });
+
+  assert.equal(calls, 0);
+  assert.equal(runtime.createGlobeControllerType(), WeightedGlobeController);
+  assert.equal(calls, 1);
+
+  const withoutController = createDeckWorldRuntime({
+    deck() {
+      throw new Error("not used");
+    },
+    globeView() {
+      throw new Error("not used");
+    },
+    scatterplotLayer() {
+      throw new Error("not used");
+    },
+    pathLayer() {
+      throw new Error("not used");
+    },
+  });
+  assert.equal(withoutController.createGlobeControllerType, undefined);
+});
+
 test("deck world runtime exposes MapView only when the binding is supplied", () => {
   const calls = [];
   const runtime = createDeckWorldRuntime({

@@ -2,7 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 class FakeElement {
-  closest() {
+  constructor({ navigation = false, tagName = "DIV" } = {}) {
+    this.navigation = navigation;
+    this.tagName = tagName;
+  }
+
+  closest(selector) {
+    if (this.navigation && selector === "[data-surface-keyboard-navigation]") return this;
     return null;
   }
 }
@@ -20,6 +26,27 @@ test("keyboard maps TV remote, media and focused D-pad keys to presentation comm
   assert.equal(navigation.commandFromKeyboard(event("ArrowRight"), true), "next");
   assert.equal(navigation.commandFromKeyboard(event("ArrowUp"), true), "previous-media");
   assert.equal(navigation.commandFromKeyboard(event("ArrowRight"), false), null);
+});
+
+test("presentation arrows yield to a focused world camera surface", () => {
+  const target = new FakeElement({ navigation: true });
+  assert.equal(
+    navigation.commandFromKeyboard({ key: "ArrowRight", target }, true),
+    null,
+  );
+  assert.equal(navigation.commandFromKeyboard({ key: "Enter", target }, true), null);
+  assert.equal(
+    navigation.commandFromKeyboard({ key: "MediaPlayPause", target }, true),
+    "toggle-auto",
+  );
+  assert.equal(navigation.commandFromKeyboard({ key: "Escape", target }, true), "back");
+});
+
+test("presentation navigation leaves native control keys local", () => {
+  const target = new FakeElement({ tagName: "BUTTON" });
+  assert.equal(navigation.commandFromKeyboard({ key: "ArrowRight", target }, true), null);
+  assert.equal(navigation.commandFromKeyboard({ key: "Enter", target }, true), null);
+  assert.equal(navigation.commandFromKeyboard({ key: "Escape", target }, true), "back");
 });
 
 test("standard gamepad buttons and axes map to the same commands", () => {

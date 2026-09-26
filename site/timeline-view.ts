@@ -922,7 +922,9 @@ export class TimelineViewController {
     });
 
     this.surface.addEventListener("keydown", (event) => {
-      if (!this.items.length) return;
+      // Document-level presentation navigation runs in capture. Once it owns
+      // an arrow key, the retained timeline must not also pan its viewport.
+      if (event.defaultPrevented || !this.items.length) return;
       if (event.key === "Home") {
         event.preventDefault();
         this.cancelInertia();
