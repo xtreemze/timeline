@@ -145,7 +145,7 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightConfig, /--disable-background-timer-throttling/);
   assert.match(highlightConfig, /--disable-renderer-backgrounding/);
   assert.match(highlightConfig, /--disable-backgrounding-occluded-windows/);
-  assert.doesNotMatch(highlightConfig, /--disable-frame-rate-limit/);
+  assert.match(highlightConfig, /--disable-frame-rate-limit/);
   assert.match(highlightConfig, /--disable-gpu-vsync/);
   assert.match(highlightConfig, /--window-position=0,0/);
   assert.doesNotMatch(highlightConfig, /auto-accept-this-tab-capture/);
@@ -174,7 +174,8 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightSpec, /captured\.fps\s*<\s*MIN_CAPTURE_FPS/);
   assert.match(highlightSpec, /captured\.fps\s*>\s*MAX_CAPTURE_FPS/);
   assert.match(highlightSpec, /browser\.fps\s*<\s*MIN_CAPTURE_FPS/);
-  assert.match(highlightSpec, /browser\.fps\s*>\s*MAX_CAPTURE_FPS/);
+  assert.doesNotMatch(highlightSpec, /browser\.fps\s*>\s*MAX_CAPTURE_FPS/);
+  assert.match(highlightSpec, /responsiveIntervalRatio/);
   assert.match(highlightSpec, /current\s*<=\s*previous/);
   assert.match(highlightSpec, /duplicated or non-increasing timestamp/);
   assert.match(highlightSpec, /pacedIntervalRatio/);
@@ -206,6 +207,7 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightRenderer, /"-of",\s*"json"/);
   assert.match(highlightRenderer, /minimumPacedIntervalRatio/);
   assert.match(highlightRenderer, /pacedIntervalRatio/);
+  assert.match(highlightRenderer, /responsiveIntervalRatio/);
   assert.match(highlightRenderer, /raw Matroska decodes at/);
   assert.match(highlightRenderer, /expected native/);
   assert.match(highlightRenderer, /browser animation clock is/);
