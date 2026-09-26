@@ -209,14 +209,14 @@ function assertEntityShape(value: unknown): CanonicalEntity {
         }
       : {}),
     ...(identifiers
-      ? { identifiers: identifiers as NonNullable<CanonicalEntity["identifiers"]> }
+      ? { identifiers: identifiers as unknown as NonNullable<CanonicalEntity["identifiers"]> }
       : {}),
     ...(appellations
-      ? { appellations: appellations as NonNullable<CanonicalEntity["appellations"]> }
+      ? { appellations: appellations as unknown as NonNullable<CanonicalEntity["appellations"]> }
       : {}),
     ...(semanticMappings
       ? {
-          semanticMappings: semanticMappings as NonNullable<
+          semanticMappings: semanticMappings as unknown as NonNullable<
             CanonicalEntity["semanticMappings"]
           >,
         }
@@ -309,7 +309,7 @@ function assertRelationshipShape(
       : {}),
     ...(semanticMappings
       ? {
-          semanticMappings: semanticMappings as NonNullable<
+          semanticMappings: semanticMappings as unknown as NonNullable<
             CanonicalRelationship["semanticMappings"]
           >,
         }
@@ -391,7 +391,7 @@ function assertTrajectoryShape(
     ...(semanticMappings
       ? {
           externalMappings:
-            semanticMappings as NonNullable<TrajectoryArtifact["externalMappings"]>,
+            semanticMappings as unknown as NonNullable<TrajectoryArtifact["externalMappings"]>,
         }
       : {}),
     attributes: value.attributes,
@@ -560,7 +560,7 @@ function assertOccurrenceShape(
     ...(semanticMappings
       ? {
           semanticMappings:
-            semanticMappings as NonNullable<CanonicalOccurrence["semanticMappings"]>,
+            semanticMappings as unknown as NonNullable<CanonicalOccurrence["semanticMappings"]>,
         }
       : {}),
     attributes: value.attributes,
