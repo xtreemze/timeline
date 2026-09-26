@@ -356,7 +356,7 @@ test("weight-only temporal changes reuse the accepted DAG layout", () => {
 });
 
 test("dense neighborhoods avoid simplex operators even below node-count thresholds", () => {
-  const nodes = Array.from({ length: 32 }, (_, index) => instance(`dense-${index}`));
+  const nodes = Array.from({ length: 24 }, (_, index) => instance(`dense-${index}`));
   const edges = [];
   for (let source = 0; source < nodes.length; source += 1) {
     for (let target = source + 1; target < nodes.length; target += 1) {
@@ -371,6 +371,11 @@ test("dense neighborhoods avoid simplex operators even below node-count threshol
       ([name, count]) => name.startsWith("longest-two-layer-greedy") && count === 1,
     ),
     true,
+  );
+  assert.equal(
+    layout.targets.length,
+    0,
+    "pathologically dense neighborhoods should remain force-owned without entering Sugiyama",
   );
 });
 
