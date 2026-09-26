@@ -1269,7 +1269,10 @@ export class TimelineViewController {
   syncZoomSlider(): void {
     if (!this.zoomSlider || this.retention.active) return;
 
-    const disabled = !this.items.length;
+    const applicationDisabled =
+      this.zoomSlider.closest<HTMLElement>("#timeline-view-toolbar")?.dataset.applicationDisabled ===
+      "true";
+    const disabled = !this.items.length || applicationDisabled;
     if (this.zoomSlider.disabled !== disabled) this.zoomSlider.disabled = disabled;
 
     // View controls live in the persistent horizontal footer. The slider's
