@@ -398,6 +398,49 @@ function normalizedViewport(start: number, end: number): TemporalWindow {
   return { start: start - DEFAULT_SPAN_MS / 2, end: start + DEFAULT_SPAN_MS / 2 };
 }
 
+function timelineViewportCenter(viewport: TemporalWindow): number {
+  return viewport.start + (viewport.end - viewport.start) / 2;
+}
+
+function adjacentTimelineItem<T extends Pick<TimelineItem, "id" | "start">>(
+  items: readonly T[],
+  direction: number,
+  referenceTime: number,
+  focusedId: string | null = null,
+  options: { wrap?: boolean } = {},
+): T | null {
+  if (!items.length) return null;
+  const ordered = [...items].sort(
+    (left, right) => left.start - right.start || left.id.localeCompare(right.id),
+  );
+  const step = direction < 0 ? -1 : 1;
+  const currentIndex = focusedId
+    ? ordered.findIndex((item) => item.id === focusedId)
+    : -1;
+
+  if (currentIndex >= 0) {
+    let nextIndex = currentIndex + step;
+    if (options.wrap) nextIndex = (nextIndex + ordered.length) % ordered.length;
+    return ordered[nextIndex] ?? null;
+  }
+
+  const reference = Number.isFinite(referenceTime)
+    ? referenceTime
+    : (ordered[0]?.start ?? Number.NaN);
+  if (!Number.isFinite(reference)) return null;
+
+  if (step < 0) {
+    for (let index = ordered.length - 1; index >= 0; index -= 1) {
+      const candidate = ordered[index];
+      if (candidate && candidate.start < reference) return candidate;
+    }
+    return options.wrap ? ordered.at(-1) ?? null : null;
+  }
+
+  const candidate = ordered.find((item) => item.start > reference);
+  return candidate ?? (options.wrap ? ordered[0] ?? null : null);
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
@@ -3127,14 +3170,11 @@ export class TimelineViewController {
   }
 
   focusNavigationState(): { previous: boolean; next: boolean; editable: boolean } {
-    const ordered = [...this.items].sort(
-      (left, right) => left.start - right.start || left.id.localeCompare(right.id),
-    );
-    const currentIndex = ordered.findIndex((item) => item.id === this.focusedId);
-    const current = currentIndex >= 0 ? ordered[currentIndex] : null;
+    const current = this.items.find((item) => item.id === this.focusedId) ?? null;
+    const hasItems = this.items.length > 0;
     return {
-      previous: currentIndex > 0,
-      next: currentIndex >= 0 && currentIndex < ordered.length - 1,
+      previous: hasItems,
+      next: hasItems,
       editable: Boolean(current && current.editable !== false),
     };
   }
@@ -3546,19 +3586,18 @@ export class TimelineViewController {
     );
   }
 
-  focusAdjacent(delta: number, options: { wrap?: boolean } = {}): boolean {
-    if (!this.items.length) return false;
-    const ordered = [...this.items].sort(
-      (left, right) => left.start - right.start || left.id.localeCompare(right.id),
+  focusAdjacent(
+    delta: number,
+    options: { wrap?: boolean; reference?: "focused" | "viewport" } = {},
+  ): boolean {
+    const referenceFocusedId = options.reference === "viewport" ? null : this.focusedId;
+    const next = adjacentTimelineItem(
+      this.items,
+      delta,
+      timelineViewportCenter(this.viewport),
+      referenceFocusedId,
+      options,
     );
-    const currentIndex = ordered.findIndex((item) => item.id === this.focusedId);
-    let nextIndex =
-      currentIndex < 0 ? (delta < 0 ? ordered.length - 1 : 0) : currentIndex + (delta < 0 ? -1 : 1);
-
-    if (options.wrap) nextIndex = (nextIndex + ordered.length) % ordered.length;
-    if (nextIndex < 0 || nextIndex >= ordered.length) return false;
-
-    const next = ordered[nextIndex];
     if (!next) return false;
     this.focusMediaIndex = 0;
     return this.focusItem(next.id);
@@ -3702,5 +3741,7 @@ export const TimelineView = Object.freeze({
     selectEdgeAccents,
     axisCrossFromCss,
     committedLaneLimit,
+    timelineViewportCenter,
+    adjacentTimelineItem,
   }),
 });
