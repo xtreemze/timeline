@@ -69,6 +69,8 @@ const ICON_PATHS: Record<string, string[]> = Object.freeze({
   "chevron-left": ["m15 18-6-6 6-6"],
   "chevron-right": ["m9 18 6-6-6-6"],
   close: ["M6 6l12 12", "M18 6 6 18"],
+  edit: ["M4 20h4L19 9l-4-4L4 16z", "m13-13 4 4"],
+  fit: ["M8 4H4v4", "M16 4h4v4", "M20 16v4h-4", "M8 20H4v-4"],
 });
 
 function sanitizeMediaSource(value: unknown): string {
