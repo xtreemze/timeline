@@ -7,6 +7,7 @@ import {
   clusterMembershipWithHysteresis,
   geometryMeasurementKey,
   planCommittedTemporalLayout,
+  planLaneCrossOffsets,
 } from "../src/layout/temporal-layout.ts";
 
 test("cluster hysteresis uses separate enter and exit thresholds", () => {
@@ -30,6 +31,32 @@ test("stable lane is retained while legal", () => {
   assert.equal(chooseStableLane(2, [0, 1, 2, 3]), 2);
   assert.equal(chooseStableLane(2, [0, 1, 3]), 0);
   assert.equal(chooseStableLane(null, [3, 1, 2]), 1);
+});
+
+test("cross-axis lane offsets use measured extents and preserve nearest-first packing", () => {
+  const offsets = planLaneCrossOffsets(
+    [
+      { lane: 0, blockSize: 180 },
+      { lane: 0, blockSize: 220 },
+      { lane: 1, blockSize: 260 },
+      { lane: 2, blockSize: 120 },
+    ],
+    { axisOffsetPx: 44, laneGapPx: 16, routingSlackPx: 44 },
+  );
+
+  assert.deepEqual(offsets, {
+    0: 44,
+    1: 364,
+    2: 684,
+  });
+  assert.ok(offsets[0] < offsets[1]);
+  assert.ok(offsets[1] < offsets[2]);
+
+  const sparse = planLaneCrossOffsets(
+    [{ lane: 2, blockSize: 300 }],
+    { axisOffsetPx: 44, laneGapPx: 16, routingSlackPx: 44 },
+  );
+  assert.deepEqual(sparse, { 2: 44 });
 });
 
 test("measurement identity changes only with scene identity or content revision", () => {
@@ -241,6 +268,37 @@ test("coincident timestamps stay separate and gain enough perpendicular lanes", 
 
   assert.equal(plan.clusters.length, 0);
   assert.equal(new Set(Object.values(plan.lanes)).size, 4);
+});
+
+test("timeline event cards pack inward on measured one-sided lanes", async () => {
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
+
+  const laneStart = source.indexOf("  laneIndexFor(");
+  const laneEnd = source.indexOf("  installGeometryObserver(", laneStart);
+  const laneBody = source.slice(laneStart, laneEnd);
+  assert.match(laneBody, /return -\(this\.laneIndexFor\(item\) \+ 1\)/);
+  assert.match(laneBody, /committedLaneCrossOffsets/);
+  assert.match(laneBody, /TIMELINE_CARD_DEFAULT_CROSS_SIZE_PX/);
+
+  const reconcileStart = source.indexOf("  reconcileCommittedLayout(): void {");
+  const reconcileEnd = source.indexOf("  reconcileClusterScene(", reconcileStart);
+  const reconcileBody = source.slice(reconcileStart, reconcileEnd);
+  assert.match(reconcileBody, /planLaneCrossOffsets\(crossAxisPlacements/);
+  assert.match(reconcileBody, /routingSlackPx: TIMELINE_CARD_ROUTING_SLACK_PX/);
+
+  const positionStart = source.indexOf("  positionRecord(");
+  const positionEnd = source.indexOf("  animateEntry(", positionStart);
+  const positionBody = source.slice(positionStart, positionEnd);
+  assert.match(positionBody, /const terminalCross = axisCross - laneDistance/);
+  assert.match(positionBody, /const laneDistance = this\.crossDistanceForLaneIndex\(laneIndex\)/);
+  assert.match(positionBody, /this\.orientation === "horizontal"[\s\S]*: true;/);
+  assert.doesNotMatch(positionBody, /axisCross \+ \(lane < 0/);
+
+  const clusterStart = source.indexOf("  positionCommittedClusters(");
+  const clusterEnd = source.indexOf("  activateCommittedCluster(", clusterStart);
+  const clusterBody = source.slice(clusterStart, clusterEnd);
+  assert.match(clusterBody, /const terminalCross = axisCross - laneDistance/);
+  assert.match(clusterBody, /this\.orientation === "horizontal"[\s\S]*: true;/);
 });
 
 test("timeline interaction uses one padded coordinate system and direct pointer tracking", async () => {

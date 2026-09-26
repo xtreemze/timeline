@@ -10,6 +10,7 @@ import { surfacePointerMayStartDirectManipulation } from "../src/interaction/sur
 import {
   geometryMeasurementKey,
   planCommittedTemporalLayout,
+  planLaneCrossOffsets,
   type TemporalCommittedLayoutPlan,
   type TemporalLayoutCluster,
   type TemporalLayoutMeasurement,
@@ -56,6 +57,10 @@ const TOUCH_TAP_MOVE_TOLERANCE_PX = 12;
 const CLICK_SUPPRESSION_MS = 450;
 const CONNECTOR_ROUTE_OFFSET_PX = 22;
 const CONNECTOR_ROUTE_EDGE_INSET_PX = 32;
+const TIMELINE_CARD_AXIS_OFFSET_PX = 44;
+const TIMELINE_CARD_LANE_GAP_PX = 16;
+const TIMELINE_CARD_ROUTING_SLACK_PX = CONNECTOR_ROUTE_OFFSET_PX * 2;
+const TIMELINE_CARD_DEFAULT_CROSS_SIZE_PX = 240;
 const MAX_COMMITTED_LANES = 3;
 const CLUSTER_ENTER_PX = 80;
 const CLUSTER_EXIT_PX = 120;
@@ -413,6 +418,7 @@ export class TimelineViewController {
     clusters: Object.freeze([]),
     placements: Object.freeze([]),
   };
+  committedLaneCrossOffsets: Readonly<Record<number, number>> = Object.freeze({});
   committedClusterByItem = new Map<string, string>();
   clusterScene = new Map<string, ClusterSceneRecord>();
   expandedClusterItemIds = new Set<string>();
@@ -2130,12 +2136,31 @@ export class TimelineViewController {
     ].join("\u0003");
   }
 
-  visualLaneFor(item: TimelineItem): number {
-    if (Number.isInteger(item.lane)) return Number(item.lane);
+  laneIndexFor(item: TimelineItem): number {
+    if (Number.isInteger(item.lane)) {
+      return Math.max(0, Math.abs(Number(item.lane)) - 1);
+    }
     const laneIndex = this.committedLayout.lanes[item.id];
-    if (!Number.isInteger(laneIndex)) return stableLane(item.id, null);
-    const depth = Math.floor(Number(laneIndex) / 2) + 1;
-    return Number(laneIndex) % 2 === 0 ? -depth : depth;
+    if (Number.isInteger(laneIndex)) return Math.max(0, Number(laneIndex));
+    return Math.max(0, Math.abs(stableLane(item.id, null)) - 1);
+  }
+
+  visualLaneFor(item: TimelineItem): number {
+    // Timeline cards always expand toward the world view: up in landscape and
+    // left in portrait. The outer side of the timeline is reserved for date
+    // context and may sit directly against the viewport edge.
+    return -(this.laneIndexFor(item) + 1);
+  }
+
+  crossDistanceForLaneIndex(laneIndex: number): number {
+    const normalized = Math.max(0, Math.trunc(laneIndex));
+    const committed = this.committedLaneCrossOffsets[normalized];
+    if (Number.isFinite(committed)) return Number(committed);
+    const pitch =
+      TIMELINE_CARD_DEFAULT_CROSS_SIZE_PX +
+      TIMELINE_CARD_LANE_GAP_PX +
+      TIMELINE_CARD_ROUTING_SLACK_PX;
+    return TIMELINE_CARD_AXIS_OFFSET_PX + normalized * pitch;
   }
 
   installGeometryObserver(): void {
@@ -2266,6 +2291,32 @@ export class TimelineViewController {
     for (const id of [...this.expandedClusterItemIds]) {
       if (!liveIds.has(id)) this.expandedClusterItemIds.delete(id);
     }
+
+    const hiddenClusterItemIds = new Set(clusters.flatMap((cluster) => cluster.itemIds));
+    const clusterRepresentativeIds = new Set(
+      clusters.flatMap((cluster) => (cluster.itemIds[0] ? [cluster.itemIds[0]] : [])),
+    );
+    const occurrenceById = new Map(occurrences.map((item) => [item.id, item]));
+    const crossAxisPlacements = planned.placements
+      .filter(
+        (placement) =>
+          !hiddenClusterItemIds.has(placement.id) ||
+          clusterRepresentativeIds.has(placement.id) ||
+          placement.id === this.focusedId,
+      )
+      .map((placement) => {
+        const item = occurrenceById.get(placement.id);
+        if (!item || !Number.isInteger(item.lane)) return placement;
+        return {
+          ...placement,
+          lane: Math.max(0, Math.abs(Number(item.lane)) - 1),
+        };
+      });
+    this.committedLaneCrossOffsets = planLaneCrossOffsets(crossAxisPlacements, {
+      axisOffsetPx: TIMELINE_CARD_AXIS_OFFSET_PX,
+      laneGapPx: TIMELINE_CARD_LANE_GAP_PX,
+      routingSlackPx: TIMELINE_CARD_ROUTING_SLACK_PX,
+    });
 
     this.committedLayout = {
       lanes: planned.lanes,
@@ -2436,8 +2487,9 @@ export class TimelineViewController {
       const anchor = cluster.start + (cluster.end - cluster.start) / 2;
       const primary = padding + scale.coordinateFor(anchor, this.viewport, usable);
       const lane = record.lane;
-      const laneDistance = 72 + Math.max(0, Math.abs(lane) - 1) * 62;
-      const terminalCross = axisCross + (lane < 0 ? -laneDistance : laneDistance);
+      const laneIndex = Math.max(0, Math.abs(lane) - 1);
+      const laneDistance = this.crossDistanceForLaneIndex(laneIndex);
+      const terminalCross = axisCross - laneDistance;
       const segment = connectorSegment(axisCross, terminalCross);
 
       const previousLabelBefore = record.labelBefore;
@@ -2451,7 +2503,7 @@ export class TimelineViewController {
               usable,
               this.retention.active,
             )
-          : lane < 0;
+          : true;
       const sideCorrectionStart =
         !this.retention.active &&
         this.orientation === "horizontal" &&
@@ -2593,6 +2645,7 @@ export class TimelineViewController {
         clusters: Object.freeze([]),
         placements: Object.freeze([]),
       };
+      this.committedLaneCrossOffsets = Object.freeze({});
       this.committedTickSpecKey = "";
       this.committedTickSpec = null;
       this.edgeAccentCount = 1;
@@ -2825,18 +2878,19 @@ export class TimelineViewController {
       visibleIntervalAnchor(item, this.renderWindow) ??
       item.start;
     const primary = coordinate(anchor);
+    const laneIndex = this.laneIndexFor(item);
     const lane = this.visualLaneFor(item);
     const clusterId = this.committedClusterByItem.get(item.id);
     const hiddenByCluster = Boolean(clusterId) && item.id !== this.focusedId;
     if (node.hidden !== hiddenByCluster) node.hidden = hiddenByCluster;
     if (range && range.hidden !== hiddenByCluster) range.hidden = hiddenByCluster;
-    const laneDistance = 72 + Math.max(0, Math.abs(lane) - 1) * 62;
-    const terminalCross = axisCross + (lane < 0 ? -laneDistance : laneDistance);
+    const laneDistance = this.crossDistanceForLaneIndex(laneIndex);
+    const terminalCross = axisCross - laneDistance;
     const routeOffset = connectorRouteOffset(
       item.connectorRouting || "straight",
       terminalCross,
       Math.max(1, crossExtent),
-      Math.abs(lane),
+      laneIndex + 1,
     );
     const shiftedCross = terminalCross + routeOffset;
 
@@ -2851,7 +2905,7 @@ export class TimelineViewController {
             usable,
             this.retention.active,
           )
-        : lane < 0;
+        : true;
     const sideCorrectionStart =
       !this.retention.active &&
       this.orientation === "horizontal" &&

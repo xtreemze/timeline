@@ -117,6 +117,56 @@ export function chooseStableLane(
   return legal[0] ?? 0;
 }
 
+export interface TemporalLaneCrossOffsetsOptions {
+  readonly axisOffsetPx?: number;
+  readonly laneGapPx?: number;
+  readonly routingSlackPx?: number;
+}
+
+/**
+ * Packs zero-based temporal lanes away from their shared axis.
+ *
+ * The planner keeps lane identity stable; this helper turns those identities into
+ * measured cross-axis offsets. Adjacent lanes are separated by the larger of their
+ * measured cross extents, so cards cannot overlap even when their widths/heights
+ * differ. Routing slack reserves room for orthogonal connector bends without
+ * forcing terminals to swap sides.
+ */
+export function planLaneCrossOffsets(
+  placements: readonly Pick<TemporalLayoutPlacement, "lane" | "blockSize">[],
+  options: TemporalLaneCrossOffsetsOptions = {},
+): Readonly<Record<number, number>> {
+  const axisOffsetPx = Math.max(0, finite(options.axisOffsetPx, 0));
+  const laneGapPx = Math.max(0, finite(options.laneGapPx, DEFAULT_LANE_GAP_PX));
+  const routingSlackPx = Math.max(0, finite(options.routingSlackPx, 0));
+  const laneSizes = new Map<number, number>();
+
+  for (const placement of placements) {
+    const lane = Math.trunc(finite(placement.lane, -1));
+    if (lane < 0) continue;
+    const size = Math.max(1, finite(placement.blockSize, 1));
+    laneSizes.set(lane, Math.max(laneSizes.get(lane) ?? 0, size));
+  }
+
+  const occupiedLanes = [...laneSizes.keys()].sort((left, right) => left - right);
+  if (!occupiedLanes.length) return Object.freeze({});
+
+  const offsets: Record<number, number> = {};
+  let offset = axisOffsetPx;
+  let previousLane: number | null = null;
+  for (const lane of occupiedLanes) {
+    if (previousLane !== null) {
+      const previousSize = laneSizes.get(previousLane) ?? 0;
+      const currentSize = laneSizes.get(lane) ?? previousSize;
+      offset += Math.max(previousSize, currentSize) + laneGapPx + routingSlackPx;
+    }
+    offsets[lane] = offset;
+    previousLane = lane;
+  }
+
+  return Object.freeze(offsets);
+}
+
 export function geometryMeasurementKey(sceneKey: string, contentRevision: string | number): string {
   const key = canonicalId(sceneKey);
   if (!key) throw new Error("Geometry measurement keys require a stable scene identity.");
