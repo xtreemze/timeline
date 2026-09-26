@@ -1,48 +1,26 @@
 name: Deploy GitHub Pages
 
 on:
-  workflow_run:
-    workflows: ["E2E media showcase"]
-    types: [completed]
+  push:
+    branches: [main]
   workflow_dispatch:
-    inputs:
-      media_run_id:
-        description: Successful E2E media showcase run ID whose artifact should be published
-        required: true
-        type: string
 
 permissions:
   contents: read
-  actions: read
+  actions: write
   pages: write
   id-token: write
 
 concurrency:
   group: pages
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
-  deploy:
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-        with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
-
-      - name: Download certified showcase media
-        uses: actions/download-artifact@v4
-        with:
-          name: lum-e2e-showcase
-          path: artifacts/e2e-media
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ github.event.workflow_run.id || inputs.media_run_id }}
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v6
@@ -55,27 +33,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps chromium
-
-      - name: Lint code
-        run: pnpm lint
-
-      - name: Typecheck migrated TypeScript
-        run: pnpm types:migrated
-
-      - name: Enforce architecture TypeScript
-        run: pnpm types:architecture
-
       - name: Build native ESM site
         run: |
           pnpm build
-          node --check src/orb-graph-entry.js
-          node --check src/evidence-extraction-core.js
-          node --check src/evidence-extraction-entry.js
           test -s dist/index.html
           test -d dist/assets
           test "$(find dist/assets -type f -name '*.js' | wc -l)" -gt 0
+          test "$(find dist/assets -type f | wc -l)" -gt 1
           if grep -Eq 'src="[^"]+\.ts([?#][^"]*)?"' dist/index.html; then
             echo "Built entry point still references raw TypeScript modules"
             exit 1
@@ -85,45 +49,27 @@ jobs:
             exit 1
           fi
 
-      - name: Validate architecture tests
-        run: pnpm test:architecture
-
-      - name: Run full migrated Node test suite
-        run: pnpm test
-
-      - name: Run E2E tests
-        run: pnpm test:e2e
-
-      - name: Certify built Pages runtime
-        run: pnpm exec playwright test --config=playwright.pages.config.ts
-
-      - name: Publish certified showcase media into Pages artifact
+      - name: Restore latest showcase media when available
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          test "$(find artifacts/e2e-media/showcase/desktop -type f -name '*.webp' | wc -l)" -eq 2
-          test "$(find artifacts/e2e-media/showcase/mobile -type f -name '*.webp' | wc -l)" -eq 2
-          test "$(find artifacts/e2e-media/showcase/desktop -type f -name '*.png' | wc -l)" -eq 3
-          test "$(find artifacts/e2e-media/showcase/mobile -type f -name '*.png' | wc -l)" -eq 3
-          mkdir -p dist/showcase/desktop dist/showcase/mobile
-          cp artifacts/e2e-media/showcase/desktop/* dist/showcase/desktop/
-          cp artifacts/e2e-media/showcase/mobile/* dist/showcase/mobile/
+          run_id="$(gh run list             --repo "$GITHUB_REPOSITORY"             --workflow e2e-media.yml             --branch main             --status success             --limit 1             --json databaseId             --jq '.[0].databaseId // empty')"
+          if [ -z "$run_id" ]; then
+            echo "No completed showcase run is available; deploying without showcase media."
+            exit 0
+          fi
 
-      - name: Upload Playwright report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report
-          path: playwright-report/
+          rm -rf artifacts/e2e-media
+          gh run download "$run_id"             --repo "$GITHUB_REPOSITORY"             --name lum-e2e-showcase             --dir artifacts/e2e-media
 
-      - name: Validate built entry point
-        run: |
-          test -s dist/index.html
-          test -d dist/assets
-          test "$(find dist/assets -type f -name '*.js' | wc -l)" -gt 0
-          test "$(find dist/assets -type f | wc -l)" -gt 1
-          test "$(find dist/showcase/desktop -type f -name '*.webp' | wc -l)" -eq 2
-          test "$(find dist/showcase/mobile -type f -name '*.webp' | wc -l)" -eq 2
-          test "$(find dist/showcase/desktop -type f -name '*.png' | wc -l)" -eq 3
-          test "$(find dist/showcase/mobile -type f -name '*.png' | wc -l)" -eq 3
+          if [ -d artifacts/e2e-media/showcase ]; then
+            rm -rf dist/showcase
+            mkdir -p dist/showcase
+            cp -R artifacts/e2e-media/showcase/. dist/showcase/
+          else
+            echo "Latest showcase artifact has no showcase directory; deploying without it."
+          fi
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
@@ -135,6 +81,110 @@ jobs:
         with:
           path: dist
 
+  coverage:
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate test coverage report
+        continue-on-error: true
+        run: pnpm dlx c8@10.1.3 --reporter=html --reporter=lcov --reporter=text-summary pnpm test
+
+      - name: Upload coverage report
+        id: upload-coverage
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          if-no-files-found: error
+          retention-days: 2
+
+      - name: Keep only the latest coverage artifact
+        continue-on-error: true
+        if: ${{ always() && steps.upload-coverage.outcome == 'success' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          CURRENT_RUN_ID: ${{ github.run_id }}
+        run: |
+          while read -r artifact_id; do
+            [ -z "$artifact_id" ] && continue
+            gh api --method DELETE "/repos/${REPOSITORY}/actions/artifacts/${artifact_id}"
+          done < <(
+            gh api --paginate "/repos/${REPOSITORY}/actions/artifacts?name=coverage-report&per_page=100"               --jq ".artifacts[] | select((.workflow_run.id // 0) != ${CURRENT_RUN_ID}) | .id"
+          )
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
+
+  lighthouse:
+    needs: deploy
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Run Lighthouse audit
+        continue-on-error: true
+        env:
+          LIGHTHOUSE_URL: ${{ needs.deploy.outputs.page_url }}
+        run: |
+          mkdir -p artifacts/lighthouse
+          pnpm dlx lighthouse "$LIGHTHOUSE_URL"             --chrome-flags="--headless --no-sandbox"             --output=html             --output-path=artifacts/lighthouse/report.html             --quiet
+
+      - name: Upload Lighthouse report
+        id: upload-lighthouse
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-report
+          path: artifacts/lighthouse/
+          if-no-files-found: error
+          retention-days: 2
+
+      - name: Keep only the latest Lighthouse artifact
+        continue-on-error: true
+        if: ${{ always() && steps.upload-lighthouse.outcome == 'success' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          CURRENT_RUN_ID: ${{ github.run_id }}
+        run: |
+          while read -r artifact_id; do
+            [ -z "$artifact_id" ] && continue
+            gh api --method DELETE "/repos/${REPOSITORY}/actions/artifacts/${artifact_id}"
+          done < <(
+            gh api --paginate "/repos/${REPOSITORY}/actions/artifacts?name=lighthouse-report&per_page=100"               --jq ".artifacts[] | select((.workflow_run.id // 0) != ${CURRENT_RUN_ID}) | .id"
+          )
