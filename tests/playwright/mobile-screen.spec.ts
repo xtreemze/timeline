@@ -158,6 +158,28 @@ test.describe("Narrow mobile screen contracts", () => {
       expect(Math.max(...buttonTops) - Math.min(...buttonTops)).toBeLessThanOrEqual(1);
       expect(Math.max(...buttonBottoms) - Math.min(...buttonBottoms)).toBeLessThanOrEqual(1);
 
+      for (const selector of [
+        ".world-camera-controls",
+        ".world-layout-controls",
+        ".app-footer-actions",
+        ".app-footer-timeline",
+      ]) {
+        const group = dock.locator(selector);
+        await expect(group).toBeVisible();
+        const geometry = await group.evaluate((element) => {
+          const style = getComputedStyle(element);
+          const rect = element.getBoundingClientRect();
+          return {
+            position: style.position,
+            top: rect.top,
+            bottom: rect.bottom,
+          };
+        });
+        expect(["absolute", "fixed", "sticky"]).not.toContain(geometry.position);
+        expect(geometry.top).toBeGreaterThanOrEqual(metrics.top - 1);
+        expect(geometry.bottom).toBeLessThanOrEqual(metrics.bottom + 1);
+      }
+
       const semanticIcons = dock.locator(".toolbar-control .semantic-icon:visible");
       const semanticIconCount = await semanticIcons.count();
       expect(semanticIconCount).toBeGreaterThanOrEqual(4);
