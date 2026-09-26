@@ -814,7 +814,10 @@ function renderPresentationMap() {
 
 function syncContextualPresentationPanels() {
   const focused = Boolean(timelineView?.hasFocusedItem?.());
-  const mapVisible = focused ? renderPresentationMap() : (destroyPresentationMap(), false);
+  // Focus detail is now an extension of the timeline card. Location remains
+  // spatial context in the world view rather than consuming detail-card width.
+  destroyPresentationMap();
+  const mapVisible = false;
 
   if (els.graphLens) els.graphLens.hidden = false;
   if (els.presentationMapPanel) els.presentationMapPanel.hidden = true;
