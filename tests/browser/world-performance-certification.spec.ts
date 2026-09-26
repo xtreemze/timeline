@@ -16,8 +16,8 @@ import { expect, test } from "@playwright/test";
  *
  * This does not do per-frame GPU readback: every measurement here is
  * `performance.now()` around calls the app itself makes (`setProjection`,
- * `setCamera`, `pick`), or `requestAnimationFrame` for paint timing — never
- * `deck.readPixels()`.
+ * `applyProjectionDelta`, `setCamera`, `pick`), or `requestAnimationFrame`
+ * for paint timing — never `deck.readPixels()`.
  *
  * Results are written to `tests/browser/world-performance-report.json` (a
  * human-reviewable artifact) and softly checked against generous sanity
@@ -49,7 +49,13 @@ interface ScaleReport {
   readonly inputToPaintMs: number | null;
   readonly pickingLatencyMs: number | null;
   readonly incrementalUpdate: {
+    readonly smallDeltaSyncMs: number;
     readonly smallDeltaMs: number;
+    readonly sustainedSingleNodeSync: {
+      readonly p50Ms: number;
+      readonly p95Ms: number;
+      readonly samples: number;
+    };
     readonly fullSwapMs: number;
   } | null;
   readonly sustainedNavigation: {
@@ -178,11 +184,62 @@ test.describe("world performance certification (issue #445 Priority 7)", () => {
           const base = window.__worldPerfFixture;
           if (!base) throw new Error("World performance fixture is unavailable.");
 
-          const delta = generateSmallDeltaFixture(base, 25);
+          const nextProjection = generateSmallDeltaFixture(base, 25);
+          // Constructing/diffing fixture data is deliberately outside the timed
+          // region. The measurement starts at the same sparse WorldSurface
+          // boundary production force readback uses.
+          const delta = harness.diffProjection(nextProjection);
+          if (delta.updatedInstances.length !== 25) {
+            throw new Error(
+              `Expected 25 sparse instance updates, got ${delta.updatedInstances.length}.`,
+            );
+          }
           const deltaStart = performance.now();
-          harness.surface.setProjection(delta);
+          harness.applyProjectionDelta(delta);
+          const smallDeltaSyncMs = performance.now() - deltaStart;
           await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
           const smallDeltaMs = performance.now() - deltaStart;
+
+          // Repeated one-node sparse updates approximate the synchronous CPU
+          // work of sustained drag/post-drop frames without including fixture
+          // diff construction or a full projection readback in each sample.
+          const current = harness.getProjection();
+          let movingInstance = current.instances[0];
+          if (!movingInstance) throw new Error("World performance fixture has no instances.");
+          const singleNodeSamples: number[] = [];
+          const sampleCount =
+            base.instances.length >= 50_000 ? 8 : base.instances.length >= 10_000 ? 16 : 30;
+          for (let index = 0; index < sampleCount; index++) {
+            const previousOffset = movingInstance.localOffset ?? {
+              eastMeters: 0,
+              northMeters: 0,
+            };
+            const nextInstance = Object.freeze({
+              ...movingInstance,
+              localOffset: Object.freeze({
+                eastMeters: previousOffset.eastMeters + 250 + index,
+                northMeters: previousOffset.northMeters - 125 - index,
+              }),
+            });
+            const positionDelta = Object.freeze({
+              addedInstances: Object.freeze([]),
+              updatedInstances: Object.freeze([nextInstance]),
+              removedInstanceIds: Object.freeze([]),
+              addedEdges: Object.freeze([]),
+              updatedEdges: Object.freeze([]),
+              removedEdgeIds: Object.freeze([]),
+            });
+            const sampleStart = performance.now();
+            harness.applyProjectionDelta(positionDelta);
+            singleNodeSamples.push(performance.now() - sampleStart);
+            movingInstance = nextInstance;
+          }
+          singleNodeSamples.sort((left, right) => left - right);
+          const sustainedSingleNodeSync = {
+            p50Ms: singleNodeSamples[Math.floor(singleNodeSamples.length * 0.5)] ?? 0,
+            p95Ms: singleNodeSamples[Math.floor(singleNodeSamples.length * 0.95)] ?? 0,
+            samples: singleNodeSamples.length,
+          };
 
           const swap = generateWorldProjectionFixture({
             entityCount: base.instances.length,
@@ -198,7 +255,7 @@ test.describe("world performance certification (issue #445 Priority 7)", () => {
           harness.surface.setProjection(base);
           await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
-          return { smallDeltaMs, fullSwapMs };
+          return { smallDeltaSyncMs, smallDeltaMs, sustainedSingleNodeSync, fullSwapMs };
         });
 
         // --- Sustained navigation: repeated camera changes, memory proxy. ---
@@ -255,29 +312,37 @@ test.describe("world performance certification (issue #445 Priority 7)", () => {
         incrementalUpdate,
         sustainedNavigation,
       };
-      report.scales.push(scaleReport);
+      const existingIndex = report.scales.findIndex((entry) => entry.label === scaleReport.label);
+      if (existingIndex >= 0) report.scales[existingIndex] = scaleReport;
+      else report.scales.push(scaleReport);
 
-      // Loose sanity bounds: catch a total collapse, not a tight regression
-      // gate. See world-performance-baseline.json for the documented
-      // rationale and per-scale ceilings.
-      const baseline = loadBaseline();
-      const bound = baseline.scales[scale.label];
-      if (bound) {
-        expect(
-          scaleReport.firstUsableFrameMs,
-          `first usable frame at ${scale.label} should stay under the sanity ceiling`,
-        ).toBeLessThan(bound.maxFirstUsableFrameMs);
-        expect(
-          scaleReport.sustainedFrame.p95Ms,
-          `p95 frame time at ${scale.label} should stay under the sanity ceiling`,
-        ).toBeLessThan(bound.maxSustainedFrameP95Ms);
-      }
+      // Persist evidence before a baseline assertion can fail. This keeps
+      // partial/retry output current instead of uploading the committed JSON.
+      mkdirSync(dirname(REPORT_PATH), { recursive: true });
+      writeFileSync(REPORT_PATH, JSON.stringify(report, null, 2));
     });
   }
 
   test.afterAll(() => {
     mkdirSync(dirname(REPORT_PATH), { recursive: true });
     writeFileSync(REPORT_PATH, JSON.stringify(report, null, 2));
+
+    // Evaluate loose sanity ceilings only after every scale had a chance to
+    // run. A baseline miss should fail certification, not suppress evidence
+    // from the larger scales that explain where the time is going.
+    const baseline = loadBaseline();
+    for (const scaleReport of report.scales) {
+      const bound = baseline.scales[scaleReport.label];
+      if (!bound) continue;
+      expect(
+        scaleReport.firstUsableFrameMs,
+        `first usable frame at ${scaleReport.label} should stay under the sanity ceiling`,
+      ).toBeLessThan(bound.maxFirstUsableFrameMs);
+      expect(
+        scaleReport.sustainedFrame.p95Ms,
+        `p95 frame time at ${scaleReport.label} should stay under the sanity ceiling`,
+      ).toBeLessThan(bound.maxSustainedFrameP95Ms);
+    }
   });
 });
 

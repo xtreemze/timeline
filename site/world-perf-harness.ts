@@ -18,6 +18,10 @@ import {
   type WorldInstanceId,
   type WorldProjection,
 } from "../src/projection/world-projection.ts";
+import {
+  diffWorldProjection,
+  type WorldProjectionDelta,
+} from "../src/projection/world-projection-delta.ts";
 import { realDeckWorldBindings } from "./world/deck-world-bindings.ts";
 import { createDeckWorldRuntime } from "./world/deck-world-runtime.ts";
 import { type DeckWorldNodeDragSink, DeckWorldSurface } from "./world/deck-world-surface.ts";
@@ -32,6 +36,10 @@ declare global {
        * geographic anchors from presentation-only derived offsets applied
        * by the harness's drag sink below. */
       getProjection(): WorldProjection;
+      /** Build a renderer-neutral delta outside timed measurement regions. */
+      diffProjection(next: WorldProjection): WorldProjectionDelta;
+      /** Exercise the same sparse WorldSurface boundary production force readback uses. */
+      applyProjectionDelta(delta: WorldProjectionDelta): void;
       /** Number of begin/update/release calls the test-only drag sink has
        * received, for asserting a drag sequence actually engaged it. */
       dragSinkCalls: { begin: number; update: number; release: number; cancel: number };
@@ -51,12 +59,46 @@ const surface = new DeckWorldSurface(
   createWorldCameraState({ longitude: 0, latitude: 20, zoom: 1, bearing: 0, pitch: 20 }),
 );
 
-let currentProjection: WorldProjection = { instances: [], edges: [] };
+const instanceById = new Map<WorldInstanceId, WorldProjection["instances"][number]>();
+const edgeById = new Map<
+  WorldProjection["edges"][number]["id"],
+  WorldProjection["edges"][number]
+>();
 const originalSetProjection = surface.setProjection.bind(surface);
+const originalApplyProjectionDelta = surface.applyProjectionDelta.bind(surface);
+
+function replaceHarnessProjection(projection: WorldProjection): void {
+  instanceById.clear();
+  for (const instance of projection.instances) instanceById.set(instance.id, instance);
+  edgeById.clear();
+  for (const edge of projection.edges) edgeById.set(edge.id, edge);
+}
+
+function currentProjection(): WorldProjection {
+  return createWorldProjection({
+    instances: [...instanceById.values()],
+    edges: [...edgeById.values()],
+  });
+}
+
 surface.setProjection = (projection: WorldProjection) => {
-  currentProjection = projection;
+  replaceHarnessProjection(projection);
   originalSetProjection(projection);
 };
+
+function applyProjectionDelta(delta: WorldProjectionDelta): void {
+  // Update the real surface first. The harness mirrors successful writes only
+  // so failed renderer updates cannot leave test readback ahead of production.
+  originalApplyProjectionDelta(delta);
+
+  for (const id of delta.removedInstanceIds) instanceById.delete(id);
+  for (const instance of delta.updatedInstances) instanceById.set(instance.id, instance);
+  for (const instance of delta.addedInstances) instanceById.set(instance.id, instance);
+
+  for (const id of delta.removedEdgeIds) edgeById.delete(id);
+  for (const edge of delta.updatedEdges) edgeById.set(edge.id, edge);
+  for (const edge of delta.addedEdges) edgeById.set(edge.id, edge);
+}
 
 const dragSinkCalls = { begin: 0, update: 0, release: 0, cancel: 0 };
 
@@ -68,26 +110,38 @@ const dragSinkCalls = { begin: 0, update: 0, release: 0, cancel: 0 };
  * the same canonical/derived split that production relies on
  * (`resolveWorldRenderPosition` reading `instance.localOffset` as a
  * presentation-only input over the canonical `geographicAnchors`): it
- * rewrites only `localOffset` on the dragged instance, via `setProjection`,
- * leaving `geographicAnchors` untouched.
+ * rewrites only `localOffset` on the dragged instance through the sparse
+ * `applyProjectionDelta` boundary, leaving `geographicAnchors` untouched.
  */
 const dragOffsets = new Map<WorldInstanceId, WorldNodeDragPosition>();
 
 function applyDragOffsets(): void {
-  const instances = currentProjection.instances.map((instance) => {
-    const offset = dragOffsets.get(instance.id);
-    if (!offset) return instance;
-    return createProjectedWorldInstance({
-      ...instance,
-      localOffset: {
-        eastMeters: offset.eastMeters,
-        northMeters: offset.northMeters,
-      },
-    });
-  });
-  const next = createWorldProjection({ instances, edges: currentProjection.edges });
-  currentProjection = next;
-  originalSetProjection(next);
+  const updatedInstances: WorldProjection["instances"][number][] = [];
+  for (const [instanceId, offset] of dragOffsets) {
+    const instance = instanceById.get(instanceId);
+    if (!instance) continue;
+    updatedInstances.push(
+      createProjectedWorldInstance({
+        ...instance,
+        localOffset: {
+          eastMeters: offset.eastMeters,
+          northMeters: offset.northMeters,
+        },
+      }),
+    );
+  }
+  if (updatedInstances.length === 0) return;
+
+  applyProjectionDelta(
+    Object.freeze({
+      addedInstances: Object.freeze([]),
+      updatedInstances: Object.freeze(updatedInstances),
+      removedInstanceIds: Object.freeze([]),
+      addedEdges: Object.freeze([]),
+      updatedEdges: Object.freeze([]),
+      removedEdgeIds: Object.freeze([]),
+    }),
+  );
 }
 
 const testDragSink: DeckWorldNodeDragSink = {
@@ -107,10 +161,12 @@ const testDragSink: DeckWorldNodeDragSink = {
   },
   release() {
     dragSinkCalls.release++;
+    dragOffsets.clear();
     return true;
   },
   cancel() {
     dragSinkCalls.cancel++;
+    dragOffsets.clear();
   },
 };
 surface.setNodeDragSink(testDragSink);
@@ -118,6 +174,8 @@ surface.setNodeDragSink(testDragSink);
 window.__worldPerfHarness = {
   surface,
   ready: true,
-  getProjection: () => currentProjection,
+  getProjection: currentProjection,
+  diffProjection: (next) => diffWorldProjection(currentProjection(), next),
+  applyProjectionDelta,
   dragSinkCalls,
 };
