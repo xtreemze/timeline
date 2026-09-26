@@ -5602,6 +5602,24 @@ registerProjectLaunchConsumer(async (files) => {
   if (file) await importProjectFile(file, "Opened");
 });
 
+function applyInstalledAppShortcut(): void {
+  const url = new URL(window.location.href);
+  const shortcut = url.searchParams.get("shortcut");
+  if (!shortcut) return;
+
+  url.searchParams.delete("shortcut");
+  window.history.replaceState(null, "", url);
+
+  if (shortcut === "new-event") {
+    resetItemForm();
+    setActivePanel("items");
+    return;
+  }
+  if (shortcut === "browse") {
+    setBrowserSurfaceOpen(true);
+  }
+}
+
 fillTimeZoneOptions();
 resetItemForm();
 resetStoryForm();
@@ -5611,6 +5629,7 @@ resetGraphEdgeForm();
 setActivePanel("items", { open: false });
 syncApplicationSurfaces();
 renderAll();
+applyInstalledAppShortcut();
 void syncInferenceAvailability();
 
 webMcp
