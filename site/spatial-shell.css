@@ -526,6 +526,16 @@
   overflow: visible;
 }
 
+.app-footer-world .world-camera-controls {
+  position: static;
+  inset: auto;
+  z-index: auto;
+  flex-direction: row;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
 .app-footer-world .world-layout-controls {
   margin-inline-start: 0.12rem;
   padding-inline-start: 0.12rem;
@@ -644,6 +654,111 @@
 
   .app-footer-bar .toolbar-number-control input {
     inline-size: 2.6rem;
+  }
+}
+
+/* The canonical 44px button geometry must outrank legacy .app-tool
+   minimums in every orientation and viewport size. */
+#app-shell:has(#timeline-view[data-orientation="landscape"])
+  .app-footer-bar
+  .toolbar-control,
+#app-shell:has(#timeline-view[data-orientation="portrait"])
+  .app-footer-bar
+  .toolbar-control {
+  box-sizing: border-box;
+  position: static;
+  z-index: auto;
+  block-size: var(--toolbar-control-size);
+  min-block-size: var(--toolbar-control-size);
+  max-block-size: var(--toolbar-control-size);
+}
+
+#app-shell:has(#timeline-view[data-orientation="landscape"])
+  .app-footer-bar
+  .toolbar-control:not(.toolbar-control-wide):not(.toolbar-control-value),
+#app-shell:has(#timeline-view[data-orientation="portrait"])
+  .app-footer-bar
+  .toolbar-control:not(.toolbar-control-wide):not(.toolbar-control-value) {
+  flex: 0 0 var(--toolbar-control-size);
+  inline-size: var(--toolbar-control-size);
+  min-inline-size: var(--toolbar-control-size);
+  max-inline-size: var(--toolbar-control-size);
+}
+
+@media (max-width: 699px) {
+  /* The narrow footer is one physical toolbar. All groups stay in normal flow
+     and the footer itself owns horizontal scrolling. */
+  #app-shell:has(#timeline-view[data-orientation="landscape"])
+    > .app-tool-dock.app-footer-bar,
+  #app-shell:has(#timeline-view[data-orientation="portrait"])
+    > .app-tool-dock.app-footer-bar,
+  #app-shell
+    #presentation-stage:fullscreen:has(#timeline-view)
+    > .app-tool-dock.app-footer-bar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: var(--toolbar-control-gap);
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-inline: contain;
+    scroll-padding-inline: max(0.35rem, env(safe-area-inset-left));
+    touch-action: pan-x;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  #app-shell:has(#timeline-view[data-orientation="landscape"])
+    > .app-tool-dock.app-footer-bar::-webkit-scrollbar,
+  #app-shell:has(#timeline-view[data-orientation="portrait"])
+    > .app-tool-dock.app-footer-bar::-webkit-scrollbar,
+  #app-shell
+    #presentation-stage:fullscreen:has(#timeline-view)
+    > .app-tool-dock.app-footer-bar::-webkit-scrollbar {
+    display: none;
+  }
+
+  #app-shell .app-footer-bar .app-footer-zone {
+    flex: 0 0 auto;
+    inline-size: max-content;
+    min-inline-size: max-content;
+    max-inline-size: none;
+    padding-inline: 0;
+    overflow: visible;
+    container-type: normal;
+  }
+
+  #app-shell .app-footer-bar .app-footer-world,
+  #app-shell .app-footer-bar .app-footer-timeline.timeline-local-toolbar {
+    overflow: visible;
+    overscroll-behavior: auto;
+    scrollbar-width: auto;
+  }
+
+  #app-shell .app-footer-bar .app-footer-actions {
+    justify-content: flex-start;
+    min-inline-size: 0;
+    max-inline-size: none;
+  }
+
+  #app-shell .app-footer-bar .app-footer-zone + .app-footer-zone {
+    margin-inline-start: 0.18rem;
+    padding-inline-start: 0.24rem;
+    border-inline-start: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+  }
+
+  #app-shell .app-footer-bar .toolbar-control-wide {
+    flex: 0 0 104px;
+    inline-size: 104px;
+    min-inline-size: 104px;
+    max-inline-size: 104px;
+  }
+
+  #app-shell .app-footer-bar .toolbar-control-value {
+    flex: 0 0 auto;
+    inline-size: auto;
+    min-inline-size: 54px;
+    max-inline-size: none;
   }
 }
 

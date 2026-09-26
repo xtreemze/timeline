@@ -215,6 +215,21 @@ test.describe("Mobile-first Timeline layout contracts", () => {
       const layoutControls = dock.locator(".app-footer-world .world-layout-controls");
       await expect(layoutControls).toBeVisible();
       await expect(layoutControls.locator(".world-layout-control")).toHaveCount(2);
+      const cameraControls = dock.locator(".app-footer-world .world-camera-controls");
+      const cameraGeometry = await cameraControls.evaluate((element) => {
+        const style = getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return {
+          position: style.position,
+          flexDirection: style.flexDirection,
+          top: rect.top,
+          bottom: rect.bottom,
+        };
+      });
+      expect(cameraGeometry.position).toBe("static");
+      expect(cameraGeometry.flexDirection).toBe("row");
+      expect(cameraGeometry.top).toBeGreaterThanOrEqual(dockBox.y - 1);
+      expect(cameraGeometry.bottom).toBeLessThanOrEqual(dockBox.y + dockBox.height + 1);
 
       const visibleFooterButtons = dock.locator("button:visible");
       const visibleFooterButtonCount = await visibleFooterButtons.count();
@@ -225,8 +240,8 @@ test.describe("Mobile-first Timeline layout contracts", () => {
         const buttonBox = await button.boundingBox();
         expect(buttonBox).not.toBeNull();
         if (!buttonBox) throw new Error("Visible footer button has no bounds.");
-        expect(buttonBox.width).toBeGreaterThanOrEqual(44);
-        expect(buttonBox.height).toBeGreaterThanOrEqual(44);
+        expect(Math.abs(buttonBox.width - 44)).toBeLessThanOrEqual(1);
+        expect(Math.abs(buttonBox.height - 44)).toBeLessThanOrEqual(1);
       }
 
       const [worldZoneBox, actionsZoneBox, timelineZoneBox, viewControlsBox] =
@@ -246,9 +261,21 @@ test.describe("Mobile-first Timeline layout contracts", () => {
       expect(worldZoneBox.x).toBeLessThan(actionsZoneBox.x);
       expect(worldZoneBox.x + worldZoneBox.width).toBeLessThanOrEqual(actionsZoneBox.x + 2);
       expect(timelineZoneBox.x).toBeGreaterThanOrEqual(actionsZoneBox.x + actionsZoneBox.width - 2);
-      expect(
-        Math.abs(actionsZoneBox.x + actionsZoneBox.width / 2 - viewport.width / 2),
-      ).toBeLessThanOrEqual(2);
+      if (viewport.width >= 700) {
+        expect(
+          Math.abs(actionsZoneBox.x + actionsZoneBox.width / 2 - viewport.width / 2),
+        ).toBeLessThanOrEqual(2);
+      } else {
+        const mobileDock = await dock.evaluate((element) => ({
+          display: getComputedStyle(element).display,
+          overflowX: getComputedStyle(element).overflowX,
+          scrollWidth: element.scrollWidth,
+          clientWidth: element.clientWidth,
+        }));
+        expect(mobileDock.display).toBe("flex");
+        expect(["auto", "scroll"]).toContain(mobileDock.overflowX);
+        expect(mobileDock.scrollWidth).toBeGreaterThan(mobileDock.clientWidth);
+      }
       expect(viewControlsBox.y).toBeGreaterThanOrEqual(timelineZoneBox.y - 1);
       expect(viewControlsBox.y + viewControlsBox.height).toBeLessThanOrEqual(
         timelineZoneBox.y + timelineZoneBox.height + 1,
