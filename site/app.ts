@@ -4,9 +4,10 @@
  */
 
 import { projectTimelineOccurrences } from "../src/projection/timeline-projection.ts";
-import {
+import "./components/occurrence-composer.ts";
+import type {
   LuumOccurrenceComposerElement,
-  type OccurrenceCommitDetail,
+  OccurrenceCommitDetail,
 } from "./components/occurrence-composer.ts";
 import type { ComposerEntityReference } from "./occurrence-composer-model.ts";
 import {
