@@ -9,7 +9,12 @@ import {
   ProjectRevisionConflictError,
   serializeProjectSnapshot,
 } from "../src/application/project-repository.ts";
-import { entityId, relationshipId, sourceId } from "../src/domain/index.ts";
+import {
+  entityId,
+  occurrenceId,
+  relationshipId,
+  sourceId,
+} from "../src/domain/index.ts";
 
 const alice = {
   id: entityId("alice"),
@@ -183,6 +188,56 @@ test("serialized project snapshots preserve standards-aware actor and occurrence
   });
   const restored = deserializeProjectSnapshot(serialized);
   assert.deepEqual(restored.project, semanticProject);
+});
+
+test("serialized project snapshots preserve standalone multi-participant occurrences", () => {
+  const occurrenceProject = {
+    ...project(),
+    occurrences: [
+      {
+        id: occurrenceId("meeting-1"),
+        title: "Review meeting",
+        occurrenceType: "meeting",
+        time: { type: "instant", start: { value: "2026-09-26" } },
+        participantContexts: [
+          { entityId: alice.id, roleType: "participant" },
+          { entityId: bob.id, roleType: "participant" },
+        ],
+        relationshipIds: [relationship.id],
+        sourceIds: [sourceId("minutes")],
+        confidence: 0.9,
+        attributes: {},
+      },
+    ],
+  };
+
+  const serialized = serializeProjectSnapshot({
+    projectKey: "case-occurrence",
+    revision: 3,
+    savedAt: "2026-09-26T15:10:00.000Z",
+    project: occurrenceProject,
+  });
+  assert.deepEqual(deserializeProjectSnapshot(serialized).project, occurrenceProject);
+});
+
+test("canonical project validation rejects occurrence IDs colliding with relationship IDs", () => {
+  assert.throws(() =>
+    assertCanonicalProject({
+      ...project(),
+      occurrences: [
+        {
+          id: occurrenceId("rel-1"),
+          occurrenceType: "meeting",
+          time: null,
+          participantContexts: [{ entityId: alice.id, roleType: "participant" }],
+          relationshipIds: [],
+          sourceIds: [],
+          confidence: null,
+          attributes: {},
+        },
+      ],
+    }),
+  );
 });
 
 test("canonical project validation rejects unresolved contextual representation", () => {
