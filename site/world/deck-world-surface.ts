@@ -2593,6 +2593,45 @@ function labelDatums(input: {
   // their datum identity and placement while the active object can identify
   // itself without forcing the whole dense scene back into view.
   const interactionLabels: DeckWorldLabelDatum[] = [];
+  const queueInteractionLabel = (
+    datum: DeckWorldLabelDatum,
+    markerRadiusPx: number,
+  ): void => {
+    if (placedByKey.has(datum.key) || interactionLabels.some((item) => item.key === datum.key)) {
+      return;
+    }
+    markerRadiusByKey.set(datum.key, markerRadiusPx);
+    interactionLabels.push(datum);
+    byKey.set(datum.key, datum);
+  };
+
+  // Interaction overlays are appended after the stable base pass. They may
+  // occupy only genuinely free label/edge space and never displace base labels.
+  for (const cluster of input.clusters) {
+    if (!clusterInteracted(cluster)) continue;
+    const key = `cluster:${cluster.clusterId}`;
+    if (placedByKey.has(key)) continue;
+    const text = clusterLabelText(cluster);
+    const prior = input.previous.get(key);
+    const datum =
+      prior && labelDatumUnchanged(prior, text, cluster.position, true)
+        ? prior
+        : Object.freeze({
+            kind: "cluster-label",
+            key,
+            clusterId: cluster.clusterId,
+            placeIds: Object.freeze([...(cluster.placeIds ?? [])]),
+            memberEntityIds: Object.freeze(
+              cluster.clusterMembers.map((member) => member.entityId),
+            ),
+            memberCount: cluster.clusterMembers.length,
+            text,
+            position: cluster.position,
+            emphasized: true,
+          });
+    queueInteractionLabel(datum, input.clusterMarkerRadiusPx(cluster));
+  }
+
   const interactionPlaceIds = new Set<PlaceId>();
   if (input.selection?.kind === "place") interactionPlaceIds.add(input.selection.id);
   if (input.hoverSelection?.kind === "place") interactionPlaceIds.add(input.hoverSelection.id);
@@ -2618,17 +2657,7 @@ function labelDatums(input: {
             position: place.position,
             emphasized: true,
           });
-    const footprint = labelFootprint(datum);
-    const offset = labelOffsetCandidates(
-      datum,
-      footprint.width,
-      footprint.height,
-      input.placeMarkerRadiusPx(place.placeId),
-    )[0] ?? [0, 0];
-    const interactionDatum = withLabelPixelOffset(datum, offset);
-    interactionLabels.push(interactionDatum);
-    placedByKey.set(key, interactionDatum);
-    byKey.set(key, interactionDatum);
+    queueInteractionLabel(datum, input.placeMarkerRadiusPx(place.placeId));
   }
 
   const interactionEntityIds = new Set<EntityId>(input.contextEntityIds);
@@ -2666,17 +2695,7 @@ function labelDatums(input: {
               position: entity.position,
               emphasized,
             });
-      const footprint = labelFootprint(datum);
-      const offset = labelOffsetCandidates(
-        datum,
-        footprint.width,
-        footprint.height,
-        input.entityMarkerRadiusPx(entity.worldInstanceId),
-      )[0] ?? [0, 0];
-      const interactionDatum = withLabelPixelOffset(datum, offset);
-      interactionLabels.push(interactionDatum);
-      placedByKey.set(key, interactionDatum);
-      byKey.set(key, interactionDatum);
+      queueInteractionLabel(datum, input.entityMarkerRadiusPx(entity.worldInstanceId));
     }
   }
 
@@ -2711,24 +2730,25 @@ function labelDatums(input: {
               position,
               emphasized: true,
             });
-      const footprint = labelFootprint(datum);
-      const offset = labelOffsetCandidates(datum, footprint.width, footprint.height, 0)[0] ?? [
-        0, 0,
-      ];
-      const interactionDatum = withLabelPixelOffset(datum, offset);
-      interactionLabels.push(interactionDatum);
-      placedByKey.set(key, interactionDatum);
-      byKey.set(key, interactionDatum);
+      queueInteractionLabel(datum, 0);
     }
   }
 
+  const datums =
+    interactionLabels.length === 0
+      ? placed
+      : placeWorldLabelDatums(
+          Object.freeze([...placed, ...interactionLabels]),
+          input.zoom,
+          (datum) => markerRadiusByKey.get(datum.key) ?? 0,
+          input.relationships,
+        );
+  const finalByKey = new Map(datums.map((datum) => [datum.key, datum] as const));
   for (const key of [...byKey.keys()]) {
-    const placedDatum = placedByKey.get(key);
+    const placedDatum = finalByKey.get(key);
     if (placedDatum) byKey.set(key, placedDatum);
     else byKey.delete(key);
   }
-  const datums =
-    interactionLabels.length === 0 ? placed : Object.freeze([...placed, ...interactionLabels]);
   return { datums, byKey };
 }
 
