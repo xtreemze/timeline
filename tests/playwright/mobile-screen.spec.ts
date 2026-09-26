@@ -35,6 +35,13 @@ function overlap(a: Rect, b: Rect) {
 
 test.describe("Narrow mobile screen contracts", () => {
   test("fresh bundled sample initializes the timeline controller", async ({ page }) => {
+    const runtimeMessages: string[] = [];
+    page.on("console", (message) => {
+      if (message.type() === "error" || message.type() === "warning") {
+        runtimeMessages.push(`${message.type()}: ${message.text()}`);
+      }
+    });
+    page.on("pageerror", (error) => runtimeMessages.push(`pageerror: ${error.message}`));
     await page.setViewportSize(NARROW_PORTRAIT);
     await page.goto("/");
     await expect(page.locator("#timeline-view")).toBeVisible();
@@ -63,6 +70,15 @@ test.describe("Narrow mobile screen contracts", () => {
           viewport: view?.getViewport?.() ?? null,
           scene: view?.scene?.size ?? -1,
           dataEmpty: root instanceof HTMLElement ? root.dataset.empty ?? "" : "",
+          elementOwnsController:
+            root instanceof HTMLElement && "controller" in root
+              ? Reflect.get(root, "controller") === view
+              : false,
+        },
+        browser: {
+          visibleCount: document.querySelector("#visible-count")?.textContent ?? "",
+          itemCount: document.querySelector("#item-count")?.textContent ?? "",
+          title: (document.querySelector("#timeline-title") as HTMLInputElement | null)?.value ?? "",
         },
         dom: {
           events: document.querySelectorAll(".timeline-event").length,
@@ -72,7 +88,10 @@ test.describe("Narrow mobile screen contracts", () => {
       };
     });
 
-    console.log("BUNDLED_SAMPLE_DIAGNOSTIC", JSON.stringify(diagnostic));
+    console.log(
+      "BUNDLED_SAMPLE_DIAGNOSTIC",
+      JSON.stringify({ ...diagnostic, runtimeMessages }),
+    );
     expect(diagnostic.sample.items).toBeGreaterThan(0);
     expect(diagnostic.project.items).toBeGreaterThan(0);
     expect(diagnostic.controller.items).toBeGreaterThan(0);
