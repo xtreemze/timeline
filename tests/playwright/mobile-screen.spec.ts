@@ -83,6 +83,79 @@ test.describe("Narrow mobile screen contracts", () => {
     await expectNoPageScroll(page, NARROW_PORTRAIT);
   });
 
+  test("portrait phone horizontal timeline keeps cards close to the bottom rail without covering the world", async ({
+    page,
+  }) => {
+    await page.setViewportSize(NARROW_PORTRAIT);
+    await page.goto("/");
+    await ensureOrientation(page, "landscape");
+
+    const surface = page.locator(".timeline-surface");
+    const axis = page.locator(".timeline-axis");
+    const world = page.locator("#presentation-stage > .graph-lens:not([hidden])");
+    const [surfaceBox, axisBox, worldBox] = await Promise.all([
+      surface.boundingBox(),
+      axis.boundingBox(),
+      world.boundingBox(),
+    ]);
+    expect(surfaceBox).not.toBeNull();
+    expect(axisBox).not.toBeNull();
+    expect(worldBox).not.toBeNull();
+    if (!surfaceBox || !axisBox || !worldBox) {
+      throw new Error("Compact portrait world/timeline geometry is unavailable.");
+    }
+
+    const axisY = axisBox.y + axisBox.height / 2;
+    const axisRatio = (axisY - surfaceBox.y) / surfaceBox.height;
+    expect(axisRatio).toBeGreaterThan(0.44);
+    expect(axisRatio).toBeLessThan(0.48);
+    expect(Math.abs(worldBox.y + worldBox.height - surfaceBox.y)).toBeLessThanOrEqual(3);
+
+    const terminals = page.locator(
+      ".timeline-event:not(.is-buffered) .timeline-event-terminal:visible",
+    );
+    await expect.poll(() => terminals.count()).toBeGreaterThan(0);
+
+    const boxes: Rect[] = [];
+    let nearestCenterToAxis = Number.POSITIVE_INFINITY;
+    const maximumWorldIntrusion = Math.min(140, surfaceBox.height * 0.65);
+    for (let index = 0; index < (await terminals.count()); index += 1) {
+      const box = await terminals.nth(index).boundingBox();
+      if (!box) continue;
+      const centerY = box.y + box.height / 2;
+      nearestCenterToAxis = Math.min(nearestCenterToAxis, axisY - centerY);
+
+      // Cards belong above the chronology axis and may project slightly into
+      // the world, but compact rails must not let deeper lanes consume it.
+      expect(centerY).toBeLessThan(axisY);
+      expect(box.y).toBeGreaterThanOrEqual(surfaceBox.y - maximumWorldIntrusion - 2);
+      expect(box.y + box.height).toBeLessThanOrEqual(axisY + 8);
+
+      // Horizontal edge flipping must keep the complete interactive card readable.
+      expect(box.x).toBeGreaterThanOrEqual(-2);
+      expect(box.x + box.width).toBeLessThanOrEqual(NARROW_PORTRAIT.width + 2);
+      boxes.push(box);
+    }
+
+    expect(boxes.length).toBeGreaterThan(0);
+    // The first visible lane should remain visually attached to its date axis
+    // instead of floating far into the world after the rail was shortened.
+    expect(nearestCenterToAxis).toBeGreaterThan(12);
+    expect(nearestCenterToAxis).toBeLessThan(92);
+
+    for (let first = 0; first < boxes.length; first += 1) {
+      for (let second = first + 1; second < boxes.length; second += 1) {
+        const intersection = overlap(boxes[first], boxes[second]);
+        expect(
+          intersection.x > 2 && intersection.y > 2,
+          `compact horizontal timeline cards ${first} and ${second} overlap by ${Math.max(0, intersection.x).toFixed(1)}×${Math.max(0, intersection.y).toFixed(1)}px`,
+        ).toBe(false);
+      }
+    }
+
+    await expectNoPageScroll(page, NARROW_PORTRAIT);
+  });
+
   for (const { label, viewport, orientation } of [
     { label: "portrait", viewport: NARROW_PORTRAIT, orientation: "portrait" as const },
     { label: "landscape", viewport: NARROW_LANDSCAPE, orientation: "landscape" as const },
