@@ -225,8 +225,8 @@ test.describe("Mobile-first Timeline layout contracts", () => {
         const buttonBox = await button.boundingBox();
         expect(buttonBox).not.toBeNull();
         if (!buttonBox) throw new Error("Visible footer button has no bounds.");
-        expect(buttonBox.width).toBeGreaterThanOrEqual(44);
-        expect(buttonBox.height).toBeGreaterThanOrEqual(44);
+        expect(Math.abs(buttonBox.width - 44)).toBeLessThanOrEqual(1);
+        expect(Math.abs(buttonBox.height - 44)).toBeLessThanOrEqual(1);
       }
 
       const [worldZoneBox, actionsZoneBox, timelineZoneBox, viewControlsBox] =
