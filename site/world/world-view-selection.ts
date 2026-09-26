@@ -1,3 +1,5 @@
+import type { WorldCameraState } from "../../src/layout/world-surface.ts";
+
 export interface CompatibleSpatialView {
   setModel(model: unknown): void;
   setWindow(viewport: unknown): void;
@@ -8,6 +10,7 @@ export interface CompatibleSpatialView {
   fitContext?(): boolean;
   zoomContext?(): boolean;
   refreshLayout?(): void;
+  getCamera?(): WorldCameraState;
   destroy?(): void;
 }
 
