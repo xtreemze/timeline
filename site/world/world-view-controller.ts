@@ -130,12 +130,11 @@ export class WorldViewRuntimeController {
     this.#sourceInstances = new Map(
       projection.instances.map((instance) => [instance.id, instance] as const),
     );
-    this.#renderOverrides = new Map(
-      renderProjection.instances.flatMap((instance) => {
-        const source = this.#sourceInstances.get(instance.id);
-        return source && source !== instance ? [[instance.id, instance] as const] : [];
-      }),
-    );
+    this.#renderOverrides.clear();
+    for (const instance of renderProjection.instances) {
+      const source = this.#sourceInstances.get(instance.id);
+      if (source && source !== instance) this.#renderOverrides.set(instance.id, instance);
+    }
     this.#renderProjectionDirty = false;
     this.#projectionRevision += 1;
 
