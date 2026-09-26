@@ -625,5 +625,29 @@ export function worldLocalRadiusPx(meters: number, zoom: number, latitude = 0): 
   return meters / metersPerPixel;
 }
 
-/** On-screen height (pixels) entities float above their place's terrain. */
+/**
+ * Maximum on-screen height (pixels) entities float above their place's terrain.
+ * Overviews keep the stronger separation cue; close detail progressively
+ * reduces it so nodes stay visually attached to their geographic anchors.
+ */
 export const WORLD_ENTITY_FLOAT_PX = 96;
+export const WORLD_ENTITY_FLOAT_MIN_PX = 12;
+export const WORLD_ENTITY_FLOAT_DETAIL_ZOOM = WORLD_FLOATING_GRAPH_DETAIL_ZOOM;
+const WORLD_ENTITY_FLOAT_HALF_LIFE_ZOOM = 2;
+
+/**
+ * Zoom-responsive entity/anchor separation in screen pixels.
+ *
+ * The overview tier keeps the historical 96px lift. Beyond the detail
+ * threshold the lift halves every two zoom levels until the 12px floor,
+ * avoiding both abrupt transitions and close-range altitude exaggeration.
+ */
+export function worldEntityFloatPx(zoom: number): number {
+  if (!Number.isFinite(zoom) || zoom <= WORLD_ENTITY_FLOAT_DETAIL_ZOOM) {
+    return WORLD_ENTITY_FLOAT_PX;
+  }
+  const decayed =
+    WORLD_ENTITY_FLOAT_PX *
+    2 ** (-(zoom - WORLD_ENTITY_FLOAT_DETAIL_ZOOM) / WORLD_ENTITY_FLOAT_HALF_LIFE_ZOOM);
+  return Math.max(WORLD_ENTITY_FLOAT_MIN_PX, decayed);
+}
