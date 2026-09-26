@@ -16,6 +16,7 @@ import {
   worldGraphLabelSize,
   worldLabelCollisionPriority,
 } from "../site/world/deck-world-surface.ts";
+import { preserveWorldProjectionRenderContinuity } from "../src/layout/world-geographic-position.ts";
 import { selectWorldSpatialMode } from "../src/layout/world-spatial-mode.ts";
 import {
   createProjectedWorldEdge,
@@ -695,6 +696,89 @@ test("world graph layers do not configure deck transitions", () => {
       `${graphLayer.props.id} must update directly without deck interpolation`,
     );
   }
+});
+
+test("temporal handoff preserves the exact Deck frame before presentation metrics converge", () => {
+  const { runtime } = harness();
+  const surface = new DeckWorldSurface({}, runtime, {
+    longitude: 18.0686,
+    latitude: 59.3293,
+    zoom: 6,
+    bearing: 0,
+    pitch: 20,
+  });
+  const initial = projection();
+  surface.setProjection(initial);
+
+  const bobId = worldInstanceId("bob", "meeting");
+  const before = surface.getRenderedInstanceContinuity().get(bobId);
+  assert.ok(before);
+  assert.ok(before.offsetScale > 1, "fixture must exercise semantic offset magnification");
+  assert.ok(before.floatMeters > 0, "fixture must exercise screen-space entity float");
+
+  const canonicalNext = createWorldProjection({
+    instances: initial.instances.map((instance) =>
+      instance.id === bobId
+        ? createProjectedWorldInstance({
+            ...instance,
+            geographicAnchors: [
+              {
+                placeId: "copenhagen",
+                longitude: 12.5683,
+                latitude: 55.6761,
+                sourceAltitude: 5,
+                influence: 1,
+              },
+            ],
+            localOffset: undefined,
+          })
+        : instance,
+    ),
+    edges: initial.edges,
+  });
+  const snapshot = surface.getRenderedInstanceContinuity();
+  const handoff = preserveWorldProjectionRenderContinuity(initial, canonicalNext, snapshot);
+
+  surface.setProjectionHandoffPresentation(snapshot);
+  surface.setProjection(handoff);
+
+  const first = surface.getRenderedInstanceContinuity().get(bobId);
+  assert.ok(first);
+  assert.ok(Math.abs(first.position.longitude - before.position.longitude) < 1e-9);
+  assert.ok(Math.abs(first.position.latitude - before.position.latitude) < 1e-9);
+  assert.ok(Math.abs(first.position.altitudeMeters - before.position.altitudeMeters) < 1e-9);
+  assert.equal(first.offsetScale, before.offsetScale);
+  assert.equal(first.floatMeters, before.floatMeters);
+
+  const bob = handoff.instances.find((instance) => instance.id === bobId);
+  const relaxed = createWorldProjection({
+    instances: handoff.instances.map((instance) =>
+      instance.id === bobId
+        ? createProjectedWorldInstance({
+            ...instance,
+            localOffset: {
+              eastMeters: (bob.localOffset?.eastMeters ?? 0) * 0.8,
+              northMeters: (bob.localOffset?.northMeters ?? 0) * 0.8,
+            },
+          })
+        : instance,
+    ),
+    edges: handoff.edges,
+  });
+  surface.applyProjectionDelta(diffWorldProjection(handoff, relaxed));
+
+  const blended = surface.getRenderedInstanceContinuity().get(bobId);
+  assert.ok(blended);
+  assert.notEqual(
+    blended.offsetScale,
+    before.offsetScale,
+    "subsequent sparse force deltas converge presentation scale instead of snapping it",
+  );
+  assert.notEqual(
+    blended.floatMeters,
+    before.floatMeters,
+    "screen-space float converges through the same sparse handoff",
+  );
 });
 
 test("temporal relationship joins and disconnects update immediately without renderer transitions", () => {
