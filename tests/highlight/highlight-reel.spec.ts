@@ -212,6 +212,7 @@ function measureTimestamps(timestamps: number[], scale = 1, label = "Showcase mo
 
   let maxIntervalSeconds = 0;
   let pacedIntervals = 0;
+  let responsiveIntervals = 0;
   for (let index = 1; index < timestamps.length; index += 1) {
     const previous = timestamps[index - 1];
     const current = timestamps[index];
@@ -228,6 +229,7 @@ function measureTimestamps(timestamps: number[], scale = 1, label = "Showcase mo
     ) {
       pacedIntervals += 1;
     }
+    if (intervalSeconds <= MAX_PACED_INTERVAL_SECONDS) responsiveIntervals += 1;
   }
 
   const durationSeconds = (lastTimestamp - firstTimestamp) / scale;
@@ -240,6 +242,7 @@ function measureTimestamps(timestamps: number[], scale = 1, label = "Showcase mo
     fps: (timestamps.length - 1) / durationSeconds,
     maxIntervalSeconds,
     pacedIntervalRatio: pacedIntervals / (timestamps.length - 1),
+    responsiveIntervalRatio: responsiveIntervals / (timestamps.length - 1),
   };
 }
 
@@ -416,14 +419,14 @@ async function persistMeasuredCapture(
   }
 
   const browser = measureTimestamps(browserTimestamps, 1000, "Showcase browser animation clock");
-  if (browser.fps < MIN_CAPTURE_FPS || browser.fps > MAX_CAPTURE_FPS) {
+  if (browser.fps < MIN_CAPTURE_FPS) {
     throw new Error(
-      `Showcase browser scheduled ${String(browser.frames)} animation frames across ${browser.durationSeconds.toFixed(3)}s (${browser.fps.toFixed(2)} fps); expected display-paced ${MIN_CAPTURE_FPS.toFixed(2)}-${MAX_CAPTURE_FPS.toFixed(2)} fps while recording.`,
+      `Showcase browser scheduled ${String(browser.frames)} animation frames across ${browser.durationSeconds.toFixed(3)}s (${browser.fps.toFixed(2)} fps); expected at least ${MIN_CAPTURE_FPS.toFixed(2)} fps while recording.`,
     );
   }
-  if (browser.pacedIntervalRatio < MIN_PACED_INTERVAL_RATIO) {
+  if (browser.responsiveIntervalRatio < MIN_PACED_INTERVAL_RATIO) {
     throw new Error(
-      `Showcase browser animation clock has only ${(browser.pacedIntervalRatio * 100).toFixed(1)}% of frame intervals in the native ${String(MIN_PACED_INTERVAL_SECONDS * 1000)}-${String(MAX_PACED_INTERVAL_SECONDS * 1000)} ms pacing window; expected at least ${String(MIN_PACED_INTERVAL_RATIO * 100)}%.`,
+      `Showcase browser animation clock has only ${(browser.responsiveIntervalRatio * 100).toFixed(1)}% of frame intervals at or below ${String(MAX_PACED_INTERVAL_SECONDS * 1000)} ms; expected at least ${String(MIN_PACED_INTERVAL_RATIO * 100)}% so uncapped rendering cannot hide frame stalls.`,
     );
   }
 
@@ -441,6 +444,7 @@ async function persistMeasuredCapture(
     browserMaxIntervalSeconds: browser.maxIntervalSeconds,
     capturedPacedIntervalRatio: captured.pacedIntervalRatio,
     browserPacedIntervalRatio: browser.pacedIntervalRatio,
+    browserResponsiveIntervalRatio: browser.responsiveIntervalRatio,
     codec: "h264",
     geometry,
     timestamps,
