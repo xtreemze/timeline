@@ -3001,6 +3001,15 @@ export class TimelineViewController {
     this.focusView.style.setProperty("--timeline-focus-anchor-y", `${centerY}px`);
     this.focusView.style.setProperty("--timeline-focus-anchor-width", `${anchor.width}px`);
     this.focusView.style.setProperty("--timeline-focus-anchor-height", `${anchor.height}px`);
+    const detail = this.focusView.getBoundingClientRect();
+    this.focusView.style.setProperty(
+      "--timeline-focus-anchor-local-x",
+      `${clamp(anchor.left + anchor.width / 2 - detail.left, 24, Math.max(24, detail.width - 24))}px`,
+    );
+    this.focusView.style.setProperty(
+      "--timeline-focus-anchor-local-y",
+      `${clamp(anchor.top + anchor.height / 2 - detail.top, 24, Math.max(24, detail.height - 24))}px`,
+    );
     this.focusView.dataset.anchorOrientation =
       this.orientation === "horizontal" ? "landscape" : "portrait";
   }
