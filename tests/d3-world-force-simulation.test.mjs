@@ -123,6 +123,45 @@ test("D3 DAG targets remain soft guidance outside collapsed clusters", () => {
   assert.ok(simulation.getSnapshot()[0].eastMeters > before);
 });
 
+test("changed-place temporal handoffs converge without a first-frame teleport", () => {
+  const simulation = new D3WorldForceSimulation();
+  const id = '["alice",null]';
+
+  simulation.setScene({
+    nodes: [node(id, 0, 180)],
+    edges: [],
+    anchors: [anchor(id, "stockholm", 1)],
+  });
+  simulation.apply({ reason: "projection-update", excitation: 0.08, reheat: true });
+  for (let index = 0; index < 30; index += 1) simulation.step(1000 / 60);
+
+  const rebasedEastMeters = 20_000_000;
+  simulation.setScene({
+    nodes: [
+      node(id, rebasedEastMeters, 180, {
+        initialNorthMeters: 0,
+      }),
+    ],
+    edges: [],
+    anchors: [anchor(id, "copenhagen", 1)],
+  });
+  simulation.apply({ reason: "projection-update", excitation: 0.08, reheat: true });
+
+  simulation.step(1000 / 60);
+  const firstFrame = simulation.getSnapshot()[0];
+  assert.ok(
+    firstFrame.eastMeters > rebasedEastMeters * 0.95,
+    "the first physics frame must advance continuously rather than teleport to the new anchor",
+  );
+
+  for (let index = 1; index < 240; index += 1) simulation.step(1000 / 60);
+  const settled = simulation.getSnapshot()[0];
+  assert.ok(
+    Math.hypot(settled.eastMeters, settled.northMeters) < 2_000,
+    "an intercontinental handoff must return to local-graph scale within the four-second run budget",
+  );
+});
+
 test("D3 drag and post-drop stay local and publish sparse changed positions", () => {
   const simulation = new D3WorldForceSimulation();
   const dragged = '["alice","stockholm"]';
