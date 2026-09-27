@@ -515,28 +515,30 @@ test("manual DAG reorganization rebuilds targets and routes while retaining geog
   assert.ok(applyCall[1].excitation > 0);
 });
 
-test("camera navigation suspends force motion and resumes the pending layout afterward", () => {
+test("camera navigation never suspends world physics or layout readback", () => {
   const { calls, controller } = harness();
   controller.setProjection(projection());
 
   calls.length = 0;
   assert.equal(controller.setCameraInteractionActive(true), true);
-  assert.deepEqual(calls, [["force:stop"]]);
-  assert.equal(controller.state().simulationRunning, false);
-  assert.equal(controller.state().simulationSettled, true);
+  assert.deepEqual(calls, [], "camera ownership must not stop the force backend");
+  assert.equal(controller.state().simulationRunning, true);
+  assert.equal(controller.state().simulationSettled, false);
 
   controller.step(16);
-  assert.equal(
+  assert.ok(
     calls.some(([name]) => name === "force:step"),
+    "camera-owned frames still advance graph physics",
+  );
+  assert.equal(
+    calls.some(([name]) => name === "force:stop"),
     false,
-    "camera-owned frames must not advance graph physics",
+    "camera navigation cannot strand the graph in a stopped backend",
   );
 
   calls.length = 0;
   assert.equal(controller.setCameraInteractionActive(false), true);
-  const resumed = calls.find(([name]) => name === "force:apply");
-  assert.ok(resumed);
-  assert.equal(resumed[1].reason, "projection-update");
+  assert.deepEqual(calls, [], "ending camera ownership does not need to reheat a suspended layout");
   assert.equal(controller.state().simulationRunning, true);
 });
 
