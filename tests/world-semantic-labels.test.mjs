@@ -806,6 +806,13 @@ test("dense detail scenes keep only collision-free labels and reveal interaction
     labels.props.data.length < instances.length * 2,
     "detail zoom no longer forces overlapping labels back into the scene",
   );
+  for (const datum of labels.props.data) {
+    const [offsetX, offsetY] = labels.props.getPixelOffset(datum);
+    assert.ok(
+      Math.hypot(offsetX, offsetY) <= 100,
+      `${datum.key} stays visually attached to its semantic origin instead of escaping to a distant ring`,
+    );
+  }
 
   const hidden = instances.find((candidate) => !visibleEntityIds.has(candidate.canonicalId));
   assert.ok(hidden, "dense co-located fixture leaves at least one optional entity label hidden");
@@ -1748,6 +1755,13 @@ test("selecting a node makes every incident edge predicate visibly labeled", () 
     new Set(afterRelationships.map((datum) => datum.relationshipId)),
     new Set(projection.edges.map((edge) => edge.id)),
   );
+  for (const datum of afterRelationships) {
+    const [offsetX, offsetY] = afterLayer.props.getPixelOffset(datum);
+    assert.ok(
+      Math.hypot(offsetX, offsetY) <= 64,
+      `${datum.relationshipId} stays near its edge origin even when selection requires the label`,
+    );
+  }
 
   for (const [key, geometry] of stableGeometry) {
     const datum = afterLayer.props.data.find((candidate) => candidate.key === key);
