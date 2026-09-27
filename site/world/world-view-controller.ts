@@ -167,11 +167,13 @@ export class WorldViewRuntimeController {
     this.#renderProjectionDirty = false;
     this.#projectionRevision += 1;
 
-    // Seed force from the same continuity-preserving projection that reaches
-    // the renderer. The first visible committed frame and the first physics
-    // frame therefore share one position instead of producing a one-frame snap.
-    const forceScene = createWorldForceScene(renderProjection, this.#forcePolicy, {
+    // Canonical/new projection data owns force targets, topology, and DAG
+    // orientation. The continuity projection supplies only the initial pose so
+    // the first visible committed frame and first physics frame agree without
+    // turning handoff offsets or altitude into permanent solver targets.
+    const forceScene = createWorldForceScene(projection, this.#forcePolicy, {
       dagOrientation: this.#dagOrientation,
+      initialProjection: renderProjection,
     });
     this.#forceBackend.setScene(forceScene);
     this.#surface.setRelationshipRoutes?.(forceScene.relationshipRoutes ?? Object.freeze([]));
