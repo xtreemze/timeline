@@ -77,6 +77,7 @@ import {
   type ScreenPoint,
   type WorldCameraState,
   type WorldHit,
+  type WorldRenderContinuitySample,
   type WorldSelection,
   type WorldSpatialPosition,
   type WorldSurface,
@@ -744,6 +745,8 @@ const WORLD_PLACE_MARKER_CLUSTER_MERGE_PX = 64;
 const WORLD_DRAG_PICKUP_LIFT_PX = 7;
 const WORLD_DRAG_PICKUP_FLASH_MS = 160;
 const WORLD_DRAG_PICKUP_FLASH_SCALE = 1.16;
+const WORLD_PROJECTION_HANDOFF_PRESENTATION_BLEND = 0.45;
+const WORLD_PROJECTION_HANDOFF_PRESENTATION_EPSILON = 0.001;
 
 function liftedPositionByPixels(
   position: WorldRenderPosition,
@@ -3386,6 +3389,7 @@ export class DeckWorldSurface implements WorldSurface {
         }
         const next = cameraFromRuntime(viewState, this.#camera);
         if (next) {
+          this.#discardProjectionHandoffPresentation();
           this.#cameraOwned = true;
           this.#autoFitted = false;
           this.#camera = next;
@@ -3911,6 +3915,7 @@ export class DeckWorldSurface implements WorldSurface {
     this.#pruneRevealedClusterPlaces();
     this.#autoFitCamera();
     this.#syncClusterLifecycle();
+    this.#advanceProjectionHandoffPresentation();
     this.#render();
   }
 
