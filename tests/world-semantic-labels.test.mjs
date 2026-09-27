@@ -1473,6 +1473,39 @@ test("clustered overview reveals aggregate and location context on interaction",
   assert.equal(hovered.emphasized, true, "hover reveals the cluster summary");
 });
 
+test("relationship labels use the exact rendered edge RGB in every interaction state", () => {
+  const h = harness();
+  const surface = new DeckWorldSurface({}, h.runtime, WORKING_CAMERA);
+  surface.setProjection(directedProjection());
+
+  const assertLabelMatchesEdge = () => {
+    const layers = h.lastLayers();
+    const relationships = layer(layers, DECK_WORLD_LAYER_IDS.relationships);
+    const labels = layer(layers, DECK_WORLD_LAYER_IDS.labels);
+    const edge = relationships.props.data.find(
+      (datum) => datum.relationshipId === "meeting",
+    );
+    const labelDatum = labels.props.data.find(
+      (datum) => datum.kind === "relationship-label" && datum.relationshipId === "meeting",
+    );
+    assert.ok(edge, "fixture renders the relationship");
+    assert.ok(labelDatum, "fixture renders its predicate label");
+    assert.deepEqual(
+      labels.props.getColor(labelDatum).slice(0, 3),
+      relationships.props.getColor(edge).slice(0, 3),
+      "relationship label hue follows the exact resolved edge color",
+    );
+  };
+
+  assertLabelMatchesEdge();
+
+  surface.setSelection({ kind: "entity", id: "entity-0" });
+  assertLabelMatchesEdge();
+
+  surface.setSelection({ kind: "relationship", id: "meeting" });
+  assertLabelMatchesEdge();
+});
+
 test("inactive relationships mute until their connected neighborhood is emphasized", () => {
   const h = harness();
   const source = instance(0, { style: { fill: "#123456" }, visualWeight: 1 });
