@@ -11,6 +11,7 @@ import { TimelinePresentation } from "./event-presentation.ts";
 import { TimelineScale } from "./time-scale.ts";
 import {
   geometryMeasurementKey,
+  planAggregateLanes,
   planCommittedTemporalLayout,
   planLaneCrossOffsets,
   type TemporalCommittedLayoutPlan,
@@ -73,6 +74,8 @@ const COMPACT_HORIZONTAL_RAIL_MAX_PX = 300;
 const COMPACT_HORIZONTAL_MAX_LANES = 2;
 const CLUSTER_ENTER_PX = 80;
 const CLUSTER_EXIT_PX = 120;
+const CLUSTER_DEFAULT_PRIMARY_SIZE_PX = 180;
+const CLUSTER_DEFAULT_CROSS_SIZE_PX = 56;
 const TEMPORAL_LABEL_GAP_PX = 10;
 const GEOMETRY_EPSILON_PX = 0.75;
 const LABEL_BEFORE_ENTER_RATIO = 0.64;
@@ -2408,12 +2411,13 @@ export class TimelineViewController {
       if (cached) measurements[item.id] = cached.measurement;
     }
 
+    const maxLanes = committedLaneLimit(this.orientation, crossExtent, primaryLength);
     const plannerStarted = performance.now();
     const planned = planCommittedTemporalLayout({
       viewport: this.viewport,
       occurrences,
       pixelLength: usable,
-      maxLanes: committedLaneLimit(this.orientation, crossExtent, primaryLength),
+      maxLanes,
       clusterThresholds: {
         enterPx: CLUSTER_ENTER_PX,
         exitPx: CLUSTER_EXIT_PX,
@@ -2436,17 +2440,30 @@ export class TimelineViewController {
       if (!liveIds.has(id)) this.expandedClusterItemIds.delete(id);
     }
 
+    this.committedLayout = {
+      lanes: planned.lanes,
+      anchorRatios: planned.anchorRatios,
+      clusters,
+      placements: planned.placements,
+    };
+    this.committedClusterByItem.clear();
+    for (const cluster of clusters) {
+      for (const itemId of cluster.itemIds) {
+        this.committedClusterByItem.set(itemId, cluster.id);
+      }
+    }
+
+    // Cluster terminals are aggregate presentation objects, not ordinary member
+    // cards. Materialize them before lane planning so their actual dimensions
+    // participate in collision and cross-axis spacing.
+    this.reconcileClusterScene(clusters);
+
     const hiddenClusterItemIds = new Set(clusters.flatMap((cluster) => cluster.itemIds));
-    const clusterRepresentativeIds = new Set(
-      clusters.flatMap((cluster) => (cluster.itemIds[0] ? [cluster.itemIds[0]] : [])),
-    );
     const occurrenceById = new Map(occurrences.map((item) => [item.id, item]));
-    const crossAxisPlacements = planned.placements
+    const visiblePlacements = planned.placements
       .filter(
         (placement) =>
-          !hiddenClusterItemIds.has(placement.id) ||
-          clusterRepresentativeIds.has(placement.id) ||
-          placement.id === this.focusedId,
+          !hiddenClusterItemIds.has(placement.id) || placement.id === this.focusedId,
       )
       .map((placement) => {
         const item = occurrenceById.get(placement.id);
@@ -2463,29 +2480,79 @@ export class TimelineViewController {
           lane: Math.max(0, Math.abs(Number(item.lane)) - 1),
         };
       });
-    this.committedLaneCrossOffsets = planLaneCrossOffsets(crossAxisPlacements, {
-      axisOffsetPx: TIMELINE_CARD_AXIS_OFFSET_PX,
-      laneGapPx: TIMELINE_CARD_LANE_GAP_PX,
-      // Routing clearance is folded only into placements that actually use
-      // orthogonal connectors; applying it to every lane made straight cards
-      // drift progressively farther from the chronology rail.
-      routingSlackPx: 0,
+
+    const clusterMeasurements = new Map<string, TemporalLayoutMeasurement>();
+    const clusterAggregates = clusters.map((cluster) => {
+      const record = this.clusterScene.get(cluster.id);
+      const rect = record?.terminal.getBoundingClientRect();
+      const horizontal = this.orientation === "horizontal";
+      const inlineSize =
+        rect && rect.width > 0 && rect.height > 0
+          ? horizontal
+            ? rect.width
+            : rect.height
+          : horizontal
+            ? CLUSTER_DEFAULT_PRIMARY_SIZE_PX
+            : CLUSTER_DEFAULT_CROSS_SIZE_PX;
+      const blockSize =
+        rect && rect.width > 0 && rect.height > 0
+          ? horizontal
+            ? rect.height
+            : rect.width
+          : horizontal
+            ? CLUSTER_DEFAULT_CROSS_SIZE_PX
+            : CLUSTER_DEFAULT_PRIMARY_SIZE_PX;
+      clusterMeasurements.set(cluster.id, { inlineSize, blockSize });
+      const anchor = cluster.start + (cluster.end - cluster.start) / 2;
+      return {
+        id: cluster.id,
+        position: scale.coordinateFor(anchor, this.viewport, usable),
+        inlineSize,
+      };
     });
 
-    this.committedLayout = {
-      lanes: planned.lanes,
-      anchorRatios: planned.anchorRatios,
-      clusters,
-      placements: planned.placements,
-    };
-    this.committedClusterByItem.clear();
-    for (const cluster of clusters) {
-      for (const itemId of cluster.itemIds) {
-        this.committedClusterByItem.set(itemId, cluster.id);
+    const clusterLanes = planAggregateLanes(
+      clusterAggregates,
+      visiblePlacements.map((placement) => ({
+        lane: placement.lane,
+        position: placement.position,
+        inlineSize: placement.inlineSize,
+      })),
+      {
+        maxLanes,
+        laneGapPx: TIMELINE_CARD_LANE_GAP_PX,
+      },
+    );
+
+    const clusterCrossAxisPlacements = clusters.map((cluster) => {
+      const lane = clusterLanes[cluster.id] ?? 0;
+      const record = this.clusterScene.get(cluster.id);
+      if (record) {
+        // Visual lanes are one-based and inward/negative; aggregate lane
+        // planning is zero-based.
+        record.lane = -(lane + 1);
+        record.connectorGeometryDirty = true;
       }
-    }
+      return {
+        lane,
+        blockSize:
+          clusterMeasurements.get(cluster.id)?.blockSize ?? CLUSTER_DEFAULT_CROSS_SIZE_PX,
+      };
+    });
+
+    this.committedLaneCrossOffsets = planLaneCrossOffsets(
+      [...visiblePlacements, ...clusterCrossAxisPlacements],
+      {
+        axisOffsetPx: TIMELINE_CARD_AXIS_OFFSET_PX,
+        laneGapPx: TIMELINE_CARD_LANE_GAP_PX,
+        // Routing clearance is folded only into placements that actually use
+        // orthogonal connectors; applying it to every lane made straight cards
+        // drift progressively farther from the chronology rail.
+        routingSlackPx: 0,
+      },
+    );
+
     this.updateClusterHaptics(clusters);
-    this.reconcileClusterScene(clusters);
   }
 
   updateClusterHaptics(clusters: readonly TemporalLayoutCluster[]): void {
@@ -2577,7 +2644,6 @@ export class TimelineViewController {
     if (!items.length) return;
     const first = items[0];
     if (!first) return;
-    record.lane = this.visualLaneFor(first);
     record.connectorGeometryDirty = true;
     record.node.style.setProperty("--event-color", first.color || "var(--accent)");
     record.terminal.setAttribute(

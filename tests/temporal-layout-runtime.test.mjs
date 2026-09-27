@@ -6,6 +6,7 @@ import {
   chooseStableLane,
   clusterMembershipWithHysteresis,
   geometryMeasurementKey,
+  planAggregateLanes,
   planCommittedTemporalLayout,
   planLaneCrossOffsets,
 } from "../src/layout/temporal-layout.ts";
@@ -57,6 +58,41 @@ test("cross-axis lane offsets use measured extents and preserve nearest-first pa
     { axisOffsetPx: 44, laneGapPx: 16, routingSlackPx: 44 },
   );
   assert.deepEqual(sparse, { 2: 44 });
+});
+
+test("cluster aggregates reclaim the nearest legal lane instead of inheriting member distance", () => {
+  const lanes = planAggregateLanes(
+    [
+      { id: "cluster:a", position: 180, inlineSize: 56 },
+      { id: "cluster:b", position: 420, inlineSize: 56 },
+      { id: "cluster:c", position: 680, inlineSize: 56 },
+    ],
+    [
+      // A normal card blocks lane zero only near cluster:b.
+      { lane: 0, position: 420, inlineSize: 120 },
+      // A distant member lane must not force unrelated aggregates outward.
+      { lane: 2, position: 40, inlineSize: 120 },
+    ],
+    { maxLanes: 3, laneGapPx: 16 },
+  );
+
+  assert.equal(lanes["cluster:a"], 0);
+  assert.equal(lanes["cluster:b"], 1);
+  assert.equal(lanes["cluster:c"], 0);
+});
+
+test("cluster aggregate packing prefers the least-pressured inward lane when every lane overlaps", () => {
+  const lanes = planAggregateLanes(
+    [{ id: "cluster", position: 200, inlineSize: 80 }],
+    [
+      { lane: 0, position: 170, inlineSize: 100 },
+      { lane: 1, position: 200, inlineSize: 180 },
+      { lane: 2, position: 200, inlineSize: 220 },
+    ],
+    { maxLanes: 3, laneGapPx: 16 },
+  );
+
+  assert.equal(lanes.cluster, 0);
 });
 
 test("measurement identity changes only with scene identity or content revision", () => {
@@ -397,11 +433,20 @@ test("timeline event cards pack inward on measured one-sided lanes", async () =>
   assert.match(laneBody, /connectorRouting === "orthogonal"/);
 
   const reconcileStart = source.indexOf("  reconcileCommittedLayout(): void {");
-  const reconcileEnd = source.indexOf("  reconcileClusterScene(", reconcileStart);
+  const reconcileEnd = source.indexOf("  updateClusterHaptics(", reconcileStart);
   const reconcileBody = source.slice(reconcileStart, reconcileEnd);
-  assert.match(reconcileBody, /planLaneCrossOffsets\(crossAxisPlacements/);
+  assert.match(reconcileBody, /planAggregateLanes\(/);
+  assert.match(reconcileBody, /!hiddenClusterItemIds\.has\(placement\.id\)/);
+  assert.doesNotMatch(reconcileBody, /clusterRepresentativeIds/);
+  assert.match(reconcileBody, /record\.lane = -\(lane \+ 1\)/);
+  assert.match(reconcileBody, /planLaneCrossOffsets\([\s\S]*visiblePlacements[\s\S]*clusterCrossAxisPlacements/);
   assert.match(reconcileBody, /item\.connectorRouting === "orthogonal"/);
   assert.match(reconcileBody, /routingSlackPx: 0/);
+
+  const clusterUpdateStart = source.indexOf("  updateClusterRecord(");
+  const clusterUpdateEnd = source.indexOf("  positionCommittedClusters(", clusterUpdateStart);
+  const clusterUpdateBody = source.slice(clusterUpdateStart, clusterUpdateEnd);
+  assert.doesNotMatch(clusterUpdateBody, /visualLaneFor\(first\)/);
 
   const positionStart = source.indexOf("  positionRecord(");
   const positionEnd = source.indexOf("  animateEntry(", positionStart);
