@@ -298,3 +298,107 @@ test("long range cards yield the temporal midpoint to exact-date events without 
   expect(Math.abs(geometry.rangePrimary - geometry.rangeMidpoint)).toBeGreaterThan(32);
   expect([0.24, 0.76]).toContain(geometry.anchorRatio);
 });
+
+
+test("cluster aggregates reclaim the nearest timeline lane when their primary spans do not collide", async ({
+  page,
+}) => {
+  await page.evaluate(() => {
+    const controller = Reflect.get(globalThis, "__timelineContinuityController") as
+      | {
+          setOrientation(value: string): void;
+          setItems(items: unknown[]): void;
+          fitAll(): void;
+        }
+      | undefined;
+    if (!controller) throw new Error("Timeline continuity controller is unavailable.");
+
+    const origin = Date.parse("2026-01-01T00:00:00Z");
+    const day = 86_400_000;
+    const items = [];
+    for (let group = 0; group < 3; group += 1) {
+      const base = group * 30;
+      // Lexicographic first member is deliberately the third temporal item.
+      // A member-derived cluster lane therefore used to inherit an outer lane.
+      items.push(
+        {
+          id: `group-${group}-a`,
+          kind: "event",
+          title: `Group ${group} third`,
+          start: origin + day * (base + 2),
+          startLabel: "Third",
+        },
+        {
+          id: `group-${group}-b`,
+          kind: "event",
+          title: `Group ${group} first`,
+          start: origin + day * base,
+          startLabel: "First",
+        },
+        {
+          id: `group-${group}-c`,
+          kind: "event",
+          title: `Group ${group} second`,
+          start: origin + day * (base + 1),
+          startLabel: "Second",
+        },
+        {
+          id: `group-${group}-d`,
+          kind: "event",
+          title: `Group ${group} fourth`,
+          start: origin + day * (base + 3),
+          startLabel: "Fourth",
+        },
+      );
+    }
+
+    controller.setOrientation("vertical");
+    controller.setItems(items);
+    controller.fitAll();
+  });
+
+  await twoFrames(page);
+  const clusters = page.locator("#timeline-continuity-host .timeline-cluster:visible");
+  await expect.poll(() => clusters.count()).toBe(3);
+  await twoFrames(page);
+
+  const geometry = await page.evaluate(() => {
+    const surface = document.querySelector<HTMLElement>(
+      "#timeline-continuity-host .timeline-surface",
+    );
+    if (!surface) throw new Error("Missing timeline surface.");
+    const surfaceRect = surface.getBoundingClientRect();
+    const axisValue = getComputedStyle(surface).getPropertyValue("--timeline-axis-cross").trim();
+    const parsed = Number.parseFloat(axisValue);
+    const axisCross = axisValue.endsWith("%")
+      ? surfaceRect.width * (parsed / 100)
+      : parsed;
+
+    return [...document.querySelectorAll<HTMLElement>("#timeline-continuity-host .timeline-cluster")]
+      .filter((node) => !node.hidden)
+      .map((node) => {
+        const match = /translate3d\((-?[\d.]+)px,\s*(-?[\d.]+)px/.exec(node.style.transform);
+        if (!match) throw new Error(`Missing cluster transform: ${node.style.transform}`);
+        const terminal = node.querySelector<HTMLElement>(".timeline-cluster-terminal");
+        const rect = terminal?.getBoundingClientRect();
+        return {
+          crossDistance: axisCross - Number(match[1]),
+          primary: Number(match[2]),
+          width: rect?.width ?? 0,
+          height: rect?.height ?? 0,
+        };
+      });
+  });
+
+  expect(geometry).toHaveLength(3);
+  for (const cluster of geometry) {
+    expect(cluster.crossDistance).toBeGreaterThanOrEqual(40);
+    expect(cluster.crossDistance).toBeLessThanOrEqual(52);
+    expect(cluster.width).toBeGreaterThan(0);
+    expect(cluster.height).toBeGreaterThan(0);
+  }
+
+  const primary = geometry.map((cluster) => cluster.primary).sort((left, right) => left - right);
+  expect(primary[1] - primary[0]).toBeGreaterThan(80);
+  expect(primary[2] - primary[1]).toBeGreaterThan(80);
+});
