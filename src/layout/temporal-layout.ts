@@ -178,6 +178,94 @@ export function planLaneCrossOffsets(
   return Object.freeze(offsets);
 }
 
+export interface TemporalAggregateLaneItem {
+  readonly id: string;
+  readonly position: number;
+  readonly inlineSize: number;
+}
+
+export interface TemporalAggregateLaneObstacle {
+  readonly lane: number;
+  readonly position: number;
+  readonly inlineSize: number;
+}
+
+export interface TemporalAggregateLaneOptions {
+  readonly maxLanes?: number;
+  readonly laneGapPx?: number;
+}
+
+/**
+ * Packs aggregate terminals, such as timeline clusters, independently from the
+ * lanes of the items they summarize. Aggregates always reclaim the nearest legal
+ * lane to the chronology axis instead of inheriting an arbitrary member lane.
+ */
+export function planAggregateLanes(
+  aggregates: readonly TemporalAggregateLaneItem[],
+  obstacles: readonly TemporalAggregateLaneObstacle[],
+  options: TemporalAggregateLaneOptions = {},
+): Readonly<Record<string, number>> {
+  const maxLanes = Math.max(1, Math.trunc(finite(options.maxLanes, DEFAULT_MAX_LANES)));
+  const laneGapPx = Math.max(0, finite(options.laneGapPx, DEFAULT_LANE_GAP_PX));
+  const laneIntervals = Array.from(
+    { length: maxLanes },
+    () => [] as Array<{ start: number; end: number }>,
+  );
+
+  const normalizedInterval = (position: number, inlineSize: number) => {
+    const center = finite(position, 0);
+    const half = Math.max(1, finite(inlineSize, 1)) / 2;
+    return { start: center - half, end: center + half };
+  };
+  const overlaps = (
+    candidate: { start: number; end: number },
+    interval: { start: number; end: number },
+  ) =>
+    candidate.end + laneGapPx > interval.start &&
+    candidate.start < interval.end + laneGapPx;
+
+  for (const obstacle of obstacles) {
+    const lane = Math.trunc(finite(obstacle.lane, -1));
+    if (lane < 0 || lane >= maxLanes) continue;
+    laneIntervals[lane]?.push(normalizedInterval(obstacle.position, obstacle.inlineSize));
+  }
+
+  const result: Record<string, number> = {};
+  const ordered = [...aggregates].sort(
+    (left, right) => left.position - right.position || left.id.localeCompare(right.id),
+  );
+
+  for (const aggregate of ordered) {
+    const interval = normalizedInterval(aggregate.position, aggregate.inlineSize);
+    const legalLanes = laneIntervals
+      .map((intervals, lane) => ({ intervals, lane }))
+      .filter(({ intervals }) => intervals.every((occupied) => !overlaps(interval, occupied)))
+      .map(({ lane }) => lane);
+
+    let lane = legalLanes[0] ?? -1;
+    if (lane < 0) {
+      // If every lane is pressured, choose the lane with the least overlap and
+      // then the smallest lane index. This fails inward rather than pushing a
+      // compact aggregate arbitrarily far into the world surface.
+      const pressure = laneIntervals.map((intervals, candidateLane) => ({
+        lane: candidateLane,
+        pressure: intervals.reduce((sum, occupied) => {
+          const overlap = Math.min(interval.end, occupied.end + laneGapPx) -
+            Math.max(interval.start, occupied.start - laneGapPx);
+          return sum + Math.max(0, overlap);
+        }, 0),
+      }));
+      pressure.sort((left, right) => left.pressure - right.pressure || left.lane - right.lane);
+      lane = pressure[0]?.lane ?? 0;
+    }
+
+    result[aggregate.id] = lane;
+    laneIntervals[lane]?.push(interval);
+  }
+
+  return Object.freeze({ ...result });
+}
+
 export function geometryMeasurementKey(sceneKey: string, contentRevision: string | number): string {
   const key = canonicalId(sceneKey);
   if (!key) throw new Error("Geometry measurement keys require a stable scene identity.");
