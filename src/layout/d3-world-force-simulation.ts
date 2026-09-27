@@ -44,8 +44,6 @@ const INTERACTION_EDGE_MAX_STRETCH_SCALE = 8;
 const INTERACTION_FORCE_MAX_ERROR_METERS = 6_000;
 const DRAG_MOVE_ALPHA_FLOOR = 0.04;
 const CROSS_PLACE_INTERACTION_TICKS = 3;
-/** Keep cross-anchor rejection local while matching the ordinary force radius. */
-const CROSS_PLACE_REJECTION_DISTANCE_METERS = 7_200;
 const EARTH_RADIUS_METERS = 6_371_008.8;
 const POLAR_COSINE_EPSILON = 1e-9;
 
@@ -205,6 +203,22 @@ function geographicFromTangentOffset(
       ? 0
       : degrees(eastMeters / (EARTH_RADIUS_METERS * cosine));
   return Object.freeze([wrapLongitude(origin[0] + longitudeDelta), latitude]);
+}
+
+function stateNeighborhoodRadiusMeters(state: D3WorldNodeState): number {
+  const collisionRadius = Math.max(1, state.node.collisionRadiusMeters);
+  const precisionRadius = Math.max(0, state.anchor?.precisionRadiusMeters ?? 0);
+  const targetEast = state.node.layoutTargetEastMeters ?? 0;
+  const targetNorth = state.node.layoutTargetNorthMeters ?? 0;
+  const targetRadius = Math.hypot(targetEast, targetNorth) + collisionRadius * 2;
+  return Math.max(collisionRadius * 8, precisionRadius, targetRadius);
+}
+
+function pairNeighborhoodRadiusMeters(
+  left: D3WorldNodeState,
+  right: D3WorldNodeState,
+): number {
+  return stateNeighborhoodRadiusMeters(left) + stateNeighborhoodRadiusMeters(right);
 }
 
 function localOffsetForGeographicPosition(
@@ -576,11 +590,6 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
             }));
 
       const maximumRadius = Math.max(1, ...nodes.map((node) => node.node.collisionRadiusMeters));
-      const maximumRestLength = Math.max(
-        maximumRadius * 4,
-        ...links.map((link) => link.edge.restLengthMeters),
-      );
-
       const simulation = forceSimulation<D3WorldNodeState>(nodes as D3WorldNodeState[])
         .stop()
         .alphaMin(ALPHA_MIN)
@@ -600,8 +609,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
         "charge",
         forceManyBody<D3WorldNodeState>()
           .strength(collapsed ? COLLAPSE_MANY_BODY_STRENGTH : NORMAL_MANY_BODY_STRENGTH)
-          .distanceMin(maximumRadius)
-          .distanceMax(Math.max(7_200, maximumRestLength * 4)),
+          .distanceMin(maximumRadius),
       );
       simulation.force(
         "collision",
@@ -683,8 +691,8 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       const collisionDistance =
         focalState.node.collisionRadiusMeters + state.node.collisionRadiusMeters;
       const interactionDistance = Math.max(
-        CROSS_PLACE_REJECTION_DISTANCE_METERS,
         collisionDistance * 4,
+        pairNeighborhoodRadiusMeters(focalState, state),
       );
       if (surfaceDistanceMeters(focalPosition, position) > interactionDistance) return [];
       const [eastMeters, northMeters] = tangentOffsetMeters(focalPosition, position);
@@ -715,6 +723,11 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       .alphaMin(ALPHA_MIN)
       .alphaDecay(ALPHA_DECAY)
       .alphaTarget(0);
+    const maximumInteractionDistance = Math.max(
+      ...participants.slice(1).map(({ state }) =>
+        pairNeighborhoodRadiusMeters(focalState, state),
+      ),
+    );
     interactionSimulation.force(
       "charge",
       forceManyBody<D3CrossPlaceInteractionProbe>()
@@ -722,7 +735,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
         .distanceMin(
           Math.max(1, Math.min(...probes.map((probe) => probe.collisionRadiusMeters))),
         )
-        .distanceMax(CROSS_PLACE_REJECTION_DISTANCE_METERS),
+        .distanceMax(maximumInteractionDistance),
     );
     interactionSimulation.force(
       "collision",

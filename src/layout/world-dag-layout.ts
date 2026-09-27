@@ -95,8 +95,7 @@ const DAG_MIN_GAP_METERS = 180;
 const DAG_MAX_GAP_METERS = 900;
 const DAG_TARGET_BASE_RADIUS_METERS = 1_500;
 const DAG_TARGET_RADIUS_PER_SQRT_NODE_METERS = 900;
-const DAG_TARGET_MAX_RADIUS_METERS = 12_000;
-const DAG_TARGET_HARD_MAX_RADIUS_METERS = 36_000;
+const DAG_EARTH_RADIUS_METERS = 6_371_008.8;
 const DAG_CACHE_RETENTION_REVISIONS = 8;
 const EXACT_DECROSS_MAX_NODES = 8;
 const EXACT_DECROSS_MAX_EDGES = 32;
@@ -286,6 +285,55 @@ function buildLayoutIndex(projection: WorldProjection): LayoutIndex {
     ),
     crossPlaceInstanceIds: Object.freeze(crossPlaceInstanceIds),
   };
+}
+
+function radians(value: number): number {
+  return (value * Math.PI) / 180;
+}
+
+function shortestLongitudeDelta(from: number, to: number): number {
+  const raw = to - from;
+  return ((((raw + 180) % 360) + 360) % 360) - 180;
+}
+
+function anchorDistanceMeters(left: SpatialAnchor, right: SpatialAnchor): number {
+  const leftLatitude = radians(left.latitude);
+  const rightLatitude = radians(right.latitude);
+  const deltaLatitude = rightLatitude - leftLatitude;
+  const deltaLongitude = radians(shortestLongitudeDelta(left.longitude, right.longitude));
+  const sinLatitude = Math.sin(deltaLatitude / 2);
+  const sinLongitude = Math.sin(deltaLongitude / 2);
+  const a =
+    sinLatitude * sinLatitude +
+    Math.cos(leftLatitude) * Math.cos(rightLatitude) * sinLongitude * sinLongitude;
+  return 2 * DAG_EARTH_RADIUS_METERS * Math.asin(Math.min(1, Math.sqrt(Math.max(0, a))));
+}
+
+function placeNeighborhoodRadiusMeters(
+  placeId: PlaceId,
+  instances: readonly ProjectedWorldInstance[],
+  options: WorldDagLayoutOptions,
+): number {
+  const nodeRadius = instances.reduce((radius, instance) => {
+    const [width, height] = finitePositiveSize(options.nodeSizes?.get(instance.id));
+    return Math.max(radius, width / 2, height / 2);
+  }, DAG_FALLBACK_NODE_SIZE_METERS / 2);
+  const precisionRadius = instances.reduce(
+    (radius, instance) =>
+      Math.max(radius, primaryAnchor(instance)?.precisionRadiusMeters ?? 0),
+    0,
+  );
+  const [placeWidth, placeHeight] = finitePositiveSize(options.placeSizes?.get(placeId));
+  const placeRadius = Math.max(placeWidth, placeHeight) / 2;
+  const populationRadius =
+    DAG_TARGET_BASE_RADIUS_METERS +
+    Math.sqrt(Math.max(1, instances.length)) * DAG_TARGET_RADIUS_PER_SQRT_NODE_METERS;
+
+  return Math.max(
+    populationRadius,
+    precisionRadius,
+    placeRadius + nodeRadius * Math.max(2, Math.sqrt(Math.max(1, instances.length))),
+  );
 }
 
 function reaches(
@@ -943,34 +991,18 @@ function scaledCandidate(
     (radius, target) => Math.max(radius, Math.hypot(target.eastMeters, target.northMeters)),
     0,
   );
-  const maxTargetRadius = Math.min(
-    DAG_TARGET_MAX_RADIUS_METERS,
+  const preferredTargetRadius =
     DAG_TARGET_BASE_RADIUS_METERS +
-      Math.sqrt(Math.max(1, nodeCount)) * DAG_TARGET_RADIUS_PER_SQRT_NODE_METERS,
-  );
+    Math.sqrt(Math.max(1, nodeCount)) * DAG_TARGET_RADIUS_PER_SQRT_NODE_METERS;
   const desiredScale =
-    maxRawRadius > maxTargetRadius && maxRawRadius > 0 ? maxTargetRadius / maxRawRadius : 1;
+    maxRawRadius > preferredTargetRadius && maxRawRadius > 0
+      ? preferredTargetRadius / maxRawRadius
+      : 1;
   const safeScale = minimumNonOverlappingScale(candidate.targets, sizes);
+  // The preferred radius is only a density preference. If preserving rendered
+  // node footprints needs a larger domain, keep the Sugiyama solution and let
+  // geography act as the restoring constraint instead of dropping to force-only.
   const scale = Math.min(1, Math.max(desiredScale, safeScale));
-
-  // The preferred radius is soft: modest deep DAGs may expand their place
-  // domain rather than lose size-aware separation. The hard bound prevents a
-  // pathological local hierarchy from stretching across geographic scales;
-  // those neighborhoods remain owned by collision + LOD.
-  const safeRadius = maxRawRadius * scale;
-  if (safeRadius > DAG_TARGET_HARD_MAX_RADIUS_METERS + 1e-6) {
-    return Object.freeze({
-      ...candidate,
-      name: `${candidate.name}-force-only`,
-      targets: Object.freeze([]),
-      routes: Object.freeze([]),
-      crossingCount: null,
-      weightedCrossingCost: 0,
-      meanEdgeLengthMeters: 0,
-      minSeparationMeters: null,
-      meanStableDisplacementMeters: 0,
-    });
-  }
 
   const targets =
     scale === 1
@@ -1397,7 +1429,6 @@ function layoutPlace(
   candidateEdges: readonly ProjectedWorldEdge[],
   options: WorldDagLayoutOptions,
   revision: number,
-  crossPlaceInstanceIds: ReadonlySet<WorldInstanceId>,
 ): PlaceLayoutCache["result"] {
   const orientation = options.orientation ?? "top-to-bottom";
   const nodeIds = instances.map((instance) => instance.id);
@@ -1405,15 +1436,11 @@ function layoutPlace(
   const sizes = nodeSizeMap(nodeIds, options.nodeSizes);
   const placeSize = finitePositiveSize(options.placeSizes?.get(placeId));
   const edges = localAcyclicEdges(nodeIdSet, candidateEdges);
-  const structuredNodeSet = new Set<WorldInstanceId>();
-  for (const edge of edges) {
-    structuredNodeSet.add(edge.sourceId);
-    structuredNodeSet.add(edge.targetId);
-  }
-  for (const id of crossPlaceInstanceIds) {
-    if (nodeIdSet.has(id)) structuredNodeSet.add(id);
-  }
-  const structuredNodeIds = nodeIds.filter((id) => structuredNodeSet.has(id));
+  // Every entity sharing a geographic layout domain participates in Sugiyama
+  // spacing. Semantic edges still determine hierarchy; isolated entities enter
+  // as roots so they reserve real layout territory instead of becoming force-only
+  // obstacles that can drift back through routed topology.
+  const structuredNodeIds = nodeIds;
   const key = topologyKey(placeId, nodeIds, edges, sizes, placeSize, orientation);
   const cacheKey = String(placeId);
   const cached = placeCache.get(cacheKey);
@@ -1491,9 +1518,10 @@ function layoutPlace(
 }
 
 
-function crossPlaceConnectedNodeIds(index: LayoutIndex): ReadonlySet<WorldInstanceId> {
-  if (index.crossPlaceInstanceIds.size === 0) return new Set();
-
+function layoutNeighborhoodNodeIds(
+  index: LayoutIndex,
+  options: WorldDagLayoutOptions,
+): ReadonlySet<WorldInstanceId> {
   const adjacency = new Map<WorldInstanceId, Set<WorldInstanceId>>();
   for (const edge of index.structuralEdges) {
     const source = adjacency.get(edge.sourceInstanceId);
@@ -1505,8 +1533,60 @@ function crossPlaceConnectedNodeIds(index: LayoutIndex): ReadonlySet<WorldInstan
     else adjacency.set(edge.targetInstanceId, new Set([edge.sourceInstanceId]));
   }
 
-  const connected = new Set<WorldInstanceId>();
   const pending = [...index.crossPlaceInstanceIds];
+  const places = [...index.instancesByPlace.entries()]
+    .map(([placeId, instances]) => {
+      const anchor = instances.map(primaryAnchor).find((candidate) => candidate !== null) ?? null;
+      return anchor
+        ? {
+            placeId,
+            instances,
+            anchor,
+            radiusMeters: placeNeighborhoodRadiusMeters(placeId, instances, options),
+          }
+        : null;
+    })
+    .filter(
+      (
+        entry,
+      ): entry is {
+        placeId: PlaceId;
+        instances: readonly ProjectedWorldInstance[];
+        anchor: SpatialAnchor;
+        radiusMeters: number;
+      } => entry !== null,
+    );
+
+  const orderedPlaces = [...places].sort(
+    (left, right) =>
+      left.anchor.latitude - right.anchor.latitude ||
+      String(left.placeId).localeCompare(String(right.placeId)),
+  );
+  const maximumRadiusMeters = orderedPlaces.reduce(
+    (radius, entry) => Math.max(radius, entry.radiusMeters),
+    0,
+  );
+  for (let leftIndex = 0; leftIndex < orderedPlaces.length; leftIndex += 1) {
+    const left = orderedPlaces[leftIndex];
+    if (!left) continue;
+    for (let rightIndex = leftIndex + 1; rightIndex < orderedPlaces.length; rightIndex += 1) {
+      const right = orderedPlaces[rightIndex];
+      if (!right) continue;
+      const northSeparationMeters =
+        radians(right.anchor.latitude - left.anchor.latitude) * DAG_EARTH_RADIUS_METERS;
+      if (northSeparationMeters > left.radiusMeters + maximumRadiusMeters) break;
+      if (
+        anchorDistanceMeters(left.anchor, right.anchor) >
+        left.radiusMeters + right.radiusMeters
+      ) {
+        continue;
+      }
+      pending.push(...left.instances.map((instance) => instance.id));
+      pending.push(...right.instances.map((instance) => instance.id));
+    }
+  }
+
+  const connected = new Set<WorldInstanceId>();
   while (pending.length > 0) {
     const current = pending.pop();
     if (current === undefined || connected.has(current)) continue;
@@ -1561,7 +1641,7 @@ function layoutCrossPlaceTopology(
   revision: number,
 ): CrossPlaceLayoutCache | null {
   const orientation = options.orientation ?? "top-to-bottom";
-  const connectedIds = crossPlaceConnectedNodeIds(index);
+  const connectedIds = layoutNeighborhoodNodeIds(index, options);
   if (connectedIds.size === 0) {
     crossPlaceCache = null;
     return null;
@@ -1743,7 +1823,6 @@ export function createWorldDagLayout(
       index.edgesByPlace.get(placeId) ?? Object.freeze([]),
       options,
       revision,
-      index.crossPlaceInstanceIds,
     );
     targets.push(...result.targets);
     routes.push(...result.routes);
