@@ -499,6 +499,7 @@
 #app-shell[data-editor-open="true"] .app-footer-bar #editor-toggle,
 #app-shell[data-browser-open="true"] .app-footer-bar #timeline-browser-toggle,
 .app-footer-bar #project-menu-toggle[aria-expanded="true"],
+.app-footer-bar #occurrence-composer-toggle[aria-expanded="true"],
 .app-footer-bar .toolbar-control[aria-pressed="true"] {
   border-color: color-mix(in srgb, var(--line-strong) 82%, transparent);
   background: var(--paper-2);
@@ -804,6 +805,57 @@
     min-inline-size: 54px;
     max-inline-size: none;
   }
+}
+
+/* The occurrence composer is part of the persistent footer, not a floating surface.
+   Opening it adds one compact authoring row while keeping world, app, and timeline controls
+   reachable on the row below. The footer height remains authoritative for workspace geometry. */
+#app-shell:has(#occurrence-composer[active]) {
+  --workspace-footer-content-block-size: 116px;
+}
+
+#app-shell:has(#occurrence-composer[active]) > .app-tool-dock.app-footer-bar,
+#app-shell:has(#occurrence-composer[active])
+  #presentation-stage:fullscreen
+  > .app-tool-dock.app-footer-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-rows: 48px minmax(0, 1fr);
+  align-items: center;
+  row-gap: 0.16rem;
+  overflow: visible;
+  touch-action: auto;
+}
+
+.app-footer-bar > #occurrence-composer[active] {
+  z-index: 3;
+  grid-column: 1 / -1;
+  grid-row: 1;
+  align-self: center;
+  justify-self: center;
+  inline-size: min(62rem, 100%);
+  min-inline-size: 0;
+  padding-inline: max(0.06rem, env(safe-area-inset-left))
+    max(0.06rem, env(safe-area-inset-right));
+}
+
+#app-shell:has(#occurrence-composer[active]) .app-footer-bar > .app-footer-world {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+#app-shell:has(#occurrence-composer[active]) .app-footer-bar > .app-footer-actions {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+#app-shell:has(#occurrence-composer[active]) .app-footer-bar > .app-footer-timeline {
+  grid-column: 3;
+  grid-row: 2;
+}
+
+#app-shell:has(#occurrence-composer[active]) .app-footer-bar > .app-footer-zone {
+  min-block-size: var(--toolbar-control-size);
 }
 
 @media (forced-colors: active) {
