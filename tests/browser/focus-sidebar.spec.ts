@@ -107,7 +107,7 @@ test("focused detail is shell-owned while contextual actions stay in the footer"
   await expect(focus.getByRole("tab", { name: "Evidence" })).toBeVisible();
   await expect(focus.locator(".timeline-focus-actions")).toHaveCount(0);
   await expect(focus.getByRole("region", { name: "Place" })).toHaveCount(0);
-  await expect(focus.locator(".timeline-focus-edit").first()).toBeVisible();
+  await expect(focus.locator(".timeline-focus-edit")).toHaveCount(0);
 
   await expect(page.locator("#timeline-focus-prev")).toBeVisible();
   await expect(page.locator("#timeline-focus-next")).toBeVisible();
