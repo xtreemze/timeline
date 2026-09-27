@@ -389,6 +389,12 @@ export function createWorldViewFactory(options: WorldViewFactoryOptions): WorldV
         root.adoptView(scheduledView);
       }
 
+      surface.setCameraInteractionSink({
+        setCameraInteractionActive(active) {
+          if (runtime.setCameraInteractionActive(active)) scheduledView.wake();
+        },
+      });
+
       surface.setClusterForceSink({
         setClusteredPlaceIds(placeIds, detachedLinkPlaceIds) {
           runtime.setClusteredPlaceIds(placeIds, detachedLinkPlaceIds);
