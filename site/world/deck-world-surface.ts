@@ -2138,10 +2138,12 @@ function withLabelPixelOffset(
 }
 
 /**
- * Collision-aware screen-space placement. Labels that cannot fit after eight
- * deterministic positions are suppressed at every zoom level. Zoom itself
- * increases physical separation, so labels naturally reappear as the topology
- * becomes readable; hover/selection overrides are appended separately.
+ * Collision-aware screen-space placement. Labels stay on the nearest compass
+ * ring around their semantic origin; ordinary labels are suppressed when none
+ * of those nearby slots is clear. Zoom itself increases physical separation,
+ * so labels naturally reappear as topology becomes readable. Interaction
+ * overrides are appended separately and may use the least-conflicted nearby
+ * slot, but never detach from their origin just to avoid a collision.
  */
 function placeWorldLabelDatums(
   datums: readonly DeckWorldLabelDatum[],
@@ -2318,16 +2320,7 @@ function placeWorldLabelDatums(
       markerRadiusPx(datum),
     );
     const required = requiredLabelKeys.has(datum.key);
-    const offsetScales = required
-      ? Object.freeze([1, 1.75, 2.5, 3.5, 5, 7])
-      : Object.freeze([1, 1.75, 2.5]);
-    const candidates = Object.freeze(
-      offsetScales.flatMap((factor) =>
-        baseCandidates.map(
-          ([x, y]) => Object.freeze([x * factor, y * factor]) as readonly [number, number],
-        ),
-      ),
-    );
+    const candidates = baseCandidates;
     let chosen: readonly [number, number] | null = null;
     let chosenBox: Box | null = null;
     let fallback:
@@ -2374,8 +2367,8 @@ function placeWorldLabelDatums(
           0,
         );
         // Required interaction labels must remain readable even in a saturated
-        // local graph. Prefer the least-conflicted deterministic slot after
-        // exhausting increasingly distant collision-free rings.
+        // local graph. Prefer the least-conflicted deterministic nearby slot
+        // rather than moving the label far enough to lose its semantic origin.
         const conflictScore = labelConflictCount * 100 + edgeConflictCount;
         if (!fallback || conflictScore < fallback.conflictScore) {
           fallback = { offset, box, conflictScore };
@@ -2664,8 +2657,8 @@ function labelDatums(input: {
 
   // Interaction overlays are appended after the stable base pass and never
   // displace established labels. Selected-node incident edge labels are the
-  // readability exception: after wider free-space rings are exhausted they
-  // may use the least-conflicted fallback rather than disappear.
+  // readability exception: when every nearby slot conflicts they may use the
+  // least-conflicted nearby fallback rather than disappear or drift away.
   for (const cluster of input.clusters) {
     if (!clusterInteracted(cluster)) continue;
     const key = `cluster:${cluster.clusterId}`;
