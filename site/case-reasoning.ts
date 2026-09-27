@@ -105,6 +105,24 @@ const INFORMATION_FINDINGS = Object.freeze([
   "limited",
   "unknown",
 ] as const);
+const QUALITY_DIMENSION_STATES = Object.freeze([
+  "favorable",
+  "concern",
+  "unknown",
+  "not-applicable",
+] as const);
+const QUALITY_DIMENSIONS = Object.freeze([
+  "accuracyCompleteness",
+  "currency",
+  "corroboration",
+  "accessProximity",
+  "expertise",
+  "biasMotivation",
+  "denialDeceptionRisk",
+  "collectionTechnical",
+] as const);
+const ANALYTIC_CONFIDENCE = Object.freeze(["low", "moderate", "high"] as const);
+const REVIEW_TYPES = Object.freeze(["self", "peer", "expert", "formal"] as const);
 
 const CITATION_LOCATOR_TYPES = Object.freeze([
   "page",
@@ -181,6 +199,46 @@ export const ANALYTIC_METHODS = Object.freeze([
     source: "ISO 21043-4:2025",
     sourceUrl: "https://www.iso.org/standard/72039.html",
     purpose: "interpret observations against alternative propositions relevant to the decision question",
+  }),
+  Object.freeze({
+    id: "team-a-team-b",
+    name: "Team A / Team B",
+    family: "contrarian",
+    source: "CIA Tradecraft Primer",
+    sourceUrl: "https://www.cia.gov/resources/csi/books-monographs/a-tradecraft-primer/",
+    purpose: "develop and compare strongly argued alternative analytical positions using separate teams or roles",
+  }),
+  Object.freeze({
+    id: "red-team",
+    name: "Red Team",
+    family: "contrarian",
+    source: "CIA Tradecraft Primer",
+    sourceUrl: "https://www.cia.gov/resources/csi/books-monographs/a-tradecraft-primer/",
+    purpose: "challenge assumptions and judgments from an intentionally different perspective",
+  }),
+  Object.freeze({
+    id: "high-impact-low-probability",
+    name: "High Impact / Low Probability",
+    family: "contrarian",
+    source: "CIA Tradecraft Primer",
+    sourceUrl: "https://www.cia.gov/resources/csi/books-monographs/a-tradecraft-primer/",
+    purpose: "examine consequences and indicators for consequential outcomes that might otherwise be dismissed",
+  }),
+  Object.freeze({
+    id: "scenarios-alternative-futures",
+    name: "Scenarios / Alternative Futures",
+    family: "imaginative",
+    source: "CIA Tradecraft Primer",
+    sourceUrl: "https://www.cia.gov/resources/csi/books-monographs/a-tradecraft-primer/",
+    purpose: "develop multiple plausible futures and the indicators that would distinguish their emergence",
+  }),
+  Object.freeze({
+    id: "icd-203-analytic-standards-review",
+    name: "ICD 203 analytic standards review",
+    family: "quality-review",
+    source: "ODNI ICD 203 Analytic Standards",
+    sourceUrl: "https://www.dni.gov/files/documents/ICD/ICD-203.pdf",
+    purpose: "review source quality, uncertainty, assumptions, alternatives, contrary information, argumentation, and judgment changes",
   }),
 ]);
 
@@ -277,6 +335,23 @@ function idList(value: unknown): string[] {
 
 function normalizedStatus(value: unknown): string {
   return text(value, 80) || "unassessed";
+}
+
+function normalizeQualityDimensions(value: unknown): Record<string, { state: string; rationale: string }> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const source = value as Record<string, unknown>;
+  const result: Record<string, { state: string; rationale: string }> = {};
+  for (const dimension of QUALITY_DIMENSIONS) {
+    const raw = source[dimension];
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
+    const entry = raw as Record<string, unknown>;
+    const state = text(entry.state, 80);
+    result[dimension] = {
+      state: QUALITY_DIMENSION_STATES.includes(state as any) ? state : "unknown",
+      rationale: text(entry.rationale, 4000),
+    };
+  }
+  return result;
 }
 
 function wholeNumber(value: unknown, minimum: number = 0): number | null {
@@ -398,6 +473,8 @@ export function normalizeRecord(
       : "unknown";
     record.targetIds = idList(raw.targetIds);
     record.methodId = text(raw.methodId, 160) || "quality-of-information-check";
+    record.qualityDimensions = normalizeQualityDimensions(raw.qualityDimensions);
+    record.sourceSummary = text(raw.sourceSummary, 12000);
   } else if (type === "citation") {
     record.assertionId = text(raw.assertionId, 160);
     record.evidenceId = text(raw.evidenceId, 160);
@@ -458,6 +535,19 @@ export function normalizeRecord(
     record.methodVersion = text(raw.methodVersion, 160);
     record.conditioningInformation = text(raw.conditioningInformation, 12000);
     record.reviewStatus = text(raw.reviewStatus, 80) || "unreviewed";
+    record.majorJudgment = raw.majorJudgment === true;
+    record.judgment = text(raw.judgment ?? raw.conclusion, 12000);
+    const confidence = text(raw.confidence, 80);
+    record.confidence = ANALYTIC_CONFIDENCE.includes(confidence as any) ? confidence : "";
+    record.confidenceBasis = text(raw.confidenceBasis, 12000);
+    record.uncertainty = text(raw.uncertainty ?? raw.uncertaintyBasis, 12000);
+    record.supportingIds = idList(raw.supportingIds);
+    record.contraryIds = idList(raw.contraryIds);
+    record.indicatorIds = idList(raw.indicatorIds);
+    record.previousAnalysisIds = idList(raw.previousAnalysisIds);
+    record.changedBecauseIds = idList(raw.changedBecauseIds);
+    record.implications = text(raw.implications, 12000);
+    record.reportable = raw.reportable === true;
   } else if (type === "legalIssue") {
     record.authorityIds = idList(raw.authorityIds);
     record.ruleIds = idList(raw.ruleIds);
@@ -476,6 +566,10 @@ export function normalizeRecord(
     record.reviewerEntityId = text(raw.reviewerEntityId, 160);
     record.decision = text(raw.decision, 80) || "pending";
     record.reviewedAt = text(raw.reviewedAt, 80);
+    const reviewType = text(raw.reviewType, 80);
+    record.reviewType = REVIEW_TYPES.includes(reviewType as any) ? reviewType : "";
+    record.methodIds = idList(raw.methodIds);
+    record.findings = text(raw.findings, 12000);
   }
 
   return record;
@@ -566,6 +660,11 @@ export function dependencyIds(record: Record<string, any>): string[] {
     "relationshipIds",
     "placeIds",
     "entityIds",
+    "supportingIds",
+    "contraryIds",
+    "indicatorIds",
+    "previousAnalysisIds",
+    "changedBecauseIds",
   ];
   const result: string[] = [];
   const seen = new Set<string>();
@@ -659,13 +758,27 @@ export function competingHypothesisMatrix(reasoning: any, alternativeGroupId: un
   return {
     alternativeGroupId: groupId,
     hypotheses,
-    evidenceRows: evidence.map((record: any) => ({
-      evidenceId: record.id,
-      evidenceType: record.type,
-      cells: hypotheses.map((hypothesis: any) =>
+    evidenceRows: evidence.map((record: any) => {
+      const cells = hypotheses.map((hypothesis: any) =>
         hypothesisCell(record.id, hypothesis, normalized),
-      ),
-    })),
+      );
+      const assessments = new Set(cells.map((cell) => cell.assessment));
+      const substantive = cells.filter((cell) =>
+        ["supports", "contradicts", "mixed"].includes(cell.assessment),
+      );
+      const diagnosticity =
+        substantive.length === 0
+          ? "unassessed"
+          : assessments.size > 1
+            ? "differentiating"
+            : "non-differentiating";
+      return {
+        evidenceId: record.id,
+        evidenceType: record.type,
+        diagnosticity,
+        cells,
+      };
+    }),
   };
 }
 
@@ -979,6 +1092,78 @@ export function validateReasoning(reasoning: any, options: any = {}): Validation
           "Conflicted or limited information should record the reason or limitation.",
         );
       }
+      for (const [dimension, entry] of Object.entries(record.qualityDimensions ?? {})) {
+        if (
+          (entry as any).state === "concern" &&
+          !text((entry as any).rationale, 4000) &&
+          !record.rationale &&
+          !record.limitations
+        ) {
+          add(
+            "warning",
+            "information-quality-dimension-rationale-missing",
+            record.id,
+            `Information-quality concern ${dimension} should record a rationale.`,
+          );
+        }
+      }
+    }
+
+    if (record.type === "analysis") {
+      if (record.majorJudgment && !record.judgment) {
+        add(
+          "warning",
+          "major-judgment-text-missing",
+          record.id,
+          "Major analytical judgment should state the judgment explicitly.",
+        );
+      }
+      if (record.confidence && !record.confidenceBasis) {
+        add(
+          "warning",
+          "analytic-confidence-basis-missing",
+          record.id,
+          "Analytic confidence should explain the evidentiary or logical basis for that confidence.",
+        );
+      }
+      if (record.majorJudgment && !record.uncertainty) {
+        add(
+          "warning",
+          "analytic-uncertainty-missing",
+          record.id,
+          "Major analytical judgment should explain material uncertainty or state why none is material.",
+        );
+      }
+      if (record.previousAnalysisIds.length > 0 && record.changedBecauseIds.length === 0) {
+        add(
+          "warning",
+          "analytic-change-rationale-missing",
+          record.id,
+          "Changed analytical judgment should identify the information or reasoning that caused the change.",
+        );
+      }
+    }
+
+    if (record.type === "review") {
+      if (record.targetIds.length === 0) {
+        add("warning", "review-target-missing", record.id, "Review should identify at least one target.");
+      }
+      if (!record.reviewType) {
+        add(
+          "warning",
+          "review-type-missing",
+          record.id,
+          "Review should identify whether it is self, peer, expert, or formal review.",
+        );
+      }
+      if (record.reviewType !== "self" && !record.reviewerEntityId) {
+        add(
+          "warning",
+          "reviewer-identity-missing",
+          record.id,
+          "Peer, expert, or formal review should identify the reviewer entity.",
+        );
+      }
     }
 
     if (
@@ -1141,6 +1326,206 @@ export function validateReasoning(reasoning: any, options: any = {}): Validation
   );
 }
 
+export function evidenceDependencyReview(reasoning: any, alternativeGroupId: unknown = "") {
+  const normalized = normalizeReasoning(reasoning);
+  const groupId = text(alternativeGroupId, 160);
+  const hypotheses = normalized.hypotheses.filter(
+    (hypothesis: any) => !groupId || hypothesis.alternativeGroupId === groupId,
+  );
+  const qualityConcernTargets = new Set<string>();
+  for (const review of normalized.informationReviews) {
+    const hasConcern =
+      ["conflicted", "limited"].includes(review.finding) ||
+      Object.values(review.qualityDimensions ?? {}).some(
+        (entry: any) => entry?.state === "concern",
+      );
+    if (!hasConcern) continue;
+    for (const targetId of review.targetIds) qualityConcernTargets.add(targetId);
+  }
+
+  return hypotheses
+    .map((hypothesis: any) => {
+      const supportEdges = incomingEdges(hypothesis.id, normalized).filter((edge) =>
+        SUPPORT_PREDICATES.has(edge.predicate),
+      );
+      const supportingEvidenceIds = [
+        ...new Set(supportEdges.map((edge) => edge.fromId).filter(Boolean)),
+      ].sort();
+      return {
+        hypothesisId: hypothesis.id,
+        supportingEvidenceIds,
+        singleSupportDependency: supportingEvidenceIds.length === 1,
+        qualityConcernEvidenceIds: supportingEvidenceIds
+          .filter((id) => qualityConcernTargets.has(id))
+          .sort(),
+      };
+    })
+    .sort((left: any, right: any) => left.hypothesisId.localeCompare(right.hypothesisId));
+}
+
+export function analyticStandardsReview(reasoning: any, options: any = {}) {
+  const normalized = normalizeReasoning(reasoning);
+  const findings: Array<{
+    severity: string;
+    code: string;
+    recordId: string;
+    message: string;
+  }> = [];
+
+  const add = (severity: string, code: string, recordId: string, message: string) =>
+    findings.push({ severity, code, recordId, message });
+
+  const reviewsByTarget = new Map<string, Record<string, any>[]>();
+  for (const review of normalized.reviews) {
+    for (const targetId of review.targetIds) {
+      const list = reviewsByTarget.get(targetId) ?? [];
+      list.push(review);
+      reviewsByTarget.set(targetId, list);
+    }
+  }
+
+  for (const analysis of normalized.analyses) {
+    const basisIds = new Set([
+      ...analysis.observationIds,
+      ...analysis.assertionIds,
+      ...analysis.supportingIds,
+      ...analysis.inputIds,
+    ]);
+    if ((analysis.majorJudgment || analysis.reportable || analysis.mode === "evaluative") && basisIds.size === 0) {
+      add(
+        "warning",
+        "analytic-standard-basis-missing",
+        analysis.id,
+        "Reportable, evaluative, or major judgment has no explicit observation/assertion/support basis.",
+      );
+    }
+    if (analysis.majorJudgment && !analysis.uncertainty) {
+      add(
+        "warning",
+        "analytic-standard-uncertainty-missing",
+        analysis.id,
+        "Major judgment does not explain material uncertainty.",
+      );
+    }
+    const alternatives = new Set([
+      ...analysis.hypothesisIds,
+      ...analysis.propositionIds,
+    ]);
+    if (
+      (analysis.mode === "evaluative" || analysis.methodId === "ach") &&
+      alternatives.size < 2
+    ) {
+      add(
+        "warning",
+        "analytic-standard-alternatives-missing",
+        analysis.id,
+        "Evaluative/ACH analysis should identify at least two alternatives.",
+      );
+    }
+    const incomingContrary = incomingEdges(analysis.id, normalized)
+      .filter((edge) => CONTRADICTION_PREDICATES.has(edge.predicate))
+      .map((edge) => edge.fromId);
+    const acknowledged = new Set(analysis.contraryIds);
+    const unacknowledged = incomingContrary.filter((id) => !acknowledged.has(id));
+    if (unacknowledged.length > 0) {
+      add(
+        "warning",
+        "analytic-standard-contrary-unacknowledged",
+        analysis.id,
+        `Contrary information is linked but not acknowledged explicitly: ${unacknowledged.sort().join(", ")}.`,
+      );
+    }
+    if (analysis.previousAnalysisIds.length > 0 && analysis.changedBecauseIds.length === 0) {
+      add(
+        "warning",
+        "analytic-standard-change-explanation-missing",
+        analysis.id,
+        "Analysis supersedes or follows earlier analysis without identifying what changed.",
+      );
+    }
+    if (
+      (analysis.reportable || analysis.mode === "evaluative") &&
+      !(reviewsByTarget.get(analysis.id)?.length)
+    ) {
+      add(
+        "warning",
+        "analytic-standard-review-missing",
+        analysis.id,
+        "Reportable/evaluative analysis has no linked self, peer, expert, or formal review.",
+      );
+    }
+  }
+
+  for (const assumption of normalized.assumptions) {
+    if (
+      assumption.status === "open" &&
+      (assumption.hypothesisIds.length > 0 || assumption.propositionIds.length > 0) &&
+      assumption.basisIds.length === 0 &&
+      assumption.inputIds.length === 0
+    ) {
+      add(
+        "warning",
+        "analytic-standard-linchpin-assumption-unreviewed",
+        assumption.id,
+        "Open assumption affects alternatives but has no recorded basis.",
+      );
+    }
+  }
+
+  for (const info of normalized.informationReviews) {
+    const dimensionConcern = Object.values(info.qualityDimensions ?? {}).some(
+      (entry: any) => entry?.state === "concern",
+    );
+    if (["conflicted", "limited", "unknown"].includes(info.finding) || dimensionConcern) {
+      add(
+        "warning",
+        "analytic-standard-source-quality-unresolved",
+        info.id,
+        "Source/information-quality concern remains unresolved and should be considered in downstream judgments.",
+      );
+    }
+  }
+
+  const dependency = evidenceDependencyReview(reasoning);
+  for (const entry of dependency) {
+    if (entry.singleSupportDependency) {
+      add(
+        "advisory",
+        "analytic-standard-single-support-dependency",
+        entry.hypothesisId,
+        `Hypothesis depends on a single explicit supporting record: ${entry.supportingEvidenceIds[0] ?? ""}.`,
+      );
+    }
+    if (entry.qualityConcernEvidenceIds.length > 0) {
+      add(
+        "warning",
+        "analytic-standard-limited-support-dependency",
+        entry.hypothesisId,
+        `Hypothesis support includes material with unresolved quality concerns: ${entry.qualityConcernEvidenceIds.join(", ")}.`,
+      );
+    }
+  }
+
+  return {
+    findings: findings.sort(
+      (left, right) =>
+        left.severity.localeCompare(right.severity) ||
+        left.recordId.localeCompare(right.recordId) ||
+        left.code.localeCompare(right.code),
+    ),
+    evidenceDependencies: dependency,
+    reviewCoverage: [...reviewsByTarget.entries()]
+      .map(([targetId, reviews]) => ({
+        targetId,
+        reviewIds: reviews.map((review) => review.id).sort(),
+        reviewTypes: [...new Set(reviews.map((review) => review.reviewType).filter(Boolean))].sort(),
+      }))
+      .sort((left, right) => left.targetId.localeCompare(right.targetId)),
+    certification: null,
+    score: null,
+  };
+}
+
 export function methodologyReview(reasoning: any, options: any = {}) {
   const normalized = normalizeReasoning(reasoning);
   const findings = validateReasoning(reasoning, options);
@@ -1211,6 +1596,7 @@ export function methodologyReview(reasoning: any, options: any = {}) {
       .map((entry) => entry.alternativeGroupId)
       .sort(),
     disconfirmingCoverage,
+    analyticStandards: analyticStandardsReview(reasoning, options),
     validationFindings: findings,
   };
 }
@@ -1291,6 +1677,10 @@ const TimelineCaseReasoningObj = {
   ENQUIRY_TEST_TYPES,
   INDICATOR_STATES,
   INFORMATION_FINDINGS,
+  QUALITY_DIMENSION_STATES,
+  QUALITY_DIMENSIONS,
+  ANALYTIC_CONFIDENCE,
+  REVIEW_TYPES,
   ANALYTIC_METHODS,
   STANDARDS_BASELINE,
   normalizeCitationLocator,
@@ -1303,6 +1693,8 @@ const TimelineCaseReasoningObj = {
   summarizeSupport,
   collectAssertionCitations,
   competingHypothesisMatrix,
+  evidenceDependencyReview,
+  analyticStandardsReview,
   methodologyReview,
   analyticMethod,
   validateReasoning,
