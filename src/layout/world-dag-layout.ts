@@ -1557,12 +1557,24 @@ function layoutNeighborhoodNodeIds(
       } => entry !== null,
     );
 
-  for (let leftIndex = 0; leftIndex < places.length; leftIndex += 1) {
-    const left = places[leftIndex];
+  const orderedPlaces = [...places].sort(
+    (left, right) =>
+      left.anchor.latitude - right.anchor.latitude ||
+      String(left.placeId).localeCompare(String(right.placeId)),
+  );
+  const maximumRadiusMeters = orderedPlaces.reduce(
+    (radius, entry) => Math.max(radius, entry.radiusMeters),
+    0,
+  );
+  for (let leftIndex = 0; leftIndex < orderedPlaces.length; leftIndex += 1) {
+    const left = orderedPlaces[leftIndex];
     if (!left) continue;
-    for (let rightIndex = leftIndex + 1; rightIndex < places.length; rightIndex += 1) {
-      const right = places[rightIndex];
+    for (let rightIndex = leftIndex + 1; rightIndex < orderedPlaces.length; rightIndex += 1) {
+      const right = orderedPlaces[rightIndex];
       if (!right) continue;
+      const northSeparationMeters =
+        radians(right.anchor.latitude - left.anchor.latitude) * DAG_EARTH_RADIUS_METERS;
+      if (northSeparationMeters > left.radiusMeters + maximumRadiusMeters) break;
       if (
         anchorDistanceMeters(left.anchor, right.anchor) >
         left.radiusMeters + right.radiusMeters
