@@ -309,7 +309,6 @@ export class WorldViewRuntimeController {
   step(deltaMs: number): WorldViewRuntimeState {
     this.#assertAlive();
 
-
     this.#forceBackend.step?.(deltaMs);
 
     // The zero-readback GPU bridge updates positions in place every frame;
