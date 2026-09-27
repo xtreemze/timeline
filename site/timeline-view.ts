@@ -3413,35 +3413,6 @@ export class TimelineViewController {
     commit();
   }
 
-  createFocusEditButton(
-    item: TimelineItem,
-    field: "title" | "description" | "media",
-    label: string,
-  ): HTMLButtonElement | null {
-    if (item.editable === false) return null;
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "timeline-focus-edit";
-    button.setAttribute("aria-label", label);
-    button.title = label;
-    const icon =
-      presentation && typeof presentation.createIcon === "function"
-        ? presentation.createIcon("edit", { size: 16 })
-        : null;
-    if (icon) button.append(icon);
-    else button.textContent = "Edit";
-    button.addEventListener("click", (event) => {
-      event.stopPropagation();
-      this.root.dispatchEvent(
-        new CustomEvent("timelinefocusedit", {
-          bubbles: true,
-          detail: { id: item.id, field },
-        }),
-      );
-    });
-    return button;
-  }
-
   createFocusHero(item: TimelineItem): HTMLElement {
     const hero = document.createElement("section");
     hero.className = "timeline-focus-hero";
@@ -3489,18 +3460,6 @@ export class TimelineViewController {
 
     veil.append(kicker, heading, time);
     hero.append(veil);
-    const heroEdit = this.createFocusEditButton(item, "title", "Edit occurrence");
-    if (heroEdit) {
-      heroEdit.classList.add("timeline-focus-hero-edit");
-      hero.append(heroEdit);
-    }
-    if (active?.src) {
-      const mediaEdit = this.createFocusEditButton(item, "media", "Edit occurrence images");
-      if (mediaEdit) {
-        mediaEdit.classList.add("timeline-focus-media-edit");
-        hero.append(mediaEdit);
-      }
-    }
 
     if (media.length > 1) {
       const controls = document.createElement("div");
@@ -3582,13 +3541,6 @@ export class TimelineViewController {
     description.className = "timeline-focus-description";
     description.textContent =
       item.description || "No narrative description has been recorded for this event.";
-    const summaryToolbar = document.createElement("div");
-    summaryToolbar.className = "timeline-focus-section-toolbar";
-    const summaryEdit = this.createFocusEditButton(item, "description", "Edit context");
-    if (summaryEdit) {
-      summaryToolbar.append(summaryEdit);
-      summary.append(summaryToolbar);
-    }
     summary.append(description);
 
     const evidence = document.createElement("section");
