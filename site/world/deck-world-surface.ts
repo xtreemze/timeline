@@ -139,9 +139,12 @@ interface DeckRuntimeInteractionState {
 function deckCameraInteractionActive(
   state: DeckRuntimeInteractionState | undefined,
 ): boolean {
+  // deck.gl's generic isDragging flag is also raised for layer/object drags.
+  // Treat only camera-specific controller state as camera ownership; otherwise
+  // direct node dragging can suspend the force/readback loop that must move the
+  // dragged node and its connected geometry.
   return (
     state?.inTransition === true ||
-    state?.isDragging === true ||
     state?.isPanning === true ||
     state?.isRotating === true ||
     state?.isZooming === true
