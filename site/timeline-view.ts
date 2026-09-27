@@ -7,6 +7,8 @@
  */
 
 import { surfacePointerMayStartDirectManipulation } from "../src/interaction/surface-input-policy.ts";
+import { TimelinePresentation } from "./event-presentation.ts";
+import { TimelineScale } from "./time-scale.ts";
 import {
   geometryMeasurementKey,
   planCommittedTemporalLayout,
@@ -39,8 +41,8 @@ import { LuumEventCardElement } from "./components/timeline-event-card.ts";
 import { TimelineClustering as clustering } from "./timeline-clustering.ts";
 import { TimelineMotion as motion } from "./timeline-motion.ts";
 
-const scale = globalThis.TimelineScale;
-const presentation = globalThis.TimelinePresentation;
+const scale = TimelineScale;
+const presentation = TimelinePresentation;
 
 const VIEW_STORAGE_KEY = "timeline:view:v1";
 const DEFAULT_SPAN_MS = 86_400_000;
@@ -1087,6 +1089,7 @@ export class TimelineViewController {
   }
 
   setItems(items: TimelineItem[], options: SetItemsOptions = {}): void {
+    const previousItemIds = new Set(this.items.map((item) => item.id));
     this.items = (items || []).filter(
       (item) => item && typeof item.id === "string" && Number.isFinite(item.start),
     );
@@ -1137,8 +1140,12 @@ export class TimelineViewController {
     const requestedFocusItem = options.focusId
       ? this.items.find((item) => item.id === options.focusId) || null
       : null;
+    const itemSetChanged =
+      previousItemIds.size !== this.items.length ||
+      this.items.some((item) => !previousItemIds.has(item.id));
     const revealRequestedFocus =
-      requestedFocusItem !== null && !itemOverlapsViewport(requestedFocusItem, this.viewport);
+      requestedFocusItem !== null &&
+      (itemSetChanged || !itemOverlapsViewport(requestedFocusItem, this.viewport));
 
     this.focusedId =
       requestedFocusItem
@@ -1955,6 +1962,17 @@ export class TimelineViewController {
         this.frameDestroyedObjects += 1;
       }
     }
+  }
+
+  resetViewport(): boolean {
+    if (!this.items.length) return false;
+    this.cancelInertia();
+    this.expandedClusterItemIds.clear();
+    this.geometryMeasurements.clear();
+    this.viewport = this.initialViewport();
+    this.viewportInitialized = true;
+    this.commitInteraction();
+    return true;
   }
 
   fitVisible(): void {

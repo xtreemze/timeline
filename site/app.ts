@@ -38,7 +38,9 @@ import {
   storyIdsForItem,
 } from "./story-authoring.js";
 // Import ESM modules
+import "./components/timeline-element.ts";
 import { TimelineTemporal } from "./temporal-standards.ts";
+import { TimelineView } from "./timeline-view.ts";
 import { createSettledTemporalWindowSink } from "./world/settled-temporal-window.ts";
 import { selectPrimarySpatialViewFactory } from "./world/world-view-selection.ts";
 
@@ -664,7 +666,8 @@ function setSemanticControlIcon(element, iconName, label) {
 
 decorateSemanticControls();
 
-const timelineView = globalThis.TimelineView?.create(els.timelineViewRoot) || null;
+const timelineView = TimelineView.create(els.timelineViewRoot);
+if (!timelineView) throw new Error("TimelineView could not initialize the timeline root.");
 let temporalGraphView: ReturnType<typeof temporalGraphFactory.create> | null = null;
 try {
   temporalGraphView = temporalGraphFactory.create(els.graphViewRoot);
@@ -1429,10 +1432,54 @@ function blankTimeline(): TimelineState {
   };
 }
 
+function recordIds(records: unknown): string[] {
+  if (!Array.isArray(records)) return [];
+  return records.flatMap((record) => {
+    if (!record || typeof record !== "object") return [];
+    const id = Reflect.get(record, "id");
+    return typeof id === "string" && id ? [id] : [];
+  });
+}
+
+function latestBundledSampleFor(candidate: TimelineInputRecord): TimelineState | null {
+  const sample = getSample() as TimelineInputRecord | null;
+  if (!sample || !Array.isArray(sample.items) || !Array.isArray(sample.stories)) return null;
+
+  const title = typeof candidate.title === "string" ? candidate.title.trim() : "";
+  if (!/classic tales\s+—\s+distributed fictional casebook$/iu.test(title)) return null;
+
+  const candidateItemIds = recordIds(candidate.items);
+  const sampleItemIds = new Set(recordIds(sample.items));
+  if (!candidateItemIds.length || !sampleItemIds.size) return null;
+
+  const knownItemCount = candidateItemIds.filter((id) => sampleItemIds.has(id)).length;
+  const looksLikeBundledSample =
+    knownItemCount >= Math.min(3, candidateItemIds.length) &&
+    knownItemCount / candidateItemIds.length >= 0.9;
+  if (!looksLikeBundledSample) return null;
+
+  const candidateStoryIds = recordIds(candidate.stories);
+  const sampleStoryIds = new Set(recordIds(sample.stories));
+  const storySetIsCurrent =
+    candidateStoryIds.length === sampleStoryIds.size &&
+    candidateStoryIds.every((id) => sampleStoryIds.has(id));
+  if (storySetIsCurrent) return null;
+
+  return normalizeTimeline(clone(sample));
+}
+
 function loadState(): TimelineState {
   try {
     const current = localStorage.getItem(STORAGE_KEY);
-    if (current) return normalizeTimeline(JSON.parse(current));
+    if (current) {
+      const restored = JSON.parse(current) as TimelineInputRecord;
+      const refreshedSample = latestBundledSampleFor(restored);
+      if (refreshedSample) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(refreshedSample));
+        return refreshedSample;
+      }
+      return normalizeTimeline(restored);
+    }
 
     const legacy = localStorage.getItem(LEGACY_STORAGE_KEY);
     if (legacy) {
@@ -5799,6 +5846,7 @@ els.loadSample.addEventListener("click", () => {
   resetGraphEdgeForm();
   persist();
   renderAll();
+  timelineView?.resetViewport?.();
   showStatus("Example timeline loaded.");
 });
 
@@ -5817,6 +5865,7 @@ function applyImportedTimeline(imported, statusPrefix = "Imported", warningCount
   resetGraphEdgeForm();
   persist();
   renderAll();
+  timelineView?.resetViewport?.();
   const warningText = warningCount
     ? ` · ${warningCount} conversion ${warningCount === 1 ? "warning" : "warnings"}`
     : "";

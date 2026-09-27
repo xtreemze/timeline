@@ -34,6 +34,41 @@ function overlap(a: Rect, b: Rect) {
 }
 
 test.describe("Narrow mobile screen contracts", () => {
+  test("fresh bundled sample initializes the timeline controller", async ({ page }) => {
+    const pageErrors: string[] = [];
+    page.on("pageerror", (error) => pageErrors.push(error.message));
+
+    await page.setViewportSize(NARROW_PORTRAIT);
+    await page.goto("/");
+    await expect(page.locator("#timeline-view")).toBeVisible();
+
+    const counts = await page.evaluate(() => {
+      const project = globalThis.TimelineAgentAPI?.getProject?.();
+      const root = document.querySelector("#timeline-view");
+      const view = root instanceof HTMLElement ? globalThis.TimelineView?.create(root) : null;
+      return {
+        projectItems: project?.items?.length ?? 0,
+        controllerItems: view?.items?.length ?? 0,
+      };
+    });
+    expect(counts.projectItems).toBeGreaterThan(0);
+    expect(counts.controllerItems).toBe(counts.projectItems);
+
+    const surface = page.locator("#timeline-surface");
+    const terminal = page
+      .locator(".timeline-event:not(.is-buffered) .timeline-event-terminal:visible")
+      .first();
+    await expect(terminal).toBeVisible();
+
+    const [surfaceBox, terminalBox] = await Promise.all([surface.boundingBox(), terminal.boundingBox()]);
+    expect(surfaceBox).not.toBeNull();
+    expect(terminalBox).not.toBeNull();
+    if (!surfaceBox || !terminalBox) throw new Error("Bundled sample timeline has no visible geometry.");
+    const intersection = overlap(surfaceBox, terminalBox);
+    expect(intersection.x).toBeGreaterThan(0);
+    expect(intersection.y).toBeGreaterThan(0);
+    expect(pageErrors).toEqual([]);
+  });
   test("portrait event cards remain readable at the screen edge without overlapping", async ({
     page,
   }) => {
@@ -145,7 +180,7 @@ test.describe("Narrow mobile screen contracts", () => {
 
     for (let first = 0; first < boxes.length; first += 1) {
       for (let second = first + 1; second < boxes.length; second += 1) {
-        const intersection = overlap(boxes[first]!, boxes[second]!);
+        const intersection = overlap(boxes[first], boxes[second]);
         expect(
           intersection.x > 2 && intersection.y > 2,
           `compact horizontal timeline cards ${first} and ${second} overlap by ${Math.max(0, intersection.x).toFixed(1)}×${Math.max(0, intersection.y).toFixed(1)}px`,
