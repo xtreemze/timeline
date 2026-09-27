@@ -2969,6 +2969,11 @@ export class DeckWorldSurface implements WorldSurface {
   // Actual node geometry derives its scale/float from each instance's primary anchor latitude.
   #offsetScale = 1;
   #floatMeters = 0;
+  #projectionHandoffPresentation = new Map<
+    WorldInstanceId,
+    WorldRenderContinuitySample
+  >();
+  #projectionHandoffFresh = false;
   #spatialMode: WorldSpatialMode = "globe";
   #cameraInteractionActive = false;
   #cameraInteractionSink: DeckWorldCameraInteractionSink | null = null;
@@ -3930,6 +3935,7 @@ export class DeckWorldSurface implements WorldSurface {
     // zoom/place-topology decision and is reconciled after the drag instead of
     // rescanning the full projection for every pinned frame.
     if (this.#activeDragPointerId === null) this.#syncClusterLifecycle();
+    this.#advanceProjectionHandoffPresentation();
     this.#render();
   }
 
@@ -3977,20 +3983,63 @@ export class DeckWorldSurface implements WorldSurface {
     this.#render();
   }
 
-  getRenderedInstancePositions(): ReadonlyMap<WorldInstanceId, WorldSpatialPosition> {
+  getRenderedInstanceContinuity(): ReadonlyMap<
+    WorldInstanceId,
+    WorldRenderContinuitySample
+  > {
     this.#assertAlive();
-    const positions = new Map<WorldInstanceId, WorldSpatialPosition>();
+    const byId = new Map(
+      this.#projection.instances.map((instance) => [instance.id, instance] as const),
+    );
+    const samples = new Map<WorldInstanceId, WorldRenderContinuitySample>();
     for (const [instanceId, datum] of this.#entityDatumCache) {
-      positions.set(
+      const instance = byId.get(instanceId);
+      if (!instance) continue;
+      samples.set(
         instanceId,
         Object.freeze({
-          longitude: datum.position[0],
-          latitude: datum.position[1],
-          altitudeMeters: datum.position[2],
+          position: Object.freeze({
+            longitude: datum.position[0],
+            latitude: datum.position[1],
+            altitudeMeters: datum.position[2],
+          }),
+          offsetScale: this.#offsetScaleForInstance(instance),
+          floatMeters: this.#floatMetersForInstance(instance),
         }),
       );
     }
+    return samples;
+  }
+
+  getRenderedInstancePositions(): ReadonlyMap<WorldInstanceId, WorldSpatialPosition> {
+    const positions = new Map<WorldInstanceId, WorldSpatialPosition>();
+    for (const [instanceId, sample] of this.getRenderedInstanceContinuity()) {
+      positions.set(instanceId, sample.position);
+    }
     return positions;
+  }
+
+  setProjectionHandoffPresentation(
+    samples: ReadonlyMap<WorldInstanceId, WorldRenderContinuitySample>,
+  ): void {
+    this.#assertAlive();
+    this.#projectionHandoffPresentation = new Map(
+      [...samples].filter(
+        ([, sample]) =>
+          Number.isFinite(sample.offsetScale) &&
+          sample.offsetScale > 0 &&
+          Number.isFinite(sample.floatMeters) &&
+          sample.floatMeters >= 0,
+      ),
+    );
+    this.#projectionHandoffFresh = this.#projectionHandoffPresentation.size > 0;
+  }
+
+  clearProjectionHandoffPresentation(): void {
+    this.#assertAlive();
+    if (this.#projectionHandoffPresentation.size === 0) return;
+    this.#discardProjectionHandoffPresentation();
+    this.#render();
   }
 
   getCamera(): WorldCameraState {
@@ -4014,6 +4063,7 @@ export class DeckWorldSurface implements WorldSurface {
 
   setCamera(camera: WorldCameraState): void {
     this.#assertAlive();
+    this.#discardProjectionHandoffPresentation();
     this.#cameraOwned = true;
     this.#autoFitted = false;
     this.#camera = createWorldCameraState(camera);
@@ -4715,12 +4765,87 @@ export class DeckWorldSurface implements WorldSurface {
     return worldPrimarySpatialAnchor(instance)?.latitude ?? 0;
   }
 
-  #offsetScaleForInstance(instance: ProjectedWorldInstance, zoom = this.#camera.zoom): number {
+  #baseOffsetScaleForInstance(
+    instance: ProjectedWorldInstance,
+    zoom = this.#camera.zoom,
+  ): number {
     return this.#nextOffsetScale(zoom, this.#instanceLatitude(instance));
   }
 
-  #floatMetersForInstance(instance: ProjectedWorldInstance, zoom = this.#camera.zoom): number {
+  #baseFloatMetersForInstance(
+    instance: ProjectedWorldInstance,
+    zoom = this.#camera.zoom,
+  ): number {
     return this.#nextFloatMeters(zoom, this.#instanceLatitude(instance));
+  }
+
+  #offsetScaleForInstance(instance: ProjectedWorldInstance, zoom = this.#camera.zoom): number {
+    if (zoom === this.#camera.zoom) {
+      const handoff = this.#projectionHandoffPresentation.get(instance.id);
+      if (handoff) return handoff.offsetScale;
+    }
+    return this.#baseOffsetScaleForInstance(instance, zoom);
+  }
+
+  #floatMetersForInstance(instance: ProjectedWorldInstance, zoom = this.#camera.zoom): number {
+    if (zoom === this.#camera.zoom) {
+      const handoff = this.#projectionHandoffPresentation.get(instance.id);
+      if (handoff) return handoff.floatMeters;
+    }
+    return this.#baseFloatMetersForInstance(instance, zoom);
+  }
+
+  #discardProjectionHandoffPresentation(): void {
+    this.#projectionHandoffPresentation.clear();
+    this.#projectionHandoffFresh = false;
+  }
+
+  #advanceProjectionHandoffPresentation(): void {
+    if (this.#projectionHandoffPresentation.size === 0) return;
+    if (this.#projectionHandoffFresh) {
+      this.#projectionHandoffFresh = false;
+      return;
+    }
+
+    const byId = new Map(
+      this.#projection.instances.map((instance) => [instance.id, instance] as const),
+    );
+    for (const [instanceId, current] of this.#projectionHandoffPresentation) {
+      const instance = byId.get(instanceId);
+      if (!instance) {
+        this.#projectionHandoffPresentation.delete(instanceId);
+        continue;
+      }
+
+      const targetScale = this.#baseOffsetScaleForInstance(instance);
+      const targetFloat = this.#baseFloatMetersForInstance(instance);
+      const offsetScale =
+        current.offsetScale +
+        (targetScale - current.offsetScale) * WORLD_PROJECTION_HANDOFF_PRESENTATION_BLEND;
+      const floatMeters =
+        current.floatMeters +
+        (targetFloat - current.floatMeters) * WORLD_PROJECTION_HANDOFF_PRESENTATION_BLEND;
+      const scaleSettled =
+        Math.abs(targetScale - offsetScale) <=
+        Math.max(WORLD_PROJECTION_HANDOFF_PRESENTATION_EPSILON, targetScale * 0.001);
+      const floatSettled =
+        Math.abs(targetFloat - floatMeters) <=
+        Math.max(WORLD_PROJECTION_HANDOFF_PRESENTATION_EPSILON, targetFloat * 0.001);
+
+      if (scaleSettled && floatSettled) {
+        this.#projectionHandoffPresentation.delete(instanceId);
+        continue;
+      }
+
+      this.#projectionHandoffPresentation.set(
+        instanceId,
+        Object.freeze({
+          position: current.position,
+          offsetScale,
+          floatMeters,
+        }),
+      );
+    }
   }
 
   #nearestPlaceCache: { readonly projection: WorldProjection; readonly meters: number } | null =
