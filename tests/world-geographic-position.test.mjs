@@ -170,20 +170,33 @@ test("inverse local drag conversion preserves unplaced semantics", () => {
 
 test("unchanged anchors preserve logical force state instead of semantic-zoom magnification", () => {
   const before = createWorldProjection({
-    instances: [instance({ localOffset: { eastMeters: 100, northMeters: 50 } })],
+    instances: [
+      instance({
+        localOffset: { eastMeters: 100, northMeters: 50 },
+        visualAltitude: 800,
+      }),
+    ],
     edges: [],
   });
   const after = createWorldProjection({
     instances: [instance({ temporalWeight: 0.5 })],
     edges: [],
   });
-  const renderedPositions = new Map([
+  const offsetScale = 4;
+  const floatMeters = 2_000;
+  const visible = resolveWorldRenderPosition(before.instances[0], offsetScale, floatMeters);
+  assert.ok(visible);
+  const renderedContinuity = new Map([
     [
       before.instances[0].id,
       Object.freeze({
-        longitude: 18.2,
-        latitude: 59.4,
-        altitudeMeters: 1600,
+        position: Object.freeze({
+          longitude: visible[0],
+          latitude: visible[1],
+          altitudeMeters: visible[2],
+        }),
+        offsetScale,
+        floatMeters,
       }),
     ],
   ]);
@@ -191,19 +204,25 @@ test("unchanged anchors preserve logical force state instead of semantic-zoom ma
   const reconciled = preserveWorldProjectionRenderContinuity(
     before,
     after,
-    renderedPositions,
+    renderedContinuity,
   );
 
   assert.deepEqual(reconciled.instances[0].localOffset, {
     eastMeters: 100,
     northMeters: 50,
   });
+  assert.equal(reconciled.instances[0].visualAltitude, 800);
   assert.equal(reconciled.instances[0].temporalWeight, 0.5);
 });
 
-test("committed temporal reprojection can preserve the renderer's exact visible position", () => {
+test("committed temporal reprojection preserves exact Deck position with scale and float", () => {
   const before = createWorldProjection({
-    instances: [instance({ localOffset: { eastMeters: 100, northMeters: 50 } })],
+    instances: [
+      instance({
+        localOffset: { eastMeters: 100, northMeters: 50 },
+        visualAltitude: 900,
+      }),
+    ],
     edges: [],
   });
   const after = createWorldProjection({
@@ -222,24 +241,44 @@ test("committed temporal reprojection can preserve the renderer's exact visible 
     ],
     edges: [],
   });
-  const renderedPosition = Object.freeze({
-    longitude: 18.2,
-    latitude: 59.4,
-    altitudeMeters: 1600,
-  });
-  const renderedPositions = new Map([[before.instances[0].id, renderedPosition]]);
+  const offsetScale = 3.5;
+  const floatMeters = 2_400;
+  const renderedPosition = resolveWorldRenderPosition(
+    before.instances[0],
+    offsetScale,
+    floatMeters,
+  );
+  assert.ok(renderedPosition);
+  const renderedContinuity = new Map([
+    [
+      before.instances[0].id,
+      Object.freeze({
+        position: Object.freeze({
+          longitude: renderedPosition[0],
+          latitude: renderedPosition[1],
+          altitudeMeters: renderedPosition[2],
+        }),
+        offsetScale,
+        floatMeters,
+      }),
+    ],
+  ]);
 
   const reconciled = preserveWorldProjectionRenderContinuity(
     before,
     after,
-    renderedPositions,
+    renderedContinuity,
   );
-  const position = resolveWorldRenderPosition(reconciled.instances[0]);
+  const position = resolveWorldRenderPosition(
+    reconciled.instances[0],
+    offsetScale,
+    floatMeters,
+  );
 
   assert.ok(position);
-  assert.ok(Math.abs(position[0] - renderedPosition.longitude) < 1e-9);
-  assert.ok(Math.abs(position[1] - renderedPosition.latitude) < 1e-9);
-  assert.ok(Math.abs(position[2] - renderedPosition.altitudeMeters) < 1e-9);
+  assert.ok(Math.abs(position[0] - renderedPosition[0]) < 1e-9);
+  assert.ok(Math.abs(position[1] - renderedPosition[1]) < 1e-9);
+  assert.ok(Math.abs(position[2] - renderedPosition[2]) < 1e-9);
 });
 
 test("committed temporal reprojection preserves surviving node world position", () => {

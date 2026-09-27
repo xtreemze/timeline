@@ -36,6 +36,11 @@ export interface WorldForceSceneBuildOptions {
   readonly reorganizeDag?: boolean;
   /** Structural flow direction selected from the current world viewport shape. */
   readonly dagOrientation?: WorldDagLayoutOrientation;
+  /**
+   * Optional continuity-preserving starting pose. Canonical/new projection
+   * data still owns force targets, anchors, weights, topology, and DAG goals.
+   */
+  readonly initialProjection?: WorldProjection;
 }
 
 /**
@@ -93,6 +98,7 @@ function validatePolicy(policy: WorldForceScenePolicy): WorldForceScenePolicy {
 function nodeFromInstance(
   instance: ProjectedWorldInstance,
   policy: WorldForceScenePolicy,
+  initialInstance: ProjectedWorldInstance = instance,
 ): WorldForceNode {
   const styleInput = {
     ...(instance.kind === undefined ? {} : { type: instance.kind }),
@@ -107,8 +113,9 @@ function nodeFromInstance(
     collisionRadiusPx,
     collisionRadiusMeters:
       policy.baseCollisionRadiusMeters * (collisionRadiusPx / WORLD_ENTITY_MIN_HIT_RADIUS_PX),
-    initialEastMeters: instance.localOffset?.eastMeters ?? 0,
-    initialNorthMeters: instance.localOffset?.northMeters ?? 0,
+    initialEastMeters: initialInstance.localOffset?.eastMeters ?? 0,
+    initialNorthMeters: initialInstance.localOffset?.northMeters ?? 0,
+    initialVisualAltitudeMeters: initialInstance.visualAltitude ?? 0,
     targetVisualAltitudeMeters: instance.visualAltitude ?? 0,
   });
 }
@@ -147,8 +154,15 @@ export function createWorldForceScene(
   options: WorldForceSceneBuildOptions = {},
 ): WorldForceScene {
   const policy = validatePolicy(inputPolicy);
+  const initialInstances = new Map(
+    (options.initialProjection?.instances ?? projection.instances).map(
+      (instance) => [instance.id, instance] as const,
+    ),
+  );
 
-  const baseNodes = projection.instances.map((instance) => nodeFromInstance(instance, policy));
+  const baseNodes = projection.instances.map((instance) =>
+    nodeFromInstance(instance, policy, initialInstances.get(instance.id) ?? instance),
+  );
   const nodeSizes = new Map(
     baseNodes.map(
       (node) =>

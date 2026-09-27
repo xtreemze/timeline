@@ -53,6 +53,7 @@ interface D3WorldNodeState extends SimulationNodeDatum {
   readonly group: string;
   readonly placeId: PlaceId | null;
   readonly anchor: WorldForceAnchor | null;
+  projectionHandoff: boolean;
   z: number;
   vz: number;
 }
@@ -247,6 +248,37 @@ function sameStringSet(left: ReadonlySet<string>, right: ReadonlySet<string>): b
   return left.size === right.size && [...left].every((value) => right.has(value));
 }
 
+type D3ProjectionHandoffForce = ((alpha: number) => void) & {
+  initialize(nodes: D3WorldNodeState[]): void;
+};
+
+function projectionHandoffForce(): D3ProjectionHandoffForce {
+  let nodes: D3WorldNodeState[] = [];
+  const force = ((_alpha: number) => {
+    for (const state of nodes) {
+      if (!state.projectionHandoff || !state.anchor) continue;
+
+      const x = state.x ?? 0;
+      const y = state.y ?? 0;
+      const error = Math.hypot(x, y);
+      if (error <= PROJECTION_HANDOFF_RELEASE_ERROR_METERS) {
+        state.projectionHandoff = false;
+        continue;
+      }
+
+      // D3 applies velocity decay and integrates position after all forces run.
+      // Keeping this impulse independent of alpha lets a geographic handoff
+      // finish within the bounded scheduler run without ever teleporting.
+      state.vx = (state.vx ?? 0) - x * PROJECTION_HANDOFF_FORCE_STRENGTH;
+      state.vy = (state.vy ?? 0) - y * PROJECTION_HANDOFF_FORCE_STRENGTH;
+    }
+  }) as D3ProjectionHandoffForce;
+  force.initialize = (next) => {
+    nodes = next;
+  };
+  return force;
+}
+
 /**
  * Live, frame-stepped D3 force backend.
  *
@@ -287,6 +319,8 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       const group = groupKey(anchor);
       const prior = previous.get(node.id);
       const explicit = node.initialEastMeters !== 0 || node.initialNorthMeters !== 0;
+      const sameGroup = prior?.group === group;
+      const changedPlaceHandoff = prior !== undefined && !sameGroup && explicit;
       const [seedX, seedY] = explicit
         ? [node.initialEastMeters, node.initialNorthMeters]
         : seededOffset(node.id);
@@ -297,14 +331,18 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
         group,
         placeId: anchor?.placeId ?? null,
         anchor,
-        x: prior?.group === group ? (prior.x ?? seedX) : seedX,
-        y: prior?.group === group ? (prior.y ?? seedY) : seedY,
-        vx: prior?.group === group ? (prior.vx ?? 0) : 0,
-        vy: prior?.group === group ? (prior.vy ?? 0) : 0,
-        fx: prior?.group === group ? prior.fx : null,
-        fy: prior?.group === group ? prior.fy : null,
-        z: prior?.group === group ? prior.z : node.targetVisualAltitudeMeters,
-        vz: prior?.group === group ? prior.vz : 0,
+        projectionHandoff: changedPlaceHandoff,
+        x: sameGroup ? (prior.x ?? seedX) : seedX,
+        y: sameGroup ? (prior.y ?? seedY) : seedY,
+        vx: sameGroup ? (prior.vx ?? 0) : 0,
+        vy: sameGroup ? (prior.vy ?? 0) : 0,
+        fx: sameGroup ? prior.fx : null,
+        fy: sameGroup ? prior.fy : null,
+        z:
+          sameGroup
+            ? prior.z
+            : (node.initialVisualAltitudeMeters ?? node.targetVisualAltitudeMeters),
+        vz: sameGroup ? prior.vz : 0,
       });
     }
 
@@ -627,6 +665,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       );
       simulation.force("anchor-x", anchorXForce);
       simulation.force("anchor-y", anchorYForce);
+      simulation.force("projection-handoff", projectionHandoffForce());
 
       // Preserve the current d3-dag organizational targets as soft forces.
       // They guide expanded topology without snapping and are disabled while
