@@ -5771,19 +5771,6 @@ els.occurrenceComposer.addEventListener("occurrencecomposercloserequest", () => 
 els.occurrenceComposer.addEventListener("occurrencecommit", (event) => {
   commitOccurrenceComposer((event as CustomEvent<OccurrenceCommitDetail>).detail);
 });
-els.timelineViewRoot.addEventListener("timelinefocusedit", (event) => {
-  if (!event.detail?.id) return;
-  setEditorSurfaceOpen(true);
-  beginItemEdit(event.detail.id);
-  requestAnimationFrame(() => {
-    const field = event.detail?.field;
-    if (field === "description") els.itemDescription.focus({ preventScroll: true });
-    else if (field === "media") {
-      els.itemMediaDetails.open = true;
-      els.itemMediaDetails.focus({ preventScroll: true });
-    } else els.itemTitle.focus({ preventScroll: true });
-  });
-});
 async function openEvidenceRecord(id: string) {
   const record = state.evidence.find((candidate) => candidate.id === id);
   if (!record) {

@@ -147,7 +147,7 @@ test("selected events use a shell-owned six-column detail surface with footer-ow
   assert.match(js, /timelinefocuschange/);
   assert.match(js, /createFocusHero/);
   assert.match(js, /syncFocusAttachment\(\)/);
-  assert.match(js, /createFocusEditButton/);
+  assert.doesNotMatch(js, /createFocusEditButton|timelinefocusedit|timeline-focus-edit/);
   assert.doesNotMatch(js, /timeline-focus-place-panel/);
   assert.match(js, /focusNavigationState\(\)/);
   assert.doesNotMatch(js, /timeline-focus-nav-prev|timeline-focus-nav-next|Edit event/);
