@@ -3481,7 +3481,8 @@ export class DeckWorldSurface implements WorldSurface {
         readonly viewState: DeckRuntimeViewState;
         readonly interactionState?: DeckRuntimeInteractionState;
       }) => {
-        this.#setCameraInteractionActive(deckCameraInteractionActive(interactionState));
+        const cameraInteractionActive = deckCameraInteractionActive(interactionState);
+        this.#setCameraInteractionActive(cameraInteractionActive);
         // At close/detail zoom direct manipulation owns the gesture. Reject
         // controller inertia/orbit updates until the node drag ends so the
         // geographic frame and its place anchors stay visually locked.
@@ -3503,17 +3504,23 @@ export class DeckWorldSurface implements WorldSurface {
           this.#syncClusterLifecycle();
           // The camera is controlled (`viewState` prop): hand deck the new
           // state or the globe snaps back and cannot be rotated or panned.
-          if (this.#zoomNeedsRender()) this.#render(true);
+          // Panning/rotating changes camera-facing opacity continuously. Rebuilding
+          // every semantic layer at each 0.1° facing step stalls one-finger touch
+          // drags on mobile. During an owned camera gesture, keep deck's controlled
+          // view state moving and defer only the facing-dependent rebuild; zoom/LOD
+          // changes may still refresh immediately.
+          if (this.#zoomNeedsRender(!cameraInteractionActive)) this.#render(true);
           else this.#deck.setProps({ viewState: this.#camera });
         }
       },
       onInteractionStateChange: (interactionState: DeckRuntimeInteractionState) => {
         this.#setCameraInteractionActive(deckCameraInteractionActive(interactionState));
-        if (!this.#cameraInteractionActive && this.#pendingSpatialModeSync) {
-          this.#syncSpatialMode();
-        }
-        if (!this.#cameraInteractionActive && this.#pendingClusterLifecycleSync) {
-          this.#syncClusterLifecycle();
+        if (!this.#cameraInteractionActive) {
+          if (this.#pendingSpatialModeSync) this.#syncSpatialMode();
+          if (this.#pendingClusterLifecycleSync) this.#syncClusterLifecycle();
+          // Flush any camera-facing presentation work deferred while the gesture
+          // was active. If cluster synchronization already rendered, this is a
+          // no-op because the render markers were refreshed there.
           if (this.#zoomNeedsRender()) this.#render(true);
         }
       },
@@ -4667,14 +4674,16 @@ export class DeckWorldSurface implements WorldSurface {
     if (this.#zoomNeedsRender()) this.#render();
   }
 
-  #zoomNeedsRender(): boolean {
+  #zoomNeedsRender(includeCameraFacing = true): boolean {
     const budget = worldLabelBudget(this.#camera.zoom);
     const lodChanged =
       budget !== this.#labelBudgetLastRender &&
       Math.min(budget, this.#labelBudgetLastRender) < this.#lodCandidateCountLastRender;
     const screenScaleChanged =
       screenScaleZoomStep(this.#camera.zoom) !== this.#screenScaleZoomLastRender;
-    const cameraFacingChanged = cameraFacingStep(this.#camera) !== this.#cameraFacingStepLastRender;
+    const cameraFacingChanged =
+      includeCameraFacing &&
+      cameraFacingStep(this.#camera) !== this.#cameraFacingStepLastRender;
     const placeLabelVisibilityChanged =
       worldShowsOrdinaryPlaceLabels(this.#camera.zoom) !== this.#placeLabelsVisibleLastRender;
     return (
