@@ -25,6 +25,7 @@ export interface InvestigationReasoningApi {
     evidenceRows: Array<{
       evidenceId: string;
       evidenceType: string;
+      diagnosticity: "differentiating" | "non-differentiating" | "unassessed";
       cells: Array<{
         hypothesisId: string;
         assessment: string;
@@ -51,6 +52,22 @@ export interface InvestigationReasoningApi {
       missingHypothesisIds: string[];
       hasDisconfirmingTest: boolean;
     }>;
+    analyticStandards: {
+      findings: InvestigationFinding[];
+      evidenceDependencies: Array<{
+        hypothesisId: string;
+        supportingEvidenceIds: string[];
+        singleSupportDependency: boolean;
+        qualityConcernEvidenceIds: string[];
+      }>;
+      reviewCoverage: Array<{
+        targetId: string;
+        reviewIds: string[];
+        reviewTypes: string[];
+      }>;
+      certification: null;
+      score: null;
+    };
     validationFindings: InvestigationFinding[];
   };
   validateReasoning(
@@ -564,7 +581,8 @@ export function createInvestigationWorkspace(
           );
           inspect.setAttribute("aria-expanded", String(Boolean(selectedMatrixRecordId)));
         });
-        evidenceCell.append(inspect);
+        evidenceCell.append(inspect, statusBadge(row.diagnosticity));
+        tr.dataset.diagnosticity = row.diagnosticity;
         tr.append(evidenceCell);
         for (const cell of row.cells) {
           const td = createElement("td");
@@ -678,6 +696,63 @@ export function createInvestigationWorkspace(
       }
     }
     root.append(coverage);
+
+    const standards = createElement("section", "investigation-review-group");
+    standards.append(createElement("h3", "", "Analytic standards review"));
+    if (!review.analyticStandards.findings.length) {
+      standards.append(
+        createElement(
+          "p",
+          "investigation-ok",
+          "No standards-review gaps are currently surfaced for the recorded analysis.",
+        ),
+      );
+    } else {
+      for (const finding of review.analyticStandards.findings.slice(0, 30)) {
+        const card = createElement("article", "investigation-review-card");
+        card.dataset.severity = finding.severity;
+        const heading = createElement("div", "investigation-card-heading");
+        heading.append(
+          statusBadge(finding.severity),
+          focusButton(
+            { kind: "reasoning", id: finding.recordId },
+            finding.recordId || finding.code,
+            onFocus,
+          ),
+        );
+        card.append(heading, createElement("p", "", finding.message));
+        standards.append(card);
+      }
+    }
+
+    const fragile = review.analyticStandards.evidenceDependencies.filter(
+      (entry) => entry.singleSupportDependency || entry.qualityConcernEvidenceIds.length > 0,
+    );
+    if (fragile.length) {
+      standards.append(createElement("h4", "", "Evidence dependencies"));
+      for (const entry of fragile) {
+        const card = createElement("article", "investigation-review-card");
+        card.append(
+          focusButton(
+            { kind: "reasoning", id: entry.hypothesisId },
+            entry.hypothesisId,
+            onFocus,
+          ),
+        );
+        const details: string[] = [];
+        if (entry.singleSupportDependency) {
+          details.push(`single explicit support: ${entry.supportingEvidenceIds.join(", ") || "none"}`);
+        }
+        if (entry.qualityConcernEvidenceIds.length) {
+          details.push(
+            `support with unresolved quality concerns: ${entry.qualityConcernEvidenceIds.join(", ")}`,
+          );
+        }
+        card.append(createElement("p", "investigation-card-meta", details.join(" · ")));
+        standards.append(card);
+      }
+    }
+    root.append(standards);
 
     const errors = review.validationFindings.filter(
       (finding) => finding.severity === "error",
