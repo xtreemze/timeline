@@ -628,6 +628,46 @@ test("world surface publishes camera interaction ownership without treating zoom
   assert.deepEqual(states, [false, true, false]);
 });
 
+test("active globe pan defers camera-facing layer rebuilds until interaction settles", () => {
+  const { calls, runtime } = harness();
+  const surface = new DeckWorldSurface(
+    {},
+    runtime,
+    { longitude: 18.0686, latitude: 59.3293, zoom: 8, bearing: 0, pitch: 20 },
+  );
+  surface.setProjection(projection());
+
+  const layerRenderCount = () => calls.setProps.filter((props) => Array.isArray(props.layers)).length;
+  const beforePan = layerRenderCount();
+
+  calls.deckProps.onViewStateChange({
+    viewState: { longitude: 18.2686, latitude: 59.3293, zoom: 8, bearing: 0, pitch: 20 },
+    interactionState: { isPanning: true },
+  });
+
+  assert.equal(
+    layerRenderCount(),
+    beforePan,
+    "camera-facing quantization must not rebuild semantic layers during a one-finger pan",
+  );
+  assert.equal(
+    calls.setProps.at(-1).viewState.longitude,
+    18.2686,
+    "the controlled deck camera must still advance every pan update",
+  );
+
+  calls.deckProps.onInteractionStateChange({
+    isPanning: false,
+    inTransition: false,
+  });
+
+  assert.equal(
+    layerRenderCount(),
+    beforePan + 1,
+    "the deferred camera-facing presentation refreshes once when the gesture settles",
+  );
+});
+
 test("deck controller uses timeline-weighted inertia and smooth pointer-anchored zoom", () => {
   const { calls, runtime } = harness();
   new DeckWorldSurface({}, runtime);
