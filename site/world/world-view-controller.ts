@@ -75,8 +75,10 @@ export interface WorldViewRuntimeState {
   readonly settlingDrag: boolean;
 }
 
-/** Minimum simulated time between layout pushes to the surface. */
+/** Minimum simulated time between passive layout pushes to the surface. */
 export const WORLD_LAYOUT_PUSH_INTERVAL_MS = 50;
+/** Cap CPU readback/layer rebuilds during direct manipulation at roughly 60 Hz. */
+export const WORLD_DRAG_LAYOUT_PUSH_INTERVAL_MS = 16;
 
 export class WorldViewRuntimeController {
   readonly #surface: WorldSurface;
@@ -316,16 +318,16 @@ export class WorldViewRuntimeController {
     this.#gpuLayoutBridge?.syncFrame();
 
     const diagnostics = this.#forceBackend.getDiagnostics();
-    // Physics steps every frame, but pushing a new layout to the surface
-    // rebuilds and redraws every layer; throttle that while the layout is
-    // only drifting (drags still update every frame, the settled layout is
-    // always pushed).
+    // Physics steps every frame, but CPU readback followed by layer rebuilding
+    // is substantially more expensive. Passive settling stays at the existing
+    // 20 Hz cadence; direct manipulation is capped near 60 Hz so 90/120 Hz
+    // displays do not multiply main-thread work without adding visible frames.
     this.#sinceLayoutPush += Number.isFinite(deltaMs) && deltaMs > 0 ? deltaMs : 0;
-    if (
-      diagnostics.settled ||
-      this.#drag.state().active ||
-      this.#sinceLayoutPush >= WORLD_LAYOUT_PUSH_INTERVAL_MS
-    ) {
+    const dragActive = this.#drag.state().active;
+    const pushIntervalMs = dragActive
+      ? WORLD_DRAG_LAYOUT_PUSH_INTERVAL_MS
+      : WORLD_LAYOUT_PUSH_INTERVAL_MS;
+    if (diagnostics.settled || this.#sinceLayoutPush >= pushIntervalMs) {
       this.#pushLayout();
     }
 

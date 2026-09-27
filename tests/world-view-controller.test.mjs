@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { WorldViewRuntimeController } from "../site/world/world-view-controller.ts";
+import {
+  WORLD_DRAG_LAYOUT_PUSH_INTERVAL_MS,
+  WorldViewRuntimeController,
+} from "../site/world/world-view-controller.ts";
 import { resolveWorldRenderPosition } from "../src/layout/world-geographic-position.ts";
 import {
   createProjectedWorldEdge,
@@ -74,6 +77,7 @@ function harness({
   const calls = [];
   const diagnostics = { running: false, settled, energy: 0, iteration: 0 };
   let pin = null;
+  let readbackReads = 0;
 
   const surface = {
     setProjection(value) {
@@ -155,6 +159,7 @@ function harness({
   if (readback) {
     options.layoutReadback = {
       read() {
+        readbackReads += 1;
         if (emptyReadback) return [];
         const id = worldInstanceId("alice", "meeting");
         return [
@@ -186,6 +191,7 @@ function harness({
     controller: new WorldViewRuntimeController(options),
     diagnostics,
     getPin: () => pin,
+    getReadbackReads: () => readbackReads,
   };
 }
 
@@ -354,6 +360,43 @@ test("empty sparse CPU readback skips projection rebuild and renderer invalidati
     afterStepCalls.map(([name]) => name),
     ["force:step"],
   );
+});
+
+test("direct drag CPU readback is capped near 60 Hz on high-refresh frame steps", () => {
+  assert.equal(WORLD_DRAG_LAYOUT_PUSH_INTERVAL_MS, 16);
+  const { controller, getReadbackReads } = harness({ readback: true, delta: true });
+  const input = projection();
+  const alice = input.instances.find((instance) => instance.canonicalId === "alice");
+  controller.setProjection(input);
+  // Consume the initial eager layout push so the assertions below measure
+  // steady-state high-refresh drag cadence rather than first-frame startup.
+  controller.step(50);
+
+  assert.equal(
+    controller.beginNodeDrag(7, alice.id, {
+      eastMeters: 10,
+      northMeters: 20,
+      visualAltitudeMeters: 1200,
+    }),
+    true,
+  );
+
+  const before = getReadbackReads();
+  controller.step(8);
+  assert.equal(
+    getReadbackReads(),
+    before,
+    "the first 120 Hz half-frame advances physics without rebuilding world layers",
+  );
+
+  controller.step(8);
+  assert.equal(
+    getReadbackReads(),
+    before + 1,
+    "two 8 ms steps coalesce into one CPU layout push near the 60 Hz display cadence",
+  );
+
+  controller.releaseNodeDrag(7);
 });
 
 test("world drag lifecycle is coordinated with force pin and post-drop settling", () => {

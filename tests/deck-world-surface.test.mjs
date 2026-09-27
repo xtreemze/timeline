@@ -668,6 +668,97 @@ test("active globe pan defers camera-facing layer rebuilds until interaction set
   );
 });
 
+test("active pinch defers zoom-derived semantic layer rebuilds until interaction settles", () => {
+  const { calls, runtime } = harness();
+  const surface = new DeckWorldSurface(
+    {},
+    runtime,
+    { longitude: 18.0686, latitude: 59.3293, zoom: 8, bearing: 0, pitch: 20 },
+  );
+  surface.setProjection(projection());
+
+  const layerRenderCount = () => calls.setProps.filter((props) => Array.isArray(props.layers)).length;
+  const beforeZoom = layerRenderCount();
+
+  calls.deckProps.onViewStateChange({
+    viewState: { longitude: 18.0686, latitude: 59.3293, zoom: 8.75, bearing: 0, pitch: 20 },
+    interactionState: { isZooming: true },
+  });
+
+  assert.equal(
+    layerRenderCount(),
+    beforeZoom,
+    "screen scale, local offsets, altitude, and LOD must not rebuild semantic layers mid-pinch",
+  );
+  assert.equal(
+    calls.setProps.at(-1).viewState.zoom,
+    8.75,
+    "controlled deck viewState still tracks every live zoom update",
+  );
+
+  calls.deckProps.onInteractionStateChange({
+    isZooming: false,
+    inTransition: false,
+  });
+
+  assert.equal(
+    layerRenderCount(),
+    beforeZoom + 1,
+    "deferred zoom presentation reconciles once when the pinch settles",
+  );
+});
+
+test("hover semantic rebuilds coalesce to one animation frame", () => {
+  let nextFrameId = 1;
+  const frames = new Map();
+  const view = {
+    requestAnimationFrame(callback) {
+      const id = nextFrameId++;
+      frames.set(id, callback);
+      return id;
+    },
+    cancelAnimationFrame(id) {
+      frames.delete(id);
+    },
+  };
+  const container = { ownerDocument: { defaultView: view }, style: {} };
+  const { calls, runtime } = harness();
+  const surface = new DeckWorldSurface(
+    container,
+    runtime,
+    { longitude: 18.0686, latitude: 59.3293, zoom: 5, bearing: 0, pitch: 20 },
+  );
+  surface.setProjection(projection());
+
+  const layerRenderCount = () => calls.setProps.filter((props) => Array.isArray(props.layers)).length;
+  const beforeHover = layerRenderCount();
+  calls.deckProps.onHover({
+    object: {
+      kind: "entity",
+      entityId: "alice",
+      worldInstanceId: worldInstanceId("alice", "meeting"),
+    },
+  });
+  calls.deckProps.onHover({
+    object: {
+      kind: "entity",
+      entityId: "bob",
+      worldInstanceId: worldInstanceId("bob", "meeting"),
+    },
+  });
+
+  assert.equal(layerRenderCount(), beforeHover, "hover changes queue rather than rebuilding immediately");
+  assert.equal(frames.size, 1, "multiple hover changes in one display frame share one rebuild");
+
+  const [[frameId, frame]] = frames;
+  frames.delete(frameId);
+  frame(16);
+
+  assert.equal(layerRenderCount(), beforeHover + 1);
+  assert.equal(frames.size, 0);
+  surface.destroy();
+});
+
 test("deck controller uses timeline-weighted inertia and smooth pointer-anchored zoom", () => {
   const { calls, runtime } = harness();
   new DeckWorldSurface({}, runtime);

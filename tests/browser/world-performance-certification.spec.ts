@@ -343,12 +343,28 @@ test.describe("world performance certification (issue #445 Priority 7)", () => {
         scaleReport.sustainedFrame.p95Ms,
         `p95 frame time at ${scaleReport.label} should stay under the sanity ceiling`,
       ).toBeLessThan(bound.maxSustainedFrameP95Ms);
+      if (
+        scaleReport.incrementalUpdate &&
+        bound.maxSingleNodeSyncP95Ms !== undefined
+      ) {
+        expect(
+          scaleReport.incrementalUpdate.sustainedSingleNodeSync.p95Ms,
+          `single-node drag/update p95 at ${scaleReport.label} should stay under the interaction ceiling`,
+        ).toBeLessThan(bound.maxSingleNodeSyncP95Ms);
+      }
     }
   });
 });
 
 function loadBaseline(): {
-  scales: Record<string, { maxFirstUsableFrameMs: number; maxSustainedFrameP95Ms: number }>;
+  scales: Record<
+    string,
+    {
+      maxFirstUsableFrameMs: number;
+      maxSustainedFrameP95Ms: number;
+      maxSingleNodeSyncP95Ms?: number;
+    }
+  >;
 } {
   try {
     return JSON.parse(readFileSync(BASELINE_PATH, "utf-8"));
