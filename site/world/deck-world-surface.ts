@@ -2148,7 +2148,7 @@ function placeWorldLabelDatums(
   zoom: number,
   markerRadiusPx: (datum: DeckWorldLabelDatum) => number,
   relationships: readonly DeckWorldRelationshipDatum[] = Object.freeze([]),
-  requiredLabelKeys: ReadonlySet<string> = new Set(),
+  requiredLabelKeys: ReadonlySet<string> = new Set<string>(),
 ): readonly DeckWorldLabelDatum[] {
   if (datums.length === 0) return Object.freeze([]);
   const tierZoom = worldLabelTierFloor(zoom);
@@ -2348,23 +2348,31 @@ function placeWorldLabelDatums(
         bottom: centerY + footprint.height / 2 + LABEL_PLACEMENT_PADDING_PX,
       };
       const keys = cells(box);
-      const labelConflictCount = keys.reduce(
-        (count, key) =>
-          count + (grid.get(key)?.filter((other) => overlaps(box, other)).length ?? 0),
-        0,
+      const labelBlocked = keys.some((key) =>
+        grid.get(key)?.some((other) => overlaps(box, other)),
       );
-      const edgeConflictCount = keys.reduce(
-        (count, key) =>
-          count +
-          (edgeGrid.get(key)?.filter((segment) => edgeIntersectsBox(segment, box)).length ?? 0),
-        0,
+      const edgeBlocked = keys.some((key) =>
+        edgeGrid.get(key)?.some((segment) => edgeIntersectsBox(segment, box)),
       );
-      if (labelConflictCount === 0 && edgeConflictCount === 0) {
+      if (!labelBlocked && !edgeBlocked) {
         chosen = offset;
         chosenBox = box;
         break;
       }
       if (required) {
+        // Keep the common path at the original short-circuit cost. Only
+        // required selected-node edge labels pay for a scored fallback.
+        const labelConflictCount = keys.reduce(
+          (count, key) =>
+            count + (grid.get(key)?.filter((other) => overlaps(box, other)).length ?? 0),
+          0,
+        );
+        const edgeConflictCount = keys.reduce(
+          (count, key) =>
+            count +
+            (edgeGrid.get(key)?.filter((segment) => edgeIntersectsBox(segment, box)).length ?? 0),
+          0,
+        );
         // Required interaction labels must remain readable even in a saturated
         // local graph. Prefer the least-conflicted deterministic slot after
         // exhausting increasingly distant collision-free rings.
@@ -2649,8 +2657,10 @@ function labelDatums(input: {
     byKey.set(datum.key, datum);
   };
 
-  // Interaction overlays are appended after the stable base pass. They may
-  // occupy only genuinely free label/edge space and never displace base labels.
+  // Interaction overlays are appended after the stable base pass and never
+  // displace established labels. Selected-node incident edge labels are the
+  // readability exception: after wider free-space rings are exhausted they
+  // may use the least-conflicted fallback rather than disappear.
   for (const cluster of input.clusters) {
     if (!clusterInteracted(cluster)) continue;
     const key = `cluster:${cluster.clusterId}`;
