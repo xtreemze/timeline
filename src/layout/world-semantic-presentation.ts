@@ -410,30 +410,20 @@ export function declutterWorldLabels<T>(
 
 /**
  * Semantic-zoom magnification of local layout offsets. Local graphs are laid
- * out in metres around a place, which is sub-pixel at city or country zoom;
- * magnifying offsets so a place's typical local radius stays readable while
- * the stored offsets stay untouched. At detail zoom, the floating topology
- * intentionally grows in screen space instead of treating zoom as globe-only:
- * geography remains anchored while the graph gains room for direct
- * manipulation. Never shrinks (scale >= 1), and is quantised to quarter
- * octaves so positions only rebuild on meaningful zoom changes. Dense scenes
- * (already clustered) keep 1.
+ * out in metres around a place, which can become sub-pixel at regional zoom.
+ * Magnification may compensate for camera scale so the stored offsets stay
+ * untouched, but zoom itself must not ask the graph to occupy progressively
+ * more screen space: that looked like a second layout running during camera
+ * navigation. Sugiyama/D3 own graph spacing; the camera owns zoom.
  */
 export const WORLD_LOCAL_GRAPH_RADIUS_PX = 320;
-export const WORLD_FLOATING_GRAPH_DETAIL_ZOOM = 7;
-export const WORLD_FLOATING_GRAPH_MAX_EXPANSION = 2;
-const WORLD_FLOATING_GRAPH_DETAIL_GROWTH_PER_ZOOM = 0.25;
 const WORLD_METERS_PER_PIXEL_AT_ZOOM_0 = 40_075_016.686 / 512;
 
 export function worldFloatingGraphRadiusPx(zoom: number): number {
-  if (!Number.isFinite(zoom) || zoom <= WORLD_FLOATING_GRAPH_DETAIL_ZOOM) {
-    return WORLD_LOCAL_GRAPH_RADIUS_PX;
-  }
-  const expansion = Math.min(
-    WORLD_FLOATING_GRAPH_MAX_EXPANSION,
-    2 ** ((zoom - WORLD_FLOATING_GRAPH_DETAIL_ZOOM) * WORLD_FLOATING_GRAPH_DETAIL_GROWTH_PER_ZOOM),
-  );
-  return WORLD_LOCAL_GRAPH_RADIUS_PX * expansion;
+  // Keep the parameter in the renderer-neutral contract: callers still use
+  // this function at arbitrary zooms, but the readability radius is invariant.
+  if (!Number.isFinite(zoom)) return WORLD_LOCAL_GRAPH_RADIUS_PX;
+  return WORLD_LOCAL_GRAPH_RADIUS_PX;
 }
 
 export function worldPresentationOffsetScale(

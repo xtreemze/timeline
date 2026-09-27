@@ -179,7 +179,7 @@ test("place-marker aggregation requires three distinct places, not merely three 
   );
 });
 
-test("cluster lifecycle is discrete, force-resolved, and cleans clustered topology", async () => {
+test("cluster lifecycle is discrete and defers topology changes while camera navigation owns the frame", async () => {
   const source = await readFile(
     new URL("../site/world/deck-world-surface.ts", import.meta.url),
     "utf8",
@@ -192,6 +192,10 @@ test("cluster lifecycle is discrete, force-resolved, and cleans clustered topolo
 
   assert.match(source, /#clusterPhase = "releasing"/);
   assert.match(source, /releasingRelationships/);
+  assert.match(
+    source,
+    /if \(this\.#cameraInteractionActive\) \{[\s\S]*?#pendingClusterLifecycleSync = true;[\s\S]*?return;/,
+  );
   assert.match(source, /WORLD_CLUSTER_EDGE_RELEASE_MS/);
   assert.match(source, /#clusterPhase = "collapsing"/);
   assert.match(

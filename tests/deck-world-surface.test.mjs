@@ -598,6 +598,31 @@ test("DeckWorldSurface constructs one globe view and controlled deck runtime", (
   });
 });
 
+test("world surface publishes camera interaction ownership without treating zoom as graph layout", () => {
+  const { calls, runtime } = harness();
+  const surface = new DeckWorldSurface({}, runtime, {
+    longitude: 18.0686,
+    latitude: 59.3293,
+    zoom: 8,
+    bearing: 0,
+    pitch: 20,
+  });
+  const states = [];
+  surface.setCameraInteractionSink({
+    setCameraInteractionActive(active) {
+      states.push(active);
+    },
+  });
+
+  calls.deckProps.onViewStateChange({
+    viewState: { longitude: 18.0686, latitude: 59.3293, zoom: 8.5, bearing: 0, pitch: 20 },
+    interactionState: { isZooming: true },
+  });
+  calls.deckProps.onInteractionStateChange({ isZooming: false });
+
+  assert.deepEqual(states, [false, true, false]);
+});
+
 test("deck controller uses timeline-weighted inertia and smooth pointer-anchored zoom", () => {
   const { calls, runtime } = harness();
   new DeckWorldSurface({}, runtime);

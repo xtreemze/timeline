@@ -515,6 +515,31 @@ test("manual DAG reorganization rebuilds targets and routes while retaining geog
   assert.ok(applyCall[1].excitation > 0);
 });
 
+test("camera navigation suspends force motion and resumes the pending layout afterward", () => {
+  const { calls, controller } = harness();
+  controller.setProjection(projection());
+
+  calls.length = 0;
+  assert.equal(controller.setCameraInteractionActive(true), true);
+  assert.deepEqual(calls, [["force:stop"]]);
+  assert.equal(controller.state().simulationRunning, false);
+  assert.equal(controller.state().simulationSettled, true);
+
+  controller.step(16);
+  assert.equal(
+    calls.some(([name]) => name === "force:step"),
+    false,
+    "camera-owned frames must not advance graph physics",
+  );
+
+  calls.length = 0;
+  assert.equal(controller.setCameraInteractionActive(false), true);
+  const resumed = calls.find(([name]) => name === "force:apply");
+  assert.ok(resumed);
+  assert.equal(resumed[1].reason, "projection-update");
+  assert.equal(controller.state().simulationRunning, true);
+});
+
 test("manual force relaxation reheats the existing scene without rebuilding geographic ownership", () => {
   const { calls, controller } = harness();
   controller.setProjection(projection());

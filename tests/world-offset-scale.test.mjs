@@ -11,7 +11,6 @@ import {
   WORLD_ENTITY_FLOAT_DETAIL_ZOOM,
   WORLD_ENTITY_FLOAT_MIN_PX,
   WORLD_ENTITY_FLOAT_PX,
-  WORLD_FLOATING_GRAPH_MAX_EXPANSION,
   WORLD_LOCAL_GRAPH_RADIUS_PX,
   WORLD_PLACE_CLUSTER_RADIUS_PX,
   worldEntityFloatPx,
@@ -40,7 +39,7 @@ test("magnified render positions invert back to the stored offset (drag stays ho
   }
 });
 
-test("offset scale keeps overview topology readable and expands it at detail zoom", () => {
+test("offset scale keeps the local graph at one stable screen-space radius while zooming", () => {
   const typical = 500;
   const radii = [];
   for (const zoom of [6, 8, 10]) {
@@ -51,17 +50,13 @@ test("offset scale keeps overview topology readable and expands it at detail zoo
     radii.push(radiusPx);
     assert.ok(
       Math.abs(radiusPx - targetPx) <= 1e-9,
-      "continuous scaling lands exactly on the semantic screen-space target",
+      "semantic compensation lands exactly on the stable screen-space target",
     );
   }
 
-  assert.ok(radii[1] > radii[0], "detail zoom gives floating nodes more screen-space room");
-  assert.ok(radii[2] > radii[1], "floating topology continues to expand at higher detail");
-  assert.equal(
-    worldFloatingGraphRadiusPx(20),
-    WORLD_LOCAL_GRAPH_RADIUS_PX * WORLD_FLOATING_GRAPH_MAX_EXPANSION,
-    "detail expansion is bounded",
-  );
+  assert.ok(Math.abs(radii[1] - radii[0]) <= 1e-9);
+  assert.ok(Math.abs(radii[2] - radii[1]) <= 1e-9);
+  assert.equal(worldFloatingGraphRadiusPx(20), WORLD_LOCAL_GRAPH_RADIUS_PX);
 });
 
 test("entity altitude separation tapers continuously as detail zoom increases", () => {

@@ -96,6 +96,7 @@ export class WorldViewRuntimeController {
   #projectionRevision = 0;
   #dagOrientation: WorldDagLayoutOrientation = "top-to-bottom";
   #sinceLayoutPush = Number.POSITIVE_INFINITY;
+  #cameraInteractionActive = false;
   #destroyed = false;
 
   constructor(options: WorldViewRuntimeOptions) {
@@ -268,6 +269,21 @@ export class WorldViewRuntimeController {
     return true;
   }
 
+  /**
+   * Camera navigation owns visual motion while a pan/zoom/rotate/inertia
+   * gesture is active. Suspend force stepping so graph physics cannot appear
+   * to re-layout underneath the user's camera gesture; pending layout work
+   * resumes from the same force state when navigation settles.
+   */
+  setCameraInteractionActive(active: boolean): boolean {
+    this.#assertAlive();
+    if (this.#cameraInteractionActive === active) return false;
+    this.#cameraInteractionActive = active;
+    if (active) this.#simulation.suspend("camera-navigation");
+    else this.#simulation.resume("camera-navigation");
+    return true;
+  }
+
   beginNodeDrag(
     pointerId: number,
     instanceId: WorldInstanceId,
@@ -294,6 +310,8 @@ export class WorldViewRuntimeController {
 
   step(deltaMs: number): WorldViewRuntimeState {
     this.#assertAlive();
+
+    if (this.#cameraInteractionActive) return this.state();
 
     this.#forceBackend.step?.(deltaMs);
 
@@ -412,8 +430,8 @@ export class WorldViewRuntimeController {
     return Object.freeze({
       projectionRevision: this.#projectionRevision,
       hasProjection: this.#sourceProjection !== null,
-      simulationRunning: diagnostics.running,
-      simulationSettled: diagnostics.settled,
+      simulationRunning: !this.#cameraInteractionActive && diagnostics.running,
+      simulationSettled: this.#cameraInteractionActive || diagnostics.settled,
       dragging: drag.active,
       settlingDrag: drag.settling,
     });

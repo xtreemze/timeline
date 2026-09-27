@@ -167,6 +167,10 @@ interface DoubleClickEvent {
   readonly offsetY?: unknown;
 }
 
+export interface DeckWorldCameraInteractionSink {
+  setCameraInteractionActive(active: boolean): void;
+}
+
 export interface DeckWorldClusterForceSink {
   setClusteredPlaceIds(
     placeIds: readonly PlaceId[],
@@ -3075,7 +3079,9 @@ export class DeckWorldSurface implements WorldSurface {
   #floatMeters = 0;
   #spatialMode: WorldSpatialMode = "globe";
   #cameraInteractionActive = false;
+  #cameraInteractionSink: DeckWorldCameraInteractionSink | null = null;
   #pendingSpatialModeSync = false;
+  #pendingClusterLifecycleSync = false;
   #nodeDragSink: DeckWorldNodeDragSink | null = null;
   #clusterForceSink: DeckWorldClusterForceSink | null = null;
   #clusterPhase: WorldClusterLifecyclePhase = "expanded";
@@ -3479,7 +3485,7 @@ export class DeckWorldSurface implements WorldSurface {
         readonly viewState: DeckRuntimeViewState;
         readonly interactionState?: DeckRuntimeInteractionState;
       }) => {
-        this.#cameraInteractionActive = deckCameraInteractionActive(interactionState);
+        this.#setCameraInteractionActive(deckCameraInteractionActive(interactionState));
         // At close/detail zoom direct manipulation owns the gesture. Reject
         // controller inertia/orbit updates until the node drag ends so the
         // geographic frame and its place anchors stay visually locked.
@@ -3506,9 +3512,13 @@ export class DeckWorldSurface implements WorldSurface {
         }
       },
       onInteractionStateChange: (interactionState: DeckRuntimeInteractionState) => {
-        this.#cameraInteractionActive = deckCameraInteractionActive(interactionState);
+        this.#setCameraInteractionActive(deckCameraInteractionActive(interactionState));
         if (!this.#cameraInteractionActive && this.#pendingSpatialModeSync) {
           this.#syncSpatialMode();
+        }
+        if (!this.#cameraInteractionActive && this.#pendingClusterLifecycleSync) {
+          this.#syncClusterLifecycle();
+          if (this.#zoomNeedsRender()) this.#render(true);
         }
       },
     });
@@ -3763,6 +3773,18 @@ export class DeckWorldSurface implements WorldSurface {
     return region;
   }
 
+  setCameraInteractionSink(sink: DeckWorldCameraInteractionSink | null): void {
+    this.#assertAlive();
+    this.#cameraInteractionSink = sink;
+    sink?.setCameraInteractionActive(this.#cameraInteractionActive);
+  }
+
+  #setCameraInteractionActive(active: boolean): void {
+    if (this.#cameraInteractionActive === active) return;
+    this.#cameraInteractionActive = active;
+    this.#cameraInteractionSink?.setCameraInteractionActive(active);
+  }
+
   setClusterForceSink(sink: DeckWorldClusterForceSink | null): void {
     this.#assertAlive();
     this.#clusterForceSink = sink;
@@ -3906,6 +3928,12 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   #syncClusterLifecycle(): void {
+    if (this.#cameraInteractionActive) {
+      this.#pendingClusterLifecycleSync = true;
+      return;
+    }
+    this.#pendingClusterLifecycleSync = false;
+
     // Explicit drill-in persists through local pan/zoom, but returning to the
     // overview tier restores normal semantic clustering.
     if (
