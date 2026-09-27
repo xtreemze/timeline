@@ -150,11 +150,41 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v5
 
+  deployed-world:
+    needs: deploy
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Certify deployed WorldSurface
+        env:
+          LUM_DEPLOYED_URL: ${{ needs.deploy.outputs.page_url }}
+        run: pnpm exec playwright test --config=playwright.deployed.config.ts
+
   lighthouse:
     needs: deploy
     continue-on-error: true
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
       - name: Set up pnpm
         uses: pnpm/action-setup@v6
 

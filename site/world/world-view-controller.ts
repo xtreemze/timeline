@@ -270,17 +270,15 @@ export class WorldViewRuntimeController {
   }
 
   /**
-   * Camera navigation owns visual motion while a pan/zoom/rotate/inertia
-   * gesture is active. Suspend force stepping so graph physics cannot appear
-   * to re-layout underneath the user's camera gesture; pending layout work
-   * resumes from the same force state when navigation settles.
+   * Camera navigation is presentation state only. The surface uses this signal
+   * to defer camera-dependent mode/cluster changes, but world physics and
+   * layout readback must keep advancing so camera gestures cannot strand the
+   * rendered graph in a suspended state.
    */
   setCameraInteractionActive(active: boolean): boolean {
     this.#assertAlive();
     if (this.#cameraInteractionActive === active) return false;
     this.#cameraInteractionActive = active;
-    if (active) this.#simulation.suspend("camera-navigation");
-    else this.#simulation.resume("camera-navigation");
     return true;
   }
 
@@ -310,8 +308,6 @@ export class WorldViewRuntimeController {
 
   step(deltaMs: number): WorldViewRuntimeState {
     this.#assertAlive();
-
-    if (this.#cameraInteractionActive) return this.state();
 
     this.#forceBackend.step?.(deltaMs);
 
@@ -430,8 +426,8 @@ export class WorldViewRuntimeController {
     return Object.freeze({
       projectionRevision: this.#projectionRevision,
       hasProjection: this.#sourceProjection !== null,
-      simulationRunning: !this.#cameraInteractionActive && diagnostics.running,
-      simulationSettled: this.#cameraInteractionActive || diagnostics.settled,
+      simulationRunning: diagnostics.running,
+      simulationSettled: diagnostics.settled,
       dragging: drag.active,
       settlingDrag: drag.settling,
     });
