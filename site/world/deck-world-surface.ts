@@ -60,11 +60,11 @@ import {
   worldLabelBudget,
   worldLabelTierFloor,
   worldLocalRadiusPx,
-  worldShowsOrdinaryPlaceLabels,
   worldNodeClearanceDegreesForRadius,
   worldPixelsToDegrees,
   worldPlaceClusterRadiusPx,
   worldPresentationOffsetScale,
+  worldShowsOrdinaryPlaceLabels,
 } from "../../src/layout/world-semantic-presentation.ts";
 import {
   selectWorldSpatialMode,
