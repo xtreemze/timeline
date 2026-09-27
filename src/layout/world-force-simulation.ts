@@ -19,6 +19,8 @@ export interface WorldForceNode {
   readonly collisionRadiusMeters: number;
   readonly initialEastMeters: number;
   readonly initialNorthMeters: number;
+  /** Optional continuity seed distinct from the projection's target altitude. */
+  readonly initialVisualAltitudeMeters?: number;
   /** Optional local Sugiyama target; force backends must approach it without snapping. */
   readonly layoutTargetEastMeters?: number;
   readonly layoutTargetNorthMeters?: number;
