@@ -58,6 +58,28 @@ test("D3 collision and rejection reserve the full visible force-node footprint",
   );
 });
 
+test("same-place D3 rejection is not truncated by a fixed kilometre cutoff", () => {
+  const simulation = new D3WorldForceSimulation();
+  const left = '["wide-left",null]';
+  const right = '["wide-right",null]';
+  simulation.setScene({
+    nodes: [node(left, -4_500, 180), node(right, 4_500, 180)],
+    edges: [],
+    anchors: [anchor(left, "stockholm", 0), anchor(right, "stockholm", 0)],
+  });
+
+  const before = distance(simulation.getSnapshot(), left, right);
+  assert.ok(before > 7_200);
+  simulation.apply(topologyRequest());
+  for (let index = 0; index < 180; index += 1) simulation.step(1000 / 60);
+  const after = distance(simulation.getSnapshot(), left, right);
+
+  assert.ok(
+    after > before,
+    `nodes ${before.toFixed(1)}m apart should still repel; settled at ${after.toFixed(1)}m`,
+  );
+});
+
 test("cluster lifecycle detaches links, gathers with D3, then scatters from the gathered state", () => {
   const simulation = new D3WorldForceSimulation();
   const alice = '["alice",null]';
