@@ -2148,6 +2148,7 @@ function placeWorldLabelDatums(
   zoom: number,
   markerRadiusPx: (datum: DeckWorldLabelDatum) => number,
   relationships: readonly DeckWorldRelationshipDatum[] = Object.freeze([]),
+  requiredLabelKeys: ReadonlySet<string> = new Set<string>(),
 ): readonly DeckWorldLabelDatum[] {
   if (datums.length === 0) return Object.freeze([]);
   const tierZoom = worldLabelTierFloor(zoom);
@@ -2316,17 +2317,26 @@ function placeWorldLabelDatums(
       footprint.height,
       markerRadiusPx(datum),
     );
-    const candidates = Object.freeze([
-      ...baseCandidates,
-      ...baseCandidates.map(
-        ([x, y]) => Object.freeze([x * 1.75, y * 1.75]) as readonly [number, number],
+    const required = requiredLabelKeys.has(datum.key);
+    const offsetScales = required
+      ? Object.freeze([1, 1.75, 2.5, 3.5, 5, 7])
+      : Object.freeze([1, 1.75, 2.5]);
+    const candidates = Object.freeze(
+      offsetScales.flatMap((factor) =>
+        baseCandidates.map(
+          ([x, y]) => Object.freeze([x * factor, y * factor]) as readonly [number, number],
+        ),
       ),
-      ...baseCandidates.map(
-        ([x, y]) => Object.freeze([x * 2.5, y * 2.5]) as readonly [number, number],
-      ),
-    ]);
+    );
     let chosen: readonly [number, number] | null = null;
     let chosenBox: Box | null = null;
+    let fallback:
+      | {
+          readonly offset: readonly [number, number];
+          readonly box: Box;
+          readonly conflictScore: number;
+        }
+      | null = null;
 
     for (const offset of candidates) {
       const centerX = anchorX + offset[0];
@@ -2349,8 +2359,34 @@ function placeWorldLabelDatums(
         chosenBox = box;
         break;
       }
+      if (required) {
+        // Keep the common path at the original short-circuit cost. Only
+        // required selected-node edge labels pay for a scored fallback.
+        const labelConflictCount = keys.reduce(
+          (count, key) =>
+            count + (grid.get(key)?.filter((other) => overlaps(box, other)).length ?? 0),
+          0,
+        );
+        const edgeConflictCount = keys.reduce(
+          (count, key) =>
+            count +
+            (edgeGrid.get(key)?.filter((segment) => edgeIntersectsBox(segment, box)).length ?? 0),
+          0,
+        );
+        // Required interaction labels must remain readable even in a saturated
+        // local graph. Prefer the least-conflicted deterministic slot after
+        // exhausting increasingly distant collision-free rings.
+        const conflictScore = labelConflictCount * 100 + edgeConflictCount;
+        if (!fallback || conflictScore < fallback.conflictScore) {
+          fallback = { offset, box, conflictScore };
+        }
+      }
     }
 
+    if ((!chosen || !chosenBox) && required && fallback) {
+      chosen = fallback.offset;
+      chosenBox = fallback.box;
+    }
     if (!chosen || !chosenBox) continue;
 
     const placedDatum = withLabelPixelOffset(datum, chosen);
@@ -2621,8 +2657,10 @@ function labelDatums(input: {
     byKey.set(datum.key, datum);
   };
 
-  // Interaction overlays are appended after the stable base pass. They may
-  // occupy only genuinely free label/edge space and never displace base labels.
+  // Interaction overlays are appended after the stable base pass and never
+  // displace established labels. Selected-node incident edge labels are the
+  // readability exception: after wider free-space rings are exhausted they
+  // may use the least-conflicted fallback rather than disappear.
   for (const cluster of input.clusters) {
     if (!clusterInteracted(cluster)) continue;
     const key = `cluster:${cluster.clusterId}`;
@@ -2715,7 +2753,20 @@ function labelDatums(input: {
     }
   }
 
+  const requiredRelationshipLabelKeys = new Set<string>();
   const interactionRelationshipIds = new Set<RelationshipId>(input.contextRelationshipIds);
+  if (input.selection?.kind === "entity") {
+    for (const relationship of input.relationships) {
+      if (
+        relationship.sourceEntityId !== input.selection.id &&
+        relationship.targetEntityId !== input.selection.id
+      ) {
+        continue;
+      }
+      interactionRelationshipIds.add(relationship.relationshipId);
+      requiredRelationshipLabelKeys.add(`relationship:${relationship.relationshipId}`);
+    }
+  }
   if (input.selection?.kind === "relationship") interactionRelationshipIds.add(input.selection.id);
   if (input.hoverSelection?.kind === "relationship") {
     interactionRelationshipIds.add(input.hoverSelection.id);
@@ -2758,6 +2809,7 @@ function labelDatums(input: {
           input.zoom,
           (datum) => markerRadiusByKey.get(datum.key) ?? 0,
           input.relationships,
+          requiredRelationshipLabelKeys,
         );
   const finalByKey = new Map(datums.map((datum) => [datum.key, datum] as const));
   for (const key of [...byKey.keys()]) {

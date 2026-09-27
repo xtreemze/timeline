@@ -1628,6 +1628,77 @@ function chainProjection(count) {
   return createWorldProjection({ instances, edges });
 }
 
+function crowdedIncidentProjection(count = 20) {
+  const source = instance(0, { visualWeight: 1 });
+  const target = instance(1);
+  const edges = Array.from({ length: count }, (_, index) =>
+    createProjectedWorldEdge({
+      id: `incident-${index}`,
+      label: `relation ${index}`,
+      sourceInstanceId: source.id,
+      targetInstanceId: target.id,
+      temporalWeight: 1 - index / (count * 2),
+      visible: true,
+      retained: false,
+    }),
+  );
+  return createWorldProjection({ instances: [source, target], edges });
+}
+
+test("selecting a node makes every incident edge predicate visibly labeled", () => {
+  const h = harness();
+  const projection = crowdedIncidentProjection();
+  const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 1 });
+  surface.setProjection(projection);
+
+  const beforeLayer = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
+  const beforeRelationships = beforeLayer.props.data.filter(
+    (datum) => datum.kind === "relationship-label",
+  );
+  assert.ok(
+    beforeRelationships.length < projection.edges.length,
+    "ordinary overview LOD must suppress at least one relationship label in the fixture",
+  );
+  const stableGeometry = new Map(
+    beforeLayer.props.data.map((datum) => [
+      datum.key,
+      {
+        position: beforeLayer.props.getPosition(datum),
+        pixelOffset: beforeLayer.props.getPixelOffset(datum),
+      },
+    ]),
+  );
+
+  surface.setSelection({ kind: "entity", id: "entity-0" });
+
+  const afterLayer = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
+  const afterRelationships = afterLayer.props.data.filter(
+    (datum) => datum.kind === "relationship-label",
+  );
+  assert.equal(
+    afterRelationships.length,
+    projection.edges.length,
+    "selection must surface every predicate on an edge incident to the selected node",
+  );
+  assert.deepEqual(
+    new Set(afterRelationships.map((datum) => datum.relationshipId)),
+    new Set(projection.edges.map((edge) => edge.id)),
+  );
+
+  for (const [key, geometry] of stableGeometry) {
+    const datum = afterLayer.props.data.find((candidate) => candidate.key === key);
+    assert.ok(datum, `${key} remains visible after revealing incident edge labels`);
+    assert.deepEqual(
+      {
+        position: afterLayer.props.getPosition(datum),
+        pixelOffset: afterLayer.props.getPixelOffset(datum),
+      },
+      geometry,
+      `${key} keeps its existing placement when selected-node edge labels are added`,
+    );
+  }
+});
+
 test("selection changes label color without changing label membership or placement", () => {
   const h = harness();
   const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 1 });
