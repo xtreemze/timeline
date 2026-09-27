@@ -36,7 +36,7 @@ test("focused popover emits the surviving rich presentation contract", async () 
   assert.match(source, /timeline-focus-summary/);
   assert.doesNotMatch(source, /timeline-focus-place-panel/);
   assert.match(source, /timeline-focus-evidence/);
-  assert.match(source, /timeline-focus-edit/);
+  assert.doesNotMatch(source, /timeline-focus-edit|createFocusEditButton|timelinefocusedit/);
   assert.match(source, /timeline-focus-media-control/);
   assert.match(source, /timeline-focus-close/);
   assert.match(source, /data-active-tab|dataset\.activeTab/);
