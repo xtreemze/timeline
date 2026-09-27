@@ -344,7 +344,7 @@ test("quality metrics report crossings, edge length and separation", () => {
   assert.ok((layout.metrics.minSeparationMeters ?? 0) > 0);
 });
 
-test("deep size-aware DAGs fall back instead of compressing nodes into overlap", () => {
+test("deep size-aware DAGs expand their layout domain instead of dropping Sugiyama targets", () => {
   const nodes = Array.from({ length: 80 }, (_, index) => instance(`deep-${index}`));
   const projection = createWorldProjection({
     instances: nodes,
@@ -356,14 +356,12 @@ test("deep size-aware DAGs fall back instead of compressing nodes into overlap",
 
   const layout = createWorldDagLayout(projection, { nodeSizes });
 
-  assert.equal(layout.targets.length, 0);
-  assert.equal(layout.routes.length, 0);
+  assert.equal(layout.targets.length, 80);
+  assert.equal(layout.routes.length, 79);
   assert.equal(layout.metrics.nodeCount, 80);
   assert.equal(
-    Object.entries(layout.metrics.algorithmCounts).some(
-      ([name, count]) => name.endsWith("-force-only") && count === 1,
-    ),
-    true,
+    Object.keys(layout.metrics.algorithmCounts).some((name) => name.endsWith("-force-only")),
+    false,
   );
 });
 
@@ -482,7 +480,7 @@ test("Sugiyama reduces crossings versus the former circular baseline", () => {
   );
 });
 
-test("isolated entities stay force-owned while connected entities receive DAG targets", () => {
+test("all co-located entities participate in Sugiyama spacing even when some are isolated", () => {
   const localPlace = {
     placeId: "sparse-place",
     longitude: 18,
@@ -511,7 +509,10 @@ test("isolated entities stay force-owned while connected entities receive DAG ta
     }),
   );
 
-  assert.deepEqual(layout.targets.map((target) => target.instanceId).sort(), [a.id, b.id].sort());
+  assert.deepEqual(
+    layout.targets.map((target) => target.instanceId).sort(),
+    [a.id, b.id, c.id, d.id].sort(),
+  );
   assert.deepEqual(
     layout.routes.map((route) => route.relationshipId),
     ["sparse-ab"],
@@ -682,6 +683,50 @@ test("explicit reorganization bypasses cached place layout while preserving geog
 });
 
 
+
+test("nearby place domains share one Sugiyama neighborhood without requiring a semantic edge", () => {
+  const westPlace = {
+    placeId: "near-west",
+    longitude: 18,
+    latitude: 59,
+    influence: 1,
+    precisionRadiusMeters: 4_000,
+  };
+  const eastPlace = {
+    placeId: "near-east",
+    longitude: 18.08,
+    latitude: 59,
+    influence: 1,
+    precisionRadiusMeters: 4_000,
+  };
+  const make = (name, geographicAnchor) =>
+    createProjectedWorldInstance({
+      id: worldInstanceId(name, `occ-${name}`),
+      canonicalId: name,
+      occurrenceId: `occ-${name}`,
+      geographicAnchors: [geographicAnchor],
+      temporalWeight: 1,
+      visualWeight: 0.5,
+      retained: false,
+    });
+  const nodes = [
+    make("near-west-a", westPlace),
+    make("near-west-b", westPlace),
+    make("near-east-a", eastPlace),
+    make("near-east-b", eastPlace),
+  ];
+
+  const layout = createWorldDagLayout(
+    createWorldProjection({ instances: nodes, edges: [] }),
+    { reorganize: true },
+  );
+
+  assert.equal(layout.targets.length, nodes.length);
+  assert.ok(
+    Object.keys(layout.metrics.algorithmCounts).some((name) => name.startsWith("cross-place:")),
+    "overlapping spatial domains should be coordinated by the shared DAG pass",
+  );
+});
 
 test("high-degree landscape hubs allocate deterministic edge-port lanes", () => {
   const hub = instance("port-hub");
