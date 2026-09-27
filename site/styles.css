@@ -2185,7 +2185,7 @@ footer > :last-child {
   background: var(--paper);
   box-shadow: 0 1px 3px rgb(23 23 23 / 12%);
 }
-.world-camera-controls:not(.is-footer-control) .world-camera-control {
+.world-camera-controls:not(.is-footer-control) .world-camera-controls:not(.is-footer-control) .world-camera-control {
   display: grid;
   place-items: center;
   inline-size: 2.75rem;
@@ -2197,13 +2197,13 @@ footer > :last-child {
   font: 600 1.1rem / 1 inherit;
   cursor: pointer;
 }
-.world-camera-controls:not(.is-footer-control) .world-camera-control + .world-camera-control {
+.world-camera-controls:not(.is-footer-control) .world-camera-controls:not(.is-footer-control) .world-camera-control + .world-camera-control {
   border-block-start: 1px solid var(--line);
 }
-.world-camera-controls:not(.is-footer-control) .world-camera-control:is(:hover, :focus-visible) {
+.world-camera-controls:not(.is-footer-control) .world-camera-controls:not(.is-footer-control) .world-camera-control:is(:hover, :focus-visible) {
   background: var(--paper-2);
 }
-.world-camera-controls:not(.is-footer-control) .world-camera-control:focus-visible {
+.world-camera-controls:not(.is-footer-control) .world-camera-controls:not(.is-footer-control) .world-camera-control:focus-visible {
   outline: 2px solid currentcolor;
   outline-offset: -3px;
 }
