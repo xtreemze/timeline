@@ -175,7 +175,9 @@ test("Lit composer is a touch-safe ARIA combobox with live-context guidance", as
   assert.match(source, /role="listbox"/);
   assert.match(source, /min-block-size:\s*44px/);
   assert.match(source, /Move the timeline or World while this is open/);
-  assert.match(source, /occurrencecomposeropenrequest/);
+  assert.match(source, /:host\(:not\(\[active\]\)\)/);
+  assert.doesNotMatch(source, /position:\s*fixed/);
+  assert.match(source, /\.completion-panel[\s\S]*position:\s*absolute/);
   assert.match(source, /occurrencecommit/);
   assert.match(source, /explicitPlaceContext/);
   assert.match(source, /accuracyMeters/);
@@ -188,6 +190,11 @@ test("application keeps timeline and World live while composer uses their center
   const source = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
 
   assert.match(source, /requiredElement<LuumOccurrenceComposerElement>\("#occurrence-composer"\)/);
+  assert.match(source, /requiredElement<HTMLButtonElement>\("#occurrence-composer-toggle"\)/);
+  assert.match(
+    source,
+    /occurrenceComposerToggle\.addEventListener\("click"[\s\S]*setOccurrenceComposerOpen\(!els\.occurrenceComposer\.active\)/,
+  );
   assert.match(
     source,
     /presentationStage\.inert = Boolean\([\s\S]*ui\.browserOpen[\s\S]*ui\.investigationOpen[\s\S]*ui\.editorOpen/,
@@ -217,6 +224,34 @@ test("application keeps timeline and World live while composer uses their center
   assert.match(source, /draft\.items\.push\(item\)/);
   assert.match(source, /draft\.relationships\.push\(relationship\)/);
   assert.match(source, /state = normalizeTimeline\(draft, \{ strictGraph: true \}\)/);
+});
+
+test("occurrence composer is structurally integrated into the persistent footer", async () => {
+  const [markup, shellStyles] = await Promise.all([
+    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../site/spatial-shell.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(
+    markup,
+    /<nav class="app-tool-dock app-footer-bar"[\s\S]*<luum-occurrence-composer id="occurrence-composer"><\/luum-occurrence-composer>/,
+  );
+  assert.match(
+    markup,
+    /id="occurrence-composer-toggle"[\s\S]*aria-controls="occurrence-composer"[\s\S]*aria-expanded="false"/,
+  );
+  assert.match(
+    shellStyles,
+    /#app-shell:has\(#occurrence-composer\[active\]\)[\s\S]*--workspace-footer-content-block-size:\s*116px/,
+  );
+  assert.match(
+    shellStyles,
+    /#occurrence-composer\[active\][\s\S]*grid-column:\s*1 \/ -1[\s\S]*grid-row:\s*1/,
+  );
+  assert.match(
+    shellStyles,
+    /app-footer-world[\s\S]*grid-row:\s*2[\s\S]*app-footer-actions[\s\S]*grid-row:\s*2[\s\S]*app-footer-timeline[\s\S]*grid-row:\s*2/,
+  );
 });
 
 test("World application view exposes current camera for immediate composer initialization", async () => {
