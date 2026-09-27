@@ -571,6 +571,70 @@ test("entity and place labels come from renderer-neutral WorldProjection metadat
   assert.equal(labels.props.parameters.cullMode, "none", "globe back-face culling keeps glyphs");
 });
 
+test("overview hides ordinary place labels until detail zoom while direct selection reveals one", () => {
+  const h = harness();
+  const make = (index, placeId, label, longitude) =>
+    instance(index, {
+      geographicAnchors: [
+        {
+          placeId,
+          label,
+          longitude,
+          latitude: 0,
+          influence: 1,
+        },
+      ],
+    });
+  const instances = [
+    make(0, "overview-a", "Overview A", -10),
+    make(1, "overview-b", "Overview B", 0),
+    make(2, "overview-c", "Overview C", 10),
+  ];
+  const surface = new DeckWorldSurface({}, h.runtime, {
+    ...WORKING_CAMERA,
+    longitude: 0,
+    latitude: 0,
+    zoom: 4.999,
+  });
+  surface.setProjection(createWorldProjection({ instances, edges: [] }));
+
+  let labels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
+  assert.equal(
+    labels.props.data.filter((datum) => datum.kind === "place-label").length,
+    0,
+    "overview/regional zoom keeps ordinary place labels off the map",
+  );
+
+  surface.setSelection({ kind: "place", id: "overview-b" });
+  labels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
+  assert.deepEqual(
+    labels.props.data
+      .filter((datum) => datum.kind === "place-label")
+      .map((datum) => datum.placeId),
+    ["overview-b"],
+    "direct place selection reveals only the requested overview label",
+  );
+
+  surface.setSelection(null);
+  const rendersBeforeDetail = h.setProps.filter((props) => props.layers).length;
+  surface.setCamera({
+    ...WORKING_CAMERA,
+    longitude: 0,
+    latitude: 0,
+    zoom: 5.001,
+  });
+
+  assert.ok(
+    h.setProps.filter((props) => props.layers).length > rendersBeforeDetail,
+    "crossing the place-label detail threshold re-renders even inside one screen-scale step",
+  );
+  labels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
+  assert.ok(
+    labels.props.data.some((datum) => datum.kind === "place-label"),
+    "ordinary place labels return at detail zoom",
+  );
+});
+
 test("detail zoom repositions co-located semantic labels before hiding them", () => {
   const h = harness();
   const source = instance(0, {
