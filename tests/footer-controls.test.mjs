@@ -50,6 +50,7 @@ test("footer owns one persistent View group and one Edit action", async () => {
   assert.match(app, /focusAdjacent\(1, \{ reference: "viewport" \}\)/);
   assert.equal((index.match(/id="editor-toggle"/g) ?? []).length, 1);
   assert.doesNotMatch(index, /id="editor-toggle"[^>]*aria-pressed=/);
+  assert.doesNotMatch(app, /timelinefocusedit|createFocusEditButton/);
   assert.doesNotMatch(app, /editorToggle\.setAttribute\("aria-pressed"/);
   assert.match(app, /const focusedId = timelineView\?\.focusedItemId\?\.\(\) \|\| null/);
   assert.match(world, /element\.className = "toolbar-control world-camera-control"/);
@@ -72,6 +73,7 @@ test("every footer button shares the canonical 44px toolbar-control contract", a
     /\.app-footer-bar \.toolbar-control:focus-visible,[\s\S]*outline:\s*2px solid var\(--focus\)[\s\S]*outline-offset:\s*-3px/,
   );
   assert.doesNotMatch(css, /\.app-footer-view-controls\.timeline-view-toolbar/);
+  assert.doesNotMatch(css, /\.timeline-local-button/);
   assert.match(css, /\.app-footer-bar \.toolbar-control-wide/);
   assert.match(css, /\.app-footer-bar \.toolbar-control-value/);
   assert.match(
@@ -102,6 +104,17 @@ test("every footer button shares the canonical 44px toolbar-control contract", a
     index,
     /class="toolbar-control toolbar-control-value toolbar-number-control"[\s\S]*id="timeline-auto-seconds" data-view-control/,
   );
+
+  const toolbarStart = index.indexOf('id="timeline-view-toolbar"');
+  const toolbarEnd = index.indexOf("</nav>", toolbarStart);
+  const toolbarMarkup = index.slice(toolbarStart, toolbarEnd);
+  assert.ok(toolbarStart >= 0 && toolbarEnd > toolbarStart);
+  assert.equal(
+    (toolbarMarkup.match(/data-view-control/g) ?? []).length,
+    (index.match(/data-view-control/g) ?? []).length,
+    "every View control must live directly in the persistent toolbar",
+  );
+  assert.doesNotMatch(index, /timeline-focus-view[\s\S]{0,4000}data-view-control/);
   assert.equal((index.match(/id="editor-toggle"/g) ?? []).length, 1);
 });
 
