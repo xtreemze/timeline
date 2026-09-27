@@ -28,6 +28,7 @@
   <main id="workspace">
     <section id="app-shell" class="app-shell" aria-label="Lūm application" data-mode="view" data-editor-open="false" data-browser-open="false" data-graph-open="true">
       <nav class="app-tool-dock app-footer-bar" aria-label="Workspace controls">
+        <luum-occurrence-composer id="occurrence-composer"></luum-occurrence-composer>
         <div class="app-footer-zone app-footer-world" data-world-controls-slot role="group" aria-label="World view controls">
           <button id="timeline-related-zoom" class="toolbar-control timeline-context-action timeline-related-world-action" type="button" hidden data-semantic-icon="zoom-in" aria-controls="temporal-graph-view" aria-label="Zoom to related nodes" title="Zoom to related nodes">
             <span class="sr-only">Zoom to related nodes</span>
@@ -46,6 +47,9 @@
           </button>
           <button id="timeline-browser-toggle" class="toolbar-control app-tool" type="button" data-semantic-icon="search" aria-controls="timeline-browser-sheet" aria-expanded="false" aria-label="Browse timeline" title="Browse timeline">
             <span class="app-tool-label sr-only">Browse</span>
+          </button>
+          <button id="occurrence-composer-toggle" class="toolbar-control app-tool" type="button" data-semantic-icon="relation" aria-controls="occurrence-composer" aria-expanded="false" aria-label="Compose occurrence" title="Compose occurrence">
+            <span class="app-tool-label sr-only">Compose</span>
           </button>
         </div>
         <div id="timeline-view-toolbar" class="app-footer-zone app-footer-timeline timeline-local-toolbar" role="group" aria-label="Timeline and view controls">
@@ -80,7 +84,6 @@
           <span id="timeline-window-readout" class="timeline-window-readout toolbar-readout sr-only" aria-live="polite">No visible events</span>
         </div>
       </nav>
-      <luum-occurrence-composer id="occurrence-composer"></luum-occurrence-composer>
       <aside id="control-panel" class="control-panel app-editor-sheet" aria-label="Timeline editors" aria-hidden="true" hidden>
         <header class="app-surface-header">
           <div>

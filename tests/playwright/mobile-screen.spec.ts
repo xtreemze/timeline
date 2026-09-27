@@ -69,6 +69,62 @@ test.describe("Narrow mobile screen contracts", () => {
     expect(intersection.y).toBeGreaterThan(0);
     expect(pageErrors).toEqual([]);
   });
+  test("footer composer expands in-flow and keeps timeline controls usable", async ({ page }) => {
+    for (const { viewport, orientation } of [
+      { viewport: NARROW_PORTRAIT, orientation: "portrait" as const },
+      { viewport: NARROW_LANDSCAPE, orientation: "landscape" as const },
+    ]) {
+      await page.setViewportSize(viewport);
+      await page.goto("/");
+      await ensureOrientation(page, orientation);
+
+      const dock = page.locator(".app-tool-dock");
+      const composer = page.locator("#occurrence-composer");
+      const toggle = page.locator("#occurrence-composer-toggle");
+      const input = composer.locator("input");
+      const timelineToggle = page.locator("#timeline-orientation-toggle");
+      const before = await dock.boundingBox();
+      expect(before).not.toBeNull();
+      if (!before) throw new Error("Footer geometry is unavailable before composer expansion.");
+
+      await toggle.click();
+      await expect(toggle).toHaveAttribute("aria-expanded", "true");
+      await expect(composer).toHaveAttribute("active", "");
+      await expect(input).toBeVisible();
+
+      const [expanded, inputBox] = await Promise.all([dock.boundingBox(), input.boundingBox()]);
+      expect(expanded).not.toBeNull();
+      expect(inputBox).not.toBeNull();
+      if (!expanded || !inputBox) {
+        throw new Error("Footer composer geometry is unavailable after expansion.");
+      }
+      expect(expanded.height).toBeGreaterThan(before.height + 40);
+      expect(inputBox.x).toBeGreaterThanOrEqual(expanded.x - 1);
+      expect(inputBox.x + inputBox.width).toBeLessThanOrEqual(expanded.x + expanded.width + 1);
+      expect(inputBox.y).toBeGreaterThanOrEqual(expanded.y - 1);
+      expect(inputBox.y + inputBox.height).toBeLessThanOrEqual(expanded.y + expanded.height + 1);
+
+      await expect(page.locator(".app-footer-world")).toBeVisible();
+      await expect(page.locator(".app-footer-actions")).toBeVisible();
+      await expect(page.locator(".app-footer-timeline")).toBeVisible();
+      await expect(timelineToggle).toBeVisible();
+
+      const nextOrientation = orientation === "portrait" ? "landscape" : "portrait";
+      await timelineToggle.click();
+      await expect(page.locator("#timeline-view")).toHaveAttribute("data-orientation", nextOrientation);
+      await expect(input).toBeVisible();
+      await expectNoPageScroll(page, viewport);
+
+      await toggle.click();
+      await expect(toggle).toHaveAttribute("aria-expanded", "false");
+      await expect(composer).not.toHaveAttribute("active", "");
+      const collapsed = await dock.boundingBox();
+      expect(collapsed).not.toBeNull();
+      if (collapsed) expect(collapsed.height).toBeLessThan(expanded.height - 40);
+      await expectNoPageScroll(page, viewport);
+    }
+  });
+
   test("portrait event cards remain readable at the screen edge without overlapping", async ({
     page,
   }) => {

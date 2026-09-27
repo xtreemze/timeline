@@ -391,6 +391,8 @@ const els = {
   appToolDock: requiredElement<HTMLElement>(".app-tool-dock"),
   occurrenceComposer:
     requiredElement<LuumOccurrenceComposerElement>("#occurrence-composer"),
+  occurrenceComposerToggle:
+    requiredElement<HTMLButtonElement>("#occurrence-composer-toggle"),
   controlPanel: requiredElement<HTMLElement>("#control-panel"),
   controlPanelClose: requiredElement<HTMLButtonElement>("#control-panel-close"),
   editorToggle: requiredElement<HTMLButtonElement>("#editor-toggle"),
@@ -1645,6 +1647,17 @@ function syncApplicationSurfaces() {
     ui.browserOpen || ui.investigationOpen || ui.editorOpen,
   );
   els.occurrenceComposer.setEditing(editing);
+  els.occurrenceComposerToggle.setAttribute(
+    "aria-expanded",
+    String(els.occurrenceComposer.active),
+  );
+  els.occurrenceComposerToggle.setAttribute(
+    "aria-label",
+    els.occurrenceComposer.active ? "Close occurrence composer" : "Compose occurrence",
+  );
+  els.occurrenceComposerToggle.title = els.occurrenceComposer.active
+    ? "Close occurrence composer"
+    : "Compose occurrence";
   if (els.appToolDock) els.appToolDock.inert = false;
   if (els.title) {
     const titleEditing = ui.editorOpen;
@@ -5749,8 +5762,8 @@ els.graphViewRoot.addEventListener("worldviewportchange", (event) => {
   els.occurrenceComposer.setWorldContext(longitude, latitude, zoom);
 });
 
-els.occurrenceComposer.addEventListener("occurrencecomposeropenrequest", () => {
-  setOccurrenceComposerOpen(true);
+els.occurrenceComposerToggle.addEventListener("click", () => {
+  setOccurrenceComposerOpen(!els.occurrenceComposer.active);
 });
 els.occurrenceComposer.addEventListener("occurrencecomposercloserequest", () => {
   setOccurrenceComposerOpen(false);

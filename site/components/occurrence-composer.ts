@@ -44,161 +44,115 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
   static override styles = css`
     :host {
-      position: fixed;
-      z-index: 1700;
-      inset-inline: 0.5rem;
-      inset-block-end: calc(52px + max(0.5rem, env(safe-area-inset-bottom)));
-      display: grid;
-      justify-items: center;
-      pointer-events: none;
+      position: relative;
+      display: block;
+      min-inline-size: 0;
       color: var(--ink, #191714);
       font-family: inherit;
     }
 
-    .collapsed,
-    .composer {
-      pointer-events: auto;
-      inline-size: min(52rem, calc(100% - 0.5rem));
-      border: 1px solid var(--line-strong, #b8b1a5);
-      background: color-mix(in srgb, var(--paper, #fff) 94%, transparent);
-      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.18);
-      backdrop-filter: blur(16px);
-    }
-
-    .collapsed {
-      display: flex;
-      align-items: center;
-      gap: 0.55rem;
-      min-block-size: 44px;
-      padding: 0.35rem 0.55rem;
-      border-radius: 0.75rem;
-      color: var(--muted, #615d56);
-      text-align: start;
-      cursor: text;
-    }
-
-    .collapsed-copy {
-      min-inline-size: 0;
-      flex: 1 1 auto;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      font: inherit;
-    }
-
-    .context-mini {
-      flex: 0 0 auto;
-      max-inline-size: 45%;
-      overflow: hidden;
-      color: var(--muted, #615d56);
-      font-size: 0.72rem;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .composer {
-      display: grid;
-      gap: 0.4rem;
-      padding: 0.45rem;
-      border-radius: 0.9rem;
-    }
-
-    .grammar,
-    .context {
-      display: flex;
-      align-items: center;
-      gap: 0.35rem;
-      min-inline-size: 0;
-      overflow-x: auto;
-      scrollbar-width: none;
-    }
-
-    .grammar::-webkit-scrollbar,
-    .context::-webkit-scrollbar {
+    :host(:not([active])) {
       display: none;
     }
 
-    .grammar span,
-    .chip {
-      flex: 0 0 auto;
-      padding: 0.16rem 0.38rem;
-      border-radius: 999px;
-      background: color-mix(in srgb, var(--panel, #f5f3ef) 82%, transparent);
-      color: var(--muted, #615d56);
-      font-size: 0.68rem;
-      white-space: nowrap;
-    }
-
-    .grammar .active-slot {
-      color: var(--ink, #191714);
-      font-weight: 750;
+    .composer {
+      position: relative;
+      display: block;
+      inline-size: 100%;
+      min-inline-size: 0;
+      pointer-events: auto;
     }
 
     .input-row {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-columns: auto minmax(0, 1fr) auto;
       gap: 0.35rem;
       align-items: center;
+      min-inline-size: 0;
+    }
+
+    .stage {
+      display: grid;
+      place-items: center;
+      min-inline-size: 4.6rem;
+      min-block-size: 32px;
+      padding-inline: 0.45rem;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--panel, #f5f3ef) 82%, transparent);
+      color: var(--muted, #615d56);
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: lowercase;
+      white-space: nowrap;
     }
 
     input {
       inline-size: 100%;
       min-inline-size: 0;
-      min-block-size: 46px;
+      min-block-size: 44px;
       box-sizing: border-box;
       border: 1px solid var(--line, #d1ccc4);
-      border-radius: 0.62rem;
-      padding: 0.65rem 0.75rem;
+      border-radius: var(--toolbar-control-radius, 0.58rem);
+      padding: 0.55rem 0.7rem;
       outline: none;
-      background: var(--paper, #fff);
+      background: color-mix(in srgb, var(--paper, #fff) 92%, transparent);
       color: var(--ink, #191714);
-      font: 500 0.9rem/1.3 ui-monospace, "SFMono-Regular", Consolas, monospace;
+      font: 500 0.88rem/1.3 ui-monospace, "SFMono-Regular", Consolas, monospace;
     }
 
     input:focus-visible {
       border-color: var(--focus, #315fbd);
-      box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus, #315fbd) 18%, transparent);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus, #315fbd) 20%, transparent);
     }
 
     .close {
       inline-size: 44px;
       block-size: 44px;
-      border: 0;
-      border-radius: 0.62rem;
+      border: 1px solid transparent;
+      border-radius: var(--toolbar-control-radius, 0.58rem);
       background: transparent;
       color: var(--muted, #615d56);
       cursor: pointer;
       font-size: 1.15rem;
+      touch-action: manipulation;
     }
 
     .close:focus-visible,
     .close:hover {
-      background: color-mix(in srgb, var(--panel, #f5f3ef) 88%, transparent);
+      border-color: color-mix(in srgb, var(--line-strong, #b8b1a5) 70%, transparent);
+      background: var(--paper-2, #f5f3ef);
       color: var(--ink, #191714);
+      outline: none;
+    }
+
+    .completion-panel {
+      position: absolute;
+      z-index: 20;
+      inset-inline: 0;
+      inset-block-end: calc(100% + 0.38rem);
+      display: grid;
+      max-block-size: min(18rem, 42dvh);
+      overflow: hidden;
+      border: 1px solid var(--line-strong, #b8b1a5);
+      border-radius: 0.72rem;
+      background: color-mix(in srgb, var(--paper, #fff) 98%, transparent);
+      box-shadow: 0 -10px 30px color-mix(in srgb, #000 16%, transparent);
+      backdrop-filter: blur(14px);
     }
 
     .diagnostic {
       margin: 0;
-      padding-inline: 0.2rem;
+      padding: 0.5rem 0.65rem;
+      border-block-end: 1px solid var(--line, #d1ccc4);
       color: var(--danger, #b42318);
       font-size: 0.72rem;
     }
 
-    .help {
-      margin: 0;
-      padding-inline: 0.2rem;
-      color: var(--muted, #615d56);
-      font-size: 0.68rem;
-    }
-
     .listbox {
       display: grid;
-      max-block-size: min(16rem, 34dvh);
+      min-block-size: 0;
       overflow-y: auto;
       overscroll-behavior: contain;
-      border: 1px solid var(--line, #d1ccc4);
-      border-radius: 0.65rem;
-      background: var(--paper, #fff);
     }
 
     .option {
@@ -240,15 +194,16 @@ export class LuumOccurrenceComposerElement extends LitElement {
       white-space: nowrap;
     }
 
-    @media (min-width: 700px) {
-      :host {
-        inset-inline: 1rem;
-        inset-block-end: calc(56px + max(0.75rem, env(safe-area-inset-bottom)));
-      }
-
-      .composer {
-        padding: 0.55rem;
-      }
+    .help {
+      position: absolute;
+      inline-size: 1px;
+      block-size: 1px;
+      margin: -1px;
+      padding: 0;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      clip-path: inset(50%);
+      white-space: nowrap;
     }
   `;
 
@@ -338,12 +293,6 @@ export class LuumOccurrenceComposerElement extends LitElement {
       timelineDefault: this.timelineContext?.value ?? null,
       locationDefault: this.worldContext?.label ?? null,
     });
-  }
-
-  private requestOpen(): void {
-    this.dispatchEvent(
-      new CustomEvent("occurrencecomposeropenrequest", { bubbles: true, composed: true }),
-    );
   }
 
   private requestClose(): void {
@@ -464,53 +413,28 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.commit();
   }
 
-  private grammarSlotClass(slot: string, parsed: OccurrenceSentenceDraft): string {
-    if (
-      (slot === "subject" && parsed.stage === "subject") ||
-      (slot === "action" && parsed.stage === "predicate") ||
-      (slot === "object" && parsed.stage === "object") ||
-      (slot === "context" && ["place", "time", "options", "complete"].includes(parsed.stage))
-    ) {
-      return "active-slot";
+  private stageLabel(parsed: OccurrenceSentenceDraft): string {
+    if (parsed.stage === "predicate") return "action";
+    if (parsed.stage === "place" || parsed.stage === "time" || parsed.stage === "options") {
+      return "context";
     }
-    return "";
+    if (parsed.stage === "complete") return "ready";
+    return parsed.stage;
   }
-
   override render() {
+    if (!this.active) return nothing;
+
     const parsed = this.parsed();
     const timeLabel = parsed.time?.start ?? this.timelineContext?.label ?? null;
     const placeLabel = parsed.place?.name ?? this.worldContext?.label ?? "World center";
     const suggestions = this.suggestions();
     const diagnostic = this.externalError || parsed.diagnostics[0] || "";
-
-    if (!this.active) {
-      return html`
-        <button
-          class="collapsed"
-          type="button"
-          aria-label="Compose an occurrence"
-          title="Compose an occurrence"
-          @click=${() => this.requestOpen()}
-        >
-          <span class="collapsed-copy">Who … did what … to whom …</span>
-          <span class="context-mini">${timeLabel ?? "timeline center"} · ${placeLabel}</span>
-        </button>
-      `;
-    }
+    const completionOpen = Boolean(diagnostic || suggestions.length);
 
     return html`
       <section class="composer" aria-label="Occurrence composer">
-        <div class="grammar" aria-hidden="true">
-          <span class=${this.grammarSlotClass("subject", parsed)}>subject</span>
-          <span>→</span>
-          <span class=${this.grammarSlotClass("action", parsed)}>action</span>
-          <span>→</span>
-          <span class=${this.grammarSlotClass("object", parsed)}>object</span>
-          <span>→</span>
-          <span class=${this.grammarSlotClass("context", parsed)}>where / when / options</span>
-        </div>
-
         <div class="input-row">
+          <span class="stage" aria-hidden="true">${this.stageLabel(parsed)}</span>
           <input
             type="text"
             autocomplete="off"
@@ -519,7 +443,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
             role="combobox"
             aria-autocomplete="list"
             aria-expanded=${String(suggestions.length > 0)}
-            aria-controls="occurrence-composer-listbox"
+            aria-controls=${suggestions.length ? "occurrence-composer-listbox" : nothing}
             aria-activedescendant=${
               suggestions.length ? `occurrence-composer-option-${this.activeSuggestion}` : nothing
             }
@@ -533,55 +457,47 @@ export class LuumOccurrenceComposerElement extends LitElement {
             class="close"
             type="button"
             aria-label="Close occurrence composer"
-            title="Close"
+            title="Close occurrence composer"
             @click=${() => this.requestClose()}
           >×</button>
         </div>
 
-        <div class="context" aria-label="Occurrence defaults">
-          <span class="chip">
-            ${parsed.place ? "Place" : "World center"}: ${placeLabel}
-          </span>
-          <span class="chip">
-            ${parsed.time
-              ? "Time"
-              : `Timeline center (${this.timelineContext?.precision ?? "unresolved"})`}: ${timeLabel ?? "not available"}
-          </span>
-          ${parsed.options.category
-            ? html`<span class="chip">Category: ${parsed.options.category}</span>`
-            : nothing}
-        </div>
-
-        ${diagnostic
-          ? html`<p id="occurrence-composer-diagnostic" class="diagnostic" role="alert">${diagnostic}</p>`
-          : html`<span id="occurrence-composer-diagnostic" hidden></span>`}
-
-        ${suggestions.length
+        ${completionOpen
           ? html`
-              <div id="occurrence-composer-listbox" class="listbox" role="listbox">
-                ${suggestions.map(
-                  (suggestion, index) => html`
-                    <button
-                      id=${`occurrence-composer-option-${index}`}
-                      class="option"
-                      type="button"
-                      role="option"
-                      aria-selected=${String(index === this.activeSuggestion)}
-                      @pointerdown=${(event: PointerEvent) => event.preventDefault()}
-                      @click=${() => this.applySuggestion(suggestion)}
-                    >
-                      <span class="option-label">${suggestion.label}</span>
-                      <span class="option-detail">${suggestion.detail ?? suggestion.kind}</span>
-                    </button>
-                  `,
-                )}
+              <div class="completion-panel">
+                ${diagnostic
+                  ? html`<p id="occurrence-composer-diagnostic" class="diagnostic" role="alert">${diagnostic}</p>`
+                  : html`<span id="occurrence-composer-diagnostic" hidden></span>`}
+                ${suggestions.length
+                  ? html`
+                      <div id="occurrence-composer-listbox" class="listbox" role="listbox">
+                        ${suggestions.map(
+                          (suggestion, index) => html`
+                            <button
+                              id=${`occurrence-composer-option-${index}`}
+                              class="option"
+                              type="button"
+                              role="option"
+                              aria-selected=${String(index === this.activeSuggestion)}
+                              @pointerdown=${(event: PointerEvent) => event.preventDefault()}
+                              @click=${() => this.applySuggestion(suggestion)}
+                            >
+                              <span class="option-label">${suggestion.label}</span>
+                              <span class="option-detail">${suggestion.detail ?? suggestion.kind}</span>
+                            </button>
+                          `,
+                        )}
+                      </div>
+                    `
+                  : nothing}
               </div>
             `
-          : nothing}
+          : html`<span id="occurrence-composer-diagnostic" hidden></span>`}
 
         <p id="occurrence-composer-help" class="help">
           Tab completes · Enter commits · Esc closes. Quote multi-word entity names.
-          Move the timeline or World while this is open to change the unpinned time/place defaults.
+          Defaults follow ${placeLabel} and ${timeLabel ?? "the timeline center"} until explicitly pinned.
+          Move the timeline or World while this is open to change unpinned defaults.
         </p>
       </section>
     `;
