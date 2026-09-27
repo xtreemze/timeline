@@ -191,7 +191,8 @@ test("graph exploration never opens editors while graph authoring stays inside e
   assert.doesNotMatch(source, /graphentityfocus|graphedgefocus|graphnodefocus|graphstoryfocus/);
   assert.match(source, /graphNodeList\.addEventListener\("click"[\s\S]*beginGraphNodeEdit/);
   assert.match(source, /graphEdgeList\.addEventListener\("click"[\s\S]*beginGraphEdgeEdit/);
-  assert.match(source, /timelinefocusedit[\s\S]*setEditorSurfaceOpen\(true\)[\s\S]*beginItemEdit/);
+  assert.doesNotMatch(source, /timelinefocusedit/);
+  assert.match(source, /editorToggle\.addEventListener\("click"/);
   assert.match(source, /resetGraphEdgeForm[\s\S]*graphEdgeTimeKind\.value = "event"/);
 });
 

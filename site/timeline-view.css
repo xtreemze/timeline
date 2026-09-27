@@ -5072,7 +5072,6 @@
   pointer-events: none;
 }
 
-.timeline-focus-edit,
 .timeline-focus-media-control {
   position: relative;
   z-index: 8;
@@ -5091,32 +5090,9 @@
   touch-action: manipulation;
 }
 
-.timeline-focus-edit:is(:hover, :focus-visible),
 .timeline-focus-media-control:is(:hover, :focus-visible) {
   outline: 2px solid color-mix(in srgb, var(--event-color, var(--accent)) 76%, white);
   outline-offset: 2px;
-}
-
-.timeline-focus-hero-edit,
-.timeline-focus-media-edit {
-  position: absolute;
-  inset-block-start: 0.55rem;
-}
-
-.timeline-focus-hero-edit {
-  inset-inline-end: 0.55rem;
-}
-
-.timeline-focus-media-edit {
-  inset-inline-start: 0.55rem;
-}
-
-.timeline-focus-section-toolbar {
-  display: flex;
-  min-block-size: 44px;
-  align-items: center;
-  justify-content: flex-end;
-  margin-block: -0.35rem 0.15rem;
 }
 
 .timeline-focus-media-control {
@@ -5139,7 +5115,6 @@
 }
 
 @media (pointer: coarse) {
-  .timeline-focus-edit,
   .timeline-focus-media-control,
   .timeline-focus-slide-dot,
   .timeline-focus-tab,
@@ -5151,12 +5126,6 @@
 
 
 /* Focused occurrence polish: compact visuals with full-size hit targets and explicit tab focus. */
-.timeline-focus-edit {
-  background: transparent;
-  box-shadow: none;
-}
-
-.timeline-focus-edit::before,
 .timeline-focus-icon-action::before {
   position: absolute;
   z-index: 0;
@@ -5173,14 +5142,12 @@
     border-color 120ms ease;
 }
 
-.timeline-focus-edit:is(:hover, :focus-visible)::before,
 .timeline-focus-icon-action:is(:hover, :focus-visible)::before {
   border-color: color-mix(in srgb, var(--event-color, var(--accent)) 62%, var(--line-strong));
   background: color-mix(in srgb, var(--paper) 80%, var(--event-color, var(--accent)));
   transform: scale(1.06);
 }
 
-.timeline-focus-edit > .semantic-icon,
 .timeline-focus-icon-action > .semantic-icon {
   position: relative;
   z-index: 1;
@@ -5237,7 +5204,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .timeline-focus-edit::before,
   .timeline-focus-icon-action::before {
     transition: none;
   }

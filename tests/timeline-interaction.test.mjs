@@ -540,8 +540,9 @@ test("coarse-pointer timeline controls and ranges retain a 44 CSS px interaction
   );
   assert.match(
     css,
-    /@media \(pointer: coarse\)[\s\S]*\.timeline-local-button[\s\S]*inline-size:\s*44px[\s\S]*block-size:\s*44px/,
+    /\.app-footer-bar \.toolbar-control[\s\S]*inline-size:\s*var\(--toolbar-control-size\)[\s\S]*block-size:\s*var\(--toolbar-control-size\)/,
   );
+  assert.doesNotMatch(css, /\.timeline-local-button/);
   assert.match(
     css,
     /@media \(pointer: coarse\)[\s\S]*timeline-auto-timer input[\s\S]*min-height:\s*44px/,
@@ -558,10 +559,7 @@ test("coarse-pointer timeline controls and ranges retain a 44 CSS px interaction
     css,
     /data-orientation="landscape"\] \.timeline-zoom-control input\[type="range"\][\s\S]*height:\s*44px[\s\S]*min-height:\s*44px/,
   );
-  assert.match(
-    css,
-    /data-orientation="portrait"[\s\S]*timeline-view-toolbar\[popover\]:popover-open[\s\S]*width:\s*(?:104px|var\(--view-controls-inline-size,\s*104px\))/,
-  );
+  assert.doesNotMatch(css, /timeline-view-toolbar\[popover\]|:popover-open/);
 });
 
 test("focused event detail keeps event semantics compact with explicit image controls", async () => {
@@ -579,7 +577,8 @@ test("focused event detail keeps event semantics compact with explicit image con
   assert.ok(source.includes('setAttribute("aria-label", "Previous image")'));
   assert.ok(source.includes('setAttribute("aria-label", "Next image")'));
   assert.ok(source.includes("Show image ${index + 1} of ${media.length}"));
-  assert.ok(source.includes("createFocusEditButton"));
+  assert.equal(source.includes("createFocusEditButton"), false);
+  assert.equal(source.includes("timelinefocusedit"), false);
   assert.equal(source.includes("timeline-focus-slide-count"), false);
   assert.equal(source.includes("timeline-focus-media-caption"), false);
   assert.equal(source.includes('createElement("h3", "timeline-focus-section-heading"'), false);

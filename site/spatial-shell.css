@@ -106,45 +106,8 @@
   }
 }
 
-/* Timeline control buttons and content-first focused detail. */
-.timeline-local-button {
-  appearance: none;
-  display: grid;
-  place-items: center;
-  inline-size: 44px;
-  block-size: 44px;
-  min-inline-size: 44px;
-  min-block-size: 44px;
-  padding: 0;
-  border: 0;
-  border-radius: 0.58rem;
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-  touch-action: manipulation;
-}
-
-.timeline-local-button:hover,
-.timeline-local-button:focus-visible {
-  background: var(--paper-2);
-  color: var(--ink);
-  outline: none;
-}
-
-.timeline-local-button:focus-visible {
-  box-shadow: inset 0 0 0 2px var(--focus);
-}
-
-.timeline-local-button:disabled {
-  opacity: 0.34;
-  cursor: default;
-}
-
-.timeline-local-button .semantic-icon {
-  inline-size: 21px;
-  block-size: 21px;
-  stroke-width: 1.9;
-}
+/* Focused detail remains content-first; persistent footer buttons use only
+   the canonical .toolbar-control contract below. */
 
 #app-shell.is-event-focused #presentation-stage {
   --focus-timeline-block-size: var(
@@ -344,15 +307,6 @@
   }
 }
 
-@media (pointer: coarse) {
-  .timeline-local-button {
-    inline-size: 44px;
-    block-size: 44px;
-    min-inline-size: 44px;
-    min-block-size: 44px;
-  }
-}
-
 @media (min-width: 700px) {
   #app-shell.is-event-focused
     #presentation-stage[data-timeline-orientation="horizontal"]
@@ -416,16 +370,6 @@
   max-inline-size: 264px;
 }
 
-.app-footer-actions > .app-tool {
-  flex: 0 1 clamp(44px, 7vw, 88px);
-  min-inline-size: 44px;
-  padding-inline: clamp(0.18rem, 0.5vw, 0.3rem);
-}
-
-.app-footer-actions .app-tool-label {
-  font-size: clamp(0.58rem, calc(0.54rem + 0.12vw), 0.68rem);
-}
-
 /* Canonical persistent toolbar contract.
    Buttons and compound inputs share one surface, state, focus, and target language. */
 .app-footer-bar {
@@ -462,14 +406,6 @@
   box-shadow: none;
   cursor: pointer;
   touch-action: manipulation;
-}
-
-.app-footer-actions > .app-tool.toolbar-control {
-  flex: 0 0 var(--toolbar-control-size);
-  inline-size: var(--toolbar-control-size);
-  min-inline-size: var(--toolbar-control-size);
-  min-block-size: var(--toolbar-control-size);
-  padding: 0;
 }
 
 .app-footer-bar .toolbar-control :is(.semantic-icon, img),
