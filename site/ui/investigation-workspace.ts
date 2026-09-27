@@ -32,6 +32,37 @@ export interface InvestigationReasoningApi {
       }>;
     }>;
   };
+  hypothesisSensitivityScenario(
+    value: unknown,
+    alternativeGroupId: string,
+    suppressedIds?: string[],
+  ): {
+    alternativeGroupId: string;
+    suppressedIds: string[];
+    suppressedRecordIds: string[];
+    affectedRecordIds: string[];
+    changedHypothesisIds: string[];
+    removedRows: Array<{
+      evidenceId: string;
+      cells: Array<{ hypothesisId: string; assessment: string }>;
+    }>;
+    matrix: ReturnType<InvestigationReasoningApi["competingHypothesisMatrix"]>;
+  };
+  hypothesisDispositionHistory(
+    value: unknown,
+    hypothesisId: string,
+  ): Array<Record<string, unknown>>;
+  recordHypothesisDisposition(
+    value: unknown,
+    input: {
+      hypothesisId: string;
+      decision: string;
+      rationale?: string;
+      reviewerEntityId?: string;
+      reviewedAt?: string;
+      reviewId?: string;
+    },
+  ): Record<string, unknown>;
   methodologyReview(
     value: unknown,
     options?: { externalIds?: string[]; entityIds?: string[] },
@@ -309,6 +340,8 @@ export function createInvestigationWorkspace(
   let editingInformationReviewId = "";
   let editingIndicatorId = "";
   let selectedMatrixRecordId = "";
+  let selectedDispositionHypothesisId = "";
+  const suppressedMatrixRecordIds = new Set<string>();
 
   function normalized(): Record<string, unknown> {
     return reasoningApi.normalizeReasoning(getReasoning());
@@ -491,6 +524,96 @@ export function createInvestigationWorkspace(
     return [...groups].sort();
   }
 
+  function renderHypothesisDisposition(
+    reasoning: Record<string, unknown>,
+    hypothesis: ReasoningRecord | undefined,
+  ): HTMLElement {
+    const region = createElement("section", "investigation-disposition");
+    if (!hypothesis) {
+      region.hidden = true;
+      return region;
+    }
+
+    const hypothesisId = recordId(hypothesis);
+    region.append(createElement("h3", "", "Hypothesis disposition"));
+    const history = reasoningApi.hypothesisDispositionHistory(reasoning, hypothesisId);
+    const currentDecision =
+      stringValue(hypothesis.assessment) ||
+      stringValue(history.at(-1)?.decision) ||
+      "open";
+
+    const form = createElement("form", "investigation-form investigation-disposition-form");
+    const decision = selectControl(
+      ["open", "retained", "rejected", "superseded"],
+      currentDecision,
+      "Hypothesis disposition",
+    );
+    const rationale = createElement("textarea");
+    rationale.rows = 3;
+    rationale.placeholder = "Record the analytical reason for this disposition.";
+    const actions = createElement("div", "investigation-form-actions");
+    const save = createElement("button", "button primary", "Record disposition");
+    save.type = "submit";
+    const cancel = createElement("button", "button ghost", "Cancel");
+    cancel.type = "button";
+    actions.append(save, cancel);
+    form.append(
+      field("Decision", decision),
+      field("Rationale", rationale),
+      actions,
+    );
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      try {
+        const next = reasoningApi.recordHypothesisDisposition(reasoning, {
+          hypothesisId,
+          decision: decision.value,
+          rationale: rationale.value.trim(),
+          reviewedAt: new Date().toISOString(),
+        });
+        selectedDispositionHypothesisId = "";
+        onCommit(next, `Hypothesis disposition recorded as ${decision.value}.`);
+      } catch (error) {
+        globalThis.alert?.(
+          error instanceof Error ? error.message : "Could not record hypothesis disposition.",
+        );
+      }
+    });
+    cancel.addEventListener("click", () => {
+      selectedDispositionHypothesisId = "";
+      render();
+    });
+    region.append(form);
+
+    const historySection = createElement("div", "investigation-disposition-history");
+    historySection.append(createElement("strong", "", "Review history"));
+    if (!history.length) {
+      historySection.append(
+        createElement("p", "investigation-card-meta", "No disposition reviews recorded."),
+      );
+    } else {
+      for (const review of history) {
+        const card = createElement("article", "investigation-review-card");
+        const heading = createElement("div", "investigation-card-heading");
+        heading.append(
+          statusBadge(stringValue(review.decision)),
+          createElement(
+            "time",
+            "investigation-card-meta",
+            stringValue(review.reviewedAt) || stringValue(review.createdAt) || "undated",
+          ),
+        );
+        card.append(heading);
+        const reason = stringValue(review.rationale);
+        if (reason) card.append(createElement("p", "investigation-card-meta", reason));
+        historySection.append(card);
+      }
+    }
+    region.append(historySection);
+    return region;
+  }
+
   function renderMatrix(reasoning: Record<string, unknown>): void {
     const root = panels.get("matrix")!;
     root.replaceChildren();
@@ -506,21 +629,87 @@ export function createInvestigationWorkspace(
 
     const controls = createElement("div", "investigation-panel-controls");
     const selector = selectControl(groups, groups[0]!, "Alternative hypothesis group");
-    controls.append(field("Alternative group", selector));
+    const scenarioHost = createElement("div", "investigation-sensitivity-status");
+    controls.append(field("Alternative group", selector), scenarioHost);
     root.append(controls);
 
+    const dispositionHost = createElement("div", "investigation-disposition-host");
     const matrixHost = createElement("div", "investigation-matrix-scroll");
     const drilldownHost = createElement("div", "investigation-evidence-drilldown-host");
-    root.append(matrixHost, drilldownHost);
+    root.append(dispositionHost, matrixHost, drilldownHost);
+
+    const allEvidenceRecords = () => [
+      ...((reasoning.observations as ReasoningRecord[] | undefined) ?? []),
+      ...((reasoning.assertions as ReasoningRecord[] | undefined) ?? []),
+      ...((reasoning.citations as ReasoningRecord[] | undefined) ?? []),
+    ];
 
     // biome-ignore lint/correctness/useQwikValidLexicalScope: This is a local DOM redraw closure, not a Qwik lexical scope.
     const draw = () => {
       matrixHost.replaceChildren();
-      const matrix = reasoningApi.competingHypothesisMatrix(reasoning, selector.value);
+      scenarioHost.replaceChildren();
+      dispositionHost.replaceChildren();
+
+      const suppressedIds = [...suppressedMatrixRecordIds];
+      const scenario = suppressedIds.length
+        ? reasoningApi.hypothesisSensitivityScenario(reasoning, selector.value, suppressedIds)
+        : null;
+      const matrix = scenario?.matrix ?? reasoningApi.competingHypothesisMatrix(reasoning, selector.value);
+      const baseline = reasoningApi.competingHypothesisMatrix(reasoning, selector.value);
+
+      if (scenario) {
+        const summary = createElement("div", "investigation-sensitivity-banner");
+        summary.append(
+          createElement(
+            "strong",
+            "",
+            `Sensitivity scenario · ${scenario.suppressedRecordIds.length} row${scenario.suppressedRecordIds.length === 1 ? "" : "s"} suppressed`,
+          ),
+          createElement(
+            "p",
+            "investigation-card-meta",
+            `${scenario.changedHypothesisIds.length} hypotheses visibly affected · ${scenario.affectedRecordIds.length} dependent records need reassessment.`,
+          ),
+        );
+        const restoreActions = createElement("div", "investigation-gap-links");
+        for (const id of scenario.suppressedRecordIds) {
+          const restore = createElement("button", "button ghost compact-button", `Restore ${id}`);
+          restore.type = "button";
+          restore.addEventListener("click", () => {
+            suppressedMatrixRecordIds.delete(id);
+            draw();
+          });
+          restoreActions.append(restore);
+        }
+        const reset = createElement("button", "button secondary compact-button", "Reset scenario");
+        reset.type = "button";
+        reset.addEventListener("click", () => {
+          suppressedMatrixRecordIds.clear();
+          draw();
+        });
+        restoreActions.append(reset);
+        summary.append(restoreActions);
+        scenarioHost.append(summary);
+      } else {
+        scenarioHost.append(
+          createElement(
+            "p",
+            "investigation-card-meta",
+            "Use row checkboxes to test a reversible sensitivity scenario. Nothing is persisted.",
+          ),
+        );
+      }
+
       if (!matrix.hypotheses.length) {
         matrixHost.append(emptyState("No hypotheses are available in this group."));
         return;
       }
+
+      const selectedHypothesis = baseline.hypotheses.find(
+        (hypothesis) => recordId(hypothesis) === selectedDispositionHypothesisId,
+      );
+      dispositionHost.append(renderHypothesisDisposition(reasoning, selectedHypothesis));
+
       const table = createElement("table", "investigation-matrix");
       const thead = createElement("thead");
       const headerRow = createElement("tr");
@@ -529,11 +718,21 @@ export function createInvestigationWorkspace(
         const th = createElement("th");
         const candidateId = stringValue(hypothesis.candidateEntityId);
         const label = labelFor(hypothesis, recordId(hypothesis));
-        th.append(
-          candidateId
-            ? focusButton({ kind: "entity", id: candidateId, record: hypothesis }, label, onFocus)
-            : createElement("span", "", label),
-        );
+        const labelNode = candidateId
+          ? focusButton({ kind: "entity", id: candidateId, record: hypothesis }, label, onFocus)
+          : createElement("span", "", label);
+        const disposition = statusBadge(stringValue(hypothesis.assessment) || "open");
+        const review = createElement("button", "button ghost compact-button", "Review");
+        review.type = "button";
+        review.setAttribute("aria-label", `Review disposition for ${label}`);
+        review.addEventListener("click", () => {
+          selectedDispositionHypothesisId =
+            selectedDispositionHypothesisId === recordId(hypothesis) ? "" : recordId(hypothesis);
+          draw();
+        });
+        const headerContent = createElement("div", "investigation-hypothesis-header");
+        headerContent.append(labelNode, disposition, review);
+        th.append(headerContent);
         headerRow.append(th);
       }
       thead.append(headerRow);
@@ -542,15 +741,23 @@ export function createInvestigationWorkspace(
       const tbody = createElement("tbody");
       for (const row of matrix.evidenceRows) {
         const tr = createElement("tr");
-        const record = [
-          ...collection(reasoning, "hypotheses"),
-          ...((reasoning.observations as ReasoningRecord[] | undefined) ?? []),
-          ...((reasoning.assertions as ReasoningRecord[] | undefined) ?? []),
-          ...((reasoning.citations as ReasoningRecord[] | undefined) ?? []),
-        ].find((candidate) => recordId(candidate) === row.evidenceId);
+        const record = allEvidenceRecords().find(
+          (candidate) => recordId(candidate) === row.evidenceId,
+        );
         const label = record ? labelFor(record, row.evidenceId) : row.evidenceId;
         const evidenceCell = createElement("th");
         evidenceCell.scope = "row";
+
+        const sensitivity = createElement("input");
+        sensitivity.type = "checkbox";
+        sensitivity.checked = suppressedMatrixRecordIds.has(row.evidenceId);
+        sensitivity.setAttribute("aria-label", `Exclude ${label} from sensitivity scenario`);
+        sensitivity.addEventListener("change", () => {
+          if (sensitivity.checked) suppressedMatrixRecordIds.add(row.evidenceId);
+          else suppressedMatrixRecordIds.delete(row.evidenceId);
+          draw();
+        });
+
         const inspect = createElement("button", "investigation-link", label);
         inspect.type = "button";
         inspect.setAttribute("aria-expanded", String(selectedMatrixRecordId === row.evidenceId));
@@ -564,7 +771,9 @@ export function createInvestigationWorkspace(
           );
           inspect.setAttribute("aria-expanded", String(Boolean(selectedMatrixRecordId)));
         });
-        evidenceCell.append(inspect);
+        const rowControls = createElement("div", "investigation-matrix-row-label");
+        rowControls.append(sensitivity, inspect);
+        evidenceCell.append(rowControls);
         tr.append(evidenceCell);
         for (const cell of row.cells) {
           const td = createElement("td");
@@ -576,16 +785,40 @@ export function createInvestigationWorkspace(
       }
       table.append(tbody);
       matrixHost.append(table);
-      const selected = [
-        ...((reasoning.observations as ReasoningRecord[] | undefined) ?? []),
-        ...((reasoning.assertions as ReasoningRecord[] | undefined) ?? []),
-        ...((reasoning.citations as ReasoningRecord[] | undefined) ?? []),
-      ].find((record) => recordId(record) === selectedMatrixRecordId);
+
+      if (scenario?.removedRows.length) {
+        const removed = createElement("div", "investigation-suppressed-rows");
+        removed.append(createElement("strong", "", "Suppressed rows"));
+        for (const row of scenario.removedRows) {
+          const record = allEvidenceRecords().find(
+            (candidate) => recordId(candidate) === row.evidenceId,
+          );
+          const restore = createElement(
+            "button",
+            "button ghost compact-button",
+            record ? labelFor(record, row.evidenceId) : row.evidenceId,
+          );
+          restore.type = "button";
+          restore.title = "Restore this evidence row to the scenario";
+          restore.addEventListener("click", () => {
+            suppressedMatrixRecordIds.delete(row.evidenceId);
+            draw();
+          });
+          removed.append(restore);
+        }
+        matrixHost.append(removed);
+      }
+
+      const selected = allEvidenceRecords().find(
+        (record) => recordId(record) === selectedMatrixRecordId,
+      );
       drilldownHost.replaceChildren(renderEvidenceDrilldown(selected));
     };
 
     selector.addEventListener("change", () => {
       selectedMatrixRecordId = "";
+      selectedDispositionHypothesisId = "";
+      suppressedMatrixRecordIds.clear();
       draw();
     });
     draw();
