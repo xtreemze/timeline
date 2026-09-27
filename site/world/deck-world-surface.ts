@@ -5654,21 +5654,22 @@ export class DeckWorldSurface implements WorldSurface {
               getPosition: (datum: DeckWorldLabelDatum) => datum.position,
               getSize: worldGraphLabelSize,
               getColor: (datum: DeckWorldLabelDatum) => {
+                const facing = this.#cameraFacingOpacity(datum.position);
+                if (datum.kind === "relationship-label") {
+                  const edge = relationshipResult.byId.get(datum.relationshipId);
+                  const edgeColor = edge
+                    ? worldColorBytes(this.#edgeStyle(edge, edgeFallbackColor(edge)).color)
+                    : this.#theme.labelRelationship;
+                  return scaleAlpha(edgeColor, facing * (edge ? edgeExpansion(edge) : 0));
+                }
                 const base = labelInteractionEmphasized(datum)
                   ? this.#theme.labelEmphasis
                   : datum.kind === "place-label" || datum.kind === "cluster-label"
                     ? this.#theme.labelPlace
-                    : datum.kind === "relationship-label"
-                      ? this.#theme.labelRelationship
-                      : this.#theme.labelText;
-                const facing = this.#cameraFacingOpacity(datum.position);
+                    : this.#theme.labelText;
                 if (datum.kind === "place-label") return scaleAlpha(base, facing);
                 if (datum.kind === "cluster-label") {
                   return scaleAlpha(base, facing * clusterVisibility);
-                }
-                if (datum.kind === "relationship-label") {
-                  const edge = relationshipResult.byId.get(datum.relationshipId);
-                  return scaleAlpha(base, facing * (edge ? edgeExpansion(edge) : 0));
                 }
                 const entity = entityResult.byId.get(datum.worldInstanceId);
                 const entityBase =
@@ -5687,7 +5688,7 @@ export class DeckWorldSurface implements WorldSurface {
                 getColor: [
                   this.#palette,
                   clusterPhase,
-                  clusterPhase,
+                  this.#relationshipStyleRevision,
                   labelInteractionKey,
                   cameraFacingStep(this.#camera),
                 ],
