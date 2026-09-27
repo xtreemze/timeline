@@ -650,3 +650,120 @@ test("trajectory-derived observations preserve world, timeline, source, and traj
     false,
   );
 });
+
+
+test("sensitivity scenario suppresses source-linked evidence without mutating canonical reasoning", () => {
+  const model = {
+    observations: [
+      {
+        id: "obs-route",
+        text: "Alice's device passed near the incident area.",
+        evidenceIds: ["ev-route"],
+      },
+      {
+        id: "obs-alibi",
+        text: "Bob was documented elsewhere.",
+        evidenceIds: ["ev-alibi"],
+      },
+    ],
+    assertions: [
+      { id: "fact-route", text: "Alice's route is spatially compatible.", inputIds: ["obs-route"] },
+      { id: "fact-alibi", text: "Bob's alibi conflicts with presence.", inputIds: ["obs-alibi"] },
+    ],
+    hypotheses: [
+      {
+        id: "hyp-alice",
+        text: "Unknown person was Alice.",
+        alternativeGroupId: "identity-a",
+        assertionIds: ["fact-route"],
+      },
+      {
+        id: "hyp-bob",
+        text: "Unknown person was Bob.",
+        alternativeGroupId: "identity-a",
+        assertionIds: ["fact-alibi"],
+      },
+    ],
+    edges: [
+      { id: "edge-route", fromId: "fact-route", toId: "hyp-alice", predicate: "supports" },
+      { id: "edge-alibi", fromId: "fact-alibi", toId: "hyp-bob", predicate: "contradicts" },
+    ],
+  };
+
+  const before = JSON.stringify(reasoning.normalizeReasoning(model));
+  const scenario = reasoning.hypothesisSensitivityScenario(
+    model,
+    "identity-a",
+    ["ev-alibi"],
+  );
+
+  assert.deepEqual(scenario.suppressedIds, ["ev-alibi"]);
+  assert.deepEqual(scenario.suppressedRecordIds, ["obs-alibi"]);
+  assert.ok(scenario.affectedRecordIds.includes("fact-alibi"));
+  assert.ok(scenario.affectedRecordIds.includes("hyp-bob"));
+  assert.ok(scenario.changedHypothesisIds.includes("hyp-bob"));
+  assert.equal(
+    scenario.matrix.evidenceRows.some((row) => row.evidenceId === "obs-alibi"),
+    false,
+  );
+  assert.equal(JSON.stringify(reasoning.normalizeReasoning(model)), before);
+  assert.equal("score" in scenario, false);
+  assert.equal("winner" in scenario, false);
+});
+
+test("hypothesis disposition review is append-only and requires rationale for rejection", () => {
+  const model = {
+    hypotheses: [
+      {
+        id: "hyp-bob",
+        text: "Unknown person was Bob.",
+        alternativeGroupId: "identity-a",
+      },
+    ],
+    reviews: [
+      {
+        id: "review-1",
+        targetIds: ["hyp-bob"],
+        decision: "retained",
+        rationale: "Alternative remains plausible pending alibi verification.",
+        reviewedAt: "2026-09-26T18:00:00Z",
+      },
+    ],
+  };
+
+  assert.throws(
+    () =>
+      reasoning.recordHypothesisDisposition(model, {
+        hypothesisId: "hyp-bob",
+        decision: "rejected",
+        reviewedAt: "2026-09-26T19:00:00Z",
+      }),
+    /require a recorded rationale/,
+  );
+
+  const rejected = reasoning.recordHypothesisDisposition(model, {
+    hypothesisId: "hyp-bob",
+    decision: "rejected",
+    rationale: "Independent transport records place Bob elsewhere for the complete interval.",
+    reviewedAt: "2026-09-26T19:00:00Z",
+    reviewId: "review-2",
+  });
+  assert.equal(rejected.hypotheses[0].assessment, "rejected");
+  assert.equal(rejected.reviews.length, 2);
+
+  const reconsidered = reasoning.recordHypothesisDisposition(rejected, {
+    hypothesisId: "hyp-bob",
+    decision: "retained",
+    rationale: "The transport timestamp was later shown to be mis-synchronized.",
+    reviewedAt: "2026-09-26T20:00:00Z",
+    reviewId: "review-3",
+  });
+  assert.equal(reconsidered.hypotheses[0].assessment, "retained");
+  assert.deepEqual(
+    reasoning
+      .hypothesisDispositionHistory(reconsidered, "hyp-bob")
+      .map((review) => review.id),
+    ["review-1", "review-2", "review-3"],
+  );
+  assert.equal(reconsidered.reviews[1].rationale.includes("transport records"), true);
+});
