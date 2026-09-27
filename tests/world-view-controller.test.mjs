@@ -368,6 +368,9 @@ test("direct drag CPU readback is capped near 60 Hz on high-refresh frame steps"
   const input = projection();
   const alice = input.instances.find((instance) => instance.canonicalId === "alice");
   controller.setProjection(input);
+  // Consume the initial eager layout push so the assertions below measure
+  // steady-state high-refresh drag cadence rather than first-frame startup.
+  controller.step(50);
 
   assert.equal(
     controller.beginNodeDrag(7, alice.id, {
