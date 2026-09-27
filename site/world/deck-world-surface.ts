@@ -3096,6 +3096,7 @@ export class DeckWorldSurface implements WorldSurface {
   #suppressNextDeckClick = false;
   #dragPresentationRevision = 0;
   #dragCameraLock: WorldCameraState | null = null;
+  #hoverRenderFrame: number | null = null;
   #destroyed = false;
 
   // Priority 3 (issue #445): previous frame's datum-by-id maps, kept so
@@ -3362,7 +3363,7 @@ export class DeckWorldSurface implements WorldSurface {
     if (selectionUnchanged && clusterUnchanged) return;
     this.#hoverSelection = next;
     this.#hoverClusterId = nextClusterId;
-    this.#render();
+    this.#scheduleHoverRender();
   };
 
   readonly #handleDeckClick = (info: DeckRuntimePickingInfo): void => {
@@ -3504,12 +3505,13 @@ export class DeckWorldSurface implements WorldSurface {
           this.#syncClusterLifecycle();
           // The camera is controlled (`viewState` prop): hand deck the new
           // state or the globe snaps back and cannot be rotated or panned.
-          // Panning/rotating changes camera-facing opacity continuously. Rebuilding
-          // every semantic layer at each 0.1° facing step stalls one-finger touch
-          // drags on mobile. During an owned camera gesture, keep deck's controlled
-          // view state moving and defer only the facing-dependent rebuild; zoom/LOD
-          // changes may still refresh immediately.
-          if (this.#zoomNeedsRender(!cameraInteractionActive)) this.#render(true);
+          // Any semantic-layer rebuild in this callback competes directly with the
+          // pointer stream. Pan used to rebuild at camera-facing quantization steps,
+          // while pinch/wheel zoom could rebuild on nearly every event because
+          // screen scale, local-offset magnification and altitude are zoom-derived.
+          // Keep the entire owned camera gesture viewState-only; spatial mode,
+          // clustering and presentation LOD are reconciled once interaction settles.
+          if (!cameraInteractionActive && this.#zoomNeedsRender()) this.#render(true);
           else this.#deck.setProps({ viewState: this.#camera });
         }
       },
@@ -3788,6 +3790,31 @@ export class DeckWorldSurface implements WorldSurface {
     this.#cameraInteractionSink?.setCameraInteractionActive(active);
   }
 
+  #scheduleHoverRender(): void {
+    if (this.#hoverRenderFrame !== null) return;
+    const view = this.#container.ownerDocument?.defaultView;
+    const requestFrame =
+      view?.requestAnimationFrame?.bind(view) ?? globalThis.requestAnimationFrame?.bind(globalThis);
+    if (!requestFrame) {
+      this.#render();
+      return;
+    }
+    this.#hoverRenderFrame = requestFrame(() => {
+      this.#hoverRenderFrame = null;
+      if (!this.#destroyed) this.#render();
+    });
+  }
+
+  #cancelHoverRender(): void {
+    if (this.#hoverRenderFrame === null) return;
+    const frame = this.#hoverRenderFrame;
+    this.#hoverRenderFrame = null;
+    const view = this.#container.ownerDocument?.defaultView;
+    const cancelFrame =
+      view?.cancelAnimationFrame?.bind(view) ?? globalThis.cancelAnimationFrame?.bind(globalThis);
+    cancelFrame?.(frame);
+  }
+
   setClusterForceSink(sink: DeckWorldClusterForceSink | null): void {
     this.#assertAlive();
     this.#clusterForceSink = sink;
@@ -3998,8 +4025,11 @@ export class DeckWorldSurface implements WorldSurface {
     this.#projection = applyWorldProjectionDelta(this.#projection, delta);
     this.#pruneRevealedClusterPlaces();
     // Force/layout deltas are derived presentation updates. Do not re-run
-    // content fit or move the camera while nodes relax.
-    this.#syncClusterLifecycle();
+    // content fit or move the camera while nodes relax. A direct node drag only
+    // changes force-resolved presentation coordinates; clustering is a
+    // zoom/place-topology decision and is reconciled after the drag instead of
+    // rescanning the full projection for every pinned frame.
+    if (this.#activeDragPointerId === null) this.#syncClusterLifecycle();
     this.#render();
   }
 
@@ -4367,6 +4397,7 @@ export class DeckWorldSurface implements WorldSurface {
     this.#clearClusterTimers();
     this.#clearDragFlash({ render: false });
     this.#clearDragClickSuppression();
+    this.#cancelHoverRender();
     this.#container.removeEventListener?.("lostpointercapture", this.#handleLostPointerCapture);
     this.#container.removeEventListener?.("dblclick", this.#handleDoubleClick as EventListener);
     this.#container.removeEventListener?.("keydown", this.#handleKeyDown as EventListener);
@@ -4964,6 +4995,7 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   #render(withCamera = false): void {
+    this.#cancelHoverRender();
     this.#offsetScale = this.#nextOffsetScale();
     this.#floatMeters = this.#nextFloatMeters();
     const neighborhood = interactionNeighborhood(this.#projection, [
