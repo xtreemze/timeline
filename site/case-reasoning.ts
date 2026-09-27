@@ -601,7 +601,9 @@ function hypothesisCell(
   const edges = normalized.edges.filter(
     (edge: any) => edge.fromId === evidenceId && edge.toId === hypothesis.id,
   );
-  const predicates = new Set(edges.map((edge: any) => edge.predicate));
+  const predicates = new Set<string>(
+    edges.map((edge: any) => String(edge.predicate ?? "")),
+  );
   const supports = [...predicates].some((predicate) => SUPPORT_PREDICATES.has(predicate));
   const contradicts = [...predicates].some((predicate) =>
     CONTRADICTION_PREDICATES.has(predicate),

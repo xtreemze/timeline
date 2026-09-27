@@ -204,8 +204,9 @@ test.describe("world performance certification (issue #445 Priority 7)", () => {
           // work of sustained drag/post-drop frames without including fixture
           // diff construction or a full projection readback in each sample.
           const current = harness.getProjection();
-          let movingInstance = current.instances[0];
-          if (!movingInstance) throw new Error("World performance fixture has no instances.");
+          const initialMovingInstance = current.instances[0];
+          if (!initialMovingInstance) throw new Error("World performance fixture has no instances.");
+          let movingInstance = initialMovingInstance;
           const singleNodeSamples: number[] = [];
           const sampleCount =
             base.instances.length >= 50_000 ? 8 : base.instances.length >= 10_000 ? 16 : 30;

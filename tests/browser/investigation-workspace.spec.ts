@@ -60,7 +60,7 @@ async function installReasoningFixture(page) {
       ...["alice", "bob", "carol"].map((id) => ({
         id,
         type: "person",
-        name: id[0].toUpperCase() + id.slice(1),
+        name: id[0]!.toUpperCase() + id.slice(1),
         alternateNames: [],
         sourceIds: [],
         attributes: {},

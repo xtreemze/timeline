@@ -6036,7 +6036,7 @@ function reasoningTemporalWindow(record: Record<string, unknown> | undefined) {
 function focusInvestigationTarget(target: InvestigationFocusTarget) {
   if (target.kind === "entity") {
     setInvestigationSurfaceOpen(false);
-    temporalGraphView?.focusEntity?.(target.id as never);
+    temporalGraphView?.focusEntity?.(target.id);
     showStatus(`Focused entity ${target.id}.`);
     return;
   }
@@ -6059,36 +6059,40 @@ function focusInvestigationTarget(target: InvestigationFocusTarget) {
 
   if (temporalWindow) worldView?.setWindow?.(temporalWindow);
 
-  if (trajectoryIds.length && worldView?.focusTrajectory) {
+  const trajectoryId = trajectoryIds[0];
+  if (trajectoryId && worldView?.focusTrajectory) {
     setInvestigationSurfaceOpen(false);
-    worldView.focusTrajectory(trajectoryIds[0]);
-    showStatus(`Focused trajectory ${trajectoryIds[0]} and its investigation time window.`);
+    worldView.focusTrajectory(trajectoryId);
+    showStatus(`Focused trajectory ${trajectoryId} and its investigation time window.`);
     return;
   }
-  if (relationshipIds.length) {
+  const relationshipId = relationshipIds[0];
+  if (relationshipId) {
     setInvestigationSurfaceOpen(false);
-    worldView?.focusOccurrence?.(relationshipIds[0]);
+    worldView?.focusOccurrence?.(relationshipId);
     showStatus(
       trajectoryIds.length
-        ? `Focused trajectory context ${trajectoryIds.join(", ")} via occurrence/relation ${relationshipIds[0]}.`
-        : `Focused occurrence/relation ${relationshipIds[0]}.`,
+        ? `Focused trajectory context ${trajectoryIds.join(", ")} via occurrence/relation ${relationshipId}.`
+        : `Focused occurrence/relation ${relationshipId}.`,
     );
     return;
   }
-  if (placeIds.length) {
+  const placeId = placeIds[0];
+  if (placeId) {
     setInvestigationSurfaceOpen(false);
-    worldView?.focusPlace?.(placeIds[0]);
+    worldView?.focusPlace?.(placeId);
     showStatus(
       trajectoryIds.length
-        ? `Focused trajectory context ${trajectoryIds.join(", ")} at place ${placeIds[0]}.`
-        : `Focused place ${placeIds[0]}.`,
+        ? `Focused trajectory context ${trajectoryIds.join(", ")} at place ${placeId}.`
+        : `Focused place ${placeId}.`,
     );
     return;
   }
-  if (entityIds.length) {
+  const entityId = entityIds[0];
+  if (entityId) {
     setInvestigationSurfaceOpen(false);
-    worldView?.focusEntity?.(entityIds[0]);
-    showStatus(`Focused entity ${entityIds[0]} from the reasoning record.`);
+    worldView?.focusEntity?.(entityId);
+    showStatus(`Focused entity ${entityId} from the reasoning record.`);
     return;
   }
 

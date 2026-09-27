@@ -299,8 +299,10 @@ test("serialized project snapshots preserve dense trajectory manifests without e
   });
   const restored = deserializeProjectSnapshot(serialized).project;
   assert.deepEqual(restored, trajectoryProject);
-  assert.equal(restored.trajectories?.[0].sampleCount, 100_000);
-  assert.equal("samples" in restored.trajectories?.[0], false);
+  const restoredTrajectory = restored.trajectories?.[0];
+  assert.ok(restoredTrajectory);
+  assert.equal(restoredTrajectory.sampleCount, 100_000);
+  assert.equal("samples" in restoredTrajectory, false);
 });
 
 test("canonical project validation rejects occurrence IDs colliding with relationship IDs", () => {

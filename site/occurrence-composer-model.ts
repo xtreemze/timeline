@@ -156,7 +156,7 @@ function parseEntityAtStart(
   } else {
     const match = source.match(/^([^\s()\[\]]+)/);
     if (!match) return { entity: null, rest: source };
-    name = match[1];
+    name = match[1]!;
     offset = match[0].length;
   }
 
@@ -211,14 +211,14 @@ function stripTime(input: string): {
   if (range) {
     return {
       source: input.slice(0, range.index).trimEnd(),
-      time: Object.freeze({ kind: "range", start: range[1], end: range[2] }),
+      time: Object.freeze({ kind: "range", start: range[1]!, end: range[2]! }),
     };
   }
   const instant = input.match(/\s+on\s+(\S+)\s*$/i);
   if (instant) {
     return {
       source: input.slice(0, instant.index).trimEnd(),
-      time: Object.freeze({ kind: "instant", start: instant[1] }),
+      time: Object.freeze({ kind: "instant", start: instant[1]! }),
     };
   }
   return { source: input, time: null };
@@ -273,7 +273,7 @@ export function parseOccurrenceSentence(input: string): OccurrenceSentenceDraft 
     });
   }
 
-  const predicate = predicateMatch[1];
+  const predicate = predicateMatch[1]!;
   const afterPredicate = subjectPass.rest.slice(predicateMatch[0].length).trimStart();
   const objectPass = parseEntityAtStart(afterPredicate);
   if (!objectPass.entity) {

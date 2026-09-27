@@ -4307,8 +4307,9 @@ export class DeckWorldSurface implements WorldSurface {
     info: DeckRuntimePickingInfo,
   ): { readonly instanceId: WorldInstanceId; readonly position: WorldNodeDragPosition } | null {
     if (!isRecord(info.object) || info.object.kind !== "entity") return null;
-    const worldInstanceId = info.object.worldInstanceId;
-    if (typeof worldInstanceId !== "string") return null;
+    const rawWorldInstanceId = info.object.worldInstanceId;
+    if (typeof rawWorldInstanceId !== "string") return null;
+    const worldInstanceId = rawWorldInstanceId as WorldInstanceId;
 
     const point = screenPointFromPicking(info);
     if (!point) return null;

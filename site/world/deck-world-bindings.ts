@@ -129,11 +129,10 @@ class TimelineWeightedGlobeController extends GlobeController {
     });
 
     this.#touchBearing = touchBearing;
-    this.transition = {
-      ...this.transition,
+    this.transition = Object.assign({}, this.transition, {
       transitionDuration: TimelineMotion.INERTIA_TAU_MS,
       transitionEasing: weightedGlobeEasing,
-    };
+    });
   }
 
   override handleEvent(event: GlobeControllerEvent): boolean {
