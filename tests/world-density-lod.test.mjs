@@ -192,8 +192,10 @@ test("cluster lifecycle is discrete and defers topology changes while camera nav
 
   assert.match(source, /#clusterPhase = "releasing"/);
   assert.match(source, /releasingRelationships/);
-  assert.match(source, /#pendingClusterLifecycleSync = true/);
-  assert.match(source, /if \(this\.#cameraInteractionActive\) return/);
+  assert.match(
+    source,
+    /if \(this\.#cameraInteractionActive\) \{[\s\S]*?#pendingClusterLifecycleSync = true;[\s\S]*?return;/,
+  );
   assert.match(source, /WORLD_CLUSTER_EDGE_RELEASE_MS/);
   assert.match(source, /#clusterPhase = "collapsing"/);
   assert.match(
