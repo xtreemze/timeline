@@ -36,6 +36,11 @@ export interface WorldForceSceneBuildOptions {
   readonly reorganizeDag?: boolean;
   /** Structural flow direction selected from the current world viewport shape. */
   readonly dagOrientation?: WorldDagLayoutOrientation;
+  /**
+   * Optional continuity-preserving starting pose. Canonical/new projection
+   * data still owns force targets, anchors, weights, topology, and DAG goals.
+   */
+  readonly initialProjection?: WorldProjection;
 }
 
 /**
