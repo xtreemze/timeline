@@ -614,6 +614,11 @@ test("world surface publishes camera interaction ownership without treating zoom
     },
   });
 
+  // A layer/object drag may raise deck.gl's generic isDragging state. That is
+  // not camera ownership and must not suspend node-drag force/readback work.
+  calls.deckProps.onInteractionStateChange({ isDragging: true });
+  calls.deckProps.onInteractionStateChange({ isDragging: false });
+
   calls.deckProps.onViewStateChange({
     viewState: { longitude: 18.0686, latitude: 59.3293, zoom: 8.5, bearing: 0, pitch: 20 },
     interactionState: { isZooming: true },
