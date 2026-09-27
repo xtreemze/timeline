@@ -205,6 +205,65 @@
 }
 
 
+.investigation-sensitivity-status {
+  min-width: 0;
+}
+
+.investigation-sensitivity-banner,
+.investigation-disposition {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--paper) 94%, var(--paper-2));
+}
+
+.investigation-disposition-host:empty {
+  display: none;
+}
+
+.investigation-disposition {
+  margin-block-end: 0.85rem;
+}
+
+.investigation-disposition h3 {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.investigation-disposition-history {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.investigation-hypothesis-header {
+  display: grid;
+  gap: 0.4rem;
+  align-content: start;
+}
+
+.investigation-matrix-row-label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 0.45rem;
+}
+
+.investigation-matrix-row-label input[type="checkbox"] {
+  margin-block-start: 0.18rem;
+}
+
+.investigation-suppressed-rows {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.65rem;
+  border-top: 1px solid var(--line);
+  background: var(--paper-2);
+}
+
 .investigation-evidence-drilldown-host {
   margin-block-start: 0.85rem;
 }
