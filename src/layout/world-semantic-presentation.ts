@@ -19,8 +19,17 @@ const LABEL_BUDGETS: readonly (readonly [minimumZoom: number, budget: number])[]
 ];
 const OVERVIEW_LABEL_BUDGET = 12;
 
-/** Places are sparse canonical geography; their labels get a higher floor. */
-export const WORLD_PLACE_LABEL_FLOOR = 40;
+/**
+ * Ordinary place labels stay hidden in overview/regional views. At those
+ * scales declutter can move text far enough from its geographic marker that
+ * the label no longer communicates a reliable place association. Direct
+ * interaction may still reveal a specific place label.
+ */
+export const WORLD_PLACE_LABEL_DETAIL_ZOOM = 5;
+
+export function worldShowsOrdinaryPlaceLabels(zoom: number): boolean {
+  return Number.isFinite(zoom) && zoom >= WORLD_PLACE_LABEL_DETAIL_ZOOM;
+}
 
 /**
  * How many optional labels of one kind may be drawn at a zoom level. Pinned

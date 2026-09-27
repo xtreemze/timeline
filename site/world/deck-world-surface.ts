@@ -54,7 +54,6 @@ import {
   worldEntityFloatPx,
   WORLD_LOCAL_GRAPH_MAX_PLACE_SHARE,
   WORLD_LOCAL_GRAPH_RADIUS_PX,
-  WORLD_PLACE_LABEL_FLOOR,
   worldArrowLengthDegreesForNodeRadius,
   worldArrowStrokeWidthPxForNodeRadius,
   worldFloatingGraphRadiusPx,
@@ -65,6 +64,7 @@ import {
   worldPixelsToDegrees,
   worldPlaceClusterRadiusPx,
   worldPresentationOffsetScale,
+  worldShowsOrdinaryPlaceLabels,
 } from "../../src/layout/world-semantic-presentation.ts";
 import {
   selectWorldSpatialMode,
@@ -2520,9 +2520,14 @@ function labelDatums(input: {
   }
 
   const places = selectPrioritizedLabels(
-    input.places.filter((place) => place.label && !clusteredPlaceIds.has(place.placeId)),
+    input.places.filter(
+      (place) =>
+        worldShowsOrdinaryPlaceLabels(input.zoom) &&
+        place.label &&
+        !clusteredPlaceIds.has(place.placeId),
+    ),
     {
-      budget: Math.max(budget, WORLD_PLACE_LABEL_FLOOR),
+      budget,
       isPinned: () => false,
       importance: () => 0,
       key: (place) => place.placeId,
@@ -3126,6 +3131,7 @@ export class DeckWorldSurface implements WorldSurface {
   // Same idea for the semantic label/marker LOD tier: a tier change only
   // matters when some kind has more candidates than the smaller budget.
   #labelBudgetLastRender = -1;
+  #placeLabelsVisibleLastRender = false;
   #lodCandidateCountLastRender = 0;
 
   // Off-screen `aria-live` region (issue #445 Priority 6) mirroring the
@@ -4645,9 +4651,12 @@ export class DeckWorldSurface implements WorldSurface {
     const screenScaleChanged =
       screenScaleZoomStep(this.#camera.zoom) !== this.#screenScaleZoomLastRender;
     const cameraFacingChanged = cameraFacingStep(this.#camera) !== this.#cameraFacingStepLastRender;
+    const placeLabelVisibilityChanged =
+      worldShowsOrdinaryPlaceLabels(this.#camera.zoom) !== this.#placeLabelsVisibleLastRender;
     return (
       this.#clusterPhase !== this.#clusterPhaseLastRender ||
       lodChanged ||
+      placeLabelVisibilityChanged ||
       screenScaleChanged ||
       cameraFacingChanged ||
       this.#nextOffsetScale() !== this.#offsetScale ||
@@ -5061,6 +5070,7 @@ export class DeckWorldSurface implements WorldSurface {
     this.#screenScaleZoomLastRender = screenScaleZoomStep(this.#camera.zoom);
     this.#cameraFacingStepLastRender = cameraFacingStep(this.#camera);
     this.#labelBudgetLastRender = worldLabelBudget(this.#camera.zoom);
+    this.#placeLabelsVisibleLastRender = worldShowsOrdinaryPlaceLabels(this.#camera.zoom);
     this.#lodCandidateCountLastRender = Math.max(
       places.length,
       relationships.length,
