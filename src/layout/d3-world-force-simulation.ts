@@ -590,11 +590,6 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
             }));
 
       const maximumRadius = Math.max(1, ...nodes.map((node) => node.node.collisionRadiusMeters));
-      const maximumRestLength = Math.max(
-        maximumRadius * 4,
-        ...links.map((link) => link.edge.restLengthMeters),
-      );
-
       const simulation = forceSimulation<D3WorldNodeState>(nodes as D3WorldNodeState[])
         .stop()
         .alphaMin(ALPHA_MIN)
