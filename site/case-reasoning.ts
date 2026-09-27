@@ -82,6 +82,12 @@ const HYPOTHESIS_KINDS = Object.freeze([
   "source",
 ] as const);
 const IDENTITY_CANDIDATE_SCOPES = Object.freeze(["entity", "none-known"] as const);
+const HYPOTHESIS_DISPOSITIONS = Object.freeze([
+  "open",
+  "retained",
+  "rejected",
+  "superseded",
+] as const);
 const ASSUMPTION_STATUSES = Object.freeze(["open", "supported", "challenged", "rejected"] as const);
 const QUESTION_STATUSES = Object.freeze(["open", "answered", "deferred"] as const);
 const ENQUIRY_STATUSES = Object.freeze([
@@ -667,6 +673,177 @@ export function competingHypothesisMatrix(reasoning: any, alternativeGroupId: un
       ),
     })),
   };
+}
+
+
+function directSuppressionRecordIds(
+  normalized: Record<string, any>,
+  suppressedIds: Set<string>,
+): Set<string> {
+  const recordIds = new Set(recordsOf(normalized).map((record) => record.id));
+  const result = new Set<string>();
+  for (const id of suppressedIds) {
+    if (recordIds.has(id)) result.add(id);
+  }
+  for (const record of recordsOf(normalized)) {
+    const externalRefs = [
+      ...idList(record.evidenceIds),
+      ...idList(record.sourceIds),
+      ...(record.evidenceId ? [text(record.evidenceId, 160)] : []),
+    ];
+    if (externalRefs.some((id) => suppressedIds.has(id))) result.add(record.id);
+  }
+  return result;
+}
+
+function affectedDependencyIds(
+  normalized: Record<string, any>,
+  suppressedIds: Set<string>,
+  suppressedRecordIds: Set<string>,
+): string[] {
+  const affected = new Set<string>();
+  const blocked = new Set([...suppressedIds, ...suppressedRecordIds]);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const record of recordsOf(normalized)) {
+      if (suppressedRecordIds.has(record.id) || affected.has(record.id)) continue;
+      const deps = dependencyIds(record);
+      const incoming = normalized.edges
+        .filter((edge: any) => edge.toId === record.id)
+        .map((edge: any) => edge.fromId);
+      if ([...deps, ...incoming].some((id) => blocked.has(id) || affected.has(id))) {
+        affected.add(record.id);
+        changed = true;
+      }
+    }
+  }
+  return [...affected].sort();
+}
+
+export function hypothesisSensitivityScenario(
+  reasoning: any,
+  alternativeGroupId: unknown,
+  suppressed: unknown[] = [],
+) {
+  const normalized = normalizeReasoning(reasoning);
+  const suppressedIds = new Set(idList(suppressed));
+  const suppressedRecordIds = directSuppressionRecordIds(normalized, suppressedIds);
+  const baseline = competingHypothesisMatrix(normalized, alternativeGroupId);
+
+  const scenario: Record<string, any> = {};
+  for (const collectionName of Object.keys(COLLECTION_TYPES)) {
+    scenario[collectionName] = normalized[collectionName].filter(
+      (record: any) => !suppressedRecordIds.has(record.id),
+    );
+  }
+  scenario.edges = normalized.edges.filter(
+    (edge: any) =>
+      !suppressedIds.has(edge.id) &&
+      !suppressedRecordIds.has(edge.fromId) &&
+      !suppressedRecordIds.has(edge.toId),
+  );
+
+  const matrix = competingHypothesisMatrix(scenario, alternativeGroupId);
+  const removedRows = baseline.evidenceRows
+    .filter((row: any) => suppressedRecordIds.has(row.evidenceId))
+    .map((row: any) => ({
+      evidenceId: row.evidenceId,
+      cells: row.cells.map((cell: any) => ({
+        hypothesisId: cell.hypothesisId,
+        assessment: cell.assessment,
+      })),
+    }));
+
+  const changedHypothesisIds = [
+    ...new Set(
+      removedRows.flatMap((row: any) =>
+        row.cells
+          .filter((cell: any) => cell.assessment !== "unknown")
+          .map((cell: any) => cell.hypothesisId),
+      ),
+    ),
+  ].sort();
+
+  return {
+    alternativeGroupId: text(alternativeGroupId, 160),
+    suppressedIds: [...suppressedIds].sort(),
+    suppressedRecordIds: [...suppressedRecordIds].sort(),
+    affectedRecordIds: affectedDependencyIds(normalized, suppressedIds, suppressedRecordIds),
+    changedHypothesisIds,
+    removedRows,
+    matrix,
+  };
+}
+
+export function hypothesisDispositionHistory(reasoning: any, hypothesisId: unknown) {
+  const normalized = normalizeReasoning(reasoning);
+  const id = text(hypothesisId, 160);
+  return normalized.reviews
+    .filter(
+      (review: any) =>
+        review.targetIds.includes(id) && HYPOTHESIS_DISPOSITIONS.includes(review.decision as any),
+    )
+    .sort((left: any, right: any) => {
+      const leftTime = Date.parse(left.reviewedAt || left.createdAt || "");
+      const rightTime = Date.parse(right.reviewedAt || right.createdAt || "");
+      if (Number.isFinite(leftTime) && Number.isFinite(rightTime) && leftTime !== rightTime) {
+        return leftTime - rightTime;
+      }
+      return left.id.localeCompare(right.id);
+    });
+}
+
+export function recordHypothesisDisposition(
+  reasoning: any,
+  input: {
+    hypothesisId: unknown;
+    decision: unknown;
+    rationale?: unknown;
+    reviewerEntityId?: unknown;
+    reviewedAt?: unknown;
+    reviewId?: unknown;
+  },
+) {
+  const normalized = normalizeReasoning(reasoning);
+  const hypothesisId = text(input?.hypothesisId, 160);
+  const hypothesis = normalized.hypotheses.find((record: any) => record.id === hypothesisId);
+  if (!hypothesis) throw new Error("Hypothesis disposition requires an existing hypothesis.");
+
+  const decision = text(input?.decision, 80);
+  if (!HYPOTHESIS_DISPOSITIONS.includes(decision as any)) {
+    throw new Error("Hypothesis disposition must be open, retained, rejected, or superseded.");
+  }
+  const rationale = text(input?.rationale, 12000);
+  if (["rejected", "superseded"].includes(decision) && !rationale) {
+    throw new Error("Rejected or superseded hypotheses require a recorded rationale.");
+  }
+
+  const reviewedAt = text(input?.reviewedAt, 80) || new Date().toISOString();
+  const reviewId =
+    text(input?.reviewId, 160) ||
+    `hypothesis-review-${hypothesisId}-${reviewedAt.replace(/[^0-9A-Za-z]+/g, "-")}`;
+  const review = normalizeRecord(
+    {
+      id: reviewId,
+      targetIds: [hypothesisId],
+      reviewerEntityId: text(input?.reviewerEntityId, 160),
+      decision,
+      rationale,
+      reviewedAt,
+      createdAt: reviewedAt,
+    },
+    "review",
+  )!;
+
+  const hypotheses = normalized.hypotheses.map((record: any) =>
+    record.id === hypothesisId ? { ...record, assessment: decision } : record,
+  );
+  return normalizeReasoning({
+    ...normalized,
+    hypotheses,
+    reviews: [...normalized.reviews, review],
+  });
 }
 
 function incomingEdges(id: string, normalized: Record<string, any>): Record<string, any>[] {
@@ -1285,6 +1462,7 @@ const TimelineCaseReasoningObj = {
   CITATION_LOCATOR_TYPES,
   HYPOTHESIS_KINDS,
   IDENTITY_CANDIDATE_SCOPES,
+  HYPOTHESIS_DISPOSITIONS,
   ASSUMPTION_STATUSES,
   QUESTION_STATUSES,
   ENQUIRY_STATUSES,
@@ -1303,6 +1481,9 @@ const TimelineCaseReasoningObj = {
   summarizeSupport,
   collectAssertionCitations,
   competingHypothesisMatrix,
+  hypothesisSensitivityScenario,
+  hypothesisDispositionHistory,
+  recordHypothesisDisposition,
   methodologyReview,
   analyticMethod,
   validateReasoning,
