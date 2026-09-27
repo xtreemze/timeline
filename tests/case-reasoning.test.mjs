@@ -650,3 +650,219 @@ test("trajectory-derived observations preserve world, timeline, source, and traj
     false,
   );
 });
+
+
+test("extends methodology registry with challenge and analytic-standards profiles", () => {
+  const methods = new Map(reasoning.ANALYTIC_METHODS.map((method) => [method.id, method]));
+  assert.equal(methods.get("team-a-team-b").family, "contrarian");
+  assert.equal(methods.get("red-team").family, "contrarian");
+  assert.equal(methods.get("high-impact-low-probability").family, "contrarian");
+  assert.equal(methods.get("scenarios-alternative-futures").family, "imaginative");
+  assert.equal(methods.get("icd-203-analytic-standards-review").family, "quality-review");
+});
+
+test("normalizes structured source quality, analytic uncertainty, and typed review without scores", () => {
+  const normalized = reasoning.normalizeReasoning({
+    informationReviews: [
+      {
+        id: "quality-camera",
+        text: "Camera timing is usable but has a known clock offset.",
+        targetIds: ["obs-camera"],
+        finding: "limited",
+        sourceSummary: "Independent time calibration is incomplete.",
+        qualityDimensions: {
+          accuracyCompleteness: { state: "concern", rationale: "Clock offset is unresolved." },
+          corroboration: { state: "favorable", rationale: "A second camera overlaps." },
+          expertise: { state: "not-applicable" },
+        },
+      },
+    ],
+    analyses: [
+      {
+        id: "analysis-1",
+        mode: "investigative",
+        majorJudgment: true,
+        judgment: "The movement window is narrower than initially assessed.",
+        confidence: "moderate",
+        confidenceBasis: "Two independent time sources overlap.",
+        uncertainty: "Camera 4 has an unresolved clock offset.",
+        supportingIds: ["obs-camera"],
+        contraryIds: ["obs-witness"],
+        indicatorIds: ["indicator-clock"],
+        previousAnalysisIds: ["analysis-0"],
+        changedBecauseIds: ["obs-camera"],
+        implications: "Re-test candidate trajectories against the narrower window.",
+        reportable: true,
+      },
+    ],
+    reviews: [
+      {
+        id: "review-1",
+        reviewType: "peer",
+        targetIds: ["analysis-1"],
+        reviewerEntityId: "reviewer-a",
+        decision: "accepted",
+        findings: "Reasoning and uncertainty statement are clear.",
+        reviewedAt: "2026-09-27T08:00:00Z",
+        methodIds: ["icd-203-analytic-standards-review"],
+      },
+    ],
+  });
+
+  assert.equal(
+    normalized.informationReviews[0].qualityDimensions.accuracyCompleteness.state,
+    "concern",
+  );
+  assert.equal(normalized.analyses[0].confidence, "moderate");
+  assert.equal(normalized.analyses[0].majorJudgment, true);
+  assert.equal(normalized.reviews[0].reviewType, "peer");
+  assert.equal("score" in normalized.informationReviews[0], false);
+  assert.equal("probability" in normalized.analyses[0], false);
+});
+
+test("ACH matrix exposes diagnosticity without choosing or scoring an alternative", () => {
+  const model = {
+    assertions: [
+      { id: "evidence-diff", text: "One observation differentiates alternatives." },
+      { id: "evidence-shared", text: "One observation is consistent with both." },
+      { id: "evidence-unassessed", text: "One observation has not been evaluated." },
+    ],
+    hypotheses: [
+      { id: "h-a", alternativeGroupId: "g", assertionIds: ["evidence-diff", "evidence-shared"] },
+      { id: "h-b", alternativeGroupId: "g", assertionIds: ["evidence-diff", "evidence-shared"] },
+    ],
+    edges: [
+      { id: "diff-a", fromId: "evidence-diff", toId: "h-a", predicate: "supports" },
+      { id: "diff-b", fromId: "evidence-diff", toId: "h-b", predicate: "contradicts" },
+      { id: "shared-a", fromId: "evidence-shared", toId: "h-a", predicate: "supports" },
+      { id: "shared-b", fromId: "evidence-shared", toId: "h-b", predicate: "supports" },
+    ],
+  };
+
+  const matrix = reasoning.competingHypothesisMatrix(model, "g");
+  const byId = new Map(matrix.evidenceRows.map((row) => [row.evidenceId, row]));
+  assert.equal(byId.get("evidence-diff").diagnosticity, "differentiating");
+  assert.equal(byId.get("evidence-shared").diagnosticity, "non-differentiating");
+  assert.equal("winner" in matrix, false);
+  assert.equal("score" in matrix, false);
+});
+
+test("analytic standards review surfaces uncertainty, change, review, and fragile-source gaps without ranking", () => {
+  const model = {
+    assertions: [
+      { id: "evidence-only", text: "Only explicit support row." },
+      { id: "evidence-contrary", text: "Contrary material." },
+    ],
+    hypotheses: [
+      {
+        id: "h-a",
+        text: "Alternative A",
+        alternativeGroupId: "g",
+        assertionIds: ["evidence-only"],
+      },
+      {
+        id: "h-b",
+        text: "Alternative B",
+        alternativeGroupId: "g",
+        assertionIds: ["evidence-contrary"],
+      },
+    ],
+    analyses: [
+      {
+        id: "analysis-current",
+        mode: "evaluative",
+        majorJudgment: true,
+        reportable: true,
+        judgment: "The available material remains incomplete.",
+        confidence: "moderate",
+        supportingIds: ["evidence-only"],
+        contraryIds: [],
+        hypothesisIds: ["h-a", "h-b"],
+        previousAnalysisIds: ["analysis-old"],
+      },
+      { id: "analysis-old", mode: "investigative" },
+    ],
+    informationReviews: [
+      {
+        id: "quality-only",
+        targetIds: ["evidence-only"],
+        finding: "limited",
+        limitations: "Single-source timing has not been independently verified.",
+        qualityDimensions: {
+          corroboration: { state: "concern", rationale: "No independent corroboration." },
+        },
+      },
+    ],
+    edges: [
+      { id: "support-a", fromId: "evidence-only", toId: "h-a", predicate: "supports" },
+      {
+        id: "contrary-analysis",
+        fromId: "evidence-contrary",
+        toId: "analysis-current",
+        predicate: "contradicts",
+      },
+    ],
+  };
+
+  const review = reasoning.analyticStandardsReview(model);
+  const codes = review.findings.map((finding) => finding.code);
+  assert.ok(codes.includes("analytic-standard-uncertainty-missing"));
+  assert.ok(codes.includes("analytic-standard-change-explanation-missing"));
+  assert.ok(codes.includes("analytic-standard-review-missing"));
+  assert.ok(codes.includes("analytic-standard-contrary-unacknowledged"));
+  assert.ok(codes.includes("analytic-standard-source-quality-unresolved"));
+  assert.ok(codes.includes("analytic-standard-single-support-dependency"));
+  assert.ok(codes.includes("analytic-standard-limited-support-dependency"));
+
+  const dependency = review.evidenceDependencies.find((entry) => entry.hypothesisId === "h-a");
+  assert.equal(dependency.singleSupportDependency, true);
+  assert.deepEqual(dependency.qualityConcernEvidenceIds, ["evidence-only"]);
+  assert.equal(review.score, null);
+  assert.equal(review.certification, null);
+  assert.equal("winner" in review, false);
+});
+
+test("typed peer review and judgment change rationale clear corresponding standards gaps", () => {
+  const model = {
+    assertions: [{ id: "basis", text: "Basis" }],
+    analyses: [
+      {
+        id: "analysis-old",
+        mode: "investigative",
+        judgment: "Earlier judgment.",
+      },
+      {
+        id: "analysis-current",
+        mode: "investigative",
+        majorJudgment: true,
+        reportable: true,
+        judgment: "Revised judgment.",
+        uncertainty: "No material source gap remains for this narrow judgment.",
+        confidence: "high",
+        confidenceBasis: "Independent sources converge.",
+        supportingIds: ["basis"],
+        previousAnalysisIds: ["analysis-old"],
+        changedBecauseIds: ["basis"],
+      },
+    ],
+    reviews: [
+      {
+        id: "review-peer",
+        reviewType: "peer",
+        targetIds: ["analysis-current"],
+        reviewerEntityId: "reviewer-a",
+        decision: "accepted",
+        reviewedAt: "2026-09-27T08:00:00Z",
+      },
+    ],
+  };
+
+  const standards = reasoning.analyticStandardsReview(model);
+  const currentCodes = standards.findings
+    .filter((finding) => finding.recordId === "analysis-current")
+    .map((finding) => finding.code);
+  assert.equal(currentCodes.includes("analytic-standard-uncertainty-missing"), false);
+  assert.equal(currentCodes.includes("analytic-standard-change-explanation-missing"), false);
+  assert.equal(currentCodes.includes("analytic-standard-review-missing"), false);
+  assert.deepEqual(standards.reviewCoverage[0].reviewTypes, ["peer"]);
+});
