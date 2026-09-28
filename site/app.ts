@@ -1733,6 +1733,25 @@ function syncTimelineContextControls() {
   }
 }
 
+function syncOccurrenceComposerData(): void {
+  els.occurrenceComposer.setData({
+    entities: state.entities.map((entity) => ({
+      id: entity.id,
+      name: entity.name,
+      type: entity.type,
+      alternateNames: entity.alternateNames ?? [],
+    })),
+    places: state.places.map((place) => ({
+      id: place.id,
+      name: place.name,
+    })),
+    categories: state.categories.map((category) => ({
+      id: category.id,
+      name: category.name,
+    })),
+  });
+}
+
 function setOccurrenceComposerOpen(open: boolean): void {
   if (open) {
     closeLargeUtilitySurfaces("composer");
