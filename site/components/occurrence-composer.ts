@@ -28,12 +28,21 @@ import {
   type OccurrenceSentenceDraft,
 } from "../occurrence-composer-model.ts";
 
+export interface ComposerIdentityEvidenceAssessment {
+  readonly unknownEntityId: string;
+  readonly candidateEntityId: string;
+  readonly assessment: "consistent" | "contradicts";
+  readonly reason: string;
+  readonly recordIds: readonly string[];
+}
+
 export interface OccurrenceComposerData {
   readonly entities: readonly ComposerEntityOption[];
   readonly places: readonly ComposerPlaceOption[];
   readonly categories: readonly ComposerCategoryOption[];
   readonly tags?: readonly string[];
   readonly predicates?: readonly string[];
+  readonly identityEvidence?: readonly ComposerIdentityEvidenceAssessment[];
 }
 
 export interface OccurrenceComposerSelectionContext {
@@ -474,6 +483,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     places: Object.freeze([]),
     categories: Object.freeze([]),
     predicates: Object.freeze([]),
+    identityEvidence: Object.freeze([]),
   });
   private timelineContext: ComposerTimelineContext | null = null;
   private worldContext: ComposerWorldContext | null = null;
@@ -502,6 +512,11 @@ export class LuumOccurrenceComposerElement extends LitElement {
       categories: Object.freeze([...data.categories]),
       tags: Object.freeze([...(data.tags ?? [])]),
       predicates: Object.freeze([...(data.predicates ?? [])]),
+      identityEvidence: Object.freeze(
+        (data.identityEvidence ?? []).map((entry) =>
+          Object.freeze({ ...entry, recordIds: Object.freeze([...entry.recordIds]) }),
+        ),
+      ),
     });
     this.requestUpdate();
   }
@@ -1020,13 +1035,6 @@ export class LuumOccurrenceComposerElement extends LitElement {
       activeInterpretations.find((interpretation) => interpretation.id === this.activeInterpretation) ??
       activeInterpretations[0] ??
       null;
-    const candidateMatrix = chosenInterpretation
-      ? projectInvestigativeCandidateMatrix({
-          entities: investigativeEntities,
-          qualifiers: [{ id: activeQualifierId, interpretation: chosenInterpretation }],
-          limit: 12,
-        })
-      : null;
     const unknownEntityId = (() => {
       if (!activeQualifier || !["subject", "object"].includes(activeQualifier.kind)) return null;
       const clueId = activeQualifier.text.replace(/\?$/, "").replace(/^@/, "").trim();
@@ -1039,6 +1047,25 @@ export class LuumOccurrenceComposerElement extends LitElement {
         ? contextualId
         : null;
     })();
+    const explicitEvidenceAssessments = unknownEntityId
+      ? (this.data.identityEvidence ?? [])
+          .filter((entry) => entry.unknownEntityId === unknownEntityId)
+          .map((entry) => ({
+            candidateEntityId: entry.candidateEntityId,
+            qualifierId: activeQualifierId,
+            assessment: entry.assessment,
+            reason: entry.reason,
+            recordIds: entry.recordIds,
+          }))
+      : [];
+    const candidateMatrix = chosenInterpretation
+      ? projectInvestigativeCandidateMatrix({
+          entities: investigativeEntities,
+          qualifiers: [{ id: activeQualifierId, interpretation: chosenInterpretation }],
+          evidenceAssessments: explicitEvidenceAssessments,
+          limit: 12,
+        })
+      : null;
     const preview = projectComposerPreview(
       this.value,
       this.data.entities,

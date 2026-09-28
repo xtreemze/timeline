@@ -2005,6 +2005,7 @@ function syncOccurrenceComposerData(): void {
       ),
     ],
     predicates: [...new Set(state.relationships.map((relationship) => relationship.predicate))],
+    identityEvidence: caseReasoning.identityCandidateEvidenceAssessments(state.reasoning),
   });
   syncOccurrenceComposerSelection(applicationSelection.current);
 }
