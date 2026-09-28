@@ -156,6 +156,7 @@ test(
       "Link force",
       "Link strength",
       "Link distance ×",
+      "Link passes",
       "Repulsion",
       "Place attraction",
       "DAG guidance",
@@ -165,6 +166,7 @@ test(
     assert.match(inspector, /"Collision radius", "Rendered node \+ border · fixed"/);
     assert.match(inspector, /collision radius stays exact/);
     assert.match(inspector, /linkDistanceScale: Number\(linkDistance\.input\.value\)/);
+    assert.match(inspector, /linkIterations: Number\(linkIterations\.input\.value\)/);
     assert.match(inspector, /centerStrength: Number\(centerStrength\.input\.value\)/);
     assert.match(
       inspector,
