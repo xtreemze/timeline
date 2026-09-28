@@ -4202,7 +4202,7 @@ export class TimelineViewController {
       });
       this.interactionSession = setPresentation(selection.session, "focused");
       this.syncSemanticChronologySelection();
-      this.root.classList.add("is-event-focused");
+      this.root.classList.add("is-event-card-focused");
       this.root.dataset.sceneState = "focused";
       this.hideLegacyFocusView(true);
 
@@ -4256,7 +4256,7 @@ export class TimelineViewController {
       this.interactionSession = createOccurrenceInteractionSession();
       this.lastFocusPresentation = "resting";
       this.syncSemanticChronologySelection();
-      this.root.classList.remove("is-event-focused");
+      this.root.classList.remove("is-event-card-focused");
       this.root.dataset.sceneState = this.items.length ? "populated" : "empty";
       delete this.root.dataset.focusPresentation;
       this.hideLegacyFocusView(true);
