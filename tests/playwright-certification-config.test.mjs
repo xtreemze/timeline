@@ -252,3 +252,27 @@ test("application shell CI explicitly certifies narrow mobile screen contracts",
     /mobile-screen\.spec\.ts --project="Mobile Chrome"/,
   );
 });
+
+test("generated project import review has a fatal full Chromium certification lane", () => {
+  const command = packageJson.scripts?.["test:project-import-review-browser"] || "";
+  assert.match(command, /project-import-review\.spec\.ts/);
+  for (const project of [
+    "Desktop Chrome",
+    "Mobile Chrome",
+    "Mobile Chrome Landscape",
+    "Tablet Touch",
+    "Reduced Motion",
+  ]) {
+    assert.ok(command.includes(`--project="${project}"`), `import review missing ${project}`);
+    assert.ok(
+      workflow.includes(`grep -F '[${project}]' /tmp/project-import-review-list.txt`),
+      `workflow discovery gate missing ${project}`,
+    );
+  }
+  assert.match(workflow, /project-import-review-browser:\n\s+runs-on:/);
+  assert.doesNotMatch(
+    workflow.match(/project-import-review-browser:[\s\S]*?(?=\n  [a-z-]+-browser:)/)?.[0] ?? "",
+    /continue-on-error:\s*true/,
+  );
+  assert.match(workflow, /run:\s*pnpm test:project-import-review-browser/);
+});
