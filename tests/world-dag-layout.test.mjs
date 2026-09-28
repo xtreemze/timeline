@@ -176,6 +176,64 @@ test("operator can select a bounded DAG strategy explicitly", () => {
   assert.equal(layout.targets.length, 3);
 });
 
+test("operator can switch D3 DAG layout families and coordinate assignment", () => {
+  const source = instance("algorithm-source");
+  const middle = instance("algorithm-middle");
+  const target = instance("algorithm-target");
+  const projection = createWorldProjection({
+    instances: [source, middle, target],
+    edges: [edge("algorithm-a", source, middle), edge("algorithm-b", middle, target)],
+  });
+
+  for (const algorithm of ["zherebko", "grid"]) {
+    const layout = createWorldDagLayout(projection, {
+      reorganize: true,
+      algorithm,
+    });
+    assert.equal(layout.targets.length, 3);
+    assert.equal(layout.metrics.algorithmCounts[algorithm], 1);
+  }
+
+  for (const coordinate of ["greedy", "simplex", "quad", "center"]) {
+    const layout = createWorldDagLayout(projection, {
+      reorganize: true,
+      algorithm: "sugiyama",
+      strategy: "longest-two-layer-greedy",
+      coordinate,
+    });
+    assert.equal(layout.targets.length, 3, `${coordinate} coordinate assignment should lay out all nodes`);
+  }
+});
+
+test("operator can switch relationship edge routing without changing canonical topology", () => {
+  const source = instance("route-source");
+  const target = instance("route-target");
+  const projection = createWorldProjection({
+    instances: [source, target],
+    edges: [edge("route-edge", source, target)],
+  });
+
+  const straight = createWorldDagLayout(projection, {
+    reorganize: true,
+    edgeStyle: "straight",
+  });
+  const orthogonal = createWorldDagLayout(projection, {
+    reorganize: true,
+    edgeStyle: "orthogonal",
+  });
+
+  assert.equal(straight.routes.length, 1);
+  assert.equal(straight.routes[0].points.length, 2);
+  assert.equal(orthogonal.routes.length, 1);
+  assert.ok(
+    orthogonal.routes[0].points.length >= 3,
+    "orthogonal routing should expose at least one bend between live endpoints",
+  );
+  assert.equal(straight.routes[0].relationshipId, orthogonal.routes[0].relationshipId);
+  assert.equal(straight.routes[0].sourceId, orthogonal.routes[0].sourceId);
+  assert.equal(straight.routes[0].targetId, orthogonal.routes[0].targetId);
+});
+
 test("selected-place DAG override can change direction without relocating the authored place", () => {
   const source = instance("place-override-source");
   const target = instance("place-override-target");
