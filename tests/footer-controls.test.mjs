@@ -39,7 +39,11 @@ test("footer exposes view controls directly and keeps one primary Edit entry", a
   const footerMarkup = index.slice(footerStart, footerEnd);
   assert.equal((footerMarkup.match(/id="editor-toggle"/g) ?? []).length, 1);
   assert.equal((footerMarkup.match(/id="occurrence-composer-toggle"/g) ?? []).length, 0);
-  assert.match(index, /id="occurrence-composer-toggle"[^>]*aria-controls="occurrence-composer"/);
+  assert.doesNotMatch(index, /id="occurrence-composer-toggle"/);
+  assert.match(
+    footerMarkup,
+    /app-footer-actions[\s\S]*<luum-occurrence-composer id="occurrence-composer"><\/luum-occurrence-composer>[\s\S]*id="timeline-view-controls"/,
+  );
 
   assert.match(world, /element\.className = "toolbar-control world-camera-control"/);
   assert.match(world, /element\.dataset\.viewControl = ""/);
@@ -200,9 +204,10 @@ test("every persistent toolbar button family has an executable interaction path"
   assert.match(app, /browserToggle\?\.addEventListener\("click"[\s\S]*setBrowserSurfaceOpen/);
   assert.match(app, /focusPrev\.addEventListener\("click"[\s\S]*focusAdjacent\(-1/);
   assert.match(app, /focusNext\.addEventListener\("click"[\s\S]*focusAdjacent\(1/);
+  assert.doesNotMatch(app, /revealFocusedToolbarNavigation|toolbarFocusedNavigationActive/);
   assert.match(
     app,
-    /function revealFocusedToolbarNavigation\([\s\S]*max-width: 699px[\s\S]*appToolDock\.scrollLeft/,
+    /focusPrev\.disabled = !focused[\s\S]*focusNext\.disabled = !focused[\s\S]*relatedZoom\.disabled = !focused \|\| !focusedGraphContextAvailable/,
   );
   assert.match(app, /relatedZoom\.addEventListener\("click"[\s\S]*zoomContext/);
   assert.match(app, /relatedFit\.addEventListener\("click"[\s\S]*fitContext/);
