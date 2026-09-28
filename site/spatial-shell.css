@@ -425,7 +425,9 @@
    items shrink, their non-shrinking buttons overflow the group box and paint
    over the next group instead of contributing to the footer scroller. */
 .app-footer-view > .view-control-group {
+  align-self: center;
   flex: 0 0 auto;
+  block-size: var(--toolbar-control-size);
   min-inline-size: max-content;
 }
 
@@ -457,6 +459,7 @@
     var(--toolbar-control-size) var(--toolbar-zoom-track-width)
     var(--toolbar-control-size);
   align-items: center;
+  align-self: center;
   flex: 0 0 auto;
   inline-size: calc((2 * var(--toolbar-control-size)) + var(--toolbar-zoom-track-width));
   min-inline-size: calc((2 * var(--toolbar-control-size)) + var(--toolbar-zoom-track-width));
@@ -465,6 +468,7 @@
 }
 
 .app-footer-view .toolbar-zoom-control .toolbar-zoom-endpoint-button {
+  align-self: center;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -481,6 +485,7 @@
 .app-footer-view .toolbar-zoom-slider {
   appearance: none;
   -webkit-appearance: none;
+  align-self: center;
   inline-size: 100%;
   min-inline-size: 0;
   block-size: var(--toolbar-control-size);

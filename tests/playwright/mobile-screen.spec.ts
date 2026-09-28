@@ -517,6 +517,12 @@ test.describe("Narrow mobile screen contracts", () => {
       if (worldZoomBox && timelineZoomBox) {
         expect(Math.abs(worldZoomBox.width - timelineZoomBox.width)).toBeLessThanOrEqual(1);
         expect(Math.abs(worldZoomBox.height - timelineZoomBox.height)).toBeLessThanOrEqual(1);
+        expect(
+          Math.abs(
+            worldZoomBox.y + worldZoomBox.height / 2 -
+              (timelineZoomBox.y + timelineZoomBox.height / 2),
+          ),
+        ).toBeLessThanOrEqual(0.75);
       }
       if (worldZoomSliderBox && timelineZoomSliderBox) {
         expect(Math.abs(worldZoomSliderBox.width - timelineZoomSliderBox.width)).toBeLessThanOrEqual(
@@ -525,6 +531,28 @@ test.describe("Narrow mobile screen contracts", () => {
         expect(
           Math.abs(worldZoomSliderBox.height - timelineZoomSliderBox.height),
         ).toBeLessThanOrEqual(1);
+        expect(
+          Math.abs(
+            worldZoomSliderBox.y + worldZoomSliderBox.height / 2 -
+              (timelineZoomSliderBox.y + timelineZoomSliderBox.height / 2),
+          ),
+        ).toBeLessThanOrEqual(0.75);
+      }
+
+      const timelineZoomButtons = timelineZoom.locator(".timeline-zoom-endpoint-button");
+      await expect(timelineZoomButtons).toHaveCount(2);
+      const timelineZoomCenterY =
+        timelineZoomBox === null ? null : timelineZoomBox.y + timelineZoomBox.height / 2;
+      if (timelineZoomCenterY !== null) {
+        for (let index = 0; index < 2; index += 1) {
+          const buttonBox = await timelineZoomButtons.nth(index).boundingBox();
+          expect(buttonBox).not.toBeNull();
+          if (buttonBox) {
+            expect(
+              Math.abs(buttonBox.y + buttonBox.height / 2 - timelineZoomCenterY),
+            ).toBeLessThanOrEqual(0.75);
+          }
+        }
       }
 
       const lastControl = viewToolbar.locator(".toolbar-control").last();
