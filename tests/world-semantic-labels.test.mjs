@@ -1418,10 +1418,11 @@ test("hover and selection surface omitted entity labels without relocating stabl
   assertStableBaseGeometry(interactionLayer);
 });
 
-test("clustered overview reveals aggregate and location context on interaction", () => {
+test("clustered overview keeps directly interacted node labels visible", () => {
   const h = harness();
+  const projection = denseProjection(200);
   const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 0.2 });
-  surface.setProjection(denseProjection(200));
+  surface.setProjection(projection);
 
   let labels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
   assert.equal(
@@ -1440,10 +1441,18 @@ test("clustered overview reveals aggregate and location context on interaction",
   surface.setSelection({ kind: "entity", id: "entity-150" });
   const interactionLayers = h.lastLayers();
   labels = layer(interactionLayers, DECK_WORLD_LAYER_IDS.labels).props.data;
+  assert.ok(
+    labels.some(
+      (datum) => datum.kind === "entity-label" && datum.entityId === "entity-150",
+    ),
+    "selected clustered node keeps its label visible even while its marker remains aggregated",
+  );
   assert.equal(
-    labels.some((datum) => datum.kind === "entity-label"),
+    layer(interactionLayers, DECK_WORLD_LAYER_IDS.entities).props.data.some(
+      (datum) => datum.kind === "entity" && datum.entityId === "entity-150",
+    ),
     false,
-    "clustered member geometry remains suppressed",
+    "showing the selected label does not expand clustered member geometry",
   );
   assert.ok(
     labels.some((datum) => datum.kind === "place-label" && datum.text === "Place 0"),
@@ -1461,6 +1470,25 @@ test("clustered overview reveals aggregate and location context on interaction",
   );
 
   surface.setSelection(null);
+  const hoveredMember = projection.instances.find(
+    (candidate) => candidate.canonicalId === "entity-150",
+  );
+  assert.ok(hoveredMember);
+  h.getDeckProps().onHover({
+    object: {
+      kind: "entity",
+      entityId: hoveredMember.canonicalId,
+      worldInstanceId: hoveredMember.id,
+    },
+  });
+  const hoveredNodeLabel = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data.find(
+    (datum) => datum.kind === "entity-label" && datum.entityId === hoveredMember.canonicalId,
+  );
+  assert.ok(
+    hoveredNodeLabel,
+    "hovered clustered node keeps its label visible even when overview LOD suppresses member markers",
+  );
+
   const cluster = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.entities).props.data.find(
     (datum) => datum.kind === "cluster",
   );
