@@ -35,7 +35,10 @@ test("classic tales manifest preserves current story titles and source ownership
       `Unknown source file for ${entry.id}`,
     );
     assert.match(entry.targetDirectory, /^examples\/classic-tales\/[a-z0-9-]+$/);
-    assert.equal(entry.migrationStatus, "legacy-source");
+    assert.equal(
+      entry.migrationStatus,
+      entry.id === "story-three-little-pigs" ? "pilot" : "legacy-source",
+    );
   }
 });
 
