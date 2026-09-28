@@ -30,8 +30,7 @@
       <nav class="app-tool-dock app-footer-bar" aria-label="Workspace controls">
         <luum-occurrence-composer id="occurrence-composer"></luum-occurrence-composer>
         <div class="app-footer-zone app-footer-actions" role="group" aria-label="Primary workspace actions">
-          <button id="project-menu-toggle" class="toolbar-control app-tool app-project-tool project-menu-toggle" type="button" popovertarget="project-menu" aria-haspopup="menu" aria-controls="project-menu" aria-expanded="false" aria-label="Project actions" title="Project actions">
-            <img src="./icon.svg" alt="" width="20" height="20">
+          <button id="project-menu-toggle" class="toolbar-control app-tool app-project-tool project-menu-toggle" type="button" popovertarget="project-menu" aria-haspopup="menu" aria-controls="project-menu" aria-expanded="false" aria-label="Project actions" title="Project actions" data-semantic-icon="folder">
             <span class="app-tool-label sr-only">Project</span>
           </button>
           <button id="editor-toggle" class="toolbar-control app-tool" type="button" data-semantic-icon="edit" aria-controls="control-panel" aria-expanded="false" aria-label="Edit timeline" title="Edit timeline">
@@ -57,7 +56,7 @@
             <button id="presentation-fullscreen-toggle" class="toolbar-control" type="button" data-view-control data-semantic-icon="fullscreen" aria-pressed="false" aria-keyshortcuts="F" aria-label="Enter full screen" title="Enter full screen">
               <span class="sr-only">Enter full screen</span>
             </button>
-            <label class="toolbar-control toolbar-control-wide toolbar-range-control" title="Timeline zoom">
+            <label class="toolbar-compound-control toolbar-control-wide toolbar-range-control" title="Timeline zoom">
               <span class="sr-only">Timeline zoom level</span>
               <span class="timeline-zoom-endpoint" data-semantic-icon="zoom-out" aria-hidden="true"></span>
               <input id="timeline-zoom-level" data-view-control type="range" min="0" max="100" step="1" value="100" aria-describedby="timeline-zoom-level-hint" aria-valuetext="Focused time window">
@@ -67,7 +66,7 @@
             <button id="timeline-auto-toggle" class="toolbar-control" type="button" data-view-control data-semantic-icon="play" aria-pressed="false" aria-keyshortcuts="Space" aria-label="Play slideshow" title="Play slideshow">
               <span class="sr-only">Play slideshow</span>
             </button>
-            <label class="toolbar-control toolbar-control-value toolbar-number-control" title="Slideshow interval">
+            <label class="toolbar-compound-control toolbar-control-value toolbar-number-control" title="Slideshow interval">
               <span class="sr-only">Slideshow interval</span>
               <input id="timeline-auto-seconds" data-view-control type="number" min="2" max="3600" step="1" value="10" inputmode="numeric" aria-label="Slideshow interval in seconds">
               <span aria-hidden="true">s</span>
