@@ -4273,8 +4273,10 @@
 .timeline-focus-icon-action > .semantic-icon {
   position: relative;
   z-index: 1;
-  inline-size: 16px;
-  block-size: 16px;
+  display: block;
+  inline-size: 20px;
+  block-size: 20px;
+  stroke-width: 1.9;
 }
 .timeline-focus-tags .event-tag .semantic-icon {
   width: 1.35rem;
@@ -5153,23 +5155,10 @@
   }
 }
 
-/* Focused occurrence polish: compact visuals with full-size hit targets and explicit tab focus. */
+/* Focused event actions use the same visible geometry as persistent toolbar actions.
+   Selection may add contextual commands, but it must not introduce a smaller inner-button style. */
 .timeline-focus-icon-action::before {
-  position: absolute;
-  z-index: 0;
-  inline-size: 30px;
-  block-size: 30px;
-  border: 1px solid color-mix(in srgb, var(--line-strong) 58%, transparent);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--paper) 88%, transparent);
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--ink) 10%, transparent);
-  content: "";
-}
-
-.timeline-focus-icon-action:is(:hover, :focus-visible)::before {
-  border-color: color-mix(in srgb, var(--event-color, var(--accent)) 62%, var(--line-strong));
-  background: color-mix(in srgb, var(--paper) 80%, var(--event-color, var(--accent)));
-  transform: scale(1.06);
+  content: none;
 }
 
 .timeline-focus-fallback-icon {
@@ -5189,15 +5178,29 @@
   block-size: 44px;
   min-inline-size: 44px;
   min-block-size: 44px;
-  margin-inline-start: 0.12rem;
+  margin: 0;
   padding: 0;
   place-items: center;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+  border-radius: 0.58rem;
+  background: color-mix(in srgb, var(--paper) 82%, transparent);
   color: var(--ink);
+  box-shadow: none;
   cursor: pointer;
   touch-action: manipulation;
+}
+
+.timeline-focus-context-action:is(:hover, :focus-visible),
+.timeline-focus-close.timeline-focus-icon-action:is(:hover, :focus-visible) {
+  border-color: color-mix(in srgb, var(--line-strong) 88%, transparent);
+  background: var(--paper-2);
+  color: var(--ink);
+}
+
+.timeline-focus-context-action:focus-visible,
+.timeline-focus-close.timeline-focus-icon-action:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -3px;
 }
 
 .timeline-focus-context-action .semantic-icon,
@@ -5211,7 +5214,7 @@
 }
 
 .timeline-focus-context-action:disabled {
-  opacity: 0.4;
+  opacity: 0.42;
   cursor: not-allowed;
 }
 
