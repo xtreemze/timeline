@@ -4,6 +4,7 @@
  */
 
 import { authorOccurrence } from "../src/application/occurrence-authoring.ts";
+import { applyProjectTransaction } from "../src/application/project-transaction.ts";
 import { projectTimelineOccurrences } from "../src/projection/timeline-projection.ts";
 import "./components/occurrence-composer.ts";
 import type {
@@ -5763,7 +5764,7 @@ function replaceProjectFromAgent(project, statusPrefix = "AI replaced") {
 }
 
 function applyAgentTransaction(operations) {
-  const draft = webMcp.applyOperations(clone(state), operations);
+  const draft = applyProjectTransaction(clone(state), operations);
   assertAgentGraphValid(draft);
   const normalized = normalizeTimeline(draft, { strictGraph: true });
   timelineView?.closeFocus();
