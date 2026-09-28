@@ -546,7 +546,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
   private hasPendingSelectionContext = false;
   private selectionSeeded = false;
   private sessionKey = "";
-  private activeContextKind: "place" | "time" | null = null;
+  private activeContextKind: "place" | "time" | "category" | "tag" | null = null;
   private metadataOpen = false;
   private metadataDirty = false;
   private metadataRole = "";
@@ -920,7 +920,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     return this.cursorOffset >= section.start && this.cursorOffset <= section.end;
   }
 
-  private activateContext(kind: "place" | "time"): void {
+  private activateContext(kind: "place" | "time" | "category" | "tag"): void {
     this.metadataOpen = false;
     const parsed = this.parsed();
     if (parsed.stage !== "complete") {
@@ -1353,10 +1353,41 @@ export class LuumOccurrenceComposerElement extends LitElement {
                   <span>Time</span><strong>${timeLabel ?? "timeline center"}</strong
                   ><span class="context-state">${this.activeContextKind === "time" ? "editing" : timePinned ? "pinned" : "live"}</span>
                 </button>`}
-            ${editableChip("Category", categoryLabel, categorySection)}
+            ${categorySection
+              ? editableChip("Category", categoryLabel, categorySection)
+              : parsed.stage === "complete"
+                ? html`<button
+                    class="context-chip"
+                    type="button"
+                    data-context-kind="category"
+                    data-context-state=${this.activeContextKind === "category" ? "editing" : "live"}
+                    aria-label="Add occurrence category"
+                    title="Choose an occurrence category"
+                    @click=${() => this.activateContext("category")}
+                    @keydown=${(event: KeyboardEvent) => this.onContextChipKeyDown(event)}
+                  >
+                    <span>Category</span><strong>Add</strong
+                    ><span class="context-state">${this.activeContextKind === "category" ? "editing" : "add"}</span>
+                  </button>`
+                : nothing}
             ${tagLabels.map((tag, index) =>
               editableChip("Tag", tag, sectionFor("tag", index)),
             )}
+            ${parsed.stage === "complete"
+              ? html`<button
+                  class="context-chip"
+                  type="button"
+                  data-context-kind="add-tag"
+                  data-context-state=${this.activeContextKind === "tag" ? "editing" : "live"}
+                  aria-label="Add occurrence tag"
+                  title="Add another occurrence tag"
+                  @click=${() => this.activateContext("tag")}
+                  @keydown=${(event: KeyboardEvent) => this.onContextChipKeyDown(event)}
+                >
+                  <span>Tag</span><strong>Add</strong
+                  ><span class="context-state">${this.activeContextKind === "tag" ? "editing" : "add"}</span>
+                </button>`
+              : nothing}
             <button
               class="context-chip"
               type="button"
