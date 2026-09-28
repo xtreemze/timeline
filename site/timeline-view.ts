@@ -3252,9 +3252,7 @@ export class TimelineViewController {
     const span = Math.max(MIN_SPAN_MS, viewport.end - viewport.start);
     const inset = Math.min(span * 0.08, Math.max(0, span / 2 - MIN_SPAN_MS));
     const inner =
-      inset > 0
-        ? { start: viewport.start + inset, end: viewport.end - inset }
-        : viewport;
+      inset > 0 ? { start: viewport.start + inset, end: viewport.end - inset } : viewport;
     return this.logicalOccurrenceIds(inner);
   }
 
@@ -3265,11 +3263,9 @@ export class TimelineViewController {
     }
 
     if (this.interactionSession.occurrenceId !== this.focusedId) {
-      this.interactionSession = switchOccurrenceSelection(
-        this.interactionSession,
-        this.focusedId,
-        { dirtyDraftPolicy: "preserve" },
-      ).session;
+      this.interactionSession = switchOccurrenceSelection(this.interactionSession, this.focusedId, {
+        dirtyDraftPolicy: "preserve",
+      }).session;
     }
     if (
       this.interactionSession.presentation === "resting" ||
@@ -3777,12 +3773,18 @@ export class TimelineViewController {
     const hero = document.createElement("section");
     hero.className = "timeline-focus-hero";
     const media = Array.isArray(item.media) ? item.media : [];
-    const frames = media.map((entry) => ({
+    const frames: Array<
+      | { kind: "image"; src?: string; alt?: string; caption?: string }
+      | { kind: "context"; label: string; body: string }
+    > = media.map((entry) => ({
       kind: "image" as const,
       src: entry?.src,
       alt: entry?.alt,
       caption: entry?.caption,
     }));
+
+    if (item.description?.trim())
+      frames.push({ kind: "context", label: "Context", body: item.description.trim() });
 
     const deck = new LuumOccurrenceDeckElement();
     deck.setDeck({
@@ -3798,7 +3800,7 @@ export class TimelineViewController {
     });
     hero.append(deck);
 
-    if (!frames.some((frame) => Boolean(frame.src?.trim()))) {
+    if (!frames.some((frame) => frame.kind === "image" && Boolean(frame.src?.trim()))) {
       hero.classList.add("has-no-media");
       const fallback = document.createElement("div");
       fallback.className = "timeline-focus-hero-fallback";
@@ -3836,7 +3838,9 @@ export class TimelineViewController {
   renderFocus(item: TimelineItem, host: HTMLElement | null = null): void {
     const focusHost =
       host ||
-      (this.focusedId ? this.scene.get(occurrenceSceneKey(this.focusedId))?.node.detailHost : null) ||
+      (this.focusedId
+        ? this.scene.get(occurrenceSceneKey(this.focusedId))?.node.detailHost
+        : null) ||
       this.focusView;
     focusHost.tabIndex = -1;
     focusHost.style.setProperty("--event-color", item.color || "var(--accent)");
@@ -3845,6 +3849,28 @@ export class TimelineViewController {
     focusHost.setAttribute("aria-labelledby", "timeline-focus-heading");
 
     const hero = this.createFocusHero(item);
+
+    const sentence = document.createElement("div");
+    sentence.className = "timeline-occurrence-sentence";
+    const sentenceLabel = document.createElement("span");
+    sentenceLabel.className = "timeline-occurrence-sentence-label";
+    sentenceLabel.textContent = "Occurrence";
+    const sentenceText = document.createElement("p");
+    sentenceText.textContent = item.title || item.id;
+    const editSentence = document.createElement("button");
+    editSentence.type = "button";
+    editSentence.className = "timeline-occurrence-edit button secondary";
+    editSentence.textContent = "Edit in composer";
+    editSentence.setAttribute("aria-label", `Edit ${item.title || item.id} in composer`);
+    editSentence.addEventListener("click", () => {
+      this.root.dispatchEvent(
+        new CustomEvent("timelineoccurrenceeditrequest", {
+          bubbles: true,
+          detail: { id: item.id },
+        }),
+      );
+    });
+    sentence.append(sentenceLabel, sentenceText, editSentence);
 
     const summary = document.createElement("section");
     summary.id = "timeline-focus-context-panel";
@@ -4082,7 +4108,7 @@ export class TimelineViewController {
     header.append(tabs, contextActions);
     applyFocusTab(this.focusTab);
 
-    focusHost.replaceChildren(header, hero, summary, evidence);
+    focusHost.replaceChildren(header, sentence, hero, summary, evidence);
     this.root.dispatchEvent(
       new CustomEvent("timelinefocusrender", {
         bubbles: true,
@@ -4118,9 +4144,8 @@ export class TimelineViewController {
 
     const direction = delta < 0 ? -1 : 1;
     const record = this.scene.get(occurrenceSceneKey(item.id));
-    const deck = record?.node.detailHost?.querySelector<LuumOccurrenceDeckElement>(
-      "luum-occurrence-deck",
-    );
+    const deck =
+      record?.node.detailHost?.querySelector<LuumOccurrenceDeckElement>("luum-occurrence-deck");
     if (deck?.stepBy(direction)) {
       this.focusMediaIndex = deck.activeIndex;
       return true;

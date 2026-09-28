@@ -6063,6 +6063,13 @@ els.timelineViewRoot.addEventListener("timelinefocuschange", (event) => {
   schedulePresentationGeometryRefresh({ recenterGraph: !cardFocused });
 });
 
+els.timelineViewRoot.addEventListener("timelineoccurrenceeditrequest", (event) => {
+  const id = (event as CustomEvent<{ id?: string }>).detail?.id;
+  if (!id) return;
+  applicationSelection.select(selectionForTimelineFocus(id, state.relationships), "timeline");
+  setOccurrenceComposerOpen(true);
+});
+
 els.timelineViewRoot.addEventListener("timelinefocusrender", (event) => {
   const cardFocused = event.detail?.presentationSurface === "card";
   syncContextualPresentationPanels();

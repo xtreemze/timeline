@@ -674,11 +674,41 @@
   backdrop-filter: blur(16px);
 }
 
+.timeline-event-detail .timeline-occurrence-sentence {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.2rem 0.6rem;
+  padding: 0.65rem 0.78rem 0.2rem;
+}
+
+.timeline-event-detail .timeline-occurrence-sentence-label {
+  grid-column: 1 / -1;
+  color: var(--ink-muted);
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.timeline-event-detail .timeline-occurrence-sentence p {
+  min-width: 0;
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.timeline-event-detail .timeline-occurrence-edit {
+  min-height: 44px;
+  white-space: nowrap;
+}
+
 .timeline-event-detail .timeline-focus-hero {
   grid-column: 1;
   grid-row: auto;
-  min-height: clamp(126px, 21dvh, 182px);
-  max-height: 182px;
+  min-height: clamp(104px, 17dvh, 150px);
+  max-height: 150px;
   margin-top: 0.42rem;
   border-radius: 0.64rem;
 }
