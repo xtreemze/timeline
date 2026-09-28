@@ -211,6 +211,16 @@ const WORKING_CAMERA = Object.freeze({
   pitch: 20,
 });
 
+test("interacted label lookup does not feed every hidden member through ordinary label LOD", async () => {
+  const source = await readFile(
+    new URL("../site/world/deck-world-surface.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /const labelEntities = iconSource;/);
+  assert.match(source, /entitiesByEntityId: entityResult\.byEntityId/);
+  assert.doesNotMatch(source, /const labelEntities = entityResult\.datums;/);
+});
+
 test("empty world skips the deck.gl text atlas", () => {
   const h = harness();
   const surface = new DeckWorldSurface({}, h.runtime, WORKING_CAMERA);
@@ -1439,6 +1449,41 @@ test("hover and selection surface omitted entity labels without relocating stabl
   assertStableBaseGeometry(interactionLayer);
 });
 
+test("focused entity labels remain pinned after returning to dense overview", () => {
+  const h = harness();
+  const projection = denseProjection(1_000);
+  const overviewCamera = { ...WORKING_CAMERA, zoom: 2 };
+  const surface = new DeckWorldSurface({}, h.runtime, overviewCamera);
+  surface.setProjection(projection);
+
+  const beforeLayer = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
+  const beforeIds = new Set(
+    beforeLayer.props.data
+      .filter((datum) => datum.kind === "entity-label")
+      .map((datum) => datum.entityId),
+  );
+  const hidden = projection.instances.find(
+    (candidate) => !beforeIds.has(candidate.canonicalId),
+  );
+  assert.ok(hidden, "dense overview fixture must suppress at least one entity label");
+
+  surface.focusEntity(hidden.canonicalId);
+  surface.setCamera(overviewCamera);
+
+  const focusedLayer = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
+  const focusedLabel = focusedLayer.props.data.find(
+    (datum) =>
+      datum.kind === "entity-label" &&
+      datum.worldInstanceId === hidden.id &&
+      datum.entityId === hidden.canonicalId,
+  );
+  assert.ok(focusedLabel, "focused entity remains pinned through dense overview LOD");
+  assert.ok(
+    focusedLayer.props.getColor(focusedLabel)[3] > 0,
+    "focused entity label remains visibly opaque",
+  );
+});
+
 test("clustered overview keeps directly interacted node labels visible", () => {
   const h = harness();
   const projection = denseProjection(200);
@@ -1461,12 +1506,18 @@ test("clustered overview keeps directly interacted node labels visible", () => {
 
   surface.setSelection({ kind: "entity", id: "entity-150" });
   const interactionLayers = h.lastLayers();
-  labels = layer(interactionLayers, DECK_WORLD_LAYER_IDS.labels).props.data;
+  const selectedLabelLayer = layer(interactionLayers, DECK_WORLD_LAYER_IDS.labels);
+  labels = selectedLabelLayer.props.data;
+  const selectedNodeLabel = labels.find(
+    (datum) => datum.kind === "entity-label" && datum.entityId === "entity-150",
+  );
   assert.ok(
-    labels.some(
-      (datum) => datum.kind === "entity-label" && datum.entityId === "entity-150",
-    ),
+    selectedNodeLabel,
     "selected clustered node keeps its label visible even while its marker remains aggregated",
+  );
+  assert.ok(
+    selectedLabelLayer.props.getColor(selectedNodeLabel)[3] > 0,
+    "selected clustered node label must remain visibly opaque instead of inheriting collapsed member alpha",
   );
   assert.equal(
     layer(interactionLayers, DECK_WORLD_LAYER_IDS.entities).props.data.some(
@@ -1502,12 +1553,17 @@ test("clustered overview keeps directly interacted node labels visible", () => {
       worldInstanceId: hoveredMember.id,
     },
   });
-  const hoveredNodeLabel = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data.find(
+  const hoveredLabelLayer = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
+  const hoveredNodeLabel = hoveredLabelLayer.props.data.find(
     (datum) => datum.kind === "entity-label" && datum.entityId === hoveredMember.canonicalId,
   );
   assert.ok(
     hoveredNodeLabel,
     "hovered clustered node keeps its label visible even when overview LOD suppresses member markers",
+  );
+  assert.ok(
+    hoveredLabelLayer.props.getColor(hoveredNodeLabel)[3] > 0,
+    "hovered clustered node label must remain visibly opaque instead of inheriting collapsed member alpha",
   );
 
   const cluster = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.entities).props.data.find(
