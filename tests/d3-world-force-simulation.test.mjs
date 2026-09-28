@@ -161,6 +161,20 @@ test("force tuning rejects collision settings that would violate the solver cont
       }),
     /Collision iterations must be an integer from 1 to 12/,
   );
+  assert.throws(
+    () =>
+      simulation.setTuning({
+        collisionStrength: 0.82,
+        collisionIterations: 3,
+        connectivityClearanceScale: 1,
+        manyBodyStrength: -2600,
+        linkStrengthScale: 1,
+        linkIterations: 0,
+        anchorStrengthScale: 1,
+        dagStrengthScale: 1,
+      }),
+    /Link iterations must be an integer from 1 to 12/,
+  );
 });
 
 test("cross-place D3 spacing honors hub connectivity clearance", () => {
