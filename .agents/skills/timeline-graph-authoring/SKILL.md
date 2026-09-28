@@ -17,7 +17,7 @@ Use Lūm's runtime contract as the authority. The public product vocabulary is d
    - include attached evidence `note` text;
    - exclude image credit/provenance captions and evidence source/title/URL/file/forensic metadata.
 4. Resolve mentions to existing canonical entities first. When an event has `extensions.narrative.storyId`, prefer entities scoped to that story over same-named entities from another story.
-5. If a durable named entity is not canonical yet, create/reuse exactly one entity node for it in the same atomic transaction. Never create nodes for actions, events, meetings, transactions, decisions, places, dates, times, coordinates, geometry, categories, or stories.
+5. If a durable named entity is not canonical yet, create/reuse exactly one entity node for it in the same atomic transaction. Never create nodes for actions, events, meetings, transactions, decisions, places, dates, times, coordinates, geometry, categories, or stories. Entity presentation is optional: when an explicit symbol is useful, write only a supported semantic icon to `entity.attributes.style.icon`; otherwise omit it and let the entity type determine the default. Never invent icon names.
 6. Model each relationship as one directed subject–action–object fact. A relationship with canonical time is an occurrence in the continuum:
    - source and target must be two different entity nodes;
    - predicate is one concrete action verb, optionally followed by one grammatical particle;
@@ -56,5 +56,6 @@ Before finishing, confirm:
 - no action fact is duplicated or mirrored;
 - no canonical entity is orphaned;
 - time/place/category/story data are in their canonical domains;
+- explicit entity/place/tag icons use the shared semantic vocabulary and entity icons live at `attributes.style.icon`;
 - MCP graph contract version still matches;
 - `timeline.audit_graph` and `timeline.validate_project` both pass.
