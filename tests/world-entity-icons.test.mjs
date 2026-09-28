@@ -9,6 +9,7 @@ import { worldNodeMarker } from "../site/world/world-node-marker.ts";
 import {
   WORLD_LIGHT_PALETTE,
   worldNodeFootprintRadiusPx,
+  worldNodeStyle,
   worldPlaceStyle,
 } from "../src/layout/world-graph-style.ts";
 import {
@@ -82,6 +83,16 @@ test("entity kinds map to the app's semantic icon vocabulary; unknown kinds get 
   assert.equal(worldEntityIconName("pdf"), "evidence");
   assert.equal(worldEntityIconName("spaceship"), null);
   assert.equal(worldEntityIconName(undefined), null);
+});
+
+test("authored storybook glyphs override the generic entity-kind icon", () => {
+  const style = worldNodeStyle(
+    { type: "person", attributes: { style: { icon: "wolf" } } },
+    WORLD_LIGHT_PALETTE,
+  );
+  assert.equal(style.icon, "wolf");
+  const svg = decodeURIComponent(worldNodeMarker(style).url);
+  assert.match(svg, /M4 8 6 3l4 3/, "the authored wolf glyph is embedded in the marker");
 });
 
 test("production bindings supply a real deck.gl IconLayer", async () => {
