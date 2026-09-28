@@ -51,6 +51,12 @@ declare module "d3-force" {
     iterations(iterations: number): this;
   }
 
+  export interface ForceCenter<NodeDatum extends SimulationNodeDatum> {
+    x(x: number): this;
+    y(y: number): this;
+    strength(strength: number): this;
+  }
+
   export interface ForceX<NodeDatum extends SimulationNodeDatum> {
     strength(strength: number | ((node: NodeDatum) => number)): this;
   }
@@ -70,6 +76,10 @@ declare module "d3-force" {
 
   export function forceManyBody<NodeDatum extends SimulationNodeDatum>(): ForceManyBody<NodeDatum>;
   export function forceCollide<NodeDatum extends SimulationNodeDatum>(): ForceCollide<NodeDatum>;
+  export function forceCenter<NodeDatum extends SimulationNodeDatum>(
+    x?: number,
+    y?: number,
+  ): ForceCenter<NodeDatum>;
   export function forceX<NodeDatum extends SimulationNodeDatum>(
     x?: number | ((node: NodeDatum) => number),
   ): ForceX<NodeDatum>;
