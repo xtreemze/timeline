@@ -11,7 +11,7 @@ import {
 const MAX_MEDIA = 3;
 const MAX_TAGS = 6;
 
-const ICON_NAMES = SEMANTIC_ICON_NAMES;;
+const ICON_NAMES = SEMANTIC_ICON_NAMES;
 
 const ICON_PATHS: Record<string, string[]> = Object.freeze({
   milestone: ["M12 3v18", "M3 12h18", "M7 7l10 10", "M17 7 7 17"],
