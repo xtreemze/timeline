@@ -159,6 +159,30 @@ test("portable fill, border, stroke, and radius aliases override defaults", () =
   assert.equal(styled.radius, 19);
 });
 
+test("node collision footprint is exactly the rendered shape radius plus authored border", () => {
+  const borderless = {
+    type: "person",
+    attributes: { style: { radius: 24, borderWidth: 0, shape: "circle" } },
+  };
+  const bordered = {
+    type: "person",
+    attributes: { style: { radius: 24, borderWidth: 6, shape: "circle" } },
+  };
+
+  assert.equal(worldNodeVisualFootprintRadiusPx(borderless), 24);
+  assert.equal(worldNodeFootprintRadiusPx(borderless), 24);
+  assert.equal(worldNodeVisualFootprintRadiusPx(bordered), 30);
+  assert.equal(worldNodeFootprintRadiusPx(bordered), 30);
+  assert.equal(
+    worldNodeFootprintRadiusPx({
+      type: "person",
+      attributes: { style: { radius: 10, borderWidth: 0, shape: "circle" } },
+    }),
+    WORLD_ENTITY_MIN_HIT_RADIUS_PX,
+    "the minimum interaction footprint is preserved by the rendered body, not hidden collision padding",
+  );
+});
+
 test("places use node-like shape, icon, border, fill, and readable footprint", () => {
   const place = worldPlaceStyle(
     {
