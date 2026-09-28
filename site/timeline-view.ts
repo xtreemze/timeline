@@ -3075,7 +3075,7 @@ export class TimelineViewController {
         this.ensureFocusPopover();
         return;
       }
-      this.focusItem(item.id);
+      this.focusItem(item.id, { moveViewport: false });
       void motion.pulseHaptic("selection");
     };
     terminal.addEventListener("click", selectOccurrence);
