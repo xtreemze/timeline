@@ -3,6 +3,12 @@ name: Timeline view
 on:
   pull_request:
     paths:
+      - '.mcp.json'
+      - 'mcp.json'
+      - 'plugin.json'
+      - 'tests/local-llm-agent.test.mjs'
+      - 'tests/mcp-relay.test.mjs'
+      - 'tests/mcp-plugin-config.test.mjs'
       - 'mcp/**'
       - 'mcp.public.template.json'
       - 'skills/document-to-lum-story/**'
@@ -115,6 +121,12 @@ on:
   push:
     branches: [main]
     paths:
+      - '.mcp.json'
+      - 'mcp.json'
+      - 'plugin.json'
+      - 'tests/local-llm-agent.test.mjs'
+      - 'tests/mcp-relay.test.mjs'
+      - 'tests/mcp-plugin-config.test.mjs'
       - 'mcp/**'
       - 'mcp.public.template.json'
       - 'skills/document-to-lum-story/**'
