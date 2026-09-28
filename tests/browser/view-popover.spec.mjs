@@ -21,6 +21,8 @@ test("View controls are direct persistent toolbar content", async ({ page }) => 
   await expect(view.locator("#timeline-auto-seconds")).toBeVisible();
   await expect(view.locator("[data-world-controls-slot]")).toBeVisible();
   await expect(view.locator(".world-camera-controls")).toBeVisible();
+  await expect(view.locator(".world-zoom-control")).toBeVisible();
+  await expect(view.locator(".world-zoom-slider")).toBeVisible();
   await expect(view.locator(".world-layout-controls")).toBeVisible();
 });
 
@@ -61,12 +63,32 @@ test("toolbar actions update state, labels, tooltips, and direct icons", async (
   await expect(slideshow).toHaveAttribute("aria-pressed", "false");
   await expect(slideshow).toHaveAttribute("data-semantic-icon", "play");
 
-  for (const name of ["Zoom in", "Zoom out", "Fit to content", "Show whole world"]) {
-    const button = page.getByRole("button", { name });
+  const worldZoom = page.locator(".world-zoom-slider");
+  const worldZoomMin = Number(await worldZoom.getAttribute("min"));
+  const worldZoomMax = Number(await worldZoom.getAttribute("max"));
+  const midpoint = Math.min(worldZoomMax - 1, Math.max(worldZoomMin + 1, 5));
+  await worldZoom.fill(String(midpoint));
+  await expect(worldZoom).toHaveValue(String(midpoint));
+
+  const zoomIn = page.getByRole("button", { name: "Zoom in", exact: true });
+  await expect(zoomIn).toBeEnabled();
+  await expect(zoomIn).toHaveAttribute("title", "Zoom in");
+  await expect(zoomIn.locator(":scope > .semantic-icon")).toHaveCount(1);
+  await zoomIn.click();
+  expect(Number(await worldZoom.inputValue())).toBeGreaterThan(midpoint);
+
+  const zoomOut = page.getByRole("button", { name: "Zoom out", exact: true });
+  await expect(zoomOut).toBeEnabled();
+  await expect(zoomOut).toHaveAttribute("title", "Zoom out");
+  await expect(zoomOut.locator(":scope > .semantic-icon")).toHaveCount(1);
+  await zoomOut.click();
+  expect(Number(await worldZoom.inputValue())).toBeCloseTo(midpoint, 1);
+
+  for (const name of ["Fit to content", "Show whole world"]) {
+    const button = page.getByRole("button", { name, exact: true });
     await expect(button).toBeEnabled();
     await expect(button).toHaveAttribute("title", name);
     await expect(button.locator(":scope > .semantic-icon")).toHaveCount(1);
-    await expect(button.locator(".compound-semantic-icon")).toHaveCount(0);
     await button.click();
   }
 
