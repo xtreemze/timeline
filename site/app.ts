@@ -410,7 +410,6 @@ const els = {
   appShell: requiredElement<HTMLElement>("#app-shell"),
   appToolDock: requiredElement<HTMLElement>(".app-tool-dock"),
   occurrenceComposer: requiredElement<LuumOccurrenceComposerElement>("#occurrence-composer"),
-  occurrenceComposerToggle: requiredElement<HTMLButtonElement>("#occurrence-composer-toggle"),
   controlPanel: requiredElement<HTMLElement>("#control-panel"),
   controlPanelClose: requiredElement<HTMLButtonElement>("#control-panel-close"),
   editorToggle: requiredElement<HTMLButtonElement>("#editor-toggle"),
@@ -1717,18 +1716,8 @@ function syncApplicationSurfaces() {
       ui.browserOpen || ui.investigationOpen || ui.editorOpen || ui.importReviewOpen,
     );
   }
-  els.occurrenceComposer.hidden = Boolean(
-    ui.browserOpen || ui.investigationOpen || ui.editorOpen || ui.importReviewOpen,
-  );
-els.occurrenceComposer.setEditing(editing);
-  els.occurrenceComposerToggle.setAttribute("aria-expanded", String(els.occurrenceComposer.active));
-  els.occurrenceComposerToggle.setAttribute(
-    "aria-label",
-    els.occurrenceComposer.active ? "Close occurrence composer" : "Compose occurrence",
-  );
-  els.occurrenceComposerToggle.title = els.occurrenceComposer.active
-    ? "Close occurrence composer"
-    : "Compose occurrence";
+  els.occurrenceComposer.hidden = ui.importReviewOpen;
+  els.occurrenceComposer.setEditing(editing);
   if (els.appToolDock) els.appToolDock.inert = ui.importReviewOpen;
   if (els.title) {
     const titleEditing = ui.editorOpen;
@@ -1737,9 +1726,8 @@ els.occurrenceComposer.setEditing(editing);
     els.title.setAttribute("aria-readonly", String(!titleEditing));
   }
   if (els.editorToggle) {
-    const authoringActive = ui.editorOpen || composerActive;
     els.editorToggle.setAttribute("aria-expanded", String(ui.editorOpen));
-    els.editorToggle.setAttribute("aria-pressed", String(authoringActive));
+    els.editorToggle.setAttribute("aria-pressed", String(ui.editorOpen));
   }
   const viewControlsDisabled =
     ui.editorOpen || ui.browserOpen || ui.investigationOpen || ui.importReviewOpen;
@@ -1780,56 +1768,26 @@ function closeFocusedEventForUtility() {
   if (timelineView?.hasFocusedItem?.()) timelineView.closeFocus();
 }
 
-let toolbarFocusedNavigationActive = false;
-
-function revealFocusedToolbarNavigation() {
-  if (!globalThis.matchMedia?.("(max-width: 699px)").matches) return;
-  const navigation = els.focusPrev.parentElement;
-  if (!(navigation instanceof HTMLElement) || navigation.hidden) return;
-  const dockRect = els.appToolDock.getBoundingClientRect();
-  const navigationRect = navigation.getBoundingClientRect();
-  const inset = 8;
-  let delta = 0;
-  if (navigationRect.right > dockRect.right - inset) {
-    delta = navigationRect.right - (dockRect.right - inset);
-  } else if (navigationRect.left < dockRect.left + inset) {
-    delta = navigationRect.left - (dockRect.left + inset);
-  }
-  if (Math.abs(delta) > 1) els.appToolDock.scrollLeft += delta;
-}
-
 function syncTimelineContextControls() {
   const focused = Boolean(timelineView?.hasFocusedItem?.());
-  const focusBecameActive = focused && !toolbarFocusedNavigationActive;
-  toolbarFocusedNavigationActive = focused;
   const navigation = focused ? timelineView?.focusNavigationState?.() : null;
-  els.focusPrev.hidden = !focused;
-  els.focusNext.hidden = !focused;
   els.focusPrev.disabled = !focused;
   els.focusNext.disabled = !focused;
-  els.relatedZoom.hidden = !focused;
-  els.relatedFit.hidden = !focused;
-  els.relatedZoom.disabled = !focusedGraphContextAvailable;
-  els.relatedFit.disabled = !focusedGraphContextAvailable;
+  els.relatedZoom.disabled = !focused || !focusedGraphContextAvailable;
+  els.relatedFit.disabled = !focused || !focusedGraphContextAvailable;
 
   if (els.editorToggle) {
     const editableFocus = focused && navigation?.editable === true;
-    const composerActive = els.occurrenceComposer.active;
     const label = ui.editorOpen
       ? "Done editing"
-      : composerActive
-        ? "Open editor"
-        : editableFocus
-          ? "Edit focused event"
-          : "Edit timeline";
+      : editableFocus
+        ? "Edit focused event"
+        : "Edit timeline";
     els.editorToggle.disabled = ui.importReviewOpen;
     setSemanticControlIcon(els.editorToggle, ui.editorOpen ? "check" : "edit", label);
     const accessibleLabel = els.editorToggle.querySelector(".app-tool-label");
-    if (accessibleLabel) {
-      accessibleLabel.textContent = ui.editorOpen ? "Done" : composerActive ? "Editor" : "Edit";
-    }
+    if (accessibleLabel) accessibleLabel.textContent = ui.editorOpen ? "Done" : "Edit";
   }
-  if (focusBecameActive) requestAnimationFrame(revealFocusedToolbarNavigation);
 }
 
 function syncOccurrenceComposerSelection(selection = applicationSelection.current): void {
@@ -1945,10 +1903,8 @@ function setOccurrenceComposerOpen(open: boolean): void {
       occurrenceComposerReturnFocus = composerInvoker();
     }
     closeLargeUtilitySurfaces("composer");
-    ui.mode = "edit";
     ui.editorOpen = false;
     closeProjectMenu();
-    closeFocusedEventForUtility();
     syncOccurrenceComposerData();
     syncOccurrenceComposerSelection(applicationSelection.current);
 
@@ -1980,7 +1936,6 @@ function setOccurrenceComposerOpen(open: boolean): void {
     els.occurrenceComposer.hide();
     focusToRestore = occurrenceComposerReturnFocus;
     occurrenceComposerReturnFocus = null;
-    if (!ui.editorOpen) ui.mode = "view";
   }
   syncApplicationSurfaces();
   if (!open) restoreComposerFocus(focusToRestore);
@@ -5963,8 +5918,8 @@ els.occurrenceComposer.setWorldContext(
   request.preventDefault();
 });
 
-els.occurrenceComposerToggle.addEventListener("click", () => {
-  setOccurrenceComposerOpen(!els.occurrenceComposer.active);
+els.occurrenceComposer.addEventListener("occurrencecomposeropenrequest", () => {
+  setOccurrenceComposerOpen(true);
 });
 els.occurrenceComposer.addEventListener("occurrencecomposercloserequest", () => {
   setOccurrenceComposerOpen(false);
