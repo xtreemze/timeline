@@ -671,7 +671,7 @@
   #app-shell:has(#timeline-view[data-orientation="portrait"]) > .app-tool-dock.app-footer-bar,
   #app-shell #presentation-stage:fullscreen:has(#timeline-view) > .app-tool-dock.app-footer-bar {
     display: grid;
-    grid-template-columns: auto clamp(170px, 46vw, 260px) minmax(0, 1fr);
+    grid-template-columns: auto clamp(120px, 38vw, 220px) minmax(0, 1fr);
     align-items: center;
     column-gap: var(--toolbar-control-gap);
     overflow: visible;
@@ -691,8 +691,8 @@
     grid-column: 2;
     order: 2;
     inline-size: 100%;
-    min-inline-size: 170px;
-    max-inline-size: 260px;
+    min-inline-size: 120px;
+    max-inline-size: 220px;
   }
 
   #app-shell .app-footer-bar .app-footer-view {
