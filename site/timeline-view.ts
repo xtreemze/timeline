@@ -204,6 +204,7 @@ interface TouchTapState {
   startY: number;
   cancelled: boolean;
   interactive: boolean;
+  zoomable: boolean;
 }
 
 interface LastTouchTap {
@@ -746,18 +747,36 @@ export class TimelineViewController {
       return true;
     };
 
+    const zoomTimelineAtClientPoint = (clientX: number, clientY: number): void => {
+      const rect = this.surface.getBoundingClientRect();
+      const length = Math.max(1, this.orientation === "horizontal" ? rect.width : rect.height);
+      const primary =
+        this.orientation === "horizontal" ? clientX - rect.left : clientY - rect.top;
+      const padding = this.axisPadding(length);
+      const usable = Math.max(1, length - padding * 2);
+      const ratio = clamp((primary - padding) / usable, 0, 1);
+      const span = Math.max(MIN_SPAN_MS, this.viewport.end - this.viewport.start);
+      const nextSpan = Math.max(MIN_SPAN_MS, span * DOUBLE_TAP_ZOOM_FACTOR);
+      const anchor = this.viewport.start + span * ratio;
+      this.cancelInertia();
+      this.viewport = {
+        start: anchor - nextSpan * ratio,
+        end: anchor + nextSpan * (1 - ratio),
+      };
+      this.interactionVelocity = 0;
+      this.commitInteraction();
+    };
+
     const registerTouchTap = (event: PointerEvent, tap: TouchTapState | null): boolean => {
       if (!tap) return false;
       this.touchTap = null;
-      // Event-card/range taps belong to the occurrence, never to the background
-      // camera double-tap recognizer. Cancelled taps also must not survive into
-      // the next pointer sequence.
-      if (tap.cancelled || tap.interactive) {
-        if (tap.interactive) {
-          this.lastTouchTap = null;
-          if (tap.cancelled) {
-            this.suppressClickUntil = performance.now() + CLICK_SUPPRESSION_MS;
-          }
+      // Point/range occurrence targets use the same gesture grammar as empty
+      // timeline space: one tap selects the occurrence; a second tap zooms.
+      // Aggregate clusters and unrelated controls keep their own activation.
+      if (tap.cancelled || !tap.zoomable) {
+        this.lastTouchTap = null;
+        if (tap.cancelled && tap.interactive) {
+          this.suppressClickUntil = performance.now() + CLICK_SUPPRESSION_MS;
         }
         return false;
       }
@@ -772,23 +791,9 @@ export class TimelineViewController {
         now - previous.time <= TOUCH_DOUBLE_TAP_MS &&
         Math.hypot(point.x - previous.x, point.y - previous.y) <= TOUCH_DOUBLE_TAP_DISTANCE_PX
       ) {
-        const rect = this.surface.getBoundingClientRect();
-        const length = Math.max(1, this.orientation === "horizontal" ? rect.width : rect.height);
-        const primary =
-          this.orientation === "horizontal" ? point.x - rect.left : point.y - rect.top;
-        const padding = this.axisPadding(length);
-        const usable = Math.max(1, length - padding * 2);
-        const ratio = clamp((primary - padding) / usable, 0, 1);
-        const span = Math.max(MIN_SPAN_MS, this.viewport.end - this.viewport.start);
-        const nextSpan = Math.max(MIN_SPAN_MS, span * DOUBLE_TAP_ZOOM_FACTOR);
-        const anchor = this.viewport.start + span * ratio;
-        this.viewport = {
-          start: anchor - nextSpan * ratio,
-          end: anchor + nextSpan * (1 - ratio),
-        };
         this.lastTouchTap = null;
         this.suppressClickUntil = performance.now() + CLICK_SUPPRESSION_MS;
-        this.commitInteraction();
+        zoomTimelineAtClientPoint(point.x, point.y);
         return true;
       }
 
@@ -825,19 +830,39 @@ export class TimelineViewController {
       true,
     );
 
+    this.surface.addEventListener("dblclick", (event) => {
+      if (!this.items.length || performance.now() < this.suppressClickUntil) return;
+      const interactiveTarget =
+        event.target instanceof Element
+          ? event.target.closest("button, a, input, select, textarea")
+          : null;
+      const occurrenceTarget =
+        interactiveTarget instanceof HTMLElement &&
+        !interactiveTarget.classList.contains("timeline-cluster-terminal") &&
+        interactiveTarget.matches(".timeline-event-terminal, .timeline-range-segment");
+      if (interactiveTarget && !occurrenceTarget) return;
+      event.preventDefault();
+      zoomTimelineAtClientPoint(event.clientX, event.clientY);
+    });
+
     this.surface.addEventListener("pointerdown", (event) => {
       if (!this.items.length || !surfacePointerMayStartDirectManipulation(event)) return;
       const interactiveTarget =
         event.target instanceof Element
           ? event.target.closest("button, a, input, select, textarea")
           : null;
-      const timelineInteractionTarget =
+      const timelineOccurrenceTarget =
         interactiveTarget instanceof HTMLElement &&
-        interactiveTarget.matches(
-          ".timeline-event-terminal, .timeline-range-segment, .timeline-cluster-terminal",
-        )
+        !interactiveTarget.classList.contains("timeline-cluster-terminal") &&
+        interactiveTarget.matches(".timeline-event-terminal, .timeline-range-segment")
           ? interactiveTarget
           : null;
+      const timelineInteractionTarget =
+        timelineOccurrenceTarget ||
+        (interactiveTarget instanceof HTMLElement &&
+        interactiveTarget.matches(".timeline-cluster-terminal")
+          ? interactiveTarget
+          : null);
 
       if (event.pointerType === "touch") {
         this.touchPointers.set(event.pointerId, {
@@ -851,6 +876,7 @@ export class TimelineViewController {
           startY: event.clientY,
           cancelled: false,
           interactive: Boolean(timelineInteractionTarget),
+          zoomable: !timelineInteractionTarget || Boolean(timelineOccurrenceTarget),
         };
         if (this.touchPointers.size >= 2) {
           beginPinch();
@@ -3044,14 +3070,15 @@ export class TimelineViewController {
     const connectorTurn = node.querySelector<HTMLElement>(".timeline-event-connector-turn");
     terminal.dataset.timelineGeometryId = item.id;
     this.geometryObserver?.observe(terminal);
-    terminal.addEventListener("click", () => {
+    const selectOccurrence = (): void => {
       if (this.focusedId === item.id) {
         this.ensureFocusPopover();
         return;
       }
       this.focusItem(item.id);
       void motion.pulseHaptic("selection");
-    });
+    };
+    terminal.addEventListener("click", selectOccurrence);
 
     let range: HTMLButtonElement | null = null;
     if (Number.isFinite(item.end)) {
@@ -3059,14 +3086,7 @@ export class TimelineViewController {
       range.type = "button";
       range.className = "timeline-range-segment";
       range.dataset.id = item.id;
-      range.addEventListener("click", () => {
-        if (this.focusedId === item.id) {
-          this.ensureFocusPopover();
-          return;
-        }
-        this.focusItem(item.id);
-        void motion.pulseHaptic("selection");
-      });
+      range.addEventListener("click", selectOccurrence);
       this.stage.append(range);
     }
 
