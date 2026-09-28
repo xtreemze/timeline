@@ -4,6 +4,10 @@ import {
   formatProjectInterchange,
   lintProjectInterchange,
 } from "../src/application/project-interchange.ts";
+import {
+  formatProjectModule,
+  lintProjectModule,
+} from "../src/application/project-module.ts";
 import { attachLumDiagnosticRanges } from "./lib/lum-diagnostics.mjs";
 import {
   LUM_SEMANTIC_TOKEN_MODIFIERS,
@@ -16,8 +20,28 @@ import {
   lumSemanticTokens,
 } from "./lib/lum-language-intelligence.mjs";
 
+function documentFormat(source) {
+  try {
+    const parsed = JSON.parse(source);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed.format
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function formatLumDocument(source) {
+  return documentFormat(source) === "lum-project-module"
+    ? formatProjectModule(source)
+    : formatProjectInterchange(source);
+}
+
 function lspDiagnostics(source) {
-  const result = lintProjectInterchange(source);
+  const result =
+    documentFormat(source) === "lum-project-module"
+      ? lintProjectModule(source)
+      : lintProjectInterchange(source);
   return attachLumDiagnosticRanges(source, result.diagnostics).map((diagnostic) => ({
     range: diagnostic.range,
     severity: diagnostic.severity === "error" ? 1 : 2,
@@ -141,7 +165,7 @@ export function createLumLanguageServer(writeMessage) {
           result = [
             {
               range: fullDocumentRange(source),
-              newText: formatProjectInterchange(source),
+              newText: formatLumDocument(source),
             },
           ];
         } catch {
