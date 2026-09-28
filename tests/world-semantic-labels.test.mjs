@@ -2100,6 +2100,44 @@ test("hovered relationship labels survive saturated collision placement", () => 
   );
 });
 
+test("active timeline event relationships expose their label and authored edge color", () => {
+  const h = harness();
+  const projection = crowdedIncidentProjection();
+  const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 9 });
+  surface.setProjection(projection);
+
+  const beforeLabels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
+  const visibleRelationshipIds = new Set(
+    beforeLabels
+      .filter((datum) => datum.kind === "relationship-label")
+      .map((datum) => datum.relationshipId),
+  );
+  const hidden = projection.edges.find((edge) => !visibleRelationshipIds.has(edge.id));
+  assert.ok(hidden, "crowded relationship fixture suppresses at least one predicate label");
+
+  surface.setContextRelationships([hidden.id]);
+
+  const layers = h.lastLayers();
+  const labels = layer(layers, DECK_WORLD_LAYER_IDS.labels);
+  const labelDatum = labels.props.data.find(
+    (datum) => datum.kind === "relationship-label" && datum.relationshipId === hidden.id,
+  );
+  assert.ok(labelDatum, "active event relationship forces its predicate label through LOD/declutter");
+
+  const relationships = layer(layers, DECK_WORLD_LAYER_IDS.relationships);
+  const edgeDatum = relationships.props.data.find(
+    (datum) => datum.relationshipId === hidden.id,
+  );
+  assert.ok(edgeDatum, "active event relationship remains in the rendered edge layer");
+  const edgeColor = relationships.props.getColor(edgeDatum);
+  assert.equal(edgeColor[3], 242, "active event relationship uses emphasized edge opacity");
+  assert.deepEqual(
+    labels.props.getColor(labelDatum).slice(0, 3),
+    edgeColor.slice(0, 3),
+    "active event predicate label uses the same resolved relationship color",
+  );
+});
+
 test("selected relationship labels remain visible inside collapsed clusters", () => {
   const h = harness();
   const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 0.2 });
@@ -2164,6 +2202,64 @@ test("hovered relationship labels remain visible inside collapsed clusters", () 
         datum.relationshipId === "clustered-selected-edge",
     ),
     "hover overrides cluster label suppression",
+  );
+});
+
+test("active timeline event relationship remains enabled inside a collapsed cluster", () => {
+  const h = harness();
+  const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 0.2 });
+  surface.setProjection(clusteredRelationshipProjection());
+
+  let layers = h.lastLayers();
+  assert.equal(
+    layer(layers, DECK_WORLD_LAYER_IDS.labels).props.data.some(
+      (datum) =>
+        datum.kind === "relationship-label" &&
+        datum.relationshipId === "clustered-selected-edge",
+    ),
+    false,
+    "ordinary clustered relationship labels remain suppressed",
+  );
+
+  surface.setContextRelationships(["clustered-selected-edge"]);
+  layers = h.lastLayers();
+
+  const labels = layer(layers, DECK_WORLD_LAYER_IDS.labels);
+  assert.ok(
+    labels.props.data.some(
+      (datum) =>
+        datum.kind === "relationship-label" &&
+        datum.relationshipId === "clustered-selected-edge",
+    ),
+    "active event context overrides cluster label suppression",
+  );
+
+  const relationships = layer(layers, DECK_WORLD_LAYER_IDS.relationships);
+  const edgeDatum = relationships.props.data.find(
+    (datum) => datum.relationshipId === "clustered-selected-edge",
+  );
+  assert.ok(edgeDatum, "active event context keeps clustered edge geometry enabled");
+  assert.ok(relationships.props.getWidth(edgeDatum) > 0);
+  assert.equal(relationships.props.getColor(edgeDatum)[3], 242);
+
+  const directions = layer(layers, DECK_WORLD_LAYER_IDS.relationshipDirections);
+  assert.ok(
+    directions?.props.data.some(
+      (datum) => datum.relationshipId === "clustered-selected-edge",
+    ),
+    "active event context keeps the edge direction marker enabled",
+  );
+
+  surface.setContextRelationships([]);
+  layers = h.lastLayers();
+  assert.equal(
+    layer(layers, DECK_WORLD_LAYER_IDS.labels).props.data.some(
+      (datum) =>
+        datum.kind === "relationship-label" &&
+        datum.relationshipId === "clustered-selected-edge",
+    ),
+    false,
+    "clearing event context restores ordinary cluster suppression",
   );
 });
 
