@@ -757,6 +757,26 @@ function editDistance(left: string, right: string): number {
   return previous[right.length]!;
 }
 
+function entityReferenceNeedsCanonicalId(
+  entity: ComposerEntityOption,
+  entities: readonly ComposerEntityOption[],
+): boolean {
+  const key = entity.name.trim().toLocaleLowerCase();
+  if (!key) return true;
+  let matches = 0;
+  for (const candidate of entities) {
+    if (
+      [candidate.name, ...(candidate.alternateNames ?? [])].some(
+        (name) => name.trim().toLocaleLowerCase() === key,
+      )
+    ) {
+      matches += 1;
+      if (matches > 1) return true;
+    }
+  }
+  return false;
+}
+
 function nearestMatchScore(query: string, candidates: readonly string[]): number {
   const needle = normalizedMatchText(query);
   if (!needle) return 0;
@@ -792,18 +812,15 @@ function cursorEntitySuggestions(
     )
     .slice(0, 8)
     .map(({ entity }) => {
-      const sameNameCount = entities.filter(
-        (candidate) => normalizedMatchText(candidate.name) === normalizedMatchText(entity.name),
-      ).length;
+      const canonicalReferenceRequired = entityReferenceNeedsCanonicalId(entity, entities);
       return {
         kind: "entity" as const,
         label: entity.name,
-        detail:
-          sameNameCount > 1
-            ? `nearest ${section.kind} · ${entity.type || "entity"} · ${entity.id}`
-            : `nearest ${section.kind} · ${entity.type || "entity"}`,
+        detail: canonicalReferenceRequired
+          ? `nearest ${section.kind} · ${entity.type || "entity"} · ${entity.id}`
+          : `nearest ${section.kind} · ${entity.type || "entity"}`,
         ...(entity.icon ? { icon: entity.icon } : {}),
-        insertText: sameNameCount > 1 ? `@${entity.id}` : quoteComposerName(entity.name),
+        insertText: canonicalReferenceRequired ? `@${entity.id}` : quoteComposerName(entity.name),
         replaceRange: Object.freeze({ start: section.start, end: section.end }),
       };
     });
@@ -1109,18 +1126,18 @@ export function occurrenceComposerSuggestions(
       })
       .slice(0, 12)
       .map((entity) => {
-        const sameNameCount = options.entities.filter(
-          (candidate) => candidate.name.toLocaleLowerCase() === entity.name.toLocaleLowerCase(),
-        ).length;
+        const canonicalReferenceRequired = entityReferenceNeedsCanonicalId(
+          entity,
+          options.entities,
+        );
         return {
           kind: "entity" as const,
           label: entity.name,
-          detail:
-            sameNameCount > 1
-              ? `${entity.type || "entity"} · ${entity.id}`
-              : entity.type || "entity",
+          detail: canonicalReferenceRequired
+            ? `${entity.type || "entity"} · ${entity.id}`
+            : entity.type || "entity",
           ...(entity.icon ? { icon: entity.icon } : {}),
-          insertText: sameNameCount > 1 ? `@${entity.id}` : quoteComposerName(entity.name),
+          insertText: canonicalReferenceRequired ? `@${entity.id}` : quoteComposerName(entity.name),
         };
       });
     return uniqueSuggestions(entitySuggestions);
