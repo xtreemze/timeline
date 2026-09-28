@@ -371,7 +371,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
       block-size: 20px;
       fill: none;
       stroke: currentColor;
-      stroke-width: 1.8;
+      stroke-width: 2;
       stroke-linecap: round;
       stroke-linejoin: round;
     }

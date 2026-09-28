@@ -802,7 +802,6 @@
 .timeline-cluster-tile > .semantic-icon {
   width: 1.3rem;
   height: 1.3rem;
-  stroke-width: 2.2;
 }
 .timeline-cluster-image {
   width: 100%;
@@ -827,7 +826,6 @@
 .timeline-cluster-icon-badge .semantic-icon {
   width: 0.72rem;
   height: 0.72rem;
-  stroke-width: 2.25;
 }
 .timeline-event-dot,
 .timeline-event-art {
@@ -848,7 +846,6 @@
 .timeline-event-dot .semantic-icon {
   width: 1.6rem;
   height: 1.6rem;
-  stroke-width: 2.2;
 }
 .timeline-event-art-image {
   width: 100%;
@@ -888,7 +885,6 @@
 .timeline-event-icon-badge .semantic-icon {
   width: 0.9rem;
   height: 0.9rem;
-  stroke-width: 2.25;
 }
 .timeline-event-copy {
   min-width: 0;
@@ -4490,12 +4486,10 @@ luum-occurrence-deck {
 .timeline-zoom-endpoint .semantic-icon {
   width: 15px;
   height: 15px;
-  stroke-width: 1.9;
 }
 .timeline-focus-tags .event-tag .semantic-icon {
   width: 1.35rem;
   height: 1.35rem;
-  stroke-width: 2.1;
 }
 
 /* Simplified View toolbar: display controls, semantic zoom, then slideshow.
@@ -5424,7 +5418,6 @@ luum-occurrence-deck {
   display: block;
   inline-size: 20px;
   block-size: 20px;
-  stroke-width: 1.9;
 }
 
 .timeline-focus-context-action:disabled {
