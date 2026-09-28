@@ -313,8 +313,41 @@ export function parseOccurrenceSentence(input: string): OccurrenceSentenceDraft 
 }
 
 function currentToken(input: string): string {
+  const openQuote = input.match(/"([^"]*)$/);
+  if (openQuote) return openQuote[1]!.trimStart().toLocaleLowerCase();
   const match = input.match(/(?:^|\s)([^\s]*)$/);
-  return (match?.[1] ?? "").replace(/^["([]/, "").toLocaleLowerCase();
+  return (match?.[1] ?? "").replace(/^[\"([]/, "").toLocaleLowerCase();
+}
+
+function normalizedSearch(value: string): string {
+  return value
+    .trim()
+    .toLocaleLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function suggestionScore(query: string, candidate: string): number {
+  const needle = normalizedSearch(query);
+  if (!needle) return 0;
+  const haystack = normalizedSearch(candidate);
+  if (!haystack) return Number.POSITIVE_INFINITY;
+  if (haystack === needle) return 0;
+  if (haystack.startsWith(needle)) return 1;
+  if (haystack.split(" ").some((word) => word.startsWith(needle))) return 2;
+  if (haystack.includes(needle)) return 3;
+  return Number.POSITIVE_INFINITY;
+}
+
+function rankedStrings(values: readonly string[], query: string): readonly string[] {
+  return Object.freeze(
+    [...new Set(values.map((value) => value.trim()).filter(Boolean))]
+      .map((value) => ({ value, score: suggestionScore(query, value) }))
+      .filter(({ score }) => Number.isFinite(score))
+      .sort((left, right) => left.score - right.score || left.value.localeCompare(right.value))
+      .map(({ value }) => value),
+  );
 }
 
 function uniqueSuggestions(suggestions: readonly ComposerSuggestion[]): readonly ComposerSuggestion[] {
