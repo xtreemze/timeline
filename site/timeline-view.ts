@@ -4120,7 +4120,7 @@ export class TimelineViewController {
 
   stepFocusMedia(delta: number): boolean {
     const item = this.items.find((candidate) => candidate.id === this.focusedId);
-    const media = item?.media || [];
+    const media = (item?.media || []).filter((entry) => Boolean(entry?.src?.trim()));
     if (!item || media.length < 2) return false;
 
     const direction = delta < 0 ? -1 : 1;
