@@ -3,7 +3,6 @@ import { expect, test } from "@playwright/test";
 test.use({ viewport: { width: 360, height: 780 } });
 
 async function openInvestigation(page) {
-  await page.locator("#timeline-view-controls-toggle").click();
   const toggle = page.locator("#investigation-workspace-toggle");
   await expect(toggle).toBeVisible();
   await toggle.click();
