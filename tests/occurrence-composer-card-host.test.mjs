@@ -11,7 +11,7 @@ test("composer exposes one hostable session surface instead of a second card edi
   assert.match(composer, /export interface OccurrenceComposerSessionSnapshot/);
   assert.match(composer, /sessionSnapshot\(\): OccurrenceComposerSessionSnapshot/);
   assert.match(composer, /activateSection\(section: ComposerEditableSection\)/);
-  assert.match(composer, /focusInput\(options/);
+  assert.match(composer, /focusInput\([\s\S]{0,80}options/);
   assert.match(composer, /occurrencecomposersessionchange/);
   assert.doesNotMatch(composer, /customElements\.define\("luum-occurrence-card-composer"/);
 });
