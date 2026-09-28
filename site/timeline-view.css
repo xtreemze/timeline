@@ -467,7 +467,8 @@
 .timeline-relation-segment.is-selected {
   background: color-mix(in srgb, var(--relation-event-color, var(--story)) 84%, transparent);
   outline: 2px solid color-mix(in srgb, var(--relation-event-color, var(--story)) 72%, var(--ink));
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--relation-event-color, var(--story)) 16%, transparent);
+  box-shadow: 0 0 0 2px
+    color-mix(in srgb, var(--relation-event-color, var(--story)) 16%, transparent);
 }
 .timeline-relation-segment:is(:hover, :focus-visible) {
   background: color-mix(in srgb, var(--relation-event-color, var(--story)) 72%, transparent);
@@ -3170,7 +3171,8 @@
 }
 
 .timeline-focus-view[popover] .timeline-focus-tab:focus-visible,
-.timeline-focus-view[popover] :is(.button, a):focus-visible {
+.timeline-focus-view[popover] :is(.button, a):focus-visible,
+.timeline-focus-tab:focus-visible {
   outline-color: var(--focus-chrome-color);
 }
 
@@ -3903,7 +3905,7 @@
     min-height: 44px;
   }
 
-    .timeline-view[data-orientation="portrait"] .timeline-zoom-controls {
+  .timeline-view[data-orientation="portrait"] .timeline-zoom-controls {
     width: 100%;
     min-width: 0;
     padding-inline: 0.25rem;
@@ -4255,6 +4257,12 @@
   width: 15px;
   height: 15px;
   stroke-width: 1.9;
+}
+.timeline-focus-icon-action > .semantic-icon {
+  position: relative;
+  z-index: 1;
+  inline-size: 16px;
+  block-size: 16px;
 }
 .timeline-focus-tags .event-tag .semantic-icon {
   width: 1.35rem;
@@ -5070,7 +5078,6 @@
   inset-block-end: var(--workspace-footer-block-size, 64px);
 }
 
-
 /* Focused occurrence card-extension interactions. Small visual controls retain coarse-pointer hit areas. */
 .timeline-focus-hero-image {
   pointer-events: none;
@@ -5134,7 +5141,6 @@
   }
 }
 
-
 /* Focused occurrence polish: compact visuals with full-size hit targets and explicit tab focus. */
 .timeline-focus-icon-action::before {
   position: absolute;
@@ -5146,23 +5152,12 @@
   background: color-mix(in srgb, var(--paper) 88%, transparent);
   box-shadow: 0 2px 8px color-mix(in srgb, var(--ink) 10%, transparent);
   content: "";
-  transition:
-    transform 120ms ease,
-    background 120ms ease,
-    border-color 120ms ease;
 }
 
 .timeline-focus-icon-action:is(:hover, :focus-visible)::before {
   border-color: color-mix(in srgb, var(--event-color, var(--accent)) 62%, var(--line-strong));
   background: color-mix(in srgb, var(--paper) 80%, var(--event-color, var(--accent)));
   transform: scale(1.06);
-}
-
-.timeline-focus-icon-action > .semantic-icon {
-  position: relative;
-  z-index: 1;
-  inline-size: 16px;
-  block-size: 16px;
 }
 
 .timeline-focus-fallback-icon {
@@ -5197,6 +5192,11 @@
   outline-offset: 2px;
 }
 
+.timeline-focus-view[popover] .timeline-focus-tab:focus-visible,
+.timeline-focus-view[popover] :is(.button, a):focus-visible {
+  outline-color: var(--focus-chrome-color);
+}
+
 .timeline-focus-section[role="tabpanel"]:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: -3px;
@@ -5211,10 +5211,4 @@
   box-shadow:
     0 0 0 2px color-mix(in srgb, var(--event-color) 24%, transparent),
     0 6px 18px color-mix(in srgb, var(--event-color) 14%, transparent);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .timeline-focus-icon-action::before {
-    transition: none;
-  }
 }

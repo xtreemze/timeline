@@ -15,11 +15,9 @@ export const PROJECT_TRANSACTION_TOP_LEVEL_FIELDS = Object.freeze([
   "reasoning",
 ] as const);
 
-export type ProjectTransactionCollection =
-  (typeof PROJECT_TRANSACTION_COLLECTIONS)[number];
+export type ProjectTransactionCollection = (typeof PROJECT_TRANSACTION_COLLECTIONS)[number];
 
-export type ProjectTransactionTopLevelField =
-  (typeof PROJECT_TRANSACTION_TOP_LEVEL_FIELDS)[number];
+export type ProjectTransactionTopLevelField = (typeof PROJECT_TRANSACTION_TOP_LEVEL_FIELDS)[number];
 
 export interface ProjectTransactionOperation {
   readonly op: string;
@@ -87,7 +85,8 @@ function cleanupDelete(project: JsonRecord, collection: string, id: string): voi
     if (!fallbackRecord) throw new Error("The last category cannot be deleted.");
     for (const raw of records(project["items"])) {
       const item = record(raw);
-      if (item && String(item["categoryId"] ?? "") === id) item["categoryId"] = fallbackRecord["id"];
+      if (item && String(item["categoryId"] ?? "") === id)
+        item["categoryId"] = fallbackRecord["id"];
     }
   }
 
@@ -148,7 +147,8 @@ function cleanupDelete(project: JsonRecord, collection: string, id: string): voi
     project["custodyActions"] = records(project["custodyActions"]).filter((raw) => {
       const action = record(raw);
       if (!action) return true;
-      const evidenceId = action["evidenceId"] ?? action["recordId"] ?? action["evidenceRecordId"] ?? "";
+      const evidenceId =
+        action["evidenceId"] ?? action["recordId"] ?? action["evidenceRecordId"] ?? "";
       return String(evidenceId) !== id;
     });
   }
@@ -207,8 +207,7 @@ function applyOperation(project: JsonRecord, operation: ProjectTransactionOperat
     collectionRecords.push(value);
     return;
   }
-  collectionRecords[index] =
-    op === "patch" ? deepMerge(collectionRecords[index], value) : value;
+  collectionRecords[index] = op === "patch" ? deepMerge(collectionRecords[index], value) : value;
 }
 
 export function applyProjectTransaction<TProject>(
@@ -226,5 +225,5 @@ export function applyProjectTransaction<TProject>(
 
   const draft = cloneValue(input);
   for (const operation of operations) applyOperation(draft, operation);
-  return draft as unknown as TProject;
+  return draft;
 }

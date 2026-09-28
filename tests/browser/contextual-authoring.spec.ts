@@ -152,12 +152,10 @@ async function selectEntityWithTimelineContext(page: Page): Promise<string> {
     );
     if ((await selectedChronology.count()) === 0) continue;
 
-    const id = await page
-      .locator('.temporal-graph-canvas [role="status"]')
-      .evaluate((status) => {
-        const match = status.textContent?.match(/Selected entity ([^\s(]+)/);
-        return match?.[1] ?? "";
-      });
+    const id = await page.locator('.temporal-graph-canvas [role="status"]').evaluate((status) => {
+      const match = status.textContent?.match(/Selected entity ([^\s(]+)/);
+      return match?.[1] ?? "";
+    });
     if (id) return id;
   }
 
@@ -245,7 +243,10 @@ test.describe("contextual world authoring certification", () => {
     const input = page.locator("#occurrence-composer input");
     await expect(input).toHaveValue("@" + entityId + " ");
     const canonicalExists = await page.evaluate((id) => {
-      const project = globalThis.TimelineAgentAPI?.getProject?.();
+      const agentAPI = (
+        window as typeof window & { TimelineAgentAPI?: { getProject?: () => unknown } }
+      ).TimelineAgentAPI;
+      const project = agentAPI?.getProject?.();
       return Boolean(project?.entities?.some((entity) => String(entity.id) === id));
     }, entityId);
     expect(canonicalExists).toBe(true);
@@ -294,5 +295,4 @@ test.describe("contextual world authoring certification", () => {
     }));
     expect(afterScroll).toEqual(beforeScroll);
   });
-
 });

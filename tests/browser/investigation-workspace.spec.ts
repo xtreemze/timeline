@@ -40,7 +40,7 @@ async function installReasoningFixture(page) {
     const linkedEntityId = state.entities?.[0]?.id || "";
     const linkedStart = state.items?.[0]?.start || "2026-09-26T21:10:00+03:00";
     const linkedEnd = state.items?.[0]?.end || linkedStart;
-    state.evidence = [
+    const newEvidence = [
       ...(state.evidence || []).filter((record) => record.id !== "ev-track"),
       {
         id: "ev-track",
@@ -53,7 +53,7 @@ async function installReasoningFixture(page) {
         file: null,
       },
     ];
-    state.entities = [
+    const newEntities = [
       ...(state.entities || []),
       {
         id: "unknown-person-a",
@@ -67,94 +67,99 @@ async function installReasoningFixture(page) {
       ...["alice", "bob", "carol"].map((id) => ({
         id,
         type: "person",
-        name: id[0]!.toUpperCase() + id.slice(1),
+        name: id.charAt(0).toUpperCase() + id.slice(1),
         alternateNames: [],
         sourceIds: [],
         attributes: {},
       })),
     ];
-    state.reasoning = {
-      observations: [
-        {
-          id: "obs-track",
-          text: "Trajectory observation near the incident area.",
-          evidenceIds: ["ev-track"],
-          itemIds: linkedItemId ? [linkedItemId] : [],
-          relationshipIds: linkedRelationshipId ? [linkedRelationshipId] : [],
-          placeIds: linkedPlaceId ? [linkedPlaceId] : [],
-          entityIds: linkedEntityId ? [linkedEntityId] : [],
-          trajectoryIds: ["track-high-res"],
-          temporalScope: { start: linkedStart, end: linkedEnd },
-        },
-      ],
-      assertions,
-      hypotheses,
-      assumptions: [
-        {
-          id: "assume-phone-owner",
-          text: "The registered owner carried the phone.",
-          status: "challenged",
-          inputIds: ["fact-1"],
-          hypothesisIds: ["hyp-alice"],
-          rationale: "Registration does not establish possession.",
-        },
-      ],
-      questions: [
-        {
-          id: "q-location",
-          text: "Where was Carol?",
-          status: "open",
-          hypothesisIds: ["hyp-carol"],
-        },
-      ],
-      linesOfEnquiry: [
-        {
-          id: "loe-bob-alibi",
-          text: "Test Bob's alibi.",
-          status: "active",
-          testType: "falsify",
-          hypothesisIds: ["hyp-bob"],
-        },
-      ],
-      indicators: [
-        {
-          id: "indicator-camera",
-          text: "A matching person appears on Camera 6.",
-          state: "unknown",
-          hypothesisIds: ["hyp-carol"],
-        },
-      ],
-      informationReviews: [
-        {
-          id: "quality-phone",
-          text: "Device ownership does not establish possession.",
-          finding: "limited",
-          targetIds: ["fact-1"],
-          limitations: "Carrier is not independently established.",
-        },
-      ],
-      edges: [
-        ...assertions.flatMap((assertion, index) =>
-          index < 2
-            ? [
-                {
-                  id: `support-${index}`,
-                  fromId: assertion.id,
-                  toId: "hyp-alice",
-                  predicate: "supports",
-                },
-              ]
-            : [],
-        ),
-        {
-          id: "track-contextualizes-carol",
-          fromId: "obs-track",
-          toId: "hyp-carol",
-          predicate: "contextualizes",
-        },
-      ],
+    const newState = {
+      ...state,
+      evidence: newEvidence,
+      entities: newEntities,
+      reasoning: {
+        observations: [
+          {
+            id: "obs-track",
+            text: "Trajectory observation near the incident area.",
+            evidenceIds: ["ev-track"],
+            itemIds: linkedItemId ? [linkedItemId] : [],
+            relationshipIds: linkedRelationshipId ? [linkedRelationshipId] : [],
+            placeIds: linkedPlaceId ? [linkedPlaceId] : [],
+            entityIds: linkedEntityId ? [linkedEntityId] : [],
+            trajectoryIds: ["track-high-res"],
+            temporalScope: { start: linkedStart, end: linkedEnd },
+          },
+        ],
+        assertions,
+        hypotheses,
+        assumptions: [
+          {
+            id: "assume-phone-owner",
+            text: "The registered owner carried the phone.",
+            status: "challenged",
+            inputIds: ["fact-1"],
+            hypothesisIds: ["hyp-alice"],
+            rationale: "Registration does not establish possession.",
+          },
+        ],
+        questions: [
+          {
+            id: "q-location",
+            text: "Where was Carol?",
+            status: "open",
+            hypothesisIds: ["hyp-carol"],
+          },
+        ],
+        linesOfEnquiry: [
+          {
+            id: "loe-bob-alibi",
+            text: "Test Bob's alibi.",
+            status: "active",
+            testType: "falsify",
+            hypothesisIds: ["hyp-bob"],
+          },
+        ],
+        indicators: [
+          {
+            id: "indicator-camera",
+            text: "A matching person appears on Camera 6.",
+            state: "unknown",
+            hypothesisIds: ["hyp-carol"],
+          },
+        ],
+        informationReviews: [
+          {
+            id: "quality-phone",
+            text: "Device ownership does not establish possession.",
+            finding: "limited",
+            targetIds: ["fact-1"],
+            limitations: "Carrier is not independently established.",
+          },
+        ],
+        edges: [
+          ...assertions.flatMap((assertion, index) =>
+            index < 2
+              ? [
+                  {
+                    id: `support-${index}`,
+                    fromId: assertion.id,
+                    toId: "hyp-alice",
+                    predicate: "supports",
+                  },
+                ]
+              : [],
+          ),
+          {
+            id: "track-contextualizes-carol",
+            fromId: "obs-track",
+            toId: "hyp-carol",
+            predicate: "contextualizes",
+          },
+        ],
+      },
     };
-    localStorage.setItem("timeline:v2", JSON.stringify(state));
+    localStorage.setItem("timeline:v2", JSON.stringify(newState));
   });
   await page.reload();
 }
@@ -178,14 +183,18 @@ test("mobile investigation workspace renders dense alternatives without applicat
   await expect(gapLinks).toBeVisible();
   await expect(gapLinks.getByRole("button", { name: "Alice" })).toBeVisible();
   await expect(gapLinks.getByRole("button", { name: "Carol" })).toBeVisible();
-  await expect(gapLinks.getByRole("button", { name: "None of the known candidates" })).toBeVisible();
+  await expect(
+    gapLinks.getByRole("button", { name: "None of the known candidates" }),
+  ).toBeVisible();
   await page.getByRole("tab", { name: "Matrix" }).click();
 
   const matrixRows = sheet.locator(".investigation-matrix tbody tr");
   await expect(matrixRows).toHaveCount(30);
   await expect(sheet.locator(".investigation-matrix thead th")).toHaveCount(5);
 
-  await sheet.getByRole("button", { name: "Trajectory observation near the incident area." }).click();
+  await sheet
+    .getByRole("button", { name: "Trajectory observation near the incident area." })
+    .click();
   const drilldown = sheet.locator(".investigation-evidence-drilldown");
   await expect(drilldown).toContainText("GNSS track source");
   await expect(drilldown).toContainText("trajectory track-high-res");
@@ -211,7 +220,9 @@ test("mobile investigation workspace renders dense alternatives without applicat
 
   await drilldown.getByRole("button", { name: "Focus context" }).click();
   await expect(sheet).toBeHidden();
-  await expect(page.locator("#status")).toContainText(/Focused (trajectory context|timeline context)/);
+  await expect(page.locator("#status")).toContainText(
+    /Focused (trajectory context|timeline context)/,
+  );
 
   await openInvestigation(page);
   await page.keyboard.press("Escape");
@@ -260,7 +271,6 @@ test("line-of-enquiry editor enforces rationale and persists through the app com
   ).toBe(true);
 });
 
-
 test("quality and indicator records are editable and remain qualitative", async ({ page }) => {
   await installReasoningFixture(page);
   await openInvestigation(page);
@@ -270,11 +280,13 @@ test("quality and indicator records are editable and remain qualitative", async 
   await qualityForm.locator("textarea").nth(0).fill("Track source conflicts with witness timing.");
   await qualityForm.getByLabel("Information-quality finding").selectOption("conflicted");
   await qualityForm.locator('input[placeholder*="evidence"]').fill("ev-track");
-  await qualityForm.locator('textarea[placeholder*="limitations"]').fill("Clock offset remains unresolved.");
+  await qualityForm
+    .locator('textarea[placeholder*="limitations"]')
+    .fill("Clock offset remains unresolved.");
   await qualityForm.getByRole("button", { name: "Add quality review" }).click();
-  await expect(page.locator(".investigation-panel:not([hidden]) .investigation-card")).toContainText(
-    "Track source conflicts with witness timing.",
-  );
+  await expect(
+    page.locator(".investigation-panel:not([hidden]) .investigation-card"),
+  ).toContainText("Track source conflicts with witness timing.");
   await expect(page.getByRole("button", { name: "Open GNSS track source" })).toBeVisible();
 
   await page.getByRole("tab", { name: "Indicators" }).click();
@@ -284,9 +296,9 @@ test("quality and indicator records are editable and remain qualitative", async 
   await indicatorForm.locator('input[placeholder="observation IDs"]').fill("obs-track");
   await indicatorForm.locator('input[placeholder="hypothesis IDs"]').fill("hyp-carol");
   await indicatorForm.getByRole("button", { name: "Add indicator" }).click();
-  await expect(page.locator(".investigation-panel:not([hidden]) .investigation-card")).toContainText(
-    "A matching track reaches the west exit.",
-  );
+  await expect(
+    page.locator(".investigation-panel:not([hidden]) .investigation-card"),
+  ).toContainText("A matching track reaches the west exit.");
 
   const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("timeline:v2") || "{}"));
   const quality = stored.reasoning.informationReviews.find(

@@ -5,8 +5,8 @@
 
 import { authorOccurrence } from "../src/application/occurrence-authoring.ts";
 import {
-  stageProjectImportReview,
   type StagedProjectImport,
+  stageProjectImportReview,
   verifyStagedProjectImport,
 } from "../src/application/project-import-review.ts";
 import { applyProjectTransaction } from "../src/application/project-transaction.ts";
@@ -25,6 +25,12 @@ import type {
   LuumOccurrenceComposerElement,
   OccurrenceCommitDetail,
 } from "./components/occurrence-composer.ts";
+import { TimelineEvidence } from "./evidence-store.ts";
+import { TimelineGraphInference } from "./graph-inference.ts";
+import { TimelineInterchangeAdapter } from "./interchange-adapter.ts";
+import { createCompoundIcon, createIcon, ICON_NAMES } from "./event-presentation.ts";
+import { createLocalLlmAgent } from "./local-llm-agent.ts";
+import { createMcpRelayBridge, type McpRelayConnectOptions } from "./mcp-relay.ts";
 import {
   canShareProjectFile,
   observeInstallAvailability,
@@ -37,23 +43,18 @@ import {
   shareProjectFile,
   supportsNativeProjectOpen,
 } from "./platform-capabilities.ts";
-import { TimelineEvidence } from "./evidence-store.ts";
-import { TimelineGraphInference } from "./graph-inference.ts";
-import { TimelineInterchangeAdapter } from "./interchange-adapter.ts";
-import { createLocalLlmAgent } from "./local-llm-agent.ts";
-import { createMcpRelayBridge, type McpRelayConnectOptions } from "./mcp-relay.ts";
 import { TimelineSpatial } from "./spatial.ts";
-import {
-  createInvestigationWorkspace,
-  type InvestigationFocusTarget,
-  type InvestigationWorkspaceController,
-} from "./ui/investigation-workspace.ts";
 import {
   addItemToStory,
   auditStoryAuthoring,
   reconcileStoryContext,
   storyIdsForItem,
 } from "./story-authoring.js";
+import {
+  createInvestigationWorkspace,
+  type InvestigationFocusTarget,
+  type InvestigationWorkspaceController,
+} from "./ui/investigation-workspace.ts";
 // Import ESM modules
 import "./components/timeline-element.ts";
 import { TimelineTemporal } from "./temporal-standards.ts";
@@ -406,10 +407,8 @@ const els = {
   visibleCount: requiredElement<HTMLElement>("#visible-count"),
   appShell: requiredElement<HTMLElement>("#app-shell"),
   appToolDock: requiredElement<HTMLElement>(".app-tool-dock"),
-  occurrenceComposer:
-    requiredElement<LuumOccurrenceComposerElement>("#occurrence-composer"),
-  occurrenceComposerToggle:
-    requiredElement<HTMLButtonElement>("#occurrence-composer-toggle"),
+  occurrenceComposer: requiredElement<LuumOccurrenceComposerElement>("#occurrence-composer"),
+  occurrenceComposerToggle: requiredElement<HTMLButtonElement>("#occurrence-composer-toggle"),
   controlPanel: requiredElement<HTMLElement>("#control-panel"),
   controlPanelClose: requiredElement<HTMLButtonElement>("#control-panel-close"),
   editorToggle: requiredElement<HTMLButtonElement>("#editor-toggle"),
@@ -430,9 +429,13 @@ const els = {
   projectImportReviewSheet: requiredElement<HTMLElement>("#project-import-review-sheet"),
   projectImportReviewStatus: requiredElement<HTMLElement>("#project-import-review-status"),
   projectImportReviewSummary: requiredElement<HTMLElement>("#project-import-review-summary"),
-  projectImportReviewFingerprint: requiredElement<HTMLElement>("#project-import-review-fingerprint"),
+  projectImportReviewFingerprint: requiredElement<HTMLElement>(
+    "#project-import-review-fingerprint",
+  ),
   projectImportReviewSources: requiredElement<HTMLUListElement>("#project-import-review-sources"),
-  projectImportReviewUnresolved: requiredElement<HTMLUListElement>("#project-import-review-unresolved"),
+  projectImportReviewUnresolved: requiredElement<HTMLUListElement>(
+    "#project-import-review-unresolved",
+  ),
   projectImportReviewFindings: requiredElement<HTMLUListElement>("#project-import-review-findings"),
   projectImportReviewNotes: requiredElement<HTMLElement>("#project-import-review-notes"),
   projectImportReviewInstructions: requiredElement<HTMLUListElement>(
@@ -700,8 +703,8 @@ function decorateSemanticControls() {
     const secondaryIconName = element.dataset.semanticIconSecondary || "";
     element.prepend(
       secondaryIconName
-        ? presentation.createCompoundIcon(iconName, secondaryIconName, { size: 22 })
-        : presentation.createIcon(iconName, { size: 22 }),
+        ? createCompoundIcon(iconName, secondaryIconName, { size: 22 })
+        : createIcon(iconName, { size: 22 }),
     );
   }
 }
@@ -709,8 +712,8 @@ function decorateSemanticControls() {
 function setSemanticControlIcon(element, iconName, label, secondaryIconName = "") {
   if (!element) return;
   const icon = secondaryIconName
-    ? presentation.createCompoundIcon(iconName, secondaryIconName, { size: 22 })
-    : presentation.createIcon(iconName, { size: 22 });
+    ? createCompoundIcon(iconName, secondaryIconName, { size: 22 })
+    : createIcon(iconName, { size: 22 });
   const currentIcon = element.querySelector(":scope > .semantic-icon");
   if (currentIcon) currentIcon.replaceWith(icon);
   else element.prepend(icon);
@@ -1723,10 +1726,8 @@ function syncApplicationSurfaces() {
   els.occurrenceComposer.hidden = Boolean(
     ui.browserOpen || ui.investigationOpen || ui.editorOpen || ui.importReviewOpen,
   );
-  els.occurrenceComposerToggle.setAttribute(
-    "aria-expanded",
-    String(els.occurrenceComposer.active),
-  );
+els.occurrenceComposer.setEditing(editing);
+  els.occurrenceComposerToggle.setAttribute("aria-expanded", String(els.occurrenceComposer.active));
   els.occurrenceComposerToggle.setAttribute(
     "aria-label",
     els.occurrenceComposer.active ? "Close occurrence composer" : "Compose occurrence",
@@ -1829,12 +1830,7 @@ function syncTimelineContextControls() {
           ? "Edit focused event"
           : "Edit timeline";
     els.editorToggle.disabled = ui.importReviewOpen;
-    setSemanticControlIcon(
-      els.editorToggle,
-      ui.editorOpen ? "check" : "edit",
-      label,
-      "timeline",
-    );
+    setSemanticControlIcon(els.editorToggle, ui.editorOpen ? "check" : "edit", label, "timeline");
     const accessibleLabel = els.editorToggle.querySelector(".app-tool-label");
     if (accessibleLabel) {
       accessibleLabel.textContent = ui.editorOpen ? "Done" : composerActive ? "Editor" : "Edit";
@@ -1843,9 +1839,7 @@ function syncTimelineContextControls() {
   if (focusBecameActive) requestAnimationFrame(revealFocusedToolbarNavigation);
 }
 
-function syncOccurrenceComposerSelection(
-  selection = applicationSelection.current,
-): void {
+function syncOccurrenceComposerSelection(selection = applicationSelection.current): void {
   if (!selection) {
     els.occurrenceComposer.setSelectionContext(null);
     return;
@@ -1999,9 +1993,7 @@ function setOccurrenceComposerOpen(open: boolean): void {
   if (!open) restoreComposerFocus(focusToRestore);
 }
 
-function composerTime(
-  detail: OccurrenceCommitDetail,
-): {
+function composerTime(detail: OccurrenceCommitDetail): {
   readonly extent: TemporalExtent;
   readonly kind: "event" | "range";
   readonly startValue: string;
@@ -4073,10 +4065,10 @@ function graphNodeAttributesForEditor(value: unknown): Record<string, unknown> {
   return attributes;
 }
 
-function semanticIconStateForEntity(entity: {
-  type?: unknown;
-  attributes?: unknown;
-}): { icon: string | null; origin: "explicit" | "type-fallback" | "none" } {
+function semanticIconStateForEntity(entity: { type?: unknown; attributes?: unknown }): {
+  icon: string | null;
+  origin: "explicit" | "type-fallback" | "none";
+} {
   const normalized = normalizeEntityPresentationAttributes(entity.attributes || {});
   const style =
     normalized.style && typeof normalized.style === "object" && !Array.isArray(normalized.style)
@@ -4085,9 +4077,7 @@ function semanticIconStateForEntity(entity: {
   const explicit = normalizeSemanticIconName(style.icon);
   if (explicit) return { icon: explicit, origin: "explicit" };
   const fallback = defaultSemanticIconForEntityType(entity.type);
-  return fallback
-    ? { icon: fallback, origin: "type-fallback" }
-    : { icon: null, origin: "none" };
+  return fallback ? { icon: fallback, origin: "type-fallback" } : { icon: null, origin: "none" };
 }
 
 function syncGraphNodeIconPreview(): void {
@@ -4108,7 +4098,10 @@ function syncGraphNodeIconPreview(): void {
 
   if (origin === "explicit") {
     els.graphNodeIconStatus.textContent = `Explicit semantic icon: ${icon}.`;
-    els.graphNodeIconPreview.setAttribute("aria-label", `Semantic icon ${icon}, explicitly selected`);
+    els.graphNodeIconPreview.setAttribute(
+      "aria-label",
+      `Semantic icon ${icon}, explicitly selected`,
+    );
   } else if (origin === "type-fallback") {
     els.graphNodeIconStatus.textContent = `Automatic from type: ${icon}.`;
     els.graphNodeIconPreview.setAttribute(
@@ -4116,8 +4109,7 @@ function syncGraphNodeIconPreview(): void {
       `Semantic icon ${icon}, automatic from entity type`,
     );
   } else if (origin === "invalid") {
-    els.graphNodeIconStatus.textContent =
-      `Unsupported icon “${raw}”. Choose a listed semantic icon or clear the field.`;
+    els.graphNodeIconStatus.textContent = `Unsupported icon “${raw}”. Choose a listed semantic icon or clear the field.`;
     els.graphNodeIconPreview.setAttribute("aria-label", "Unsupported semantic icon");
   } else {
     els.graphNodeIconStatus.textContent =
@@ -4126,10 +4118,7 @@ function syncGraphNodeIconPreview(): void {
   }
 }
 
-function graphNodeAttributesWithIcon(
-  value: unknown,
-  rawIcon: unknown,
-): Record<string, unknown> {
+function graphNodeAttributesWithIcon(value: unknown, rawIcon: unknown): Record<string, unknown> {
   const attributes = graphNodeAttributesForEditor(value);
   const iconText = String(rawIcon || "").trim();
   const icon = iconText ? normalizeSemanticIconName(iconText) : null;
@@ -5871,10 +5860,7 @@ const settledSpatialWindow = createSettledTemporalWindowSink<unknown>(
 els.timelineViewRoot.addEventListener("timelineviewportchange", (event) => {
   const viewport = event.detail?.viewport || null;
   if (viewport && Number.isFinite(viewport.start) && Number.isFinite(viewport.end)) {
-    els.occurrenceComposer.setTimelineViewport(
-      Number(viewport.start),
-      Number(viewport.end),
-    );
+    els.occurrenceComposer.setTimelineViewport(Number(viewport.start), Number(viewport.end));
   }
   settledSpatialWindow.push(viewport, Boolean(event.detail?.committed));
 });
@@ -5926,9 +5912,11 @@ els.graphViewRoot.addEventListener("graphcontextchange", (event) => {
 });
 
 els.graphViewRoot.addEventListener("worldselectionchange", (event) => {
-  const detail = (event as CustomEvent<{
-    selection?: { kind?: unknown; id?: unknown } | null;
-  }>).detail;
+  const detail = (
+    event as CustomEvent<{
+      selection?: { kind?: unknown; id?: unknown } | null;
+    }>
+  ).detail;
   const selection = detail?.selection;
   if (
     selection &&
@@ -5937,20 +5925,19 @@ els.graphViewRoot.addEventListener("worldselectionchange", (event) => {
       selection.kind === "place") &&
     (typeof selection.id === "string" || typeof selection.id === "number")
   ) {
-    applicationSelection.select(
-      { kind: selection.kind, id: String(selection.id) },
-      "world",
-    );
+    applicationSelection.select({ kind: selection.kind, id: String(selection.id) }, "world");
     return;
   }
   applicationSelection.clear("world");
 });
 
 els.graphViewRoot.addEventListener("worldviewportchange", (event) => {
-  const detail = (event as CustomEvent<{
-    camera?: { longitude?: unknown; latitude?: unknown; zoom?: unknown };
-    center?: { longitude?: unknown; latitude?: unknown };
-  }>).detail;
+  const detail = (
+    event as CustomEvent<{
+      camera?: { longitude?: unknown; latitude?: unknown; zoom?: unknown };
+      center?: { longitude?: unknown; latitude?: unknown };
+    }>
+  ).detail;
   const longitude = Number(detail?.camera?.longitude ?? detail?.center?.longitude);
   const latitude = Number(detail?.camera?.latitude ?? detail?.center?.latitude);
   const zoom = Number(detail?.camera?.zoom);
@@ -5968,7 +5955,7 @@ els.graphViewRoot.addEventListener("worldcontextrequest", (event) => {
 
   setOccurrenceComposerOpen(true);
   const zoom = Number(temporalGraphView?.getCamera?.()?.zoom);
-  els.occurrenceComposer.setWorldContext(
+els.occurrenceComposer.setWorldContext(
     longitude,
     latitude,
     Number.isFinite(zoom) ? zoom : null,
@@ -6096,8 +6083,7 @@ function renderProjectImportReview(review: StagedProjectImport<TimelineState>): 
     review.status === "ready-for-user-verification"
       ? "This generated project has passed structural checks but still requires your verification."
       : "This generated project cannot be approved until the reported errors are repaired.";
-  els.projectImportReviewSummary.textContent =
-    `${summary.items} items · ${summary.stories} stories · ${summary.entities} entities · ${summary.relationships} relationships · ${summary.places} places · ${summary.evidence} evidence records · ${summary.sources} sources`;
+  els.projectImportReviewSummary.textContent = `${summary.items} items · ${summary.stories} stories · ${summary.entities} entities · ${summary.relationships} relationships · ${summary.places} places · ${summary.evidence} evidence records · ${summary.sources} sources`;
   els.projectImportReviewFingerprint.textContent = review.fingerprint;
 
   const sourceItems = review.sources.map((source) => {
@@ -6354,7 +6340,9 @@ function reasoningRecordStringList(record: Record<string, unknown> | undefined, 
 
 function reasoningTemporalWindow(record: Record<string, unknown> | undefined) {
   const scope =
-    record?.temporalScope && typeof record.temporalScope === "object" && !Array.isArray(record.temporalScope)
+    record?.temporalScope &&
+    typeof record.temporalScope === "object" &&
+    !Array.isArray(record.temporalScope)
       ? (record.temporalScope as Record<string, unknown>)
       : null;
   if (!scope) return null;
@@ -6394,13 +6382,14 @@ function focusInvestigationTarget(target: InvestigationFocusTarget) {
   const entityIds = reasoningRecordStringList(record, "entityIds");
   const trajectoryIds = reasoningRecordStringList(record, "trajectoryIds");
   const temporalWindow = reasoningTemporalWindow(record);
-  const worldView = temporalGraphView as unknown as {
+  interface TemporalGraphViewLike {
     setWindow?: (window: { start: number; end: number }) => void;
     focusTrajectory?: (id: string) => void;
     focusOccurrence?: (id: string) => void;
     focusPlace?: (id: string) => void;
     focusEntity?: (id: string) => void;
-  };
+  }
+  const worldView = temporalGraphView as TemporalGraphViewLike | null;
 
   if (temporalWindow) worldView?.setWindow?.(temporalWindow);
 

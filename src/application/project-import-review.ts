@@ -141,7 +141,7 @@ export function stageProjectImportReview<TProject>(
   const preflight = envelopePreflight(input);
   const errors = strings(preflight["errors"]);
   const warnings = strings(preflight["warnings"]);
-  const rawProject = cloneValue(input.project) as unknown as TProject;
+  const rawProject = cloneValue(input.project);
   let normalized = rawProject;
   let validation: ProjectImportValidation = { valid: true, errors: [], warnings: [] };
 
@@ -192,8 +192,7 @@ export function stageProjectImportReview<TProject>(
     fingerprint: fingerprint(normalized),
     sources: Object.freeze(sources),
     unresolved: Object.freeze(strings(input.unresolved)),
-    generationNotes:
-      typeof input.generationNotes === "string" ? input.generationNotes.trim() : "",
+    generationNotes: typeof input.generationNotes === "string" ? input.generationNotes.trim() : "",
     verificationInstructions: Object.freeze(strings(input.verificationInstructions)),
     errors: Object.freeze(uniqueErrors),
     warnings: Object.freeze(uniqueWarnings),
@@ -219,7 +218,9 @@ export function verifyStagedProjectImport<TProject>(
 
   const normalized = dependencies.normalize(cloneValue(staged.project));
   if (fingerprint(normalized) !== staged.fingerprint) {
-    throw new Error("The staged project changed after it was staged; review it again before commit.");
+    throw new Error(
+      "The staged project changed after it was staged; review it again before commit.",
+    );
   }
 
   const validation = dependencies.validate?.(cloneValue(normalized));

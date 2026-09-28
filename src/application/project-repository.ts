@@ -25,13 +25,11 @@ import {
   storyId,
   trajectoryId,
 } from "../domain/ids.ts";
-import type {
-  CanonicalOccurrence,
-  CanonicalOccurrenceParticipant,
-} from "../domain/occurrence.ts";
+import type { CanonicalOccurrence, CanonicalOccurrenceParticipant } from "../domain/occurrence.ts";
 import { validateOccurrence } from "../domain/occurrence.ts";
 import type { CanonicalProject } from "../domain/project.ts";
 import type { CanonicalRelationship } from "../domain/relationship.ts";
+import { validateRelationship } from "../domain/relationship.ts";
 import type { ExternalSemanticMapping } from "../domain/semantics.ts";
 import type {
   TrajectoryArtifact,
@@ -41,7 +39,6 @@ import type {
   TrajectoryStorageReference,
 } from "../domain/trajectory.ts";
 import { validateTrajectoryArtifact } from "../domain/trajectory.ts";
-import { validateRelationship } from "../domain/relationship.ts";
 
 export const CURRENT_PROJECT_SCHEMA_VERSION = 3;
 export const PROJECT_ENVELOPE_FORMAT = "lum-project";
@@ -266,10 +263,7 @@ function assertEntityShape(value: unknown): CanonicalEntity {
 
   const identifiers = optionalRecordArray(value.identifiers, "Entity identifiers");
   const appellations = optionalRecordArray(value.appellations, "Entity appellations");
-  const semanticMappings = optionalRecordArray(
-    value.semanticMappings,
-    "Entity semanticMappings",
-  );
+  const semanticMappings = optionalRecordArray(value.semanticMappings, "Entity semanticMappings");
 
   const entity: CanonicalEntity = {
     id: entityId(requireNonEmptyString(value.id, "Entity ID")),
@@ -278,21 +272,20 @@ function assertEntityShape(value: unknown): CanonicalEntity {
     alternateNames: [...value.alternateNames],
     ...(typeof value.identityResolution === "string"
       ? {
-          identityResolution:
-            value.identityResolution as NonNullable<CanonicalEntity["identityResolution"]>,
+          identityResolution: value.identityResolution as NonNullable<
+            CanonicalEntity["identityResolution"]
+          >,
         }
       : {}),
     ...(identifiers
-      ? { identifiers: identifiers as unknown as NonNullable<CanonicalEntity["identifiers"]> }
+      ? { identifiers: identifiers as NonNullable<CanonicalEntity["identifiers"]> }
       : {}),
     ...(appellations
-      ? { appellations: appellations as unknown as NonNullable<CanonicalEntity["appellations"]> }
+      ? { appellations: appellations as NonNullable<CanonicalEntity["appellations"]> }
       : {}),
     ...(semanticMappings
       ? {
-          semanticMappings: semanticMappings as unknown as NonNullable<
-            CanonicalEntity["semanticMappings"]
-          >,
+          semanticMappings: semanticMappings as NonNullable<CanonicalEntity["semanticMappings"]>,
         }
       : {}),
     sourceIds: value.sourceIds.map(sourceId),
@@ -323,14 +316,8 @@ function assertRelationshipShape(
   if (value.occurrenceType !== undefined) {
     requireNonEmptyString(value.occurrenceType, "Relationship occurrenceType");
   }
-  const subjectContext = optionalRecord(
-    value.subjectContext,
-    "Relationship subjectContext",
-  );
-  const objectContext = optionalRecord(
-    value.objectContext,
-    "Relationship objectContext",
-  );
+  const subjectContext = optionalRecord(value.subjectContext, "Relationship subjectContext");
+  const objectContext = optionalRecord(value.objectContext, "Relationship objectContext");
   const semanticMappings = optionalRecordArray(
     value.semanticMappings,
     "Relationship semanticMappings",
@@ -367,23 +354,26 @@ function assertRelationshipShape(
     predicate: requireNonEmptyString(value.predicate, "Relationship predicate"),
     ...(typeof value.role === "string" ? { role: value.role } : {}),
     ...(typeof value.occurrenceType === "string"
-      ? { occurrenceType: requireNonEmptyString(value.occurrenceType, "Relationship occurrenceType") }
+      ? {
+          occurrenceType: requireNonEmptyString(
+            value.occurrenceType,
+            "Relationship occurrenceType",
+          ),
+        }
       : {}),
     ...(subjectContext
       ? {
-          subjectContext:
-            subjectContext as NonNullable<CanonicalRelationship["subjectContext"]>,
+          subjectContext: subjectContext as NonNullable<CanonicalRelationship["subjectContext"]>,
         }
       : {}),
     ...(objectContext
       ? {
-          objectContext:
-            objectContext as NonNullable<CanonicalRelationship["objectContext"]>,
+          objectContext: objectContext as NonNullable<CanonicalRelationship["objectContext"]>,
         }
       : {}),
     ...(semanticMappings
       ? {
-          semanticMappings: semanticMappings as unknown as NonNullable<
+          semanticMappings: semanticMappings as NonNullable<
             CanonicalRelationship["semanticMappings"]
           >,
         }
@@ -402,8 +392,6 @@ function assertRelationshipShape(
   return relationship;
 }
 
-
-
 function assertTrajectoryShape(
   value: unknown,
   entities: readonly CanonicalEntity[],
@@ -421,7 +409,11 @@ function assertTrajectoryShape(
   if (value.observedEntityIds !== undefined && !isStringArray(value.observedEntityIds)) {
     throw new Error("Trajectory observedEntityIds must be a string array when present.");
   }
-  if (!Number.isSafeInteger(value.sampleCount) || typeof value.sampleCount !== "number" || value.sampleCount < 0) {
+  if (
+    !Number.isSafeInteger(value.sampleCount) ||
+    typeof value.sampleCount !== "number" ||
+    value.sampleCount < 0
+  ) {
     throw new Error("Trajectory sampleCount must be a non-negative safe integer.");
   }
   if (value.time !== null && !isRecord(value.time)) {
@@ -459,13 +451,12 @@ function assertTrajectoryShape(
     sampleCount: value.sampleCount,
     time: value.time as TrajectoryArtifact["time"],
     bounds: value.bounds as TrajectoryBounds | null,
-    channels: value.channels as unknown as readonly TrajectoryChannel[],
-    levels: value.levels as unknown as readonly TrajectoryLevel[],
-    storage: value.storage as unknown as TrajectoryStorageReference,
+    channels: value.channels as readonly TrajectoryChannel[],
+    levels: value.levels as readonly TrajectoryLevel[],
+    storage: value.storage as TrajectoryStorageReference,
     ...(semanticMappings
       ? {
-          externalMappings:
-            semanticMappings as unknown as NonNullable<TrajectoryArtifact["externalMappings"]>,
+          externalMappings: semanticMappings as NonNullable<TrajectoryArtifact["externalMappings"]>,
         }
       : {}),
     attributes: value.attributes,
@@ -579,26 +570,13 @@ function assertOccurrenceParticipantShape(value: unknown): CanonicalOccurrencePa
   if (value.roleType !== undefined && typeof value.roleType !== "string") {
     throw new Error("Occurrence participant roleType must be a string when present.");
   }
-  if (
-    value.representedEntityId !== undefined &&
-    typeof value.representedEntityId !== "string"
-  ) {
-    throw new Error(
-      "Occurrence participant representedEntityId must be a string when present.",
-    );
+  if (value.representedEntityId !== undefined && typeof value.representedEntityId !== "string") {
+    throw new Error("Occurrence participant representedEntityId must be a string when present.");
   }
-  if (
-    value.organizationId !== undefined &&
-    typeof value.organizationId !== "string"
-  ) {
-    throw new Error(
-      "Occurrence participant organizationId must be a string when present.",
-    );
+  if (value.organizationId !== undefined && typeof value.organizationId !== "string") {
+    throw new Error("Occurrence participant organizationId must be a string when present.");
   }
-  if (
-    value.authoritySourceIds !== undefined &&
-    !isStringArray(value.authoritySourceIds)
-  ) {
+  if (value.authoritySourceIds !== undefined && !isStringArray(value.authoritySourceIds)) {
     throw new Error(
       "Occurrence participant authoritySourceIds must be a string array when present.",
     );
@@ -622,10 +600,7 @@ function assertOccurrenceParticipantShape(value: unknown): CanonicalOccurrencePa
     ...(typeof value.organizationId === "string"
       ? {
           organizationId: entityId(
-            requireNonEmptyString(
-              value.organizationId,
-              "Occurrence participant organizationId",
-            ),
+            requireNonEmptyString(value.organizationId, "Occurrence participant organizationId"),
           ),
         }
       : {}),
@@ -690,10 +665,7 @@ function assertOccurrenceShape(
       : {}),
     ...(typeof value.occurrenceType === "string"
       ? {
-          occurrenceType: requireNonEmptyString(
-            value.occurrenceType,
-            "Occurrence occurrenceType",
-          ),
+          occurrenceType: requireNonEmptyString(value.occurrenceType, "Occurrence occurrenceType"),
         }
       : {}),
     time: value.time as CanonicalOccurrence["time"],
@@ -716,8 +688,9 @@ function assertOccurrenceShape(
     confidence: value.confidence as number | null,
     ...(semanticMappings
       ? {
-          semanticMappings:
-            semanticMappings as unknown as NonNullable<CanonicalOccurrence["semanticMappings"]>,
+          semanticMappings: semanticMappings as NonNullable<
+            CanonicalOccurrence["semanticMappings"]
+          >,
         }
       : {}),
     attributes: value.attributes,

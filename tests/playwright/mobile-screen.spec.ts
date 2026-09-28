@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 type Viewport = { width: number; height: number };
 type Rect = Viewport & { x: number; y: number };
@@ -42,9 +42,15 @@ test.describe("Narrow mobile screen contracts", () => {
 
     const readTimelineCounts = () =>
       page.evaluate(() => {
-        const project = globalThis.TimelineAgentAPI?.getProject?.();
+        const agentAPI = (
+          window as typeof window & { TimelineAgentAPI?: { getProject?: () => unknown } }
+        ).TimelineAgentAPI;
+        const project = agentAPI?.getProject?.();
         const root = document.querySelector("#timeline-view");
-        const view = root instanceof HTMLElement ? globalThis.TimelineView?.create(root) : null;
+        const TimelineView = (
+          window as typeof window & { TimelineView?: { create?: (root: HTMLElement) => unknown } }
+        ).TimelineView;
+        const view = root instanceof HTMLElement ? TimelineView?.create(root) : null;
         return {
           projectItems: project?.items?.length ?? 0,
           controllerItems: view?.items?.length ?? 0,
@@ -68,16 +74,22 @@ test.describe("Narrow mobile screen contracts", () => {
       .first();
     await expect(terminal).toBeVisible();
 
-    const [surfaceBox, terminalBox] = await Promise.all([surface.boundingBox(), terminal.boundingBox()]);
+    const [surfaceBox, terminalBox] = await Promise.all([
+      surface.boundingBox(),
+      terminal.boundingBox(),
+    ]);
     expect(surfaceBox).not.toBeNull();
     expect(terminalBox).not.toBeNull();
-    if (!surfaceBox || !terminalBox) throw new Error("Bundled sample timeline has no visible geometry.");
+    if (!surfaceBox || !terminalBox)
+      throw new Error("Bundled sample timeline has no visible geometry.");
     const intersection = overlap(surfaceBox, terminalBox);
     expect(intersection.x).toBeGreaterThan(0);
     expect(intersection.y).toBeGreaterThan(0);
     expect(pageErrors).toEqual([]);
   });
-  test("footer composer opens through Edit and keeps direct timeline controls usable", async ({ page }) => {
+  test("footer composer opens through Edit and keeps direct timeline controls usable", async ({
+    page,
+  }) => {
     for (const { viewport, orientation } of [
       { viewport: NARROW_PORTRAIT, orientation: "portrait" as const },
       { viewport: NARROW_LANDSCAPE, orientation: "landscape" as const },
@@ -138,7 +150,10 @@ test.describe("Narrow mobile screen contracts", () => {
 
       const nextOrientation = orientation === "portrait" ? "landscape" : "portrait";
       await timelineToggle.click();
-      await expect(page.locator("#timeline-view")).toHaveAttribute("data-orientation", nextOrientation);
+      await expect(page.locator("#timeline-view")).toHaveAttribute(
+        "data-orientation",
+        nextOrientation,
+      );
       await expect(input).toBeVisible();
       await input.press("Escape");
       await expect(composer).not.toHaveAttribute("active", "");
@@ -188,7 +203,7 @@ test.describe("Narrow mobile screen contracts", () => {
     expect(visibleCards.length).toBeGreaterThan(1);
     for (let first = 0; first < visibleCards.length; first += 1) {
       for (let second = first + 1; second < visibleCards.length; second += 1) {
-        const intersection = overlap(visibleCards[first]!, visibleCards[second]!);
+        const intersection = overlap(visibleCards[first], visibleCards[second]);
         expect(
           intersection.x > 2 && intersection.y > 2,
           `mobile timeline cards ${first} and ${second} overlap by ${Math.max(0, intersection.x).toFixed(1)}×${Math.max(0, intersection.y).toFixed(1)}px`,
@@ -277,7 +292,9 @@ test.describe("Narrow mobile screen contracts", () => {
     await expectNoPageScroll(page, NARROW_PORTRAIT);
   });
 
-  test("focused chronology navigation stays in the first mobile toolbar viewport", async ({ page }) => {
+  test("focused chronology navigation stays in the first mobile toolbar viewport", async ({
+    page,
+  }) => {
     const viewport = { width: 320, height: 568 };
     await page.setViewportSize(viewport);
     await page.goto("/");
