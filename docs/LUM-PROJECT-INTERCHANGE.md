@@ -94,7 +94,7 @@ Historical persistence snapshots remain supported by the persistence migration p
 
 Legacy `.luum` handling is tracked by #930. New format work must use `lum`, never introduce additional `luum` identifiers.
 
-`timeline.interchange` is an external/legacy adapter format. `lum-story-proposal-v1` remains a proposal/review envelope. Both should converge on the same canonical Lūm project representation rather than remain peer project schemas.
+`timeline.interchange` is an external/legacy adapter format. It can emit canonical Lūm through the fail-closed `TimelineInterchangeAdapter.toLumInterchange(...)` bridge; generic chronology that lacks canonical participant/relationship/story semantics remains legacy rather than being silently promoted. `lum-story-proposal-v1` remains a proposal/review envelope whose embedded project targets this same canonical Lūm representation.
 
 ## Current model scope
 

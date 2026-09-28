@@ -1,6 +1,21 @@
 # External interchange
 
-Timeline keeps external import/export compatibility behind a vendor-neutral adapter so third-party field names do not become part of the canonical chronology model.
+Lūm keeps the legacy `timeline.interchange` import/export shape as an external compatibility adapter. It is not a peer canonical project format; portable canonical projects use `lum-project` / `.lum.json`.
+
+## Canonical Lūm bridge
+
+`TimelineInterchangeAdapter.toLumInterchange(input, { projectKey, savedAt })` converts a graph-rich legacy interchange document into the normative Lūm Project Interchange. `timelineToLumInterchange` provides the same bridge for an already-normalized legacy Timeline document.
+
+The bridge is deliberately fail-closed. It does not invent actors, relationships, places, or story membership to make generic chronology fit the canonical model. Conversion is rejected when legacy records would otherwise be silently dropped, including:
+
+- timeline items that are not owned by a story;
+- relationships not associated with a canonical story occurrence;
+- orphan legacy entities or places;
+- legacy trajectories that have not passed through the canonical trajectory importer.
+
+Legacy `start/end` chronology is promoted to canonical occurrence temporal extents before the production compiler/validator runs. Stable IDs are preserved.
+
+Generic event/period import remains available as a compatibility/runtime path, but such data is not called canonical Lūm until the explicit bridge succeeds.
 
 ## Import mapping
 
