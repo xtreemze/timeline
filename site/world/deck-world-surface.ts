@@ -1196,7 +1196,6 @@ interface WorldThemeColors {
   readonly labelText: Rgba;
   readonly labelPlace: Rgba;
   readonly labelRelationship: Rgba;
-  readonly labelEmphasis: Rgba;
   readonly labelHalo: Rgba;
 }
 
@@ -1218,7 +1217,6 @@ function worldThemeColors(palette: WorldGraphPalette): WorldThemeColors {
     labelText: worldColorBytes(palette.ink),
     labelPlace: worldColorBytes(palette.muted),
     labelRelationship: worldColorBytes(palette.muted),
-    labelEmphasis: worldColorBytes(palette.focus),
     labelHalo: worldColorBytes(palette.paper, 230),
   });
 }
@@ -6067,6 +6065,7 @@ export class DeckWorldSurface implements WorldSurface {
               getSize: worldGraphLabelSize,
               getColor: (datum: DeckWorldLabelDatum) => {
                 const facing = this.#cameraFacingOpacity(datum.position);
+                const emphasized = labelInteractionEmphasized(datum);
                 if (datum.kind === "relationship-label") {
                   const edge = relationshipResult.byId.get(datum.relationshipId);
                   const edgeColor = edge
@@ -6074,26 +6073,37 @@ export class DeckWorldSurface implements WorldSurface {
                     : this.#theme.labelRelationship;
                   return scaleAlpha(edgeColor, facing * (edge ? edgeExpansion(edge) : 0));
                 }
-                const base = labelInteractionEmphasized(datum)
-                  ? this.#theme.labelEmphasis
-                  : datum.kind === "place-label" || datum.kind === "cluster-label"
-                    ? this.#theme.labelPlace
-                    : this.#theme.labelText;
-                if (datum.kind === "place-label") return scaleAlpha(base, facing);
+                if (datum.kind === "place-label") {
+                  const place = placeResult.byId.get(datum.placeId);
+                  const base =
+                    emphasized && place
+                      ? worldColorBytes(this.#placeStyle(place).fill)
+                      : this.#theme.labelPlace;
+                  return scaleAlpha(base, facing);
+                }
                 if (datum.kind === "cluster-label") {
+                  // Clusters may contain several semantic colours, so they stay
+                  // neutral rather than inventing a generic active/focus colour.
+                  const base = emphasized ? this.#theme.labelText : this.#theme.labelPlace;
                   return scaleAlpha(base, facing * clusterVisibility);
                 }
                 const entity = entityResult.byId.get(datum.worldInstanceId);
-                const entityBase =
-                  muteMembers && memberIds.has(datum.worldInstanceId)
-                    ? this.#theme.labelPlace
-                    : base;
                 const directlyInteracted =
                   (this.#selection?.kind === "entity" &&
                     this.#selection.id === datum.entityId) ||
                   (this.#hoverSelection?.kind === "entity" &&
                     this.#hoverSelection.id === datum.entityId) ||
                   (this.#focus?.kind === "entity" && this.#focus.id === datum.entityId);
+                const semanticBase =
+                  emphasized && entity
+                    ? worldColorBytes(this.#entityStyle(entity).fill)
+                    : this.#theme.labelText;
+                const entityBase =
+                  muteMembers &&
+                  memberIds.has(datum.worldInstanceId) &&
+                  !directlyInteracted
+                    ? this.#theme.labelPlace
+                    : semanticBase;
                 const visibility = directlyInteracted
                   ? 1
                   : entity
