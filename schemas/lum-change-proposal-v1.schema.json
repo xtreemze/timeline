@@ -62,7 +62,9 @@
     "unresolvedFact": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["question"],
+      "required": [
+        "question"
+      ],
       "properties": {
         "id": {
           "type": "string",
@@ -140,6 +142,30 @@
           "$ref": "#/$defs/replaceTrajectory"
         },
         {
+          "$ref": "#/$defs/createPlace"
+        },
+        {
+          "$ref": "#/$defs/replacePlace"
+        },
+        {
+          "$ref": "#/$defs/createSource"
+        },
+        {
+          "$ref": "#/$defs/replaceSource"
+        },
+        {
+          "$ref": "#/$defs/createCategory"
+        },
+        {
+          "$ref": "#/$defs/replaceCategory"
+        },
+        {
+          "$ref": "#/$defs/createStory"
+        },
+        {
+          "$ref": "#/$defs/replaceStory"
+        },
+        {
           "$ref": "#/$defs/deleteOperation"
         }
       ]
@@ -147,10 +173,18 @@
     "createEntity": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["op", "collection", "record"],
+      "required": [
+        "op",
+        "collection",
+        "record"
+      ],
       "properties": {
-        "op": { "const": "create" },
-        "collection": { "const": "entities" },
+        "op": {
+          "const": "create"
+        },
+        "collection": {
+          "const": "entities"
+        },
         "record": {
           "$ref": "lum-project-v1.schema.json#/$defs/entity"
         },
@@ -162,10 +196,18 @@
     "replaceEntity": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["op", "collection", "record"],
+      "required": [
+        "op",
+        "collection",
+        "record"
+      ],
       "properties": {
-        "op": { "const": "replace" },
-        "collection": { "const": "entities" },
+        "op": {
+          "const": "replace"
+        },
+        "collection": {
+          "const": "entities"
+        },
         "record": {
           "$ref": "lum-project-v1.schema.json#/$defs/entity"
         },
@@ -177,10 +219,18 @@
     "createRelationship": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["op", "collection", "record"],
+      "required": [
+        "op",
+        "collection",
+        "record"
+      ],
       "properties": {
-        "op": { "const": "create" },
-        "collection": { "const": "relationships" },
+        "op": {
+          "const": "create"
+        },
+        "collection": {
+          "const": "relationships"
+        },
         "record": {
           "$ref": "lum-project-v1.schema.json#/$defs/relationship"
         },
@@ -196,10 +246,18 @@
     "replaceRelationship": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["op", "collection", "record"],
+      "required": [
+        "op",
+        "collection",
+        "record"
+      ],
       "properties": {
-        "op": { "const": "replace" },
-        "collection": { "const": "relationships" },
+        "op": {
+          "const": "replace"
+        },
+        "collection": {
+          "const": "relationships"
+        },
         "record": {
           "$ref": "lum-project-v1.schema.json#/$defs/relationship"
         },
@@ -215,10 +273,18 @@
     "createOccurrence": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["op", "collection", "record"],
+      "required": [
+        "op",
+        "collection",
+        "record"
+      ],
       "properties": {
-        "op": { "const": "create" },
-        "collection": { "const": "occurrences" },
+        "op": {
+          "const": "create"
+        },
+        "collection": {
+          "const": "occurrences"
+        },
         "record": {
           "$ref": "lum-project-v1.schema.json#/$defs/occurrence"
         },
@@ -230,10 +296,18 @@
     "replaceOccurrence": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["op", "collection", "record"],
+      "required": [
+        "op",
+        "collection",
+        "record"
+      ],
       "properties": {
-        "op": { "const": "replace" },
-        "collection": { "const": "occurrences" },
+        "op": {
+          "const": "replace"
+        },
+        "collection": {
+          "const": "occurrences"
+        },
         "record": {
           "$ref": "lum-project-v1.schema.json#/$defs/occurrence"
         },
@@ -245,10 +319,18 @@
     "createTrajectory": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["op", "collection", "record"],
+      "required": [
+        "op",
+        "collection",
+        "record"
+      ],
       "properties": {
-        "op": { "const": "create" },
-        "collection": { "const": "trajectories" },
+        "op": {
+          "const": "create"
+        },
+        "collection": {
+          "const": "trajectories"
+        },
         "record": {
           "$ref": "lum-project-v1.schema.json#/$defs/trajectory"
         },
@@ -260,10 +342,18 @@
     "replaceTrajectory": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["op", "collection", "record"],
+      "required": [
+        "op",
+        "collection",
+        "record"
+      ],
       "properties": {
-        "op": { "const": "replace" },
-        "collection": { "const": "trajectories" },
+        "op": {
+          "const": "replace"
+        },
+        "collection": {
+          "const": "trajectories"
+        },
         "record": {
           "$ref": "lum-project-v1.schema.json#/$defs/trajectory"
         },
@@ -275,20 +365,214 @@
     "deleteOperation": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["op", "collection", "id"],
+      "required": [
+        "op",
+        "collection",
+        "id"
+      ],
       "properties": {
-        "op": { "const": "delete" },
+        "op": {
+          "const": "delete"
+        },
         "collection": {
           "enum": [
             "entities",
             "relationships",
             "occurrences",
-            "trajectories"
+            "trajectories",
+            "places",
+            "sources",
+            "categories",
+            "stories"
           ]
         },
         "id": {
           "type": "string",
           "minLength": 1
+        },
+        "sourceRefs": {
+          "$ref": "#/$defs/sourceRefs"
+        }
+      }
+    },
+    "createPlace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "op",
+        "collection",
+        "record"
+      ],
+      "properties": {
+        "op": {
+          "const": "create"
+        },
+        "collection": {
+          "const": "places"
+        },
+        "record": {
+          "$ref": "lum-project-v1.schema.json#/$defs/place"
+        },
+        "sourceRefs": {
+          "$ref": "#/$defs/sourceRefs"
+        }
+      }
+    },
+    "replacePlace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "op",
+        "collection",
+        "record"
+      ],
+      "properties": {
+        "op": {
+          "const": "replace"
+        },
+        "collection": {
+          "const": "places"
+        },
+        "record": {
+          "$ref": "lum-project-v1.schema.json#/$defs/place"
+        },
+        "sourceRefs": {
+          "$ref": "#/$defs/sourceRefs"
+        }
+      }
+    },
+    "createSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "op",
+        "collection",
+        "record"
+      ],
+      "properties": {
+        "op": {
+          "const": "create"
+        },
+        "collection": {
+          "const": "sources"
+        },
+        "record": {
+          "$ref": "lum-project-v1.schema.json#/$defs/source"
+        },
+        "sourceRefs": {
+          "$ref": "#/$defs/sourceRefs"
+        }
+      }
+    },
+    "replaceSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "op",
+        "collection",
+        "record"
+      ],
+      "properties": {
+        "op": {
+          "const": "replace"
+        },
+        "collection": {
+          "const": "sources"
+        },
+        "record": {
+          "$ref": "lum-project-v1.schema.json#/$defs/source"
+        },
+        "sourceRefs": {
+          "$ref": "#/$defs/sourceRefs"
+        }
+      }
+    },
+    "createCategory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "op",
+        "collection",
+        "record"
+      ],
+      "properties": {
+        "op": {
+          "const": "create"
+        },
+        "collection": {
+          "const": "categories"
+        },
+        "record": {
+          "$ref": "lum-project-v1.schema.json#/$defs/category"
+        },
+        "sourceRefs": {
+          "$ref": "#/$defs/sourceRefs"
+        }
+      }
+    },
+    "replaceCategory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "op",
+        "collection",
+        "record"
+      ],
+      "properties": {
+        "op": {
+          "const": "replace"
+        },
+        "collection": {
+          "const": "categories"
+        },
+        "record": {
+          "$ref": "lum-project-v1.schema.json#/$defs/category"
+        },
+        "sourceRefs": {
+          "$ref": "#/$defs/sourceRefs"
+        }
+      }
+    },
+    "createStory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "op",
+        "collection",
+        "record"
+      ],
+      "properties": {
+        "op": {
+          "const": "create"
+        },
+        "collection": {
+          "const": "stories"
+        },
+        "record": {
+          "$ref": "lum-project-v1.schema.json#/$defs/story"
+        },
+        "sourceRefs": {
+          "$ref": "#/$defs/sourceRefs"
+        }
+      }
+    },
+    "replaceStory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "op",
+        "collection",
+        "record"
+      ],
+      "properties": {
+        "op": {
+          "const": "replace"
+        },
+        "collection": {
+          "const": "stories"
+        },
+        "record": {
+          "$ref": "lum-project-v1.schema.json#/$defs/story"
         },
         "sourceRefs": {
           "$ref": "#/$defs/sourceRefs"
