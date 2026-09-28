@@ -1314,14 +1314,20 @@ test("direction marker length and stroke follow the target marker scale", () => 
     const directions = layer(layers, DECK_WORLD_LAYER_IDS.relationshipDirections);
     const marker = directions.props.data[0];
     const icons = layer(layers, DECK_WORLD_LAYER_IDS.entityIcons);
+    const entities = layer(layers, DECK_WORLD_LAYER_IDS.entities);
     const targetIcon = icons.props.data.find(
       (datum) => datum.worldInstanceId === target.id,
     );
+    const targetEntity = entities.props.data.find(
+      (datum) => datum.kind === "entity" && datum.worldInstanceId === target.id,
+    );
     assert.ok(targetIcon, "fixture renders the target marker");
+    assert.ok(targetEntity, "fixture renders the target pick/collision body");
     return {
       width: directions.props.getWidth(marker),
       length: marker.arrowLengthDegrees,
       targetRadius: icons.props.getSize(targetIcon) / 2,
+      collisionRadius: entities.props.getRadius(targetEntity),
     };
   };
 
@@ -1336,6 +1342,16 @@ test("direction marker length and stroke follow the target marker scale", () => 
   );
   assert.ok(largeTarget.length > ordinary.length, "target-node size controls chevron length");
   assert.ok(largeTarget.width > ordinary.width, "target-node size controls chevron stroke");
+  assert.equal(
+    ordinary.collisionRadius,
+    ordinary.targetRadius,
+    "ordinary node collision/picking radius equals the rendered marker radius",
+  );
+  assert.equal(
+    largeTarget.collisionRadius,
+    largeTarget.targetRadius,
+    "authored node collision/picking radius equals the rendered marker radius",
+  );
   assert.ok(
     Math.abs(
       largeTarget.length / ordinary.length -
