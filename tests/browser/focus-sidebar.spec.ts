@@ -288,48 +288,78 @@ test("semantic activation of the selected occurrence keeps explicit-close focus 
   await expect(page.locator("#app-shell")).toHaveClass(/is-event-card-focused/);
 });
 
-test("landscape preserves the bottom timeline rail while focused detail layers over the graph", async ({
+test("landscape keeps timeline and graph geometry stable while retained detail overlays the world", async ({
   page,
 }) => {
   await ensureOrientation(page, "landscape");
-  const before = await page.locator(".timeline-surface").boundingBox();
-  expect(before).not.toBeNull();
+  const [timelineBefore, graphBefore, stageBefore] = await Promise.all([
+    page.locator(".timeline-surface").boundingBox(),
+    page.locator("#graph-lens").boundingBox(),
+    page.locator("#presentation-stage").boundingBox(),
+  ]);
+  expect(timelineBefore).not.toBeNull();
+  expect(graphBefore).not.toBeNull();
+  expect(stageBefore).not.toBeNull();
 
   const focus = await focusOccurrence(page);
   const { focusBox, graphBox, timelineBox, stageBox } = await boxes(page, focus);
-  if (!before) throw new Error("Landscape timeline surface has no baseline bounds.");
+  if (!timelineBefore || !graphBefore || !stageBefore) {
+    throw new Error("Landscape baseline geometry is unavailable.");
+  }
 
-  expect(Math.abs(timelineBox.x - before.x)).toBeLessThanOrEqual(2);
-  expect(Math.abs(timelineBox.y - before.y)).toBeLessThanOrEqual(2);
-  expect(Math.abs(timelineBox.width - before.width)).toBeLessThanOrEqual(2);
-  expect(Math.abs(timelineBox.height - before.height)).toBeLessThanOrEqual(2);
-  expect(timelineBox.x).toBeLessThanOrEqual(stageBox.x + 2);
-  expect(timelineBox.x + timelineBox.width).toBeGreaterThanOrEqual(stageBox.x + stageBox.width - 2);
-  expect(graphBox.y + graphBox.height).toBeLessThanOrEqual(timelineBox.y + 3);
-  expect(focusBox.y + focusBox.height).toBeLessThanOrEqual(timelineBox.y + 3);
+  for (const [before, after] of [
+    [timelineBefore, timelineBox],
+    [graphBefore, graphBox],
+    [stageBefore, stageBox],
+  ] as const) {
+    expect(Math.abs(after.x - before.x)).toBeLessThanOrEqual(2);
+    expect(Math.abs(after.y - before.y)).toBeLessThanOrEqual(2);
+    expect(Math.abs(after.width - before.width)).toBeLessThanOrEqual(2);
+    expect(Math.abs(after.height - before.height)).toBeLessThanOrEqual(2);
+  }
+
   expect(overlapArea(focusBox, graphBox)).toBeGreaterThan(100);
+  expect(focusBox.x).toBeGreaterThanOrEqual(stageBox.x - 1);
+  expect(focusBox.y).toBeGreaterThanOrEqual(stageBox.y - 1);
+  expect(focusBox.x + focusBox.width).toBeLessThanOrEqual(stageBox.x + stageBox.width + 1);
+  expect(focusBox.y + focusBox.height).toBeLessThanOrEqual(stageBox.y + stageBox.height + 1);
 });
 
-test("portrait preserves the right timeline rail while focused detail layers inside the graph region", async ({
+test("portrait keeps timeline and graph geometry stable while retained detail overlays the world", async ({
   page,
 }) => {
   await ensureOrientation(page, "portrait");
-  const before = await page.locator(".timeline-surface").boundingBox();
-  expect(before).not.toBeNull();
+  const [timelineBefore, graphBefore, stageBefore] = await Promise.all([
+    page.locator(".timeline-surface").boundingBox(),
+    page.locator("#graph-lens").boundingBox(),
+    page.locator("#presentation-stage").boundingBox(),
+  ]);
+  expect(timelineBefore).not.toBeNull();
+  expect(graphBefore).not.toBeNull();
+  expect(stageBefore).not.toBeNull();
 
   const focus = await focusOccurrence(page);
-  const { focusBox, graphBox, timelineBox, stageBox, footerBox } = await boxes(page, focus);
-  if (!before) throw new Error("Portrait timeline surface has no baseline bounds.");
+  const { focusBox, graphBox, timelineBox, stageBox } = await boxes(page, focus);
+  if (!timelineBefore || !graphBefore || !stageBefore) {
+    throw new Error("Portrait baseline geometry is unavailable.");
+  }
 
-  expect(Math.abs(timelineBox.x - before.x)).toBeLessThanOrEqual(2);
-  expect(Math.abs(timelineBox.y - before.y)).toBeLessThanOrEqual(2);
-  expect(Math.abs(timelineBox.width - before.width)).toBeLessThanOrEqual(2);
-  expect(Math.abs(timelineBox.height - before.height)).toBeLessThanOrEqual(2);
-  expect(timelineBox.y).toBeLessThanOrEqual(stageBox.y + 2);
-  expect(Math.abs(timelineBox.y + timelineBox.height - footerBox.y)).toBeLessThanOrEqual(2);
-  expect(graphBox.x + graphBox.width).toBeLessThanOrEqual(timelineBox.x + 3);
-  expect(focusBox.x + focusBox.width).toBeLessThanOrEqual(timelineBox.x + 3);
+  for (const [before, after] of [
+    [timelineBefore, timelineBox],
+    [graphBefore, graphBox],
+    [stageBefore, stageBox],
+  ] as const) {
+    expect(Math.abs(after.x - before.x)).toBeLessThanOrEqual(2);
+    expect(Math.abs(after.y - before.y)).toBeLessThanOrEqual(2);
+    expect(Math.abs(after.width - before.width)).toBeLessThanOrEqual(2);
+    expect(Math.abs(after.height - before.height)).toBeLessThanOrEqual(2);
+  }
+
   expect(overlapArea(focusBox, graphBox)).toBeGreaterThan(100);
+  expect(focusBox.x).toBeGreaterThanOrEqual(stageBox.x - 1);
+  expect(focusBox.y).toBeGreaterThanOrEqual(stageBox.y - 1);
+  expect(focusBox.x + focusBox.width).toBeLessThanOrEqual(stageBox.x + stageBox.width + 1);
+  expect(focusBox.y + focusBox.height).toBeLessThanOrEqual(stageBox.y + stageBox.height + 1);
 });
 
 test("focused detail stays compact and physically attached to its selected occurrence card", async ({
