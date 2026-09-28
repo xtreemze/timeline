@@ -34,6 +34,7 @@ import type {
 import {
   formatOccurrenceComposition,
   parseOccurrenceSentence,
+  type ComposerEditableSection,
   type ComposerTimeReference,
 } from "./occurrence-composer-model.ts";
 import { TimelineEvidence } from "./evidence-store.ts";
