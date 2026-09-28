@@ -22,3 +22,18 @@ test("empty-world context request launches the existing footer occurrence compos
   );
   assert.doesNotMatch(app, /worldcontextrequest[\s\S]*luum-authoring-menu/);
 });
+
+test("keyboard context invocation seeds authoring from the current world center", async () => {
+  const world = await readFile(
+    new URL("../site/world/deck-world-surface.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(world, /event\.key === "ContextMenu"/);
+  assert.match(world, /event\.shiftKey[\s\S]*event\.key === "F10"/);
+  assert.match(
+    world,
+    /worldcontextrequest[\s\S]*longitude:\s*this\.#camera\.longitude[\s\S]*latitude:\s*this\.#camera\.latitude/,
+  );
+  assert.match(world, /#handleKeyDown[\s\S]*preventDefault/);
+});
