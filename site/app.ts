@@ -2107,10 +2107,39 @@ function composerTagsIdentity(tags: readonly string[]): string {
   return JSON.stringify(tags.map((tag) => tag.trim()).filter(Boolean));
 }
 
+function composerMetadataIdentity(metadata: OccurrenceCommitDetail["metadata"]): string {
+  return JSON.stringify({
+    role: metadata.role?.trim() || null,
+    initialState: metadata.initialState === "inactive" ? "inactive" : "active",
+    sourceIds: [...new Set(metadata.sourceIds.map((id) => id.trim()).filter(Boolean))],
+    confidence: metadata.confidence ?? null,
+    attributes: metadata.attributes ?? {},
+  });
+}
+
+function relationshipMetadataIdentity(relationship: RelationshipRecord): string {
+  return JSON.stringify({
+    role: relationship.role?.trim() || null,
+    initialState: relationship.initialState === "inactive" ? "inactive" : "active",
+    sourceIds: [...new Set((relationship.sourceIds ?? []).map((id) => id.trim()).filter(Boolean))],
+    confidence: relationship.confidence ?? null,
+    attributes: relationship.attributes ?? {},
+  });
+}
+
 function commitOccurrenceComposer(detail: OccurrenceCommitDetail): void {
   try {
     if (detail.editTarget) {
-      if (detail.text.trim() === detail.editTarget.initialText.trim()) {
+      const existingRelationship = state.relationships.find(
+        (relationship) => String(relationship.id) === detail.editTarget!.relationshipId,
+      );
+      const sentenceUnchanged =
+        detail.text.trim() === detail.editTarget.initialText.trim();
+      const metadataUnchanged =
+        existingRelationship !== undefined &&
+        relationshipMetadataIdentity(existingRelationship) ===
+          composerMetadataIdentity(detail.metadata);
+      if (sentenceUnchanged && metadataUnchanged) {
         els.occurrenceComposer.markCommitted();
         showStatus("Occurrence unchanged.");
         return;
@@ -2152,6 +2181,11 @@ function commitOccurrenceComposer(detail: OccurrenceCommitDetail): void {
           time,
           categoryName,
           tags,
+          role: detail.metadata.role,
+          initialState: detail.metadata.initialState,
+          sourceIds: detail.metadata.sourceIds,
+          confidence: detail.metadata.confidence,
+          attributes: detail.metadata.attributes,
         },
         occurrenceAuthoringDependencies(),
       );
@@ -2184,6 +2218,11 @@ function commitOccurrenceComposer(detail: OccurrenceCommitDetail): void {
         categoryName: detail.draft.options.category,
         tags: detail.draft.options.tags,
         activeStoryId: ui.activeStoryId,
+        role: detail.metadata.role,
+        initialState: detail.metadata.initialState,
+        sourceIds: detail.metadata.sourceIds,
+        confidence: detail.metadata.confidence,
+        attributes: detail.metadata.attributes,
       },
       occurrenceAuthoringDependencies(),
     );
@@ -6094,6 +6133,11 @@ els.occurrenceComposer.addEventListener("occurrencecomposeropenrequest", () => {
 });
 els.occurrenceComposer.addEventListener("occurrencecomposercloserequest", () => {
   setOccurrenceComposerOpen(false);
+});
+els.occurrenceComposer.addEventListener("occurrencecomposeradvancededitrequest", (event) => {
+  const relationshipId = (event as CustomEvent<{ relationshipId?: string }>).detail?.relationshipId;
+  if (!relationshipId) return;
+  beginGraphEdgeEdit(relationshipId);
 });
 els.occurrenceComposer.addEventListener("occurrencecommit", (event) => {
   commitOccurrenceComposer((event as CustomEvent<OccurrenceCommitDetail>).detail);
