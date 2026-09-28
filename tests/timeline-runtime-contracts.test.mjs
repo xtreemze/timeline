@@ -125,14 +125,23 @@ test("Lit event card has no ambient Timeline globals", async () => {
   assert.match(card, /import \{ createIcon \} from "\.\.\/event-presentation\.ts"/);
 });
 
-test("timeline touch arbitration keeps occurrence taps separate from camera gestures", async () => {
+test("timeline occurrence points and ranges share selection and zoom gesture semantics", async () => {
   const view = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
 
   assert.match(view, /interactive:\s*Boolean\(timelineInteractionTarget\)/);
-  assert.match(view, /tap\.cancelled \|\| tap\.interactive/);
+  assert.match(view, /zoomable:\s*!timelineInteractionTarget \|\| Boolean\(timelineOccurrenceTarget\)/);
+  assert.match(view, /tap\.cancelled \|\| !tap\.zoomable/);
   assert.match(
     view,
     /tap\.interactive[\s\S]*TOUCH_TAP_MOVE_TOLERANCE_PX[\s\S]*beginSurfaceDrag\(event\.pointerId, \{ x: tap\.startX, y: tap\.startY \}\)/,
+  );
+  assert.match(
+    view,
+    /timelineOccurrenceTarget[\s\S]*"\.timeline-event-terminal, \.timeline-range-segment"/,
+  );
+  assert.match(
+    view,
+    /addEventListener\("dblclick"[\s\S]*zoomTimelineAtClientPoint\(event\.clientX, event\.clientY\)/,
   );
   assert.match(view, /borderBoxSize[\s\S]*contentRect\.width[\s\S]*contentRect\.height/);
 });
