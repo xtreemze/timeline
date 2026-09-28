@@ -69,11 +69,11 @@ export class LuumOccurrenceDeckElement extends LitElement {
     });
   }
 
-  private selectIndex(index: number, focusSelector: string): void {
+  private selectIndex(index: number, focusSelector: string | null = null): void {
     if (this.frames.length <= 0) return;
     const next = stepOccurrenceDeckIndex(index, 0, this.frames.length);
     if (next === this.activeIndex) {
-      this.focusControl(focusSelector);
+      if (focusSelector) this.focusControl(focusSelector);
       return;
     }
 
@@ -89,14 +89,20 @@ export class LuumOccurrenceDeckElement extends LitElement {
         }),
       }),
     );
-    this.focusControl(focusSelector);
+    if (focusSelector) this.focusControl(focusSelector);
   }
 
-  private step(delta: number, focusSelector: string): void {
+  private step(delta: number, focusSelector: string | null = null): void {
     this.selectIndex(
       stepOccurrenceDeckIndex(this.activeIndex, delta, this.frames.length),
       focusSelector,
     );
+  }
+
+  stepBy(delta: number): boolean {
+    if (this.frames.length < 2) return false;
+    this.step(delta);
+    return true;
   }
 
   private onImageError(index: number): void {
