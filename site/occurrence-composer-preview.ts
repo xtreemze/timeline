@@ -64,10 +64,10 @@ function previewNode(
     normalizeSemanticIconName(properties?.icon) ||
     normalizeSemanticIconName(matched?.icon) ||
     "person";
-  const style = Object.fromEntries(
+  const style: Record<string, string> = Object.fromEntries(
     ["shape", "color", "fill", "border", "borderWidth", "image", "size", "radius"]
-      .filter((key) => properties?.[key])
-      .map((key) => [key, properties![key]]),
+      .filter((key) => Boolean(properties?.[key]))
+      .map((key) => [key, properties![key]!] as const),
   );
   return Object.freeze({
     label: matched?.name ?? name.replace(/^@/, ""),
