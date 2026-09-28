@@ -10,6 +10,7 @@ import {
   worldContextFromCamera,
 } from "../site/occurrence-composer-context.ts";
 import {
+  composerCompletionSuffix,
   occurrenceComposerSuggestions,
   parseOccurrenceSentence,
   replaceComposerTail,
@@ -114,7 +115,25 @@ test("composer renders semantic glyphs beside entity completions", async () => {
   assert.match(source, /class="option-icon"/);
 });
 
-test("ambiguous entity names complete by canonical ID", () => {
+test("existing entity completions always use canonical IDs, including multi-word names", () => {
+  const suggestions = occurrenceComposerSuggestions("big", {
+    entities: [
+      { id: "big-bad-wolf", name: "Big Bad Wolf", type: "person", icon: "wolf" },
+      { id: "big-bear", name: "Big Bear", type: "person" },
+    ],
+    places: [],
+    categories: [],
+    tags: [],
+    predicates: [],
+  });
+
+  assert.deepEqual(
+    suggestions.map((suggestion) => suggestion.insertText),
+    ["@big-bad-wolf", "@big-bear"],
+  );
+});
+
+test("ambiguous entity names remain disambiguated by canonical ID", () => {
   const suggestions = occurrenceComposerSuggestions("", {
     entities: [
       { id: "alice-a", name: "Alice", type: "person" },
@@ -122,12 +141,64 @@ test("ambiguous entity names complete by canonical ID", () => {
     ],
     places: [],
     categories: [],
+    tags: [],
+    predicates: [],
   });
 
   assert.deepEqual(
     suggestions.map((suggestion) => suggestion.insertText),
     ["@alice-a", "@alice-b"],
   );
+});
+
+test("composer reuses existing tags, categories, and project predicates as contextual suggestions", () => {
+  const optionSuggestions = occurrenceComposerSuggestions("Alice meets Bob [tags: fri", {
+    entities: [],
+    places: [],
+    categories: [{ id: "observation", name: "Observation" }],
+    tags: ["friend", "family", "work"],
+    predicates: ["met", "reported"],
+  });
+  assert.ok(
+    optionSuggestions.some(
+      (suggestion) => suggestion.kind === "tag" && suggestion.insertText === "tags: friend",
+    ),
+  );
+
+  const categorySuggestions = occurrenceComposerSuggestions("Alice meets Bob [category: obs", {
+    entities: [],
+    places: [],
+    categories: [{ id: "observation", name: "Observation" }],
+    tags: [],
+    predicates: [],
+  });
+  assert.ok(
+    categorySuggestions.some(
+      (suggestion) =>
+        suggestion.kind === "category" &&
+        suggestion.insertText === "category: Observation",
+    ),
+  );
+
+  const predicateSuggestions = occurrenceComposerSuggestions("Alice rep", {
+    entities: [],
+    places: [],
+    categories: [],
+    tags: [],
+    predicates: ["reports", "reported"],
+  });
+  assert.ok(predicateSuggestions.some((suggestion) => suggestion.insertText === "reported"));
+});
+
+test("composer exposes shell-style ghost completion text without mutating the draft", () => {
+  const suggestion = {
+    kind: "predicate",
+    label: "reports",
+    detail: "action",
+    insertText: "reports",
+  };
+  assert.equal(composerCompletionSuffix("Alice rep", suggestion), "orts");
+  assert.equal(composerCompletionSuffix("Alice xyz", suggestion), "");
 });
 
 test("completed grammar offers live World and timeline defaults without writing them into text", () => {
@@ -221,7 +292,11 @@ test("Lit composer is a touch-safe ARIA combobox with live-context guidance", as
   assert.match(source, /role="listbox"/);
   assert.match(source, /min-block-size:\s*44px/);
   assert.match(source, /Move the timeline or World while this is open/);
-  assert.match(source, /:host\(:not\(\[active\]\)\)/);
+  assert.doesNotMatch(source, /:host\(:not\(\[active\]\)\)[\s\S]*display:\s*none/);
+  assert.doesNotMatch(source, /if \(!this\.active\) return nothing/);
+  assert.match(source, /class="ghost-completion"/);
+  assert.match(source, /occurrencecomposeropenrequest/);
+  assert.match(source, /suggestions\.slice\(0, 7\)/);
   assert.doesNotMatch(source, /position:\s*fixed/);
   assert.match(source, /\.completion-panel[\s\S]*position:\s*absolute/);
   assert.match(source, /occurrencecommit/);
@@ -264,7 +339,10 @@ test("application keeps timeline and World live while composer uses their center
     /presentationStage\.inert = Boolean\([\s\S]*ui\.browserOpen[\s\S]*ui\.investigationOpen[\s\S]*ui\.editorOpen/,
   );
   assert.match(source, /const titleEditing = ui\.editorOpen/);
-  assert.match(source, /occurrenceComposer\.hidden = Boolean\([\s\S]*ui\.investigationOpen/);
+  assert.match(source, /occurrenceComposer\.hidden = Boolean\(ui\.importReviewOpen\)/);
+  assert.match(source, /occurrencecomposeropenrequest/);
+  assert.match(source, /tags:[\s\S]*item\.tags/);
+  assert.match(source, /predicates:[\s\S]*state\.relationships/);
   assert.match(
     source,
     /timelineviewportchange[\s\S]*setTimelineViewport\([\s\S]*viewport\.start[\s\S]*viewport\.end/,
@@ -308,7 +386,7 @@ test("application keeps timeline and World live while composer uses their center
   );
 });
 
-test("occurrence composer is integrated into the footer through the single Edit surface", async () => {
+test("occurrence composer is persistently integrated into the footer and expands in place", async () => {
   const [markup, shellStyles] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/spatial-shell.css", import.meta.url), "utf8"),
@@ -331,6 +409,10 @@ test("occurrence composer is integrated into the footer through the single Edit 
     "Compose is reached through the editor instead of a second toolbar authoring button",
   );
 
+  assert.match(
+    shellStyles,
+    /\.app-footer-bar > #occurrence-composer:not\(\[active\]\)[\s\S]*grid-column:\s*2[\s\S]*inline-size:/,
+  );
   assert.match(
     shellStyles,
     /#app-shell:has\(#occurrence-composer\[active\]\)[\s\S]*--workspace-footer-content-block-size:\s*116px/,
