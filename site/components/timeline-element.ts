@@ -29,6 +29,10 @@ export class LuumTimelineElement extends LitElement {
     return this.timelineController;
   }
 
+  focusItem(id: string): boolean {
+    return this.ensureTimelineController().focusItem(id);
+  }
+
   override connectedCallback(): void {
     super.connectedCallback();
     queueMicrotask(() => {
