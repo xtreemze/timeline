@@ -46,6 +46,18 @@ export const SEMANTIC_ICON_NAMES = Object.freeze([
   "spindle",
   "baby",
   "parent",
+  "forest",
+  "road",
+  "meadow",
+  "garden",
+  "field",
+  "tower",
+  "well",
+  "room",
+  "kitchen",
+  "gate",
+  "market",
+  "castle",
   "view"
 ] as const);
 
@@ -108,6 +120,12 @@ export function normalizeSemanticIconName(value: unknown): SemanticIconName | nu
   if (!key) return null;
   if (SEMANTIC_ICON_SET.has(key)) return key as SemanticIconName;
   return SEMANTIC_ICON_ALIASES.get(key) ?? null;
+}
+
+export function semanticIconLabel(value: unknown): string {
+  const icon = normalizeSemanticIconName(value);
+  if (!icon) return "";
+  return icon.replaceAll("-", " ").replace(/\b\p{L}/gu, (letter) => letter.toLocaleUpperCase());
 }
 
 export function defaultSemanticIconForEntityType(value: unknown): SemanticIconName | null {

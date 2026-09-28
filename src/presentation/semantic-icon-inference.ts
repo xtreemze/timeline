@@ -34,6 +34,21 @@ const GENERIC_ICON_NAMES = new Set<SemanticIconName>([
   "place",
 ]);
 
+const PLACE_NAME_RULES = Object.freeze([
+  { pattern: /\bkitchen\b/, icon: "kitchen", reason: "place:kitchen" },
+  { pattern: /\bgate\b/, icon: "gate", reason: "place:gate" },
+  { pattern: /\bwell\b/, icon: "well", reason: "place:well" },
+  { pattern: /\bmarket\b/, icon: "market", reason: "place:market" },
+  { pattern: /\bchamber\b|\broom\b|\bhall\b|\bballroom\b|\bnursery\b/, icon: "room", reason: "place:room" },
+  { pattern: /\bpath\b|\broad\b|\btrail\b|\btrack\b|\bcrossing\b|\broute\b|\bapproach\b/, icon: "road", reason: "place:road" },
+  { pattern: /\bgarden\b|\bpumpkin patch\b/, icon: "garden", reason: "place:garden" },
+  { pattern: /\bmeadow\b/, icon: "meadow", reason: "place:meadow" },
+  { pattern: /\bfield\b/, icon: "field", reason: "place:field" },
+  { pattern: /\bforest\b|\bwoodland\b|\bgrove\b|\bthornwood\b/, icon: "forest", reason: "place:forest" },
+  { pattern: /\btower\b/, icon: "tower", reason: "place:tower" },
+  { pattern: /\bcastle\b|\bpalace\b/, icon: "castle", reason: "place:castle" },
+] as const);
+
 const NAME_RULES = Object.freeze([
   { pattern: /\broyal\b|\bking\b|\bqueen\b|\bprince\b|\bprincess\b/, icon: "crown", reason: "name:royal" },
   { pattern: /\bwolf\b/, icon: "wolf", reason: "name:wolf" },
@@ -83,6 +98,24 @@ function explicitIconCandidate(attributes: unknown): unknown {
       ? (record.style as Record<string, unknown>)
       : {};
   return style.icon ?? record.icon ?? null;
+}
+
+export function suggestSemanticIconForPlace(place: {
+  readonly name?: unknown;
+}): SemanticIconSuggestion | null {
+  const name = normalizedName(place.name);
+  if (!name) return null;
+  if (/\bclearing\b/.test(name)) return null;
+
+  for (const rule of PLACE_NAME_RULES) {
+    if (!rule.pattern.test(name)) continue;
+    return {
+      icon: rule.icon,
+      confidence: "high",
+      reason: rule.reason,
+    };
+  }
+  return null;
 }
 
 export function suggestSemanticIcon(entity: {

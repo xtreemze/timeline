@@ -61,6 +61,16 @@ test("entity semantic icon authoring exposes resolved preview and visible list s
   assert.match(source, /renderGraphNodes[\s\S]*presentation\.createIcon/);
 });
 
+test("place authoring suggests stable semantic place-type icons without overriding explicit choices", async () => {
+  const source = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
+  assert.match(source, /suggestSemanticIconForPlace/);
+  assert.match(
+    source,
+    /graphPlaceName\.addEventListener\("input"[\s\S]*current !== "place"[\s\S]*suggestSemanticIconForPlace/,
+  );
+  assert.match(source, /option\.label = semanticIconLabel\(icon\)/);
+});
+
 test("timeline includes an interactive temporal node-edge graph lens", async () => {
   const [html, source, css] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),

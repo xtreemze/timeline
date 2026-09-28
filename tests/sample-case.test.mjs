@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { suggestSemanticIconForPlace } from "../src/presentation/semantic-icon-inference.ts";
 
 await import("../site/temporal-standards-shim.ts");
 await import("../site/event-presentation-shim.ts");
@@ -606,16 +607,31 @@ test("storybook ending categories remain event semantics while narrative phase c
 
 test("canonical place icons describe place identity rather than transient scene state", () => {
   const expected = new Map([
-    ["pigs-market-place", "merchant"],
-    ["snow-clearing-place", "coffin"],
-    ["place-three-little-pigs-straw-seller-s-field", "straw"],
-    ["place-snow-white-queen-s-mirror-chamber", "mirror"],
-    ["place-three-little-pigs-pigwood-mason-s-yard", "bricks"],
-    ["place-cinderella-garden-and-pumpkin-patch", "pumpkin"],
-    ["place-cinderella-moonlit-carriage-road", "carriage"],
-    ["jack-market-place", "merchant"],
-    ["jack-beanstalk-place", "beanstalk"],
-    ["rumpel-spinning-room-place", "spindle"],
+    ["pigs-market-place", "market"],
+    ["place-three-little-pigs-straw-seller-s-field", "field"],
+    ["place-snow-white-queen-s-mirror-chamber", "room"],
+    ["place-three-little-pigs-timber-track", "road"],
+    ["place-cinderella-garden-and-pumpkin-patch", "garden"],
+    ["place-cinderella-moonlit-carriage-road", "road"],
+    ["place-snow-white-deep-forest", "forest"],
+    ["place-three-little-pigs-pigwood-escape-path", "road"],
+    ["place-cinderella-royal-ballroom", "room"],
+    ["place-snow-white-queen-s-castle", "castle"],
+    ["red-forest-path-place", "road"],
+    ["red-flower-meadow-place", "meadow"],
+    ["red-cottage-bedroom-place", "room"],
+    ["hg-stone-trail-place", "road"],
+    ["hg-lost-forest-place", "forest"],
+    ["hg-witch-kitchen-place", "kitchen"],
+    ["jack-market-place", "market"],
+    ["jack-bean-field-place", "field"],
+    ["rapunzel-garden-place", "garden"],
+    ["rapunzel-tower-chamber-place", "room"],
+    ["rapunzel-thornwood-place", "forest"],
+    ["frog-well-place", "well"],
+    ["frog-castle-gate-place", "gate"],
+    ["rumpel-spinning-room-place", "room"],
+    ["rumpel-palace-place", "castle"],
   ]);
   const placeById = new Map(sample.places.map((place) => [place.id, place]));
 
@@ -623,9 +639,17 @@ test("canonical place icons describe place identity rather than transient scene 
     assert.equal(placeById.get(id)?.icon, icon, `${id}: representative place icon`);
   }
 
+  const transientOccurrenceIcons = new Set(["danger", "search", "magic"]);
   for (const place of sample.places) {
-    assert.notEqual(place.icon, "danger", `${place.id}: danger belongs to occurrences`);
-    assert.notEqual(place.icon, "search", `${place.id}: search belongs to occurrences`);
+    assert.equal(
+      transientOccurrenceIcons.has(place.icon),
+      false,
+      `${place.id}: occurrence-state icon must not become canonical place identity`,
+    );
+    const suggestion = suggestSemanticIconForPlace(place);
+    if (suggestion) {
+      assert.equal(place.icon, suggestion.icon, `${place.id}: high-confidence place type icon`);
+    }
   }
 });
 
