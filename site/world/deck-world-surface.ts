@@ -3493,6 +3493,27 @@ export class DeckWorldSurface implements WorldSurface {
     ) {
       return;
     }
+    const contextualAuthoring =
+      event.key === "ContextMenu" || (event.shiftKey === true && event.key === "F10");
+    if (contextualAuthoring) {
+      const request = new CustomEvent("worldcontextrequest", {
+        bubbles: true,
+        cancelable: true,
+        detail: {
+          source: "keyboard",
+          position: {
+            longitude: this.#camera.longitude,
+            latitude: this.#camera.latitude,
+            altitudeMeters: 0,
+          },
+        },
+      });
+      if (this.#container.dispatchEvent?.(request) === false) {
+        event.preventDefault?.();
+      }
+      return;
+    }
+
     const activation = surfaceActivationFromKeyboard(event);
     if (activation === "activate" && this.#selection) {
       event.preventDefault?.();
