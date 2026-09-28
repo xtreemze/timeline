@@ -69,6 +69,16 @@ This emits a bounded canonical summary rather than dumping every project attribu
 
 The current command deliberately stops before autonomous mutation. Full propose/apply/review workflows should preserve the application's verification boundary and are tracked separately through #927.
 
+Agent mutation remains proposal-based rather than autonomous. Use the strict review workflow documented in [LUM-AGENT-PROPOSALS.md](LUM-AGENT-PROPOSALS.md):
+
+```sh
+lum agent scaffold-proposal --project project.lum.json --output change.lum-proposal.json
+lum agent validate-proposal change.lum-proposal.json --project project.lum.json --json
+lum agent apply change.lum-proposal.json --project project.lum.json --json
+```
+
+`apply` writes a separate candidate by default, revalidates it as an ordinary Lūm project, and preserves the application's explicit verification boundary.
+
 ### Schema
 
 ```sh
