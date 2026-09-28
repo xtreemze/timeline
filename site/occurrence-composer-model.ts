@@ -537,22 +537,13 @@ export function occurrenceComposerSuggestions(
           left.entity.name.localeCompare(right.entity.name),
       )
       .slice(0, 12)
-      .map(({ entity }) => {
-        const sameNameCount = options.entities.filter(
-          (candidate) =>
-            candidate.name.toLocaleLowerCase() === entity.name.toLocaleLowerCase(),
-        ).length;
-        return {
-          kind: "entity" as const,
-          label: entity.name,
-          detail:
-            sameNameCount > 1
-              ? `${entity.type || "entity"} · @${entity.id}`
-              : `${entity.type || "entity"} · @${entity.id}`,
-          ...(entity.icon ? { icon: entity.icon } : {}),
-          insertText: `@${entity.id}`,
-        };
-      });
+      .map(({ entity }) => ({
+        kind: "entity" as const,
+        label: entity.name,
+        detail: `${entity.type || "entity"} · @${entity.id}`,
+        ...(entity.icon ? { icon: entity.icon } : {}),
+        insertText: `@${entity.id}`,
+      }));
     return uniqueSuggestions(entitySuggestions);
   }
 
@@ -574,21 +565,12 @@ export function occurrenceComposerSuggestions(
     return Object.freeze([]);
   }
 
-  const placeSuggestions = options.places.slice(0, 10).map((place) => {
-    const sameNameCount = options.places.filter(
-      (candidate) =>
-        candidate.name.toLocaleLowerCase() === place.name.toLocaleLowerCase(),
-    ).length;
-    return {
-      kind: "place" as const,
-      label: place.name,
-      detail: sameNameCount > 1 ? `place · ${place.id}` : "place",
-      insertText:
-        sameNameCount > 1
-          ? `at @${place.id}`
-          : `at ${quoteComposerName(place.name)}`,
-    };
-  });
+  const placeSuggestions = options.places.slice(0, 10).map((place) => ({
+    kind: "place" as const,
+    label: place.name,
+    detail: `existing place · @${place.id}`,
+    insertText: `at @${place.id}`,
+  }));
   const contextSuggestions: ComposerSuggestion[] = [];
   if (!parsed.place) {
     if (options.locationDefault) {
