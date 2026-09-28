@@ -316,7 +316,7 @@ function currentToken(input: string): string {
   const openQuote = input.match(/"([^"]*)$/);
   if (openQuote) return openQuote[1]!.trimStart().toLocaleLowerCase();
   const match = input.match(/(?:^|\s)([^\s]*)$/);
-  return (match?.[1] ?? "").replace(/^[\"([]/, "").toLocaleLowerCase();
+  return (match?.[1] ?? "").replace(/^["([]/, "").toLocaleLowerCase();
 }
 
 function normalizedSearch(value: string): string {
