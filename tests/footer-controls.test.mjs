@@ -54,9 +54,15 @@ test("footer exposes view controls directly and keeps one primary Edit entry", a
   assert.match(world, /createIcon\(icon, \{ size: 20 \}\)/);
   assert.match(world, /button\("Show whole world", "world"/);
   assert.doesNotMatch(world, /button\("Show whole world", "home"/);
-  assert.match(world, /className = "toolbar-compound-control toolbar-zoom-control world-zoom-control"/);
+  assert.match(
+    world,
+    /className = "toolbar-compound-control toolbar-zoom-control world-zoom-control"/,
+  );
   assert.match(world, /className = "toolbar-zoom-slider world-zoom-slider"/);
-  assert.match(world, /classList\.add\("toolbar-zoom-endpoint-button", "world-zoom-endpoint-button"\)/);
+  assert.match(
+    world,
+    /classList\.add\("toolbar-zoom-endpoint-button", "world-zoom-endpoint-button"\)/,
+  );
   assert.match(world, /slider\.min = String\(WORLD_CAMERA_MIN_ZOOM\)/);
   assert.match(world, /slider\.max = String\(WORLD_CAMERA_MAX_ZOOM\)/);
   assert.match(world, /slider\.step = "0\.1"/);
@@ -80,8 +86,14 @@ test("footer exposes view controls directly and keeps one primary Edit entry", a
   assert.match(factory, /element\.className = "toolbar-control world-layout-control"/);
   assert.match(factory, /element\.dataset\.viewControl = ""/);
   assert.match(factory, /createIcon\(icon, \{ size: 20 \}\)/);
-  assert.match(factory, /"Arrange relationships",[\s\S]*"Arrange relationships",[\s\S]*"dag",[\s\S]*actions\.reorganizeDag/);
-  assert.match(factory, /"Settle relationships",[\s\S]*"Settle relationships",[\s\S]*"refresh",[\s\S]*actions\.relaxForce/);
+  assert.match(
+    factory,
+    /"Arrange relationships",[\s\S]*"Arrange relationships",[\s\S]*"dag",[\s\S]*actions\.reorganizeDag/,
+  );
+  assert.match(
+    factory,
+    /"Settle relationships",[\s\S]*"Settle relationships",[\s\S]*"refresh",[\s\S]*actions\.relaxForce/,
+  );
   assert.doesNotMatch(factory, /"Reorganize relationship layout",[\s\S]*"dag"/);
 });
 

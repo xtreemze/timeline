@@ -10,11 +10,9 @@ import {
   acceptComposerSuggestion,
   composerCompletionSuffix,
   composerCursorSection,
-  composerEditableSections,
   occurrenceComposerSuggestions,
   parseOccurrenceSentence,
   type ComposerCategoryOption,
-  type ComposerEditableSection,
   type ComposerEntityOption,
   type ComposerPlaceOption,
   type ComposerSuggestion,
@@ -27,14 +25,6 @@ export interface OccurrenceComposerData {
   readonly categories: readonly ComposerCategoryOption[];
   readonly tags?: readonly string[];
   readonly predicates?: readonly string[];
-}
-
-export interface OccurrenceComposerRelationshipMetadata {
-  readonly role?: string | null;
-  readonly initialState?: "active" | "inactive";
-  readonly sourceIds?: readonly string[];
-  readonly confidence?: number | null;
-  readonly attributes?: Readonly<Record<string, unknown>>;
 }
 
 export interface OccurrenceComposerSelectionContext {
@@ -50,7 +40,6 @@ export interface OccurrenceComposerSelectionContext {
     readonly id: string;
     readonly name: string;
   } | null;
-  readonly metadata?: OccurrenceComposerRelationshipMetadata | null;
 }
 
 export interface OccurrenceCommitDetail {
@@ -61,13 +50,6 @@ export interface OccurrenceCommitDetail {
     readonly itemId: string | null;
     readonly initialText: string;
   } | null;
-  readonly metadata: {
-    readonly role: string | null;
-    readonly initialState: "active" | "inactive";
-    readonly sourceIds: readonly string[];
-    readonly confidence: number | null;
-    readonly attributes: Readonly<Record<string, unknown>>;
-  };
   readonly defaults: {
     readonly timeMs: number | null;
     readonly timeValue: string | null;
@@ -147,7 +129,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
     .input-row {
       display: grid;
-      grid-template-columns: auto minmax(0, 1fr) auto auto;
+      grid-template-columns: auto minmax(0, 1fr) auto;
       gap: 0.35rem;
       align-items: center;
       min-inline-size: 0;
@@ -216,11 +198,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
       box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus, #315fbd) 20%, transparent);
     }
 
-    .commit,
     .close {
-      appearance: none;
-      display: grid;
-      place-items: center;
       inline-size: 44px;
       block-size: 44px;
       border: 1px solid transparent;
@@ -228,36 +206,10 @@ export class LuumOccurrenceComposerElement extends LitElement {
       background: transparent;
       color: var(--muted, #615d56);
       cursor: pointer;
+      font-size: 1.15rem;
       touch-action: manipulation;
     }
 
-    .commit {
-      border-color: color-mix(in srgb, var(--line-strong, #b8b1a5) 76%, transparent);
-      background: color-mix(in srgb, var(--paper, #fff) 92%, transparent);
-      color: var(--ink, #191714);
-    }
-
-    .commit svg {
-      inline-size: 20px;
-      block-size: 20px;
-      fill: none;
-      stroke: currentColor;
-      stroke-width: 2;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-    }
-
-    .commit:disabled {
-      opacity: 0.38;
-      cursor: not-allowed;
-    }
-
-    .close {
-      font-size: 1.15rem;
-    }
-
-    .commit:not(:disabled):focus-visible,
-    .commit:not(:disabled):hover,
     .close:focus-visible,
     .close:hover {
       border-color: color-mix(in srgb, var(--line-strong, #b8b1a5) 70%, transparent);
@@ -317,18 +269,10 @@ export class LuumOccurrenceComposerElement extends LitElement {
       color: var(--ink, #191714);
     }
 
-    .context-chip[data-context-state="editing"] {
-      border-color: var(--focus, #315fbd);
-      background: color-mix(in srgb, var(--focus, #315fbd) 10%, var(--paper, #fff));
-      color: var(--ink, #191714);
-    }
-
     button.context-chip {
       appearance: none;
-      min-block-size: 44px;
       font: inherit;
       cursor: pointer;
-      touch-action: manipulation;
     }
 
     button.context-chip:hover,
@@ -354,7 +298,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
     @media (max-width: 480px) {
       .input-row {
-        grid-template-columns: minmax(0, 1fr) auto auto;
+        grid-template-columns: minmax(0, 1fr) auto;
       }
 
       .stage {
@@ -364,73 +308,6 @@ export class LuumOccurrenceComposerElement extends LitElement {
       .context-chip {
         max-inline-size: 72vw;
       }
-    }
-
-    .metadata-panel {
-      display: grid;
-      min-block-size: 0;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 0.5rem;
-      max-block-size: min(15rem, var(--composer-completion-max-height, 42dvh));
-      padding: 0.55rem;
-      overflow: auto;
-      overscroll-behavior: contain;
-      border-block-end: 1px solid var(--line, #d1ccc4);
-      background: color-mix(in srgb, var(--paper, #fff) 96%, transparent);
-    }
-
-    .metadata-field {
-      display: grid;
-      gap: 0.22rem;
-      min-inline-size: 0;
-      color: var(--muted, #615d56);
-      font-size: 0.68rem;
-      font-weight: 650;
-    }
-
-    .metadata-field-wide {
-      grid-column: 1 / -1;
-    }
-
-    .metadata-field :is(input, select, textarea) {
-      inline-size: 100%;
-      min-inline-size: 0;
-      min-block-size: 40px;
-      box-sizing: border-box;
-      padding: 0.45rem 0.55rem;
-      border: 1px solid var(--line, #d1ccc4);
-      border-radius: 0.48rem;
-      outline: none;
-      background: var(--paper, #fff);
-      color: var(--ink, #191714);
-      font: 500 0.78rem/1.35 ui-monospace, "SFMono-Regular", Consolas, monospace;
-    }
-
-    .metadata-field textarea {
-      min-block-size: 72px;
-      resize: vertical;
-    }
-
-    .metadata-field :is(input, select, textarea):focus-visible {
-      border-color: var(--focus, #315fbd);
-      box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus, #315fbd) 18%, transparent);
-    }
-
-    .metadata-actions {
-      grid-column: 1 / -1;
-      display: flex;
-      justify-content: flex-end;
-    }
-
-    .metadata-actions button {
-      min-block-size: 40px;
-      padding-inline: 0.65rem;
-      border: 1px solid var(--line, #d1ccc4);
-      border-radius: 0.48rem;
-      background: var(--paper, #fff);
-      color: var(--ink, #191714);
-      cursor: pointer;
-      touch-action: manipulation;
     }
 
     .diagnostic {
@@ -536,7 +413,6 @@ export class LuumOccurrenceComposerElement extends LitElement {
     predicates: Object.freeze([]),
   });
   private timelineContext: ComposerTimelineContext | null = null;
-  private explicitTimelineContext: ComposerTimelineContext | null = null;
   private worldContext: ComposerWorldContext | null = null;
   private activeSuggestion = 0;
   private cursorOffset = 0;
@@ -547,14 +423,6 @@ export class LuumOccurrenceComposerElement extends LitElement {
   private hasPendingSelectionContext = false;
   private selectionSeeded = false;
   private sessionKey = "";
-  private activeContextKind: "place" | "time" | "category" | "tag" | null = null;
-  private metadataOpen = false;
-  private metadataDirty = false;
-  private metadataRole = "";
-  private metadataInitialState: "active" | "inactive" = "active";
-  private metadataSourceIds = "";
-  private metadataConfidence = "";
-  private metadataAttributes = "{}";
 
   constructor() {
     super();
@@ -567,7 +435,6 @@ export class LuumOccurrenceComposerElement extends LitElement {
       entities: Object.freeze([...data.entities]),
       places: Object.freeze([...data.places]),
       categories: Object.freeze([...data.categories]),
-      tags: Object.freeze([...(data.tags ?? [])]),
       predicates: Object.freeze([...(data.predicates ?? [])]),
     });
     this.requestUpdate();
@@ -605,21 +472,6 @@ export class LuumOccurrenceComposerElement extends LitElement {
           ...(context.place
             ? { place: Object.freeze({ id: context.place.id, name: context.place.name }) }
             : {}),
-          ...(context.metadata
-            ? {
-                metadata: Object.freeze({
-                  ...(context.metadata.role !== undefined ? { role: context.metadata.role } : {}),
-                  ...(context.metadata.initialState
-                    ? { initialState: context.metadata.initialState }
-                    : {}),
-                  sourceIds: Object.freeze([...(context.metadata.sourceIds ?? [])]),
-                  ...(context.metadata.confidence !== undefined
-                    ? { confidence: context.metadata.confidence }
-                    : {}),
-                  attributes: Object.freeze({ ...(context.metadata.attributes ?? {}) }),
-                }),
-              }
-            : {}),
         })
       : null;
   }
@@ -628,8 +480,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const nextContext = this.frozenSelectionContext(context);
     const previousKey = this.selectionIdentityKey(this.selectionContext);
     const nextKey = this.selectionIdentityKey(nextContext);
-    const dirtyDraft =
-      (Boolean(this.value.trim()) && !this.selectionSeeded) || this.metadataDirty;
+    const dirtyDraft = Boolean(this.value.trim()) && !this.selectionSeeded;
 
     if (previousKey !== nextKey && dirtyDraft) {
       this.pendingSelectionContext = nextContext;
@@ -648,17 +499,17 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.hasPendingSelectionContext = false;
     this.selectionContext = nextContext;
     if (previousKey !== nextKey) {
-      this.resetDraft();
-    } else if (!dirtyDraft) {
-      this.resetMetadataFromSelection();
+      this.value = "";
+      this.cursorOffset = 0;
+      this.selectionSeeded = false;
+      this.externalError = "";
+      this.activeSuggestion = 0;
     }
     this.applySelectionSeed();
     this.requestUpdate();
   }
 
-  private selectionIdentityKey(
-    context: OccurrenceComposerSelectionContext | null,
-  ): string {
+  private selectionIdentityKey(context: OccurrenceComposerSelectionContext | null): string {
     return JSON.stringify({
       occurrence: context?.selectedOccurrenceId ?? "",
       item: context?.selectedItemId ?? "",
@@ -700,30 +551,13 @@ export class LuumOccurrenceComposerElement extends LitElement {
     return this.data.entities.find((entity) => entity.id === id)?.name ?? id;
   }
 
-  private resetMetadataFromSelection(): void {
-    const metadata = this.selectionContext?.metadata;
-    this.metadataRole = metadata?.role?.trim() ?? "";
-    this.metadataInitialState = metadata?.initialState === "inactive" ? "inactive" : "active";
-    this.metadataSourceIds = (metadata?.sourceIds ?? []).join("\n");
-    this.metadataConfidence =
-      metadata?.confidence === null || metadata?.confidence === undefined
-        ? ""
-        : String(metadata.confidence);
-    this.metadataAttributes = JSON.stringify(metadata?.attributes ?? {}, null, 2);
-    this.metadataDirty = false;
-  }
-
   private resetDraft(): void {
     this.value = "";
     this.cursorOffset = 0;
     this.selectionSeeded = false;
     this.explicitPlaceContext = null;
-    this.explicitTimelineContext = null;
     this.externalError = "";
     this.activeSuggestion = 0;
-    this.activeContextKind = null;
-    this.metadataOpen = false;
-    this.resetMetadataFromSelection();
   }
 
   private currentContextKey(): string {
@@ -740,11 +574,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
   beginSession(): void {
     const nextKey = this.currentContextKey();
-    if (
-      this.sessionKey &&
-      this.sessionKey !== nextKey &&
-      (this.value.trim() || this.metadataDirty)
-    ) {
+    if (this.sessionKey && this.sessionKey !== nextKey && this.value.trim()) {
       this.resetDraft();
     }
     this.sessionKey = nextKey;
@@ -823,36 +653,17 @@ export class LuumOccurrenceComposerElement extends LitElement {
         : parsed.stage === "subject" && this.selectedSubjectId()
           ? [this.selectedSubjectId()!]
           : [];
-    const suggestions = occurrenceComposerSuggestions(this.value, {
+    return occurrenceComposerSuggestions(this.value, {
       entities: this.data.entities,
       places: this.data.places,
       categories: this.data.categories,
       tags: this.data.tags,
       timelineDefault: this.timelineContext?.value ?? null,
-      locationDefault:
-        this.selectionContext?.place?.name ??
-        this.explicitPlaceContext?.label ??
-        this.worldContext?.label ??
-        null,
+      locationDefault: this.selectionContext?.place?.name ?? this.worldContext?.label ?? null,
       preferredEntityIds,
       predicates: this.data.predicates,
       cursorOffset: this.cursorOffset,
     });
-    if (!this.activeContextKind) return suggestions;
-    const filtered = suggestions.filter((suggestion) => suggestion.kind === this.activeContextKind);
-    if (this.activeContextKind === "place" && !parsed.place && this.selectionContext?.place) {
-      return Object.freeze([
-        {
-          kind: "place" as const,
-          label: this.selectionContext.place.name,
-          detail: "selected place",
-          icon: "place",
-          insertText: `at @${this.selectionContext.place.id}`,
-        },
-        ...filtered,
-      ]);
-    }
-    return Object.freeze(filtered);
   }
 
   private requestOpen(): void {
@@ -880,7 +691,6 @@ export class LuumOccurrenceComposerElement extends LitElement {
     }
     this.externalError = "";
     this.activeSuggestion = 0;
-    this.activeContextKind = null;
     this.requestUpdate();
   }
 
@@ -904,154 +714,10 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.syncCursorFromInput(target);
   }
 
-  private editSentenceSection(section: ComposerEditableSection): void {
-    this.cursorOffset = section.start;
-    this.activeSuggestion = 0;
-    this.externalError = "";
-    this.requestUpdate();
-    void this.updateComplete.then(() => {
-      const input = this.renderRoot.querySelector<HTMLInputElement>("input");
-      if (!input) return;
-      input.focus({ preventScroll: true });
-      input.setSelectionRange(section.start, section.end);
-    });
-  }
-
-  private sectionIsActive(section: ComposerEditableSection): boolean {
-    return this.cursorOffset >= section.start && this.cursorOffset <= section.end;
-  }
-
-  private activateContext(kind: "place" | "time" | "category" | "tag"): void {
-    this.metadataOpen = false;
-    const parsed = this.parsed();
-    if (parsed.stage !== "complete") {
-      if (kind === "place" && this.worldContext) {
-        this.explicitPlaceContext = this.worldContext;
-      }
-      if (kind === "time" && this.timelineContext) {
-        this.explicitTimelineContext = this.timelineContext;
-      }
-      this.activeContextKind = null;
-      this.externalError = "";
-      this.requestUpdate();
-      return;
-    }
-    this.activeContextKind = kind;
-    this.activeSuggestion = 0;
-    this.cursorOffset = this.value.length;
-    this.externalError = "";
-    this.requestUpdate();
-    void this.updateComplete.then(() => {
-      this.renderRoot.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
-    });
-  }
-
-  private toggleMetadata(): void {
-    this.activeContextKind = null;
-    this.metadataOpen = !this.metadataOpen;
-    this.externalError = "";
-    this.requestUpdate();
-  }
-
-  private markMetadataDirty(): void {
-    this.metadataDirty = true;
-    this.externalError = "";
-    this.requestUpdate();
-  }
-
-  private onContextChipKeyDown(event: KeyboardEvent): void {
-    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
-    const current = event.currentTarget;
-    if (!(current instanceof HTMLButtonElement)) return;
-    const chips = [
-      ...this.renderRoot.querySelectorAll<HTMLButtonElement>(".context-row button.context-chip"),
-    ];
-    const index = chips.indexOf(current);
-    if (index < 0) return;
-    event.preventDefault();
-    const delta = event.key === "ArrowLeft" ? -1 : 1;
-    chips[(index + delta + chips.length) % chips.length]?.focus({ preventScroll: true });
-  }
-
-  private metadataValue():
-    | {
-        role: string | null;
-        initialState: "active" | "inactive";
-        sourceIds: readonly string[];
-        confidence: number | null;
-        attributes: Readonly<Record<string, unknown>>;
-      }
-    | null {
-    const confidenceText = this.metadataConfidence.trim();
-    const confidence = confidenceText ? Number(confidenceText) : null;
-    if (
-      confidence !== null &&
-      (!Number.isFinite(confidence) || confidence < 0 || confidence > 1)
-    ) {
-      this.externalError = "Confidence must be a number from 0 to 1.";
-      this.requestUpdate();
-      return null;
-    }
-    let attributes: unknown;
-    try {
-      attributes = JSON.parse(this.metadataAttributes.trim() || "{}");
-    } catch {
-      this.externalError = "Occurrence properties must be a valid JSON object.";
-      this.requestUpdate();
-      return null;
-    }
-    if (!attributes || typeof attributes !== "object" || Array.isArray(attributes)) {
-      this.externalError = "Occurrence properties must be a JSON object.";
-      this.requestUpdate();
-      return null;
-    }
-    return Object.freeze({
-      role: this.metadataRole.trim() || null,
-      initialState: this.metadataInitialState,
-      sourceIds: Object.freeze([
-        ...new Set(
-          this.metadataSourceIds
-            .split(/\r?\n|,/)
-            .map((value) => value.trim())
-            .filter(Boolean),
-        ),
-      ]),
-      confidence,
-      attributes: Object.freeze({ ...(attributes as Record<string, unknown>) }),
-    });
-  }
-
-  private requestAdvancedEdit(): void {
-    const relationshipId = this.selectionContext?.selectedOccurrenceId;
-    if (!relationshipId) return;
-    const initialText = this.selectionContext?.composition?.trim() ?? "";
-    const dirty = this.metadataDirty || this.value.trim() !== initialText;
-    if (dirty) {
-      this.commit();
-      if (this.externalError) return;
-    }
-    this.dispatchEvent(
-      new CustomEvent("occurrencecomposeradvancededitrequest", {
-        bubbles: true,
-        composed: true,
-        detail: { relationshipId },
-      }),
-    );
-  }
-
   private applySuggestion(suggestion: ComposerSuggestion): void {
-    if (!suggestion.insertText) {
-      if (suggestion.kind === "place" && this.worldContext) {
-        this.explicitPlaceContext = this.worldContext;
-        this.activeContextKind = null;
-        this.activeSuggestion = 0;
-        this.requestUpdate();
-      }
-      return;
-    }
+    if (!suggestion.insertText) return;
     const parsed = this.parsed();
     const accepted = acceptComposerSuggestion(this.value, suggestion, parsed.stage);
-    this.activeContextKind = null;
     this.setComposerValue(accepted.value, accepted.cursorOffset);
     void this.updateComplete.then(() => {
       const input = this.renderRoot.querySelector<HTMLInputElement>("input");
@@ -1075,10 +741,6 @@ export class LuumOccurrenceComposerElement extends LitElement {
       this.requestUpdate();
       return;
     }
-    const metadata = this.metadataValue();
-    if (!metadata) return;
-    const placeContext = this.explicitPlaceContext ?? this.worldContext;
-    const timelineContext = this.explicitTimelineContext ?? this.timelineContext;
     this.dispatchEvent(
       new CustomEvent<OccurrenceCommitDetail>("occurrencecommit", {
         bubbles: true,
@@ -1094,15 +756,26 @@ export class LuumOccurrenceComposerElement extends LitElement {
                   initialText: this.selectionContext.composition.trim(),
                 }
               : null,
-          metadata,
           defaults: {
-            timeMs: timelineContext?.centerMs ?? null,
-            timeValue: timelineContext?.value ?? null,
-            timePrecision: timelineContext?.precision ?? null,
-            longitude: placeContext?.longitude ?? null,
-            latitude: placeContext?.latitude ?? null,
-            worldZoom: placeContext?.zoom ?? null,
-            accuracyMeters: placeContext?.accuracyMeters ?? null,
+            timeMs: this.timelineContext?.centerMs ?? null,
+            timeValue: this.timelineContext?.value ?? null,
+            timePrecision: this.timelineContext?.precision ?? null,
+            longitude:
+              draft.place && this.explicitPlaceContext
+                ? this.explicitPlaceContext.longitude
+                : (this.worldContext?.longitude ?? null),
+            latitude:
+              draft.place && this.explicitPlaceContext
+                ? this.explicitPlaceContext.latitude
+                : (this.worldContext?.latitude ?? null),
+            worldZoom:
+              draft.place && this.explicitPlaceContext
+                ? this.explicitPlaceContext.zoom
+                : (this.worldContext?.zoom ?? null),
+            accuracyMeters:
+              draft.place && this.explicitPlaceContext
+                ? this.explicitPlaceContext.accuracyMeters
+                : (this.worldContext?.accuracyMeters ?? null),
             placeReference:
               !draft.place && this.selectionContext?.place
                 ? `@${this.selectionContext.place.id}`
@@ -1134,10 +807,6 @@ export class LuumOccurrenceComposerElement extends LitElement {
     }
     if (event.key !== "Enter") return;
     event.preventDefault();
-    if (event.metaKey || event.ctrlKey) {
-      this.commit();
-      return;
-    }
     const draft = this.parsed();
     const cursorSection = composerCursorSection(this.value, this.cursorOffset);
     const cursorLocal = cursorSection.kind !== "tail";
@@ -1182,91 +851,25 @@ export class LuumOccurrenceComposerElement extends LitElement {
     }
 
     const parsed = this.parsed();
-    const entityLabel = (reference: string | null | undefined): string | null => {
-      if (!reference) return null;
-      if (!reference.startsWith("@")) return reference;
-      const id = reference.slice(1);
-      return this.data.entities.find((entity) => entity.id === id)?.name ?? reference;
-    };
-    const resolvedPlaceLabel = (reference: string | null | undefined): string | null => {
-      if (!reference) return null;
-      if (!reference.startsWith("@")) return reference;
-      const id = reference.slice(1);
-      return this.data.places.find((place) => place.id === id)?.name ?? reference;
-    };
-    const timeLabel = parsed.time
-      ? parsed.time.kind === "range"
-        ? `${parsed.time.start} – ${parsed.time.end ?? parsed.time.start}`
-        : parsed.time.start
-      : (this.explicitTimelineContext?.label ?? this.timelineContext?.label ?? null);
+    const timeLabel = parsed.time?.start ?? this.timelineContext?.label ?? null;
     const placeLabel =
-      resolvedPlaceLabel(parsed.place?.name) ??
+      parsed.place?.name ??
       this.selectionContext?.place?.name ??
-      this.explicitPlaceContext?.label ??
       this.worldContext?.label ??
       "World center";
-    const suggestions = this.metadataOpen ? [] : this.suggestions().slice(0, 7);
-    const selectedIndex = Math.min(
-      this.activeSuggestion,
-      Math.max(0, suggestions.length - 1),
-    );
+    const suggestions = this.suggestions().slice(0, 7);
+    const selectedIndex = Math.min(this.activeSuggestion, Math.max(0, suggestions.length - 1));
     const activeSuggestion = suggestions[selectedIndex];
     const ghostSuffix =
       this.cursorOffset === this.value.length
         ? composerCompletionSuffix(this.value, activeSuggestion)
         : "";
     const diagnostic = this.externalError || parsed.diagnostics[0] || "";
-    const editableSections = composerEditableSections(this.value);
-    const sectionFor = (
-      kind: ComposerEditableSection["kind"],
-      index = 0,
-    ): ComposerEditableSection | undefined =>
-      editableSections.filter((section) => section.kind === kind)[index];
-    const subjectSection = sectionFor("subject");
-    const predicateSection = sectionFor("predicate");
-    const objectSection = sectionFor("object");
-    const placeSection = sectionFor("place");
-    const timeSection = sectionFor("time");
-    const categorySection = sectionFor("category");
-    const subjectLabel = entityLabel(parsed.subject?.name) ?? this.selectedSubjectLabel();
-    const placePinned = Boolean(
-      parsed.place || this.selectionContext?.place || this.explicitPlaceContext,
-    );
-    const timePinned = Boolean(parsed.time || this.explicitTimelineContext);
+    const subjectLabel = this.selectedSubjectLabel();
+    const placePinned = Boolean(parsed.place || this.selectionContext?.place);
+    const timePinned = Boolean(parsed.time);
     const categoryLabel = parsed.options.category ?? null;
     const tagLabels = parsed.options.tags;
-    const canCommit = Boolean(
-      parsed.subject && parsed.predicate && parsed.object && parsed.diagnostics.length === 0,
-    );
-    const commitLabel = this.selectionContext?.selectedOccurrenceId
-      ? "Save occurrence"
-      : "Create occurrence";
-    const metadataCount =
-      Number(Boolean(this.metadataRole.trim())) +
-      Number(Boolean(this.metadataSourceIds.trim())) +
-      Number(Boolean(this.metadataConfidence.trim())) +
-      Number(this.metadataInitialState === "inactive") +
-      Number(this.metadataAttributes.trim() !== "{}" && this.metadataAttributes.trim() !== "");
-    const editableChip = (
-      label: string,
-      value: string | null | undefined,
-      section: ComposerEditableSection | undefined,
-    ) =>
-      value && section
-        ? html`<button
-            class="context-chip"
-            type="button"
-            data-context-kind=${section.kind}
-            data-context-state=${this.sectionIsActive(section) ? "editing" : "pinned"}
-            aria-label=${`Edit ${label}: ${value}`}
-            title=${`Select the ${label.toLocaleLowerCase()} text for editing`}
-            @click=${() => this.editSentenceSection(section)}
-            @keydown=${(event: KeyboardEvent) => this.onContextChipKeyDown(event)}
-          >
-            <span>${label}</span><strong>${value}</strong
-            ><span class="context-state">${this.sectionIsActive(section) ? "editing" : "edit"}</span>
-          </button>`
-        : nothing;
 
     return html`
       <section class="composer" aria-label="Occurrence composer">
@@ -1300,18 +903,6 @@ export class LuumOccurrenceComposerElement extends LitElement {
             />
           </div>
           <button
-            class="commit"
-            type="button"
-            ?disabled=${!canCommit}
-            aria-label=${commitLabel}
-            title=${`${commitLabel} · Ctrl/Cmd+Enter`}
-            @click=${() => this.commit()}
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              ${iconPathData("check").map((path) => html`<path d=${path}></path>`)}
-            </svg>
-          </button>
-          <button
             class="close"
             type="button"
             aria-label="Close occurrence composer"
@@ -1322,196 +913,56 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
         <div class="completion-panel">
           <div class="context-row" aria-label="Occurrence context">
-            ${this.hasPendingSelectionContext
-              ? html`<button
+            ${
+              this.hasPendingSelectionContext
+                ? html`<button
                   class="context-chip"
                   type="button"
                   data-context-kind="pending-selection"
                   data-context-state="pending"
                   title="Replace this draft with the newly selected graph context"
                   @click=${() => this.acceptPendingSelectionContext()}
-                  @keydown=${(event: KeyboardEvent) => this.onContextChipKeyDown(event)}
                 >
                   <span>Selection changed</span><strong>${this.pendingSelectionContext ? "Use selected context" : "Use no selection"}</strong>
                 </button>`
-              : nothing
+                : nothing
             }
-            ${editableChip("Subject", subjectLabel, subjectSection)}
-            ${editableChip("Action", parsed.predicate, predicateSection)}
-            ${editableChip("Object", entityLabel(parsed.object?.name), objectSection)}
-            ${placeSection
-              ? editableChip("Place", parsed.place?.name ?? placeLabel, placeSection)
-              : html`<button
-                  class="context-chip"
-                  type="button"
-                  data-context-kind="place"
-                  data-context-state=${this.activeContextKind === "place" ? "editing" : placePinned ? "pinned" : "live"}
-                  aria-label=${`Choose place: ${placeLabel}`}
-                  title="Choose or pin the occurrence place"
-                  @click=${() => this.activateContext("place")}
-                  @keydown=${(event: KeyboardEvent) => this.onContextChipKeyDown(event)}
-                >
-                  <span>Place</span><strong>${placeLabel}</strong
-                  ><span class="context-state">${this.activeContextKind === "place" ? "editing" : placePinned ? "pinned" : "live"}</span>
-                </button>`}
-            ${timeSection
-              ? editableChip("Time", timeLabel ?? "timeline center", timeSection)
-              : html`<button
-                  class="context-chip"
-                  type="button"
-                  data-context-kind="time"
-                  data-context-state=${this.activeContextKind === "time" ? "editing" : timePinned ? "pinned" : "live"}
-                  aria-label=${`Choose time: ${timeLabel ?? "timeline center"}`}
-                  title="Choose or pin the occurrence time"
-                  @click=${() => this.activateContext("time")}
-                  @keydown=${(event: KeyboardEvent) => this.onContextChipKeyDown(event)}
-                >
-                  <span>Time</span><strong>${timeLabel ?? "timeline center"}</strong
-                  ><span class="context-state">${this.activeContextKind === "time" ? "editing" : timePinned ? "pinned" : "live"}</span>
-                </button>`}
-            ${categorySection
-              ? editableChip("Category", categoryLabel, categorySection)
-              : parsed.stage === "complete"
-                ? html`<button
-                    class="context-chip"
-                    type="button"
-                    data-context-kind="category"
-                    data-context-state=${this.activeContextKind === "category" ? "editing" : "live"}
-                    aria-label="Add occurrence category"
-                    title="Choose an occurrence category"
-                    @click=${() => this.activateContext("category")}
-                    @keydown=${(event: KeyboardEvent) => this.onContextChipKeyDown(event)}
-                  >
-                    <span>Category</span><strong>Add</strong
-                    ><span class="context-state">${this.activeContextKind === "category" ? "editing" : "add"}</span>
-                  </button>`
-                : nothing}
-            ${tagLabels.map((tag, index) =>
-              editableChip("Tag", tag, sectionFor("tag", index)),
-            )}
-            ${parsed.stage === "complete"
-              ? html`<button
-                  class="context-chip"
-                  type="button"
-                  data-context-kind="add-tag"
-                  data-context-state=${this.activeContextKind === "tag" ? "editing" : "live"}
-                  aria-label="Add occurrence tag"
-                  title="Add another occurrence tag"
-                  @click=${() => this.activateContext("tag")}
-                  @keydown=${(event: KeyboardEvent) => this.onContextChipKeyDown(event)}
-                >
-                  <span>Tag</span><strong>Add</strong
-                  ><span class="context-state">${this.activeContextKind === "tag" ? "editing" : "add"}</span>
-                </button>`
-              : nothing}
-            <button
+            ${
+              subjectLabel
+                ? html`<span class="context-chip" data-context-kind="subject" data-context-state="pinned">
+                  <span>Subject</span><strong>${subjectLabel}</strong><span class="context-state">pinned</span>
+                </span>`
+                : nothing
+            }
+            <span
               class="context-chip"
-              type="button"
-              data-context-kind="details"
-              data-context-state=${this.metadataOpen ? "editing" : metadataCount ? "pinned" : "live"}
-              aria-expanded=${String(this.metadataOpen)}
-              aria-controls="occurrence-composer-metadata"
-              title="Edit role, state, provenance, confidence, and properties"
-              @click=${() => this.toggleMetadata()}
-              @keydown=${(event: KeyboardEvent) => this.onContextChipKeyDown(event)}
+              data-context-kind="place"
+              data-context-state=${placePinned ? "pinned" : "live"}
             >
-              <span>Details</span><strong>${metadataCount ? `${metadataCount} set` : "More"}</strong
-              ><span class="context-state">${this.metadataOpen ? "editing" : "edit"}</span>
-            </button>
+              <span>Place</span><strong>${placeLabel}</strong><span class="context-state">${placePinned ? "pinned" : "live"}</span>
+            </span>
+            <span
+              class="context-chip"
+              data-context-kind="time"
+              data-context-state=${timePinned ? "pinned" : "live"}
+            >
+              <span>Time</span><strong>${timeLabel ?? "timeline center"}</strong><span class="context-state">${timePinned ? "pinned" : "live"}</span>
+            </span>
+            ${
+              categoryLabel
+                ? html`<span class="context-chip" data-context-kind="category" data-context-state="pinned">
+                  <span>Category</span><strong>${categoryLabel}</strong>
+                </span>`
+                : nothing
+            }
+            ${tagLabels.map(
+              (
+                tag,
+              ) => html`<span class="context-chip" data-context-kind="tag" data-context-state="pinned">
+                <span>Tag</span><strong>${tag}</strong>
+              </span>`,
+            )}
           </div>
-          ${
-            this.metadataOpen
-              ? html`<div id="occurrence-composer-metadata" class="metadata-panel" aria-label="Occurrence details">
-                  <label class="metadata-field">
-                    <span>Role</span>
-                    <input
-                      type="text"
-                      maxlength="120"
-                      autocomplete="off"
-                      placeholder="recipient, witness, owner…"
-                      .value=${this.metadataRole}
-                      @input=${(event: Event) => {
-                        const target = event.currentTarget;
-                        if (!(target instanceof HTMLInputElement)) return;
-                        this.metadataRole = target.value;
-                        this.markMetadataDirty();
-                      }}
-                    />
-                  </label>
-                  <label class="metadata-field">
-                    <span>Initial state</span>
-                    <select
-                      .value=${this.metadataInitialState}
-                      @change=${(event: Event) => {
-                        const target = event.currentTarget;
-                        if (!(target instanceof HTMLSelectElement)) return;
-                        this.metadataInitialState = target.value === "inactive" ? "inactive" : "active";
-                        this.markMetadataDirty();
-                      }}
-                    >
-                      <option value="active">Active</option>
-                      <option value="inactive">Inactive until activated</option>
-                    </select>
-                  </label>
-                  <label class="metadata-field">
-                    <span>Confidence · 0–1</span>
-                    <input
-                      type="number"
-                      min="0"
-                      max="1"
-                      step="0.01"
-                      inputmode="decimal"
-                      placeholder="0.85"
-                      .value=${this.metadataConfidence}
-                      @input=${(event: Event) => {
-                        const target = event.currentTarget;
-                        if (!(target instanceof HTMLInputElement)) return;
-                        this.metadataConfidence = target.value;
-                        this.markMetadataDirty();
-                      }}
-                    />
-                  </label>
-                  <label class="metadata-field metadata-field-wide">
-                    <span>Evidence / source IDs · one per line</span>
-                    <textarea
-                      rows="2"
-                      spellcheck="false"
-                      placeholder="evidence-17&#10;source-record-3"
-                      .value=${this.metadataSourceIds}
-                      @input=${(event: Event) => {
-                        const target = event.currentTarget;
-                        if (!(target instanceof HTMLTextAreaElement)) return;
-                        this.metadataSourceIds = target.value;
-                        this.markMetadataDirty();
-                      }}
-                    ></textarea>
-                  </label>
-                  <label class="metadata-field metadata-field-wide">
-                    <span>Properties · JSON object</span>
-                    <textarea
-                      rows="3"
-                      spellcheck="false"
-                      .value=${this.metadataAttributes}
-                      @input=${(event: Event) => {
-                        const target = event.currentTarget;
-                        if (!(target instanceof HTMLTextAreaElement)) return;
-                        this.metadataAttributes = target.value;
-                        this.markMetadataDirty();
-                      }}
-                    ></textarea>
-                  </label>
-                  ${this.selectionContext?.selectedOccurrenceId
-                    ? html`<div class="metadata-actions">
-                        <button type="button" @click=${() => this.requestAdvancedEdit()}>
-                          ${this.metadataDirty || this.value.trim() !== (this.selectionContext?.composition?.trim() ?? "")
-                            ? "Save and open full edge editor"
-                            : "Open full edge editor"}
-                        </button>
-                      </div>`
-                    : nothing}
-                </div>`
-              : nothing
-          }
           ${
             diagnostic
               ? html`<p id="occurrence-composer-diagnostic" class="diagnostic" role="alert">${diagnostic}</p>`
@@ -1558,9 +1009,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
         <p id="occurrence-composer-help" class="help">
           Arrow keys navigate suggestions · Enter accepts the active suggestion or commits ·
-          Ctrl/Cmd+Enter or the check button always commits · Tab moves focus · Left/Right move
-          between semantic chips · Esc closes. Activate a semantic chip to edit exactly that
-          component, then type or choose a suggestion. Quote multi-word entity names.
+          Tab moves focus · Esc closes. Quote multi-word entity names.
           Defaults follow ${placeLabel} and ${timeLabel ?? "the timeline center"} until explicitly pinned.
           Move the timeline or World while this is open to change unpinned defaults.
           A changed graph selection never replaces a modified draft until its context action is chosen.

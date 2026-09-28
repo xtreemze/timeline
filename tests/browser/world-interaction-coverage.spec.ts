@@ -770,7 +770,9 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
     // Camera navigation must not poison the next deliberate double-tap.
     const deliberatePoint = await placeTouchTarget(page);
     if (!deliberatePoint) throw new Error("Touch target did not reproject after globe navigation.");
-    const beforeDoubleTap = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera());
+    const beforeDoubleTap = await page.evaluate(() =>
+      window.__worldPerfHarness.surface.getCamera(),
+    );
     await doubleTap(page, deliberatePoint);
     await expect
       .poll(() => page.evaluate(() => window.__worldPerfHarness.surface.getCamera().zoom), {

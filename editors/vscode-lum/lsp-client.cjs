@@ -144,10 +144,7 @@ class LumLspTransport {
   }
 
   onData(chunk) {
-    this.buffer = Buffer.concat([
-      this.buffer,
-      Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk),
-    ]);
+    this.buffer = Buffer.concat([this.buffer, Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)]);
     while (true) {
       const headerEnd = this.buffer.indexOf("\r\n\r\n");
       if (headerEnd < 0) return;
@@ -219,7 +216,7 @@ function registerProviders(context, transport, selector) {
         const value =
           typeof result.contents === "string"
             ? result.contents
-            : result.contents.value ?? String(result.contents);
+            : (result.contents.value ?? String(result.contents));
         return new vscode.Hover(new vscode.MarkdownString(value));
       },
     }),
@@ -306,10 +303,7 @@ function registerProviders(context, transport, selector) {
     }),
   );
 
-  const legend = new vscode.SemanticTokensLegend(
-    SEMANTIC_TOKEN_TYPES,
-    SEMANTIC_TOKEN_MODIFIERS,
-  );
+  const legend = new vscode.SemanticTokensLegend(SEMANTIC_TOKEN_TYPES, SEMANTIC_TOKEN_MODIFIERS);
   subscriptions.push(
     vscode.languages.registerDocumentSemanticTokensProvider(
       selector,

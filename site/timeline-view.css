@@ -634,8 +634,7 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 0.42rem;
-  border: 1px solid
-    color-mix(in srgb, var(--event-color, var(--accent)) 46%, var(--line-strong));
+  border: 1px solid color-mix(in srgb, var(--event-color, var(--accent)) 46%, var(--line-strong));
   border-radius: 0.82rem;
   background: color-mix(in srgb, var(--paper) 96%, transparent);
   color: var(--ink);
@@ -1128,7 +1127,9 @@ luum-occurrence-deck {
   min-block-size: 44px;
   place-items: center;
   color: white;
-  font: 700 0.72rem/1 ui-monospace, monospace;
+  font:
+    700 0.72rem / 1 ui-monospace,
+    monospace;
   font-variant-numeric: tabular-nums;
 }
 .timeline-focus-hero-image {
@@ -5473,8 +5474,8 @@ luum-occurrence-deck {
   flex: 1 1 20rem;
   flex-direction: row;
   align-items: center;
-  min-inline-size: min(14rem, 60vw);
-  max-inline-size: none;
+  min-inline-size: 14rem;
+  max-inline-size: 60cqi;
   padding: 0 0 0 0.34rem;
   border-top: 0;
   border-inline-start: 1px solid color-mix(in srgb, var(--story) 42%, var(--line));

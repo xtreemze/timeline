@@ -170,10 +170,7 @@ test("calc edge rail keeps event cards and connectors attached to the rendered a
 }) => {
   const surface = page.locator("#timeline-continuity-host .timeline-surface");
   await surface.evaluate((element) => {
-    (element as HTMLElement).style.setProperty(
-      "--timeline-axis-cross",
-      "calc(100% - 72px)",
-    );
+    (element as HTMLElement).style.setProperty("--timeline-axis-cross", "calc(100% - 72px)");
   });
   await page.evaluate(() => {
     const controller = Reflect.get(globalThis, "__timelineContinuityController") as
@@ -209,7 +206,6 @@ test("calc edge rail keeps event cards and connectors attached to the rendered a
   expect(geometry.cardGap).toBeGreaterThanOrEqual(8);
   expect(geometry.cardGap).toBeLessThanOrEqual(24);
 });
-
 
 for (const orientation of ["horizontal", "vertical"] as const) {
   test(`retained timeline preserves geometric continuity during ${orientation} drag`, async ({

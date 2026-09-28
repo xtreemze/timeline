@@ -338,7 +338,9 @@ test.describe("Mobile-first Timeline layout contracts", () => {
     const actions = dock.locator(".app-footer-actions");
     const composer = dock.locator("#occurrence-composer");
     const view = dock.locator("#timeline-view-controls");
-    const firstViewControl = view.locator("button:visible, .toolbar-compound-control:visible").first();
+    const firstViewControl = view
+      .locator("button:visible, .toolbar-compound-control:visible")
+      .first();
     const [dockBox, actionsBox, composerBox, viewBox, firstViewControlBox] = await Promise.all([
       dock.boundingBox(),
       actions.boundingBox(),
@@ -646,10 +648,7 @@ test.describe("Persistent footer and focus geometry", () => {
       await expect(page.locator(".app-footer-bar #timeline-focus-prev")).toHaveCount(0);
       await expect(page.locator(".app-footer-bar #timeline-related-zoom")).toHaveCount(0);
       await expect(page.locator("#timeline-focus-edit")).toHaveCount(0);
-      await expect(page.locator("#editor-toggle")).toHaveAttribute(
-        "aria-label",
-        "Edit timeline",
-      );
+      await expect(page.locator("#editor-toggle")).toHaveAttribute("aria-label", "Edit timeline");
       await expect(page.locator("#editor-toggle")).toHaveAttribute("data-semantic-icon", "edit");
       await expect(page.locator("#editor-toggle")).toHaveAttribute("aria-pressed", "false");
       await expect(page.locator("#occurrence-composer .compact")).toBeVisible();

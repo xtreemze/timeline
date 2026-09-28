@@ -125,8 +125,7 @@ test("opening the composer reapplies the retained canonical selection context", 
 
 test("selection does not change the persistent Edit control presentation", async () => {
   const app = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
-  const sync =
-    app.match(/function syncTimelineContextControls\(\)[\s\S]*?\n\}/)?.[0] ?? "";
+  const sync = app.match(/function syncTimelineContextControls\(\)[\s\S]*?\n\}/)?.[0] ?? "";
   assert.match(sync, /ui\.editorOpen \? "Done editing" : "Edit timeline"/);
   assert.doesNotMatch(sync, /Edit focused event|composerActive \? "Open editor"/);
 });

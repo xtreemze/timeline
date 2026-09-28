@@ -14,6 +14,7 @@ import {
   composerCompletionSuffix,
   composerCursorSection,
   composerEditableSections,
+  formatOccurrenceComposition,
   occurrenceComposerSuggestions,
   parseOccurrenceSentence,
   replaceComposerTail,
@@ -84,9 +85,7 @@ test("quoted option delimiters and tags round-trip without semantic loss", () =>
     '"Research, Analysis"',
   );
   assert.deepEqual(
-    sections
-      .filter((section) => section.kind === "tag")
-      .map((section) => section.text),
+    sections.filter((section) => section.kind === "tag").map((section) => section.text),
     ["ops|critical", "red,blue", "plain"],
   );
 });
@@ -105,7 +104,10 @@ test("quoted entity property delimiters do not terminate properties or trigger f
     categories: [],
     cursorOffset: entitySentence.indexOf("Beta"),
   });
-  assert.equal(suggestions.some((suggestion) => suggestion.kind === "property"), false);
+  assert.equal(
+    suggestions.some((suggestion) => suggestion.kind === "property"),
+    false,
+  );
   assert.equal(suggestions[0]?.kind, "entity");
 
   const nextProperty = occurrenceComposerSuggestions("Alice(icon: person, ty", {
@@ -266,19 +268,12 @@ test("accepted terminal action advances from predicate to object suggestions", (
   );
   assert.ok(receives);
 
-  const accepted = acceptComposerSuggestion(
-    input,
-    receives,
-    parseOccurrenceSentence(input).stage,
-  );
+  const accepted = acceptComposerSuggestion(input, receives, parseOccurrenceSentence(input).stage);
 
   assert.equal(accepted.value, "Alice receives ");
   assert.equal(accepted.cursorOffset, accepted.value.length);
   assert.equal(parseOccurrenceSentence(accepted.value).stage, "object");
-  assert.equal(
-    composerCursorSection(accepted.value, accepted.cursorOffset).kind,
-    "tail",
-  );
+  assert.equal(composerCursorSection(accepted.value, accepted.cursorOffset).kind, "tail");
 
   const objectSuggestions = occurrenceComposerSuggestions(accepted.value, {
     entities: [{ id: "bob", name: "Bob", type: "person" }],
@@ -342,10 +337,7 @@ test("accepted place and time suggestions advance out of their cursor-local sect
     parseOccurrenceSentence(placeInput).stage,
   );
   assert.equal(acceptedPlace.value, 'Alice meets Bob at "Deep Forest" ');
-  assert.equal(
-    composerCursorSection(acceptedPlace.value, acceptedPlace.cursorOffset).kind,
-    "tail",
-  );
+  assert.equal(composerCursorSection(acceptedPlace.value, acceptedPlace.cursorOffset).kind, "tail");
 
   const timeInput = "Alice meets Bob on 2026-09-27";
   const timeSuggestion = occurrenceComposerSuggestions(timeInput, {
@@ -363,10 +355,7 @@ test("accepted place and time suggestions advance out of their cursor-local sect
     parseOccurrenceSentence(timeInput).stage,
   );
   assert.equal(acceptedTime.value, "Alice meets Bob on 2026-09-28 ");
-  assert.equal(
-    composerCursorSection(acceptedTime.value, acceptedTime.cursorOffset).kind,
-    "tail",
-  );
+  assert.equal(composerCursorSection(acceptedTime.value, acceptedTime.cursorOffset).kind, "tail");
 });
 
 test("editing an existing action replaces in place without inserting another separator", () => {
@@ -380,11 +369,7 @@ test("editing an existing action replaces in place without inserting another sep
   }).find((suggestion) => suggestion.insertText === "calls");
   assert.ok(calls);
 
-  const accepted = acceptComposerSuggestion(
-    input,
-    calls,
-    parseOccurrenceSentence(input).stage,
-  );
+  const accepted = acceptComposerSuggestion(input, calls, parseOccurrenceSentence(input).stage);
   assert.equal(accepted.value, "Alice calls Bob");
   assert.equal(parseOccurrenceSentence(accepted.value).stage, "complete");
 });
@@ -774,16 +759,13 @@ test("composer reuses existing tags and categories as contextual suggestions", (
     ),
   );
 
-  const secondTagSuggestions = occurrenceComposerSuggestions(
-    "Alice meets Bob [tags: friend|wo",
-    {
-      entities: [],
-      places: [],
-      categories: [],
-      tags: ["friend", "work"],
-      predicates: [],
-    },
-  );
+  const secondTagSuggestions = occurrenceComposerSuggestions("Alice meets Bob [tags: friend|wo", {
+    entities: [],
+    places: [],
+    categories: [],
+    tags: ["friend", "work"],
+    predicates: [],
+  });
   assert.equal(
     secondTagSuggestions.some((suggestion) => suggestion.insertText.includes("friend|friend")),
     false,
@@ -1161,7 +1143,11 @@ test("completed category and tag suggestions replace their selected spans in pla
     cursorOffset: category.end,
   }).find((suggestion) => suggestion.kind === "category" && suggestion.label === "Conflict");
   assert.ok(conflict?.replaceRange);
-  const categoryEdit = acceptComposerSuggestion(base, conflict, parseOccurrenceSentence(base).stage);
+  const categoryEdit = acceptComposerSuggestion(
+    base,
+    conflict,
+    parseOccurrenceSentence(base).stage,
+  );
   assert.equal(categoryEdit.value, "Alice meets Bob [category: Conflict, tags: work|urgent]");
 
   const firstTag = composerEditableSections(categoryEdit.value).find(
@@ -1202,7 +1188,9 @@ test("a complete sentence remains valid through reverse and unconventional edit 
     "Alice warns Dana at Stockholm from 2026-09-28T08:00Z to 2026-09-28T09:00Z [category: Observation, tags: work|urgent]";
 
   const apply = (kind, label, index = 0) => {
-    const section = composerEditableSections(value).filter((candidate) => candidate.kind === kind)[index];
+    const section = composerEditableSections(value).filter((candidate) => candidate.kind === kind)[
+      index
+    ];
     assert.ok(section, `missing ${kind}[${index}] in ${value}`);
     const suggestion = occurrenceComposerSuggestions(value, {
       ...options,

@@ -618,14 +618,12 @@ export class TimelineViewController {
       root.querySelector("#timeline-orientation-toggle") ||
       controlsRoot.querySelector("#timeline-orientation-toggle");
     this.zoomOutButton =
-      root.querySelector("#timeline-zoom-out") ||
-      controlsRoot.querySelector("#timeline-zoom-out");
+      root.querySelector("#timeline-zoom-out") || controlsRoot.querySelector("#timeline-zoom-out");
     this.zoomSlider =
       root.querySelector("#timeline-zoom-level") ||
       controlsRoot.querySelector("#timeline-zoom-level");
     this.zoomInButton =
-      root.querySelector("#timeline-zoom-in") ||
-      controlsRoot.querySelector("#timeline-zoom-in");
+      root.querySelector("#timeline-zoom-in") || controlsRoot.querySelector("#timeline-zoom-in");
 
     this.stage = document.createElement("div");
     this.stage.className = "timeline-stage timeline-retained-scene";
@@ -3423,15 +3421,13 @@ export class TimelineViewController {
     if (this.orientation === "horizontal") {
       const spaceAbove = anchorTop - gap - safe;
       const spaceBelow = host.height - anchorBottom - gap - safe;
-      const attachAbove =
-        spaceAbove >= Math.min(detail.height, 180) || spaceAbove >= spaceBelow;
+      const attachAbove = spaceAbove >= Math.min(detail.height, 180) || spaceAbove >= spaceBelow;
       attachmentSide = attachAbove ? "above" : "below";
       blockStart = attachAbove ? anchorTop - detail.height - gap : anchorBottom + gap;
     } else {
       const spaceLeft = anchorLeft - gap - safe;
       const spaceRight = host.width - anchorRight - gap - safe;
-      const attachLeft =
-        spaceLeft >= Math.min(detail.width, 240) || spaceLeft >= spaceRight;
+      const attachLeft = spaceLeft >= Math.min(detail.width, 240) || spaceLeft >= spaceRight;
       attachmentSide = attachLeft ? "left" : "right";
       inlineStart = attachLeft ? anchorLeft - detail.width - gap : anchorRight + gap;
     }

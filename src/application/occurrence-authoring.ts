@@ -28,11 +28,6 @@ export interface OccurrenceAuthoringRequest<TExtent = unknown> {
   readonly categoryName?: string;
   readonly tags: readonly string[];
   readonly activeStoryId?: string | null;
-  readonly role?: string | null;
-  readonly initialState?: "active" | "inactive";
-  readonly sourceIds?: readonly string[];
-  readonly confidence?: number | null;
-  readonly attributes?: Readonly<Record<string, unknown>>;
 }
 
 interface AuthoringEntity {
@@ -70,11 +65,6 @@ interface AuthoringRelationship<TExtent = unknown> {
   subjectId: string;
   objectId: string;
   predicate: string;
-  role?: string;
-  occurrenceType?: string;
-  subjectContext?: Record<string, unknown>;
-  objectContext?: Record<string, unknown>;
-  semanticMappings?: unknown[];
   placeId?: string;
   itemIds?: string[];
   initialState?: "active" | "inactive";
@@ -123,12 +113,6 @@ export interface OccurrenceUpdateRequest<TExtent = unknown> {
    * undefined preserves tags; an empty array explicitly clears them.
    */
   readonly tags?: readonly string[];
-  /** undefined preserves the existing role; null or blank clears it. */
-  readonly role?: string | null;
-  readonly initialState?: "active" | "inactive";
-  readonly sourceIds?: readonly string[];
-  readonly confidence?: number | null;
-  readonly attributes?: Readonly<Record<string, unknown>>;
 }
 
 export interface OccurrenceAuthoringDependencies<
@@ -168,20 +152,10 @@ export interface OccurrenceAuthoringResult<TState> {
   readonly objectId: string;
   readonly placeId: string;
   readonly categoryId: string;
-  readonly semanticReviewRequired?: boolean;
-  readonly semanticReviewReasons?: readonly string[];
 }
 
 function normalizedName(value: string): string {
   return value.trim().toLocaleLowerCase();
-}
-
-function normalizeConfidence(value: number | null | undefined): number | null {
-  if (value === null || value === undefined) return null;
-  if (!Number.isFinite(value) || value < 0 || value > 1) {
-    throw new Error("Confidence must be a finite number from 0 to 1.");
-  }
-  return value;
 }
 
 function resolveEntity<TState extends OccurrenceAuthoringState<TExtent>, TExtent>(
@@ -228,8 +202,7 @@ function resolveEntity<TState extends OccurrenceAuthoringState<TExtent>, TExtent
     style["icon"] = icon;
   } else {
     const inferredIcon =
-      suggestSemanticIcon({ name: rawName, type })?.icon ??
-      defaultSemanticIconForEntityType(type);
+      suggestSemanticIcon({ name: rawName, type })?.icon ?? defaultSemanticIconForEntityType(type);
     if (inferredIcon) style["icon"] = inferredIcon;
   }
   if (rawColor) {
@@ -432,14 +405,13 @@ export function authorOccurrence<TExtent, TState extends OccurrenceAuthoringStat
     subjectId: subject.id,
     objectId: object.id,
     predicate: predicate.slice(0, 120),
-    ...(request.role?.trim() ? { role: request.role.trim().slice(0, 120) } : {}),
     placeId: place.id,
     itemIds: [itemId],
-    initialState: request.initialState === "inactive" ? "inactive" : "active",
+    initialState: "active",
     time: request.time.extent,
-    sourceIds: [...new Set((request.sourceIds ?? []).map((id) => id.trim()).filter(Boolean))],
-    confidence: normalizeConfidence(request.confidence),
-    attributes: { ...(request.attributes ?? {}) },
+    sourceIds: [],
+    confidence: null,
+    attributes: {},
   };
 
   const duplicate = dependencies.findDuplicateRelationship(
@@ -485,7 +457,6 @@ export function authorOccurrence<TExtent, TState extends OccurrenceAuthoringStat
   };
 }
 
-
 function itemRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -496,61 +467,6 @@ function itemIdOf(value: unknown): string {
   const record = itemRecord(value);
   const id = record?.["id"];
   return typeof id === "string" || typeof id === "number" ? String(id) : "";
-}
-
-type OccurrenceSemanticReviewReason =
-  | "subject-changed"
-  | "object-changed"
-  | "predicate-changed"
-  | "place-changed"
-  | "time-changed";
-
-function relationshipHasSemanticSupport(
-  relationship: AuthoringRelationship,
-  items: readonly unknown[],
-  linkedItemIds: readonly string[],
-): boolean {
-  if ((relationship.sourceIds ?? []).length > 0) return true;
-  if (relationship.confidence !== null && relationship.confidence !== undefined) return true;
-  if ((relationship.semanticMappings ?? []).length > 0) return true;
-  if (Boolean(relationship.role?.trim()) || Boolean(relationship.occurrenceType?.trim())) return true;
-  if (relationship.subjectContext || relationship.objectContext) return true;
-  return linkedItemIds.some((itemId) => {
-    const item = items.find((candidate) => itemIdOf(candidate) === itemId);
-    const record = itemRecord(item);
-    const evidenceIds = record?.["evidenceIds"];
-    return Array.isArray(evidenceIds) && evidenceIds.length > 0;
-  });
-}
-
-function semanticReviewReasons(
-  attributes: Record<string, unknown> | undefined,
-): OccurrenceSemanticReviewReason[] {
-  const review = itemRecord(attributes?.["semanticReview"]);
-  const reasons = Array.isArray(review?.["reasons"]) ? review!["reasons"] : [];
-  return reasons.filter(
-    (reason): reason is OccurrenceSemanticReviewReason =>
-      reason === "subject-changed" ||
-      reason === "object-changed" ||
-      reason === "predicate-changed" ||
-      reason === "place-changed" ||
-      reason === "time-changed",
-  );
-}
-
-function markSemanticReview(
-  relationship: AuthoringRelationship,
-  reasons: readonly OccurrenceSemanticReviewReason[],
-): void {
-  if (!reasons.length) return;
-  const mergedReasons = [...new Set([...semanticReviewReasons(relationship.attributes), ...reasons])];
-  relationship.attributes = {
-    ...(relationship.attributes ?? {}),
-    semanticReview: {
-      required: true,
-      reasons: mergedReasons,
-    },
-  };
 }
 
 function derivedRelationshipTitle(
@@ -599,35 +515,12 @@ export function updateOccurrence<TExtent, TState extends OccurrenceAuthoringStat
     throw new Error("An occurrence must connect two different entities.");
   }
 
-  const nextPredicate = predicate.slice(0, 120);
-  const subjectChanged = existing.subjectId !== subject.id;
-  const objectChanged = existing.objectId !== object.id;
-  const predicateChanged = existing.predicate !== nextPredicate;
   const next: AuthoringRelationship<TExtent> = {
     ...existing,
     subjectId: subject.id,
     objectId: object.id,
-    predicate: nextPredicate,
+    predicate: predicate.slice(0, 120),
   };
-  if (request.role !== undefined) {
-    const role = request.role?.trim() ?? "";
-    if (role) next.role = role.slice(0, 120);
-    else delete next.role;
-  }
-  if (request.initialState !== undefined) {
-    next.initialState = request.initialState === "inactive" ? "inactive" : "active";
-  }
-  if (request.sourceIds !== undefined) {
-    next.sourceIds = [...new Set(request.sourceIds.map((id) => id.trim()).filter(Boolean))];
-  }
-  if (request.confidence !== undefined) {
-    next.confidence = normalizeConfidence(request.confidence);
-  }
-  if (request.attributes !== undefined) {
-    next.attributes = { ...request.attributes };
-  }
-  if (subjectChanged) delete next.subjectContext;
-  if (objectChanged) delete next.objectContext;
 
   if (request.placeName !== undefined) {
     if (request.placeName === null) {
@@ -661,11 +554,7 @@ export function updateOccurrence<TExtent, TState extends OccurrenceAuthoringStat
       `This edit would duplicate canonical relationship “${duplicate.id}”. Keep one canonical fact and enrich it instead.`,
     );
   }
-  const mirrored = dependencies.findMirroredRelationship(
-    next,
-    draft.relationships,
-    relationshipId,
-  );
+  const mirrored = dependencies.findMirroredRelationship(next, draft.relationships, relationshipId);
   if (mirrored) {
     throw new Error(
       `This edit would duplicate the reverse action represented by “${mirrored.id}”.`,
@@ -675,33 +564,13 @@ export function updateOccurrence<TExtent, TState extends OccurrenceAuthoringStat
   draft.relationships[existingIndex] = next;
 
   const linkedItemIds = [...new Set((existing.itemIds ?? []).map(String).filter(Boolean))];
-  const reviewReasons: OccurrenceSemanticReviewReason[] = [];
-  if (subjectChanged) reviewReasons.push("subject-changed");
-  if (objectChanged) reviewReasons.push("object-changed");
-  if (predicateChanged) reviewReasons.push("predicate-changed");
-  if ((existing.placeId ?? "") !== (next.placeId ?? "")) reviewReasons.push("place-changed");
-  if (
-    request.time !== undefined &&
-    JSON.stringify(existing.time ?? null) !== JSON.stringify(next.time ?? null)
-  ) {
-    reviewReasons.push("time-changed");
-  }
-  const requiresSemanticReview =
-    reviewReasons.length > 0 &&
-    relationshipHasSemanticSupport(existing, draft.items, linkedItemIds);
-  if (requiresSemanticReview) {
-    next.confidence = null;
-    markSemanticReview(next, reviewReasons);
-  }
-
   const requestedItemId = request.itemId?.trim() || "";
   if (requestedItemId && !linkedItemIds.includes(requestedItemId)) {
     throw new Error(
       `Chronology item “${requestedItemId}” is not linked to occurrence “${relationshipId}”.`,
     );
   }
-  const exactItemId =
-    requestedItemId || (linkedItemIds.length === 1 ? linkedItemIds[0]! : "");
+  const exactItemId = requestedItemId || (linkedItemIds.length === 1 ? linkedItemIds[0]! : "");
 
   // Relationship endpoint/action edits affect every linked chronology projection.
   // Update only titles that are still mechanically derived from the old fact;
@@ -718,44 +587,25 @@ export function updateOccurrence<TExtent, TState extends OccurrenceAuthoringStat
     }
   }
 
-  const itemScopedContextChanged =
-    request.categoryName !== undefined || request.tags !== undefined;
-  if (itemScopedContextChanged && linkedItemIds.length > 1 && !exactItemId) {
+  const itemContextChanged =
+    request.time !== undefined || request.categoryName !== undefined || request.tags !== undefined;
+  if (itemContextChanged && linkedItemIds.length > 1 && !exactItemId) {
     throw new Error(
-      "This occurrence is linked to multiple chronology items. Focus the exact timeline item before editing category or tags.",
+      "This occurrence is linked to multiple chronology items. Focus the exact timeline item before editing time, category, or tags.",
     );
   }
-  if (itemScopedContextChanged && linkedItemIds.length === 0) {
+  if (
+    (request.categoryName !== undefined || request.tags !== undefined) &&
+    linkedItemIds.length === 0
+  ) {
     throw new Error(
       "This occurrence has no linked chronology item. Category and tags require an exact timeline item.",
     );
   }
-  if (request.time === null && linkedItemIds.length > 0) {
+  if (request.time === null && exactItemId) {
     throw new Error(
-      "A linked chronology item requires time. Unlink every timeline item before making the canonical relationship timeless.",
+      "A linked chronology item requires time. Unlink that timeline item before making the canonical relationship timeless.",
     );
-  }
-
-  if (request.time) {
-    for (const linkedItemId of linkedItemIds) {
-      const linkedIndex = draft.items.findIndex((item) => itemIdOf(item) === linkedItemId);
-      if (linkedIndex < 0) {
-        throw new Error(
-          `Chronology item “${linkedItemId}” linked to occurrence “${relationshipId}” no longer exists.`,
-        );
-      }
-      const linkedRecord = itemRecord(draft.items[linkedIndex]);
-      if (!linkedRecord) {
-        throw new Error(`Chronology item “${linkedItemId}” is invalid.`);
-      }
-      draft.items[linkedIndex] = {
-        ...linkedRecord,
-        kind: request.time.kind,
-        start: request.time.startValue,
-        end: request.time.endValue,
-        time: request.time.extent,
-      };
-    }
   }
 
   let categoryId = "";
@@ -770,6 +620,13 @@ export function updateOccurrence<TExtent, TState extends OccurrenceAuthoringStat
       throw new Error(`Chronology item “${exactItemId}” is invalid.`);
     }
     const updatedItem: Record<string, unknown> = { ...currentItem };
+
+    if (request.time) {
+      updatedItem["kind"] = request.time.kind;
+      updatedItem["start"] = request.time.startValue;
+      updatedItem["end"] = request.time.endValue;
+      updatedItem["time"] = request.time.extent;
+    }
 
     if (request.categoryName !== undefined) {
       if (request.categoryName === null || !request.categoryName.trim()) {
@@ -800,7 +657,7 @@ export function updateOccurrence<TExtent, TState extends OccurrenceAuthoringStat
     categoryId =
       linkedItem && typeof linkedItem["categoryId"] === "string"
         ? linkedItem["categoryId"]
-        : draft.categories[0]?.id ?? "";
+        : (draft.categories[0]?.id ?? "");
   }
 
   return {
@@ -811,11 +668,5 @@ export function updateOccurrence<TExtent, TState extends OccurrenceAuthoringStat
     objectId: object.id,
     placeId: next.placeId ?? "",
     categoryId,
-    ...(requiresSemanticReview
-      ? {
-          semanticReviewRequired: true,
-          semanticReviewReasons: Object.freeze([...reviewReasons]),
-        }
-      : {}),
   };
 }

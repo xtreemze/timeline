@@ -43,21 +43,14 @@ test.describe("Narrow mobile screen contracts", () => {
     const readTimelineCounts = () =>
       page.evaluate(() => {
         const agentAPI = (
-          window as typeof window & {
-            TimelineAgentAPI?: { getProject?: () => { items?: readonly unknown[] } };
-          }
+          window as typeof window & { TimelineAgentAPI?: { getProject?: () => unknown } }
         ).TimelineAgentAPI;
         const project = agentAPI?.getProject?.();
         const root = document.querySelector("#timeline-view");
         const TimelineView = (
-          window as typeof window & {
-            TimelineView?: {
-              create?: (root: HTMLElement) => { items?: readonly unknown[] };
-            };
-          }
+          window as typeof window & { TimelineView?: { create?: (root: HTMLElement) => unknown } }
         ).TimelineView;
-        const view =
-          root instanceof HTMLElement ? (TimelineView?.create?.(root) ?? null) : null;
+        const view = root instanceof HTMLElement ? TimelineView?.create(root) : null;
         return {
           projectItems: project?.items?.length ?? 0,
           controllerItems: view?.items?.length ?? 0,
@@ -110,26 +103,10 @@ test.describe("Narrow mobile screen contracts", () => {
       const compact = composer.locator(".compact");
       const input = composer.locator("input");
       const timelineToggle = page.locator("#timeline-orientation-toggle");
-      const actions = page.locator(".app-footer-actions");
-      const viewControls = page.locator("#timeline-view-controls");
       await expect(compact).toBeVisible();
-      const [before, collapsedActions, collapsedComposer, collapsedView] = await Promise.all([
-        dock.boundingBox(),
-        actions.boundingBox(),
-        composer.boundingBox(),
-        viewControls.boundingBox(),
-      ]);
+      const before = await dock.boundingBox();
       expect(before).not.toBeNull();
-      expect(collapsedActions).not.toBeNull();
-      expect(collapsedComposer).not.toBeNull();
-      expect(collapsedView).not.toBeNull();
-      if (!before || !collapsedActions || !collapsedComposer || !collapsedView) {
-        throw new Error("Footer geometry is unavailable before composer expansion.");
-      }
-      expect(collapsedComposer.width).toBeGreaterThanOrEqual(120);
-      expect(collapsedComposer.width).toBeLessThanOrEqual(220);
-      expect(collapsedActions.x).toBeLessThan(collapsedComposer.x);
-      expect(collapsedComposer.x).toBeLessThan(collapsedView.x);
+      if (!before) throw new Error("Footer geometry is unavailable before composer expansion.");
 
       await compact.click();
       await expect(composer).toHaveAttribute("active", "");
@@ -143,14 +120,17 @@ test.describe("Narrow mobile screen contracts", () => {
       );
       expect(composerViewportHeight).toBe(String(Math.round(visualViewportHeight)) + "px");
 
-      const [expanded, inputBox, completionBox, actionsBox, viewBox, composerBox] = await Promise.all([
-        dock.boundingBox(),
-        input.boundingBox(),
-        composer.locator(".completion-panel").boundingBox(),
-        actions.boundingBox(),
-        viewControls.boundingBox(),
-        composer.boundingBox(),
-      ]);
+      const actions = page.locator(".app-footer-actions");
+      const viewControls = page.locator("#timeline-view-controls");
+      const [expanded, inputBox, completionBox, actionsBox, viewBox, composerBox] =
+        await Promise.all([
+          dock.boundingBox(),
+          input.boundingBox(),
+          composer.locator(".completion-panel").boundingBox(),
+          actions.boundingBox(),
+          viewControls.boundingBox(),
+          composer.boundingBox(),
+        ]);
       expect(expanded).not.toBeNull();
       expect(inputBox).not.toBeNull();
       expect(completionBox).not.toBeNull();
@@ -236,7 +216,7 @@ test.describe("Narrow mobile screen contracts", () => {
     expect(visibleCards.length).toBeGreaterThan(1);
     for (let first = 0; first < visibleCards.length; first += 1) {
       for (let second = first + 1; second < visibleCards.length; second += 1) {
-        const intersection = overlap(visibleCards[first]!, visibleCards[second]!);
+        const intersection = overlap(visibleCards[first], visibleCards[second]);
         expect(
           intersection.x > 2 && intersection.y > 2,
           `mobile timeline cards ${first} and ${second} overlap by ${Math.max(0, intersection.x).toFixed(1)}×${Math.max(0, intersection.y).toFixed(1)}px`,
@@ -336,10 +316,6 @@ test.describe("Narrow mobile screen contracts", () => {
       [...element.children].map((child) => child.id || child.className),
     );
     const beforeWidth = await dock.evaluate((element) => element.scrollWidth);
-    const viewToolbar = dock.locator("#timeline-view-controls");
-    const composer = dock.locator("#occurrence-composer");
-    const beforeViewScroll = await viewToolbar.evaluate((element) => element.scrollLeft);
-    await expect(composer.locator(".compact")).toBeVisible();
 
     const terminal = page
       .locator(
@@ -365,11 +341,8 @@ test.describe("Narrow mobile screen contracts", () => {
       [...element.children].map((child) => child.id || child.className),
     );
     const afterWidth = await dock.evaluate((element) => element.scrollWidth);
-    const afterViewScroll = await viewToolbar.evaluate((element) => element.scrollLeft);
     expect(afterChildren).toEqual(beforeChildren);
     expect(Math.abs(afterWidth - beforeWidth)).toBeLessThanOrEqual(2);
-    expect(Math.abs(afterViewScroll - beforeViewScroll)).toBeLessThanOrEqual(1);
-    await expect(composer.locator(".compact")).toBeVisible();
 
     for (const selector of ["#timeline-focus-prev", "#timeline-focus-next"]) {
       const action = actions.locator(selector);
@@ -422,19 +395,14 @@ test.describe("Narrow mobile screen contracts", () => {
         };
       });
 
-      expect(metrics.display).toBe("grid");
-      expect(metrics.viewOverflowX).toBe("auto");
-      expect(metrics.viewScrollWidth).toBeGreaterThanOrEqual(metrics.viewClientWidth);
       if (viewport.width < 700) {
-        expect(metrics.overflowX).not.toBe("auto");
-        const composer = dock.locator("#occurrence-composer");
-        await expect(composer.locator(".compact")).toBeVisible();
-        const composerBox = await composer.boundingBox();
-        expect(composerBox).not.toBeNull();
-        if (composerBox) {
-          expect(composerBox.width).toBeGreaterThanOrEqual(120);
-          expect(composerBox.width).toBeLessThanOrEqual(220);
-        }
+        expect(metrics.display).toBe("flex");
+        expect(metrics.overflowX).toBe("auto");
+        expect(metrics.scrollWidth).toBeGreaterThan(metrics.clientWidth);
+      } else {
+        expect(metrics.display).toBe("grid");
+        expect(metrics.viewOverflowX).toBe("auto");
+        expect(metrics.viewScrollWidth).toBeGreaterThanOrEqual(metrics.viewClientWidth);
       }
 
       const buttons = dock.locator(
@@ -498,71 +466,18 @@ test.describe("Narrow mobile screen contracts", () => {
         if (!box) continue;
         expect(Math.abs(box.width - 20)).toBeLessThanOrEqual(1);
         expect(Math.abs(box.height - 20)).toBeLessThanOrEqual(1);
-        const buttonBox = await semanticIcons.nth(index).locator("xpath=..").boundingBox();
-        expect(buttonBox).not.toBeNull();
-        if (buttonBox) {
-          expect(
-            Math.abs(box.x + box.width / 2 - (buttonBox.x + buttonBox.width / 2)),
-          ).toBeLessThanOrEqual(0.75);
-          expect(
-            Math.abs(box.y + box.height / 2 - (buttonBox.y + buttonBox.height / 2)),
-          ).toBeLessThanOrEqual(0.75);
-        }
-      }
-
-      const timelineZoom = dock.locator(".timeline-zoom-control");
-      const timelineZoomSlider = timelineZoom.locator(".timeline-zoom-slider");
-      const [timelineZoomBox, timelineZoomSliderBox] = await Promise.all([
-        timelineZoom.boundingBox(),
-        timelineZoomSlider.boundingBox(),
-      ]);
-      expect(timelineZoomBox).not.toBeNull();
-      expect(timelineZoomSliderBox).not.toBeNull();
-      if (worldZoomBox && timelineZoomBox) {
-        expect(Math.abs(worldZoomBox.width - timelineZoomBox.width)).toBeLessThanOrEqual(1);
-        expect(Math.abs(worldZoomBox.height - timelineZoomBox.height)).toBeLessThanOrEqual(1);
-        expect(
-          Math.abs(
-            worldZoomBox.y + worldZoomBox.height / 2 -
-              (timelineZoomBox.y + timelineZoomBox.height / 2),
-          ),
-        ).toBeLessThanOrEqual(0.75);
-      }
-      if (worldZoomSliderBox && timelineZoomSliderBox) {
-        expect(Math.abs(worldZoomSliderBox.width - timelineZoomSliderBox.width)).toBeLessThanOrEqual(
-          1,
-        );
-        expect(
-          Math.abs(worldZoomSliderBox.height - timelineZoomSliderBox.height),
-        ).toBeLessThanOrEqual(1);
-        expect(
-          Math.abs(
-            worldZoomSliderBox.y + worldZoomSliderBox.height / 2 -
-              (timelineZoomSliderBox.y + timelineZoomSliderBox.height / 2),
-          ),
-        ).toBeLessThanOrEqual(0.75);
-      }
-
-      const timelineZoomButtons = timelineZoom.locator(".timeline-zoom-endpoint-button");
-      await expect(timelineZoomButtons).toHaveCount(2);
-      const timelineZoomCenterY =
-        timelineZoomBox === null ? null : timelineZoomBox.y + timelineZoomBox.height / 2;
-      if (timelineZoomCenterY !== null) {
-        for (let index = 0; index < 2; index += 1) {
-          const buttonBox = await timelineZoomButtons.nth(index).boundingBox();
-          expect(buttonBox).not.toBeNull();
-          if (buttonBox) {
-            expect(
-              Math.abs(buttonBox.y + buttonBox.height / 2 - timelineZoomCenterY),
-            ).toBeLessThanOrEqual(0.75);
-          }
-        }
       }
 
       const lastControl = viewToolbar.locator(".toolbar-control").last();
-      await viewToolbar.evaluate((element) => {
-        element.scrollLeft = element.scrollWidth;
-      });
+      if (viewport.width < 700) {
+        await dock.evaluate((element) => {
+          element.scrollLeft = element.scrollWidth;
+        });
+      } else {
+        await viewToolbar.evaluate((element) => {
+          element.scrollLeft = element.scrollWidth;
+        });
+      }
       await expect
         .poll(async () => {
           const [dockBox, controlBox] = await Promise.all([

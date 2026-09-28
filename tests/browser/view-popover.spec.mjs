@@ -46,8 +46,7 @@ test("footer view-control groups keep intrinsic width instead of overlapping", a
       const viewRect = element.getBoundingClientRect();
       const groups = [...element.children]
         .filter(
-          (child) =>
-            child instanceof HTMLElement && child.classList.contains("view-control-group"),
+          (child) => child instanceof HTMLElement && child.classList.contains("view-control-group"),
         )
         .map((group) => {
           const rect = group.getBoundingClientRect();
@@ -474,9 +473,11 @@ test("overflowing occurrence cards stay interactive above the world while world 
   await page.locator("#timeline-browser-toggle").click();
   const densestStoryId = await page.evaluate(() => {
     const stories = globalThis.TimelineSampleCase?.stories || [];
-    return [...stories].sort(
-      (left, right) => (right.itemIds?.length || 0) - (left.itemIds?.length || 0),
-    )[0]?.id || "";
+    return (
+      [...stories].sort(
+        (left, right) => (right.itemIds?.length || 0) - (left.itemIds?.length || 0),
+      )[0]?.id || ""
+    );
   });
   expect(densestStoryId).not.toBe("");
   await page.locator(`.browser-story-card[data-id="${densestStoryId}"]`).click();

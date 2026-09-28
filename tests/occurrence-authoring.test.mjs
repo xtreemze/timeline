@@ -1,10 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {
-  authorOccurrence,
-  updateOccurrence,
-} from "../src/application/occurrence-authoring.ts";
+import { authorOccurrence, updateOccurrence } from "../src/application/occurrence-authoring.ts";
 
 function baseState() {
   return {
@@ -201,49 +198,6 @@ test("authorOccurrence atomically resolves endpoints and creates one occurrence 
   assert.deepEqual(result.state.items[0].tags, [{ label: "work" }]);
 });
 
-test("authorOccurrence stores relationship metadata from the composer transaction", () => {
-  const result = authorOccurrence(
-    baseState(),
-    request({
-      role: "recipient",
-      initialState: "inactive",
-      sourceIds: ["evidence-1", " evidence-1 ", "source-2"],
-      confidence: 0.84,
-      attributes: { amount: 1200, currency: "SEK" },
-    }),
-    dependencies(),
-  );
-
-  const relationship = result.state.relationships[0];
-  assert.equal(relationship.role, "recipient");
-  assert.equal(relationship.initialState, "inactive");
-  assert.deepEqual(relationship.sourceIds, ["evidence-1", "source-2"]);
-  assert.equal(relationship.confidence, 0.84);
-  assert.deepEqual(relationship.attributes, { amount: 1200, currency: "SEK" });
-});
-
-test("occurrence metadata rejects confidence outside the canonical 0–1 range", () => {
-  assert.throws(
-    () =>
-      authorOccurrence(
-        baseState(),
-        request({ confidence: 1.2 }),
-        dependencies(),
-      ),
-    /confidence.*0 to 1/i,
-  );
-
-  assert.throws(
-    () =>
-      updateOccurrence(
-        editableState(),
-        editRequest({ predicate: "meets", confidence: -0.01 }),
-        dependencies(),
-      ),
-    /confidence.*0 to 1/i,
-  );
-});
-
 test("authorOccurrence rejects ambiguous endpoint names instead of guessing", () => {
   const state = baseState();
   state.entities.push({
@@ -359,8 +313,7 @@ test("authorOccurrence rejects unsupported semantic icons before mutation", () =
   assert.equal(state.entities.length, 1);
 });
 
-
-test("updateOccurrence preserves editorial metadata while flagging supported fact edits for review", () => {
+test("updateOccurrence edits the canonical relationship in place and preserves unrepresented metadata", () => {
   const original = editableState();
   const originalRelationship = structuredClone(original.relationships[0]);
   const originalItem = structuredClone(original.items[0]);
@@ -380,16 +333,8 @@ test("updateOccurrence preserves editorial metadata while flagging supported fac
   assert.deepEqual(relationship.semanticMappings, originalRelationship.semanticMappings);
   assert.equal(relationship.initialState, originalRelationship.initialState);
   assert.deepEqual(relationship.sourceIds, originalRelationship.sourceIds);
-  assert.equal(relationship.confidence, null, "material fact edits invalidate prior confidence");
-  assert.deepEqual(relationship.attributes, {
-    ...originalRelationship.attributes,
-    semanticReview: {
-      required: true,
-      reasons: ["predicate-changed"],
-    },
-  });
-  assert.equal(result.semanticReviewRequired, true);
-  assert.deepEqual(result.semanticReviewReasons, ["predicate-changed"]);
+  assert.equal(relationship.confidence, originalRelationship.confidence);
+  assert.deepEqual(relationship.attributes, originalRelationship.attributes);
   assert.deepEqual(
     relationship.time,
     originalRelationship.time,
@@ -397,7 +342,11 @@ test("updateOccurrence preserves editorial metadata while flagging supported fac
   );
 
   const item = result.state.items[0];
-  assert.equal(item.title, "Alice warns Bob", "derived titles follow canonical endpoint/action edits");
+  assert.equal(
+    item.title,
+    "Alice warns Bob",
+    "derived titles follow canonical endpoint/action edits",
+  );
   assert.equal(item.description, originalItem.description);
   assert.deepEqual(item.media, originalItem.media);
   assert.deepEqual(item.presentation, originalItem.presentation);
@@ -406,86 +355,6 @@ test("updateOccurrence preserves editorial metadata while flagging supported fac
   assert.deepEqual(item.extensions, originalItem.extensions);
   assert.deepEqual(item.tags, originalItem.tags);
   assert.deepEqual(item.time, originalItem.time);
-});
-
-test("updateOccurrence edits relationship metadata without manufacturing a semantic fact change", () => {
-  const state = editableState();
-  const result = updateOccurrence(
-    state,
-    editRequest({
-      predicate: "meets",
-      role: "recipient",
-      initialState: "active",
-      sourceIds: ["evidence-b", "source-b"],
-      confidence: 0.91,
-      attributes: { retained: true, reviewedBy: "composer" },
-    }),
-    dependencies(),
-  );
-
-  const relationship = result.state.relationships[0];
-  assert.equal(result.semanticReviewRequired, undefined);
-  assert.equal(relationship.role, "recipient");
-  assert.equal(relationship.initialState, "active");
-  assert.deepEqual(relationship.sourceIds, ["evidence-b", "source-b"]);
-  assert.equal(relationship.confidence, 0.91);
-  assert.deepEqual(relationship.attributes, { retained: true, reviewedBy: "composer" });
-});
-
-test("updateOccurrence invalidates endpoint-bound context when an endpoint changes", () => {
-  const state = editableState();
-  state.entities.push({
-    id: "charlie",
-    name: "Charlie",
-    type: "person",
-    alternateNames: [],
-    sourceIds: [],
-    attributes: {},
-  });
-
-  const result = updateOccurrence(
-    state,
-    editRequest({
-      subject: { name: "@charlie", properties: {} },
-      predicate: "meets",
-    }),
-    dependencies(),
-  );
-
-  const relationship = result.state.relationships[0];
-  assert.equal(relationship.subjectId, "charlie");
-  assert.equal(relationship.subjectContext, undefined);
-  assert.deepEqual(relationship.objectContext, { role: "participant" });
-  assert.deepEqual(relationship.sourceIds, ["source-a"]);
-  assert.equal(relationship.confidence, null);
-  assert.equal(result.semanticReviewRequired, true);
-  assert.deepEqual(result.semanticReviewReasons, ["subject-changed"]);
-  assert.deepEqual(relationship.attributes.semanticReview, {
-    required: true,
-    reasons: ["subject-changed"],
-  });
-});
-
-test("updateOccurrence does not invalidate semantic support for item-only metadata edits", () => {
-  const state = editableState();
-  const originalRelationship = structuredClone(state.relationships[0]);
-
-  const result = updateOccurrence(
-    state,
-    editRequest({
-      predicate: "meets",
-      tags: ["changed"],
-    }),
-    dependencies(),
-  );
-
-  const relationship = result.state.relationships[0];
-  assert.equal(result.semanticReviewRequired, undefined);
-  assert.equal(relationship.confidence, originalRelationship.confidence);
-  assert.deepEqual(relationship.attributes, originalRelationship.attributes);
-  assert.deepEqual(relationship.subjectContext, originalRelationship.subjectContext);
-  assert.deepEqual(relationship.objectContext, originalRelationship.objectContext);
-  assert.deepEqual(result.state.items[0].tags, [{ label: "changed" }]);
 });
 
 test("updateOccurrence updates explicit place, time, category, and tags only for the exact item", () => {
@@ -529,12 +398,7 @@ test("updateOccurrence requires exact chronology context before changing item-le
   const state = editableState({ multipleItems: true });
 
   assert.throws(
-    () =>
-      updateOccurrence(
-        state,
-        editRequest({ itemId: null, tags: ["changed"] }),
-        dependencies(),
-      ),
+    () => updateOccurrence(state, editRequest({ itemId: null, tags: ["changed"] }), dependencies()),
     /multiple chronology items/i,
   );
 
@@ -558,82 +422,6 @@ test("updateOccurrence requires exact chronology context before changing item-le
     result.state.items.find((item) => item.id === "item-b")?.title,
     "Custom chronology title",
     "custom item titles are not overwritten",
-  );
-});
-
-test("updateOccurrence applies canonical time edits to every linked chronology projection", () => {
-  const state = editableState({ multipleItems: true });
-  const replacementTime = {
-    extent: {
-      type: "interval",
-      start: {
-        value: "2026-10-02T09:00:00+02:00",
-        precision: "minute",
-        sourceText: "09:00 Stockholm time",
-        timeZone: "Europe/Stockholm",
-      },
-      end: {
-        value: "2026-10-02T10:30:00+02:00",
-        precision: "minute",
-        sourceText: "10:30 Stockholm time",
-        timeZone: "Europe/Stockholm",
-      },
-      uncertainty: "exact",
-    },
-    kind: "range",
-    startValue: "2026-10-02T09:00:00+02:00",
-    endValue: "2026-10-02T10:30:00+02:00",
-  };
-
-  const result = updateOccurrence(
-    state,
-    editRequest({
-      itemId: null,
-      time: replacementTime,
-    }),
-    dependencies(),
-  );
-
-  assert.deepEqual(result.state.relationships[0].time, replacementTime.extent);
-  for (const itemId of ["item-a", "item-b"]) {
-    const item = result.state.items.find((candidate) => candidate.id === itemId);
-    assert.equal(item?.kind, "range");
-    assert.equal(item?.start, replacementTime.startValue);
-    assert.equal(item?.end, replacementTime.endValue);
-    assert.deepEqual(item?.time, replacementTime.extent);
-  }
-  assert.deepEqual(result.state.items.find((item) => item.id === "item-a")?.tags, [
-    { label: "work" },
-  ]);
-  assert.deepEqual(result.state.items.find((item) => item.id === "item-b")?.tags, [
-    { label: "secondary" },
-  ]);
-});
-
-test("updateOccurrence refuses canonical time edits when a linked chronology record is missing", () => {
-  const state = editableState({ multipleItems: true });
-  state.items = state.items.filter((item) => item.id !== "item-b");
-
-  assert.throws(
-    () =>
-      updateOccurrence(
-        state,
-        editRequest({
-          itemId: null,
-          time: {
-            extent: {
-              type: "instant",
-              start: { value: "2026-10-03", precision: "day" },
-              end: null,
-            },
-            kind: "event",
-            startValue: "2026-10-03",
-            endValue: null,
-          },
-        }),
-        dependencies(),
-      ),
-    /linked to occurrence .* no longer exists/i,
   );
 });
 

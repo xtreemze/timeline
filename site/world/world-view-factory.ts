@@ -119,12 +119,7 @@ function createWorldLayoutControls(
   };
 
   group.append(
-    button(
-      "Arrange relationships",
-      "Arrange relationships",
-      "dag",
-      actions.reorganizeDag,
-    ),
+    button("Arrange relationships", "Arrange relationships", "dag", actions.reorganizeDag),
     button("Settle relationships", "Settle relationships", "refresh", actions.relaxForce),
   );
   return group;

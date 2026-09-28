@@ -1835,7 +1835,7 @@ function occurrenceCompositionForRelationship(
   itemId: string | null,
 ): string {
   const linkedItem = itemId
-    ? state.items.find((item) => String(item.id) === itemId) ?? null
+    ? (state.items.find((item) => String(item.id) === itemId) ?? null)
     : null;
   const category = linkedItem
     ? state.categories.find((candidate) => String(candidate.id) === String(linkedItem.categoryId))
@@ -2133,8 +2133,7 @@ function commitOccurrenceComposer(detail: OccurrenceCommitDetail): void {
       const existingRelationship = state.relationships.find(
         (relationship) => String(relationship.id) === detail.editTarget!.relationshipId,
       );
-      const sentenceUnchanged =
-        detail.text.trim() === detail.editTarget.initialText.trim();
+      const sentenceUnchanged = detail.text.trim() === detail.editTarget.initialText.trim();
       const metadataUnchanged =
         existingRelationship !== undefined &&
         relationshipMetadataIdentity(existingRelationship) ===
@@ -2152,11 +2151,7 @@ function commitOccurrenceComposer(detail: OccurrenceCommitDetail): void {
       const initialTime = composerTimeIdentity(initialDraft.time);
       const nextTime = composerTimeIdentity(detail.draft.time);
       const time =
-        initialTime === nextTime
-          ? undefined
-          : detail.draft.time
-            ? composerTime(detail)
-            : null;
+        initialTime === nextTime ? undefined : detail.draft.time ? composerTime(detail) : null;
       const initialCategory = initialDraft.options.category ?? null;
       const nextCategory = detail.draft.options.category ?? null;
       const categoryName = initialCategory === nextCategory ? undefined : nextCategory;

@@ -43,9 +43,7 @@ function sameSelection(
 ): boolean {
   if (left === null || right === null) return left === right;
   return (
-    left.kind === right.kind &&
-    left.id === right.id &&
-    (left.itemId ?? "") === (right.itemId ?? "")
+    left.kind === right.kind && left.id === right.id && (left.itemId ?? "") === (right.itemId ?? "")
   );
 }
 
