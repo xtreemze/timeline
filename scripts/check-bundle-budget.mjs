@@ -1,6 +1,7 @@
 import { readdir, readFile, stat } from "node:fs/promises";
 
 const MAX_JS_CHUNK_BYTES = 500_000;
+const FORBIDDEN_RUNTIME_IDENTIFIERS = Object.freeze(["WORLD_FLOATING_GRAPH_DETAIL_ZOOM"]);
 const distUrl = new URL("../dist/", import.meta.url);
 const assetsUrl = new URL("./assets/", distUrl);
 const manifestUrl = new URL("./.vite/manifest.json", distUrl);
@@ -11,10 +12,17 @@ const javascriptChunks = assetEntries.filter(
 );
 
 const oversized = [];
+const leakedRuntimeIdentifiers = [];
 for (const entry of javascriptChunks) {
-  const info = await stat(new URL(entry.name, assetsUrl));
+  const chunkUrl = new URL(entry.name, assetsUrl);
+  const [info, source] = await Promise.all([stat(chunkUrl), readFile(chunkUrl, "utf8")]);
   if (info.size > MAX_JS_CHUNK_BYTES) {
     oversized.push({ name: entry.name, bytes: info.size });
+  }
+  for (const identifier of FORBIDDEN_RUNTIME_IDENTIFIERS) {
+    if (source.includes(identifier)) {
+      leakedRuntimeIdentifiers.push({ name: entry.name, identifier });
+    }
   }
 }
 
@@ -22,6 +30,15 @@ if (oversized.length > 0) {
   const detail = oversized.map(({ name, bytes }) => `${name}: ${bytes} bytes`).join("\n");
   throw new Error(
     `Production JavaScript chunks must stay at or below ${MAX_JS_CHUNK_BYTES} bytes:\n${detail}`,
+  );
+}
+
+if (leakedRuntimeIdentifiers.length > 0) {
+  const detail = leakedRuntimeIdentifiers
+    .map(({ name, identifier }) => `${name}: ${identifier}`)
+    .join("\n");
+  throw new Error(
+    `Production bundle contains removed runtime identifiers that can crash lazy modules:\n${detail}`,
   );
 }
 
