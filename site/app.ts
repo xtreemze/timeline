@@ -39,7 +39,7 @@ import {
 import { TimelineEvidence } from "./evidence-store.ts";
 import { TimelineGraphInference } from "./graph-inference.ts";
 import { TimelineInterchangeAdapter } from "./interchange-adapter.ts";
-import { createIcon, ICON_NAMES } from "./event-presentation.ts";
+import { createIcon } from "./event-presentation.ts";
 import { createLocalLlmAgent } from "./local-llm-agent.ts";
 import { createMcpRelayBridge, type McpRelayConnectOptions } from "./mcp-relay.ts";
 import {
