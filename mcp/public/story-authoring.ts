@@ -1,5 +1,9 @@
 import { TimelineSpatial } from "../../site/spatial.ts";
 import { TimelineGraph } from "../../site/timeline-graph.ts";
+import {
+  semanticIconReviewForEntities,
+  type SemanticIconEntityReview,
+} from "../../src/presentation/semantic-icon-inference.ts";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -34,6 +38,7 @@ export type StoryStageResult = {
   unresolved: string[];
   generationNotes: string;
   preflight: StoryProjectPreflight;
+  semanticIcons: readonly SemanticIconEntityReview[];
   verificationRequired: true;
   verificationInstructions: string[];
 };
@@ -70,7 +75,7 @@ The public MCP endpoint is stateless and does not retain the source documents. T
 12. Reuse one canonical relationship for one directed action fact and merge context/provenance instead of creating duplicates or mirrored reverse copies.
 13. Make story.itemIds follow the intended reading order. Also set item.extensions.narrative.storyId when one story is the item's primary narrative.
 14. Use stable human-readable IDs. IDs must be unique across entities, places, chronology items, stories, and relationships.
-15. Stage the complete project with lum.stage_story_project. Repair every preflight error before presenting the result as ready for review.
+15. Stage the complete project with lum.stage_story_project. Repair every preflight error before presenting the result as ready for review. Staging also reports semantic icon provenance for each entity: explicit authored icons, high-confidence inferred suggestions, type fallbacks, unsupported authored values, or no confident icon. Inferred suggestions are advisory review metadata and are never written into the project automatically.
 
 ## Evidence and citations
 
@@ -509,6 +514,23 @@ export function preflightStoryProject(
   };
 }
 
+function storyProjectSemanticIconReview(project: JsonRecord): readonly SemanticIconEntityReview[] {
+  const entities = array(project.entities).flatMap((entry) => {
+    const entity = record(entry);
+    const id = text(entity?.id, 160);
+    if (!entity || !id) return [];
+    return [
+      {
+        id,
+        name: entity.name,
+        type: entity.type,
+        attributes: entity.attributes,
+      },
+    ];
+  });
+  return semanticIconReviewForEntities(entities);
+}
+
 export function stageStoryProject(input: unknown): StoryStageResult {
   const value = record(input) || {};
   const project = record(value.project) || {};
@@ -516,6 +538,7 @@ export function stageStoryProject(input: unknown): StoryStageResult {
   const unresolved = stringList(value.unresolved, 1000, 2000);
   const generationNotes = text(value.generationNotes, 10_000);
   const preflight = preflightStoryProject(project, sources);
+  const semanticIcons = storyProjectSemanticIconReview(project);
 
   return {
     schemaVersion: "lum-story-proposal-v1",
@@ -525,12 +548,13 @@ export function stageStoryProject(input: unknown): StoryStageResult {
     unresolved,
     generationNotes,
     preflight,
+    semanticIcons,
     verificationRequired: true,
     verificationInstructions: [
       "Import/open the complete project JSON in Lūm.",
       "Run timeline.audit_graph against the live project.",
       "Run timeline.validate_project against the live project.",
-      "Review chronology, evidence locators, entities, relationships, dates, places, and unresolved facts before accepting the story as verified.",
+      "Review chronology, evidence locators, entities, relationships, dates, places, unresolved facts, and semantic icon provenance before accepting the story as verified.",
     ],
   };
 }
