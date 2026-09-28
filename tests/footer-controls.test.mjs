@@ -48,6 +48,15 @@ test("footer exposes view controls directly and keeps one primary Edit entry", a
   assert.match(world, /element\.dataset\.viewControl = ""/);
   assert.match(world, /createIcon\(icon, \{ size: 20 \}\)/);
   assert.match(world, /button\("Show whole world", "home"/);
+  assert.match(world, /className = "world-zoom-control"/);
+  assert.match(world, /className = "world-zoom-slider"/);
+  assert.match(world, /slider\.min = String\(WORLD_CAMERA_MIN_ZOOM\)/);
+  assert.match(world, /slider\.max = String\(WORLD_CAMERA_MAX_ZOOM\)/);
+  assert.match(world, /slider\.step = "0\.1"/);
+  assert.match(world, /button\("Zoom out", "zoom-out"/);
+  assert.match(world, /button\("Zoom in", "zoom-in"/);
+  assert.match(world, /#syncZoomControls\(\)/);
+  assert.match(world, /#publishCameraContext\(\)[\s\S]*#syncZoomControls\(\)/);
   assert.match(factory, /element\.className = "toolbar-control world-layout-control"/);
   assert.match(factory, /element\.dataset\.viewControl = ""/);
   assert.match(factory, /createIcon\(icon, \{ size: 20 \}\)/);
@@ -106,6 +115,14 @@ test("narrow toolbar scrolls horizontally instead of hiding direct controls", as
   assert.match(
     css,
     /\.app-footer-view \.world-camera-controls[\s\S]*flex-wrap:\s*nowrap/,
+  );
+  assert.match(
+    css,
+    /\.app-footer-view \.world-zoom-control[\s\S]*grid-template-columns:[\s\S]*var\(--toolbar-control-size\)[\s\S]*var\(--toolbar-control-size\)/,
+  );
+  assert.match(
+    css,
+    /\.app-footer-view \.world-zoom-slider[\s\S]*block-size:\s*var\(--toolbar-control-size\)/,
   );
   assert.doesNotMatch(css, /\.app-view-controls\[popover\]/);
   assert.doesNotMatch(css, /#timeline-view-controls-toggle/);
