@@ -410,7 +410,6 @@ const els = {
   appShell: requiredElement<HTMLElement>("#app-shell"),
   appToolDock: requiredElement<HTMLElement>(".app-tool-dock"),
   occurrenceComposer: requiredElement<LuumOccurrenceComposerElement>("#occurrence-composer"),
-  occurrenceComposerToggle: requiredElement<HTMLButtonElement>("#occurrence-composer-toggle"),
   controlPanel: requiredElement<HTMLElement>("#control-panel"),
   controlPanelClose: requiredElement<HTMLButtonElement>("#control-panel-close"),
   editorToggle: requiredElement<HTMLButtonElement>("#editor-toggle"),
@@ -1718,15 +1717,7 @@ function syncApplicationSurfaces() {
     );
   }
   els.occurrenceComposer.hidden = ui.importReviewOpen;
-els.occurrenceComposer.setEditing(editing);
-  els.occurrenceComposerToggle.setAttribute("aria-expanded", String(els.occurrenceComposer.active));
-  els.occurrenceComposerToggle.setAttribute(
-    "aria-label",
-    els.occurrenceComposer.active ? "Close occurrence composer" : "Compose occurrence",
-  );
-  els.occurrenceComposerToggle.title = els.occurrenceComposer.active
-    ? "Close occurrence composer"
-    : "Compose occurrence";
+  els.occurrenceComposer.setEditing(editing);
   if (els.appToolDock) els.appToolDock.inert = ui.importReviewOpen;
   if (els.title) {
     const titleEditing = ui.editorOpen;
@@ -5950,9 +5941,6 @@ els.occurrenceComposer.setWorldContext(
   request.preventDefault();
 });
 
-els.occurrenceComposerToggle.addEventListener("click", () => {
-  setOccurrenceComposerOpen(!els.occurrenceComposer.active);
-});
 els.occurrenceComposer.addEventListener("occurrencecomposeropenrequest", () => {
   setOccurrenceComposerOpen(true);
 });
