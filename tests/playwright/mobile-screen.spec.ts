@@ -259,6 +259,56 @@ test.describe("Narrow mobile screen contracts", () => {
     await expectNoPageScroll(page, NARROW_PORTRAIT);
   });
 
+  test("focused chronology navigation stays in the first mobile toolbar viewport", async ({ page }) => {
+    const viewport = { width: 320, height: 568 };
+    await page.setViewportSize(viewport);
+    await page.goto("/");
+    await ensureOrientation(page, "portrait");
+
+    const dock = page.locator(".app-tool-dock");
+    await dock.evaluate((element) => {
+      element.scrollLeft = 0;
+    });
+
+    const terminal = page
+      .locator(".timeline-event:not(.timeline-cluster):not(.is-buffered) .timeline-event-terminal:visible")
+      .first();
+    await expect(terminal).toBeVisible();
+    await terminal.click();
+
+    const actions = dock.locator(".app-footer-actions");
+    const navigation = dock.locator(".app-footer-timeline");
+    const view = dock.locator(".app-footer-view");
+    await expect(navigation).toBeVisible();
+    await expect(navigation.locator("#timeline-focus-prev")).toBeVisible();
+    await expect(navigation.locator("#timeline-focus-next")).toBeVisible();
+
+    const layout = await Promise.all(
+      [actions, navigation, view].map((locator) =>
+        locator.evaluate((element) => ({
+          order: Number(getComputedStyle(element).order),
+          rect: element.getBoundingClientRect().toJSON(),
+        })),
+      ),
+    );
+    expect(layout.map((entry) => entry.order)).toEqual([1, 2, 3]);
+
+    const dockBox = await dock.boundingBox();
+    expect(dockBox).not.toBeNull();
+    if (!dockBox) throw new Error("Mobile toolbar has no bounds.");
+    for (const selector of ["#timeline-focus-prev", "#timeline-focus-next"]) {
+      const box = await navigation.locator(selector).boundingBox();
+      expect(box).not.toBeNull();
+      if (!box) continue;
+      expect(box.x).toBeGreaterThanOrEqual(dockBox.x - 1);
+      expect(box.x + box.width).toBeLessThanOrEqual(dockBox.x + dockBox.width + 1);
+      expect(box.width).toBeGreaterThanOrEqual(44);
+      expect(box.height).toBeGreaterThanOrEqual(44);
+    }
+
+    await expectNoPageScroll(page, viewport);
+  });
+
   for (const { label, viewport, orientation } of [
     { label: "portrait", viewport: NARROW_PORTRAIT, orientation: "portrait" as const },
     { label: "landscape", viewport: NARROW_LANDSCAPE, orientation: "landscape" as const },
