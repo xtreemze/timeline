@@ -91,7 +91,7 @@ Example:
 
 ```json
 {
-  "graphContractVersion": "2026-09-21.1",
+  "graphContractVersion": "2026-09-28.1",
   "operations": [
     {
       "op": "upsert",
