@@ -327,10 +327,10 @@
   }
 }
 
-/* Persistent footer control plane.
-   World camera controls live on the physical left, application actions stay centered,
-   and chronology controls live on the physical right. Utility panels end above this
-   plane instead of covering or displacing it. */
+/* Persistent primary command plane.
+   Workspace actions stay centered, while contextual chronology navigation may occupy
+   the physical right only when focus makes it relevant. Dense world/timeline controls
+   live in View rather than competing for permanent footer space. */
 #app-shell > .app-tool-dock.app-footer-bar,
 #presentation-stage:fullscreen > .app-tool-dock.app-footer-bar,
 #app-shell:has(#timeline-view[data-orientation="landscape"]) > .app-tool-dock.app-footer-bar,
@@ -352,14 +352,6 @@
   min-block-size: 0;
 }
 
-.app-footer-world {
-  justify-content: flex-start;
-  overflow-x: auto;
-  overscroll-behavior-inline: contain;
-  scrollbar-width: none;
-}
-
-.app-footer-world::-webkit-scrollbar,
 .app-footer-timeline::-webkit-scrollbar {
   display: none;
 }
@@ -446,42 +438,6 @@
 .app-footer-bar .toolbar-control:has([data-view-control]:disabled) {
   opacity: 0.42;
   cursor: not-allowed;
-}
-
-.app-footer-world {
-  gap: var(--toolbar-control-gap);
-}
-
-.app-footer-world .world-camera-controls,
-.app-footer-world .world-layout-controls {
-  display: flex;
-  flex: 0 0 auto;
-  gap: var(--toolbar-control-gap);
-  margin: 0;
-  padding: 0;
-  border: 0;
-  overflow: visible;
-}
-
-.app-footer-world .world-camera-controls {
-  position: static;
-  inset: auto;
-  z-index: auto;
-  flex-direction: row;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-}
-
-.app-footer-world .world-layout-controls {
-  margin-inline-start: 0.12rem;
-  padding-inline-start: 0.12rem;
-  border-inline-start: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
-}
-
-.app-footer-world .world-camera-control + .world-camera-control {
-  border-block-start-color: transparent;
-  border-inline-start-color: transparent;
 }
 
 .app-footer-timeline.timeline-local-toolbar {
@@ -620,9 +576,8 @@
 }
 
 @media (min-width: 700px) {
-  /* Desktop is not the mobile strip stretched wider. Keep the three semantic
-     zones visually distinct, preserve the centered application actions, and
-     let the edge-owned control groups use the physical edges of the window. */
+  /* Desktop preserves the same hierarchy as mobile rather than revealing
+     secondary controls merely because more width is available. */
   #app-shell > .app-tool-dock.app-footer-bar,
   #presentation-stage:fullscreen > .app-tool-dock.app-footer-bar,
   #app-shell:has(#timeline-view[data-orientation="landscape"]) > .app-tool-dock.app-footer-bar,
@@ -644,20 +599,10 @@
     padding-inline: clamp(0.18rem, 0.35vw, 0.34rem);
   }
 
-  #app-shell .app-footer-bar .app-footer-world,
-  #app-shell .app-footer-bar .app-footer-timeline {
-    scroll-padding-inline: 0.35rem;
-  }
-
-  #app-shell .app-footer-bar .app-footer-world .world-layout-controls {
-    margin-inline-start: clamp(0.28rem, 0.5vw, 0.48rem);
-    padding-inline-start: clamp(0.28rem, 0.5vw, 0.48rem);
-  }
 }
 
 @media (min-width: 1024px) {
-  /* At desktop widths the chronology controls should read as the right-hand
-     counterpart to the world controls instead of clustering around the center. */
+  /* Contextual chronology controls stay at the right edge when present. */
   #app-shell .app-footer-bar .app-footer-timeline.timeline-local-toolbar {
     justify-content: flex-end;
   }
@@ -768,11 +713,6 @@
     max(0.06rem, env(safe-area-inset-right));
 }
 
-#app-shell:has(#occurrence-composer[active]) .app-footer-bar > .app-footer-world {
-  grid-column: 1;
-  grid-row: 2;
-}
-
 #app-shell:has(#occurrence-composer[active]) .app-footer-bar > .app-footer-actions {
   grid-column: 2;
   grid-row: 2;
@@ -792,9 +732,6 @@
     outline-color: Highlight;
   }
 
-  .app-footer-world .world-layout-controls {
-    border-inline-start-color: CanvasText;
-  }
 }
 
 
