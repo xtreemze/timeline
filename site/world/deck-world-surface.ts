@@ -3669,16 +3669,16 @@ export class DeckWorldSurface implements WorldSurface {
     };
 
     const zoomControl = doc.createElement("div");
-    zoomControl.className = "toolbar-compound-control world-zoom-control";
+    zoomControl.className = "toolbar-compound-control toolbar-zoom-control world-zoom-control";
     zoomControl.setAttribute("role", "group");
     zoomControl.setAttribute("aria-label", "World zoom");
 
     const zoomOut = button("Zoom out", "zoom-out", () => this.#zoomBy(-1));
-    zoomOut.classList.add("world-zoom-endpoint-button");
+    zoomOut.classList.add("toolbar-zoom-endpoint-button", "world-zoom-endpoint-button");
 
     const slider = doc.createElement("input");
     slider.type = "range";
-    slider.className = "world-zoom-slider";
+    slider.className = "toolbar-zoom-slider world-zoom-slider";
     slider.dataset.viewControl = "";
     slider.min = String(WORLD_CAMERA_MIN_ZOOM);
     slider.max = String(WORLD_CAMERA_MAX_ZOOM);
@@ -3693,7 +3693,7 @@ export class DeckWorldSurface implements WorldSurface {
     });
 
     const zoomIn = button("Zoom in", "zoom-in", () => this.#zoomBy(1));
-    zoomIn.classList.add("world-zoom-endpoint-button");
+    zoomIn.classList.add("toolbar-zoom-endpoint-button", "world-zoom-endpoint-button");
 
     this.#zoomSlider = slider;
     this.#syncZoomControls();
