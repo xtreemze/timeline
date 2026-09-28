@@ -599,6 +599,21 @@ test.describe("Persistent footer and focus geometry", () => {
       expect(beforeTimeline).not.toBeNull();
       expect(beforeSurface).not.toBeNull();
 
+      const footer = page.locator(".app-footer-bar");
+      const persistentControls = [
+        page.locator("#project-menu-toggle"),
+        page.locator("#editor-toggle"),
+        page.locator("#timeline-browser-toggle"),
+        page.locator("#occurrence-composer"),
+        page.locator("#timeline-orientation-toggle"),
+      ];
+      await expect(page.locator("#occurrence-composer .compact")).toBeVisible();
+      const beforeFooter = await footer.boundingBox();
+      const beforePersistentBoxes = await Promise.all(
+        persistentControls.map((control) => control.boundingBox()),
+      );
+      const beforeScroll = await footer.evaluate((element) => element.scrollLeft);
+
       await terminal.evaluate((button: HTMLButtonElement) => button.click());
       await expect(page.locator("#app-shell")).toHaveClass(/is-event-focused/);
       await expect(page.locator("#timeline-focus-view")).toBeVisible();
@@ -614,8 +629,37 @@ test.describe("Persistent footer and focus geometry", () => {
       await expect(page.locator("#timeline-focus-edit")).toHaveCount(0);
       await expect(page.locator("#editor-toggle")).toHaveAttribute(
         "aria-label",
-        "Edit focused event",
+        "Edit timeline",
       );
+      await expect(page.locator("#editor-toggle")).toHaveAttribute("data-semantic-icon", "edit");
+      await expect(page.locator("#editor-toggle")).toHaveAttribute("aria-pressed", "false");
+      await expect(page.locator("#occurrence-composer .compact")).toBeVisible();
+
+      const afterFooter = await footer.boundingBox();
+      const afterPersistentBoxes = await Promise.all(
+        persistentControls.map((control) => control.boundingBox()),
+      );
+      const afterScroll = await footer.evaluate((element) => element.scrollLeft);
+      expect(beforeFooter).not.toBeNull();
+      expect(afterFooter).not.toBeNull();
+      if (beforeFooter && afterFooter) {
+        expect(Math.abs(afterFooter.x - beforeFooter.x)).toBeLessThanOrEqual(1);
+        expect(Math.abs(afterFooter.y - beforeFooter.y)).toBeLessThanOrEqual(1);
+        expect(Math.abs(afterFooter.width - beforeFooter.width)).toBeLessThanOrEqual(1);
+        expect(Math.abs(afterFooter.height - beforeFooter.height)).toBeLessThanOrEqual(1);
+      }
+      expect(Math.abs(afterScroll - beforeScroll)).toBeLessThanOrEqual(1);
+      for (let index = 0; index < persistentControls.length; index += 1) {
+        const beforeBox = beforePersistentBoxes[index];
+        const afterBox = afterPersistentBoxes[index];
+        expect(beforeBox).not.toBeNull();
+        expect(afterBox).not.toBeNull();
+        if (!beforeBox || !afterBox) continue;
+        expect(Math.abs(afterBox.x - beforeBox.x)).toBeLessThanOrEqual(1);
+        expect(Math.abs(afterBox.y - beforeBox.y)).toBeLessThanOrEqual(1);
+        expect(Math.abs(afterBox.width - beforeBox.width)).toBeLessThanOrEqual(1);
+        expect(Math.abs(afterBox.height - beforeBox.height)).toBeLessThanOrEqual(1);
+      }
 
       const contextActionCount = await focusActions.locator(".timeline-focus-context-action").count();
       expect(contextActionCount).toBe(4);
