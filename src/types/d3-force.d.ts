@@ -37,6 +37,7 @@ declare module "d3-force" {
     id(accessor: (node: NodeDatum) => string | number): this;
     distance(distance: number | ((link: LinkDatum) => number)): this;
     strength(strength: number | ((link: LinkDatum) => number)): this;
+    iterations(iterations: number): this;
   }
 
   export interface ForceManyBody<NodeDatum extends SimulationNodeDatum> {
