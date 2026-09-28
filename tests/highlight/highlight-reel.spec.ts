@@ -516,15 +516,12 @@ async function desktopRoutine(page: Page, sceneName: string) {
   if (sceneName === "01-timeline-navigation") {
     const surface = page.locator(".timeline-surface");
     await expect(surface).toBeVisible();
-    const toolbar = page.locator("#timeline-view-toolbar");
-    await expect(toolbar).toBeVisible();
-    const zoom = toolbar.locator("#timeline-zoom-level");
+    const zoom = page.locator("#timeline-zoom-level");
     const initialZoom = await zoom.inputValue();
 
     await surface.hover();
     await page.mouse.wheel(0, -280);
     await page.waitForTimeout(450);
-    await expect(toolbar).toBeVisible();
     await zoom.fill(initialZoom);
     await surface.focus();
     await page.keyboard.press("ArrowRight");
@@ -585,7 +582,7 @@ async function mobileRoutine(page: Page, sceneName: string) {
     await touchDrag(surface, -48, 0);
     await page.waitForTimeout(350);
     await touchDrag(surface, 48, 0);
-    await expect(page.locator("#timeline-view-toolbar")).toBeVisible();
+    await expect(page.locator("#timeline-view-controls-toggle")).toBeVisible();
     return;
   }
 

@@ -250,8 +250,10 @@ test("occurrence composer is structurally integrated into the persistent footer"
   );
   assert.match(
     shellStyles,
-    /app-footer-world[\s\S]*grid-row:\s*2[\s\S]*app-footer-actions[\s\S]*grid-row:\s*2[\s\S]*app-footer-timeline[\s\S]*grid-row:\s*2/,
+    /app-footer-actions[\s\S]*grid-row:\s*2[\s\S]*app-footer-timeline[\s\S]*grid-row:\s*2/,
   );
+  assert.match(markup, /id="timeline-view-controls-toggle"/);
+  assert.match(markup, /id="timeline-view-controls" class="app-view-controls" popover="auto"/);
 });
 
 test("World application view exposes current camera for immediate composer initialization", async () => {

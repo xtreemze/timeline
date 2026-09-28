@@ -367,7 +367,7 @@ Focused composition is content-first:
 - semantic tags, compact time/range information and provenance remain available without competing with the image/content hierarchy;
 - relationship exploration remains in the persistent graph rather than duplicating a second graph inside detail.
 
-Previous, Next and world-camera commands are timeline-owned controls. They live in the persistent footer rather than inside the detail composition. Previous/Next preserve the focused local scale unless the next target requires additional collision separation. “Zoom to related nodes” and “Fit related nodes” operate on the relationships attached to the focused chronology item through `relationship.itemIds[]`. Small edit affordances may appear beside directly editable detail content; they are shortcuts into the same explicit Edit mode, not inline mutation. Moving navigation and camera actions out of detail keeps the detail surface dedicated to understanding the selected occurrence and keeps controls available in a consistent place as Context/Evidence content changes.
+Previous and Next are contextual chronology controls. They appear in the persistent footer only while an occurrence is focused and preserve the focused local scale unless the next target requires additional collision separation. World camera/layout commands and “Zoom to related nodes” / “Fit related nodes” live in the secondary View utility rather than permanently occupying the dock. The related-node commands operate on the relationships attached to the focused chronology item through `relationship.itemIds[]`. Small edit affordances may appear beside directly editable detail content; they are shortcuts into the same explicit Edit mode, not inline mutation. Moving navigation and camera actions out of detail keeps the detail surface dedicated to understanding the selected occurrence without flattening every command into permanent chrome.
 
 The focused item must not mutate its temporal coordinate or chronology order. Escape or an explicit return action restores the ordinary chronology. Fullscreen may recompose the same shell for the physical viewport, but it must preserve focused detail, timeline context, and graph continuity rather than depending on browser top-layer restoration.
 
@@ -490,11 +490,11 @@ Physical screen orientation never rewrites the timeline orientation.
 
 ### Application-shell ownership
 
-Normal application mode separates persistent application actions, timeline-owned controls, and temporary utility surfaces. None of these may silently resize the presentation merely because a panel opens.
+Normal application mode separates persistent workspace commands, contextual chronology actions, and temporary utility surfaces. None of these may silently resize the presentation merely because a panel opens.
 
-- The global bottom app bar is the persistent control plane and remains anchored to the physical bottom edge regardless of chronology orientation or utility-panel state. World camera controls occupy the left zone, Project/Edit/Browse occupy the centered application zone, and timeline controls occupy the right zone.
-- View belongs to the timeline because orientation, semantic zoom, auto-advance and fullscreen primarily modify chronology/presentation behavior. Its invoker lives in the footer's timeline zone; expanded controls occupy only the complementary world/graph region—above the chronology rail in landscape and to its left in portrait—so View never covers the timeline.
-- Focused Previous, Next and Edit actions join the footer's timeline zone. They appear only while an occurrence is focused and remain outside the Context/Evidence detail surface.
+- The global bottom app bar is the persistent control plane and remains anchored to the physical bottom edge regardless of chronology orientation or utility-panel state. Its primary command set is Project, Edit, Browse, Compose and View. The dock itself must not require horizontal scrolling on narrow mobile viewports.
+- View is the secondary spatial-control utility. Timeline orientation, semantic zoom, auto-advance, fullscreen, world camera controls, world layout controls and specialized analytical utilities live there rather than remaining permanently visible. View opens above the dock without reserving presentation geometry.
+- Focused Previous and Next actions join the footer only while an occurrence is focused. Related-world actions remain in View. Edit continues to reuse the existing explicit editor surface until contextual inspectors replace the legacy editor path.
 - Selecting an occurrence must not resize, move, or otherwise reflow the timeline in either portrait or landscape. Focused detail layers over the complementary world/graph region while chronology geometry remains identical to the unfocused state.
 - Browse is always an overlay utility surface. Opening it never reserves a sidebar column or changes timeline/graph geometry. On phones it occupies the reachable viewport; on wider screens it provides a constrained right-side panel over a scrim. The overlay owns its stacking context and pointer interactions so content beneath cannot intercept input.
 - Edit is fullscreen on compact/mobile viewports because form density benefits from the available area. On wider viewports it becomes a bounded right-side sheet over the unchanged presentation rather than a full-width workspace or a layout-reserving column.
@@ -504,8 +504,8 @@ Normal application mode separates persistent application actions, timeline-owned
 - Viewing is the default application paradigm. Browse, View, event focus, graph inspection and fullscreen presentation are non-mutating.
 - Edit is the only supported transition into item/story/category/graph mutation mode. Entering it closes focused viewing and other large utilities, while Project lifecycle commands such as load, import, export and clear remain available without entering Edit first.
 - The relation graph is a permanent workspace surface rather than a mode. It remains mounted next to the edge-docked timeline in ordinary and fullscreen presentation, including while focused detail is open.
-- Project identity remains visible on the timeline rail. Project actions remain in the application footer; chronology controls remain on the chronology.
-- Every interactive mobile control follows the 44 CSS px coarse-pointer target floor, and utility/detail surfaces remain safe-area aware with no primary-document scrolling.
+- Project identity remains visible on the timeline rail. Project lifecycle actions remain behind the Project command; dense display controls remain behind View.
+- Every interactive mobile control follows the 44 CSS px coarse-pointer target floor, the primary dock never depends on horizontal scrolling for discoverability, and utility/detail surfaces remain safe-area aware with no primary-document scrolling.
 
 ### Focused event presentation
 

@@ -2,6 +2,14 @@ import { expect, test } from "@playwright/test";
 
 test.use({ viewport: { width: 360, height: 780 } });
 
+async function openInvestigation(page) {
+  await page.locator("#timeline-view-controls-toggle").click();
+  const toggle = page.locator("#investigation-workspace-toggle");
+  await expect(toggle).toBeVisible();
+  await toggle.click();
+  return toggle;
+}
+
 async function installReasoningFixture(page) {
   await page.goto("/");
   await page.evaluate(() => {
@@ -206,7 +214,7 @@ test("mobile investigation workspace renders dense alternatives without applicat
   await expect(sheet).toBeHidden();
   await expect(page.locator("#status")).toContainText(/Focused (trajectory context|timeline context)/);
 
-  await page.locator("#investigation-workspace-toggle").click();
+  await openInvestigation(page);
   await page.keyboard.press("Escape");
   await expect(sheet).toBeHidden();
   await expect(toggle).toHaveAttribute("aria-expanded", "false");
@@ -217,7 +225,7 @@ test("line-of-enquiry editor enforces rationale and persists through the app com
   page,
 }) => {
   await installReasoningFixture(page);
-  await page.locator("#investigation-workspace-toggle").click();
+  await openInvestigation(page);
   await page.getByRole("tab", { name: "Enquiries" }).click();
 
   const form = page.locator(".investigation-form");
@@ -256,7 +264,7 @@ test("line-of-enquiry editor enforces rationale and persists through the app com
 
 test("quality and indicator records are editable and remain qualitative", async ({ page }) => {
   await installReasoningFixture(page);
-  await page.locator("#investigation-workspace-toggle").click();
+  await openInvestigation(page);
 
   await page.getByRole("tab", { name: "Quality" }).click();
   const qualityForm = page.locator(".investigation-panel:not([hidden]) .investigation-form");

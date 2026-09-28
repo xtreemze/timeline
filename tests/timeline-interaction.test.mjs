@@ -559,7 +559,7 @@ test("coarse-pointer timeline controls and ranges retain a 44 CSS px interaction
     css,
     /data-orientation="landscape"\] \.timeline-zoom-control input\[type="range"\][\s\S]*height:\s*44px[\s\S]*min-height:\s*44px/,
   );
-  assert.doesNotMatch(css, /timeline-view-toolbar\[popover\]|:popover-open/);
+  assert.match(css, /\.app-view-controls\[popover\]/);
 });
 
 test("focused event detail keeps event semantics compact with explicit image controls", async () => {

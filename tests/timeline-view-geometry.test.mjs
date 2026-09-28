@@ -133,9 +133,10 @@ test("selected events use a shell-owned six-column detail surface with footer-ow
   assert.match(html, /data-world-controls-slot/);
   assert.match(
     html,
-    /id="timeline-view-toolbar" class="app-footer-zone app-footer-timeline timeline-local-toolbar"/,
+    /id="timeline-view-toolbar" class="view-control-group timeline-local-toolbar"/,
   );
-  assert.doesNotMatch(html, /timeline-view-controls-toggle|app-view-controls|app-footer-view-controls/);
+  assert.match(html, /id="timeline-view-controls-toggle"/);
+  assert.match(html, /id="timeline-view-controls" class="app-view-controls" popover="auto"/);
   assert.match(html, /id="timeline-focus-prev"/);
   assert.match(html, /id="timeline-focus-next"/);
   assert.match(html, /id="timeline-related-zoom"/);
@@ -151,10 +152,10 @@ test("selected events use a shell-owned six-column detail surface with footer-ow
   assert.doesNotMatch(js, /timeline-focus-place-panel/);
   assert.match(js, /focusNavigationState\(\)/);
   assert.doesNotMatch(js, /timeline-focus-nav-prev|timeline-focus-nav-next|Edit event/);
-  assert.match(css, /Persistent footer control plane/);
+  assert.match(css, /Persistent primary command plane/);
   assert.match(
     css,
-    /\.app-footer-world \.world-camera-controls[\s\S]*position:\s*static[\s\S]*flex-direction:\s*row/,
+    /\.app-view-controls \.world-camera-controls[\s\S]*flex-direction:\s*row/,
   );
   assert.match(
     css,
