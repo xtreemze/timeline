@@ -1,12 +1,15 @@
 import type { ApplicationSelection } from "../../src/application/selection.ts";
 import { entityId, placeId, relationshipId } from "../../src/domain/ids.ts";
+import type { PlaceId } from "../../src/domain/ids.ts";
 import type { WorldDagLayoutOrientation } from "../../src/layout/world-dag-layout.ts";
 import { D3WorldForceSimulation } from "../../src/layout/d3-world-force-simulation.ts";
 import type { WorldForceLayoutSample } from "../../src/layout/world-force-layout.ts";
 import type { WorldCameraState } from "../../src/layout/world-surface.ts";
-import type { WorldForceSimulationBackend } from "../../src/layout/world-force-simulation.ts";
+import type {
+  WorldForceSimulationBackend,
+  WorldForceTuning,
+} from "../../src/layout/world-force-simulation.ts";
 import { LuumWorldSurfaceElement } from "../components/world-surface-element.ts";
-import { createIcon } from "../event-presentation.ts";
 import { createDeckWorldRuntime, type DeckWorldBindings } from "./deck-world-runtime.ts";
 import { DeckWorldSurface } from "./deck-world-surface.ts";
 import { loadWorldBasemap } from "./world-basemap.ts";
@@ -15,7 +18,11 @@ import {
   type WorldViewModel,
   type WorldViewViewport,
 } from "./world-projection-view.ts";
-import { WorldViewRuntimeController } from "./world-view-controller.ts";
+import {
+  WorldViewRuntimeController,
+  type WorldDagOperatorSettings,
+} from "./world-view-controller.ts";
+import { createWorldLayoutControls } from "./world-layout-inspector.ts";
 
 export interface WorldFrameScheduler {
   request(callback: (timestamp: number) => void): number;
@@ -34,7 +41,8 @@ export interface WorldApplicationView {
   fitContext(): boolean;
   zoomContext(): boolean;
   refreshLayout(): void;
-  reorganizeDag(): boolean;
+  reorganizeDag(settings?: WorldDagOperatorSettings): boolean;
+  setForceTuning(tuning: WorldForceTuning, placeId?: PlaceId): boolean;
   relaxForce(): boolean;
   getCamera(): WorldCameraState;
   destroy(): void;
@@ -86,45 +94,6 @@ function browserScheduler(): WorldFrameScheduler {
   });
 }
 
-function createWorldLayoutControls(
-  doc: Document,
-  actions: {
-    readonly reorganizeDag: () => boolean;
-    readonly relaxForce: () => boolean;
-  },
-): HTMLElement {
-  const group = doc.createElement("div");
-  group.className = "world-layout-controls";
-  group.setAttribute("role", "group");
-  group.setAttribute("aria-label", "Graph layout controls");
-
-  const button = (
-    label: string,
-    title: string,
-    icon: string,
-    action: () => boolean,
-  ): HTMLButtonElement => {
-    const element = doc.createElement("button");
-    element.type = "button";
-    element.className = "toolbar-control world-layout-control";
-    element.dataset.viewControl = "";
-    element.setAttribute("aria-label", label);
-    element.title = title;
-    element.append(createIcon(icon, { size: 20 }));
-    element.addEventListener("click", (event) => {
-      event.stopPropagation();
-      action();
-    });
-    return element;
-  };
-
-  group.append(
-    button("Arrange relationships", "Arrange relationships", "dag", actions.reorganizeDag),
-    button("Settle relationships", "Settle relationships", "refresh", actions.relaxForce),
-  );
-  return group;
-}
-
 class ScheduledWorldProjectionView implements WorldApplicationView {
   readonly #view: WorldProjectionView;
   readonly #runtime: WorldViewRuntimeController;
@@ -137,6 +106,7 @@ class ScheduledWorldProjectionView implements WorldApplicationView {
   #runStartedAt: number | null = null;
   #runTicks = 0;
   #wasDragging = false;
+  #selection: ApplicationSelection | null = null;
   #destroyed = false;
 
   constructor(
@@ -183,7 +153,8 @@ class ScheduledWorldProjectionView implements WorldApplicationView {
 
   setSelection(selection: ApplicationSelection | null): void {
     this.#assertAlive();
-    this.#surface.setSelection(
+    this.#selection = selection;
+    this.#runtime.setSelection(
       selection === null
         ? null
         : selection.kind === "entity"
@@ -192,6 +163,11 @@ class ScheduledWorldProjectionView implements WorldApplicationView {
             ? { kind: "relationship", id: relationshipId(selection.id) }
             : { kind: "place", id: placeId(selection.id) },
     );
+  }
+
+  getSelectedPlaceId(): PlaceId | null {
+    this.#assertAlive();
+    return this.#selection?.kind === "place" ? placeId(this.#selection.id) : null;
   }
 
   setPresentationMode(active: boolean): void {
@@ -219,9 +195,19 @@ class ScheduledWorldProjectionView implements WorldApplicationView {
     this.#view.refreshLayout();
   }
 
-  reorganizeDag(): boolean {
+  reorganizeDag(settings: WorldDagOperatorSettings = {}): boolean {
     this.#assertAlive();
-    const changed = this.#runtime.reorganizeDag();
+    const changed = this.#runtime.reorganizeDag(settings);
+    if (changed) {
+      this.#restartBudget();
+      this.#schedule();
+    }
+    return changed;
+  }
+
+  setForceTuning(tuning: WorldForceTuning, placeId?: PlaceId): boolean {
+    this.#assertAlive();
+    const changed = this.#runtime.setForceTuning(tuning, placeId);
     if (changed) {
       this.#restartBudget();
       this.#schedule();
@@ -398,8 +384,11 @@ export function createWorldViewFactory(options: WorldViewFactoryOptions): WorldV
 
       if (footerSlot && root.ownerDocument) {
         layoutControls = createWorldLayoutControls(root.ownerDocument, {
-          reorganizeDag: () => scheduledView.reorganizeDag(),
+          reorganizeDag: (settings) => scheduledView.reorganizeDag(settings),
           relaxForce: () => scheduledView.relaxForce(),
+          setForceTuning: (tuning, selectedPlaceId) =>
+            scheduledView.setForceTuning(tuning, selectedPlaceId),
+          getSelectedPlaceId: () => scheduledView.getSelectedPlaceId(),
         });
         footerSlot.appendChild(layoutControls);
       }
