@@ -12,6 +12,7 @@ import {
   DeckWorldSurface,
   shouldClusterEntityDatums,
   WORLD_CLOSE_DRAG_CAMERA_LOCK_ZOOM,
+  WORLD_CLUSTER_DETAIL_ZOOM_CEILING,
   WORLD_PICKING_RADIUS_PX,
   worldGraphLabelSize,
   worldLabelCollisionPriority,
@@ -136,6 +137,67 @@ test("narrow mobile detail zoom releases modest clusters even when the readabili
   );
 });
 
+test("clustering ends before maximum zoom at the local-detail handoff", () => {
+  const instances = Array.from({ length: 5 }, (_, index) =>
+    createProjectedWorldInstance({
+      id: worldInstanceId(`terminal-${index}`, `occ-terminal-${index}`),
+      canonicalId: `terminal-${index}`,
+      occurrenceId: `occ-terminal-${index}`,
+      geographicAnchors: [
+        {
+          placeId: "terminal-place",
+          longitude: 18.0686,
+          latitude: 59.3293,
+          sourceAltitude: 0,
+          influence: 1,
+        },
+      ],
+      temporalWeight: 1,
+      visualWeight: 1,
+      retained: false,
+    }),
+  );
+  const edges = Array.from({ length: 20 }, (_, index) =>
+    createProjectedWorldEdge({
+      id: `terminal-edge-${index}`,
+      sourceInstanceId: instances[index % instances.length].id,
+      targetInstanceId: instances[(index + 1) % instances.length].id,
+      temporalWeight: 1,
+      visible: true,
+      retained: false,
+    }),
+  );
+
+  assert.ok(
+    WORLD_CLUSTER_DETAIL_ZOOM_CEILING < WORLD_CAMERA_MAX_ZOOM,
+    "the semantic clustering ceiling must leave further camera zoom available",
+  );
+  assert.deepEqual(
+    clusterTargetPlaceIds(
+      instances,
+      edges,
+      WORLD_CLUSTER_DETAIL_ZOOM_CEILING - 0.1,
+      80,
+      120,
+      "collapsed",
+    ),
+    ["terminal-place"],
+    "an unreadable component may still aggregate immediately before the detail ceiling",
+  );
+  assert.deepEqual(
+    clusterTargetPlaceIds(
+      instances,
+      edges,
+      WORLD_CLUSTER_DETAIL_ZOOM_CEILING,
+      80,
+      120,
+      "collapsed",
+    ),
+    [],
+    "entering local detail must dissolve the cluster while further zoom remains available",
+  );
+});
+
 test("cluster target decisions preserve collapse/expand hysteresis at one zoom", () => {
   const instances = Array.from({ length: 3 }, (_, index) =>
     createProjectedWorldInstance({
@@ -207,9 +269,28 @@ test("pannable mobile overflow remains bounded for high-cardinality clusters", (
   );
 
   assert.deepEqual(
-    clusterTargetPlaceIds(instances, [], 14, DEFAULT_CLUSTER_NODE_RADIUS_PX, 220, "collapsed"),
+    clusterTargetPlaceIds(
+      instances,
+      [],
+      WORLD_CLUSTER_DETAIL_ZOOM_CEILING - 0.1,
+      DEFAULT_CLUSTER_NODE_RADIUS_PX,
+      220,
+      "collapsed",
+    ),
     ["bounded-place"],
-    "detail overflow is not permission to explode a graph above the bounded mobile member count",
+    "high-cardinality topology remains protected until the hard detail ceiling",
+  );
+  assert.deepEqual(
+    clusterTargetPlaceIds(
+      instances,
+      [],
+      WORLD_CLUSTER_DETAIL_ZOOM_CEILING,
+      DEFAULT_CLUSTER_NODE_RADIUS_PX,
+      220,
+      "collapsed",
+    ),
+    [],
+    "the hard detail ceiling wins over cardinality so the user can inspect individual members",
   );
 });
 
@@ -241,7 +322,7 @@ test("nearby dense places still collapse when their combined semantic load excee
   );
 });
 
-test("deep zoom cannot force an intrinsically unreadable local graph open", () => {
+test("dense graphs stay clustered below the hard detail ceiling and open at it", () => {
   const nodeRadiusPx = DEFAULT_CLUSTER_NODE_RADIUS_PX;
   const memberCount = 100;
   const internalEdgeCount = 300;
@@ -281,9 +362,28 @@ test("deep zoom cannot force an intrinsically unreadable local graph open", () =
   });
 
   assert.deepEqual(
-    clusterTargetPlaceIds(instances, edges, 14, nodeRadiusPx, 320, "expanded"),
+    clusterTargetPlaceIds(
+      instances,
+      edges,
+      WORLD_CLUSTER_DETAIL_ZOOM_CEILING - 0.1,
+      nodeRadiusPx,
+      320,
+      "expanded",
+    ),
     ["dense-place"],
-    "zoom is not permission to expand a graph whose projected semantic load cannot fit",
+    "the readability contract may keep even very dense topology aggregated before detail mode",
+  );
+  assert.deepEqual(
+    clusterTargetPlaceIds(
+      instances,
+      edges,
+      WORLD_CLUSTER_DETAIL_ZOOM_CEILING,
+      nodeRadiusPx,
+      320,
+      "expanded",
+    ),
+    [],
+    "detail mode exposes canonical members and delegates spacing to force/pan instead of clustering",
   );
 });
 
