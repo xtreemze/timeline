@@ -5184,15 +5184,9 @@ export class DeckWorldSurface implements WorldSurface {
         visualWeight: entity.visualWeight,
       });
     };
-    const renderedEntityRadiusPx = (instanceId: WorldInstanceId): number => {
-      const entity = entityResult.byId.get(instanceId);
-      if (!entity) return WORLD_ENTITY_MIN_HIT_RADIUS_PX;
-      const markerRadiusPx = worldNodeMarker(this.#entityStyle(entity)).size / 2;
-      return (
-        markerRadiusPx *
-        (this.#dragFlashInstanceId === instanceId ? WORLD_DRAG_PICKUP_FLASH_SCALE : 1)
-      );
-    };
+    const renderedEntityRadiusPx = (instanceId: WorldInstanceId): number =>
+      visibleEntityRadiusPx(instanceId) *
+      (this.#dragFlashInstanceId === instanceId ? WORLD_DRAG_PICKUP_FLASH_SCALE : 1);
     const edgeFallbackColor = (edge: DeckWorldRelationshipDatum): string | undefined => {
       const endpointColor = (entity: DeckWorldEntityDatum | undefined): string | undefined => {
         if (!entity) return undefined;
