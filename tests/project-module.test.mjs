@@ -47,6 +47,14 @@ test("module validation rejects invented envelope fields and wrong collection re
   if (!invalidEnvelope.valid) {
     assert.ok(invalidEnvelope.diagnostics.some((d) => d.path === "/camera"));
   }
+
+  delete parsed.camera;
+  parsed.records[0].camera = { zoom: 4 };
+  const invalidRecord = validateProjectModule(JSON.stringify(parsed));
+  assert.equal(invalidRecord.valid, false);
+  if (!invalidRecord.valid) {
+    assert.ok(invalidRecord.diagnostics.some((d) => d.path === "/records/0/camera"));
+  }
 });
 
 test("module assembly composes canonical collections and must pass whole-project Lūm validation", () => {
