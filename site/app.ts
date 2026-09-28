@@ -3197,6 +3197,18 @@ function renderInferenceDraft() {
           `${Math.round(candidate.confidence * 100)}% confidence`,
         ]),
       );
+      if (candidate.semanticIconSuggestion) {
+        const semanticIcon = document.createElement("span");
+        semanticIcon.className = "inference-semantic-icon-suggestion";
+        semanticIcon.append(
+          presentation.createIcon(candidate.semanticIconSuggestion.icon, { size: 16 }),
+          document.createTextNode(
+            `Suggested semantic icon: ${candidate.semanticIconSuggestion.icon} · inferred · high confidence`,
+          ),
+        );
+        semanticIcon.title = `Advisory presentation suggestion (${candidate.semanticIconSuggestion.reason}); it is not committed automatically.`;
+        row.append(semanticIcon);
+      }
       const support = document.createElement("small");
       support.textContent = `${inferenceSources(candidate.sourceRefs)}${candidate.rationale ? ` · ${candidate.rationale}` : ""}`;
       row.append(support);
