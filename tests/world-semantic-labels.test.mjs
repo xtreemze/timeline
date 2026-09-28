@@ -8,6 +8,7 @@ import {
   directedEdgePathArrowhead,
   relationshipEdgePath,
 } from "../src/layout/world-semantic-presentation.ts";
+import { WORLD_CAMERA_MAX_ZOOM } from "../src/layout/world-spatial-mode.ts";
 import {
   createProjectedWorldEdge,
   createProjectedWorldInstance,
@@ -475,6 +476,46 @@ test("three very near places share one aggregate marker while readable nodes rem
         datum.text.includes("3 nodes"),
     ),
     "the aggregate marker communicates that nearby locations contain nodes",
+  );
+});
+
+test("maximum zoom removes same-place aggregate markers so members are directly inspectable", () => {
+  const h = harness();
+  const instances = Array.from({ length: 5 }, (_, index) =>
+    instance(index, {
+      geographicAnchors: [
+        {
+          placeId: "shared-detail",
+          label: "Shared detail",
+          longitude: 12,
+          latitude: 41,
+          influence: 1,
+        },
+      ],
+    }),
+  );
+  const surface = new DeckWorldSurface({}, h.runtime, {
+    ...WORKING_CAMERA,
+    zoom: WORLD_CAMERA_MAX_ZOOM,
+  });
+  surface.setProjection(createWorldProjection({ instances, edges: [] }));
+
+  const layers = h.lastLayers();
+  const entities = layer(layers, DECK_WORLD_LAYER_IDS.entities);
+  assert.equal(
+    entities.props.data.some((datum) => datum.kind === "cluster"),
+    false,
+    "the terminal camera level must not leave an aggregate cluster with no further zoom action",
+  );
+  assert.equal(
+    entities.props.data.filter((datum) => datum.kind === "entity").length,
+    5,
+    "all bounded same-place members remain directly represented at maximum zoom",
+  );
+  assert.equal(
+    layer(layers, DECK_WORLD_LAYER_IDS.placeIcons).props.data.length,
+    1,
+    "the canonical place remains represented by its single authored place marker",
   );
 });
 
