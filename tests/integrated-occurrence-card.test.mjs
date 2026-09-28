@@ -29,7 +29,7 @@ test("card field selection opens the shared composer at the matching sentence se
     readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/components/occurrence-composer.ts", import.meta.url), "utf8"),
   ]);
-  assert.match(view, /detail: \{ id: item\.id, field \}/);
+  assert.match(view, /detail: \{ id: item\.id, relationshipId: item\.relationshipId, field \}/);
   assert.match(app, /occurrenceComposer\.focusSection\(field\)/);
   assert.match(composer, /composerEditableSections\(this\.value\)/);
   assert.match(composer, /input\.setSelectionRange\(section\.start, section\.end\)/);
@@ -41,7 +41,7 @@ test("direct occurrence activation always requests the composer, including an al
 
   assert.match(
     view,
-    /const requestComposer = \(\): void =>[\s\S]*timelineoccurrenceeditrequest[\s\S]*detail: \{ id: item\.id \}/,
+    /const requestComposer = \(\): void =>[\s\S]*timelineoccurrenceeditrequest[\s\S]*detail: \{ id: item\.id, relationshipId: item\.relationshipId \}/,
   );
   assert.match(
     view,
@@ -57,6 +57,6 @@ test("direct occurrence activation always requests the composer, including an al
   );
   assert.match(
     view,
-    /activateCommittedCluster[\s\S]*timelineoccurrenceeditrequest[\s\S]*detail: \{ id: selectedId \}/,
+    /activateCommittedCluster[\s\S]*timelineoccurrenceeditrequest[\s\S]*relationshipId: selectedItem\?\.relationshipId/,
   );
 });
