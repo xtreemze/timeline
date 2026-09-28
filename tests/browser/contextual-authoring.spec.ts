@@ -295,4 +295,83 @@ test.describe("contextual world authoring certification", () => {
     }));
     expect(afterScroll).toEqual(beforeScroll);
   });
+
+  test("S23-class portrait and landscape keep contextual composer fully contained without document scroll", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "Mobile Chrome",
+      "Run the explicit S23-size certification once on the touch/mobile project.",
+    );
+
+    const cases = [
+      { name: "portrait", width: 360, height: 780 },
+      { name: "landscape", width: 780, height: 360 },
+    ] as const;
+
+    for (const viewport of cases) {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      test.skip(!(await certifyWebGlWorld(page)), "WebGL2 unavailable; WorldSurface is not active.");
+
+      const empty = await discoverEmptyWorldPoint(page);
+      await assertComposerInsideFooter(page);
+
+      const composer = page.locator("#occurrence-composer");
+      const input = composer.locator("input");
+      await expect(input).toHaveAttribute("role", "combobox");
+      await expect(input).toHaveAttribute("aria-expanded");
+      await expect(input).toBeFocused();
+
+      const visualContainment = await page.evaluate(() => {
+        const visual = window.visualViewport;
+        const composer = document.querySelector("#occurrence-composer");
+        const footer = document.querySelector(".app-tool-dock.app-footer-bar");
+        if (!(composer instanceof HTMLElement) || !(footer instanceof HTMLElement)) return null;
+        const composerRect = composer.getBoundingClientRect();
+        const footerRect = footer.getBoundingClientRect();
+        const visualWidth = visual?.width ?? window.innerWidth;
+        const visualHeight = visual?.height ?? window.innerHeight;
+        return {
+          composer: {
+            left: composerRect.left,
+            right: composerRect.right,
+            top: composerRect.top,
+            bottom: composerRect.bottom,
+          },
+          footer: {
+            left: footerRect.left,
+            right: footerRect.right,
+            top: footerRect.top,
+            bottom: footerRect.bottom,
+          },
+          visualWidth,
+          visualHeight,
+          scrollWidth: document.documentElement.scrollWidth,
+          scrollHeight: document.documentElement.scrollHeight,
+        };
+      });
+      if (!visualContainment) throw new Error("S23 contextual authoring geometry is unavailable.");
+
+      expect(visualContainment.composer.left, viewport.name).toBeGreaterThanOrEqual(-1);
+      expect(visualContainment.composer.right, viewport.name).toBeLessThanOrEqual(
+        visualContainment.visualWidth + 1,
+      );
+      expect(visualContainment.composer.top, viewport.name).toBeGreaterThanOrEqual(-1);
+      expect(visualContainment.composer.bottom, viewport.name).toBeLessThanOrEqual(
+        visualContainment.visualHeight + 1,
+      );
+      expect(visualContainment.scrollWidth, viewport.name).toBeLessThanOrEqual(viewport.width + 2);
+      expect(visualContainment.scrollHeight, viewport.name).toBeLessThanOrEqual(
+        viewport.height + 2,
+      );
+
+      await input.press("Escape");
+      await expect(composer).not.toHaveAttribute("active", "");
+      await expect(page.locator(".temporal-graph-canvas")).toBeFocused();
+
+      // Start the next orientation from a settled, closed authoring state.
+      await page.goto("/");
+    }
+  });
+
 });
