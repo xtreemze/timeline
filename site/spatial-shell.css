@@ -487,13 +487,10 @@
 .app-footer-timeline.timeline-local-toolbar {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: flex-end;
   gap: var(--toolbar-control-gap);
   min-inline-size: 0;
-  overflow-x: auto;
-  overflow-y: hidden;
-  overscroll-behavior-inline: contain;
-  scrollbar-width: none;
+  overflow: visible;
 }
 
 .app-footer-timeline.timeline-local-toolbar::-webkit-scrollbar {
@@ -678,14 +675,11 @@
     > .app-tool-dock.app-footer-bar {
     display: flex;
     align-items: center;
-    justify-content: flex-start;
+    justify-content: center;
     gap: var(--toolbar-control-gap);
-    overflow-x: auto;
+    overflow-x: clip;
     overflow-y: hidden;
-    overscroll-behavior-inline: contain;
-    scroll-padding-inline: max(0.35rem, env(safe-area-inset-left));
-    touch-action: pan-x;
-    -webkit-overflow-scrolling: touch;
+    touch-action: manipulation;
     scrollbar-width: none;
   }
 
@@ -701,15 +695,14 @@
 
   #app-shell .app-footer-bar .app-footer-zone {
     flex: 0 0 auto;
-    inline-size: max-content;
-    min-inline-size: max-content;
+    inline-size: auto;
+    min-inline-size: 0;
     max-inline-size: none;
     padding-inline: 0;
     overflow: visible;
     container-type: normal;
   }
 
-  #app-shell .app-footer-bar .app-footer-world,
   #app-shell .app-footer-bar .app-footer-timeline.timeline-local-toolbar {
     overflow: visible;
     overscroll-behavior: auto;
@@ -717,7 +710,7 @@
   }
 
   #app-shell .app-footer-bar .app-footer-actions {
-    justify-content: flex-start;
+    justify-content: center;
     min-inline-size: 0;
     max-inline-size: none;
   }
@@ -885,4 +878,167 @@
 
 .timeline-related-world-action[hidden] {
   display: none;
+}
+
+
+/* Spatial control hierarchy: the dock exposes primary commands only.
+   Dense timeline/world controls live in a transient View surface so mobile
+   never depends on discovering horizontally-scrolled toolbar content. */
+.app-footer-actions {
+  grid-column: 2;
+  justify-content: center;
+}
+
+.app-footer-timeline {
+  grid-column: 3;
+  justify-self: end;
+}
+
+.app-footer-timeline:not(:has(.timeline-context-action:not([hidden]))) {
+  display: none;
+}
+
+.app-view-controls[popover] {
+  position: fixed;
+  z-index: 2100;
+  inset: auto auto calc(var(--workspace-footer-block-size, 64px) + 0.5rem) 50%;
+  transform: translateX(-50%);
+  box-sizing: border-box;
+  inline-size: min(38rem, calc(100vw - 1rem));
+  max-inline-size: calc(100vw - 1rem);
+  max-block-size: min(34rem, calc(100dvh - var(--workspace-footer-block-size, 64px) - 1rem));
+  margin: 0;
+  padding: 0.65rem;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid color-mix(in srgb, var(--line-strong) 82%, transparent);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--paper) 97%, transparent);
+  color: var(--ink);
+  box-shadow: 0 14px 42px color-mix(in srgb, var(--ink) 18%, transparent);
+  backdrop-filter: blur(18px);
+}
+
+.app-view-controls[popover]::backdrop {
+  background: transparent;
+}
+
+.app-view-controls-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.3rem 1rem;
+  align-items: end;
+  padding: 0.1rem 0.15rem 0.6rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
+}
+
+.app-view-controls-header > div {
+  display: grid;
+  gap: 0.08rem;
+}
+
+.app-view-controls-header .kicker {
+  margin: 0;
+}
+
+.app-view-controls-header > small,
+.app-view-control-heading > span {
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.3;
+}
+
+.app-view-control-sections {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.5rem;
+  padding-top: 0.5rem;
+}
+
+.app-view-control-section {
+  min-inline-size: 0;
+  padding: 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--paper-2) 72%, transparent);
+}
+
+.app-view-utility-section {
+  grid-column: 1 / -1;
+}
+
+.app-view-control-heading {
+  display: grid;
+  gap: 0.06rem;
+  margin-block-end: 0.4rem;
+}
+
+.view-control-group,
+.app-view-controls .world-camera-controls,
+.app-view-controls .world-layout-controls {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--toolbar-control-gap);
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.app-view-controls .world-layout-controls {
+  margin-inline-start: 0.2rem;
+  padding-inline-start: 0.3rem;
+  border-inline-start: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+}
+
+.app-view-controls .toolbar-control {
+  position: static;
+  z-index: auto;
+}
+
+#timeline-view-controls-toggle[aria-expanded="true"] {
+  border-color: color-mix(in srgb, var(--line-strong) 82%, transparent);
+  background: var(--paper-2);
+  color: var(--ink);
+}
+
+@media (max-width: 699px) {
+  .app-view-controls[popover] {
+    inset-block-end: calc(var(--workspace-footer-block-size, 64px) + 0.3rem);
+    inline-size: calc(100vw - 0.5rem);
+    max-inline-size: calc(100vw - 0.5rem);
+    max-block-size: calc(100dvh - var(--workspace-footer-block-size, 64px) - 0.6rem);
+    padding: 0.5rem;
+    border-radius: 0.85rem;
+  }
+
+  .app-view-controls-header {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .app-view-controls-header > small {
+    display: none;
+  }
+
+  .app-view-control-sections {
+    grid-template-columns: 1fr;
+  }
+
+  .app-view-utility-section {
+    grid-column: auto;
+  }
+
+  #app-shell .app-footer-bar .app-footer-actions {
+    flex: 0 0 auto;
+  }
+
+  #app-shell .app-footer-bar .app-footer-zone + .app-footer-zone {
+    margin-inline-start: 0.12rem;
+    padding-inline-start: 0.14rem;
+  }
 }
