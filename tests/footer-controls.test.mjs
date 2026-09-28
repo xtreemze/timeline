@@ -30,11 +30,11 @@ test("footer exposes view controls directly and keeps one primary Edit entry", a
   );
   assert.match(
     index,
-    /id="timeline-related-zoom"[^>]*data-view-control[^>]*data-semantic-icon="relation"[^>]*data-semantic-icon-secondary="zoom-in"/,
+    /id="timeline-related-zoom"[^>]*data-view-control[^>]*data-semantic-icon="zoom-in"[^>]*data-semantic-icon-secondary="relation"/,
   );
   assert.match(
     index,
-    /id="timeline-related-fit"[^>]*data-view-control[^>]*data-semantic-icon="relation"[^>]*data-semantic-icon-secondary="fit"/,
+    /id="timeline-related-fit"[^>]*data-view-control[^>]*data-semantic-icon="fit"[^>]*data-semantic-icon-secondary="relation"/,
   );
 
   const footerStart = index.indexOf('<nav class="app-tool-dock app-footer-bar"');
@@ -46,11 +46,11 @@ test("footer exposes view controls directly and keeps one primary Edit entry", a
 
   assert.match(world, /element\.className = "toolbar-control world-camera-control"/);
   assert.match(world, /element\.dataset\.viewControl = ""/);
-  assert.match(world, /createCompoundIcon\("world", icon, \{ size: 20 \}\)/);
+  assert.match(world, /createCompoundIcon\(icon, "world", \{ size: 20 \}\)/);
   assert.match(world, /button\("Show whole globe", "world"/);
   assert.match(factory, /element\.className = "toolbar-control world-layout-control"/);
   assert.match(factory, /element\.dataset\.viewControl = ""/);
-  assert.match(factory, /createCompoundIcon\("world", icon, \{ size: 20 \}\)/);
+  assert.match(factory, /createCompoundIcon\(icon, "world", \{ size: 20 \}\)/);
   assert.match(factory, /"dag",[\s\S]*actions\.reorganizeDag/);
   assert.match(factory, /"force",[\s\S]*actions\.relaxForce/);
 });
@@ -121,10 +121,10 @@ test("toolbar compound icon contract preserves scoped meaning and proportional o
     readFile(shellUrl, "utf8"),
   ]);
 
-  assert.match(index, /id="editor-toggle"[^>]*data-semantic-icon="timeline"[^>]*data-semantic-icon-secondary="edit"/);
-  assert.match(index, /id="timeline-browser-toggle"[^>]*data-semantic-icon="timeline"[^>]*data-semantic-icon-secondary="search"/);
-  assert.match(index, /id="timeline-orientation-toggle"[^>]*data-semantic-icon="timeline"[^>]*data-semantic-icon-secondary="portrait"/);
-  assert.match(index, /id="timeline-auto-toggle"[^>]*data-semantic-icon="timeline"[^>]*data-semantic-icon-secondary="play"/);
+  assert.match(index, /id="editor-toggle"[^>]*data-semantic-icon="edit"[^>]*data-semantic-icon-secondary="timeline"/);
+  assert.match(index, /id="timeline-browser-toggle"[^>]*data-semantic-icon="search"[^>]*data-semantic-icon-secondary="timeline"/);
+  assert.match(index, /id="timeline-orientation-toggle"[^>]*data-semantic-icon="portrait"[^>]*data-semantic-icon-secondary="timeline"/);
+  assert.match(index, /id="timeline-auto-toggle"[^>]*data-semantic-icon="play"[^>]*data-semantic-icon-secondary="timeline"/);
   assert.match(presentation, /export function createCompoundIcon/);
   assert.match(presentation, /const primarySize = Math\.max\(12, Math\.round\(size \* 0\.86\)\)/);
   assert.match(presentation, /secondary\.setAttribute\("stroke-width",[\s\S]*primarySize[\s\S]*secondarySize/);
