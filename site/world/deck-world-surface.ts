@@ -3200,7 +3200,7 @@ export class DeckWorldSurface implements WorldSurface {
 
         this.#setTouchDragState("active");
         this.#flashDragPickup(entityHit.worldInstanceId);
-        this.setSelection(Object.freeze({ kind: "entity" as const, id: entityHit.entityId }));
+        this.#setUserSelection(Object.freeze({ kind: "entity" as const, id: entityHit.entityId }));
         void pulseHaptic("drag");
       }, 1);
     }, WORLD_TOUCH_HOLD_MS);
@@ -3404,6 +3404,22 @@ export class DeckWorldSurface implements WorldSurface {
     });
   }
 
+  #setUserSelection(selection: WorldSelection | null): boolean {
+    const changed =
+      selection === null
+        ? this.#selection !== null
+        : !selectionEquals(selection, this.#selection);
+    if (!changed) return false;
+    this.setSelection(selection);
+    this.#container.dispatchEvent?.(
+      new CustomEvent("worldselectionchange", {
+        bubbles: true,
+        detail: { selection: this.#selection },
+      }),
+    );
+    return true;
+  }
+
   #selectionFromPickingInfo(info: DeckRuntimePickingInfo): WorldSelection | null {
     const hit = worldHitFromPicking(info);
     if (
@@ -3445,7 +3461,7 @@ export class DeckWorldSurface implements WorldSurface {
       const [placeId] = placeIds;
       if (placeIds.length === 1 && placeId) {
         const next = { kind: "place", id: placeId } as const;
-        this.setSelection(selectionEquals(next, this.#selection) ? null : next);
+        this.#setUserSelection(selectionEquals(next, this.#selection) ? null : next);
       } else {
         this.#revealClusterPlaces(placeIds);
         this.#focusCluster(cluster, clusterMemberCountFromPicking(info));
@@ -3455,9 +3471,7 @@ export class DeckWorldSurface implements WorldSurface {
     }
     const next = this.#selectionFromPickingInfo(info);
     const toggled = next !== null && selectionEquals(next, this.#selection) ? null : next;
-    const changed =
-      toggled === null ? this.#selection !== null : !selectionEquals(toggled, this.#selection);
-    this.setSelection(toggled);
+    const changed = this.#setUserSelection(toggled);
     if (changed) void pulseHaptic("selection");
   };
 
@@ -3650,7 +3664,7 @@ export class DeckWorldSurface implements WorldSurface {
     this.#loadAppFont();
     this.#accessibleMirror = this.#liveRegion
       ? WorldAccessibleMirror.create(this.#container, {
-          setSelection: (selection) => this.setSelection(selection),
+          setSelection: (selection) => this.#setUserSelection(selection),
           focusSelection: (selection) => {
             if (selection.kind === "entity") this.focusEntity(selection.id);
             else if (selection.kind === "relationship") this.focusOccurrence(selection.id);
