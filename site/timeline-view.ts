@@ -3355,7 +3355,7 @@ export class TimelineViewController {
 
     const focusedId = this.focusedId;
     for (const candidate of this.scene.values()) {
-      if (candidate.item.id !== focusedId) candidate.node.setExpanded(false);
+      candidate.node.setExpanded(false);
     }
 
     if (!focusedId) {
@@ -3368,25 +3368,13 @@ export class TimelineViewController {
     const record = this.scene.get(occurrenceSceneKey(focusedId));
     if (!record) return;
     const presentationState = this.resolveFocusedPresentation();
-    const expanded = presentationState === "expanded";
-    record.node.setExpanded(expanded);
     this.root.dataset.focusPresentation = presentationState;
 
-    // The old shell-owned focus surface stays mounted only as a migration
-    // boundary. The normal occurrence-detail path is now the retained card.
+    // The timeline retains only the temporal anchor. Occurrence detail,
+    // context/media and authoring are rendered by the persistent composer.
+    // Keep both legacy detail hosts inert even if older callers attempt an
+    // expanded presentation state.
     this.hideLegacyFocusView(true);
-
-    const detailHost = record.node.detailHost;
-    if (detailHost) detailHost.dataset.presentationSurface = "card";
-    if (expanded && detailHost) {
-      const needsRender =
-        detailHost.dataset.occurrenceId !== record.item.id || detailHost.childElementCount === 0;
-      if (needsRender) {
-        this.renderFocus(record.item, detailHost);
-        detailHost.dataset.occurrenceId = record.item.id;
-      }
-      this.syncExpandedDetailGeometry(record, detailHost);
-    }
 
     if (presentationState !== this.lastFocusPresentation) {
       this.lastFocusPresentation = presentationState;
