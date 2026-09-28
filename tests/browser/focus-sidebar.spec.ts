@@ -185,6 +185,67 @@ test("composer opens from selected context without dismissing focus or activatin
   await expect(focus).toBeVisible();
 });
 
+test("occurrence sentence sections move the single composer into the retained card", async ({
+  page,
+}) => {
+  await page.locator("#load-sample").evaluate((button: HTMLButtonElement) => button.click());
+  const terminals = page.locator(
+    "#timeline-view .timeline-event:not(.timeline-cluster) .timeline-event-terminal:visible",
+  );
+  const count = Math.min(await terminals.count(), 16);
+  let focus: Locator | null = null;
+  let segment: Locator | null = null;
+
+  for (let index = 0; index < count; index += 1) {
+    const terminal = terminals.nth(index);
+    await terminal.evaluate((button: HTMLButtonElement) => button.click());
+    await terminal.evaluate((button: HTMLButtonElement) => button.click());
+    const card = terminal.locator("xpath=ancestor::luum-event-card[1]");
+    const candidateFocus = card.locator(".timeline-event-detail");
+    const candidateSegment = candidateFocus.locator(".timeline-focus-composition-segment").first();
+    if (await candidateSegment.count()) {
+      focus = candidateFocus;
+      segment = candidateSegment;
+      break;
+    }
+  }
+
+  expect(focus).not.toBeNull();
+  expect(segment).not.toBeNull();
+  if (!focus || !segment) throw new Error("Sample must expose an editable occurrence composition.");
+
+  await expect(focus).toBeVisible();
+  const sectionKind = await segment.getAttribute("data-composer-section-kind");
+  const expectedText = (await segment.textContent())?.trim() ?? "";
+  expect(sectionKind).toBeTruthy();
+  expect(expectedText).not.toBe("");
+
+  await segment.click();
+
+  const composer = page.locator("#occurrence-composer");
+  const cardHost = focus.locator("[data-occurrence-composer-host]");
+  await expect(cardHost).toBeVisible();
+  await expect(cardHost.locator("#occurrence-composer")).toHaveCount(1);
+  await expect(page.locator("luum-occurrence-composer")).toHaveCount(1);
+  await expect(page.getByRole("combobox")).toHaveCount(1);
+  await expect(composer).toHaveAttribute("data-host", "card");
+  await expect(page.locator(".occurrence-composer-proxy")).toBeVisible();
+
+  const selection = await composer.locator("input").evaluate((input: HTMLInputElement) => ({
+    value: input.value,
+    start: input.selectionStart,
+    end: input.selectionEnd,
+  }));
+  expect(selection.start).not.toBeNull();
+  expect(selection.end).not.toBeNull();
+  expect(selection.value.slice(selection.start ?? 0, selection.end ?? 0)).toBe(expectedText);
+
+  await composer.locator("input").press("Escape");
+  await expect(composer).not.toHaveAttribute("active", "");
+  await expect(composer).toHaveAttribute("data-host", "footer");
+  await expect(page.locator(".occurrence-composer-proxy")).toBeHidden();
+});
+
 test("clicking the selected card keeps its attached detail open", async ({ page }) => {
   const terminal = await ensureSample(page);
   const focus = await focusOccurrence(page);
