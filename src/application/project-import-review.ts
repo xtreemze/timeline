@@ -132,21 +132,55 @@ export function stageProjectImportReview<TProject>(
 ): StagedProjectImport<TProject> | null {
   if (!isVerificationRequiredStoryProposal(input)) return null;
 
-  const normalized = dependencies.normalize(cloneValue(input.project));
-  const validation = dependencies.validate?.(cloneValue(normalized)) ?? {
-    valid: true,
-    errors: [],
-    warnings: [],
-  };
   const preflight = envelopePreflight(input);
-  const errors = unique([...strings(preflight.errors), ...(validation.errors ?? [])]);
-  const warnings = unique([...strings(preflight.warnings), ...(validation.warnings ?? [])]);
+  const errors = strings(preflight.errors);
+  const warnings = strings(preflight.warnings);
+  const rawProject = cloneValue(input.project) as unknown as TProject;
+  let normalized = rawProject;
+  let validation: ProjectImportValidation = { valid: true, errors: [], warnings: [] };
+
+  try {
+    normalized = dependencies.normalize(cloneValue(input.project));
+  } catch (error) {
+    errors.push(
+      error instanceof Error ? error.message : "The proposed project could not be normalized.",
+    );
+  }
+
+  if (errors.length === 0 && dependencies.validate) {
+    try {
+      validation = dependencies.validate(cloneValue(normalized));
+    } catch (error) {
+      validation = {
+        valid: false,
+        errors: [
+          error instanceof Error ? error.message : "The proposed project could not be validated.",
+        ],
+        warnings: [],
+      };
+    }
+  }
+
+  errors.push(...(validation.errors ?? []));
+  warnings.push(...(validation.warnings ?? []));
+  if (preflight.valid === false && errors.length === 0) {
+    errors.push("Public proposal preflight reported that the project needs repair.");
+  }
+  if (input.status === "needs-repair" && errors.length === 0) {
+    errors.push("The generated proposal is marked as needing repair.");
+  }
+
+  const uniqueErrors = unique(errors);
+  const uniqueWarnings = unique(warnings);
   const sources = records(input.sources);
 
   return {
     schemaVersion: PROJECT_IMPORT_REVIEW_SCHEMA_VERSION,
     sourceSchemaVersion: STORY_PROPOSAL_SCHEMA_VERSION,
-    status: errors.length === 0 && validation.valid ? "ready-for-user-verification" : "needs-repair",
+    status:
+      uniqueErrors.length === 0 && validation.valid
+        ? "ready-for-user-verification"
+        : "needs-repair",
     verificationRequired: true,
     project: cloneValue(normalized),
     fingerprint: fingerprint(normalized),
@@ -155,8 +189,8 @@ export function stageProjectImportReview<TProject>(
     generationNotes:
       typeof input.generationNotes === "string" ? input.generationNotes.trim() : "",
     verificationInstructions: Object.freeze(strings(input.verificationInstructions)),
-    errors: Object.freeze(errors),
-    warnings: Object.freeze(warnings),
+    errors: Object.freeze(uniqueErrors),
+    warnings: Object.freeze(uniqueWarnings),
     summary: Object.freeze({
       stories: collectionCount(normalized, "stories"),
       items: collectionCount(normalized, "items"),
