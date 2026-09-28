@@ -3215,24 +3215,9 @@ export class DeckWorldSurface implements WorldSurface {
       eventTimeStamp: touchEventTimeStamp(event),
     });
 
-    if (this.#authoringContextPointerId === touch.pointerId) {
-      event.preventDefault?.();
-      this.#touchDrag.release(touch.pointerId);
-      this.#clearTouchHoldTimer();
-      this.#authoringContextPointerId = null;
-      this.#setTouchDragState(null);
-      // As with node dragging, deck saw the initial pointerdown and must see
-      // the terminal pointerup so it cannot retain a phantom touch contact.
-      return;
-    }
-
-    if (
-      this.#authoringContextPointerId !== null &&
-      touch.pointerId !== this.#authoringContextPointerId
-    ) {
+    if (this.#authoringContextPointerId !== null) {
       event.preventDefault?.();
       event.stopPropagation?.();
-      this.#touchDrag.release(touch.pointerId);
       return;
     }
 
@@ -3240,12 +3225,6 @@ export class DeckWorldSurface implements WorldSurface {
       event.preventDefault?.();
       event.stopPropagation?.();
       this.#updateTouchEntityDrag(touch.pointerId, touch.point);
-      return;
-    }
-
-    if (this.#authoringContextPointerId === touch.pointerId) {
-      event.preventDefault?.();
-      event.stopPropagation?.();
       return;
     }
 
