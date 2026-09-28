@@ -943,6 +943,205 @@ export function toLumInterchange(
 }
 
 
+export interface LumRuntimeProjectionOptions {
+  readonly title?: string;
+}
+
+export interface LumRuntimeProjectionResult {
+  readonly timeline: any;
+  readonly validation: ReturnType<typeof validateProjectInterchange>;
+}
+
+function canonicalTemporalValue(endpoint: unknown): string | null {
+  if (!endpoint || typeof endpoint !== "object" || Array.isArray(endpoint)) return null;
+  const record = endpoint as Record<string, unknown>;
+  for (const key of ["value", "iso"]) {
+    const value = record[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return null;
+}
+
+function canonicalOccurrenceToRuntimeItem(occurrence: any, fallbackCategoryId: string): any {
+  const time = occurrence?.time;
+  const start = canonicalTemporalValue(time?.start);
+  if (!start) {
+    throw new Error(
+      `Canonical occurrence ${String(occurrence?.id ?? "")} has no temporal start that the legacy timeline runtime can display.`,
+    );
+  }
+  const kind = time?.type === "interval" ? "range" : "event";
+  const end = kind === "range" ? canonicalTemporalValue(time?.end) : null;
+  if (kind === "range" && !end) {
+    throw new Error(
+      `Canonical occurrence ${String(occurrence?.id ?? "")} is an open interval that the legacy timeline runtime cannot display without inventing an end.`,
+    );
+  }
+  const attributes =
+    occurrence?.attributes && typeof occurrence.attributes === "object" && !Array.isArray(occurrence.attributes)
+      ? structuredClone(occurrence.attributes)
+      : {};
+  const categoryId =
+    typeof attributes.categoryId === "string" && attributes.categoryId.trim()
+      ? attributes.categoryId
+      : fallbackCategoryId;
+  return {
+    id: String(occurrence.id),
+    kind,
+    start,
+    end,
+    time: structuredClone(time),
+    title:
+      typeof occurrence.title === "string" && occurrence.title.trim()
+        ? occurrence.title
+        : String(occurrence.id),
+    description: typeof attributes.description === "string" ? attributes.description : "",
+    categoryId,
+    evidenceIds: Array.isArray(occurrence.sourceIds) ? [...occurrence.sourceIds] : [],
+    ...(Array.isArray(attributes.media) ? { media: structuredClone(attributes.media) } : {}),
+    ...(Array.isArray(attributes.tags) ? { tags: structuredClone(attributes.tags) } : {}),
+    ...(attributes.presentation && typeof attributes.presentation === "object"
+      ? { presentation: structuredClone(attributes.presentation) }
+      : {}),
+    ...(Array.isArray(attributes.relationChanges)
+      ? { relationChanges: structuredClone(attributes.relationChanges) }
+      : {}),
+    ...(attributes.extensions && typeof attributes.extensions === "object"
+      ? { extensions: structuredClone(attributes.extensions) }
+      : {}),
+  };
+}
+
+function canonicalRelationshipToRuntime(relationship: any): any {
+  const attributes =
+    relationship?.attributes &&
+    typeof relationship.attributes === "object" &&
+    !Array.isArray(relationship.attributes)
+      ? structuredClone(relationship.attributes)
+      : {};
+  const initialState =
+    attributes.legacyInitialState === "active" || attributes.legacyInitialState === "inactive"
+      ? attributes.legacyInitialState
+      : undefined;
+  delete attributes.legacyInitialState;
+  return {
+    ...structuredClone(relationship),
+    ...(initialState ? { initialState } : {}),
+    attributes,
+  };
+}
+
+function canonicalPlaceToRuntime(place: any): any {
+  const attributes =
+    place?.attributes && typeof place.attributes === "object" && !Array.isArray(place.attributes)
+      ? structuredClone(place.attributes)
+      : {};
+  const runtime: Record<string, any> = {
+    id: String(place.id),
+    name: place.name,
+    geometry: structuredClone(place.geometry),
+    ...(place.geographicIdentifier ? { geographicIdentifier: place.geographicIdentifier } : {}),
+    ...(place.address ? { address: place.address } : {}),
+    sourceIds: Array.isArray(place.sourceIds) ? [...place.sourceIds] : [],
+    attributes,
+  };
+  for (const key of ["crs", "radiusMeters", "icon", "markerShape", "style"]) {
+    if (attributes[key] !== undefined) runtime[key] = structuredClone(attributes[key]);
+  }
+  return runtime;
+}
+
+function canonicalSourceToRuntimeEvidence(source: any): any {
+  return {
+    id: String(source.id),
+    type: typeof source.kind === "string" ? source.kind : "source",
+    title: typeof source.title === "string" ? source.title : String(source.id),
+    ...(typeof source.sourceName === "string" ? { sourceName: source.sourceName } : {}),
+    ...(typeof source.note === "string" ? { note: source.note } : {}),
+    ...(typeof source.publishedAt === "string" ? { publishedAt: source.publishedAt } : {}),
+    ...(typeof source.url === "string" ? { url: source.url } : {}),
+    ...(source.attributes && typeof source.attributes === "object"
+      ? { attributes: structuredClone(source.attributes) }
+      : {}),
+  };
+}
+
+export function lumInterchangeToTimeline(
+  input: unknown,
+  options: LumRuntimeProjectionOptions = {},
+): LumRuntimeProjectionResult {
+  let serialized: string;
+  try {
+    serialized = typeof input === "string" ? input : JSON.stringify(input);
+  } catch {
+    throw new Error("Canonical Lūm project could not be serialized for runtime projection.");
+  }
+  const validation = validateProjectInterchange(serialized);
+  if (!validation.valid) {
+    throw new Error(
+      `Canonical Lūm project cannot enter the timeline runtime: ${validation.diagnostics
+        .map((finding) => `${finding.path || "/"}: ${finding.message}`)
+        .join(" ")}`,
+    );
+  }
+
+  const snapshot = validation.snapshot;
+  const project = snapshot.project;
+  const categories = (project.categories ?? []).map((category: any) => ({
+    id: String(category.id),
+    name: category.name,
+    color: category.color ?? "#667085",
+    ...(category.attributes && Object.keys(category.attributes).length
+      ? { extensions: structuredClone(category.attributes) }
+      : {}),
+  }));
+  const fallbackCategoryId = categories[0]?.id ?? "uncategorized";
+  const items = (project.occurrences ?? []).map((occurrence: any) =>
+    canonicalOccurrenceToRuntimeItem(occurrence, fallbackCategoryId),
+  );
+  if (categories.length === 0 && items.length > 0) {
+    categories.push({
+      id: fallbackCategoryId,
+      name: "Uncategorized",
+      color: "#667085",
+    });
+  }
+
+  const timeline = {
+    version: 2,
+    title:
+      options.title?.trim() ||
+      (project.stories?.length === 1 ? project.stories[0]?.title : "") ||
+      snapshot.projectKey,
+    categories,
+    items,
+    stories: (project.stories ?? []).map((story: any) => ({
+      id: String(story.id),
+      title: story.title,
+      description: story.description ?? "",
+      itemIds: Array.isArray(story.occurrenceIds) ? [...story.occurrenceIds] : [],
+      placeIds: Array.isArray(story.placeIds) ? [...story.placeIds] : [],
+      ...(story.attributes && Object.keys(story.attributes).length
+        ? { extensions: structuredClone(story.attributes) }
+        : {}),
+    })),
+    entities: structuredClone(project.entities),
+    places: (project.places ?? []).map(canonicalPlaceToRuntime),
+    relationships: project.relationships.map(canonicalRelationshipToRuntime),
+    evidence: (project.sources ?? []).map(canonicalSourceToRuntimeEvidence),
+    custodyActions: [],
+    reasoning: {},
+    extensions: {
+      canonicalInterchange: {
+        projectKey: snapshot.projectKey,
+        revision: snapshot.revision,
+        schemaVersion: project.schemaVersion,
+      },
+    },
+  };
+  return Object.freeze({ timeline, validation });
+}
+
 // Export public API as frozen object for backward compatibility
 const TimelineInterchangeAdapterObj = {
   FORMAT,
@@ -952,6 +1151,7 @@ const TimelineInterchangeAdapterObj = {
   isLikelyInterchange,
   toLumInterchange,
   timelineToLumInterchange,
+  lumInterchangeToTimeline,
 } as const;
 
 export const TimelineInterchangeAdapter = Object.freeze(TimelineInterchangeAdapterObj);
