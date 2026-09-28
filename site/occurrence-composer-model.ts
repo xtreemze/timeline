@@ -561,7 +561,11 @@ export function occurrenceComposerSuggestions(
     );
   }
 
-  if (completionStage === "subject" || completionStage === "predicate" || completionStage === "object") {
+  if (
+    completionStage === "subject" ||
+    completionStage === "predicate" ||
+    completionStage === "object"
+  ) {
     return Object.freeze([]);
   }
 
