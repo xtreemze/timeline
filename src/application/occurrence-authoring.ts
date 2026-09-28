@@ -28,6 +28,11 @@ export interface OccurrenceAuthoringRequest<TExtent = unknown> {
   readonly categoryName?: string;
   readonly tags: readonly string[];
   readonly activeStoryId?: string | null;
+  readonly role?: string | null;
+  readonly initialState?: "active" | "inactive";
+  readonly sourceIds?: readonly string[];
+  readonly confidence?: number | null;
+  readonly attributes?: Readonly<Record<string, unknown>>;
 }
 
 interface AuthoringEntity {
@@ -118,6 +123,12 @@ export interface OccurrenceUpdateRequest<TExtent = unknown> {
    * undefined preserves tags; an empty array explicitly clears them.
    */
   readonly tags?: readonly string[];
+  /** undefined preserves the existing role; null or blank clears it. */
+  readonly role?: string | null;
+  readonly initialState?: "active" | "inactive";
+  readonly sourceIds?: readonly string[];
+  readonly confidence?: number | null;
+  readonly attributes?: Readonly<Record<string, unknown>>;
 }
 
 export interface OccurrenceAuthoringDependencies<
@@ -163,6 +174,14 @@ export interface OccurrenceAuthoringResult<TState> {
 
 function normalizedName(value: string): string {
   return value.trim().toLocaleLowerCase();
+}
+
+function normalizeConfidence(value: number | null | undefined): number | null {
+  if (value === null || value === undefined) return null;
+  if (!Number.isFinite(value) || value < 0 || value > 1) {
+    throw new Error("Confidence must be a finite number from 0 to 1.");
+  }
+  return value;
 }
 
 function resolveEntity<TState extends OccurrenceAuthoringState<TExtent>, TExtent>(
@@ -413,13 +432,14 @@ export function authorOccurrence<TExtent, TState extends OccurrenceAuthoringStat
     subjectId: subject.id,
     objectId: object.id,
     predicate: predicate.slice(0, 120),
+    ...(request.role?.trim() ? { role: request.role.trim().slice(0, 120) } : {}),
     placeId: place.id,
     itemIds: [itemId],
-    initialState: "active",
+    initialState: request.initialState === "inactive" ? "inactive" : "active",
     time: request.time.extent,
-    sourceIds: [],
-    confidence: null,
-    attributes: {},
+    sourceIds: [...new Set((request.sourceIds ?? []).map((id) => id.trim()).filter(Boolean))],
+    confidence: normalizeConfidence(request.confidence),
+    attributes: { ...(request.attributes ?? {}) },
   };
 
   const duplicate = dependencies.findDuplicateRelationship(
@@ -589,6 +609,23 @@ export function updateOccurrence<TExtent, TState extends OccurrenceAuthoringStat
     objectId: object.id,
     predicate: nextPredicate,
   };
+  if (request.role !== undefined) {
+    const role = request.role?.trim() ?? "";
+    if (role) next.role = role.slice(0, 120);
+    else delete next.role;
+  }
+  if (request.initialState !== undefined) {
+    next.initialState = request.initialState === "inactive" ? "inactive" : "active";
+  }
+  if (request.sourceIds !== undefined) {
+    next.sourceIds = [...new Set(request.sourceIds.map((id) => id.trim()).filter(Boolean))];
+  }
+  if (request.confidence !== undefined) {
+    next.confidence = normalizeConfidence(request.confidence);
+  }
+  if (request.attributes !== undefined) {
+    next.attributes = { ...request.attributes };
+  }
   if (subjectChanged) delete next.subjectContext;
   if (objectChanged) delete next.objectContext;
 
