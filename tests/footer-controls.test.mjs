@@ -116,6 +116,14 @@ test("narrow toolbar scrolls horizontally instead of hiding direct controls", as
     css,
     /\.app-footer-view \.world-camera-controls[\s\S]*flex-wrap:\s*nowrap/,
   );
+  assert.match(
+    css,
+    /\.app-footer-view \.world-zoom-control[\s\S]*grid-template-columns:[\s\S]*var\(--toolbar-control-size\)[\s\S]*var\(--toolbar-control-size\)/,
+  );
+  assert.match(
+    css,
+    /\.app-footer-view \.world-zoom-slider[\s\S]*block-size:\s*var\(--toolbar-control-size\)/,
+  );
   assert.doesNotMatch(css, /\.app-view-controls\[popover\]/);
   assert.doesNotMatch(css, /#timeline-view-controls-toggle/);
   assert.doesNotMatch(css, /\.app-footer-(?:actions|timeline|view)[\s\S]{0,120}order:\s*[123]/);
