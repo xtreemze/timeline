@@ -980,6 +980,8 @@ test("composer exposes save, live-context chips, metadata, and keyboard parity a
   assert.match(source, /"ArrowLeft", "ArrowRight", "Home", "End"/);
   assert.match(source, /onMetadataKeyDown/);
   assert.match(source, /useSelectionPlaceContext/);
+  assert.match(source, /contextDirty/);
+  assert.match(source, /refreshContextDirty/);
   assert.match(source, /aria-pressed=/);
   assert.match(source, /data-context-kind="metadata"/);
   assert.match(source, /id="occurrence-composer-metadata"/);
