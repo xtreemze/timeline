@@ -1,6 +1,6 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
-async function projectSnapshot(page) {
+async function projectSnapshot(page: Page) {
   return page.evaluate(() => {
     const api = (
       window as typeof window & {
