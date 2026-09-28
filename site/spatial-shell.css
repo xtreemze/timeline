@@ -1121,3 +1121,176 @@
 .project-import-review-actions > .button {
   min-block-size: 44px;
 }
+
+
+/* Unified promoted occurrence card. The authoring host is presentation-only:
+   the application still owns the single physical composer and canonical mutation path. */
+.timeline-focus-composer-host {
+  min-inline-size: 0;
+  inline-size: 100%;
+}
+
+.timeline-focus-composer-host[hidden],
+.timeline-focus-identity[hidden] {
+  display: none;
+}
+
+.timeline-focus-composer-host > luum-occurrence-composer {
+  inline-size: 100%;
+}
+
+.timeline-focus-identity {
+  min-inline-size: 0;
+  padding-block: 0.15rem 0.35rem;
+  border-block-end: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+}
+
+.timeline-focus-composition {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2rem;
+  margin-block-end: 0.35rem;
+  font: 600 clamp(0.9rem, 1.2vw, 1rem) / 1.5 ui-monospace, "SFMono-Regular", Consolas,
+    monospace;
+}
+
+.timeline-focus-composition-segment {
+  min-block-size: 44px;
+  padding-inline: 0.4rem;
+  border: 1px solid transparent;
+  border-radius: 0.45rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: text;
+  touch-action: manipulation;
+}
+
+.timeline-focus-composition-segment:is(:hover, :focus-visible) {
+  border-color: color-mix(in srgb, var(--event-color, var(--accent)) 55%, var(--line));
+  background: color-mix(in srgb, var(--event-color, var(--accent)) 9%, transparent);
+  outline: none;
+}
+
+.occurrence-composer-proxy {
+  min-block-size: 44px;
+  min-inline-size: min(18rem, 42vw);
+  padding-inline: 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: var(--toolbar-control-radius, 0.58rem);
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
+  color: var(--muted);
+  font: 600 0.72rem / 1.2 ui-monospace, "SFMono-Regular", Consolas, monospace;
+}
+
+.timeline-focus-context-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.55rem 0 0;
+}
+
+.timeline-focus-context-facts > div {
+  display: inline-grid;
+  grid-template-columns: auto auto;
+  align-items: baseline;
+  gap: 0.28rem;
+  min-block-size: 32px;
+  padding: 0.32rem 0.48rem;
+  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+  border-radius: 0.48rem;
+  background: color-mix(in srgb, var(--paper) 94%, transparent);
+}
+
+.timeline-focus-context-facts :is(dt, dd) {
+  margin: 0;
+}
+
+.timeline-focus-context-facts dt {
+  color: var(--muted);
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.timeline-focus-context-facts dd {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.76rem;
+}
+
+.timeline-focus-reasoning {
+  display: grid;
+  gap: 0.35rem;
+  margin-block-start: 0.65rem;
+  padding-block-start: 0.55rem;
+  border-block-start: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+}
+
+.timeline-focus-reasoning h3 {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 760;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.timeline-focus-reasoning-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(12rem, 100%), 1fr));
+  gap: 0.35rem;
+}
+
+.timeline-focus-reasoning-record {
+  display: grid;
+  gap: 0.2rem;
+  min-block-size: 44px;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--paper) 96%, transparent);
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.timeline-focus-reasoning-record:is(:hover, :focus-visible) {
+  border-color: color-mix(in srgb, var(--event-color, var(--accent)) 55%, var(--line));
+  outline: none;
+}
+
+.timeline-focus-reasoning-record strong {
+  font-size: 0.76rem;
+}
+
+.timeline-focus-reasoning-record span {
+  color: var(--muted);
+  font-size: 0.66rem;
+}
+
+.timeline-focus-evidence-more {
+  min-block-size: 44px;
+  justify-self: start;
+  margin-block-start: 0.45rem;
+  padding-inline: 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: var(--paper);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+@media (max-width: 520px) {
+  .timeline-focus-context-facts {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .timeline-focus-context-facts > div {
+    grid-template-columns: minmax(4.5rem, auto) minmax(0, 1fr);
+  }
+}
