@@ -963,7 +963,7 @@ export function occurrenceComposerSuggestions(
           .filter(Boolean)
           .filter((tag) => !retainedKeys.has(normalizedMatchText(tag)))
           .filter((tag) => {
-            if (!activeTag) return true;
+            if (editableSection?.kind === "tag" || !activeTag) return true;
             return normalizedMatchText(tag).includes(activeTag);
           })
           .slice(0, 10)
@@ -991,7 +991,10 @@ export function occurrenceComposerSuggestions(
 
     const categorySuggestions = options.categories
       .filter((category) => {
-        const activeCategory = normalizedMatchText(categoryMatch?.[1] ?? "");
+        const activeCategory =
+          editableSection?.kind === "category"
+            ? ""
+            : normalizedMatchText(categoryMatch?.[1] ?? "");
         return !activeCategory || normalizedMatchText(category.name).includes(activeCategory);
       })
       .slice(0, 10)
@@ -1033,7 +1036,7 @@ export function occurrenceComposerSuggestions(
   if (cursorSection.kind === "place") {
     return cursorPlaceSuggestions(cursorSection, options.places);
   }
-  if (cursorSection.kind === "time" && options.timelineDefault) {
+  if ((cursorSection.kind === "time" || editableSection?.kind === "time") && options.timelineDefault) {
     const editableTime =
       editableSection?.kind === "time"
         ? editableSection
