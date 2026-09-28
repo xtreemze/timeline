@@ -966,6 +966,24 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.requestUpdate();
   }
 
+  private onMetadataKeyDown(event: KeyboardEvent): void {
+    if (event.isComposing) return;
+    if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+      event.preventDefault();
+      this.commit();
+      return;
+    }
+    if (event.key !== "Escape") return;
+    event.preventDefault();
+    this.metadataPanelOpen = false;
+    this.requestUpdate();
+    void this.updateComplete.then(() => {
+      this.renderRoot
+        .querySelector<HTMLButtonElement>('button.context-chip[data-context-kind="metadata"]')
+        ?.focus({ preventScroll: true });
+    });
+  }
+
   private onContextRowKeyDown(event: KeyboardEvent): void {
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
     const target = event.target;
@@ -1374,7 +1392,12 @@ export class LuumOccurrenceComposerElement extends LitElement {
           ${
             this.metadataPanelOpen
               ? html`
-                <div id="occurrence-composer-metadata" class="metadata-panel" aria-label="Occurrence details">
+                <div
+                  id="occurrence-composer-metadata"
+                  class="metadata-panel"
+                  aria-label="Occurrence details"
+                  @keydown=${(event: KeyboardEvent) => this.onMetadataKeyDown(event)}
+                >
                   <label class="metadata-field">
                     <span>Role</span>
                     <input
