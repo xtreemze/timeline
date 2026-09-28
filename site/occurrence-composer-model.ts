@@ -196,8 +196,123 @@ function unquote(value: string): string {
 export function quoteComposerName(value: string): string {
   const trimmed = value.trim();
   if (!trimmed) return "";
-  if (/^[^\s()[\]"]+$/.test(trimmed)) return trimmed;
+  if (/^[^\s()[\]",|]+$/.test(trimmed)) return trimmed;
   return `"${trimmed.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
+
+function findMarkerOutsideQuotes(input: string, marker: string, fromIndex = 0): number {
+  let quoted = false;
+  let escaped = false;
+  for (let index = 0; index < input.length; index += 1) {
+    const character = input[index]!;
+    if (quoted) {
+      if (escaped) {
+        escaped = false;
+      } else if (character === "\\") {
+        escaped = true;
+      } else if (character === '"') {
+        quoted = false;
+      }
+      continue;
+    }
+    if (character === '"') {
+      quoted = true;
+      continue;
+    }
+    if (index >= fromIndex && input.startsWith(marker, index)) return index;
+  }
+  return -1;
+}
+
+function findLastMarkerOutsideQuotes(input: string, marker: string, fromIndex = 0): number {
+  let quoted = false;
+  let escaped = false;
+  let found = -1;
+  for (let index = 0; index < input.length; index += 1) {
+    const character = input[index]!;
+    if (quoted) {
+      if (escaped) {
+        escaped = false;
+      } else if (character === "\\") {
+        escaped = true;
+      } else if (character === '"') {
+        quoted = false;
+      }
+      continue;
+    }
+    if (character === '"') {
+      quoted = true;
+      continue;
+    }
+    if (index >= fromIndex && input.startsWith(marker, index)) found = index;
+  }
+  return found;
+}
+
+function splitRangesOutsideQuotes(
+  input: string,
+  delimiter: string,
+): readonly Readonly<{ start: number; end: number }>[] {
+  const ranges: Array<Readonly<{ start: number; end: number }>> = [];
+  let quoted = false;
+  let escaped = false;
+  let start = 0;
+  for (let index = 0; index < input.length; index += 1) {
+    const character = input[index]!;
+    if (quoted) {
+      if (escaped) {
+        escaped = false;
+      } else if (character === "\\") {
+        escaped = true;
+      } else if (character === '"') {
+        quoted = false;
+      }
+      continue;
+    }
+    if (character === '"') {
+      quoted = true;
+      continue;
+    }
+    if (input.startsWith(delimiter, index)) {
+      ranges.push(Object.freeze({ start, end: index }));
+      start = index + delimiter.length;
+      index += delimiter.length - 1;
+    }
+  }
+  ranges.push(Object.freeze({ start, end: input.length }));
+  return Object.freeze(ranges);
+}
+
+interface ComposerPropertyEntry {
+  readonly key: string;
+  readonly rawValue: string;
+  readonly valueStart: number;
+  readonly valueEnd: number;
+}
+
+function parsePropertyEntries(value: string): readonly ComposerPropertyEntry[] {
+  const entries: ComposerPropertyEntry[] = [];
+  for (const range of splitRangesOutsideQuotes(value, ",")) {
+    const segment = value.slice(range.start, range.end);
+    const separator = findMarkerOutsideQuotes(segment, ":");
+    if (separator < 1) continue;
+    const key = segment.slice(0, separator).trim();
+    if (!key) continue;
+    const valueRange = trimmedValueRange(
+      value,
+      range.start + separator + 1,
+      range.end,
+    );
+    entries.push(
+      Object.freeze({
+        key,
+        rawValue: value.slice(valueRange.start, valueRange.end),
+        valueStart: valueRange.start,
+        valueEnd: valueRange.end,
+      }),
+    );
+  }
+  return Object.freeze(entries);
 }
 
 export interface OccurrenceCompositionInput {
@@ -227,20 +342,16 @@ export function formatOccurrenceComposition(input: OccurrenceCompositionInput): 
   const category = input.category?.trim() ?? "";
   if (category) options.push(`category: ${quoteComposerName(category)}`);
   const tags = (input.tags ?? []).map((tag) => tag.trim()).filter(Boolean);
-  if (tags.length) options.push(`tags: ${tags.join("|")}`);
+  if (tags.length) options.push(`tags: ${tags.map(quoteComposerName).join("|")}`);
   if (options.length) sentence += ` [${options.join(", ")}]`;
   return sentence;
 }
 
 function parseProperties(value: string): Readonly<Record<string, string>> {
   const result: Record<string, string> = {};
-  for (const segment of value.split(",")) {
-    const separator = segment.indexOf(":");
-    if (separator < 1) continue;
-    const key = segment.slice(0, separator).trim();
-    const rawValue = segment.slice(separator + 1).trim();
-    if (!key || !rawValue) continue;
-    result[key] = unquote(rawValue);
+  for (const entry of parsePropertyEntries(value)) {
+    if (!entry.rawValue) continue;
+    result[entry.key] = unquote(entry.rawValue);
   }
   return Object.freeze(result);
 }
@@ -285,7 +396,7 @@ function parseEntityAtStart(input: string): {
   let rest = source.slice(offset).trimStart();
   let properties: Readonly<Record<string, string>> = Object.freeze({});
   if (rest.startsWith("(")) {
-    const close = rest.indexOf(")");
+    const close = findMarkerOutsideQuotes(rest, ")", 1);
     if (close < 0) return { entity: null, rest: source };
     properties = parseProperties(rest.slice(1, close));
     rest = rest.slice(close + 1).trimStart();
@@ -303,30 +414,39 @@ function stripOptions(input: string): {
   readonly malformed: boolean;
 } {
   const trimmed = input.trim();
-  if (!trimmed.endsWith("]")) {
+  const close = findLastMarkerOutsideQuotes(trimmed, "]");
+  if (close !== trimmed.length - 1) {
     return {
       source: trimmed,
       options: Object.freeze({ tags: Object.freeze([]) }),
       malformed: false,
     };
   }
-  const open = trimmed.lastIndexOf("[");
-  if (open < 0) {
+  const open = findLastMarkerOutsideQuotes(trimmed, "[");
+  if (open < 0 || open > close) {
     return {
       source: trimmed,
       options: Object.freeze({ tags: Object.freeze([]) }),
       malformed: true,
     };
   }
-  const properties = parseProperties(trimmed.slice(open + 1, -1));
-  const tags = (properties.tags ?? "")
-    .split("|")
-    .map((tag) => tag.trim())
-    .filter(Boolean);
+  const body = trimmed.slice(open + 1, close);
+  const entries = parsePropertyEntries(body);
+  const categoryEntry = entries.find(
+    (entry) => entry.key.toLocaleLowerCase() === "category",
+  );
+  const tagsEntry = entries.find((entry) => entry.key.toLocaleLowerCase() === "tags");
+  const category = categoryEntry?.rawValue ? unquote(categoryEntry.rawValue) : "";
+  const tags = tagsEntry
+    ? splitRangesOutsideQuotes(tagsEntry.rawValue, "|")
+        .map((range) => unquote(tagsEntry.rawValue.slice(range.start, range.end)))
+        .map((tag) => tag.trim())
+        .filter(Boolean)
+    : [];
   return {
     source: trimmed.slice(0, open).trimEnd(),
     options: Object.freeze({
-      ...(properties.category ? { category: properties.category } : {}),
+      ...(category ? { category } : {}),
       tags: Object.freeze(tags),
     }),
     malformed: false,
@@ -337,19 +457,33 @@ function stripTime(input: string): {
   readonly source: string;
   readonly time: ComposerTimeReference | null;
 } {
-  const range = input.match(/\s+from\s+(\S+)\s+to\s+(\S+)\s*$/i);
-  if (range) {
-    return {
-      source: input.slice(0, range.index).trimEnd(),
-      time: Object.freeze({ kind: "range", start: range[1]!, end: range[2]! }),
-    };
+  const lower = input.toLocaleLowerCase();
+  const fromMarker = findLastMarkerOutsideQuotes(lower, " from ");
+  if (fromMarker >= 0) {
+    const suffix = input.slice(fromMarker + 6);
+    const suffixLower = lower.slice(fromMarker + 6);
+    const toMarker = findLastMarkerOutsideQuotes(suffixLower, " to ");
+    if (toMarker >= 0) {
+      const start = suffix.slice(0, toMarker).trim();
+      const end = suffix.slice(toMarker + 4).trim();
+      if (start && end && !/\s/.test(start) && !/\s/.test(end)) {
+        return {
+          source: input.slice(0, fromMarker).trimEnd(),
+          time: Object.freeze({ kind: "range", start, end }),
+        };
+      }
+    }
   }
-  const instant = input.match(/\s+on\s+(\S+)\s*$/i);
-  if (instant) {
-    return {
-      source: input.slice(0, instant.index).trimEnd(),
-      time: Object.freeze({ kind: "instant", start: instant[1]! }),
-    };
+
+  const onMarker = findLastMarkerOutsideQuotes(lower, " on ");
+  if (onMarker >= 0) {
+    const start = input.slice(onMarker + 4).trim();
+    if (start && !/\s/.test(start)) {
+      return {
+        source: input.slice(0, onMarker).trimEnd(),
+        time: Object.freeze({ kind: "instant", start }),
+      };
+    }
   }
   return { source: input, time: null };
 }
@@ -358,7 +492,7 @@ function stripPlace(input: string): {
   readonly source: string;
   readonly place: ComposerPlaceReference | null;
 } {
-  const marker = input.toLocaleLowerCase().lastIndexOf(" at ");
+  const marker = findLastMarkerOutsideQuotes(input.toLocaleLowerCase(), " at ");
   if (marker < 0) return { source: input, place: null };
   const rawPlace = input.slice(marker + 4).trim();
   if (!rawPlace) return { source: input, place: null };
@@ -493,7 +627,7 @@ function readEntitySpan(
   let end = nameEnd;
   const propertyStart = skipSpaces(input, nameEnd);
   if (input[propertyStart] === "(") {
-    const close = input.indexOf(")", propertyStart + 1);
+    const close = findMarkerOutsideQuotes(input, ")", propertyStart + 1);
     end = close >= 0 ? close + 1 : input.length;
   }
 
@@ -552,12 +686,12 @@ export function composerCursorSection(input: string, cursorOffset: number): Comp
   }
 
   const lower = input.toLocaleLowerCase();
-  const optionsStart = lower.indexOf("[", object.end);
-  const onMarker = lower.indexOf(" on ", object.end);
-  const fromMarker = lower.indexOf(" from ", object.end);
+  const optionsStart = findMarkerOutsideQuotes(lower, "[", object.end);
+  const onMarker = findMarkerOutsideQuotes(lower, " on ", object.end);
+  const fromMarker = findMarkerOutsideQuotes(lower, " from ", object.end);
   const timeMarker =
     onMarker < 0 ? fromMarker : fromMarker < 0 ? onMarker : Math.min(onMarker, fromMarker);
-  const placeMarker = lower.indexOf(" at ", object.end);
+  const placeMarker = findMarkerOutsideQuotes(lower, " at ", object.end);
 
   if (placeMarker >= 0 && (timeMarker < 0 || placeMarker < timeMarker)) {
     const start = placeMarker + 4;
@@ -585,7 +719,7 @@ export function composerCursorSection(input: string, cursorOffset: number): Comp
   }
 
   if (optionsStart >= 0) {
-    const optionsEnd = input.indexOf("]", optionsStart + 1);
+    const optionsEnd = findMarkerOutsideQuotes(input, "]", optionsStart + 1);
     const end = optionsEnd >= 0 ? optionsEnd + 1 : input.length;
     if (offset >= optionsStart && offset < end) {
       return Object.freeze({
@@ -627,12 +761,12 @@ export function composerEditableSections(input: string): readonly ComposerEditab
   sections.push(Object.freeze({ kind: "object", ...object }));
 
   const lower = input.toLocaleLowerCase();
-  const optionsStart = lower.indexOf("[", object.end);
-  const onMarker = lower.indexOf(" on ", object.end);
-  const fromMarker = lower.indexOf(" from ", object.end);
+  const optionsStart = findMarkerOutsideQuotes(lower, "[", object.end);
+  const onMarker = findMarkerOutsideQuotes(lower, " on ", object.end);
+  const fromMarker = findMarkerOutsideQuotes(lower, " from ", object.end);
   const timeMarker =
     onMarker < 0 ? fromMarker : fromMarker < 0 ? onMarker : Math.min(onMarker, fromMarker);
-  const placeMarker = lower.indexOf(" at ", object.end);
+  const placeMarker = findMarkerOutsideQuotes(lower, " at ", object.end);
 
   if (placeMarker >= 0 && (timeMarker < 0 || placeMarker < timeMarker)) {
     const valueStart = placeMarker + 4;
@@ -672,42 +806,35 @@ export function composerEditableSections(input: string): readonly ComposerEditab
   }
 
   if (optionsStart >= 0) {
-    const optionsClose = input.indexOf("]", optionsStart + 1);
+    const optionsClose = findMarkerOutsideQuotes(input, "]", optionsStart + 1);
     const bodyEnd = optionsClose >= 0 ? optionsClose : input.length;
     const body = input.slice(optionsStart + 1, bodyEnd);
-    const categoryMatch = /(?:^|,)\s*category\s*:\s*([^,\]]*)/i.exec(body);
-    if (categoryMatch && categoryMatch.index >= 0) {
-      const rawValue = categoryMatch[1] ?? "";
-      const rawStart =
-        optionsStart +
-        1 +
-        categoryMatch.index +
-        categoryMatch[0].lastIndexOf(rawValue);
-      const range = trimmedValueRange(input, rawStart, rawStart + rawValue.length);
-      if (range.end > range.start) {
-        sections.push(
-          Object.freeze({
-            kind: "category",
-            start: range.start,
-            end: range.end,
-            text: unquote(input.slice(range.start, range.end)),
-          }),
-        );
-      }
+    const entries = parsePropertyEntries(body);
+    const categoryEntry = entries.find(
+      (entry) => entry.key.toLocaleLowerCase() === "category",
+    );
+    if (categoryEntry?.rawValue) {
+      const start = optionsStart + 1 + categoryEntry.valueStart;
+      const end = optionsStart + 1 + categoryEntry.valueEnd;
+      sections.push(
+        Object.freeze({
+          kind: "category",
+          start,
+          end,
+          text: unquote(input.slice(start, end)),
+        }),
+      );
     }
 
-    const tagsMatch = /(?:^|,)\s*tags\s*:\s*([^,\]]*)/i.exec(body);
-    if (tagsMatch && tagsMatch.index >= 0) {
-      const rawTags = tagsMatch[1] ?? "";
-      const rawStart =
-        optionsStart + 1 + tagsMatch.index + tagsMatch[0].lastIndexOf(rawTags);
-      let segmentOffset = 0;
+    const tagsEntry = entries.find((entry) => entry.key.toLocaleLowerCase() === "tags");
+    if (tagsEntry) {
+      const rawBase = optionsStart + 1 + tagsEntry.valueStart;
       let tagIndex = 0;
-      for (const segment of rawTags.split("|")) {
+      for (const tagRange of splitRangesOutsideQuotes(tagsEntry.rawValue, "|")) {
         const range = trimmedValueRange(
           input,
-          rawStart + segmentOffset,
-          rawStart + segmentOffset + segment.length,
+          rawBase + tagRange.start,
+          rawBase + tagRange.end,
         );
         if (range.end > range.start) {
           sections.push(
@@ -721,7 +848,6 @@ export function composerEditableSections(input: string): readonly ComposerEditab
           );
           tagIndex += 1;
         }
-        segmentOffset += segment.length + 1;
       }
     }
   }
@@ -925,8 +1051,20 @@ export function occurrenceComposerSuggestions(
     (section) => cursorOffset >= section.start && cursorOffset <= section.end,
   );
 
-  if (/\([^)]*$/.test(prefix)) {
-    const iconValueActive = /(?:^|[,(])\s*icon\s*:\s*[^,)]*$/i.test(prefix);
+  const openEntityProperties = findLastMarkerOutsideQuotes(prefix, "(");
+  const closeEntityProperties = findLastMarkerOutsideQuotes(prefix, ")");
+  if (openEntityProperties > closeEntityProperties) {
+    const propertyText = prefix.slice(openEntityProperties + 1);
+    const activePropertyRange = splitRangesOutsideQuotes(propertyText, ",").at(-1);
+    const activePropertyText = activePropertyRange
+      ? propertyText.slice(activePropertyRange.start, activePropertyRange.end)
+      : "";
+    const propertySeparator = findMarkerOutsideQuotes(activePropertyText, ":");
+    const activePropertyKey =
+      propertySeparator >= 1
+        ? activePropertyText.slice(0, propertySeparator).trim().toLocaleLowerCase()
+        : "";
+    const iconValueActive = activePropertyKey === "icon";
     const properties = iconValueActive
       ? ENTITY_ICON_PROPERTY_SUGGESTIONS
       : ENTITY_PROPERTY_SUGGESTIONS;
@@ -942,18 +1080,33 @@ export function occurrenceComposerSuggestions(
     );
   }
 
-  if (/\[[^\]]*$/.test(prefix)) {
-    const optionStart = prefix.lastIndexOf("[");
-    const optionText = prefix.slice(optionStart + 1);
-    const categoryMatch = optionText.match(/(?:^|,)\s*category\s*:\s*([^,\]]*)$/i);
-    const tagMatch = optionText.match(/(?:^|,)\s*tags\s*:\s*([^,\]]*)$/i);
+  const openOptions = findLastMarkerOutsideQuotes(prefix, "[");
+  const closeOptions = findLastMarkerOutsideQuotes(prefix, "]");
+  if (openOptions > closeOptions) {
+    const optionText = prefix.slice(openOptions + 1);
+    const activeOptionRange = splitRangesOutsideQuotes(optionText, ",").at(-1);
+    const activeOption = activeOptionRange
+      ? optionText.slice(activeOptionRange.start, activeOptionRange.end)
+      : "";
+    const optionSeparator = findMarkerOutsideQuotes(activeOption, ":");
+    const activeOptionKey =
+      optionSeparator >= 1
+        ? activeOption.slice(0, optionSeparator).trim().toLocaleLowerCase()
+        : "";
+    const activeOptionValue =
+      optionSeparator >= 0 ? activeOption.slice(optionSeparator + 1).trim() : "";
 
-    if (tagMatch) {
-      const rawTags = tagMatch[1] ?? "";
-      const segments = rawTags.split("|");
-      const activeTag = normalizedMatchText(segments.at(-1) ?? "");
-      const retainedTags = segments
+    if (activeOptionKey === "tags") {
+      const tagRanges = splitRangesOutsideQuotes(activeOptionValue, "|");
+      const activeTagRange = tagRanges.at(-1);
+      const activeTag = normalizedMatchText(
+        activeTagRange
+          ? unquote(activeOptionValue.slice(activeTagRange.start, activeTagRange.end))
+          : "",
+      );
+      const retainedTags = tagRanges
         .slice(0, -1)
+        .map((range) => unquote(activeOptionValue.slice(range.start, range.end)))
         .map((tag) => tag.trim())
         .filter(Boolean);
       const retainedKeys = new Set(retainedTags.map(normalizedMatchText));
@@ -973,7 +1126,7 @@ export function occurrenceComposerSuggestions(
                   kind: "tag" as const,
                   label: tag,
                   detail: "existing tag",
-                  insertText: tag,
+                  insertText: quoteComposerName(tag),
                   replaceRange: Object.freeze({
                     start: editableSection.start,
                     end: editableSection.end,
@@ -983,20 +1136,23 @@ export function occurrenceComposerSuggestions(
                   kind: "tag" as const,
                   label: tag,
                   detail: "existing tag",
-                  insertText: `tags: ${[...retainedTags, tag].join("|")}`,
+                  insertText: `tags: ${[...retainedTags, tag]
+                    .map(quoteComposerName)
+                    .join("|")}`,
                 },
           ),
       );
     }
 
+    const activeCategory =
+      editableSection?.kind === "category" || activeOptionKey !== "category"
+        ? ""
+        : normalizedMatchText(unquote(activeOptionValue));
     const categorySuggestions = options.categories
-      .filter((category) => {
-        const activeCategory =
-          editableSection?.kind === "category"
-            ? ""
-            : normalizedMatchText(categoryMatch?.[1] ?? "");
-        return !activeCategory || normalizedMatchText(category.name).includes(activeCategory);
-      })
+      .filter(
+        (category) =>
+          !activeCategory || normalizedMatchText(category.name).includes(activeCategory),
+      )
       .slice(0, 10)
       .map((category) =>
         editableSection?.kind === "category"
@@ -1018,7 +1174,7 @@ export function occurrenceComposerSuggestions(
             },
       );
 
-    if (categoryMatch) return uniqueSuggestions(categorySuggestions);
+    if (activeOptionKey === "category") return uniqueSuggestions(categorySuggestions);
 
     return uniqueSuggestions([
       ...categorySuggestions,
@@ -1172,8 +1328,9 @@ export function occurrenceComposerSuggestions(
       insertText: `on ${options.timelineDefault}`,
     });
   }
-  const optionsOpen = input.lastIndexOf("[");
-  const optionsClose = optionsOpen >= 0 ? input.indexOf("]", optionsOpen + 1) : -1;
+  const optionsOpen = findLastMarkerOutsideQuotes(input, "[");
+  const optionsClose =
+    optionsOpen >= 0 ? findMarkerOutsideQuotes(input, "]", optionsOpen + 1) : -1;
   const appendClosedOptionSuggestion = (
     kind: "category" | "tag",
     label: string,
@@ -1283,22 +1440,22 @@ export function replaceComposerTail(
   if (!insertText) return input;
   const trimmed = input.trimEnd();
 
-  const openEntityProperties = trimmed.lastIndexOf("(");
-  const closeEntityProperties = trimmed.lastIndexOf(")");
+  const openEntityProperties = findLastMarkerOutsideQuotes(trimmed, "(");
+  const closeEntityProperties = findLastMarkerOutsideQuotes(trimmed, ")");
   if (openEntityProperties > closeEntityProperties) {
     const prefix = trimmed.slice(0, openEntityProperties + 1);
     const current = trimmed.slice(openEntityProperties + 1);
-    const comma = current.lastIndexOf(",");
+    const comma = findLastMarkerOutsideQuotes(current, ",");
     const retained = comma >= 0 ? current.slice(0, comma + 1) : "";
     return `${prefix}${retained}${retained ? " " : ""}${insertText}`;
   }
 
-  const openOptions = trimmed.lastIndexOf("[");
-  const closeOptions = trimmed.lastIndexOf("]");
+  const openOptions = findLastMarkerOutsideQuotes(trimmed, "[");
+  const closeOptions = findLastMarkerOutsideQuotes(trimmed, "]");
   if (openOptions > closeOptions) {
     const prefix = trimmed.slice(0, openOptions + 1);
     const current = trimmed.slice(openOptions + 1);
-    const comma = current.lastIndexOf(",");
+    const comma = findLastMarkerOutsideQuotes(current, ",");
     const retained = comma >= 0 ? current.slice(0, comma + 1) : "";
     return `${prefix}${retained}${retained ? " " : ""}${insertText}`;
   }
