@@ -329,6 +329,45 @@ test.describe("Mobile-first Timeline layout contracts", () => {
     });
   }
 
+
+  test("D3 layout buttons disclose advanced controls by keyboard and long press", async ({ page }) => {
+    await page.setViewportSize(DESKTOP_LANDSCAPE);
+    await page.goto("/");
+    await ensureTimelineOrientation(page, "landscape");
+
+    const layoutButtons = page.locator(".world-layout-controls .world-layout-control");
+    await expect(layoutButtons).toHaveCount(2);
+    const dagButton = layoutButtons.nth(0);
+    const forceButton = layoutButtons.nth(1);
+
+    await dagButton.focus();
+    await page.keyboard.press("ArrowDown");
+    const dagPanel = page.locator("#world-dag-layout-inspector:popover-open");
+    await expect(dagPanel).toBeVisible();
+    await expect(dagButton).toHaveAttribute("aria-expanded", "true");
+    await expect(dagPanel.getByText("Longest path + optimal decross")).toBeVisible();
+    await expect(dagPanel.getByText("Simplex + two-layer")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(dagButton).toHaveAttribute("aria-expanded", "false");
+
+    const box = await forceButton.boundingBox();
+    expect(box).not.toBeNull();
+    if (!box) throw new Error("D3 force button has no live bounds.");
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.waitForTimeout(550);
+    const forcePanel = page.locator("#world-force-layout-inspector:popover-open");
+    await expect(forcePanel).toBeVisible();
+    await page.mouse.up();
+    await expect(forceButton).toHaveAttribute("aria-expanded", "true");
+    await expect(forcePanel.getByText("Collision strength")).toBeVisible();
+    await expect(forcePanel.getByText("Connectivity clearance")).toBeVisible();
+    await expect(forcePanel).toContainText("Collision radius");
+    await expect(forcePanel).toContainText("Rendered node + border · fixed");
+    await page.keyboard.press("Escape");
+    await expect(forceButton).toHaveAttribute("aria-expanded", "false");
+  });
+
   test("desktop footer keeps primary and spatial controls on one toolbar", async ({ page }) => {
     await page.setViewportSize(DESKTOP_LANDSCAPE);
     await page.goto("/");

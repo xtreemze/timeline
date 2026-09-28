@@ -81,6 +81,88 @@ test("D3 gives high-connectivity nodes additional soft spacing beyond hard colli
   assert.ok(hub > ordinary + 150, `hub spacing ${hub} must exceed ordinary spacing ${ordinary}`);
 });
 
+test(
+  "place-scoped force tuning changes connected-node clearance without changing hard collision radius",
+  () => {
+    const simulation = new D3WorldForceSimulation();
+    const stockholmHub = '["stockholm-hub",null]';
+    const stockholmPeer = '["stockholm-peer",null]';
+    const copenhagenHub = '["copenhagen-hub",null]';
+    const copenhagenPeer = '["copenhagen-peer",null]';
+    simulation.setScene({
+      nodes: [
+        node(stockholmHub, -20, 180, { connectivityClearanceMeters: 720 }),
+        node(stockholmPeer, 20, 180),
+        node(copenhagenHub, -20, 180, { connectivityClearanceMeters: 720 }),
+        node(copenhagenPeer, 20, 180),
+      ],
+      edges: [],
+      anchors: [
+        anchor(stockholmHub, "stockholm", 0),
+        anchor(stockholmPeer, "stockholm", 0),
+        anchor(copenhagenHub, "copenhagen", 0),
+        anchor(copenhagenPeer, "copenhagen", 0),
+      ],
+    });
+    simulation.setTuning(
+      {
+        collisionStrength: 0.82,
+        collisionIterations: 3,
+        connectivityClearanceScale: 0,
+        manyBodyStrength: -2600,
+        linkStrengthScale: 1,
+        anchorStrengthScale: 1,
+        dagStrengthScale: 1,
+      },
+      { placeId: "stockholm" },
+    );
+    simulation.apply(topologyRequest());
+    for (let index = 0; index < 240; index += 1) simulation.step(1000 / 60);
+
+    const snapshot = simulation.getSnapshot();
+    const stockholmDistance = distance(snapshot, stockholmHub, stockholmPeer);
+    const copenhagenDistance = distance(snapshot, copenhagenHub, copenhagenPeer);
+    assert.ok(
+      stockholmDistance >= 350,
+      "turning off soft hub clearance must still preserve the 360m combined rendered collision body",
+    );
+    assert.ok(
+      copenhagenDistance > stockholmDistance + 150,
+      "place-scoped tuning must not erase the default connectivity clearance at other places",
+    );
+  },
+);
+
+test("force tuning rejects collision settings that would violate the solver contract", () => {
+  const simulation = new D3WorldForceSimulation();
+  assert.throws(
+    () =>
+      simulation.setTuning({
+        collisionStrength: 1.2,
+        collisionIterations: 3,
+        connectivityClearanceScale: 1,
+        manyBodyStrength: -2600,
+        linkStrengthScale: 1,
+        anchorStrengthScale: 1,
+        dagStrengthScale: 1,
+      }),
+    /Collision strength must not exceed 1/,
+  );
+  assert.throws(
+    () =>
+      simulation.setTuning({
+        collisionStrength: 0.82,
+        collisionIterations: 0,
+        connectivityClearanceScale: 1,
+        manyBodyStrength: -2600,
+        linkStrengthScale: 1,
+        anchorStrengthScale: 1,
+        dagStrengthScale: 1,
+      }),
+    /Collision iterations must be an integer from 1 to 12/,
+  );
+});
+
 test("cross-place D3 spacing honors hub connectivity clearance", () => {
   const simulation = new D3WorldForceSimulation();
   const hub = '["hub","place-a"]';
@@ -103,6 +185,48 @@ test("cross-place D3 spacing honors hub connectivity clearance", () => {
   assert.ok(
     distance(simulation.getSnapshot(), hub, peer) > 650,
     "hub clearance must participate in the world-space cross-place collision island",
+  );
+});
+
+test("selected-place tuning participates in cross-place collision islands", () => {
+  const settle = (clearanceScale) => {
+    const simulation = new D3WorldForceSimulation();
+    const hub = `["cross-tuned-hub-${clearanceScale}","place-a"]`;
+    const peer = `["cross-tuned-peer-${clearanceScale}","place-b"]`;
+    simulation.setScene({
+      nodes: [
+        node(hub, -10, 180, { connectivityClearanceMeters: 720 }),
+        node(peer, 10, 180),
+      ],
+      edges: [],
+      anchors: [
+        anchor(hub, "place-a", 0, { longitude: 18, latitude: 59 }),
+        anchor(peer, "place-b", 0, { longitude: 18, latitude: 59 }),
+      ],
+    });
+    simulation.setTuning(
+      {
+        collisionStrength: 0.82,
+        collisionIterations: 3,
+        connectivityClearanceScale: clearanceScale,
+        manyBodyStrength: -2600,
+        linkStrengthScale: 1,
+        anchorStrengthScale: 1,
+        dagStrengthScale: 1,
+      },
+      { placeId: "place-a" },
+    );
+    simulation.apply(topologyRequest());
+    for (let index = 0; index < 240; index += 1) simulation.step(1000 / 60);
+    return distance(simulation.getSnapshot(), hub, peer);
+  };
+
+  const hardBodyOnly = settle(0);
+  const hubClearance = settle(1);
+  assert.ok(hardBodyOnly >= 350, "cross-place tuning must retain the rendered hard body");
+  assert.ok(
+    hubClearance > hardBodyOnly + 100,
+    "selected-place connectivity clearance must affect nearby foreign-place rejection",
   );
 });
 

@@ -103,8 +103,38 @@ export interface WorldSimulationDiagnostics {
   readonly iteration: number | null;
 }
 
+export interface WorldForceTuning {
+  /** d3 collision resolution strength in the normalized 0..1 range. */
+  readonly collisionStrength: number;
+  /** Number of collision solver passes per simulation tick. */
+  readonly collisionIterations: number;
+  /**
+   * Multiplier for connectivity-derived preferred clearance. The hard
+   * collision body itself always remains the rendered node + border footprint.
+   */
+  readonly connectivityClearanceScale: number;
+  /** Signed many-body force strength; negative values repel. */
+  readonly manyBodyStrength: number;
+  /** Multiplier applied to semantic relationship spring strength. */
+  readonly linkStrengthScale: number;
+  /** Multiplier applied to geographic anchor attraction. */
+  readonly anchorStrengthScale: number;
+  /** Multiplier applied to d3-dag soft target attraction. */
+  readonly dagStrengthScale: number;
+}
+
+export interface WorldForceTuningScope {
+  /** Omit to tune every layout group; set to affect only this authored place. */
+  readonly placeId?: PlaceId;
+}
+
 export interface WorldForceSimulationBackend {
   setScene(scene: WorldForceScene): void;
+  /**
+   * Optional operator-facing physics tuning. Implementations that support it
+   * must keep these values in disposable projection/layout state only.
+   */
+  setTuning?(tuning: WorldForceTuning, scope?: WorldForceTuningScope): void;
   /**
    * Presentation-only place clustering. `placeIds` controls anchor gathering;
    * `detachedLinkPlaceIds` may remain populated during expansion so D3

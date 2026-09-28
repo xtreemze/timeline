@@ -26,6 +26,17 @@ export interface WorldDagLayoutNodeSize {
 
 export type WorldDagLayoutOrientation = "top-to-bottom" | "left-to-right";
 
+export type WorldDagLayoutStrategy =
+  | "auto"
+  | "longest-opt-greedy"
+  | "longest-two-layer-greedy"
+  | "simplex-two-layer-greedy";
+
+export interface WorldDagLayoutPlaceOverride {
+  readonly orientation?: WorldDagLayoutOrientation;
+  readonly strategy?: WorldDagLayoutStrategy;
+}
+
 export interface WorldDagLayoutOptions {
   /**
    * Direction of structural flow in the rendered world region. Sugiyama still
@@ -33,6 +44,13 @@ export interface WorldDagLayoutOptions {
    * are rotated into geographic tangent space after layout.
    */
   readonly orientation?: WorldDagLayoutOrientation;
+  /** Automatic selection is the default; explicit strategies are operator exploration state. */
+  readonly strategy?: WorldDagLayoutStrategy;
+  /**
+   * Per-place overrides affect only the disposable local layout around that
+   * authored geographic anchor. They never move or rewrite the place itself.
+   */
+  readonly placeOverrides?: ReadonlyMap<PlaceId, WorldDagLayoutPlaceOverride>;
   readonly nodeSizes?: ReadonlyMap<WorldInstanceId, WorldDagLayoutNodeSize>;
   /** Layout-only footprint reserved around each authored geographic anchor. */
   readonly placeSizes?: ReadonlyMap<PlaceId, WorldDagLayoutNodeSize>;
@@ -43,6 +61,8 @@ export interface WorldDagLayoutOptions {
    * rewritten or promoted into DAG nodes.
    */
   readonly reorganize?: boolean;
+  /** Bypass cache/hysteresis for one selected place without disturbing other places. */
+  readonly reorganizePlaceId?: PlaceId;
 }
 
 export interface WorldDagLayoutTarget {
@@ -511,10 +531,12 @@ function topologyKey(
   sizes: ReadonlyMap<string, readonly [number, number]>,
   placeSize: readonly [number, number],
   orientation: WorldDagLayoutOrientation,
+  strategy: WorldDagLayoutStrategy,
 ): string {
   return JSON.stringify([
     String(placeId),
     orientation,
+    strategy,
     [Math.round(placeSize[0]), Math.round(placeSize[1])],
     nodeIds.map((id) => {
       const [width, height] = sizes.get(String(id)) ?? [
@@ -1283,6 +1305,7 @@ function chooseCandidate(
   sizes: ReadonlyMap<string, readonly [number, number]>,
   previousTargets: ReadonlyMap<string, WorldDagLayoutTarget>,
   orientation: WorldDagLayoutOrientation,
+  strategy: WorldDagLayoutStrategy = "auto",
   previousAlgorithm?: string,
   placeObstacles: readonly DagPlaceObstacle[] = Object.freeze([]),
   rootSize: readonly [number, number] = Object.freeze([1, 1]),
@@ -1305,6 +1328,51 @@ function chooseCandidate(
       minSeparationMeters: null,
       meanStableDisplacementMeters: 0,
     });
+  }
+
+  if (strategy !== "auto") {
+    const explicit =
+      strategy === "simplex-two-layer-greedy"
+        ? { layering: "simplex" as const, decross: "two-layer" as const }
+        : strategy === "longest-opt-greedy"
+          ? { layering: "longest" as const, decross: "opt" as const }
+          : { layering: "longest" as const, decross: "two-layer" as const };
+    const boundedOpt =
+      explicit.decross !== "opt" ||
+      (nodeIds.length <= EXACT_DECROSS_MAX_NODES && edges.length <= EXACT_DECROSS_MAX_EDGES);
+    if (boundedOpt) {
+      try {
+        return runLayoutCandidate(
+          strategy,
+          nodeIds,
+          edges,
+          sizes,
+          gap,
+          previousTargets,
+          orientation,
+          explicit.layering,
+          explicit.decross,
+          placeObstacles,
+          rootSize,
+        );
+      } catch {
+        // Exact decross may reject pathological tiny graphs; fall through to
+        // the bounded longest-path/two-layer operator fallback below.
+      }
+    }
+    return runLayoutCandidate(
+      "longest-two-layer-greedy",
+      nodeIds,
+      edges,
+      sizes,
+      gap,
+      previousTargets,
+      orientation,
+      "longest",
+      "two-layer",
+      placeObstacles,
+      rootSize,
+    );
   }
 
   if (nodeIds.length <= EXACT_DECROSS_MAX_NODES && edges.length <= EXACT_DECROSS_MAX_EDGES) {
@@ -1424,7 +1492,11 @@ function layoutPlace(
   options: WorldDagLayoutOptions,
   revision: number,
 ): PlaceLayoutCache["result"] {
-  const orientation = options.orientation ?? "top-to-bottom";
+  const placeOverride = options.placeOverrides?.get(placeId);
+  const orientation = placeOverride?.orientation ?? options.orientation ?? "top-to-bottom";
+  const strategy = placeOverride?.strategy ?? options.strategy ?? "auto";
+  const reorganize =
+    options.reorganize === true || options.reorganizePlaceId === placeId;
   const nodeIds = instances.map((instance) => instance.id);
   const nodeIdSet = new Set(nodeIds);
   const sizes = nodeSizeMap(nodeIds, options.nodeSizes);
@@ -1435,17 +1507,17 @@ function layoutPlace(
   // as roots so they reserve real layout territory instead of becoming force-only
   // obstacles that can drift back through routed topology.
   const structuredNodeIds = nodeIds;
-  const key = topologyKey(placeId, nodeIds, edges, sizes, placeSize, orientation);
+  const key = topologyKey(placeId, nodeIds, edges, sizes, placeSize, orientation, strategy);
   const cacheKey = String(placeId);
   const cached = placeCache.get(cacheKey);
 
-  if (!options.reorganize && cached?.topologyKey === key) {
+  if (!reorganize && cached?.topologyKey === key) {
     placeCache.set(cacheKey, { ...cached, lastSeenRevision: revision });
     return cached.result;
   }
 
   const previousTargets = new Map(
-    (options.reorganize ? [] : (cached?.result.targets ?? [])).map(
+    (reorganize ? [] : (cached?.result.targets ?? [])).map(
       (target) => [String(target.instanceId), target] as const,
     ),
   );
@@ -1455,7 +1527,8 @@ function layoutPlace(
     sizes,
     previousTargets,
     orientation,
-    options.reorganize ? undefined : cached?.result.metrics.algorithm,
+    strategy,
+    reorganize ? undefined : cached?.result.metrics.algorithm,
     Object.freeze([]),
     placeSize,
   );
@@ -1598,6 +1671,7 @@ function crossPlaceTopologyKey(
   places: ReadonlyMap<WorldInstanceId, PlaceId>,
   placeSizes: ReadonlyMap<PlaceId, WorldDagLayoutNodeSize> | undefined,
   orientation: WorldDagLayoutOrientation,
+  strategy: WorldDagLayoutStrategy,
 ): string {
   const usedPlaces = [
     ...new Set(nodeIds.map((id) => places.get(id)).filter((id): id is PlaceId => id !== undefined)),
@@ -1606,6 +1680,7 @@ function crossPlaceTopologyKey(
   return JSON.stringify([
     "cross-place",
     orientation,
+    strategy,
     nodeIds.map((id) => {
       const [width, height] = sizes.get(String(id)) ?? [
         DAG_FALLBACK_NODE_SIZE_METERS,
@@ -1630,6 +1705,7 @@ function layoutCrossPlaceTopology(
   revision: number,
 ): CrossPlaceLayoutCache | null {
   const orientation = options.orientation ?? "top-to-bottom";
+  const strategy = options.strategy ?? "auto";
   const connectedIds = layoutNeighborhoodNodeIds(index, options);
   if (connectedIds.size === 0) {
     crossPlaceCache = null;
@@ -1673,6 +1749,7 @@ function layoutCrossPlaceTopology(
     index.primaryPlaceByInstance,
     options.placeSizes,
     orientation,
+    strategy,
   );
 
   if (!options.reorganize && crossPlaceCache?.topologyKey === key) {
@@ -1691,6 +1768,7 @@ function layoutCrossPlaceTopology(
     sizes,
     previousTargets,
     orientation,
+    strategy,
     options.reorganize ? undefined : crossPlaceCache?.algorithm,
     placeObstacles,
   );

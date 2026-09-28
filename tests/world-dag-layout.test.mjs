@@ -157,6 +157,59 @@ test("Sugiyama flow follows viewport orientation", () => {
   );
 });
 
+
+test("operator can select a bounded DAG strategy explicitly", () => {
+  const source = instance("strategy-source");
+  const middle = instance("strategy-middle");
+  const target = instance("strategy-target");
+  const projection = createWorldProjection({
+    instances: [source, middle, target],
+    edges: [edge("strategy-a", source, middle), edge("strategy-b", middle, target)],
+  });
+
+  const layout = createWorldDagLayout(projection, {
+    reorganize: true,
+    strategy: "simplex-two-layer-greedy",
+  });
+
+  assert.equal(layout.metrics.algorithmCounts["simplex-two-layer-greedy"], 1);
+  assert.equal(layout.targets.length, 3);
+});
+
+test("selected-place DAG override can change direction without relocating the authored place", () => {
+  const source = instance("place-override-source");
+  const target = instance("place-override-target");
+  const projection = createWorldProjection({
+    instances: [source, target],
+    edges: [edge("place-override-edge", source, target)],
+  });
+
+  const layout = createWorldDagLayout(projection, {
+    reorganizePlaceId: "place",
+    orientation: "top-to-bottom",
+    placeOverrides: new Map([
+      [
+        "place",
+        {
+          orientation: "left-to-right",
+          strategy: "longest-two-layer-greedy",
+        },
+      ],
+    ]),
+  });
+  const sourceTarget = layout.targets.find((entry) => entry.instanceId === source.id);
+  const targetTarget = layout.targets.find((entry) => entry.instanceId === target.id);
+
+  assert.ok(sourceTarget && targetTarget);
+  const east = targetTarget.eastMeters - sourceTarget.eastMeters;
+  const north = targetTarget.northMeters - sourceTarget.northMeters;
+  assert.ok(Math.abs(east) > Math.abs(north));
+  assert.ok(east > 0);
+  assert.equal(layout.metrics.algorithmCounts["longest-two-layer-greedy"], 1);
+  assert.equal(sourceTarget.placeId, "place");
+  assert.equal(targetTarget.placeId, "place");
+});
+
 test("anchored place footprint participates in local DAG spacing", () => {
   const a = instance("place-clearance-a");
   const b = instance("place-clearance-b");

@@ -5,6 +5,8 @@ import {
   WORLD_DAG_TARGET_STRENGTH,
   type WorldDagLayoutNodeSize,
   type WorldDagLayoutOrientation,
+  type WorldDagLayoutPlaceOverride,
+  type WorldDagLayoutStrategy,
   type WorldDagLayoutTarget,
 } from "./world-dag-layout.ts";
 import {
@@ -35,8 +37,12 @@ export interface WorldForceSceneBuildOptions {
    * Anchors remain geographic constraints and never become force nodes.
    */
   readonly reorganizeDag?: boolean;
+  /** Reorganize only one selected authored place, leaving other cached layouts intact. */
+  readonly reorganizeDagPlaceId?: PlaceId;
   /** Structural flow direction selected from the current world viewport shape. */
   readonly dagOrientation?: WorldDagLayoutOrientation;
+  readonly dagStrategy?: WorldDagLayoutStrategy;
+  readonly dagPlaceOverrides?: ReadonlyMap<PlaceId, WorldDagLayoutPlaceOverride>;
   /**
    * Optional continuity-preserving starting pose. Canonical/new projection
    * data still owns force targets, anchors, weights, topology, and DAG goals.
@@ -247,7 +253,10 @@ export function createWorldForceScene(
     nodeSizes,
     placeSizes,
     orientation: options.dagOrientation ?? "top-to-bottom",
+    strategy: options.dagStrategy ?? "auto",
+    placeOverrides: options.dagPlaceOverrides,
     reorganize: options.reorganizeDag === true,
+    reorganizePlaceId: options.reorganizeDagPlaceId,
   });
   const dagTargets = new Map(
     dagLayout.targets.map((target) => [target.instanceId, target] as const),

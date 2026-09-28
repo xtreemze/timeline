@@ -23,9 +23,10 @@ import {
   type WorldForcePin,
   type WorldForceScene,
   type WorldForceSimulationBackend,
+  type WorldForceTuning,
+  type WorldForceTuningScope,
   type WorldSimulationDiagnostics,
   type WorldSimulationRequest,
-  worldForceNodePreferredRadiusMeters,
 } from "./world-force-simulation.ts";
 
 const NORMAL_MANY_BODY_STRENGTH = -2_600;
@@ -35,6 +36,16 @@ const COLLAPSE_ANCHOR_STRENGTH = 0.08;
 const COLLISION_STRENGTH = 0.82;
 const COLLISION_ITERATIONS = 3;
 const CONNECTIVITY_SPACING_STRENGTH = 0.35;
+
+export const DEFAULT_D3_WORLD_FORCE_TUNING: WorldForceTuning = Object.freeze({
+  collisionStrength: COLLISION_STRENGTH,
+  collisionIterations: COLLISION_ITERATIONS,
+  connectivityClearanceScale: 1,
+  manyBodyStrength: NORMAL_MANY_BODY_STRENGTH,
+  linkStrengthScale: 1,
+  anchorStrengthScale: 1,
+  dagStrengthScale: 1,
+});
 const CONNECTIVITY_SPACING_ITERATIONS = 2;
 const ALTITUDE_STRENGTH = 0.06;
 const ALTITUDE_DAMPING = 0.82;
@@ -74,6 +85,7 @@ interface D3WorldLink extends SimulationLinkDatum<D3WorldNodeState> {
 
 interface D3CrossPlaceInteractionProbe extends SimulationNodeDatum {
   readonly state: D3WorldNodeState;
+  readonly tuning: WorldForceTuning;
   readonly collisionRadiusMeters: number;
   readonly preferredRadiusMeters: number;
 }
@@ -83,6 +95,7 @@ interface D3WorldGroup {
   readonly placeId: PlaceId | null;
   readonly nodes: readonly D3WorldNodeState[];
   readonly maximumRadiusMeters: number;
+  readonly tuning: WorldForceTuning;
   readonly linkForce: ForceLink<D3WorldNodeState, D3WorldLink> | null;
   readonly anchorXForce: ForceX<D3WorldNodeState>;
   readonly anchorYForce: ForceY<D3WorldNodeState>;
@@ -227,8 +240,11 @@ function geographicFromTangentOffset(
   return Object.freeze([wrapLongitude(origin[0] + longitudeDelta), latitude]);
 }
 
-function stateNeighborhoodRadiusMeters(state: D3WorldNodeState): number {
-  const collisionRadius = Math.max(1, worldForceNodePreferredRadiusMeters(state.node));
+function stateNeighborhoodRadiusMeters(
+  state: D3WorldNodeState,
+  tuning: WorldForceTuning,
+): number {
+  const collisionRadius = Math.max(1, tunedPreferredRadiusMeters(state.node, tuning));
   const precisionRadius = Math.max(0, state.anchor?.precisionRadiusMeters ?? 0);
   const targetEast = state.node.layoutTargetEastMeters ?? 0;
   const targetNorth = state.node.layoutTargetNorthMeters ?? 0;
@@ -236,8 +252,16 @@ function stateNeighborhoodRadiusMeters(state: D3WorldNodeState): number {
   return Math.max(collisionRadius * 8, precisionRadius, targetRadius);
 }
 
-function pairNeighborhoodRadiusMeters(left: D3WorldNodeState, right: D3WorldNodeState): number {
-  return stateNeighborhoodRadiusMeters(left) + stateNeighborhoodRadiusMeters(right);
+function pairNeighborhoodRadiusMeters(
+  left: D3WorldNodeState,
+  right: D3WorldNodeState,
+  leftTuning: WorldForceTuning,
+  rightTuning: WorldForceTuning,
+): number {
+  return (
+    stateNeighborhoodRadiusMeters(left, leftTuning) +
+    stateNeighborhoodRadiusMeters(right, rightTuning)
+  );
 }
 
 function surfaceCartesianMeters(
@@ -276,8 +300,8 @@ function crossPlaceGroupBounds(group: D3WorldGroup): D3WorldGroupBounds | null {
     maxZ = Math.max(maxZ, z);
     paddingMeters = Math.max(
       paddingMeters,
-      stateNeighborhoodRadiusMeters(state),
-      worldForceNodePreferredRadiusMeters(state.node) * 4,
+      stateNeighborhoodRadiusMeters(state, group.tuning),
+      tunedPreferredRadiusMeters(state.node, group.tuning) * 4,
     );
   }
 
@@ -355,6 +379,47 @@ function finiteNonNegative(value: number, label: string): number {
   return value;
 }
 
+function validatedTuning(tuning: WorldForceTuning): WorldForceTuning {
+  const collisionStrength = finiteNonNegative(tuning.collisionStrength, "Collision strength");
+  if (collisionStrength > 1) throw new Error("Collision strength must not exceed 1.");
+  const collisionIterations = finiteNonNegative(
+    tuning.collisionIterations,
+    "Collision iterations",
+  );
+  if (!Number.isInteger(collisionIterations) || collisionIterations < 1 || collisionIterations > 12) {
+    throw new Error("Collision iterations must be an integer from 1 to 12.");
+  }
+  const connectivityClearanceScale = finiteNonNegative(
+    tuning.connectivityClearanceScale,
+    "Connectivity clearance scale",
+  );
+  const linkStrengthScale = finiteNonNegative(tuning.linkStrengthScale, "Link strength scale");
+  const anchorStrengthScale = finiteNonNegative(
+    tuning.anchorStrengthScale,
+    "Anchor strength scale",
+  );
+  const dagStrengthScale = finiteNonNegative(tuning.dagStrengthScale, "DAG strength scale");
+  if (!Number.isFinite(tuning.manyBodyStrength)) {
+    throw new Error("Many-body strength must be finite.");
+  }
+  return Object.freeze({
+    collisionStrength,
+    collisionIterations,
+    connectivityClearanceScale,
+    manyBodyStrength: tuning.manyBodyStrength,
+    linkStrengthScale,
+    anchorStrengthScale,
+    dagStrengthScale,
+  });
+}
+
+function tunedPreferredRadiusMeters(node: WorldForceNode, tuning: WorldForceTuning): number {
+  return (
+    node.collisionRadiusMeters +
+    Math.max(0, node.connectivityClearanceMeters ?? 0) * tuning.connectivityClearanceScale
+  );
+}
+
 function sameStringSet(left: ReadonlySet<string>, right: ReadonlySet<string>): boolean {
   return left.size === right.size && [...left].every((value) => right.has(value));
 }
@@ -409,6 +474,8 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
   #groups = new Map<string, D3WorldGroup>();
   #clusteredPlaces = new Set<string>();
   #detachedLinkPlaces = new Set<string>();
+  #globalTuning: WorldForceTuning = DEFAULT_D3_WORLD_FORCE_TUNING;
+  #placeTunings = new Map<string, WorldForceTuning>();
   #pin: WorldForcePin | null = null;
   #interactionInstanceId: WorldInstanceId | null = null;
   #interactionGroupKey: string | null = null;
@@ -475,6 +542,20 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       }
     }
     this.#rebuildGroups(true);
+    this.#settled = false;
+    this.#iteration = 0;
+  }
+
+  setTuning(tuning: WorldForceTuning, scope: WorldForceTuningScope = {}): void {
+    this.#assertAlive();
+    const validated = validatedTuning(tuning);
+    if (scope.placeId === undefined) {
+      this.#globalTuning = validated;
+    } else {
+      this.#placeTunings.set(String(scope.placeId), validated);
+    }
+    this.#rebuildGroups(true);
+    this.#running = true;
     this.#settled = false;
     this.#iteration = 0;
   }
@@ -722,6 +803,9 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     for (const [key, nodes] of grouped) {
       const placeId = nodes[0]?.placeId ?? null;
       const collapsed = placeId !== null && this.#clusteredPlaces.has(String(placeId));
+      const tuning =
+        (placeId === null ? undefined : this.#placeTunings.get(String(placeId))) ??
+        this.#globalTuning;
       const linksDetached = placeId !== null && this.#detachedLinkPlaces.has(String(placeId));
 
       const memberIds = new Set(nodes.map((node) => node.id));
@@ -750,22 +834,22 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
           ? forceLink<D3WorldNodeState, D3WorldLink>(links)
               .id((node) => node.id)
               .distance((link) => Math.max(link.edge.restLengthMeters, maximumRadius * 2))
-              .strength((link) => this.#linkStrength(key, maximumRadius, link))
+              .strength((link) => this.#linkStrength(key, maximumRadius, link, tuning))
           : null;
       simulation.force("link", linkForce);
 
       simulation.force(
         "charge",
         forceManyBody<D3WorldNodeState>()
-          .strength(collapsed ? COLLAPSE_MANY_BODY_STRENGTH : NORMAL_MANY_BODY_STRENGTH)
+          .strength(collapsed ? COLLAPSE_MANY_BODY_STRENGTH : tuning.manyBodyStrength)
           .distanceMin(maximumRadius),
       );
       simulation.force(
         "collision",
         forceCollide<D3WorldNodeState>()
           .radius((node) => node.node.collisionRadiusMeters)
-          .strength(COLLISION_STRENGTH)
-          .iterations(COLLISION_ITERATIONS),
+          .strength(tuning.collisionStrength)
+          .iterations(tuning.collisionIterations),
       );
 
       const hasConnectivityClearance = nodes.some(
@@ -775,17 +859,17 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
         "connectivity-spacing",
         !collapsed && hasConnectivityClearance
           ? forceCollide<D3WorldNodeState>()
-              .radius((state) => worldForceNodePreferredRadiusMeters(state.node))
+              .radius((state) => tunedPreferredRadiusMeters(state.node, tuning))
               .strength(CONNECTIVITY_SPACING_STRENGTH)
               .iterations(CONNECTIVITY_SPACING_ITERATIONS)
           : null,
       );
 
       const anchorXForce = forceX<D3WorldNodeState>(0).strength((node) =>
-        this.#anchorStrength(key, collapsed, node),
+        this.#anchorStrength(key, collapsed, node, tuning),
       );
       const anchorYForce = forceY<D3WorldNodeState>(0).strength((node) =>
-        this.#anchorStrength(key, collapsed, node),
+        this.#anchorStrength(key, collapsed, node, tuning),
       );
       simulation.force("anchor-x", anchorXForce);
       simulation.force("anchor-y", anchorYForce);
@@ -796,10 +880,10 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       // the place is collapsing into its geographic anchor.
       const dagXForce = forceX<D3WorldNodeState>(
         (state) => state.node.layoutTargetEastMeters ?? state.x ?? 0,
-      ).strength((state) => this.#dagStrength(key, collapsed, state));
+      ).strength((state) => this.#dagStrength(key, collapsed, state, tuning));
       const dagYForce = forceY<D3WorldNodeState>(
         (state) => state.node.layoutTargetNorthMeters ?? state.y ?? 0,
-      ).strength((state) => this.#dagStrength(key, collapsed, state));
+      ).strength((state) => this.#dagStrength(key, collapsed, state, tuning));
       simulation.force("dag-x", dagXForce);
       simulation.force("dag-y", dagYForce);
 
@@ -811,6 +895,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
           placeId,
           nodes: Object.freeze(nodes),
           maximumRadiusMeters: maximumRadius,
+          tuning,
           linkForce,
           anchorXForce,
           anchorYForce,
@@ -867,15 +952,17 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     const rightPosition = geographicPosition(right);
     if (!leftPosition || !rightPosition) return false;
 
+    const leftTuning = this.#tuningForState(left);
+    const rightTuning = this.#tuningForState(right);
     const collisionDistance =
       left.node.collisionRadiusMeters + right.node.collisionRadiusMeters;
     const preferredDistance =
-      worldForceNodePreferredRadiusMeters(left.node) +
-      worldForceNodePreferredRadiusMeters(right.node);
+      tunedPreferredRadiusMeters(left.node, leftTuning) +
+      tunedPreferredRadiusMeters(right.node, rightTuning);
     const interactionDistance = Math.max(
       collisionDistance * 4,
       preferredDistance * 4,
-      pairNeighborhoodRadiusMeters(left, right),
+      pairNeighborhoodRadiusMeters(left, right, leftTuning, rightTuning),
     );
     if (surfaceDistanceMeters(leftPosition, rightPosition) > interactionDistance) return false;
 
@@ -885,8 +972,9 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     const probes: D3CrossPlaceInteractionProbe[] = [
       {
         state: left,
+        tuning: leftTuning,
         collisionRadiusMeters: left.node.collisionRadiusMeters,
-        preferredRadiusMeters: worldForceNodePreferredRadiusMeters(left.node),
+        preferredRadiusMeters: tunedPreferredRadiusMeters(left.node, leftTuning),
         x: 0,
         y: 0,
         vx: 0,
@@ -895,8 +983,9 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       },
       {
         state: right,
+        tuning: rightTuning,
         collisionRadiusMeters: right.node.collisionRadiusMeters,
-        preferredRadiusMeters: worldForceNodePreferredRadiusMeters(right.node),
+        preferredRadiusMeters: tunedPreferredRadiusMeters(right.node, rightTuning),
         x: rightEast,
         y: rightNorth,
         vx: 0,
@@ -914,7 +1003,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     pairSimulation.force(
       "charge",
       forceManyBody<D3CrossPlaceInteractionProbe>()
-        .strength(NORMAL_MANY_BODY_STRENGTH)
+        .strength((probe) => probe.tuning.manyBodyStrength)
         .distanceMin(
           Math.max(
             1,
@@ -927,8 +1016,8 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       "collision",
       forceCollide<D3CrossPlaceInteractionProbe>()
         .radius((probe) => probe.collisionRadiusMeters)
-        .strength(COLLISION_STRENGTH)
-        .iterations(COLLISION_ITERATIONS),
+        .strength(Math.max(leftTuning.collisionStrength, rightTuning.collisionStrength))
+        .iterations(Math.max(leftTuning.collisionIterations, rightTuning.collisionIterations)),
     );
     if (preferredDistance > collisionDistance) {
       pairSimulation.force(
@@ -987,29 +1076,40 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
         return [];
       const position = geographicPosition(state);
       if (!position) return [];
+      const focalTuning = this.#tuningForState(focalState);
+      const stateTuning = this.#tuningForState(state);
       const collisionDistance =
         focalState.node.collisionRadiusMeters + state.node.collisionRadiusMeters;
       const preferredDistance =
-        worldForceNodePreferredRadiusMeters(focalState.node) +
-        worldForceNodePreferredRadiusMeters(state.node);
+        tunedPreferredRadiusMeters(focalState.node, focalTuning) +
+        tunedPreferredRadiusMeters(state.node, stateTuning);
       const interactionDistance = Math.max(
         collisionDistance * 4,
         preferredDistance * 4,
-        pairNeighborhoodRadiusMeters(focalState, state),
+        pairNeighborhoodRadiusMeters(focalState, state, focalTuning, stateTuning),
       );
       if (surfaceDistanceMeters(focalPosition, position) > interactionDistance) return [];
       const [eastMeters, northMeters] = tangentOffsetMeters(focalPosition, position);
-      return [{ state, eastMeters, northMeters }];
+      return [{ state, tuning: stateTuning, eastMeters, northMeters }];
     });
     if (partners.length === 0) return false;
 
-    const participants = [{ state: focalState, eastMeters: 0, northMeters: 0 }, ...partners];
+    const participants = [
+      {
+        state: focalState,
+        tuning: this.#tuningForState(focalState),
+        eastMeters: 0,
+        northMeters: 0,
+      },
+      ...partners,
+    ];
     const pinFocal = this.#pin?.instanceId === focalState.id;
     const probes: D3CrossPlaceInteractionProbe[] = participants.map(
-      ({ state, eastMeters, northMeters }, index) => ({
+      ({ state, tuning, eastMeters, northMeters }, index) => ({
         state,
+        tuning,
         collisionRadiusMeters: state.node.collisionRadiusMeters,
-        preferredRadiusMeters: worldForceNodePreferredRadiusMeters(state.node),
+        preferredRadiusMeters: tunedPreferredRadiusMeters(state.node, tuning),
         x: eastMeters,
         y: northMeters,
         vx: 0,
@@ -1025,12 +1125,21 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       .alphaDecay(ALPHA_DECAY)
       .alphaTarget(0);
     const maximumInteractionDistance = Math.max(
-      ...participants.slice(1).map(({ state }) => pairNeighborhoodRadiusMeters(focalState, state)),
+      ...participants
+        .slice(1)
+        .map(({ state, tuning }) =>
+          pairNeighborhoodRadiusMeters(
+            focalState,
+            state,
+            participants[0]?.tuning ?? this.#globalTuning,
+            tuning,
+          ),
+        ),
     );
     interactionSimulation.force(
       "charge",
       forceManyBody<D3CrossPlaceInteractionProbe>()
-        .strength(NORMAL_MANY_BODY_STRENGTH)
+        .strength((probe) => probe.tuning.manyBodyStrength)
         .distanceMin(Math.max(1, Math.min(...probes.map((probe) => probe.collisionRadiusMeters))))
         .distanceMax(maximumInteractionDistance),
     );
@@ -1038,8 +1147,8 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       "collision",
       forceCollide<D3CrossPlaceInteractionProbe>()
         .radius((probe) => probe.collisionRadiusMeters)
-        .strength(COLLISION_STRENGTH)
-        .iterations(COLLISION_ITERATIONS),
+        .strength(Math.max(...probes.map((probe) => probe.tuning.collisionStrength)))
+        .iterations(Math.max(...probes.map((probe) => probe.tuning.collisionIterations))),
     );
     if (
       probes.some((probe) => probe.preferredRadiusMeters > probe.collisionRadiusMeters)
@@ -1094,8 +1203,20 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     return moved;
   }
 
-  #linkStrength(groupKey: string, maximumRadiusMeters: number, link: D3WorldLink): number {
-    const baseStrength = Math.max(0, link.edge.strength);
+  #tuningForState(state: D3WorldNodeState): WorldForceTuning {
+    return (
+      (state.placeId === null ? undefined : this.#placeTunings.get(String(state.placeId))) ??
+      this.#globalTuning
+    );
+  }
+
+  #linkStrength(
+    groupKey: string,
+    maximumRadiusMeters: number,
+    link: D3WorldLink,
+    tuning: WorldForceTuning,
+  ): number {
+    const baseStrength = Math.max(0, link.edge.strength) * tuning.linkStrengthScale;
     const interactionLimited =
       this.#interactionGroupKey === groupKey &&
       (this.#requestReason === "drag" || this.#requestReason === "post-drop");
@@ -1115,14 +1236,21 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     return baseStrength * (maximumStretch / extension);
   }
 
-  #anchorStrength(groupKey: string, collapsed: boolean, state: D3WorldNodeState): number {
+  #anchorStrength(
+    groupKey: string,
+    collapsed: boolean,
+    state: D3WorldNodeState,
+    tuning: WorldForceTuning,
+  ): number {
     const activePinGroup =
       this.#pin !== null && this.#states.get(this.#pin.instanceId)?.group === groupKey;
     if (activePinGroup || !state.anchor) return 0;
 
     const baseStrength = collapsed
       ? COLLAPSE_ANCHOR_STRENGTH
-      : NORMAL_ANCHOR_STRENGTH * Math.max(0, Math.min(1, state.anchor.influence));
+      : NORMAL_ANCHOR_STRENGTH *
+        tuning.anchorStrengthScale *
+        Math.max(0, Math.min(1, state.anchor.influence));
     const postDropLimited =
       this.#requestReason === "post-drop" && this.#interactionGroupKey === groupKey;
     if (!postDropLimited) return baseStrength;
@@ -1132,9 +1260,15 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     return baseStrength * (INTERACTION_FORCE_MAX_ERROR_METERS / error);
   }
 
-  #dagStrength(groupKey: string, collapsed: boolean, state: D3WorldNodeState): number {
+  #dagStrength(
+    groupKey: string,
+    collapsed: boolean,
+    state: D3WorldNodeState,
+    tuning: WorldForceTuning,
+  ): number {
     if (collapsed) return 0;
-    const baseStrength = Math.max(0, state.node.layoutTargetStrength ?? 0);
+    const baseStrength =
+      Math.max(0, state.node.layoutTargetStrength ?? 0) * tuning.dagStrengthScale;
     const postDropLimited =
       this.#requestReason === "post-drop" && this.#interactionGroupKey === groupKey;
     if (!postDropLimited || baseStrength === 0) return baseStrength;
@@ -1149,14 +1283,22 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
   #refreshGroupForceStrengths(group: D3WorldGroup): void {
     if (group.linkForce) {
       group.linkForce.strength((link) =>
-        this.#linkStrength(group.key, group.maximumRadiusMeters, link),
+        this.#linkStrength(group.key, group.maximumRadiusMeters, link, group.tuning),
       );
     }
     const collapsed = group.placeId !== null && this.#clusteredPlaces.has(String(group.placeId));
-    group.anchorXForce.strength((state) => this.#anchorStrength(group.key, collapsed, state));
-    group.anchorYForce.strength((state) => this.#anchorStrength(group.key, collapsed, state));
-    group.dagXForce.strength((state) => this.#dagStrength(group.key, collapsed, state));
-    group.dagYForce.strength((state) => this.#dagStrength(group.key, collapsed, state));
+    group.anchorXForce.strength((state) =>
+      this.#anchorStrength(group.key, collapsed, state, group.tuning),
+    );
+    group.anchorYForce.strength((state) =>
+      this.#anchorStrength(group.key, collapsed, state, group.tuning),
+    );
+    group.dagXForce.strength((state) =>
+      this.#dagStrength(group.key, collapsed, state, group.tuning),
+    );
+    group.dagYForce.strength((state) =>
+      this.#dagStrength(group.key, collapsed, state, group.tuning),
+    );
   }
 
   #stepAltitude(nodes: readonly D3WorldNodeState[], ticks: number): void {
