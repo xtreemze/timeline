@@ -13,18 +13,20 @@ A regression test must not require manual registration in `package.json` or CI. 
 
 ## CI lanes
 
-The `Timeline view` workflow runs for every pull request and every push to `main`. Static
-quality, the complete Node suite, benchmarks and browser certifications run independently so one
-early failure cannot hide unrelated failures.
+The `Timeline view` workflow runs for relevant pull-request and `main` changes. Static quality,
+the complete Node suite, benchmarks, and browser certifications are kept independently observable so
+one early failure does not hide unrelated evidence.
 
-The final `certification` job fails unless every required lane succeeds. Repository branch
-protection or a repository ruleset should require that check before merge. Workflow code can define
-the aggregate check, but repository administration must make it merge-required.
+Browser, benchmark, showcase, Lighthouse, coverage, lint, and formatting results are diagnostic
+unless a workflow explicitly promotes one to a production gate. GitHub Pages production deployment
+uses its own build/runtime/type gates; diagnostic certification failures must not prevent an
+otherwise valid build from deploying.
 
 ## Flakiness
 
 Chromium browser tests retain retries for diagnostics and traces, but `failOnFlakyTests` is enabled
-in CI. A test that fails once and passes on retry is still a failed certification result.
+in CI. A test that fails once and passes on retry is therefore reported as a failed diagnostic lane
+rather than being silently treated as clean.
 
 ## Browser scope
 
