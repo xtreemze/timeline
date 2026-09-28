@@ -102,6 +102,23 @@ test("without a caller camera startup zooms to readable content exactly once", (
   assert.equal(surface.getCamera().longitude, 30, "later updates never yank the camera");
 });
 
+test("zoom to content progressively drills deeper without resetting to the same fit", () => {
+  const r = runtime();
+  const surface = new DeckWorldSurface({ clientWidth: 1000, clientHeight: 600 }, r);
+  surface.setProjection(placed(30, 40));
+
+  const fittedZoom = surface.getCamera().zoom;
+  surface.zoomToContent();
+  const firstZoom = surface.getCamera().zoom;
+  surface.zoomToContent();
+  const secondZoom = surface.getCamera().zoom;
+
+  assert.ok(firstZoom > fittedZoom, "first zoom-to-content step advances beyond the readable fit");
+  assert.ok(secondZoom > firstZoom, "repeated zoom-to-content must continue drilling in");
+  assert.ok(Math.abs(firstZoom - (fittedZoom + 0.85)) < 1e-9);
+  assert.ok(Math.abs(secondZoom - (firstZoom + 0.85)) < 1e-9);
+});
+
 test("a caller-chosen or explicitly set camera is never overridden by fitting", () => {
   const r = runtime();
   const surface = new DeckWorldSurface({}, r, CURRENT);
