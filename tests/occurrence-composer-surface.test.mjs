@@ -24,6 +24,9 @@ test("composer owns the card and incremental world preview with interactive gram
   assert.match(source, /identityEvidence/);
   assert.match(source, /aria-label="Candidate comparison"/);
   assert.match(source, /Compare candidates/);
+  assert.match(source, /Record source observation/);
+  assert.match(source, /Record source assertion/);
+  assert.match(source, /selectionContext\?\.metadata\?\.sourceIds/);
   assert.match(source, /private investigationProjection\(\)/);
   assert.match(source, /event\.key === "ArrowRight"/);
   assert.match(source, /event\.key === "Home"/);
@@ -41,6 +44,9 @@ test("investigative question travels to application reasoning authority", async 
   assert.match(app, /caseReasoning\s*\.validateReasoning\(next/);
   assert.match(app, /applyInvestigationReasoning\(next/);
   assert.match(app, /buildIdentityHypothesisDrafts/);
+  assert.match(app, /buildObservationDraft/);
+  assert.match(app, /buildAssertionDraft/);
+  assert.match(app, /action === "promote-observation"/);
   assert.match(app, /identityCandidateEvidenceAssessments\(state\.reasoning\)/);
   assert.match(app, /action === "compare-candidates"/);
 });

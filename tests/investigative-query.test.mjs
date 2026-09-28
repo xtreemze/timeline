@@ -6,6 +6,8 @@ import {
   buildDisconfirmationEnquiryDraft,
   buildIdentityHypothesisDrafts,
   buildInformationReviewDraft,
+  buildObservationDraft,
+  buildAssertionDraft,
   buildLineOfEnquiryDraft,
   buildQuestionDraft,
   interpretInvestigativeQualifier,
@@ -267,6 +269,35 @@ test("question and identity-hypothesis builders produce existing case-reasoning 
     }).some((finding) => finding.severity === "error"),
     false,
   );
+});
+
+test("source-backed clue promotion builders preserve provenance and validate without asserting canonical identity", () => {
+  const observation = buildObservationDraft({
+    id: "obs-clue-man",
+    text: "Source-backed occurrence records subject clue “man”.",
+    sourceIds: ["ev-witness"],
+    evidenceIds: ["ev-witness"],
+    relationshipIds: ["rel-1"],
+    itemIds: ["item-1"],
+    entityIds: ["unknown-person-a"],
+  });
+  const assertion = buildAssertionDraft({
+    id: "fact-source-description",
+    text: "The selected source describes the subject as “man”.",
+    sourceIds: ["ev-witness"],
+    inputIds: [observation.id],
+    itemIds: ["item-1"],
+  });
+  const model = normalizeReasoning({ observations: [observation], assertions: [assertion] });
+  const errors = validateReasoning(model, {
+    entityIds: ["unknown-person-a"],
+    externalIds: ["ev-witness", "rel-1", "item-1"],
+  }).filter((finding) => finding.severity === "error");
+  assert.deepEqual(errors, []);
+  assert.deepEqual(model.observations[0].evidenceIds, ["ev-witness"]);
+  assert.deepEqual(model.observations[0].relationshipIds, ["rel-1"]);
+  assert.deepEqual(model.assertions[0].inputIds, ["obs-clue-man"]);
+  assert.equal("candidateEntityId" in model.assertions[0], false);
 });
 
 test("methodology builders create explicit assumption, enquiry, falsification and information-review drafts", () => {

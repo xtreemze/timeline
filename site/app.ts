@@ -36,7 +36,11 @@ import {
   parseOccurrenceSentence,
   type ComposerTimeReference,
 } from "./occurrence-composer-model.ts";
-import { buildIdentityHypothesisDrafts } from "../src/application/investigative-query.ts";
+import {
+  buildAssertionDraft,
+  buildIdentityHypothesisDrafts,
+  buildObservationDraft,
+} from "../src/application/investigative-query.ts";
 import { proposeInvestigationAction } from "./occurrence-composer-preview.ts";
 import { TimelineEvidence } from "./evidence-store.ts";
 import { TimelineGraphInference } from "./graph-inference.ts";
@@ -6179,16 +6183,84 @@ els.occurrenceComposer.addEventListener("occurrencecomposercloserequest", () => 
   setOccurrenceComposerOpen(false);
 });
 els.occurrenceComposer.addEventListener("occurrenceinvestigationactionrequest", (event) => {
-  const { text = "", action = "", unknownEntityId = null, candidates = [] } =
+  const {
+    text = "",
+    action = "",
+    unknownEntityId = null,
+    candidates = [],
+    qualifier = null,
+    provenance = null,
+  } =
     (
       event as CustomEvent<{
         text?: string;
         action?: string;
         unknownEntityId?: string | null;
         candidates?: readonly { entityId: string; label: string }[];
+        qualifier?: { kind?: string; text?: string } | null;
+        provenance?: {
+          sourceIds?: readonly string[];
+          relationshipId?: string | null;
+          itemId?: string | null;
+          entityId?: string | null;
+          placeId?: string | null;
+        } | null;
       }>
     ).detail ?? {};
   const current = caseReasoning.normalizeReasoning(state.reasoning);
+  if (action === "promote-observation" || action === "promote-assertion") {
+    const knownEvidenceIds = new Set(state.evidence.map((record) => record.id));
+    const sourceIds = [...new Set((provenance?.sourceIds ?? []).filter((id) => knownEvidenceIds.has(id)))];
+    const relationshipId = provenance?.relationshipId ?? null;
+    const qualifierText = String(qualifier?.text ?? "").replace(/\?$/, "").trim();
+    const qualifierKind = String(qualifier?.kind ?? "clue").trim() || "clue";
+    if (!relationshipId || !qualifierText || !sourceIds.length) {
+      els.occurrenceComposer.setError(
+        "Source observation/assertion promotion requires a selected source-backed occurrence and an active unresolved clue.",
+      );
+      return;
+    }
+    const observationId = `observation-${crypto.randomUUID()}`;
+    const observation = buildObservationDraft({
+      id: observationId,
+      text: `Source-backed occurrence records ${qualifierKind} clue “${qualifierText}”.`,
+      sourceIds,
+      evidenceIds: sourceIds,
+      itemIds: provenance?.itemId ? [provenance.itemId] : [],
+      relationshipIds: [relationshipId],
+      entityIds: provenance?.entityId ? [provenance.entityId] : [],
+      placeIds: provenance?.placeId ? [provenance.placeId] : [],
+    });
+    const assertion = action === "promote-assertion"
+      ? buildAssertionDraft({
+          id: `assertion-${crypto.randomUUID()}`,
+          text: `The selected source describes the ${qualifierKind} as “${qualifierText}”.`,
+          sourceIds,
+          inputIds: [observationId],
+          itemIds: provenance?.itemId ? [provenance.itemId] : [],
+        })
+      : null;
+    const next = caseReasoning.normalizeReasoning({
+      ...current,
+      observations: [...current.observations, observation],
+      assertions: assertion ? [...current.assertions, assertion] : current.assertions,
+    });
+    const errors = caseReasoning
+      .validateReasoning(next, {
+        entityIds: state.entities.map((entity) => entity.id),
+        externalIds: investigationExternalIds(),
+      })
+      .filter((finding) => finding.severity === "error");
+    if (errors.length) {
+      els.occurrenceComposer.setError(errors[0]?.message ?? "Cannot promote the source-backed clue.");
+      return;
+    }
+    applyInvestigationReasoning(
+      next,
+      assertion ? "Source-backed observation and assertion recorded." : "Source-backed observation recorded.",
+    );
+    return;
+  }
   if (action === "compare-candidates") {
     if (!unknownEntityId || !state.entities.some((entity) => entity.id === unknownEntityId)) {
       els.occurrenceComposer.setError(

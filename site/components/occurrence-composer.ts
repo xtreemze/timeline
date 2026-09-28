@@ -53,6 +53,13 @@ export interface OccurrenceComposerSelectionContext {
   readonly title?: string | null;
   readonly description?: string | null;
   readonly media?: { readonly src: string; readonly alt: string } | null;
+  readonly metadata?: {
+    readonly role?: string | null;
+    readonly initialState?: "active" | "inactive";
+    readonly sourceIds?: readonly string[];
+    readonly confidence?: number | null;
+    readonly attributes?: Readonly<Record<string, unknown>>;
+  } | null;
   readonly relationship?: {
     readonly subjectId: string;
     readonly objectId: string;
@@ -549,6 +556,15 @@ export class LuumOccurrenceComposerElement extends LitElement {
           ...(context.title ? { title: context.title } : {}),
           ...(context.description ? { description: context.description } : {}),
           ...(context.media ? { media: Object.freeze({ ...context.media }) } : {}),
+          ...(context.metadata
+            ? {
+                metadata: Object.freeze({
+                  ...context.metadata,
+                  sourceIds: Object.freeze([...(context.metadata.sourceIds ?? [])]),
+                  attributes: Object.freeze({ ...(context.metadata.attributes ?? {}) }),
+                }),
+              }
+            : {}),
           ...(context.relationship
             ? {
                 relationship: Object.freeze({
@@ -977,6 +993,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     return {
       qualifiers,
       activeQualifier,
+      activeQualifier,
       activeInterpretations,
       chosenInterpretation,
       candidateMatrix,
@@ -1281,26 +1298,63 @@ export class LuumOccurrenceComposerElement extends LitElement {
                   ["enquiry", "Create enquiry"],
                   ["falsify", "What would disconfirm this?"],
                   ["information-review", "Review information quality"],
+                  ["promote-observation", "Record source observation"],
+                  ["promote-assertion", "Record source assertion"],
                 ] as const
               ).map(
                 ([action, label]) => {
                   const comparing = action === "compare-candidates";
+                  const promoting = action === "promote-observation" || action === "promote-assertion";
                   const candidates = candidateMatrix?.candidates
                     .filter((candidate) => candidate.candidateScope === "entity" && candidate.candidateEntityId)
                     .map((candidate) => ({
                       entityId: candidate.candidateEntityId!,
                       label: candidate.label,
                     })) ?? [];
+                  const sourceIds = [...(this.selectionContext?.metadata?.sourceIds ?? [])];
+                  const canPromote = Boolean(
+                    activeQualifier && this.selectionContext?.selectedOccurrenceId && sourceIds.length,
+                  );
+                  const disabled =
+                    (comparing && (!unknownEntityId || candidates.length === 0)) ||
+                    (promoting && !canPromote);
+                  const title = comparing && !unknownEntityId
+                    ? "Select a canonical unresolved entity before comparing identities."
+                    : promoting && !canPromote
+                      ? "Source observation/assertion promotion requires a selected occurrence with source evidence."
+                      : label;
+                  const qualifierEntityId = activeQualifier?.kind === "subject"
+                    ? this.selectionContext?.relationship?.subjectId ?? null
+                    : activeQualifier?.kind === "object"
+                      ? this.selectionContext?.relationship?.objectId ?? null
+                      : null;
                   return html`<button class="interpretation-chip"
                     type="button"
-                    ?disabled=${comparing && (!unknownEntityId || candidates.length === 0)}
-                    title=${comparing && !unknownEntityId ? "Select a canonical unresolved entity before comparing identities." : label}
+                    ?disabled=${disabled}
+                    title=${title}
                     @click=${() =>
                       this.dispatchEvent(
                         new CustomEvent("occurrenceinvestigationactionrequest", {
                           bubbles: true,
                           composed: true,
-                          detail: { text: this.value, action, unknownEntityId, candidates },
+                          detail: {
+                            text: this.value,
+                            action,
+                            unknownEntityId,
+                            candidates,
+                            qualifier: activeQualifier
+                              ? { kind: activeQualifier.kind, text: activeQualifier.text }
+                              : null,
+                            provenance: {
+                              sourceIds,
+                              relationshipId: this.selectionContext?.selectedOccurrenceId ?? null,
+                              itemId: this.selectionContext?.selectedItemId ?? null,
+                              entityId: qualifierEntityId,
+                              placeId: activeQualifier?.kind === "place"
+                                ? this.selectionContext?.place?.id ?? null
+                                : null,
+                            },
+                          },
                         }),
                       )}>${label}</button>`;
                 },

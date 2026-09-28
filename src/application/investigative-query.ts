@@ -456,6 +456,48 @@ function uniqueIds(values: readonly string[] | undefined): string[] {
   return [...new Set((values ?? []).map(text).filter(Boolean))];
 }
 
+export function buildObservationDraft(input: {
+  readonly id: string;
+  readonly text: string;
+  readonly sourceIds?: readonly string[];
+  readonly evidenceIds?: readonly string[];
+  readonly itemIds?: readonly string[];
+  readonly relationshipIds?: readonly string[];
+  readonly entityIds?: readonly string[];
+  readonly placeIds?: readonly string[];
+  readonly methodId?: string;
+}) {
+  return Object.freeze({
+    id: text(input.id),
+    text: text(input.text),
+    sourceIds: Object.freeze(uniqueIds(input.sourceIds)),
+    evidenceIds: Object.freeze(uniqueIds(input.evidenceIds)),
+    itemIds: Object.freeze(uniqueIds(input.itemIds)),
+    relationshipIds: Object.freeze(uniqueIds(input.relationshipIds)),
+    entityIds: Object.freeze(uniqueIds(input.entityIds)),
+    placeIds: Object.freeze(uniqueIds(input.placeIds)),
+    methodId: text(input.methodId) || "composer-clue-promotion",
+  });
+}
+
+export function buildAssertionDraft(input: {
+  readonly id: string;
+  readonly text: string;
+  readonly sourceIds?: readonly string[];
+  readonly inputIds?: readonly string[];
+  readonly itemIds?: readonly string[];
+  readonly citationIds?: readonly string[];
+}) {
+  return Object.freeze({
+    id: text(input.id),
+    text: text(input.text),
+    sourceIds: Object.freeze(uniqueIds(input.sourceIds)),
+    inputIds: Object.freeze(uniqueIds(input.inputIds)),
+    itemIds: Object.freeze(uniqueIds(input.itemIds)),
+    citationIds: Object.freeze(uniqueIds(input.citationIds)),
+  });
+}
+
 export function buildQuestionDraft(input: {
   readonly id: string;
   readonly text: string;
