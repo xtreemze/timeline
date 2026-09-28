@@ -592,7 +592,6 @@ test("manual DAG reorganization rebuilds targets and routes while retaining geog
   assert.ok(applyCall[1].excitation > 0);
 });
 
-
 test(
   "selected-place DAG settings reorganize only disposable layout while retaining authored anchors",
   () => {
@@ -624,6 +623,7 @@ test(
     assert.equal(applyCall[1].reheat, true);
   },
 );
+
 test("force tuning can target a selected place without rebuilding the canonical scene", () => {
   const { calls, controller } = harness();
   controller.setProjection(projection());
