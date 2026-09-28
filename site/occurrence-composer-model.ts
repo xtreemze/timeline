@@ -764,6 +764,7 @@ export function occurrenceComposerSuggestions(
     readonly locationDefault?: string | null;
     readonly preferredEntityIds?: readonly string[];
     readonly predicates?: readonly string[];
+    readonly tags?: readonly string[];
     readonly cursorOffset?: number | null;
   },
 ): readonly ComposerSuggestion[] {
@@ -793,12 +794,54 @@ export function occurrenceComposerSuggestions(
   }
 
   if (/\[[^\]]*$/.test(prefix)) {
-    const categorySuggestions = options.categories.slice(0, 10).map((category) => ({
-      kind: "category" as const,
-      label: category.name,
-      detail: "category",
-      insertText: `category: ${quoteComposerName(category.name)}`,
-    }));
+    const optionStart = prefix.lastIndexOf("[");
+    const optionText = prefix.slice(optionStart + 1);
+    const categoryMatch = optionText.match(/(?:^|,)\s*category\s*:\s*([^,\]]*)$/i);
+    const tagMatch = optionText.match(/(?:^|,)\s*tags\s*:\s*([^,\]]*)$/i);
+
+    if (tagMatch) {
+      const rawTags = tagMatch[1] ?? "";
+      const segments = rawTags.split("|");
+      const activeTag = normalizedMatchText(segments.at(-1) ?? "");
+      const retainedTags = segments
+        .slice(0, -1)
+        .map((tag) => tag.trim())
+        .filter(Boolean);
+      const retainedKeys = new Set(retainedTags.map(normalizedMatchText));
+      return uniqueSuggestions(
+        (options.tags ?? [])
+          .map((tag) => tag.trim())
+          .filter(Boolean)
+          .filter((tag) => !retainedKeys.has(normalizedMatchText(tag)))
+          .filter((tag) => {
+            if (!activeTag) return true;
+            return normalizedMatchText(tag).includes(activeTag);
+          })
+          .slice(0, 10)
+          .map((tag) => ({
+            kind: "tag" as const,
+            label: tag,
+            detail: "existing tag",
+            insertText: `tags: ${[...retainedTags, tag].join("|")}`,
+          })),
+      );
+    }
+
+    const categorySuggestions = options.categories
+      .filter((category) => {
+        const activeCategory = normalizedMatchText(categoryMatch?.[1] ?? "");
+        return !activeCategory || normalizedMatchText(category.name).includes(activeCategory);
+      })
+      .slice(0, 10)
+      .map((category) => ({
+        kind: "category" as const,
+        label: category.name,
+        detail: "category",
+        insertText: `category: ${quoteComposerName(category.name)}`,
+      }));
+
+    if (categoryMatch) return uniqueSuggestions(categorySuggestions);
+
     return uniqueSuggestions([
       ...categorySuggestions,
       { kind: "tag", label: "tags", detail: "separate tags with |", insertText: "tags: " },
