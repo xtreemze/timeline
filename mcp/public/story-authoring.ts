@@ -61,7 +61,7 @@ The public MCP endpoint is stateless and does not retain the source documents. T
    - ranges for sustained conditions or bounded periods;
    - never invent an absolute date merely to place an event on the timeline.
    If the source only establishes relative order and Lūm cannot represent it without an invented absolute coordinate, leave that occurrence unresolved. For fictional/demo material, synthetic ordering coordinates are allowed only when the user explicitly permits them and they must be labeled as synthetic/inferred in the temporal source text.
-6. Extract durable entities as nouns with independent identity: people, organizations, groups, objects, documents, systems, vehicles, and other persistent things. Do not create entity nodes for actions, events, dates, places, categories, or stories.
+6. Extract durable entities as nouns with independent identity: people, organizations, groups, objects, documents, systems, vehicles, and other persistent things. Do not create entity nodes for actions, events, dates, places, categories, or stories. Explicit entity icons are optional presentation metadata: use only the shared Lūm semantic vocabulary at entity.attributes.style.icon, or omit the icon and let entity type determine the default. Never invent icon names.
 7. Create directed subject-action-object relationships between two different entity nodes. The predicate is one concrete action verb, optionally followed by one grammatical particle. Do not embed entity names, place, time, role, cause, or instrument in the predicate.
 8. Link each relationship to the chronology item(s) it explains using relationship.itemIds. Put occurrence time on relationship.time.
 9. Places are reusable spatial context, not entity nodes. Create a canonical place only when the source or user provides usable geometry/coordinates. Do not geocode from model world knowledge. A named location without geometry should remain unresolved until the user supplies or approves geometry.
@@ -119,7 +119,7 @@ export const STORY_PROJECT_FIELD_REFERENCE: JsonRecord = Object.freeze({
     items:
       "array of { id, kind:'event'|'range', start, end?, time, title, description?, categoryId?, evidenceIds[], relationChanges[], extensions? }",
     entities:
-      "array of { id, type, name, alternateNames?, identifiers?, sourceIds?, attributes? }",
+      "array of { id, type, name, alternateNames?, identifiers?, sourceIds?, attributes? }; optional semantic icon belongs at attributes.style.icon and must use the shared Lūm vocabulary",
     places:
       "array of { id, name, geometry:{ type:'Point'|'LineString'|'MultiLineString'|'Polygon'|'MultiPolygon', coordinates }, geographicIdentifier?, address?, attributes? }",
     relationships:
