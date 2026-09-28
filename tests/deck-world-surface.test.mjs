@@ -20,6 +20,7 @@ import {
 import { WorldRenderTopologyIndex } from "../site/world/world-render-topology.ts";
 import { WORLD_ENTITY_MIN_HIT_RADIUS_PX } from "../src/layout/world-graph-style.ts";
 import {
+  DEFAULT_WORLD_SPATIAL_MODE_POLICY,
   selectWorldSpatialMode,
   WORLD_CAMERA_MAX_ZOOM,
   WORLD_CAMERA_MIN_ZOOM,
@@ -2326,11 +2327,15 @@ test("refresh and destruction delegate to Deck lifecycle exactly once", () => {
   assert.throws(() => surface.refresh(), /destroyed/);
 });
 
-test("world spatial mode uses hysteresis around the local precision threshold", () => {
-  assert.equal(selectWorldSpatialMode({ zoom: 11.89 }, "globe"), "globe");
-  assert.equal(selectWorldSpatialMode({ zoom: 12 }, "globe"), "local");
+test("world spatial mode hands off before the globe precision ceiling with hysteresis", () => {
+  assert.ok(
+    DEFAULT_WORLD_SPATIAL_MODE_POLICY.enterLocalAtZoom < 12,
+    "wheel/trackpad zoom needs headroom before GlobeView reaches its practical precision ceiling",
+  );
+  assert.equal(selectWorldSpatialMode({ zoom: 11.49 }, "globe"), "globe");
+  assert.equal(selectWorldSpatialMode({ zoom: 11.5 }, "globe"), "local");
   assert.equal(selectWorldSpatialMode({ zoom: 12.4 }, "local"), "local");
-  assert.equal(selectWorldSpatialMode({ zoom: 11.9 }, "local"), "globe");
+  assert.equal(selectWorldSpatialMode({ zoom: 11.4 }, "local"), "globe");
 });
 
 test("DeckWorldSurface switches to local geographic view only at high zoom", () => {
