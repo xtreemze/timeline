@@ -1735,9 +1735,8 @@ function syncApplicationSurfaces() {
     els.title.setAttribute("aria-readonly", String(!titleEditing));
   }
   if (els.editorToggle) {
-    const authoringActive = ui.editorOpen || composerActive;
     els.editorToggle.setAttribute("aria-expanded", String(ui.editorOpen));
-    els.editorToggle.setAttribute("aria-pressed", String(authoringActive));
+    els.editorToggle.setAttribute("aria-pressed", String(ui.editorOpen));
   }
   const viewControlsDisabled =
     ui.editorOpen || ui.browserOpen || ui.investigationOpen || ui.importReviewOpen;
@@ -1801,21 +1800,11 @@ function syncTimelineContextControls() {
   els.relatedFit.disabled = !focused || !focusedGraphContextAvailable;
 
   if (els.editorToggle) {
-    const editableFocus = focused && navigation?.editable === true;
-    const composerActive = els.occurrenceComposer.active;
-    const label = ui.editorOpen
-      ? "Done editing"
-      : composerActive
-        ? "Open editor"
-        : editableFocus
-          ? "Edit focused event"
-          : "Edit timeline";
+    const label = ui.editorOpen ? "Done editing" : "Edit timeline";
     els.editorToggle.disabled = ui.importReviewOpen;
     setSemanticControlIcon(els.editorToggle, ui.editorOpen ? "check" : "edit", label);
     const accessibleLabel = els.editorToggle.querySelector(".app-tool-label");
-    if (accessibleLabel) {
-      accessibleLabel.textContent = ui.editorOpen ? "Done" : composerActive ? "Editor" : "Edit";
-    }
+    if (accessibleLabel) accessibleLabel.textContent = ui.editorOpen ? "Done" : "Edit";
   }
 }
 
@@ -1990,10 +1979,9 @@ function setOccurrenceComposerOpen(open: boolean): void {
       occurrenceComposerReturnFocus = composerInvoker();
     }
     closeLargeUtilitySurfaces("composer");
-    ui.mode = "edit";
+    ui.mode = "view";
     ui.editorOpen = false;
     closeProjectMenu();
-    closeFocusedEventForUtility();
     syncOccurrenceComposerData();
     syncOccurrenceComposerSelection(applicationSelection.current);
 
@@ -2025,10 +2013,11 @@ function setOccurrenceComposerOpen(open: boolean): void {
     els.occurrenceComposer.hide();
     focusToRestore = occurrenceComposerReturnFocus;
     occurrenceComposerReturnFocus = null;
-    if (!ui.editorOpen) ui.mode = "view";
   }
   syncApplicationSurfaces();
-  if (!open) restoreComposerFocus(focusToRestore);
+  if (!open && focusToRestore && !els.occurrenceComposer.contains(focusToRestore)) {
+    restoreComposerFocus(focusToRestore);
+  }
 }
 
 function composerTime(detail: OccurrenceCommitDetail): {
@@ -2207,6 +2196,7 @@ function setBrowserSurfaceOpen(open) {
   if (ui.mode === "edit" || ui.importReviewOpen) return;
   ui.browserOpen = Boolean(open);
   if (ui.browserOpen) {
+    els.occurrenceComposer.hide();
     closeLargeUtilitySurfaces("browser");
     closeProjectMenu();
   }
@@ -2224,6 +2214,7 @@ function setInvestigationSurfaceOpen(open) {
   if (ui.mode === "edit" || ui.importReviewOpen) return;
   ui.investigationOpen = Boolean(open);
   if (ui.investigationOpen) {
+    els.occurrenceComposer.hide();
     closeLargeUtilitySurfaces("investigation");
     closeProjectMenu();
     closeFocusedEventForUtility();
