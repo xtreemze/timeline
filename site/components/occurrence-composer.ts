@@ -282,6 +282,15 @@ export class LuumOccurrenceComposerElement extends LitElement {
       backdrop-filter: blur(14px);
     }
 
+    :host([data-host="card"]) .completion-panel {
+      position: relative;
+      inset: auto;
+      margin-block-start: 0.38rem;
+      max-block-size: min(20rem, var(--composer-completion-max-height, 42dvh));
+      box-shadow: none;
+      backdrop-filter: none;
+    }
+
     .context-row {
       display: flex;
       gap: 0.3rem;
