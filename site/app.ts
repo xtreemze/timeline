@@ -96,9 +96,23 @@ const temporal = TimelineTemporal;
 const spatial = TimelineSpatial;
 const interchangeAdapter = TimelineInterchangeAdapter;
 
-// Get sample data from globalThis, or fallback to blankTimeline if not available
+// Example compatibility data must cross the same canonical Lūm validation
+// boundary as portable projects before it can enter the legacy runtime state.
 function getSample() {
-  return globalThis.TimelineSampleCase || null;
+  const legacySample = globalThis.TimelineSampleCase;
+  if (!legacySample) return null;
+  try {
+    const canonical = interchangeAdapter.timelineToLumInterchange(legacySample, {
+      projectKey: "classic-tales-runtime",
+      savedAt: "2026-09-28T00:00:00.000Z",
+    });
+    return interchangeAdapter.lumInterchangeToTimeline(canonical.serialized, {
+      title: legacySample.title,
+    }).timeline;
+  } catch (error) {
+    console.error("Example corpus failed canonical Lūm validation:", error);
+    return null;
+  }
 }
 
 type TemporalExtent = NonNullable<ReturnType<typeof TimelineTemporal.normalizeExtent>>;
