@@ -667,15 +667,33 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.useSelectionPlaceContext = true;
   }
 
-  private applySelectionMetadata(): void {
+  private selectionMetadataSnapshot(): OccurrenceComposerMetadata {
     const metadata = this.selectionContext?.metadata;
-    this.metadataRole = metadata?.role?.trim() ?? "";
-    this.metadataInitialState = metadata?.initialState ?? "active";
-    this.metadataSourceIds = (metadata?.sourceIds ?? []).join("\n");
-    this.metadataConfidence =
-      metadata?.confidence === null || metadata?.confidence === undefined
-        ? ""
-        : String(metadata.confidence);
+    return Object.freeze({
+      role: metadata?.role?.trim() || null,
+      initialState: metadata?.initialState ?? "active",
+      sourceIds: Object.freeze(
+        [...new Set((metadata?.sourceIds ?? []).map((sourceId) => sourceId.trim()).filter(Boolean))],
+      ),
+      confidence: metadata?.confidence ?? null,
+    });
+  }
+
+  private metadataIdentity(metadata: OccurrenceComposerMetadata): string {
+    return JSON.stringify([
+      metadata.role ?? "",
+      metadata.initialState,
+      [...metadata.sourceIds],
+      metadata.confidence,
+    ]);
+  }
+
+  private applySelectionMetadata(): void {
+    const metadata = this.selectionMetadataSnapshot();
+    this.metadataRole = metadata.role ?? "";
+    this.metadataInitialState = metadata.initialState;
+    this.metadataSourceIds = metadata.sourceIds.join("\n");
+    this.metadataConfidence = metadata.confidence === null ? "" : String(metadata.confidence);
     this.metadataDirty = false;
   }
 
@@ -707,7 +725,9 @@ export class LuumOccurrenceComposerElement extends LitElement {
       this.metadataInitialState = value === "inactive" ? "inactive" : "active";
     } else if (field === "sourceIds") this.metadataSourceIds = value;
     else this.metadataConfidence = value;
-    this.metadataDirty = true;
+    this.metadataDirty =
+      this.metadataIdentity(this.metadataSnapshot()) !==
+      this.metadataIdentity(this.selectionMetadataSnapshot());
     this.externalError = "";
     this.requestUpdate();
   }
