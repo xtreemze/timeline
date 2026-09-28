@@ -443,6 +443,56 @@ test.describe("contextual world authoring certification", () => {
     );
   });
 
+  test("strict project validation rejects divergent canonical and linked occurrence time", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const validation = await page.evaluate(() => {
+      const api = (
+        window as typeof window & {
+          TimelineAgentAPI?: {
+            getProject?: () => any;
+            validateProject?: (project: any) => {
+              valid?: boolean;
+              errors?: string[];
+            };
+          };
+        }
+      ).TimelineAgentAPI;
+      const project = api?.getProject?.();
+      if (!project || !api?.validateProject) return null;
+
+      const items = Array.isArray(project.items) ? project.items : [];
+      const relationship = (project.relationships ?? []).find((candidate: any) => {
+        const ids = Array.isArray(candidate.itemIds) ? candidate.itemIds.map(String) : [];
+        if (ids.length !== 1 || !candidate.time || candidate.time.end) return false;
+        const item = items.find((entry: any) => String(entry.id) === ids[0]);
+        return item?.kind === "event" && Boolean(item?.time?.start?.value);
+      });
+      if (!relationship) return null;
+      const item = items.find(
+        (entry: any) => String(entry.id) === String(relationship.itemIds[0]),
+      );
+      if (!item) return null;
+
+      item.start = "2099-01-16";
+      item.time = {
+        ...structuredClone(item.time),
+        start: {
+          ...structuredClone(item.time.start),
+          value: "2099-01-16",
+        },
+      };
+      return api.validateProject(project);
+    });
+    test.skip(!validation, "Example project needs an event-backed relationship.");
+
+    expect(validation!.valid).toBe(false);
+    expect(validation!.errors?.join("\n")).toMatch(
+      /Canonical occurrence time and its linked projections must agree/i,
+    );
+  });
+
   test("material occurrence edits surface semantic-support review and invalidate confidence", async ({
     page,
   }) => {
