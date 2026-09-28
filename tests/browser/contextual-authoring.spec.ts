@@ -313,6 +313,59 @@ test.describe("contextual world authoring certification", () => {
     expect(Number.isFinite(request?.position?.latitude)).toBe(true);
   });
 
+  test("accepting an action advances the live combobox to the object stage", async ({
+    page,
+  }, testInfo) => {
+    await page.goto("/");
+    const entityIds = await page.evaluate(() => {
+      const project = (
+        window as typeof window & {
+          TimelineAgentAPI?: {
+            getProject?: () => { entities?: Array<{ id?: unknown }> };
+          };
+        }
+      ).TimelineAgentAPI?.getProject?.();
+      return (project?.entities ?? [])
+        .map((entity) => String(entity.id ?? ""))
+        .filter(Boolean)
+        .slice(0, 2);
+    });
+    test.skip(entityIds.length < 2, "Example project needs at least two entities.");
+
+    const composer = await openPersistentComposer(page);
+    const input = composer.locator("input");
+    const stage = composer.locator(".stage");
+    const subjectId = entityIds[0]!;
+
+    await input.fill(`@${subjectId} rece`);
+    await expect(stage).toHaveText("action");
+    const keyboardAction = composer
+      .getByRole("option")
+      .filter({ hasText: /^receives/ })
+      .first();
+    await expect(keyboardAction).toBeVisible();
+    await input.press("Enter");
+
+    await expect(input).toHaveValue(`@${subjectId} receives `);
+    await expect(stage).toHaveText("object");
+    await expect(composer.getByRole("option").first()).toBeVisible();
+
+    await input.fill(`@${subjectId} rece`);
+    const pointerAction = composer
+      .getByRole("option")
+      .filter({ hasText: /^receives/ })
+      .first();
+    await expect(pointerAction).toBeVisible();
+    if (testInfo.project.use.hasTouch) {
+      await pointerAction.tap();
+    } else {
+      await pointerAction.click();
+    }
+
+    await expect(input).toHaveValue(`@${subjectId} receives `);
+    await expect(stage).toHaveText("object");
+  });
+
   test("selected occurrence composition edits the canonical relationship in place", async ({
     page,
   }) => {
