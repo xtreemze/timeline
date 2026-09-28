@@ -1693,8 +1693,10 @@ function setError(element, message = "") {
 function syncApplicationSurfaces() {
   if (ui.mode !== "edit") ui.editorOpen = false;
   const editing = ui.mode === "edit";
+  const composerActive = els.occurrenceComposer.active;
   if (els.appShell) {
     els.appShell.dataset.mode = ui.mode;
+    els.appShell.dataset.composerOpen = String(composerActive);
     els.appShell.dataset.editorOpen = String(ui.editorOpen);
     els.appShell.dataset.browserOpen = String(ui.browserOpen);
     els.appShell.dataset.investigationOpen = String(ui.investigationOpen);
@@ -1740,7 +1742,9 @@ function syncApplicationSurfaces() {
     els.title.setAttribute("aria-readonly", String(!titleEditing));
   }
   if (els.editorToggle) {
+    const authoringActive = ui.editorOpen || composerActive;
     els.editorToggle.setAttribute("aria-expanded", String(ui.editorOpen));
+    els.editorToggle.setAttribute("aria-pressed", String(authoringActive));
   }
   const viewControlsDisabled =
     ui.editorOpen || ui.browserOpen || ui.investigationOpen || ui.importReviewOpen;
@@ -1816,11 +1820,14 @@ function syncTimelineContextControls() {
 
   if (els.editorToggle) {
     const editableFocus = focused && navigation?.editable === true;
+    const composerActive = els.occurrenceComposer.active;
     const label = ui.editorOpen
       ? "Done editing"
-      : editableFocus
-        ? "Edit focused event"
-        : "Edit timeline";
+      : composerActive
+        ? "Open editor"
+        : editableFocus
+          ? "Edit focused event"
+          : "Edit timeline";
     els.editorToggle.disabled = ui.importReviewOpen;
     setSemanticControlIcon(
       els.editorToggle,
@@ -1829,7 +1836,9 @@ function syncTimelineContextControls() {
       "timeline",
     );
     const accessibleLabel = els.editorToggle.querySelector(".app-tool-label");
-    if (accessibleLabel) accessibleLabel.textContent = ui.editorOpen ? "Done" : "Edit";
+    if (accessibleLabel) {
+      accessibleLabel.textContent = ui.editorOpen ? "Done" : composerActive ? "Editor" : "Edit";
+    }
   }
   if (focusBecameActive) requestAnimationFrame(revealFocusedToolbarNavigation);
 }
@@ -1907,6 +1916,14 @@ function restoreComposerFocus(target: HTMLElement | null): void {
   });
 }
 
+function syncComposerVisualViewport(): void {
+  const height = Math.max(1, window.visualViewport?.height ?? window.innerHeight ?? 1);
+  els.occurrenceComposer.style.setProperty(
+    "--composer-visual-viewport-height",
+    `${Math.round(height)}px`,
+  );
+}
+
 function syncOccurrenceComposerData(): void {
   els.occurrenceComposer.setData({
     entities: state.entities.map((entity) => ({
@@ -1964,6 +1981,8 @@ function setOccurrenceComposerOpen(open: boolean): void {
       );
     }
 
+    syncComposerVisualViewport();
+    els.occurrenceComposer.beginSession();
     els.occurrenceComposer.show();
   } else {
     els.occurrenceComposer.hide();
@@ -5949,6 +5968,7 @@ els.graphViewRoot.addEventListener("worldcontextrequest", (event) => {
     latitude,
     Number.isFinite(zoom) ? zoom : null,
   );
+  els.occurrenceComposer.beginSession();
   request.preventDefault();
 });
 
@@ -5961,6 +5981,10 @@ els.occurrenceComposer.addEventListener("occurrencecomposercloserequest", () => 
 els.occurrenceComposer.addEventListener("occurrencecommit", (event) => {
   commitOccurrenceComposer((event as CustomEvent<OccurrenceCommitDetail>).detail);
 });
+window.addEventListener("resize", syncComposerVisualViewport);
+window.visualViewport?.addEventListener("resize", syncComposerVisualViewport);
+window.visualViewport?.addEventListener("scroll", syncComposerVisualViewport);
+
 async function openEvidenceRecord(id: string) {
   const record = state.evidence.find((candidate) => candidate.id === id);
   if (!record) {
