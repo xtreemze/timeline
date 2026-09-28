@@ -501,6 +501,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
   private previewSuggestion: ComposerSuggestion | null = null;
   private activeInterpretation = "";
   private activeCandidate = 0;
+  private composing = false;
   private cursorOffset = 0;
   private externalError = "";
   private explicitPlaceContext: ComposerWorldContext | null = null;
@@ -847,6 +848,23 @@ export class LuumOccurrenceComposerElement extends LitElement {
   private onInput(event: Event): void {
     const target = event.currentTarget;
     if (!(target instanceof HTMLInputElement)) return;
+    if (this.composing) {
+      this.value = target.value;
+      this.cursorOffset = target.selectionStart ?? target.value.length;
+      this.selectionSeeded = false;
+      return;
+    }
+    this.setComposerValue(target.value, target.selectionStart ?? target.value.length);
+  }
+
+  private onCompositionStart(): void {
+    this.composing = true;
+  }
+
+  private onCompositionEnd(event: CompositionEvent): void {
+    this.composing = false;
+    const target = event.currentTarget;
+    if (!(target instanceof HTMLInputElement)) return;
     this.setComposerValue(target.value, target.selectionStart ?? target.value.length);
   }
 
@@ -1002,6 +1020,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
   }
 
   private onKeyDown(event: KeyboardEvent): void {
+    if (event.isComposing || this.composing) return;
     if (event.key === "Escape") {
       event.preventDefault();
       this.requestClose();
@@ -1182,6 +1201,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
               aria-describedby="occurrence-composer-help occurrence-composer-diagnostic occurrence-investigation-status"
               placeholder=${`Who did what to whom · at ${placeLabel} · on ${timeLabel ?? "timeline center"}`}
               .value=${this.value}
+              @compositionstart=${() => this.onCompositionStart()}
+              @compositionend=${(event: CompositionEvent) => this.onCompositionEnd(event)}
               @input=${(event: Event) => this.onInput(event)}
               @focus=${(event: Event) => this.onCaretMove(event)}
               @click=${(event: Event) => this.onCaretMove(event)}
@@ -1268,7 +1289,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
                     const cell = candidate.cells[0];
                     const active = index === Math.min(this.activeCandidate, candidateMatrix.candidates.length - 1);
                     return html`<div class="candidate-row" role="row" data-scope=${candidate.candidateScope}
-                      data-active=${String(active)} aria-current=${active ? "true" : nothing}>
+                      data-active=${String(active)} aria-current=${active ? "true" : nothing}
+                      aria-label=${`${candidate.label}: ${cell?.assessment ?? "unknown"}. ${cell?.reason ?? "No comparison available."}`}>
                       <div role="cell"><button class="candidate-select" type="button"
                         aria-pressed=${String(active)}
                         @pointerdown=${(event: PointerEvent) => event.preventDefault()}
@@ -1370,7 +1392,13 @@ export class LuumOccurrenceComposerElement extends LitElement {
           }
           <span id="occurrence-investigation-status" class="help" aria-live="polite">
             ${qualifiers.length && candidateMatrix?.candidates.length
-              ? `Investigation. Interpretation ${chosenInterpretation?.label ?? "unresolved"}. Candidate ${Math.min(this.activeCandidate + 1, candidateMatrix.candidates.length)} of ${candidateMatrix.candidates.length}: ${candidateMatrix.candidates[Math.min(this.activeCandidate, candidateMatrix.candidates.length - 1)]?.label ?? "none"}.`
+              ? (() => {
+                  const active = candidateMatrix.candidates[
+                    Math.min(this.activeCandidate, candidateMatrix.candidates.length - 1)
+                  ];
+                  const cell = active?.cells[0];
+                  return `Investigation. Interpretation ${chosenInterpretation?.label ?? "unresolved"}. Candidate ${active?.label ?? "none"}: ${cell?.assessment ?? "unknown"}.`;
+                })()
               : qualifiers.length
                 ? "Investigation mode. Choose an interpretation to compare candidates."
                 : ""}

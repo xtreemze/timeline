@@ -153,7 +153,48 @@ test("investigation stays inside the visual viewport and announces active state"
   expect(containment.scrollWidth).toBeLessThanOrEqual(containment.innerWidth + 2);
   expect(containment.scrollHeight).toBeLessThanOrEqual(containment.innerHeight + 2);
 
+  const activeBefore = await composer.locator('.candidate-row[data-active="true"]').getAttribute("aria-label");
   await input.press("ArrowDown");
-  await expect(status).toContainText("Candidate 2");
+  const activeAfter = await composer.locator('.candidate-row[data-active="true"]').getAttribute("aria-label");
+  expect(activeAfter).not.toBe(activeBefore);
+  await expect(status).toContainText("Candidate");
+  await expect(status).not.toContainText(/Candidate \\d+ of \\d+/);
   await expect(input).toHaveValue("man? calls @alice");
+});
+
+
+test("IME composition cannot accept or commit investigative text before compositionend", async ({
+  page,
+}) => {
+  const composer = page.locator("#occurrence-composer");
+  await composer.locator(".compact").click();
+  const input = composer.locator('input[role="combobox"]');
+
+  await input.evaluate((element: HTMLInputElement) => {
+    element.dispatchEvent(new CompositionEvent("compositionstart", {
+      bubbles: true,
+      data: "man?",
+    }));
+    element.value = "man? calls @alice";
+    element.setSelectionRange(element.value.length, element.value.length);
+    element.dispatchEvent(new InputEvent("input", {
+      bubbles: true,
+      data: "?",
+      inputType: "insertCompositionText",
+    }));
+  });
+
+  await input.press("Enter");
+  await expect(input).toHaveValue("man? calls @alice");
+  await expect(composer.locator("#occurrence-investigation-panel")).toHaveCount(0);
+
+  await input.evaluate((element: HTMLInputElement) => {
+    element.dispatchEvent(new CompositionEvent("compositionend", {
+      bubbles: true,
+      data: "man?",
+    }));
+  });
+  await expect(composer.locator("#occurrence-investigation-panel")).toBeVisible();
+  await expect(input).toHaveValue("man? calls @alice");
+  await expect(composer.locator('input[role="combobox"]')).toHaveCount(1);
 });
