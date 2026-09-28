@@ -34,3 +34,21 @@ test("card field selection opens the shared composer at the matching sentence se
   assert.match(composer, /composerEditableSections\(this\.value\)/);
   assert.match(composer, /input\.setSelectionRange\(section\.start, section\.end\)/);
 });
+
+
+test("direct occurrence activation always requests the composer, including an already-focused card", async () => {
+  const view = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
+
+  assert.match(
+    view,
+    /const requestComposer = \(\): void =>[\s\S]*timelineoccurrenceeditrequest[\s\S]*detail: \{ id: item\.id \}/,
+  );
+  assert.match(
+    view,
+    /const selectOccurrence = \(\): void =>[\s\S]*if \(this\.focusedId !== item\.id\)[\s\S]*requestComposer\(\)/,
+  );
+  assert.doesNotMatch(
+    view,
+    /const selectOccurrence = \(\): void =>[\s\S]*this\.focusedId === item\.id[\s\S]*ensureFocusPopover\(\)/,
+  );
+});
