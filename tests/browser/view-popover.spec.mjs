@@ -307,6 +307,133 @@ test("Browse opens an example story into visible timeline context", async ({ pag
   await expect(page.locator(".timeline-focus-title")).toHaveText(storyItems[1].title);
 });
 
+test("overflowing occurrence cards own their hit targets above the world without blocking world gaps", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+
+  const timeline = page.locator("#timeline-view");
+  if ((await timeline.getAttribute("data-orientation")) !== "landscape") {
+    await page.locator("#timeline-orientation-toggle").click();
+  }
+  await expect(timeline).toHaveAttribute("data-orientation", "landscape");
+
+  await page.locator("#timeline-browser-toggle").click();
+  const densestStoryId = await page.evaluate(() => {
+    const stories = globalThis.TimelineSampleCase?.stories || [];
+    return [...stories].sort(
+      (left, right) => (right.itemIds?.length || 0) - (left.itemIds?.length || 0),
+    )[0]?.id || "";
+  });
+  expect(densestStoryId).not.toBe("");
+  await page.locator(`.browser-story-card[data-id="${densestStoryId}"]`).click();
+
+  await expect(page.locator("#presentation-stage > .graph-lens:not([hidden])")).toBeVisible();
+  await page.evaluate(() => {
+    const root = document.querySelector("#timeline-view");
+    if (!(root instanceof HTMLElement)) throw new Error("Timeline root unavailable.");
+    globalThis.TimelineView?.create(root)?.fitVisible?.();
+  });
+
+  const hitGeometry = await expect
+    .poll(async () =>
+      page.evaluate(() => {
+        const graph = document.querySelector(".temporal-graph-canvas");
+        const surface = document.querySelector(".timeline-surface");
+        if (!(graph instanceof HTMLElement) || !(surface instanceof HTMLElement)) return null;
+
+        const graphRect = graph.getBoundingClientRect();
+        const surfaceRect = surface.getBoundingClientRect();
+        const terminals = [
+          ...document.querySelectorAll(
+            ".timeline-event:not(.timeline-cluster):not(.is-buffered) .timeline-event-terminal",
+          ),
+        ].filter((node) => node instanceof HTMLElement && node.offsetParent !== null);
+
+        for (const terminal of terminals) {
+          if (!(terminal instanceof HTMLElement)) continue;
+          const rect = terminal.getBoundingClientRect();
+          const left = Math.max(rect.left, graphRect.left);
+          const right = Math.min(rect.right, graphRect.right);
+          const top = Math.max(rect.top, graphRect.top);
+          const bottom = Math.min(rect.bottom, graphRect.bottom);
+          if (right - left < 8 || bottom - top < 8) continue;
+
+          const x = (left + right) / 2;
+          const y = (top + bottom) / 2;
+          const hit = document.elementFromPoint(x, y);
+          if (!hit?.closest(".timeline-event-terminal")) continue;
+          return {
+            x,
+            y,
+            terminalText: terminal.textContent?.trim() || "",
+            overflowed:
+              rect.top < surfaceRect.top ||
+              rect.left < surfaceRect.left ||
+              rect.right > surfaceRect.right ||
+              rect.bottom > surfaceRect.bottom,
+          };
+        }
+        return null;
+      }),
+    )
+    .not.toBeNull();
+
+  const overlap = await page.evaluate(() => {
+    const graph = document.querySelector(".temporal-graph-canvas");
+    const surface = document.querySelector(".timeline-surface");
+    if (!(graph instanceof HTMLElement) || !(surface instanceof HTMLElement)) return null;
+    const graphRect = graph.getBoundingClientRect();
+    const surfaceRect = surface.getBoundingClientRect();
+    for (const terminal of document.querySelectorAll(
+      ".timeline-event:not(.timeline-cluster):not(.is-buffered) .timeline-event-terminal",
+    )) {
+      if (!(terminal instanceof HTMLElement) || terminal.offsetParent === null) continue;
+      const rect = terminal.getBoundingClientRect();
+      const left = Math.max(rect.left, graphRect.left);
+      const right = Math.min(rect.right, graphRect.right);
+      const top = Math.max(rect.top, graphRect.top);
+      const bottom = Math.min(rect.bottom, graphRect.bottom);
+      if (right - left < 8 || bottom - top < 8) continue;
+      const x = (left + right) / 2;
+      const y = (top + bottom) / 2;
+      if (!document.elementFromPoint(x, y)?.closest(".timeline-event-terminal")) continue;
+      return {
+        x,
+        y,
+        overflowed:
+          rect.top < surfaceRect.top ||
+          rect.left < surfaceRect.left ||
+          rect.right > surfaceRect.right ||
+          rect.bottom > surfaceRect.bottom,
+      };
+    }
+    return null;
+  });
+  expect(overlap).not.toBeNull();
+  expect(overlap?.overflowed).toBe(true);
+
+  const openWorldPoint = await page.evaluate(() => {
+    const graph = document.querySelector(".temporal-graph-canvas");
+    if (!(graph instanceof HTMLElement)) return null;
+    const rect = graph.getBoundingClientRect();
+    for (let row = 1; row < 8; row += 1) {
+      for (let column = 1; column < 8; column += 1) {
+        const x = rect.left + (rect.width * column) / 8;
+        const y = rect.top + (rect.height * row) / 8;
+        const hit = document.elementFromPoint(x, y);
+        if (hit?.closest(".timeline-event-terminal, .timeline-project-heading")) continue;
+        if (hit && graph.contains(hit)) return { x, y };
+      }
+    }
+    return null;
+  });
+  expect(openWorldPoint).not.toBeNull();
+
+  await page.mouse.click(overlap.x, overlap.y);
+  await expect(page.locator("#timeline-focus-view")).toBeVisible();
+});
+
 test("stale bundled demo storage refreshes the current example stories", async ({ page }) => {
   const expectedStoryIds = await page.evaluate(() => {
     const sample = structuredClone(globalThis.TimelineSampleCase);
