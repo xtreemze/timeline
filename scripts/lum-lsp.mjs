@@ -4,6 +4,10 @@ import {
   formatProjectInterchange,
   lintProjectInterchange,
 } from "../src/application/project-interchange.ts";
+import {
+  formatProjectModule,
+  lintProjectModule,
+} from "../src/application/project-module.ts";
 import { attachLumDiagnosticRanges } from "./lib/lum-diagnostics.mjs";
 import {
   LUM_SEMANTIC_TOKEN_MODIFIERS,
@@ -16,8 +20,31 @@ import {
   lumSemanticTokens,
 } from "./lib/lum-language-intelligence.mjs";
 
-function lspDiagnostics(source) {
-  const result = lintProjectInterchange(source);
+function documentFormat(source) {
+  try {
+    const parsed = JSON.parse(source);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed.format
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function isProjectModule(source, uri = "") {
+  return documentFormat(source) === "lum-project-module" || uri.endsWith(".module.lum.json");
+}
+
+function formatLumDocument(source, uri = "") {
+  return isProjectModule(source, uri)
+    ? formatProjectModule(source)
+    : formatProjectInterchange(source);
+}
+
+function lspDiagnostics(source, uri = "") {
+  const result = isProjectModule(source, uri)
+    ? lintProjectModule(source, { fileName: uri })
+    : lintProjectInterchange(source, { fileName: uri });
   return attachLumDiagnosticRanges(source, result.diagnostics).map((diagnostic) => ({
     range: diagnostic.range,
     severity: diagnostic.severity === "error" ? 1 : 2,
@@ -56,7 +83,7 @@ export function createLumLanguageServer(writeMessage) {
       method: "textDocument/publishDiagnostics",
       params: {
         uri,
-        diagnostics: lspDiagnostics(source),
+        diagnostics: lspDiagnostics(source, uri),
       },
     });
   }
@@ -134,14 +161,14 @@ export function createLumLanguageServer(writeMessage) {
     }
 
     if (method === "textDocument/formatting") {
-      const { source } = sourceFor(message);
+      const { uri, source } = sourceFor(message);
       let result = [];
       if (typeof source === "string") {
         try {
           result = [
             {
               range: fullDocumentRange(source),
-              newText: formatProjectInterchange(source),
+              newText: formatLumDocument(source, uri),
             },
           ];
         } catch {

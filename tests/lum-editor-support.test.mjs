@@ -30,6 +30,18 @@ test("VS Code extension associates .lum.json with the canonical schema and CLI c
     ),
   );
 
+  const moduleAssociation = manifest.contributes.jsonValidation.find((entry) =>
+    entry.fileMatch.includes("*.module.lum.json"),
+  );
+  assert.equal(
+    moduleAssociation?.url,
+    "https://xtreemze.github.io/timeline/schemas/lum-project-module-v1.schema.json",
+  );
+  const projectAssociation = manifest.contributes.jsonValidation.find(
+    (entry) => entry.url.endsWith("/lum-project-v1.schema.json"),
+  );
+  assert.ok(projectAssociation.fileMatch.includes("!*.module.lum.json"));
+
   const commands = new Set(manifest.contributes.commands.map((command) => command.command));
   for (const command of ["lum.checkCurrentFile", "lum.lintCurrentFile", "lum.initProject"]) {
     assert.ok(commands.has(command), `Missing VS Code command ${command}`);
@@ -76,6 +88,12 @@ test("VS Code snippets scaffold strict current-format records", async () => {
   assert.equal(snippets["Lūm entity"].prefix, "lum-entity");
   assert.equal(snippets["Lūm relationship"].prefix, "lum-relationship");
   assert.equal(snippets["Lūm occurrence"].prefix, "lum-occurrence");
+  assert.equal(snippets["Lūm project module"].prefix, "lum-module");
+  assert.ok(
+    snippets["Lūm project module"].body.some((line) =>
+      line.includes('"format": "lum-project-module"'),
+    ),
+  );
   assert.equal(snippets["Lūm change proposal"].prefix, "lum-proposal");
   assert.ok(
     snippets["Lūm change proposal"].body.some((line) =>
