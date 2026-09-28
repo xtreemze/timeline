@@ -5,6 +5,16 @@ test.beforeEach(async ({ page }) => {
   await expect(page.locator("#occurrence-composer .compact")).toBeVisible();
 });
 
+test("selecting an occurrence opens its composer-owned card without a second detail panel", async ({ page }) => {
+  const occurrence = page.locator(".timeline-semantic-occurrence").first();
+  await occurrence.evaluate((button: HTMLButtonElement) => button.click());
+  const composer = page.locator("#occurrence-composer");
+  await expect(composer).toHaveAttribute("active", "");
+  await expect(composer.locator(".composer-occurrence-card")).toBeVisible();
+  await expect(composer.locator('input[role="combobox"]')).toBeVisible();
+  await expect(page.locator(".timeline-event-detail:visible")).toHaveCount(0);
+});
+
 test("one composer card previews incomplete icons and chips select exact grammar spans", async ({
   page,
 }) => {
