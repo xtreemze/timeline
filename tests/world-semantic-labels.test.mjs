@@ -5,6 +5,10 @@ import test from "node:test";
 import { createDeckWorldRuntime } from "../site/world/deck-world-runtime.ts";
 import { DECK_WORLD_LAYER_IDS, DeckWorldSurface } from "../site/world/deck-world-surface.ts";
 import {
+  directedEdgePathArrowhead,
+  relationshipEdgePath,
+} from "../src/layout/world-semantic-presentation.ts";
+import {
   createProjectedWorldEdge,
   createProjectedWorldInstance,
   createWorldProjection,
@@ -1385,6 +1389,27 @@ test("each rendered directed relationship has a visible marker preserving source
   assert.notDeepEqual(wingA, wingB);
 });
 
+test("direction marker altitude scales with its actual head length on sloped edges", () => {
+  const path = relationshipEdgePath([0, 0, 0], [10, 0, 1_000]);
+  const longMarker = directedEdgePathArrowhead(path, 1);
+  const shortMarker = directedEdgePathArrowhead(path, 0.25);
+
+  assert.ok(longMarker);
+  assert.ok(shortMarker);
+
+  const altitudeSpan = (marker) => Math.abs(marker[1][2] - marker[0][2]);
+  const longSpan = altitudeSpan(longMarker);
+  const shortSpan = altitudeSpan(shortMarker);
+
+  assert.ok(longSpan > shortSpan, "shorter arrowheads also reduce their altitude displacement");
+  assert.ok(
+    Math.abs(longSpan / shortSpan - 4) < 1e-9,
+    "3D arrow geometry remains proportional to the requested head length",
+  );
+  assert.equal(longMarker[0][2], longMarker[2][2]);
+  assert.equal(shortMarker[0][2], shortMarker[2][2]);
+});
+
 test("direction marker clears the target marker footprint", () => {
   const clearanceFor = (targetStyle) => {
     const h = harness();
@@ -1470,6 +1495,53 @@ test("direction marker length stays node-relative across camera zoom", () => {
   );
 });
 
+test("repeated zoom cycles restore direction geometry without cumulative scaling", () => {
+  const h = harness();
+  const source = instance(0, { visualWeight: 1, visualAltitude: 1_000 });
+  const target = instance(1, { visualAltitude: 9_000 });
+  const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 7 });
+  surface.setProjection(
+    createWorldProjection({
+      instances: [source, target],
+      edges: [
+        createProjectedWorldEdge({
+          id: "zoom-cycle",
+          label: "met",
+          sourceInstanceId: source.id,
+          targetInstanceId: target.id,
+          temporalWeight: 1,
+          visible: true,
+          retained: false,
+        }),
+      ],
+    }),
+  );
+
+  const markerGeometry = () => {
+    const marker = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.relationshipDirections).props.data[0];
+    return {
+      arrowLengthDegrees: marker.arrowLengthDegrees,
+      path: marker.path.map((point) => [...point]),
+    };
+  };
+
+  const baseline = markerGeometry();
+  for (const zoom of [8.5, 10, 6.5, 9.25, 7]) {
+    surface.setCamera({ ...WORKING_CAMERA, zoom });
+  }
+  const restored = markerGeometry();
+
+  assert.ok(
+    Math.abs(restored.arrowLengthDegrees - baseline.arrowLengthDegrees) < 1e-12,
+    "returning to the same zoom restores the same head length",
+  );
+  assert.deepEqual(
+    restored.path,
+    baseline.path,
+    "repeated zoom-in/zoom-out operations do not accumulate arrow geometry scale",
+  );
+});
+
 test("direction marker length and stroke follow the target marker scale", () => {
   const metricsFor = (sourceStyle, targetStyle, edgeStyle) => {
     const h = harness();
@@ -1545,9 +1617,10 @@ test("direction marker length and stroke follow the target marker scale", () => 
     ) < 1e-12,
     "chevron stroke scales by the exact rendered target-marker radius",
   );
-  assert.ok(
-    thinEdgeLargeTarget.width > 1,
-    "a thin authored edge cannot force a large target-relative chevron into a hairline stroke",
+  assert.equal(
+    thinEdgeLargeTarget.width,
+    1,
+    "a large target cannot make its direction chevron wider than twice a thin authored edge",
   );
 });
 
