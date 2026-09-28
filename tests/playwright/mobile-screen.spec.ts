@@ -100,16 +100,16 @@ test.describe("Narrow mobile screen contracts", () => {
 
       const dock = page.locator(".app-tool-dock");
       const composer = page.locator("#occurrence-composer");
+      const compact = composer.locator(".compact");
       const input = composer.locator("input");
       const timelineToggle = page.locator("#timeline-orientation-toggle");
+      await expect(compact).toBeVisible();
       const before = await dock.boundingBox();
       expect(before).not.toBeNull();
       if (!before) throw new Error("Footer geometry is unavailable before composer expansion.");
 
-      await page.locator("#editor-toggle").click();
+      await compact.click();
       const toggle = page.locator("#occurrence-composer-toggle");
-      await expect(toggle).toBeVisible();
-      await toggle.click();
       await expect(toggle).toHaveAttribute("aria-expanded", "true");
       await expect(composer).toHaveAttribute("active", "");
       await expect(input).toBeVisible();
@@ -292,18 +292,17 @@ test.describe("Narrow mobile screen contracts", () => {
     await expectNoPageScroll(page, NARROW_PORTRAIT);
   });
 
-  test("focused chronology navigation stays in the first mobile toolbar viewport", async ({
-    page,
-  }) => {
+  test("focused occurrence keeps the mobile toolbar composition stable", async ({ page }) => {
     const viewport = { width: 320, height: 568 };
     await page.setViewportSize(viewport);
     await page.goto("/");
     await ensureOrientation(page, "portrait");
 
     const dock = page.locator(".app-tool-dock");
-    await dock.evaluate((element) => {
-      element.scrollLeft = 0;
-    });
+    const beforeChildren = await dock.evaluate((element) =>
+      [...element.children].map((child) => child.id || child.className),
+    );
+    const beforeWidth = await dock.evaluate((element) => element.scrollWidth);
 
     const terminal = page
       .locator(
@@ -313,34 +312,34 @@ test.describe("Narrow mobile screen contracts", () => {
     await expect(terminal).toBeVisible();
     await terminal.click();
 
-    const navigation = dock.locator(".app-footer-timeline");
-    await expect(navigation).toBeVisible();
-    await expect(navigation.locator("#timeline-focus-prev")).toBeVisible();
-    await expect(navigation.locator("#timeline-focus-next")).toBeVisible();
+    const focus = page.locator("#timeline-focus-view");
+    const actions = focus.locator(".timeline-focus-context-actions");
+    await expect(actions).toBeVisible();
+    await expect(actions.locator("#timeline-focus-prev")).toBeVisible();
+    await expect(actions.locator("#timeline-focus-next")).toBeVisible();
+    await expect(page.locator(".app-footer-bar #timeline-focus-prev")).toHaveCount(0);
+    await expect(page.locator(".app-footer-bar #timeline-related-zoom")).toHaveCount(0);
 
-    const domOrder = await dock.evaluate((element) =>
-      [...element.querySelectorAll(":scope > .app-footer-zone")].map((zone) =>
-        zone.classList.contains("app-footer-actions")
-          ? "actions"
-          : zone.classList.contains("app-footer-view")
-            ? "view"
-            : "timeline",
-      ),
+    const afterChildren = await dock.evaluate((element) =>
+      [...element.children].map((child) => child.id || child.className),
     );
-    expect(domOrder).toEqual(["actions", "view", "timeline"]);
-    await expect.poll(() => dock.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
+    const afterWidth = await dock.evaluate((element) => element.scrollWidth);
+    expect(afterChildren).toEqual(beforeChildren);
+    expect(Math.abs(afterWidth - beforeWidth)).toBeLessThanOrEqual(2);
 
-    const dockBox = await dock.boundingBox();
-    expect(dockBox).not.toBeNull();
-    if (!dockBox) throw new Error("Mobile toolbar has no bounds.");
     for (const selector of ["#timeline-focus-prev", "#timeline-focus-next"]) {
-      const box = await navigation.locator(selector).boundingBox();
-      expect(box).not.toBeNull();
-      if (!box) continue;
-      expect(box.x).toBeGreaterThanOrEqual(dockBox.x - 1);
-      expect(box.x + box.width).toBeLessThanOrEqual(dockBox.x + dockBox.width + 1);
-      expect(box.width).toBeGreaterThanOrEqual(44);
-      expect(box.height).toBeGreaterThanOrEqual(44);
+      const action = actions.locator(selector);
+      const [buttonBox, iconBox] = await Promise.all([
+        action.boundingBox(),
+        action.locator(":scope > .semantic-icon").boundingBox(),
+      ]);
+      expect(buttonBox).not.toBeNull();
+      expect(iconBox).not.toBeNull();
+      if (!buttonBox || !iconBox) continue;
+      expect(Math.abs(buttonBox.width - 44)).toBeLessThanOrEqual(1);
+      expect(Math.abs(buttonBox.height - 44)).toBeLessThanOrEqual(1);
+      expect(Math.abs(iconBox.width - 20)).toBeLessThanOrEqual(1);
+      expect(Math.abs(iconBox.height - 20)).toBeLessThanOrEqual(1);
     }
 
     await expectNoPageScroll(page, viewport);
@@ -390,7 +389,7 @@ test.describe("Narrow mobile screen contracts", () => {
       }
 
       const buttons = dock.locator(
-        ":scope > .app-footer-actions > button:visible, :scope > .app-footer-view button:visible, :scope > .app-footer-timeline > button:visible",
+        ":scope > .app-footer-actions > button:visible, :scope > .app-footer-view button:visible",
       );
       const buttonCount = await buttons.count();
       expect(buttonCount).toBeGreaterThanOrEqual(8);
