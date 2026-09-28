@@ -420,6 +420,40 @@ test("caret-local entity suggestions rank nearest canonical matches and show the
   assert.deepEqual(suggestions[0]?.replaceRange, { start: 0, end: 4 });
 });
 
+test("entity suggestions use canonical IDs when a primary name collides with another alias", () => {
+  const entities = [
+    { id: "alice", name: "Alice", type: "person", icon: "person" },
+    {
+      id: "alicia",
+      name: "Alicia",
+      type: "person",
+      icon: "person",
+      alternateNames: ["Alice"],
+    },
+  ];
+
+  const forward = occurrenceComposerSuggestions("", {
+    entities,
+    places: [],
+    categories: [],
+    cursorOffset: 0,
+  }).find((suggestion) => suggestion.label === "Alice");
+  assert.ok(forward);
+  assert.equal(forward.insertText, "@alice");
+  assert.match(forward.detail ?? "", /alice/);
+
+  const sentence = "Alce meets Bob";
+  const local = occurrenceComposerSuggestions(sentence, {
+    entities,
+    places: [],
+    categories: [],
+    cursorOffset: 2,
+  }).find((suggestion) => suggestion.label === "Alice");
+  assert.ok(local);
+  assert.equal(local.insertText, "@alice");
+  assert.deepEqual(local.replaceRange, { start: 0, end: 4 });
+});
+
 test("caret-local action suggestions rank typo-nearest actions and carry semantic glyphs", () => {
   const sentence = "Alice attaks Bob";
   const cursorOffset = sentence.indexOf("attaks") + 3;
