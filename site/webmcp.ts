@@ -133,7 +133,7 @@ export function toolDefinitions(adapter: TimelineAdapter): Record<string, unknow
       name: "timeline.validate_project",
       title: "Validate Lūm project",
       description:
-        "Validate a supplied Timeline project, or the active project when omitted, using canonical normalization and the strict graph contract. Known canonical entities named in event title/description/image alt/evidence note must be endpoints of event-linked action edges; graph categories, self-loops, generic/compound predicates, duplicate facts, mirrored copies, orphan entities, and invalid place/time modeling are rejected.",
+        "Validate a supplied Lūm project, or the active project when omitted, using canonical normalization and the strict graph contract. Known canonical entities named in event title/description/image alt/evidence note must be endpoints of event-linked action edges; graph categories, self-loops, generic/compound predicates, duplicate facts, mirrored copies, orphan entities, and invalid place/time modeling are rejected.",
       inputSchema: {
         type: "object",
         additionalProperties: false,
@@ -171,7 +171,7 @@ export function toolDefinitions(adapter: TimelineAdapter): Record<string, unknow
       name: "timeline.replace_project",
       title: "Replace Lūm project",
       description:
-        "Replace the complete active Timeline project only after strict graph-contract validation. The replacement must obey entity-only topology, action-only directed edges, named-context coverage, category/story separation, and canonical time/place rules.",
+        "Replace the complete active Lūm project only after strict graph-contract validation. The replacement must obey entity-only topology, action-only directed edges, named-context coverage, category/story separation, and canonical time/place rules.",
       inputSchema: {
         type: "object",
         additionalProperties: false,
