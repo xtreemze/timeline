@@ -44,6 +44,10 @@ test("footer exposes view controls directly and keeps one primary Edit entry", a
   assert.equal((footerMarkup.match(/id="timeline-related-zoom"/g) ?? []).length, 0);
   assert.equal((footerMarkup.match(/id="timeline-related-fit"/g) ?? []).length, 0);
   assert.match(footerMarkup, /<luum-occurrence-composer id="occurrence-composer"><\/luum-occurrence-composer>/);
+  assert.match(
+    footerMarkup,
+    /app-footer-actions[\s\S]*<luum-occurrence-composer id="occurrence-composer"><\/luum-occurrence-composer>[\s\S]*id="timeline-view-controls"/,
+  );
   assert.doesNotMatch(index, /id="occurrence-composer-toggle"/);
 
   assert.match(world, /element\.className = "toolbar-control world-camera-control"/);
