@@ -443,6 +443,180 @@ test.describe("contextual world authoring certification", () => {
     );
   });
 
+  test("strict project validation rejects divergent canonical and linked occurrence time", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const validation = await page.evaluate(() => {
+      const api = (
+        window as typeof window & {
+          TimelineAgentAPI?: {
+            getProject?: () => any;
+            validateProject?: (project: any) => {
+              valid?: boolean;
+              errors?: string[];
+            };
+          };
+        }
+      ).TimelineAgentAPI;
+      const project = api?.getProject?.();
+      if (!project || !api?.validateProject) return null;
+
+      const items = Array.isArray(project.items) ? project.items : [];
+      const relationship = (project.relationships ?? []).find((candidate: any) => {
+        const ids = Array.isArray(candidate.itemIds) ? candidate.itemIds.map(String) : [];
+        if (ids.length !== 1 || !candidate.time || candidate.time.end) return false;
+        const item = items.find((entry: any) => String(entry.id) === ids[0]);
+        return item?.kind === "event" && Boolean(item?.time?.start?.value);
+      });
+      if (!relationship) return null;
+      const item = items.find(
+        (entry: any) => String(entry.id) === String(relationship.itemIds[0]),
+      );
+      if (!item) return null;
+
+      item.start = "2099-01-16";
+      item.time = {
+        ...structuredClone(item.time),
+        start: {
+          ...structuredClone(item.time.start),
+          value: "2099-01-16",
+        },
+      };
+      return api.validateProject(project);
+    });
+    test.skip(!validation, "Example project needs an event-backed relationship.");
+
+    expect(validation!.valid).toBe(false);
+    expect(validation!.errors?.join("\n")).toMatch(
+      /Canonical occurrence time and its linked projections must agree/i,
+    );
+  });
+
+  test("editing canonical time from one timeline projection updates every linked projection", async ({
+    page,
+  }) => {
+    await page.goto("/");
+
+    const fixture = await page.evaluate(() => {
+      const api = (
+        window as typeof window & {
+          TimelineAgentAPI?: {
+            getProject?: () => any;
+            replaceProject?: (project: any) => unknown;
+          };
+        }
+      ).TimelineAgentAPI;
+      const project = api?.getProject?.();
+      if (!project || !api?.replaceProject) return null;
+
+      const items = Array.isArray(project.items) ? project.items : [];
+      const relationships = Array.isArray(project.relationships) ? project.relationships : [];
+      const relationship = relationships.find((candidate: any) => {
+        const ids = Array.isArray(candidate.itemIds) ? candidate.itemIds.map(String) : [];
+        if (ids.length !== 1 || candidate.time?.end) return false;
+        const item = items.find((entry: any) => String(entry.id) === ids[0]);
+        return item?.kind === "event" && Boolean(candidate.time?.start?.value ?? item?.start);
+      });
+      if (!relationship) return null;
+
+      const sourceId = String(relationship.itemIds[0]);
+      const sourceItem = items.find((entry: any) => String(entry.id) === sourceId);
+      if (!sourceItem) return null;
+      const copyId = `${sourceId}-temporal-projection-test`;
+      project.items = items.filter((entry: any) => String(entry.id) !== copyId);
+      project.items.push({
+        ...structuredClone(sourceItem),
+        id: copyId,
+        title: `${String(sourceItem.title ?? sourceId)} projection`,
+      });
+      relationship.itemIds = [sourceId, copyId];
+      for (const story of Array.isArray(project.stories) ? project.stories : []) {
+        const storyItemIds = Array.isArray(story.itemIds) ? story.itemIds.map(String) : [];
+        if (storyItemIds.includes(sourceId) && !storyItemIds.includes(copyId)) {
+          story.itemIds = [...storyItemIds, copyId];
+        }
+      }
+      api.replaceProject(project);
+      return {
+        relationshipId: String(relationship.id),
+        sourceId,
+        copyId,
+        oldStart: String(relationship.time?.start?.value ?? sourceItem.start),
+      };
+    });
+    test.skip(!fixture, "Example project needs a simple event-backed relationship.");
+
+    await page.evaluate((itemId) => {
+      const timeline = document.querySelector("#timeline-view") as HTMLElement & {
+        focusItem?: (id: string) => void;
+      };
+      timeline.focusItem?.(itemId);
+    }, fixture!.copyId);
+
+    await expect
+      .poll(async () =>
+        page
+          .locator(`.timeline-semantic-occurrence[data-id="${fixture!.copyId}"][data-selected]`)
+          .count(),
+      )
+      .toBeGreaterThan(0);
+
+    const composer = await openPersistentComposer(page);
+    const input = composer.locator("input");
+    const initial = await input.inputValue();
+    expect(initial).toContain(` on ${fixture!.oldStart}`);
+
+    const replacementStart = "2099-01-15";
+    const edited = initial.replace(
+      ` on ${fixture!.oldStart}`,
+      ` on ${replacementStart}`,
+    );
+    expect(edited).not.toBe(initial);
+    await input.fill(edited);
+    await input.press("Enter");
+
+    await expect
+      .poll(async () =>
+        page.evaluate(
+          ({ relationshipId, itemIds }) => {
+            const project = (
+              window as typeof window & {
+                TimelineAgentAPI?: { getProject?: () => any };
+              }
+            ).TimelineAgentAPI?.getProject?.();
+            const relationship = (project?.relationships ?? []).find(
+              (candidate: any) => String(candidate.id) === relationshipId,
+            );
+            return {
+              relationshipStart: String(relationship?.time?.start?.value ?? ""),
+              items: itemIds.map((itemId: string) => {
+                const item = (project?.items ?? []).find(
+                  (candidate: any) => String(candidate.id) === itemId,
+                );
+                return {
+                  id: itemId,
+                  start: String(item?.start ?? ""),
+                  timeStart: String(item?.time?.start?.value ?? ""),
+                };
+              }),
+            };
+          },
+          {
+            relationshipId: fixture!.relationshipId,
+            itemIds: [fixture!.sourceId, fixture!.copyId],
+          },
+        ),
+      )
+      .toEqual({
+        relationshipStart: replacementStart,
+        items: [
+          { id: fixture!.sourceId, start: replacementStart, timeStart: replacementStart },
+          { id: fixture!.copyId, start: replacementStart, timeStart: replacementStart },
+        ],
+      });
+  });
+
   test("dirty composer draft requires explicit adoption of a newly selected occurrence", async ({
     page,
   }) => {
