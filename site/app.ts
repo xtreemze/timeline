@@ -5843,8 +5843,8 @@ els.clearFilters.addEventListener("click", () => {
   renderTimeline();
 });
 
-els.storyPrev.addEventListener("click", () => stepStory(-1));
-els.storyNext.addEventListener("click", () => stepStory(1));
+els.storyPrev.addEventListener("click", () => stepStory(-1, { focusEvent: true }));
+els.storyNext.addEventListener("click", () => stepStory(1, { focusEvent: true }));
 els.storyExit.addEventListener("click", () => exitStoryFocus());
 
 const settledSpatialWindow = createSettledTemporalWindowSink<unknown>(
