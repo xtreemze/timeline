@@ -67,7 +67,10 @@ test("focused detail attaches to the retained card while location stays in the w
   assert.match(timeline, /data-focus-anchor/);
   assert.doesNotMatch(timeline, /timeline-focus-place-panel/);
   assert.match(shell, /timeline-focus-anchor-local-x/);
-  assert.match(shell, /data-anchor-orientation="landscape"/);
-  assert.match(shell, /data-anchor-orientation="portrait"/);
+  assert.match(timeline, /timeline-focus-inline-start/);
+  assert.match(timeline, /dataset\.anchorSide/);
+  assert.match(shell, /data-anchor-side="above"/);
+  assert.match(shell, /data-anchor-side="left"/);
+  assert.match(shell, /inline-size:\s*min\(32rem,/);
   assert.match(shell, /> \.timeline-focus-summary[\s\S]{0,160}grid-column:\s*1 \/ -1/);
 });
