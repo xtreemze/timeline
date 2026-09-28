@@ -80,8 +80,8 @@ test("footer exposes view controls directly and keeps one primary Edit entry", a
   assert.match(factory, /element\.className = "toolbar-control world-layout-control"/);
   assert.match(factory, /element\.dataset\.viewControl = ""/);
   assert.match(factory, /createIcon\(icon, \{ size: 20 \}\)/);
-  assert.match(factory, /"Arrange relationships",[\s\S]*"relation",[\s\S]*actions\.reorganizeDag/);
-  assert.match(factory, /"Settle relationships",[\s\S]*"force",[\s\S]*actions\.relaxForce/);
+  assert.match(factory, /"Arrange relationships",[\s\S]*"Arrange relationships",[\s\S]*"dag",[\s\S]*actions\.reorganizeDag/);
+  assert.match(factory, /"Settle relationships",[\s\S]*"Settle relationships",[\s\S]*"refresh",[\s\S]*actions\.relaxForce/);
   assert.doesNotMatch(factory, /"Reorganize relationship layout",[\s\S]*"dag"/);
 });
 
@@ -154,11 +154,11 @@ test("narrow toolbar pins authoring and scrolls only dense View controls", async
 
   assert.match(
     css,
-    /@media \(max-width: 699px\)[\s\S]*\.app-tool-dock\.app-footer-bar[\s\S]*display:\s*grid[\s\S]*grid-template-columns:\s*auto clamp\(170px, 46vw, 260px\) minmax\(0, 1fr\)/,
+    /@media \(max-width: 699px\)[\s\S]*\.app-tool-dock\.app-footer-bar[\s\S]*display:\s*grid[\s\S]*grid-template-columns:\s*auto clamp\(120px, 38vw, 220px\) minmax\(0, 1fr\)/,
   );
   assert.match(
     css,
-    /#occurrence-composer:not\(\[active\]\)[\s\S]*order:\s*2[\s\S]*min-inline-size:\s*170px/,
+    /#occurrence-composer:not\(\[active\]\)[\s\S]*order:\s*2[\s\S]*min-inline-size:\s*120px/,
   );
   assert.match(
     css,
