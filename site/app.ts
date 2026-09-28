@@ -9,6 +9,10 @@ import {
   normalizeSemanticIconName,
 } from "../src/presentation/semantic-icons.ts";
 import { applyProjectTransaction } from "../src/application/project-transaction.ts";
+import {
+  createApplicationSelectionController,
+  selectionForTimelineFocus,
+} from "../src/application/selection.ts";
 import { projectTimelineOccurrences } from "../src/projection/timeline-projection.ts";
 import "./components/occurrence-composer.ts";
 import type {
@@ -696,6 +700,10 @@ try {
 } catch (error) {
   console.error("Failed to initialize TemporalGraphView:", error);
 }
+const applicationSelection = createApplicationSelectionController();
+applicationSelection.subscribe(({ selection }) => {
+  temporalGraphView?.setSelection?.(selection);
+});
 const dateRangePicker = dateRangeFactory.create({
   input: els.itemDateRange,
   popover: els.itemCalendarPopover,
@@ -4352,7 +4360,16 @@ function collapseAllCategories() {
   for (const category of state.categories) ui.collapsedCategoryIds.add(category.id);
 }
 
+function retainCurrentApplicationSelection(): void {
+  applicationSelection.retain({
+    entity: new Set(state.entities.map((entity) => String(entity.id))),
+    relationship: new Set(state.relationships.map((relationship) => String(relationship.id))),
+    place: new Set(state.places.map((place) => String(place.id))),
+  });
+}
+
 function renderAll() {
+  retainCurrentApplicationSelection();
   renderProjectMeta();
   syncOccurrenceComposerData();
   renderCategoryOptions();
@@ -5574,6 +5591,10 @@ els.timelineViewRoot.addEventListener("timelineorientationchange", (event) => {
 
 els.timelineViewRoot.addEventListener("timelinefocuschange", (event) => {
   const focused = Boolean(event.detail?.focused);
+  applicationSelection.select(
+    focused ? selectionForTimelineFocus(event.detail?.id, state.relationships) : null,
+    "timeline",
+  );
   if (focused && ui.mode === "edit") {
     requestAnimationFrame(() => timelineView?.closeFocus());
     return;
@@ -5602,6 +5623,27 @@ els.graphViewRoot.addEventListener("graphcontextchange", (event) => {
   syncContextualPresentationPanels();
   syncTimelineContextControls();
   schedulePresentationGeometryRefresh({ recenterGraph: true });
+});
+
+els.graphViewRoot.addEventListener("worldselectionchange", (event) => {
+  const detail = (event as CustomEvent<{
+    selection?: { kind?: unknown; id?: unknown } | null;
+  }>).detail;
+  const selection = detail?.selection;
+  if (
+    selection &&
+    (selection.kind === "entity" ||
+      selection.kind === "relationship" ||
+      selection.kind === "place") &&
+    (typeof selection.id === "string" || typeof selection.id === "number")
+  ) {
+    applicationSelection.select(
+      { kind: selection.kind, id: String(selection.id) },
+      "world",
+    );
+    return;
+  }
+  applicationSelection.clear("world");
 });
 
 els.graphViewRoot.addEventListener("worldviewportchange", (event) => {
