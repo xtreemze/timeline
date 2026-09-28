@@ -1,0 +1,77 @@
+{
+  "format": "lum-example-corpus",
+  "version": 1,
+  "project": {
+    "id": "classic-tales",
+    "title": "Nine classic tales — distributed fictional casebook",
+    "currentSourceFiles": [
+      "site/sample-case.ts",
+      "site/sample-case-additions.ts"
+    ]
+  },
+  "stories": [
+    {
+      "id": "story-three-little-pigs",
+      "title": "The Three Little Pigs",
+      "sourceFile": "site/sample-case.ts",
+      "targetDirectory": "examples/classic-tales/three-little-pigs",
+      "migrationStatus": "legacy-source"
+    },
+    {
+      "id": "story-snow-white",
+      "title": "Snow White",
+      "sourceFile": "site/sample-case.ts",
+      "targetDirectory": "examples/classic-tales/snow-white",
+      "migrationStatus": "legacy-source"
+    },
+    {
+      "id": "story-cinderella",
+      "title": "Cinderella",
+      "sourceFile": "site/sample-case.ts",
+      "targetDirectory": "examples/classic-tales/cinderella",
+      "migrationStatus": "legacy-source"
+    },
+    {
+      "id": "story-little-red-riding-hood",
+      "title": "Little Red Riding Hood",
+      "sourceFile": "site/sample-case-additions.ts",
+      "targetDirectory": "examples/classic-tales/little-red-riding-hood",
+      "migrationStatus": "legacy-source"
+    },
+    {
+      "id": "story-hansel-and-gretel",
+      "title": "Hansel and Gretel",
+      "sourceFile": "site/sample-case-additions.ts",
+      "targetDirectory": "examples/classic-tales/hansel-and-gretel",
+      "migrationStatus": "legacy-source"
+    },
+    {
+      "id": "story-jack-and-the-beanstalk",
+      "title": "Jack and the Beanstalk",
+      "sourceFile": "site/sample-case-additions.ts",
+      "targetDirectory": "examples/classic-tales/jack-and-the-beanstalk",
+      "migrationStatus": "legacy-source"
+    },
+    {
+      "id": "story-rapunzel",
+      "title": "Rapunzel",
+      "sourceFile": "site/sample-case-additions.ts",
+      "targetDirectory": "examples/classic-tales/rapunzel",
+      "migrationStatus": "legacy-source"
+    },
+    {
+      "id": "story-frog-prince",
+      "title": "The Frog Prince",
+      "sourceFile": "site/sample-case-additions.ts",
+      "targetDirectory": "examples/classic-tales/frog-prince",
+      "migrationStatus": "legacy-source"
+    },
+    {
+      "id": "story-rumpelstiltskin",
+      "title": "Rumpelstiltskin",
+      "sourceFile": "site/sample-case-additions.ts",
+      "targetDirectory": "examples/classic-tales/rumpelstiltskin",
+      "migrationStatus": "legacy-source"
+    }
+  ]
+}
