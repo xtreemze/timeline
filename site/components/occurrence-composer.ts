@@ -1,4 +1,5 @@
 import { LitElement, css, html, nothing } from "lit";
+import { iconPathData } from "../event-presentation.ts";
 import {
   timelineContextFromViewport,
   worldContextFromCamera,
@@ -179,6 +180,31 @@ export class LuumOccurrenceComposerElement extends LitElement {
     .option:focus-visible,
     .option:hover {
       background: color-mix(in srgb, var(--panel, #f5f3ef) 88%, transparent);
+    }
+
+    .option-main {
+      display: inline-flex;
+      min-inline-size: 0;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .option-icon {
+      display: inline-grid;
+      flex: 0 0 auto;
+      inline-size: 20px;
+      block-size: 20px;
+      place-items: center;
+    }
+
+    .option-icon svg {
+      inline-size: 20px;
+      block-size: 20px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
     }
 
     .option-label {
@@ -482,7 +508,18 @@ export class LuumOccurrenceComposerElement extends LitElement {
                               @pointerdown=${(event: PointerEvent) => event.preventDefault()}
                               @click=${() => this.applySuggestion(suggestion)}
                             >
-                              <span class="option-label">${suggestion.label}</span>
+                              <span class="option-main">
+                                ${suggestion.icon
+                                  ? html`<span class="option-icon" aria-hidden="true">
+                                      <svg viewBox="0 0 24 24" focusable="false">
+                                        ${iconPathData(suggestion.icon).map(
+                                          (path) => html`<path d=${path}></path>`,
+                                        )}
+                                      </svg>
+                                    </span>`
+                                  : nothing}
+                                <span class="option-label">${suggestion.label}</span>
+                              </span>
                               <span class="option-detail">${suggestion.detail ?? suggestion.kind}</span>
                             </button>
                           `,
