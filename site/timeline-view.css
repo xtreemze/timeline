@@ -2442,7 +2442,7 @@
   padding-top: 0;
 }
 
-.timeline-focus-tabs {
+.timeline-focus-toolbar {
   position: absolute;
   z-index: 30;
   top: 0.52rem;
@@ -2452,10 +2452,29 @@
   gap: 0.28rem;
   max-width: calc(100% - 1.04rem);
   padding: 0.24rem;
+  overflow-x: auto;
+  overflow-y: hidden;
   border: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
   border-radius: 0.72rem;
   background: color-mix(in srgb, var(--paper) 90%, transparent);
   backdrop-filter: blur(10px);
+  scrollbar-width: none;
+}
+
+.timeline-focus-toolbar::-webkit-scrollbar {
+  display: none;
+}
+
+.timeline-focus-tabs,
+.timeline-focus-toolbar-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.28rem;
+}
+
+.timeline-focus-toolbar-actions {
+  margin-inline-start: auto;
 }
 
 .timeline-focus-tab {
@@ -2478,10 +2497,35 @@
   outline: none;
 }
 
-.timeline-focus-close {
-  min-height: 32px;
-  margin-inline-start: 0.12rem;
-  padding: 0.4rem 0.62rem;
+.timeline-focus-icon-action {
+  appearance: none;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  flex: 0 0 44px;
+  inline-size: 44px;
+  block-size: 44px;
+  min-inline-size: 44px;
+  min-block-size: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 0.52rem;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.timeline-focus-icon-action:is(:hover, :focus-visible) {
+  background: var(--paper-2);
+  color: var(--ink);
+  outline: 2px solid var(--focus);
+  outline-offset: -3px;
+}
+
+.timeline-focus-icon-action:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
 }
 
 .timeline-focus-summary .timeline-focus-actions {
@@ -2626,10 +2670,9 @@
     padding-top: 0;
   }
 
-  .timeline-focus-tabs {
+  .timeline-focus-toolbar {
     left: 0.45rem;
     right: 0.45rem;
-    justify-content: flex-end;
   }
 
   #presentation-stage:fullscreen[data-viewport-orientation="portrait"]
@@ -3155,7 +3198,7 @@
   outline-offset: 3px;
 }
 
-.timeline-focus-view[popover] .timeline-focus-tabs {
+.timeline-focus-view[popover] .timeline-focus-toolbar {
   border-color: color-mix(in srgb, var(--focus-chrome-color) 34%, var(--line));
   background: color-mix(in srgb, var(--focus-chrome-color) 6%, var(--paper));
 }
@@ -3544,7 +3587,7 @@
     scrollbar-gutter: stable;
   }
 
-  #app-shell .timeline-focus-tabs {
+  #app-shell .timeline-focus-toolbar {
     top: 0.4rem;
     right: 0.4rem;
     gap: 0.18rem;
@@ -3553,8 +3596,7 @@
     border-radius: 0.62rem;
   }
 
-  #app-shell .timeline-focus-tab,
-  #app-shell .timeline-focus-close {
+  #app-shell .timeline-focus-tab {
     min-height: 38px;
     padding: 0.42rem 0.52rem;
     font-size: 0.66rem;
@@ -3927,7 +3969,7 @@
   }
 
   #app-shell .timeline-focus-tab,
-  #app-shell .timeline-focus-close {
+  #app-shell .timeline-focus-icon-action {
     min-height: 44px;
   }
 }
@@ -4261,8 +4303,9 @@
 .timeline-focus-icon-action > .semantic-icon {
   position: relative;
   z-index: 1;
-  inline-size: 16px;
-  block-size: 16px;
+  display: block;
+  inline-size: 20px;
+  block-size: 20px;
 }
 .timeline-focus-tags .event-tag .semantic-icon {
   width: 1.35rem;
