@@ -372,8 +372,12 @@
    icon, focus, active and disabled language. */
 .app-footer-bar {
   --toolbar-control-size: 44px;
+  --toolbar-icon-size: 20px;
   --toolbar-control-radius: 0.58rem;
   --toolbar-control-gap: 0.14rem;
+  --toolbar-zoom-track-width: 84px;
+  --toolbar-slider-track-size: 4px;
+  --toolbar-slider-thumb-size: 18px;
 }
 
 .app-footer-zone,
@@ -442,11 +446,13 @@
 .app-footer-view .toolbar-zoom-control {
   display: grid;
   grid-template-columns:
-    var(--toolbar-control-size) minmax(72px, 96px)
+    var(--toolbar-control-size) var(--toolbar-zoom-track-width)
     var(--toolbar-control-size);
   align-items: center;
   flex: 0 0 auto;
-  min-inline-size: calc((2 * var(--toolbar-control-size)) + 72px);
+  inline-size: calc((2 * var(--toolbar-control-size)) + var(--toolbar-zoom-track-width));
+  min-inline-size: calc((2 * var(--toolbar-control-size)) + var(--toolbar-zoom-track-width));
+  max-inline-size: calc((2 * var(--toolbar-control-size)) + var(--toolbar-zoom-track-width));
   overflow: hidden;
 }
 
@@ -465,26 +471,46 @@
 }
 
 .app-footer-view .toolbar-zoom-slider {
+  appearance: none;
+  -webkit-appearance: none;
   inline-size: 100%;
   min-inline-size: 0;
   block-size: var(--toolbar-control-size);
   margin: 0;
-  padding-inline: 0.4rem;
+  padding-inline: 0.5rem;
   border: 0;
   outline: 0;
-  accent-color: var(--ink);
   background: transparent;
   cursor: ew-resize;
   touch-action: pan-y;
 }
 
+.app-footer-view .toolbar-zoom-slider::-webkit-slider-runnable-track {
+  block-size: var(--toolbar-slider-track-size);
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--line-strong) 72%, transparent);
+}
+
+.app-footer-view .toolbar-zoom-slider::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  inline-size: var(--toolbar-slider-thumb-size);
+  block-size: var(--toolbar-slider-thumb-size);
+  margin-block-start: calc(
+    (var(--toolbar-slider-track-size) - var(--toolbar-slider-thumb-size)) / 2
+  );
+  border: 1px solid color-mix(in srgb, var(--line-strong) 88%, transparent);
+  border-radius: 50%;
+  background: var(--paper);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 18%, transparent);
+}
+
 .app-footer-view .toolbar-zoom-slider:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: -3px;
+  outline: none;
 }
 
 .app-footer-view .toolbar-zoom-slider:disabled {
-  opacity: 0.42;
   cursor: not-allowed;
 }
 
@@ -510,13 +536,16 @@
 .app-footer-bar .toolbar-control {
   appearance: none;
   display: grid;
+  grid-template: 1fr / 1fr;
   place-items: center;
+  gap: 0;
   flex: 0 0 var(--toolbar-control-size);
   inline-size: var(--toolbar-control-size);
   min-inline-size: var(--toolbar-control-size);
   max-inline-size: var(--toolbar-control-size);
   max-block-size: var(--toolbar-control-size);
   padding: 0;
+  line-height: 0;
   cursor: pointer;
   touch-action: manipulation;
 }
@@ -524,14 +553,16 @@
 .app-footer-bar :is(.toolbar-control, .toolbar-compound-control) .semantic-icon {
   display: block;
   flex: 0 0 auto;
-}
-
-.app-footer-bar .toolbar-control .semantic-icon {
-  inline-size: 20px;
-  block-size: 20px;
+  margin: 0;
+  transform: none;
 }
 
 .app-footer-bar .toolbar-control > .semantic-icon {
+  grid-area: 1 / 1;
+  inline-size: var(--toolbar-icon-size);
+  block-size: var(--toolbar-icon-size);
+  align-self: center;
+  justify-self: center;
   stroke-width: 1.9;
 }
 
@@ -572,11 +603,12 @@
 .app-footer-bar .toolbar-control-value {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.18rem;
-  flex-basis: auto;
-  inline-size: auto;
-  min-inline-size: 54px;
-  max-inline-size: none;
+  flex: 0 0 64px;
+  inline-size: 64px;
+  min-inline-size: 64px;
+  max-inline-size: 64px;
   padding-inline: 0.24rem;
   font-size: 0.62rem;
   cursor: default;
@@ -615,8 +647,15 @@
   }
 
 
+  .app-footer-bar {
+    --toolbar-zoom-track-width: 96px;
+  }
+
   .app-footer-bar .toolbar-control-value {
-    min-inline-size: 58px;
+    flex-basis: 68px;
+    inline-size: 68px;
+    min-inline-size: 68px;
+    max-inline-size: 68px;
     padding-inline: 0.34rem;
   }
 
@@ -626,66 +665,51 @@
 }
 
 @media (max-width: 699px) {
-  /* Narrow screens keep one direct toolbar and expose overflow by horizontal pan. */
-  #app-shell .app-tool-dock.app-footer-bar {
-    scroll-padding-inline: max(0.18rem, env(safe-area-inset-left))
-      max(0.18rem, env(safe-area-inset-right));
-  }
-
+  /* Keep Project/Edit/Browse and the readable compact composer anchored.
+     Only dense View controls scroll; selection must never shift authoring chrome away. */
   #app-shell:has(#timeline-view[data-orientation="landscape"]) > .app-tool-dock.app-footer-bar,
   #app-shell:has(#timeline-view[data-orientation="portrait"]) > .app-tool-dock.app-footer-bar,
   #app-shell #presentation-stage:fullscreen:has(#timeline-view) > .app-tool-dock.app-footer-bar {
-    display: flex;
+    display: grid;
+    grid-template-columns: auto clamp(170px, 46vw, 260px) minmax(0, 1fr);
     align-items: center;
-    justify-content: flex-start;
-    gap: var(--toolbar-control-gap);
-    overflow-x: auto;
-    overflow-y: hidden;
-    overscroll-behavior-inline: contain;
-    touch-action: pan-x;
-    scrollbar-width: none;
-    scroll-snap-type: x proximity;
-  }
-
-  #app-shell:has(#timeline-view[data-orientation="landscape"])
-    > .app-tool-dock.app-footer-bar::-webkit-scrollbar,
-  #app-shell:has(#timeline-view[data-orientation="portrait"])
-    > .app-tool-dock.app-footer-bar::-webkit-scrollbar,
-  #app-shell
-    #presentation-stage:fullscreen:has(#timeline-view)
-    > .app-tool-dock.app-footer-bar::-webkit-scrollbar {
-    display: none;
-  }
-
-  #app-shell .app-footer-bar .app-footer-zone {
-    flex: 0 0 auto;
-    inline-size: auto;
-    min-inline-size: 0;
-    max-inline-size: none;
+    column-gap: var(--toolbar-control-gap);
     overflow: visible;
+    touch-action: auto;
   }
 
   #app-shell .app-footer-bar .app-footer-actions {
+    grid-column: 1;
     order: 1;
+    inline-size: auto;
+    min-inline-size: 0;
+    overflow: visible;
     padding-inline-start: max(0.18rem, env(safe-area-inset-left));
   }
 
   #app-shell .app-footer-bar > #occurrence-composer:not([active]) {
+    grid-column: 2;
     order: 2;
-    flex: 0 0 clamp(170px, 46vw, 260px);
-    inline-size: clamp(170px, 46vw, 260px);
+    inline-size: 100%;
     min-inline-size: 170px;
+    max-inline-size: 260px;
   }
 
   #app-shell .app-footer-bar .app-footer-view {
+    grid-column: 3;
     order: 3;
-    overflow: visible;
+    inline-size: 100%;
+    min-inline-size: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-inline: contain;
+    scroll-padding-inline: var(--toolbar-control-gap);
+    scrollbar-width: none;
+    touch-action: pan-x;
   }
 
-  #app-shell .app-footer-bar .app-footer-zone + .app-footer-zone {
-    margin-inline-start: 0.12rem;
-    padding-inline-start: 0.24rem;
-    border-inline-start: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+  #app-shell .app-footer-bar .app-footer-view::-webkit-scrollbar {
+    display: none;
   }
 
   #app-shell .app-footer-bar .toolbar-control,
