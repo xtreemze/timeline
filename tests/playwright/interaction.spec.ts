@@ -188,13 +188,16 @@ test.describe("Timeline interaction contracts", () => {
         ".timeline-event:not(.timeline-cluster):not(.is-buffered) .timeline-event-terminal:visible",
       )
       .first();
-    await expect(terminal).toHaveAttribute("aria-controls", "timeline-focus-view");
+    await expect(terminal).toHaveAttribute("aria-controls", /timeline-event-detail-/);
     await expect(terminal).toHaveAttribute("aria-expanded", "false");
 
+    const card = terminal.locator("xpath=ancestor::luum-event-card[1]");
     await terminal.focus();
     await page.keyboard.press("Enter");
+    await page.keyboard.press("Enter");
 
-    await expect(page.locator("#timeline-focus-view")).toBeVisible();
+    await expect(page.locator("#timeline-focus-view")).toBeHidden();
+    await expect(card.locator(".timeline-event-detail")).toBeVisible();
     await expect(terminal).toHaveAttribute("aria-expanded", "true");
   });
 
