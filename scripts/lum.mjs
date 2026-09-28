@@ -31,6 +31,7 @@ Usage:
   lum lint <project.lum.json|-> [--json]
   lum fmt <project.lum.json|-> [--check]
   lum compose "<subject> <action> <object> ..." [--json]
+  lum agent context <project.lum.json|-> [--json]
   lum schema [--json]
   lum lsp
 `;
@@ -171,6 +172,76 @@ function commandCompose(args) {
   }
 }
 
+
+async function commandAgent(args) {
+  const [subcommand, target] = positional(args);
+  if (subcommand !== "context" || !target) {
+    throw new Error("agent currently supports: lum agent context <project.lum.json|->");
+  }
+
+  const source = await readTarget(target);
+  const validation = validateProjectInterchange(source);
+  if (!validation.valid) {
+    outputValidation(false, validation.diagnostics, args.includes("--json"));
+    process.exitCode = 1;
+    return;
+  }
+
+  const project = validation.snapshot.project;
+  const context = {
+    protocol: "lum-agent-context-v1",
+    schema: {
+      id: LUM_PROJECT_SCHEMA_ID,
+      interchangeVersion: LUM_PROJECT_INTERCHANGE_VERSION,
+      canonicalSchemaVersion: CURRENT_PROJECT_SCHEMA_VERSION,
+    },
+    project: {
+      projectKey: validation.snapshot.projectKey,
+      revision: validation.snapshot.revision,
+      entities: project.entities.map((entity) => ({
+        id: String(entity.id),
+        name: entity.name,
+        type: entity.type,
+      })),
+      relationships: project.relationships.map((relationship) => ({
+        id: String(relationship.id),
+        subjectId: String(relationship.subjectId),
+        predicate: relationship.predicate,
+        objectId: String(relationship.objectId),
+      })),
+      occurrences: (project.occurrences ?? []).map((occurrence) => ({
+        id: String(occurrence.id),
+        ...(occurrence.title ? { title: occurrence.title } : {}),
+        ...(occurrence.occurrenceType ? { occurrenceType: occurrence.occurrenceType } : {}),
+        participantEntityIds: occurrence.participantContexts.map((participant) =>
+          String(participant.entityId),
+        ),
+        relationshipIds: occurrence.relationshipIds.map(String),
+      })),
+      trajectories: (project.trajectories ?? []).map((trajectory) => ({
+        id: String(trajectory.id),
+        sampleCount: trajectory.sampleCount,
+      })),
+    },
+    composer: {
+      syntax:
+        "SUBJECT ACTION OBJECT [at PLACE] [on INSTANT | from START to END] [[category: CATEGORY, tags: A|B]]",
+      command: 'lum compose "<sentence>" --json',
+      rule:
+        "Composer output is a proposal. It must pass canonical validation before any project mutation.",
+    },
+    workflow: [
+      "lum agent context <project.lum.json> --json",
+      'lum compose "<occurrence sentence>" --json',
+      "edit the bounded canonical records required by the proposal",
+      "lum fmt <project.lum.json>",
+      "lum lint <project.lum.json> --json",
+    ],
+  };
+
+  process.stdout.write(`${JSON.stringify(context, null, 2)}\n`);
+}
+
 function commandSchema(args) {
   const value = {
     id: LUM_PROJECT_SCHEMA_ID,
@@ -207,6 +278,9 @@ async function main() {
       return;
     case "compose":
       commandCompose(args);
+      return;
+    case "agent":
+      await commandAgent(args);
       return;
     case "schema":
       commandSchema(args);
