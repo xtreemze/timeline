@@ -320,6 +320,48 @@ test("place marker rendering uses the authored icon, fill, border, width, and sh
 });
 
 
+test("place acquisition radius follows the same shape-aware marker footprint", () => {
+  const h = harness();
+  const styled = instance(0, {
+    geographicAnchors: [
+      {
+        placeId: "diamond-place",
+        label: "Diamond place",
+        longitude: 12,
+        latitude: 41,
+        influence: 1,
+        style: {
+          marker: {
+            radius: 24,
+            borderWidth: 2,
+            shape: "diamond",
+            icon: "place",
+          },
+        },
+      },
+    ],
+  });
+  const surface = new DeckWorldSurface({}, h.runtime, WORKING_CAMERA);
+  surface.setProjection(createWorldProjection({ instances: [styled], edges: [] }));
+
+  const layers = h.lastLayers();
+  const placeIcons = layer(layers, DECK_WORLD_LAYER_IDS.placeIcons);
+  const places = layer(layers, DECK_WORLD_LAYER_IDS.places);
+  const iconDatum = placeIcons.props.data.find((candidate) => candidate.placeId === "diamond-place");
+  const placeDatum = places.props.data.find((candidate) => candidate.placeId === "diamond-place");
+  assert.ok(iconDatum);
+  assert.ok(placeDatum);
+
+  const visibleRadius = placeIcons.props.getSize(iconDatum) / 2;
+  const acquisitionRadius = places.props.getRadius(placeDatum);
+  assert.ok(visibleRadius > 22, "fixture must exceed the minimum touch target");
+  assert.equal(
+    acquisitionRadius,
+    visibleRadius,
+    "large shaped place markers cannot outgrow or undershoot their pick body",
+  );
+});
+
 test("three very near places share one aggregate marker while readable nodes remain expanded", () => {
   const h = harness();
   const left = instance(0, {
