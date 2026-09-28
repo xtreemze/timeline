@@ -50,9 +50,13 @@ test("VS Code extension associates .lum.json with the canonical schema and CLI c
   assert.ok(manifest.contributes.configuration.properties["lum.cliPath"]);
 });
 
-test("VS Code integration delegates diagnostics and formatting to the lum CLI", async () => {
+test("VS Code keeps CLI validation/formatting and delegates language intelligence to lum lsp", async () => {
   const source = await readFile(
     new URL("../editors/vscode-lum/extension.cjs", import.meta.url),
+    "utf8",
+  );
+  const lspClient = await readFile(
+    new URL("../editors/vscode-lum/lsp-client.cjs", import.meta.url),
     "utf8",
   );
 
@@ -60,14 +64,27 @@ test("VS Code integration delegates diagnostics and formatting to the lum CLI", 
   assert.match(source, /fmt/);
   assert.match(source, /--json/);
   assert.match(source, /registerDocumentFormattingEditProvider/);
-  assert.match(source, /createDiagnosticCollection/);\n  assert.match(source, /finding\\?\\.range|finding\\.range/);
+  assert.match(source, /createDiagnosticCollection/);
+  assert.match(source, /createLumLspClient/);
+  assert.doesNotMatch(source, /collectionKeys|referenceKeys|semanticProvider/);
   assert.doesNotMatch(source, /validateProjectInterchange|formatProjectInterchange/);
-  for (const collection of ["places", "sources", "categories", "stories"]) {
-    assert.match(source, new RegExp(`"${collection}"`));
+
+  for (const method of [
+    "textDocument/completion",
+    "textDocument/hover",
+    "textDocument/definition",
+    "textDocument/references",
+    "textDocument/documentSymbol",
+    "workspace/symbol",
+    "textDocument/prepareRename",
+    "textDocument/rename",
+    "textDocument/semanticTokens/full",
+  ]) {
+    assert.match(lspClient, new RegExp(method.replace("/", "\\/")));
   }
-  for (const reference of ["categoryId", "storyId"]) {
-    assert.match(source, new RegExp(`"${reference}"`));
-  }
+  assert.match(lspClient, /registerCompletionItemProvider/);
+  assert.match(lspClient, /registerRenameProvider/);
+  assert.match(lspClient, /registerDocumentSemanticTokensProvider/);
 });
 
 test("VS Code snippets scaffold strict current-format records", async () => {
