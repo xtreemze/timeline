@@ -368,6 +368,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
     .metadata-panel {
       display: grid;
+      min-block-size: 0;
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 0.5rem;
       max-block-size: min(15rem, var(--composer-completion-max-height, 42dvh));
@@ -1020,6 +1021,12 @@ export class LuumOccurrenceComposerElement extends LitElement {
   private requestAdvancedEdit(): void {
     const relationshipId = this.selectionContext?.selectedOccurrenceId;
     if (!relationshipId) return;
+    const initialText = this.selectionContext?.composition?.trim() ?? "";
+    const dirty = this.metadataDirty || this.value.trim() !== initialText;
+    if (dirty) {
+      this.commit();
+      if (this.externalError) return;
+    }
     this.dispatchEvent(
       new CustomEvent("occurrencecomposeradvancededitrequest", {
         bubbles: true,
@@ -1487,7 +1494,9 @@ export class LuumOccurrenceComposerElement extends LitElement {
                   ${this.selectionContext?.selectedOccurrenceId
                     ? html`<div class="metadata-actions">
                         <button type="button" @click=${() => this.requestAdvancedEdit()}>
-                          Open full edge editor
+                          ${this.metadataDirty || this.value.trim() !== (this.selectionContext?.composition?.trim() ?? "")
+                            ? "Save and open full edge editor"
+                            : "Open full edge editor"}
                         </button>
                       </div>`
                     : nothing}
