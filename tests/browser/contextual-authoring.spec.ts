@@ -388,12 +388,19 @@ test.describe("contextual world authoring certification", () => {
         ).TimelineAgentAPI?.getProject?.()?.relationships?.length ?? 0,
     );
     const replacementPredicate = relationship!.predicate === "reframes" ? "recounts" : "reframes";
-    const edited = initial.replace(
-      `@${relationship!.subjectId} ${relationship!.predicate} @${relationship!.objectId}`,
-      `@${relationship!.subjectId} ${replacementPredicate} @${relationship!.objectId}`,
-    );
-    expect(edited).not.toBe(initial);
-    await input.fill(edited);
+    const actionChip = composer.locator('button.context-chip[data-context-kind="predicate"]');
+    await expect(actionChip).toBeVisible();
+    await actionChip.click();
+    await expect(input).toBeFocused();
+    await expect
+      .poll(() =>
+        input.evaluate((field: HTMLInputElement) =>
+          field.value.slice(field.selectionStart ?? 0, field.selectionEnd ?? 0),
+        ),
+      )
+      .toBe(relationship!.predicate);
+    await page.keyboard.type(replacementPredicate);
+    await input.press("End");
     await input.press("Enter");
 
     await expect
