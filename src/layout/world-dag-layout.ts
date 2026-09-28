@@ -549,12 +549,18 @@ function topologyKey(
   sizes: ReadonlyMap<string, readonly [number, number]>,
   placeSize: readonly [number, number],
   orientation: WorldDagLayoutOrientation,
+  algorithm: WorldDagLayoutAlgorithm,
   strategy: WorldDagLayoutStrategy,
+  coordinate: WorldDagCoordinateStrategy,
+  edgeStyle: WorldDagEdgeStyle,
 ): string {
   return JSON.stringify([
     String(placeId),
     orientation,
+    algorithm,
     strategy,
+    coordinate,
+    edgeStyle,
     [Math.round(placeSize[0]), Math.round(placeSize[1])],
     nodeIds.map((id) => {
       const [width, height] = sizes.get(String(id)) ?? [
@@ -1529,7 +1535,10 @@ function layoutPlace(
 ): PlaceLayoutCache["result"] {
   const placeOverride = options.placeOverrides?.get(placeId);
   const orientation = placeOverride?.orientation ?? options.orientation ?? "top-to-bottom";
+  const algorithm = placeOverride?.algorithm ?? options.algorithm ?? "sugiyama";
   const strategy = placeOverride?.strategy ?? options.strategy ?? "auto";
+  const coordinate = placeOverride?.coordinate ?? options.coordinate ?? "greedy";
+  const edgeStyle = placeOverride?.edgeStyle ?? options.edgeStyle ?? "routed";
   const reorganize =
     options.reorganize === true || options.reorganizePlaceId === placeId;
   const nodeIds = instances.map((instance) => instance.id);
@@ -1542,7 +1551,18 @@ function layoutPlace(
   // as roots so they reserve real layout territory instead of becoming force-only
   // obstacles that can drift back through routed topology.
   const structuredNodeIds = nodeIds;
-  const key = topologyKey(placeId, nodeIds, edges, sizes, placeSize, orientation, strategy);
+  const key = topologyKey(
+    placeId,
+    nodeIds,
+    edges,
+    sizes,
+    placeSize,
+    orientation,
+    algorithm,
+    strategy,
+    coordinate,
+    edgeStyle,
+  );
   const cacheKey = String(placeId);
   const cached = placeCache.get(cacheKey);
 
@@ -1562,7 +1582,10 @@ function layoutPlace(
     sizes,
     previousTargets,
     orientation,
+    algorithm,
     strategy,
+    coordinate,
+    edgeStyle,
     reorganize ? undefined : cached?.result.metrics.algorithm,
     Object.freeze([]),
     placeSize,
@@ -1706,7 +1729,10 @@ function crossPlaceTopologyKey(
   places: ReadonlyMap<WorldInstanceId, PlaceId>,
   placeSizes: ReadonlyMap<PlaceId, WorldDagLayoutNodeSize> | undefined,
   orientation: WorldDagLayoutOrientation,
+  algorithm: WorldDagLayoutAlgorithm,
   strategy: WorldDagLayoutStrategy,
+  coordinate: WorldDagCoordinateStrategy,
+  edgeStyle: WorldDagEdgeStyle,
 ): string {
   const usedPlaces = [
     ...new Set(nodeIds.map((id) => places.get(id)).filter((id): id is PlaceId => id !== undefined)),
@@ -1715,7 +1741,10 @@ function crossPlaceTopologyKey(
   return JSON.stringify([
     "cross-place",
     orientation,
+    algorithm,
     strategy,
+    coordinate,
+    edgeStyle,
     nodeIds.map((id) => {
       const [width, height] = sizes.get(String(id)) ?? [
         DAG_FALLBACK_NODE_SIZE_METERS,
@@ -1740,7 +1769,10 @@ function layoutCrossPlaceTopology(
   revision: number,
 ): CrossPlaceLayoutCache | null {
   const orientation = options.orientation ?? "top-to-bottom";
+  const algorithm = options.algorithm ?? "sugiyama";
   const strategy = options.strategy ?? "auto";
+  const coordinate = options.coordinate ?? "greedy";
+  const edgeStyle = options.edgeStyle ?? "routed";
   const connectedIds = layoutNeighborhoodNodeIds(index, options);
   if (connectedIds.size === 0) {
     crossPlaceCache = null;
@@ -1784,7 +1816,10 @@ function layoutCrossPlaceTopology(
     index.primaryPlaceByInstance,
     options.placeSizes,
     orientation,
+    algorithm,
     strategy,
+    coordinate,
+    edgeStyle,
   );
 
   if (!options.reorganize && crossPlaceCache?.topologyKey === key) {
@@ -1803,7 +1838,10 @@ function layoutCrossPlaceTopology(
     sizes,
     previousTargets,
     orientation,
+    algorithm,
     strategy,
+    coordinate,
+    edgeStyle,
     options.reorganize ? undefined : crossPlaceCache?.algorithm,
     placeObstacles,
   );
@@ -1888,7 +1926,7 @@ function prunePlaceCache(revision: number): void {
 }
 
 /**
- * Derive deterministic, size-aware Sugiyama organization while keeping each
+ * Derive deterministic, size-aware D3 DAG organization while keeping each
  * primary geographic anchor authoritative. Local-only neighborhoods are laid
  * out per place. Any connected component that crosses a place boundary is
  * additionally laid out as one structural DAG containing layout-only place
