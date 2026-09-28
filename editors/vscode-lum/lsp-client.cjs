@@ -77,6 +77,11 @@ class LumLspTransport {
     this.process.stderr.on("data", () => {
       // The CLI diagnostics provider remains the user-facing error surface.
     });
+    this.process.on("error", (error) => {
+      for (const { reject } of this.pending.values()) reject(error);
+      this.pending.clear();
+      this.process = null;
+    });
     this.process.on("exit", () => {
       for (const { reject } of this.pending.values()) {
         reject(new Error("The Lūm language server exited."));
