@@ -711,7 +711,6 @@ function setSemanticControlIcon(element, iconName, label) {
   if (currentIcon) currentIcon.replaceWith(icon);
   else element.prepend(icon);
   element.dataset.semanticIcon = iconName;
-  delete element.dataset.semanticIconSecondary;
   element.setAttribute("aria-label", label);
   element.title = label;
   const accessibleLabel = element.querySelector(":scope > .sr-only");
