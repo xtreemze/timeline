@@ -168,7 +168,7 @@ function semanticProvider() {
               : referenceKeys.has(key)
                 ? "variable"
                 : null;
-          if (tokenType) builder.push(line, offset, length, tokenType, []);
+          if (tokenType) {\n            builder.push(\n              new vscode.Range(line, offset, line, offset + length),\n              tokenType,\n              [],\n            );\n          }
         }
       }
       return builder.build();
