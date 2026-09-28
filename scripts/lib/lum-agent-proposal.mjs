@@ -15,6 +15,10 @@ const COLLECTIONS = new Set([
   "relationships",
   "occurrences",
   "trajectories",
+  "places",
+  "sources",
+  "categories",
+  "stories",
 ]);
 
 const TOP_LEVEL_FIELDS = new Set([
@@ -193,7 +197,7 @@ function validateOperationShape(value, index, diagnostics) {
       diagnostic(
         "invalid-operation",
         `${path}/collection`,
-        "Operation collection must be entities, relationships, occurrences, or trajectories.",
+        "Operation collection must be a canonical Lūm project collection.",
       ),
     );
   }
@@ -527,9 +531,36 @@ function applyOperations(proposal, sourceSnapshot, savedAt) {
   const diagnostics = [];
   const project = cloneJson(sourceSnapshot.project);
   const summary = {
-    created: { entities: 0, relationships: 0, occurrences: 0, trajectories: 0 },
-    replaced: { entities: 0, relationships: 0, occurrences: 0, trajectories: 0 },
-    deleted: { entities: 0, relationships: 0, occurrences: 0, trajectories: 0 },
+    created: {
+      entities: 0,
+      relationships: 0,
+      occurrences: 0,
+      trajectories: 0,
+      places: 0,
+      sources: 0,
+      categories: 0,
+      stories: 0,
+    },
+    replaced: {
+      entities: 0,
+      relationships: 0,
+      occurrences: 0,
+      trajectories: 0,
+      places: 0,
+      sources: 0,
+      categories: 0,
+      stories: 0,
+    },
+    deleted: {
+      entities: 0,
+      relationships: 0,
+      occurrences: 0,
+      trajectories: 0,
+      places: 0,
+      sources: 0,
+      categories: 0,
+      stories: 0,
+    },
     operations: [],
     unresolvedFacts: cloneJson(proposal.unresolvedFacts),
   };
