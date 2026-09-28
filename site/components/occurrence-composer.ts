@@ -1168,9 +1168,10 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const placeLabel =
       resolvedPlaceLabel(parsed.place?.name) ??
       this.selectionContext?.place?.name ??
+      this.explicitPlaceContext?.label ??
       this.worldContext?.label ??
       "World center";
-    const suggestions = this.suggestions().slice(0, 7);
+    const suggestions = this.metadataOpen ? [] : this.suggestions().slice(0, 7);
     const selectedIndex = Math.min(
       this.activeSuggestion,
       Math.max(0, suggestions.length - 1),
@@ -1194,10 +1195,24 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const timeSection = sectionFor("time");
     const categorySection = sectionFor("category");
     const subjectLabel = entityLabel(parsed.subject?.name) ?? this.selectedSubjectLabel();
-    const placePinned = Boolean(parsed.place || this.selectionContext?.place);
+    const placePinned = Boolean(
+      parsed.place || this.selectionContext?.place || this.explicitPlaceContext,
+    );
     const timePinned = Boolean(parsed.time);
     const categoryLabel = parsed.options.category ?? null;
     const tagLabels = parsed.options.tags;
+    const canCommit = Boolean(
+      parsed.subject && parsed.predicate && parsed.object && parsed.diagnostics.length === 0,
+    );
+    const commitLabel = this.selectionContext?.selectedOccurrenceId
+      ? "Save occurrence"
+      : "Create occurrence";
+    const metadataCount =
+      Number(Boolean(this.metadataRole.trim())) +
+      Number(Boolean(this.metadataSourceIds.trim())) +
+      Number(Boolean(this.metadataConfidence.trim())) +
+      Number(this.metadataInitialState === "inactive") +
+      Number(this.metadataAttributes.trim() !== "{}" && this.metadataAttributes.trim() !== "");
     const editableChip = (
       label: string,
       value: string | null | undefined,
@@ -1212,6 +1227,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
             aria-label=${`Edit ${label}: ${value}`}
             title=${`Select the ${label.toLocaleLowerCase()} text for editing`}
             @click=${() => this.editSentenceSection(section)}
+            @keydown=${(event: KeyboardEvent) => this.onContextChipKeyDown(event)}
           >
             <span>${label}</span><strong>${value}</strong
             ><span class="context-state">${this.sectionIsActive(section) ? "editing" : "edit"}</span>
@@ -1250,6 +1266,18 @@ export class LuumOccurrenceComposerElement extends LitElement {
             />
           </div>
           <button
+            class="commit"
+            type="button"
+            ?disabled=${!canCommit}
+            aria-label=${commitLabel}
+            title=${`${commitLabel} · Ctrl/Cmd+Enter`}
+            @click=${() => this.commit()}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              ${iconPathData("check").map((path) => html`<path d=${path}></path>`)}
+            </svg>
+          </button>
+          <button
             class="close"
             type="button"
             aria-label="Close occurrence composer"
@@ -1268,6 +1296,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
                   data-context-state="pending"
                   title="Replace this draft with the newly selected graph context"
                   @click=${() => this.acceptPendingSelectionContext()}
+                  @keydown=${(event: KeyboardEvent) => this.onContextChipKeyDown(event)}
                 >
                   <span>Selection changed</span><strong>${this.pendingSelectionContext ? "Use selected context" : "Use no selection"}</strong>
                 </button>`
@@ -1278,28 +1307,52 @@ export class LuumOccurrenceComposerElement extends LitElement {
             ${editableChip("Object", entityLabel(parsed.object?.name), objectSection)}
             ${placeSection
               ? editableChip("Place", parsed.place?.name ?? placeLabel, placeSection)
-              : html`<span
+              : html`<button
                   class="context-chip"
+                  type="button"
                   data-context-kind="place"
-                  data-context-state=${placePinned ? "pinned" : "live"}
+                  data-context-state=${this.activeContextKind === "place" ? "editing" : placePinned ? "pinned" : "live"}
+                  aria-label=${`Choose place: ${placeLabel}`}
+                  title="Choose or pin the occurrence place"
+                  @click=${() => this.activateContext("place")}
+                  @keydown=${(event: KeyboardEvent) => this.onContextChipKeyDown(event)}
                 >
                   <span>Place</span><strong>${placeLabel}</strong
-                  ><span class="context-state">${placePinned ? "context" : "live"}</span>
-                </span>`}
+                  ><span class="context-state">${this.activeContextKind === "place" ? "editing" : placePinned ? "pinned" : "live"}</span>
+                </button>`}
             ${timeSection
               ? editableChip("Time", timeLabel ?? "timeline center", timeSection)
-              : html`<span
+              : html`<button
                   class="context-chip"
+                  type="button"
                   data-context-kind="time"
-                  data-context-state=${timePinned ? "pinned" : "live"}
+                  data-context-state=${this.activeContextKind === "time" ? "editing" : timePinned ? "pinned" : "live"}
+                  aria-label=${`Choose time: ${timeLabel ?? "timeline center"}`}
+                  title="Choose or pin the occurrence time"
+                  @click=${() => this.activateContext("time")}
+                  @keydown=${(event: KeyboardEvent) => this.onContextChipKeyDown(event)}
                 >
                   <span>Time</span><strong>${timeLabel ?? "timeline center"}</strong
-                  ><span class="context-state">${timePinned ? "context" : "live"}</span>
-                </span>`}
+                  ><span class="context-state">${this.activeContextKind === "time" ? "editing" : timePinned ? "pinned" : "live"}</span>
+                </button>`}
             ${editableChip("Category", categoryLabel, categorySection)}
             ${tagLabels.map((tag, index) =>
               editableChip("Tag", tag, sectionFor("tag", index)),
             )}
+            <button
+              class="context-chip"
+              type="button"
+              data-context-kind="details"
+              data-context-state=${this.metadataOpen ? "editing" : metadataCount ? "pinned" : "live"}
+              aria-expanded=${String(this.metadataOpen)}
+              aria-controls="occurrence-composer-metadata"
+              title="Edit role, state, provenance, confidence, and properties"
+              @click=${() => this.toggleMetadata()}
+              @keydown=${(event: KeyboardEvent) => this.onContextChipKeyDown(event)}
+            >
+              <span>Details</span><strong>${metadataCount ? `${metadataCount} set` : "More"}</strong
+              ><span class="context-state">${this.metadataOpen ? "editing" : "edit"}</span>
+            </button>
           </div>
           ${
             diagnostic
