@@ -169,8 +169,48 @@ function matchingBracket(source, start, open, close) {
   return -1;
 }
 
+export function lumDocumentMetadata(source) {
+  try {
+    const parsed = JSON.parse(source);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return Object.freeze({
+        format: null,
+        projectKey: null,
+        storyId: null,
+        collection: null,
+      });
+    }
+    return Object.freeze({
+      format: typeof parsed.format === "string" ? parsed.format : null,
+      projectKey: typeof parsed.projectKey === "string" ? parsed.projectKey : null,
+      storyId: typeof parsed.storyId === "string" ? parsed.storyId : null,
+      collection:
+        typeof parsed.collection === "string" && Object.hasOwn(COLLECTIONS, parsed.collection)
+          ? parsed.collection
+          : null,
+    });
+  } catch {
+    const stringField = (field) => {
+      const match = new RegExp(`"${field}"\\s*:\\s*"([^"\\\\]*)"`).exec(source);
+      return match?.[1] ?? null;
+    };
+    const collection = stringField("collection");
+    return Object.freeze({
+      format: stringField("format"),
+      projectKey: stringField("projectKey"),
+      storyId: stringField("storyId"),
+      collection: collection && Object.hasOwn(COLLECTIONS, collection) ? collection : null,
+    });
+  }
+}
+
 function collectionArraySpan(source, key) {
-  const occurrence = keyOccurrences(source).find((token) => token.value === key);
+  let occurrence = keyOccurrences(source).find((token) => token.value === key);
+  if (!occurrence) {
+    const metadata = lumDocumentMetadata(source);
+    if (metadata.format !== "lum-project-module" || metadata.collection !== key) return null;
+    occurrence = keyOccurrences(source).find((token) => token.value === "records");
+  }
   if (!occurrence) return null;
   const colon = source.indexOf(":", occurrence.end + 1);
   const start = source.indexOf("[", colon + 1);
@@ -344,6 +384,70 @@ function completionTarget(source, position) {
     }
   }
   return null;
+}
+
+export function lumReferenceTargetAt(source, position) {
+  return completionTarget(source, position);
+}
+
+export function lumSymbolAt(source, position) {
+  const reference = referenceAt(source, position);
+  if (reference) {
+    return Object.freeze({
+      role: "reference",
+      id: reference.id,
+      collection: reference.targetCollection,
+      field: reference.field,
+      range: reference.range,
+    });
+  }
+  const declaration = declarationAt(source, position);
+  if (declaration) {
+    return Object.freeze({
+      role: "declaration",
+      id: declaration.id,
+      collection: declaration.collection,
+      kind: declaration.kind,
+      label: declaration.label,
+      range: declaration.range,
+    });
+  }
+  return null;
+}
+
+export function lumDocumentIndex(source, uri = "") {
+  const metadata = lumDocumentMetadata(source);
+  const declarations = [];
+  for (const entries of declarationIndex(source).values()) {
+    for (const declaration of entries) {
+      declarations.push(
+        Object.freeze({
+          uri,
+          id: declaration.id,
+          collection: declaration.collection,
+          kind: declaration.kind,
+          label: declaration.label,
+          range: declaration.range,
+          recordRange: declaration.recordRange,
+        }),
+      );
+    }
+  }
+  const references = referenceOccurrences(source).map((reference) =>
+    Object.freeze({
+      uri,
+      id: reference.id,
+      collection: reference.targetCollection,
+      field: reference.field,
+      range: reference.range,
+    }),
+  );
+  return Object.freeze({
+    uri,
+    metadata,
+    declarations: Object.freeze(declarations),
+    references: Object.freeze(references),
+  });
 }
 
 export function lumCompletions(source, position) {
