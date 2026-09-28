@@ -1757,9 +1757,9 @@ function syncApplicationSurfaces() {
     els.browserToggle.setAttribute("aria-expanded", String(ui.browserOpen));
     setSemanticControlIcon(
       els.browserToggle,
-      "timeline",
-      ui.browserOpen ? "Close timeline browser" : "Browse timeline",
       ui.browserOpen ? "close" : "search",
+      ui.browserOpen ? "Close timeline browser" : "Browse timeline",
+      "timeline",
     );
   }
 
@@ -1824,9 +1824,9 @@ function syncTimelineContextControls() {
     els.editorToggle.disabled = ui.importReviewOpen;
     setSemanticControlIcon(
       els.editorToggle,
-      "timeline",
-      label,
       ui.editorOpen ? "check" : "edit",
+      label,
+      "timeline",
     );
     const accessibleLabel = els.editorToggle.querySelector(".app-tool-label");
     if (accessibleLabel) accessibleLabel.textContent = ui.editorOpen ? "Done" : "Edit";
@@ -4744,9 +4744,9 @@ function renderAutoAdvanceState(autoState: AutoAdvanceState): void {
   els.autoToggle.setAttribute("aria-pressed", String(playing));
   setSemanticControlIcon(
     els.autoToggle,
-    "timeline",
-    playing ? "Pause slideshow" : "Play slideshow",
     playing ? "pause" : "play",
+    playing ? "Pause slideshow" : "Play slideshow",
+    "timeline",
   );
   if (!autoState.running) {
     els.autoStatus.textContent = "Slideshow stopped";
