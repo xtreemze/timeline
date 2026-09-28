@@ -217,13 +217,22 @@ test("application keeps timeline and World live while composer uses their center
     source,
     /worldviewportchange[\s\S]*camera\?\.zoom[\s\S]*setWorldContext\(longitude, latitude, zoom\)/,
   );
-  assert.match(source, /const draft = clone\(state\) as TimelineState/);
-  assert.match(source, /draft\.entities\.push\(entity\)/);
-  assert.match(source, /radiusMeters:[\s\S]*accuracyMeters/);
-  assert.match(source, /draft\.places\.push\(place\)/);
-  assert.match(source, /draft\.items\.push\(item\)/);
-  assert.match(source, /draft\.relationships\.push\(relationship\)/);
-  assert.match(source, /state = normalizeTimeline\(draft, \{ strictGraph: true \}\)/);
+  assert.match(
+    source,
+    /import \\{ authorOccurrence \\} from ["\']\\.\\.\\/src\\/application\\/occurrence-authoring\\.ts["\']/,
+  );
+  assert.match(
+    source,
+    /authorOccurrence\\(state,[\\s\\S]*activeStoryId:[\\s\\S]*ui\\.activeStoryId/,
+  );
+  assert.doesNotMatch(source, /draft\\.entities\\.push\\(entity\\)/);
+  assert.doesNotMatch(source, /draft\\.places\\.push\\(place\\)/);
+  assert.doesNotMatch(source, /draft\\.items\\.push\\(item\\)/);
+  assert.doesNotMatch(source, /draft\\.relationships\\.push\\(relationship\\)/);
+  assert.doesNotMatch(
+    source,
+    /function composerEntityByReference|function composerPlace|function composerCategory/,
+  );
 });
 
 test("occurrence composer is structurally integrated into the persistent footer", async () => {

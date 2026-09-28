@@ -42,15 +42,25 @@ test.describe("Narrow mobile screen contracts", () => {
     await page.goto("/");
     await expect(page.locator("#timeline-view")).toBeVisible();
 
-    const counts = await page.evaluate(() => {
-      const project = globalThis.TimelineAgentAPI?.getProject?.();
-      const root = document.querySelector("#timeline-view");
-      const view = root instanceof HTMLElement ? globalThis.TimelineView?.create(root) : null;
-      return {
-        projectItems: project?.items?.length ?? 0,
-        controllerItems: view?.items?.length ?? 0,
-      };
-    });
+    const readTimelineCounts = () =>
+      page.evaluate(() => {
+        const project = globalThis.TimelineAgentAPI?.getProject?.();
+        const root = document.querySelector("#timeline-view");
+        const view = root instanceof HTMLElement ? globalThis.TimelineView?.create(root) : null;
+        return {
+          projectItems: project?.items?.length ?? 0,
+          controllerItems: view?.items?.length ?? 0,
+        };
+      });
+
+    await expect
+      .poll(async () => {
+        const counts = await readTimelineCounts();
+        return counts.projectItems > 0 && counts.controllerItems === counts.projectItems;
+      })
+      .toBe(true);
+
+    const counts = await readTimelineCounts();
     expect(counts.projectItems).toBeGreaterThan(0);
     expect(counts.controllerItems).toBe(counts.projectItems);
 

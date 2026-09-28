@@ -3,13 +3,13 @@
  * Main entry point coordinating all modules, UI state, and persistence
  */
 
+import { authorOccurrence } from "../src/application/occurrence-authoring.ts";
 import { projectTimelineOccurrences } from "../src/projection/timeline-projection.ts";
 import "./components/occurrence-composer.ts";
 import type {
   LuumOccurrenceComposerElement,
   OccurrenceCommitDetail,
 } from "./components/occurrence-composer.ts";
-import type { ComposerEntityReference } from "./occurrence-composer-model.ts";
 import {
   canShareProjectFile,
   observeInstallAvailability,
@@ -1771,181 +1771,6 @@ function setOccurrenceComposerOpen(open: boolean): void {
   syncApplicationSurfaces();
 }
 
-function normalizedComposerName(value: string): string {
-  return value.trim().toLocaleLowerCase();
-}
-
-function syncOccurrenceComposerData(): void {
-  els.occurrenceComposer.setData({
-    entities: state.entities.map((entity) => ({
-      id: entity.id,
-      name: entity.name,
-      type: entity.type,
-      alternateNames: entity.alternateNames ?? [],
-    })),
-    places: state.places.map((place) => ({
-      id: place.id,
-      name: place.name,
-    })),
-    categories: state.categories.map((category) => ({
-      id: category.id,
-      name: category.name,
-    })),
-  });
-}
-
-function composerEntityByReference(
-  reference: ComposerEntityReference,
-  draft: TimelineState,
-): EntityRecord {
-  const rawName = reference.name.trim();
-  if (!rawName) throw new Error("Each endpoint needs an entity name.");
-
-  if (rawName.startsWith("@")) {
-    const id = rawName.slice(1);
-    const entity = draft.entities.find((candidate) => candidate.id === id);
-    if (!entity) throw new Error(`No entity exists with ID “${id}”.`);
-    return entity;
-  }
-
-  const key = normalizedComposerName(rawName);
-  const matches = draft.entities.filter((candidate) =>
-    [candidate.name, ...(candidate.alternateNames ?? [])].some(
-      (name) => normalizedComposerName(name) === key,
-    ),
-  );
-  if (matches.length > 1) {
-    throw new Error(
-      `“${rawName}” is ambiguous. Choose the intended completion or enter @<entity-id>.`,
-    );
-  }
-  const existing = matches[0];
-  if (existing) return existing;
-
-  const type = reference.properties.type?.trim() || "entity";
-  const attributes = Object.fromEntries(
-    Object.entries(reference.properties).filter(([property]) => property !== "type"),
-  );
-  const entity: EntityRecord = {
-    id: newId("entity"),
-    name: rawName.slice(0, 180),
-    type: type.slice(0, 60),
-    alternateNames: [],
-    identifiers: [],
-    sourceIds: [],
-    attributes,
-  };
-  const validation = graph.validateEntityNode(entity);
-  if (!validation.valid) throw new Error(validation.message);
-  draft.entities.push(entity);
-  return entity;
-}
-
-function composerPointCoordinates(place: PlaceRecord): readonly [number, number] | null {
-  if (place.geometry?.type !== "Point") return null;
-  const [longitude, latitude] = place.geometry.coordinates;
-  return Number.isFinite(longitude) && Number.isFinite(latitude)
-    ? Object.freeze([longitude, latitude])
-    : null;
-}
-
-function composerPlace(
-  explicitName: string | null,
-  longitude: number | null,
-  latitude: number | null,
-  accuracyMeters: number | null,
-  draft: TimelineState,
-): PlaceRecord {
-  const requested = explicitName?.trim() || "";
-  if (requested.startsWith("@")) {
-    const id = requested.slice(1);
-    const place = draft.places.find((candidate) => candidate.id === id);
-    if (!place) throw new Error(`No place exists with ID “${id}”.`);
-    return place;
-  }
-
-  if (requested) {
-    const key = normalizedComposerName(requested);
-    const matches = draft.places.filter(
-      (candidate) => normalizedComposerName(candidate.name) === key,
-    );
-    if (matches.length > 1) {
-      throw new Error(
-        `“${requested}” is ambiguous. Choose the intended completion or enter @<place-id>.`,
-      );
-    }
-    const existing = matches[0];
-    if (existing) return existing;
-  }
-
-  if (
-    longitude === null ||
-    latitude === null ||
-    !Number.isFinite(longitude) ||
-    !Number.isFinite(latitude)
-  ) {
-    throw new Error(
-      "A place is required. Move the World view to the intended location or type an existing place after “at”.",
-    );
-  }
-
-  const coordinateMatch = draft.places.find((candidate) => {
-    const coordinates = composerPointCoordinates(candidate);
-    return (
-      coordinates !== null &&
-      Math.abs(coordinates[0] - longitude) < 1e-6 &&
-      Math.abs(coordinates[1] - latitude) < 1e-6
-    );
-  });
-  if (!requested && coordinateMatch) return coordinateMatch;
-
-  const generatedName =
-    requested || `Location ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-  const place = spatial.placeFromForm({
-    id: newId("place"),
-    name: generatedName,
-    latitude,
-    longitude,
-    radiusMeters:
-      accuracyMeters !== null && Number.isFinite(accuracyMeters) && accuracyMeters >= 0
-        ? accuracyMeters
-        : undefined,
-    icon: "place",
-    markerShape: "pin",
-  });
-  if (!place?.geometry) throw new Error("The current World center could not become a place.");
-
-  const duplicate = draft.places.find(
-    (candidate) => spatial.placeIdentity(candidate) === spatial.placeIdentity(place),
-  );
-  if (duplicate) return duplicate;
-  draft.places.push(place);
-  return place;
-}
-
-function composerCategory(name: string | undefined, draft: TimelineState): CategoryRecord {
-  if (!name?.trim()) {
-    const fallback = draft.categories[0];
-    if (!fallback) throw new Error("The project has no occurrence categories.");
-    return fallback;
-  }
-  const key = normalizedComposerName(name);
-  const existing = draft.categories.find(
-    (category) =>
-      normalizedComposerName(category.id) === key ||
-      normalizedComposerName(category.name) === key,
-  );
-  if (existing) return existing;
-
-  const category: CategoryRecord = {
-    id: newId("category"),
-    name: name.trim().slice(0, 60),
-    color: "#667085",
-  };
-  draft.categories.push(category);
-  return category;
-}
-
 function composerTime(
   detail: OccurrenceCommitDetail,
 ): {
@@ -1982,105 +1807,47 @@ function composerTime(
 
 function commitOccurrenceComposer(detail: OccurrenceCommitDetail): void {
   try {
-    const { subject: subjectRef, object: objectRef, predicate } = detail.draft;
-    if (!subjectRef || !objectRef || !predicate) {
-      throw new Error("Complete subject, action, and object before committing.");
-    }
-    const predicateValidation = graph.validateActionPredicate(predicate);
-    if (!predicateValidation.valid) throw new Error(predicateValidation.message);
-
-    const draft = clone(state) as TimelineState;
-    const subject = composerEntityByReference(subjectRef, draft);
-    const object = composerEntityByReference(objectRef, draft);
-    if (subject.id === object.id) {
-      throw new Error("An occurrence must connect two different entities.");
-    }
-
-    const place = composerPlace(
-      detail.draft.place?.name ?? null,
-      detail.defaults.longitude,
-      detail.defaults.latitude,
-      detail.defaults.accuracyMeters,
-      draft,
-    );
-    const { extent, kind, startValue, endValue } = composerTime(detail);
-    const category = composerCategory(detail.draft.options.category, draft);
-    const itemId = newId("item");
-    const item: TimelineItemRecord = {
-      id: itemId,
-      kind,
-      start: startValue,
-      end: endValue,
-      time: extent,
-      title: `${subject.name} ${predicate} ${object.name}`.slice(0, 160),
-      description: "",
-      categoryId: category.id,
-      presentation: {
-        variant: "hero-split",
-        terminalShape: "rounded",
-        connectorStyle: "solid",
-        connectorRouting: "straight",
-        connectorWeight: "normal",
-        connectorEndpoint: "none",
-        lane: null,
+    const result = authorOccurrence(
+      state,
+      {
+        subject: detail.draft.subject,
+        object: detail.draft.object,
+        predicate: detail.draft.predicate,
+        placeName: detail.draft.place?.name ?? null,
+        longitude: detail.defaults.longitude,
+        latitude: detail.defaults.latitude,
+        accuracyMeters: detail.defaults.accuracyMeters,
+        time: composerTime(detail),
+        categoryName: detail.draft.options.category,
+        tags: detail.draft.options.tags,
+        activeStoryId: ui.activeStoryId,
       },
-      relationChanges: [],
-      evidenceIds: [],
-      ...(detail.draft.options.tags.length
-        ? {
-            tags: detail.draft.options.tags.map((label) => ({
-              label: label.slice(0, 80),
-            })),
-          }
-        : {}),
-    };
-
-    const relationship: RelationshipRecord = {
-      id: newId("relationship"),
-      subjectId: subject.id,
-      objectId: object.id,
-      predicate: predicate.slice(0, 120),
-      placeId: place.id,
-      itemIds: [itemId],
-      initialState: "active",
-      time: extent,
-      sourceIds: [],
-      confidence: null,
-      attributes: {},
-    };
-
-    const duplicate = graph.findDuplicateRelationship(
-      relationship,
-      draft.relationships,
-      relationship.id,
+      {
+        cloneState: (current) => clone(current) as TimelineState,
+        newId,
+        validatePredicate: (predicate) => graph.validateActionPredicate(predicate),
+        validateEntity: (entity) => graph.validateEntityNode(entity),
+        createPointPlace: ({ id, name, longitude, latitude, accuracyMeters }) =>
+          spatial.placeFromForm({
+            id,
+            name,
+            latitude,
+            longitude,
+            radiusMeters: accuracyMeters ?? undefined,
+            icon: "place",
+            markerShape: "pin",
+          }),
+        placeIdentity: (place) => spatial.placeIdentity(place as PlaceRecord),
+        findDuplicateRelationship: (relationship, relationships, relationshipId) =>
+          graph.findDuplicateRelationship(relationship, relationships, relationshipId),
+        findMirroredRelationship: (relationship, relationships, relationshipId) =>
+          graph.findMirroredRelationship(relationship, relationships, relationshipId),
+        normalizeState: (draft) =>
+          normalizeTimeline(draft as TimelineState, { strictGraph: true }) as TimelineState,
+      },
     );
-    if (duplicate) {
-      throw new Error(
-        `This occurrence duplicates canonical relationship “${duplicate.id}”. Edit or enrich the existing fact instead.`,
-      );
-    }
-    const mirrored = graph.findMirroredRelationship(
-      relationship,
-      draft.relationships,
-      relationship.id,
-    );
-    if (mirrored) {
-      throw new Error(
-        `A reverse copy of this action already exists as “${mirrored.id}”. Use a different action only when the reverse fact is genuinely distinct.`,
-      );
-    }
 
-    draft.items.push(item);
-    draft.relationships.push(relationship);
-
-    const activeStory = ui.activeStoryId
-      ? draft.stories.find((story) => story.id === ui.activeStoryId)
-      : null;
-    if (activeStory && !activeStory.itemIds.includes(itemId)) {
-      activeStory.itemIds = [...activeStory.itemIds, itemId];
-    }
-
-    state = normalizeTimeline(draft, { strictGraph: true });
+    state = result.state;
     persist();
     renderAll();
     els.occurrenceComposer.markCommitted();
