@@ -7,11 +7,11 @@ import {
   type ComposerWorldContext,
 } from "../occurrence-composer-context.ts";
 import {
+  acceptComposerSuggestion,
   composerCompletionSuffix,
   composerCursorSection,
   occurrenceComposerSuggestions,
   parseOccurrenceSentence,
-  replaceComposerTail,
   type ComposerCategoryOption,
   type ComposerEntityOption,
   type ComposerPlaceOption,
@@ -719,17 +719,13 @@ export class LuumOccurrenceComposerElement extends LitElement {
   private applySuggestion(suggestion: ComposerSuggestion): void {
     if (!suggestion.insertText) return;
     const parsed = this.parsed();
-    const range = suggestion.replaceRange;
-    const nextValue = range
-      ? `${this.value.slice(0, range.start)}${suggestion.insertText}${this.value.slice(range.end)}`
-      : replaceComposerTail(this.value, suggestion.insertText, parsed.stage);
-    const nextCursor = range ? range.start + suggestion.insertText.length : nextValue.length;
-    this.setComposerValue(nextValue, nextCursor);
+    const accepted = acceptComposerSuggestion(this.value, suggestion, parsed.stage);
+    this.setComposerValue(accepted.value, accepted.cursorOffset);
     void this.updateComplete.then(() => {
       const input = this.renderRoot.querySelector<HTMLInputElement>("input");
       if (!input) return;
       input.focus({ preventScroll: true });
-      input.setSelectionRange(nextCursor, nextCursor);
+      input.setSelectionRange(accepted.cursorOffset, accepted.cursorOffset);
     });
   }
 
