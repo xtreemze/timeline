@@ -104,6 +104,15 @@ export interface WorldSimulationDiagnostics {
 }
 
 export interface WorldForceTuning {
+  /**
+   * d3 center-force strength. Zero preserves the existing anchor/DAG equilibrium;
+   * positive values translate the local force group toward the requested center.
+   */
+  readonly centerStrength?: number;
+  /** East/west center target in disposable local tangent-space metres. */
+  readonly centerEastMeters?: number;
+  /** North/south center target in disposable local tangent-space metres. */
+  readonly centerNorthMeters?: number;
   /** d3 collision resolution strength in the normalized 0..1 range. */
   readonly collisionStrength: number;
   /** Number of collision solver passes per simulation tick. */
@@ -117,6 +126,8 @@ export interface WorldForceTuning {
   readonly manyBodyStrength: number;
   /** Multiplier applied to semantic relationship spring strength. */
   readonly linkStrengthScale: number;
+  /** Multiplier applied to each semantic relationship's desired link distance. */
+  readonly linkDistanceScale?: number;
   /** Multiplier applied to geographic anchor attraction. */
   readonly anchorStrengthScale: number;
   /** Multiplier applied to d3-dag soft target attraction. */
