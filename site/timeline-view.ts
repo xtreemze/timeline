@@ -7,6 +7,7 @@
  */
 
 import type { ApplicationSelection } from "../src/application/selection.ts";
+import { composerEditableSections } from "./occurrence-composer-model.ts";
 import { projectTimelineSelection } from "../src/application/timeline-selection.ts";
 import { surfacePointerMayStartDirectManipulation } from "../src/interaction/surface-input-policy.ts";
 import { TimelinePresentation } from "./event-presentation.ts";
@@ -102,6 +103,7 @@ type Orientation = "horizontal" | "vertical";
 
 interface TimelineItem {
   id: string;
+  composition?: string;
   kind?: string;
   title?: string;
   description?: string;
@@ -3856,7 +3858,28 @@ export class TimelineViewController {
     sentenceLabel.className = "timeline-occurrence-sentence-label";
     sentenceLabel.textContent = "Occurrence";
     const sentenceText = document.createElement("p");
-    sentenceText.textContent = item.title || item.id;
+    sentenceText.textContent = item.composition || item.title || item.id;
+    const fields = document.createElement("div");
+    fields.className = "timeline-occurrence-fields";
+    const sections = item.composition ? composerEditableSections(item.composition) : [];
+    for (const section of sections) {
+      const field = section.kind;
+      const label = section.text;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "timeline-occurrence-field";
+      button.textContent = label;
+      button.setAttribute("aria-label", `Edit ${field} ${label} of ${item.title || item.id}`);
+      button.addEventListener("click", () => {
+        this.root.dispatchEvent(
+          new CustomEvent("timelineoccurrenceeditrequest", {
+            bubbles: true,
+            detail: { id: item.id, field },
+          }),
+        );
+      });
+      fields.append(button);
+    }
     const editSentence = document.createElement("button");
     editSentence.type = "button";
     editSentence.className = "timeline-occurrence-edit button secondary";
@@ -3870,7 +3893,7 @@ export class TimelineViewController {
         }),
       );
     });
-    sentence.append(sentenceLabel, sentenceText, editSentence);
+    sentence.append(sentenceLabel, sentenceText, fields, editSentence);
 
     const summary = document.createElement("section");
     summary.id = "timeline-focus-context-panel";

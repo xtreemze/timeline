@@ -2544,6 +2544,14 @@ function renderTimeline() {
             : timelineView?.getViewport?.();
           return {
             id: item.id,
+            composition: (() => {
+              const relationship = state.relationships.find((candidate) =>
+                (candidate.itemIds || []).some((id) => String(id) === String(item.id)),
+              );
+              return relationship
+                ? occurrenceCompositionForRelationship(relationship, String(item.id))
+                : undefined;
+            })(),
             kind: item.kind,
             title: item.title,
             description: item.description,
@@ -2615,6 +2623,9 @@ function renderTimeline() {
           };
           return {
             id: occurrence.occurrenceId,
+            composition: relationship
+              ? occurrenceCompositionForRelationship(relationship, null)
+              : undefined,
             kind: occurrence.end === null ? "event" : "range",
             title: occurrence.title,
             description: relationship?.role
@@ -6064,10 +6075,17 @@ els.timelineViewRoot.addEventListener("timelinefocuschange", (event) => {
 });
 
 els.timelineViewRoot.addEventListener("timelineoccurrenceeditrequest", (event) => {
-  const id = (event as CustomEvent<{ id?: string }>).detail?.id;
+  const { id, field } =
+    (
+      event as CustomEvent<{
+        id?: string;
+        field?: "subject" | "predicate" | "object" | "place" | "time" | "category" | "tag";
+      }>
+    ).detail ?? {};
   if (!id) return;
   applicationSelection.select(selectionForTimelineFocus(id, state.relationships), "timeline");
   setOccurrenceComposerOpen(true);
+  if (field) els.occurrenceComposer.focusSection(field);
 });
 
 els.timelineViewRoot.addEventListener("timelinefocusrender", (event) => {

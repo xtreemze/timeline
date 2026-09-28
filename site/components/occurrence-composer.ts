@@ -8,6 +8,7 @@ import {
 } from "../occurrence-composer-context.ts";
 import {
   acceptComposerSuggestion,
+  composerEditableSections,
   composerCompletionSuffix,
   composerCursorSection,
   occurrenceComposerSuggestions,
@@ -580,6 +581,29 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.sessionKey = nextKey;
     this.applySelectionSeed();
     this.requestUpdate();
+  }
+
+  focusSection(
+    field: "subject" | "predicate" | "object" | "place" | "time" | "category" | "tag",
+  ): void {
+    this.beginSession();
+    void this.updateComplete.then(() => {
+      const input = this.renderRoot.querySelector<HTMLInputElement>("input");
+      if (!input) return;
+      const section = composerEditableSections(this.value).find(
+        (candidate) => candidate.kind === field,
+      );
+      input.focus({ preventScroll: true });
+      if (section) {
+        this.cursorOffset = section.start;
+        input.setSelectionRange(section.start, section.end);
+      } else {
+        this.cursorOffset = this.value.length;
+        input.setSelectionRange(this.value.length, this.value.length);
+      }
+      this.activeSuggestion = 0;
+      this.requestUpdate();
+    });
   }
 
   private applySelectionSeed(): void {
