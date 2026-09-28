@@ -327,10 +327,9 @@
   }
 }
 
-/* Persistent primary command plane.
-   Workspace actions stay centered, while contextual chronology navigation may occupy
-   the physical right only when focus makes it relevant. Dense world/timeline controls
-   live in View rather than competing for permanent footer space. */
+/* Persistent command plane.
+   Primary actions, spatial/presentation controls, and focused chronology navigation
+   share one footer toolbar. The View zone scrolls horizontally when space is constrained. */
 #app-shell > .app-tool-dock.app-footer-bar,
 #presentation-stage:fullscreen > .app-tool-dock.app-footer-bar,
 #app-shell:has(#timeline-view[data-orientation="landscape"]) > .app-tool-dock.app-footer-bar,
@@ -342,6 +341,12 @@
   align-items: center;
   inline-size: 100%;
   max-inline-size: none;
+}
+
+#presentation-stage:fullscreen > .app-tool-dock.app-footer-bar {
+  inset-inline: 0;
+  transform: none;
+  overflow: visible;
 }
 
 /* Canonical persistent toolbar contract.
