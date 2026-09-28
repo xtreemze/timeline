@@ -84,6 +84,14 @@ test("icon completion offers a named visual icon to preview", () => {
   assert.deepEqual(suggestions.find((suggestion) => suggestion.label === "icon: pig")?.icon, "pig");
 });
 
+test("known place anchors the mini world preview without inventing coordinates", () => {
+  const places = [{ id: "stockholm", name: "Stockholm", longitude: 18.06, latitude: 59.33 }];
+  const known = projectComposerPreview("@alice meets @bob at Stockholm", entities, null, places);
+  assert.deepEqual(known.place, { label: "Stockholm", longitude: 18.06, latitude: 59.33 });
+  const unknown = projectComposerPreview("@alice meets @bob at Unknown", entities, null, places);
+  assert.deepEqual(unknown.place, { label: "Unknown", longitude: null, latitude: null });
+});
+
 test("unresolved clues retain exact spans and ambiguous interpretations without canonical mutation", () => {
   const text = 'man? calls @alice at "Central Station"?';
   const qualifiers = projectInvestigativeQualifiers(text);

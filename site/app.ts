@@ -1975,6 +1975,12 @@ function syncOccurrenceComposerData(): void {
     places: state.places.map((place) => ({
       id: place.id,
       name: place.name,
+      ...(place.geometry?.type === "Point"
+        ? {
+            longitude: place.geometry.coordinates[0],
+            latitude: place.geometry.coordinates[1],
+          }
+        : {}),
       icon:
         normalizeSemanticIconName(place.icon) ??
         suggestSemanticIconForPlace({ name: place.name })?.icon ??

@@ -266,6 +266,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     .composer-card-context { margin: 0; font-size: 0.73rem; line-height: 1.35; color: var(--muted, #615d56); }
     .composer-card-media { max-inline-size: 100%; max-block-size: 4rem; object-fit: contain; border-radius: 0.4rem; }
     .composer-world-preview {
+      position: relative;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -274,13 +275,16 @@ export class LuumOccurrenceComposerElement extends LitElement {
       padding: 0.35rem;
       border: 1px solid var(--preview-accent, var(--line, #d1ccc4));
       border-radius: 0.65rem;
-      background: radial-gradient(circle at 50% 55%, #7494a044 0 28%, transparent 29%),
-        radial-gradient(circle at 50% 55%, #446e8e44 0 34%, transparent 35%),
+      background: repeating-linear-gradient(90deg, transparent 0 24%, #446e8e1b 24.2% 24.5%),
+        repeating-linear-gradient(0deg, transparent 0 24%, #446e8e1b 24.2% 24.5%),
+        radial-gradient(ellipse at 50% 50%, #7494a033 0 37%, transparent 38%),
         var(--paper, #fff);
     }
-    .preview-node { display: grid; justify-items: center; gap: 0.15rem; min-inline-size: 3.8rem; max-inline-size: 35%; font-size: 0.7rem; font-weight: 650; text-align: center; overflow-wrap: anywhere; }
+    .mini-world-pin { position: absolute; z-index: 0; inline-size: 0.6rem; block-size: 0.6rem; border-radius: 50%; background: var(--preview-accent, var(--accent)); box-shadow: 0 0 0 3px var(--paper, #fff); transform: translate(-50%, -50%); }
+    .mini-world-place { position: absolute; inset-inline-start: 0.45rem; inset-block-start: 0.3rem; max-inline-size: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.64rem; }
+    .preview-node { position: relative; z-index: 1; display: grid; justify-items: center; gap: 0.15rem; min-inline-size: 3.8rem; max-inline-size: 35%; font-size: 0.7rem; font-weight: 650; text-align: center; overflow-wrap: anywhere; }
     .preview-node svg { inline-size: 32px; block-size: 32px; fill: none; stroke: currentColor; stroke-width: 1.8; }
-    .preview-edge { min-inline-size: 2rem; max-inline-size: 30%; color: var(--preview-accent, var(--accent, #315fbd)); font-size: 0.72rem; text-align: center; overflow-wrap: anywhere; }
+    .preview-edge { position: relative; z-index: 1; min-inline-size: 2rem; max-inline-size: 30%; color: var(--preview-accent, var(--accent, #315fbd)); font-size: 0.72rem; text-align: center; overflow-wrap: anywhere; }
     .preview-pending { opacity: 0.4; }
     .composer-grammar, .composer-qualifiers { display: flex; gap: 0.3rem; overflow-x: auto; scrollbar-width: thin; }
     .grammar-chip, .qualifier-chip, .interpretation-chip { flex: 0 0 auto; min-block-size: 44px; padding: 0.2rem 0.5rem; border: 1px solid var(--line, #d1ccc4); border-radius: 0.5rem; background: var(--paper, #fff); color: inherit; font: inherit; cursor: pointer; }
@@ -974,7 +978,12 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const tagLabels = parsed.options.tags;
     const sections = composerEditableSections(this.value);
     const qualifiers = projectInvestigativeQualifiers(this.value);
-    const preview = projectComposerPreview(this.value, this.data.entities, this.previewSuggestion);
+    const preview = projectComposerPreview(
+      this.value,
+      this.data.entities,
+      this.previewSuggestion,
+      this.data.places,
+    );
 
     return html`
       <section class="composer" aria-label="Occurrence composer">
@@ -1032,7 +1041,16 @@ export class LuumOccurrenceComposerElement extends LitElement {
             }
             <div class="composer-world-preview" role="img"
               style=${`--preview-accent: ${previewCategory?.color ?? "var(--accent, #315fbd)"}`}
-              aria-label=${`World preview: ${preview.subject?.label ?? "subject pending"}, ${preview.edge?.label ?? "action pending"}, ${preview.object?.label ?? "target pending"}`}>
+              aria-label=${`World preview: ${preview.subject?.label ?? "subject pending"}, ${preview.edge?.label ?? "action pending"}, ${preview.object?.label ?? "target pending"}${preview.place ? ` at ${preview.place.label}${preview.place.longitude === null ? " (coordinates unknown)" : ""}` : ""}`}>
+              ${preview.place ? html`<span class="mini-world-place">${preview.place.label}</span>` : nothing}
+              ${
+                preview.place?.longitude !== null &&
+                preview.place?.longitude !== undefined &&
+                preview.place.latitude !== null
+                  ? html`<span class="mini-world-pin" aria-hidden="true"
+                    style=${`left: ${(preview.place.longitude + 180) / 3.6}%; top: ${(90 - preview.place.latitude) / 1.8}%`}></span>`
+                  : nothing
+              }
               ${this.previewNode(preview.subject, "Subject")}
               <span class="preview-edge ${preview.edge ? "" : "preview-pending"}">${preview.edge?.label ?? "Action"} →</span>
               ${this.previewNode(preview.object, "Target")}

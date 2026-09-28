@@ -56,6 +56,8 @@ export interface ComposerPlaceOption {
   readonly id: string;
   readonly name: string;
   readonly icon?: string;
+  readonly longitude?: number;
+  readonly latitude?: number;
 }
 
 export interface ComposerCategoryOption {

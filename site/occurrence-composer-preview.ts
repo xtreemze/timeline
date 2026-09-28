@@ -3,6 +3,7 @@ import {
   composerEditableSections,
   parseOccurrenceSentence,
   type ComposerEntityOption,
+  type ComposerPlaceOption,
   type ComposerSuggestion,
 } from "./occurrence-composer-model.ts";
 
@@ -17,6 +18,11 @@ export interface ComposerPreview {
   readonly object: ComposerPreviewNode | null;
   readonly category: string | null;
   readonly tags: readonly string[];
+  readonly place: {
+    readonly label: string;
+    readonly longitude: number | null;
+    readonly latitude: number | null;
+  } | null;
 }
 
 function previewNode(
@@ -42,6 +48,7 @@ export function projectComposerPreview(
   input: string,
   entities: readonly ComposerEntityOption[],
   suggestion?: ComposerSuggestion | null,
+  places: readonly ComposerPlaceOption[] = [],
 ): ComposerPreview {
   const parsed = parseOccurrenceSentence(input);
   const iconSuggestion =
@@ -54,6 +61,13 @@ export function projectComposerPreview(
   );
   const previewSubjectIcon = iconSection?.kind === "subject" ? iconSuggestion : null;
   const previewObjectIcon = iconSection?.kind === "object" ? iconSuggestion : null;
+  const place = parsed.place?.name
+    ? places.find(
+        (candidate) =>
+          candidate.name.toLocaleLowerCase() === parsed.place?.name.toLocaleLowerCase() ||
+          `@${candidate.id}` === parsed.place?.name,
+      )
+    : null;
   return Object.freeze({
     subject: previewNode(
       parsed.subject?.name,
@@ -70,6 +84,13 @@ export function projectComposerPreview(
     ),
     category: parsed.options.category ?? null,
     tags: parsed.options.tags,
+    place: parsed.place
+      ? Object.freeze({
+          label: place?.name ?? parsed.place.name,
+          longitude: Number.isFinite(place?.longitude) ? place!.longitude! : null,
+          latitude: Number.isFinite(place?.latitude) ? place!.latitude! : null,
+        })
+      : null,
   });
 }
 

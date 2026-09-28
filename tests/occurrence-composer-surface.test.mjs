@@ -7,11 +7,12 @@ test("composer owns the card and incremental world preview with interactive gram
     new URL("../site/components/occurrence-composer.ts", import.meta.url),
     "utf8",
   );
-  assert.match(source, /projectComposerPreview\(this\.value/);
+  assert.match(source, /projectComposerPreview\(\s*this\.value/);
   assert.match(source, /class="composer-occurrence-card"/);
   assert.match(source, /selectionContext\?\.description/);
   assert.match(source, /selectionContext\?\.media/);
   assert.match(source, /class="composer-world-preview"/);
+  assert.match(source, /class="mini-world-pin"/);
   assert.match(source, /composerEditableSections\(this\.value\)/);
   assert.match(source, /selectSection\(section\.start, section\.end\)/);
   assert.match(source, /input\.setSelectionRange\(start, end\)/);
