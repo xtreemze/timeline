@@ -63,8 +63,11 @@ function showPanel(
   const popover = panel as HTMLElement & {
     showPopover?: () => void;
   };
-  if (popover.showPopover) popover.showPopover();
-  else panel.hidden = false;
+  if (popover.showPopover) {
+    if (!panel.matches(":popover-open")) popover.showPopover();
+  } else {
+    panel.hidden = false;
+  }
   button.setAttribute("aria-expanded", "true");
   positionPanel(panel, button);
   state.scope.focus({ preventScroll: true });
@@ -103,6 +106,7 @@ function advancedButton(
 
   let timer = 0;
   let suppressClick = false;
+  let pressOrigin: readonly [number, number] | null = null;
   const clearTimer = (): void => {
     if (!timer) return;
     doc.defaultView?.clearTimeout(timer);
@@ -117,10 +121,21 @@ function advancedButton(
   element.addEventListener("pointerdown", (event) => {
     if (event.button !== 0 || element.disabled) return;
     clearTimer();
+    pressOrigin = Object.freeze([event.clientX, event.clientY]);
     timer = doc.defaultView?.setTimeout(open, LONG_PRESS_MS) ?? 0;
   });
+  element.addEventListener("pointermove", (event) => {
+    if (!pressOrigin || !timer) return;
+    if (Math.hypot(event.clientX - pressOrigin[0], event.clientY - pressOrigin[1]) > 8) {
+      clearTimer();
+      pressOrigin = null;
+    }
+  });
   for (const type of ["pointerup", "pointercancel", "pointerleave"] as const) {
-    element.addEventListener(type, clearTimer);
+    element.addEventListener(type, () => {
+      clearTimer();
+      pressOrigin = null;
+    });
   }
   element.addEventListener("contextmenu", (event) => {
     event.preventDefault();
@@ -192,6 +207,17 @@ function selectRow(
   }
   row.append(label, select);
   return { row, select };
+}
+
+function valueRow(doc: Document, labelText: string, value: string): HTMLDivElement {
+  const row = doc.createElement("div");
+  row.className = "world-layout-inspector-row";
+  const label = doc.createElement("span");
+  label.textContent = labelText;
+  const output = doc.createElement("output");
+  output.textContent = value;
+  row.append(label, output);
+  return row;
 }
 
 function rangeRow(
@@ -298,7 +324,12 @@ export function createWorldLayoutControls(
     ["longest-two-layer-greedy", "Longest path + two-layer"],
     ["simplex-two-layer-greedy", "Simplex + two-layer"],
   ]);
-  dagPanel.append(dagScope.row, direction.row, strategy.row);
+  const dagNote = doc.createElement("p");
+  dagNote.className = "world-layout-inspector-note";
+  dagNote.textContent =
+    "Selected-place scope changes disposable organization around that geographic anchor; " +
+    "canonical place coordinates never move.";
+  dagPanel.append(dagScope.row, direction.row, strategy.row, dagNote);
 
   const dagApply = (): void => {
     const placeId =
@@ -318,6 +349,7 @@ export function createWorldLayoutControls(
 
   const forcePanel = panelShell(doc, "world-force-layout-inspector", "D3 force options");
   const forceScope = scopeRow(doc);
+  const radiusPolicy = valueRow(doc, "Collision radius", "Rendered node + border · fixed");
   const collision = rangeRow(doc, "Collision strength", {
     min: 0,
     max: 1,
@@ -363,10 +395,11 @@ export function createWorldLayoutControls(
   const radiusNote = doc.createElement("p");
   radiusNote.className = "world-layout-inspector-note";
   radiusNote.textContent =
-    "Collision radius is fixed to the rendered node + border. " +
-    "Connectivity clearance reserves additional soft space for hubs.";
+    "Connectivity clearance reserves additional soft space for hubs and participates in " +
+    "nearby cross-place rejection.";
   forcePanel.append(
     forceScope.row,
+    radiusPolicy,
     collision.row,
     iterations.row,
     clearance.row,
