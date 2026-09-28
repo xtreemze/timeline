@@ -48,6 +48,7 @@ export const DEFAULT_D3_WORLD_FORCE_TUNING: WorldForceTuning = Object.freeze({
   manyBodyStrength: NORMAL_MANY_BODY_STRENGTH,
   linkStrengthScale: 1,
   linkDistanceScale: 1,
+  linkIterations: 1,
   anchorStrengthScale: 1,
   dagStrengthScale: 1,
 });
@@ -415,6 +416,13 @@ function validatedTuning(tuning: WorldForceTuning): WorldForceTuning {
     tuning.linkDistanceScale ?? DEFAULT_D3_WORLD_FORCE_TUNING.linkDistanceScale ?? 1,
     "Link distance scale",
   );
+  const linkIterations = finiteNonNegative(
+    tuning.linkIterations ?? DEFAULT_D3_WORLD_FORCE_TUNING.linkIterations ?? 1,
+    "Link iterations",
+  );
+  if (!Number.isInteger(linkIterations) || linkIterations < 1 || linkIterations > 12) {
+    throw new Error("Link iterations must be an integer from 1 to 12.");
+  }
   const anchorStrengthScale = finiteNonNegative(
     tuning.anchorStrengthScale,
     "Anchor strength scale",
@@ -433,6 +441,7 @@ function validatedTuning(tuning: WorldForceTuning): WorldForceTuning {
     manyBodyStrength: tuning.manyBodyStrength,
     linkStrengthScale,
     linkDistanceScale,
+    linkIterations,
     anchorStrengthScale,
     dagStrengthScale,
   });
@@ -862,6 +871,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
                 ),
               )
               .strength((link) => this.#linkStrength(key, maximumRadius, link, tuning))
+              .iterations(tuning.linkIterations ?? 1)
           : null;
       simulation.force("link", linkForce);
       simulation.force(
