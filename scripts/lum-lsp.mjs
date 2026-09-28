@@ -161,7 +161,7 @@ export function createLumLanguageServer(writeMessage) {
     }
 
     if (method === "textDocument/formatting") {
-      const { source } = sourceFor(message);
+      const { uri, source } = sourceFor(message);
       let result = [];
       if (typeof source === "string") {
         try {
