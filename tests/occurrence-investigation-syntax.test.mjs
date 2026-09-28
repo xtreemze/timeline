@@ -163,3 +163,15 @@ test("editable sections retain ordinary source coordinates around investigative 
   assert.equal(place?.text, "Central Station");
   assert.equal(input[place.end], "?");
 });
+
+test("composer commit path refuses unresolved investigative qualifiers", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const source = await readFile(
+    new URL("../site/components/occurrence-composer.ts", import.meta.url),
+    "utf8",
+  );
+
+  const commit = source.match(/private commit\(\): void \{[\s\S]*?\n  \}/)?.[0] ?? "";
+  assert.match(commit, /draft\.investigation\.qualifiers\.length/);
+  assert.match(commit, /Resolve or persist the investigative clue/);
+});
