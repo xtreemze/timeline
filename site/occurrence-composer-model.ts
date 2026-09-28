@@ -1320,8 +1320,9 @@ export function occurrenceComposerSuggestions(
       insertText: `on ${options.timelineDefault}`,
     });
   }
-  const optionsOpen = input.lastIndexOf("[");
-  const optionsClose = optionsOpen >= 0 ? input.indexOf("]", optionsOpen + 1) : -1;
+  const optionsOpen = findLastMarkerOutsideQuotes(input, "[");
+  const optionsClose =
+    optionsOpen >= 0 ? findMarkerOutsideQuotes(input, "]", optionsOpen + 1) : -1;
   const appendClosedOptionSuggestion = (
     kind: "category" | "tag",
     label: string,
