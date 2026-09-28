@@ -10,9 +10,11 @@ import {
   acceptComposerSuggestion,
   composerCompletionSuffix,
   composerCursorSection,
+  composerEditableSections,
   occurrenceComposerSuggestions,
   parseOccurrenceSentence,
   type ComposerCategoryOption,
+  type ComposerEditableSection,
   type ComposerEntityOption,
   type ComposerPlaceOption,
   type ComposerSuggestion,
@@ -435,6 +437,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
       entities: Object.freeze([...data.entities]),
       places: Object.freeze([...data.places]),
       categories: Object.freeze([...data.categories]),
+      tags: Object.freeze([...(data.tags ?? [])]),
       predicates: Object.freeze([...(data.predicates ?? [])]),
     });
     this.requestUpdate();
@@ -714,6 +717,23 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const target = event.currentTarget;
     if (!(target instanceof HTMLInputElement)) return;
     this.syncCursorFromInput(target);
+  }
+
+  private editSentenceSection(section: ComposerEditableSection): void {
+    this.cursorOffset = section.end;
+    this.activeSuggestion = 0;
+    this.externalError = "";
+    this.requestUpdate();
+    void this.updateComplete.then(() => {
+      const input = this.renderRoot.querySelector<HTMLInputElement>("input");
+      if (!input) return;
+      input.focus({ preventScroll: true });
+      input.setSelectionRange(section.start, section.end);
+    });
+  }
+
+  private sectionIsActive(section: ComposerEditableSection): boolean {
+    return this.cursorOffset >= section.start && this.cursorOffset <= section.end;
   }
 
   private applySuggestion(suggestion: ComposerSuggestion): void {
