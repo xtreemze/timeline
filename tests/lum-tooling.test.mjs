@@ -14,6 +14,7 @@ import {
 } from "../src/application/project-interchange.ts";
 import { parseOccurrenceSentence } from "../site/occurrence-composer-model.ts";
 import { createLumLanguageServer } from "../scripts/lum-lsp.mjs";
+import { attachLumDiagnosticRanges } from "../scripts/lib/lum-diagnostics.mjs";
 
 const repoRoot = path.resolve(new URL("..", import.meta.url).pathname);
 
@@ -193,6 +194,28 @@ test("strict validator rejects unknown fields rather than preserving agent guess
   );
 });
 
+test("machine diagnostics pinpoint the JSON Pointer source range", () => {
+  const valid = createEmptyProjectInterchange({
+    projectKey: "range-case",
+    savedAt: "2026-09-28T08:00:00.000Z",
+  });
+  const source = valid.replace(
+    '  "project": {',
+    '  "surprise": true,\n  "project": {',
+  );
+  const validation = validateProjectInterchange(source);
+  assert.equal(validation.valid, false);
+  if (validation.valid) return;
+
+  const [finding] = attachLumDiagnosticRanges(
+    source,
+    validation.diagnostics.filter((diagnostic) => diagnostic.path === "/surprise"),
+  );
+  assert.ok(finding?.range);
+  assert.ok(finding.range.start.line > 0);
+  assert.match(source.split("\n")[finding.range.start.line], /"surprise"/);
+});
+
 test("lum CLI init/check/fmt/lint/schema form one strict workflow", async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "lum-cli-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
@@ -245,7 +268,10 @@ test("LSP uses strict diagnostics and canonical formatter from the same toolchai
     projectKey: "lsp-case",
     savedAt: "2026-09-28T08:00:00.000Z",
   });
-  const invalid = JSON.stringify({ ...JSON.parse(valid), surprise: true });
+  const invalid = valid.replace(
+    '  "project": {',
+    '  "surprise": true,\n  "project": {',
+  );
 
   server.handle({
     jsonrpc: "2.0",
@@ -254,7 +280,11 @@ test("LSP uses strict diagnostics and canonical formatter from the same toolchai
   });
   const diagnostics = outbound.at(-1);
   assert.equal(diagnostics.method, "textDocument/publishDiagnostics");
-  assert.ok(diagnostics.params.diagnostics.some((diagnostic) => diagnostic.code === "unknown-field"));
+  const unknown = diagnostics.params.diagnostics.find(
+    (diagnostic) => diagnostic.code === "unknown-field",
+  );
+  assert.ok(unknown);
+  assert.ok(unknown.range.start.line > 0);
 
   server.handle({
     jsonrpc: "2.0",

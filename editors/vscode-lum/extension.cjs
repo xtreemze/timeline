@@ -74,7 +74,16 @@ function runLum(args, input = "") {
   });
 }
 
-function diagnosticRange(document) {
+function diagnosticRange(document, finding) {
+  const range = finding?.range;
+  if (range?.start && range?.end) {
+    return new vscode.Range(
+      range.start.line,
+      range.start.character,
+      range.end.line,
+      range.end.character,
+    );
+  }
   if (document.lineCount === 0) return new vscode.Range(0, 0, 0, 0);
   return new vscode.Range(0, 0, 0, Math.min(1, document.lineAt(0).text.length));
 }
@@ -82,7 +91,7 @@ function diagnosticRange(document) {
 function toDiagnostics(document, payload) {
   return (payload?.diagnostics ?? []).map((finding) => {
     const diagnostic = new vscode.Diagnostic(
-      diagnosticRange(document),
+      diagnosticRange(document, finding),
       (finding.path || "/") + ": " + finding.message,
       finding.severity === "warning"
         ? vscode.DiagnosticSeverity.Warning

@@ -18,6 +18,7 @@ import {
 import { CURRENT_PROJECT_SCHEMA_VERSION } from "../src/application/project-repository.ts";
 import { parseOccurrenceSentence } from "../site/occurrence-composer-model.ts";
 import { runLumLanguageServer } from "./lum-lsp.mjs";
+import { attachLumDiagnosticRanges } from "./lib/lum-diagnostics.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SCHEMA_PATH = path.join(ROOT, "schemas", "lum-project-v1.schema.json");
@@ -78,13 +79,16 @@ function printDiagnostics(diagnostics) {
   }
 }
 
-function outputValidation(valid, diagnostics, json) {
+function outputValidation(valid, diagnostics, json, source = null) {
+  const locatedDiagnostics = source
+    ? attachLumDiagnosticRanges(source, diagnostics)
+    : diagnostics;
   if (json) {
-    process.stdout.write(`${JSON.stringify({ valid, diagnostics }, null, 2)}\n`);
+    process.stdout.write(`${JSON.stringify({ valid, diagnostics: locatedDiagnostics }, null, 2)}\n`);
   } else if (valid) {
     process.stdout.write("Lūm project is valid.\n");
   } else {
-    printDiagnostics(diagnostics);
+    printDiagnostics(locatedDiagnostics);
   }
 }
 
@@ -128,7 +132,7 @@ async function commandCheck(args) {
   if (!target) throw new Error("check requires a .lum.json path or - for stdin.");
   const source = await readTarget(target);
   const result = validateProjectInterchange(source);
-  outputValidation(result.valid, result.diagnostics, args.includes("--json"));
+  outputValidation(result.valid, result.diagnostics, args.includes("--json"), source);
   if (!result.valid) process.exitCode = 1;
 }
 
@@ -137,7 +141,7 @@ async function commandLint(args) {
   if (!target) throw new Error("lint requires a .lum.json path or - for stdin.");
   const source = await readTarget(target);
   const result = lintProjectInterchange(source, { fileName: target });
-  outputValidation(result.valid, result.diagnostics, args.includes("--json"));
+  outputValidation(result.valid, result.diagnostics, args.includes("--json"), source);
   if (!result.valid) process.exitCode = 1;
 }
 
@@ -182,7 +186,7 @@ async function commandAgent(args) {
   const source = await readTarget(target);
   const validation = validateProjectInterchange(source);
   if (!validation.valid) {
-    outputValidation(false, validation.diagnostics, args.includes("--json"));
+    outputValidation(false, validation.diagnostics, args.includes("--json"), source);
     process.exitCode = 1;
     return;
   }

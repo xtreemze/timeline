@@ -39,7 +39,7 @@ test("VS Code integration delegates diagnostics and formatting to the lum CLI", 
   assert.match(source, /fmt/);
   assert.match(source, /--json/);
   assert.match(source, /registerDocumentFormattingEditProvider/);
-  assert.match(source, /createDiagnosticCollection/);
+  assert.match(source, /createDiagnosticCollection/);\n  assert.match(source, /finding\\?\\.range|finding\\.range/);
   assert.doesNotMatch(source, /validateProjectInterchange|formatProjectInterchange/);
 });
 
