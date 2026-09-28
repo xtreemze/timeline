@@ -653,7 +653,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
           title="Compose occurrence"
           @click=${() => this.requestOpen()}
         >
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <svg class="semantic-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             ${iconPathData("add").map((path) => html`<path d=${path}></path>`)}
           </svg>
         </button>
@@ -702,7 +702,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
             title="Close occurrence composer"
             @click=${() => this.requestClose()}
           >
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <svg class="semantic-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
               ${iconPathData("close").map((path) => html`<path d=${path}></path>`)}
             </svg>
           </button>
