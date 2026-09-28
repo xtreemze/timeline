@@ -1,6 +1,7 @@
 import {
   type WorldNodeStyle,
   worldNodeShapeVisualRadiusScale,
+  worldNodeStyleFootprintRadiusPx,
 } from "../../src/layout/world-graph-style.ts";
 import { iconPathData, TimelinePresentation } from "../event-presentation.ts";
 import { worldEntityIconName } from "./world-entity-icon.ts";
@@ -71,8 +72,8 @@ export function worldNodeMarker(style: WorldNodeStyle): WorldNodeMarker {
   if (cached) return cached;
 
   const bodyRadius = style.radius * worldNodeShapeVisualRadiusScale(style.shape);
-  const size = Math.ceil((bodyRadius + style.borderWidth) * 2 + 2);
-  const pixels = size * SUPERSAMPLE;
+  const size = worldNodeStyleFootprintRadiusPx(style) * 2;
+  const pixels = Math.ceil(size * SUPERSAMPLE);
   const center = size / 2;
   const body = shapePath(style.shape, center, bodyRadius);
   const authoredIcon =
