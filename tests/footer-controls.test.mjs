@@ -152,9 +152,13 @@ test("every persistent toolbar button family has an executable interaction path"
   assert.match(app, /relatedZoom\.addEventListener\("click"[\s\S]*zoomContext/);
   assert.match(app, /relatedFit\.addEventListener\("click"[\s\S]*fitContext/);
   assert.match(app, /presentationFullscreenToggle\.addEventListener\("click"[\s\S]*togglePresentationFullscreen/);
+  assert.match(app, /function presentationFullscreenAvailable\([\s\S]*document\.fullscreenEnabled[\s\S]*requestFullscreen/);
+  assert.match(app, /Full-screen presentation unavailable/);
+  assert.match(app, /projectMenu\?\.addEventListener\("toggle"[\s\S]*Close project actions/);
   assert.match(app, /autoToggle\.addEventListener\("click"[\s\S]*toggle-auto/);
   assert.match(timeline, /orientationToggle\?\.addEventListener\("click"[\s\S]*setOrientation/);
   assert.match(world, /world-camera-control[\s\S]*addEventListener\("click"[\s\S]*action\(\)/);
   assert.match(factory, /world-layout-control[\s\S]*addEventListener\("click"[\s\S]*action\(\)/);
   assert.match(investigation, /toggle\.addEventListener\("click"[\s\S]*onRequestOpen\(!open\)/);
+  assert.match(investigation, /Close investigation methodology/);
 });
