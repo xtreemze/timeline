@@ -4,18 +4,12 @@ import {
   formatProjectInterchange,
   lintProjectInterchange,
 } from "../src/application/project-interchange.ts";
-
-function diagnosticRange() {
-  return {
-    start: { line: 0, character: 0 },
-    end: { line: 0, character: 1 },
-  };
-}
+import { attachLumDiagnosticRanges } from "./lib/lum-diagnostics.mjs";
 
 function lspDiagnostics(source) {
   const result = lintProjectInterchange(source);
-  return result.diagnostics.map((diagnostic) => ({
-    range: diagnosticRange(),
+  return attachLumDiagnosticRanges(source, result.diagnostics).map((diagnostic) => ({
+    range: diagnostic.range,
     severity: diagnostic.severity === "error" ? 1 : 2,
     code: diagnostic.code,
     source: "lum",
