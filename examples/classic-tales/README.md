@@ -40,3 +40,14 @@ The exact collection split may evolve with #925/#720, but modules should remain 
 Agents should inspect `manifest.json` first, work only in the relevant story directory when possible, and avoid changing unrelated stories. Cross-story/shared records must be explicit.
 
 The manifest test keeps this index synchronized with the currently shipped sample until the legacy TypeScript objects are fully removed.
+
+
+## Pilot compiler
+
+Three Little Pigs is the first `pilot` story. Its canonical fixture is compiled from the final assembled legacy sample through the production Lūm interchange boundary:
+
+```sh
+pnpm compile:example-story story-three-little-pigs --out examples/classic-tales/three-little-pigs/project.lum.json
+```
+
+The generated `project.lum.json` is not a hand-edited source. The pilot compiler preserves the story's explicit occurrence order, collects only reference-closed canonical records, and fails if the result does not pass strict Lūm validation. Once parity is proven and modular source files replace the legacy source, the manifest can advance this story from `pilot` to `modular` and later `canonical`.
