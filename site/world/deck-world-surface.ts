@@ -413,17 +413,20 @@ function releasingRelationshipSegments(
 }
 
 /**
- * Below this globe zoom level, nearby entities remain grouped into clusters.
- * The 44px default node footprint intentionally feeds this readability policy:
- * larger authored markers remain clustered longer because they consume more
- * of the same screen space used for touch and collision.
+ * Default-node cluster threshold, calibrated around the authoritative 22px
+ * screen-space entity footprint. The numeric threshold preserves the previous
+ * production radius→zoom curve after removing the historical 16px reference.
  */
-export const CLUSTER_ZOOM_THRESHOLD = 4.25;
-/** Historical clustering reference radius; actual node footprints scale from it. */
-const WORLD_CLUSTER_BASE_NODE_RADIUS_PX = 16;
+export const CLUSTER_ZOOM_THRESHOLD = 4.709431618637297;
+const WORLD_CLUSTER_REFERENCE_NODE_RADIUS_PX = WORLD_ENTITY_MIN_HIT_RADIUS_PX;
+/** Preserve the established bounded threshold range while changing the reference radius. */
+const WORLD_CLUSTER_MIN_ZOOM_THRESHOLD = 3.75;
+const WORLD_CLUSTER_MAX_ZOOM_THRESHOLD = 5.75;
 /** Bound cluster bubbles so membership does not linearly inflate overview geometry. */
-const WORLD_CLUSTER_MARKER_MIN_RADIUS_PX = 22;
+const WORLD_CLUSTER_MARKER_MIN_RADIUS_PX = WORLD_ENTITY_MIN_HIT_RADIUS_PX;
 const WORLD_CLUSTER_MARKER_MAX_RADIUS_PX = 38;
+/** Clear neighboring markers by a stable screen-space gap in local packing estimates. */
+const WORLD_CLUSTER_NODE_GAP_PX = 16;
 
 function worldClusterMarkerRadiusPx(memberRadiusPx: number, memberCount: number): number {
   const radius = Number.isFinite(memberRadiusPx) && memberRadiusPx > 0 ? memberRadiusPx : 0;
@@ -452,12 +455,14 @@ export function clusterZoomThresholdForNodeRadius(nodeRadiusPx: number): number 
   const radius =
     Number.isFinite(nodeRadiusPx) && nodeRadiusPx > 0
       ? nodeRadiusPx
-      : WORLD_CLUSTER_BASE_NODE_RADIUS_PX;
-  const sizeAdjustment = Math.max(
-    -0.5,
-    Math.min(1.5, Math.log2(radius / WORLD_CLUSTER_BASE_NODE_RADIUS_PX)),
+      : WORLD_CLUSTER_REFERENCE_NODE_RADIUS_PX;
+  return Math.max(
+    WORLD_CLUSTER_MIN_ZOOM_THRESHOLD,
+    Math.min(
+      WORLD_CLUSTER_MAX_ZOOM_THRESHOLD,
+      CLUSTER_ZOOM_THRESHOLD + Math.log2(radius / WORLD_CLUSTER_REFERENCE_NODE_RADIUS_PX),
+    ),
   );
-  return CLUSTER_ZOOM_THRESHOLD + sizeAdjustment;
 }
 
 /**
@@ -500,10 +505,13 @@ export function clusterRequiredLocalRadiusPx(
   const radius =
     Number.isFinite(nodeRadiusPx) && nodeRadiusPx > 0
       ? nodeRadiusPx
-      : WORLD_CLUSTER_BASE_NODE_RADIUS_PX;
+      : WORLD_CLUSTER_REFERENCE_NODE_RADIUS_PX;
   const members = Number.isFinite(memberCount) ? Math.max(1, Math.floor(memberCount)) : 1;
   const edges = Number.isFinite(internalEdgeCount) ? Math.max(0, Math.floor(internalEdgeCount)) : 0;
-  const markerPitchPx = Math.max(44, radius * 2 + 16);
+  const markerPitchPx = Math.max(
+    WORLD_ENTITY_MIN_HIT_RADIUS_PX * 2,
+    radius * 2 + WORLD_CLUSTER_NODE_GAP_PX,
+  );
   const semanticLoad = members + Math.min(edges, members * 4) * 0.25;
   const packingRadiusPx = markerPitchPx * Math.sqrt(semanticLoad) * 0.75;
   return Math.max(worldPlaceClusterRadiusPx(radius), packingRadiusPx);
@@ -779,7 +787,7 @@ function liftedDraggedEntityPosition(
 export function shouldClusterEntityDatums(
   entityCount: number,
   zoom: number,
-  nodeRadiusPx = WORLD_CLUSTER_BASE_NODE_RADIUS_PX,
+  nodeRadiusPx = WORLD_CLUSTER_REFERENCE_NODE_RADIUS_PX,
 ): boolean {
   if (entityCount < WORLD_CLUSTER_MIN_MEMBER_COUNT) return false;
   const threshold = clusterZoomThresholdForNodeRadius(nodeRadiusPx);
@@ -812,7 +820,7 @@ function clusterCellKey(position: WorldRenderPosition): string {
 export function clusterEntityDatums(
   entities: readonly DeckWorldEntityDatum[],
   zoom: number,
-  nodeRadiusPx = WORLD_CLUSTER_BASE_NODE_RADIUS_PX,
+  nodeRadiusPx = WORLD_CLUSTER_REFERENCE_NODE_RADIUS_PX,
 ): readonly DeckWorldEntityRenderDatum[] {
   if (!shouldClusterEntityDatums(entities.length, zoom, nodeRadiusPx)) return entities;
 

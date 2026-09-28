@@ -17,6 +17,7 @@ import {
   worldLabelCollisionPriority,
 } from "../site/world/deck-world-surface.ts";
 import { WorldRenderTopologyIndex } from "../site/world/world-render-topology.ts";
+import { WORLD_ENTITY_MIN_HIT_RADIUS_PX } from "../src/layout/world-graph-style.ts";
 import {
   selectWorldSpatialMode,
   WORLD_CAMERA_MAX_ZOOM,
@@ -30,26 +31,31 @@ import {
 } from "../src/projection/world-projection.ts";
 import { diffWorldProjection } from "../src/projection/world-projection-delta.ts";
 
-test("sparse world topology resolves at the compact-marker overview tier", () => {
-  assert.equal(CLUSTER_ZOOM_THRESHOLD, 4.25);
-  assert.equal(shouldClusterEntityDatums(100, 4), true);
-  assert.equal(shouldClusterEntityDatums(100, 4.24), true);
-  assert.equal(shouldClusterEntityDatums(100, 4.25), false);
+const DEFAULT_CLUSTER_NODE_RADIUS_PX = WORLD_ENTITY_MIN_HIT_RADIUS_PX;
+
+test("default cluster threshold is calibrated to the authoritative node footprint", () => {
+  assert.equal(
+    clusterZoomThresholdForNodeRadius(DEFAULT_CLUSTER_NODE_RADIUS_PX),
+    CLUSTER_ZOOM_THRESHOLD,
+  );
+  assert.ok(Math.abs(CLUSTER_ZOOM_THRESHOLD - 4.709431618637297) < 1e-12);
+  assert.equal(shouldClusterEntityDatums(100, CLUSTER_ZOOM_THRESHOLD - 1e-6), true);
+  assert.equal(shouldClusterEntityDatums(100, CLUSTER_ZOOM_THRESHOLD), false);
 });
 
-test("cluster zoom responds to visible marker size within bounded limits", () => {
-  assert.equal(clusterZoomThresholdForNodeRadius(8), CLUSTER_ZOOM_THRESHOLD - 0.5);
-  assert.equal(clusterZoomThresholdForNodeRadius(32), CLUSTER_ZOOM_THRESHOLD + 1);
-  assert.equal(clusterZoomThresholdForNodeRadius(56), CLUSTER_ZOOM_THRESHOLD + 1.5);
+test("cluster zoom preserves the established radius-to-zoom curve", () => {
+  assert.equal(clusterZoomThresholdForNodeRadius(8), 3.75);
+  assert.equal(clusterZoomThresholdForNodeRadius(32), 5.25);
+  assert.equal(clusterZoomThresholdForNodeRadius(56), 5.75);
   assert.equal(shouldClusterEntityDatums(100, 5, 32), true);
   assert.equal(shouldClusterEntityDatums(100, 5.25, 32), false);
 });
 
 test("dense local places stay clustered longer and resolve progressively", () => {
-  const base = clusterZoomThresholdForPlaceDensity(16, 2);
-  const smallGroup = clusterZoomThresholdForPlaceDensity(16, 4);
-  const storyGroup = clusterZoomThresholdForPlaceDensity(16, 16);
-  const veryDenseGroup = clusterZoomThresholdForPlaceDensity(16, 64);
+  const base = clusterZoomThresholdForPlaceDensity(DEFAULT_CLUSTER_NODE_RADIUS_PX, 2);
+  const smallGroup = clusterZoomThresholdForPlaceDensity(DEFAULT_CLUSTER_NODE_RADIUS_PX, 4);
+  const storyGroup = clusterZoomThresholdForPlaceDensity(DEFAULT_CLUSTER_NODE_RADIUS_PX, 16);
+  const veryDenseGroup = clusterZoomThresholdForPlaceDensity(DEFAULT_CLUSTER_NODE_RADIUS_PX, 64);
 
   assert.equal(base, CLUSTER_ZOOM_THRESHOLD);
   assert.ok(smallGroup > base);
@@ -87,7 +93,7 @@ test("nearby sparse places may expand their nodes when the shared region has eno
   const instances = [make("a", 0), make("b", 1), make("c", 10)];
 
   assert.deepEqual(
-    clusterTargetPlaceIds(instances, [], 6, 16, 320, "expanded"),
+    clusterTargetPlaceIds(instances, [], 6, DEFAULT_CLUSTER_NODE_RADIUS_PX, 320, "expanded"),
     [],
     "proximity alone does not hide sparse topology when its combined semantic load fits",
   );
@@ -95,7 +101,7 @@ test("nearby sparse places may expand their nodes when the shared region has eno
 
 test("narrow mobile detail zoom releases modest clusters even when the readability floor exceeds the viewport cap", () => {
   const projection = narrowMobileMultiPlaceProjection();
-  const nodeRadiusPx = 22;
+  const nodeRadiusPx = DEFAULT_CLUSTER_NODE_RADIUS_PX;
   const phoneAvailableRadius = 360 * 0.42;
 
   const regional = clusterTargetPlaceIds(
@@ -135,6 +141,55 @@ test("narrow mobile detail zoom releases modest clusters even when the readabili
   );
 });
 
+test("cluster target decisions preserve collapse/expand hysteresis at one zoom", () => {
+  const instances = Array.from({ length: 3 }, (_, index) =>
+    createProjectedWorldInstance({
+      id: worldInstanceId(`hysteresis-${index}`, `occ-hysteresis-${index}`),
+      canonicalId: `hysteresis-${index}`,
+      occurrenceId: `occ-hysteresis-${index}`,
+      geographicAnchors: [
+        {
+          placeId: "hysteresis-place",
+          longitude: 18.0686,
+          latitude: 59.3293,
+          sourceAltitude: 0,
+          influence: 1,
+        },
+      ],
+      temporalWeight: 1,
+      visualWeight: 1,
+      retained: false,
+    }),
+  );
+  const zoom = CLUSTER_ZOOM_THRESHOLD + 0.09;
+  const availableRadiusPx = 165;
+
+  assert.deepEqual(
+    clusterTargetPlaceIds(
+      instances,
+      [],
+      zoom,
+      DEFAULT_CLUSTER_NODE_RADIUS_PX,
+      availableRadiusPx,
+      "expanded",
+    ),
+    [],
+    "an expanded readable component stays expanded inside the hysteresis band",
+  );
+  assert.deepEqual(
+    clusterTargetPlaceIds(
+      instances,
+      [],
+      zoom,
+      DEFAULT_CLUSTER_NODE_RADIUS_PX,
+      availableRadiusPx,
+      "collapsed",
+    ),
+    ["hysteresis-place"],
+    "a collapsed component stays collapsed at the same zoom until the release margin is crossed",
+  );
+});
+
 test("pannable mobile overflow remains bounded for high-cardinality clusters", () => {
   const instances = Array.from({ length: 33 }, (_, index) =>
     createProjectedWorldInstance({
@@ -157,7 +212,7 @@ test("pannable mobile overflow remains bounded for high-cardinality clusters", (
   );
 
   assert.deepEqual(
-    clusterTargetPlaceIds(instances, [], 14, 22, 220, "collapsed"),
+    clusterTargetPlaceIds(instances, [], 14, DEFAULT_CLUSTER_NODE_RADIUS_PX, 220, "collapsed"),
     ["bounded-place"],
     "detail overflow is not permission to explode a graph above the bounded mobile member count",
   );
@@ -185,14 +240,14 @@ test("nearby dense places still collapse when their combined semantic load excee
   );
 
   assert.deepEqual(
-    clusterTargetPlaceIds(instances, [], 8, 16, 180, "expanded"),
+    clusterTargetPlaceIds(instances, [], 8, DEFAULT_CLUSTER_NODE_RADIUS_PX, 180, "expanded"),
     ["dense-a", "dense-b"],
     "a nearby component remains collapsed when the combined node load cannot fit",
   );
 });
 
 test("deep zoom cannot force an intrinsically unreadable local graph open", () => {
-  const nodeRadiusPx = 16;
+  const nodeRadiusPx = DEFAULT_CLUSTER_NODE_RADIUS_PX;
   const memberCount = 100;
   const internalEdgeCount = 300;
   const required = clusterRequiredLocalRadiusPx(nodeRadiusPx, memberCount, internalEdgeCount);
@@ -258,9 +313,18 @@ test("small isolated local graphs may resolve when the readability contract fits
     }),
   );
 
-  assert.ok(clusterRequiredLocalRadiusPx(16, instances.length, 0) <= 320);
+  assert.ok(
+    clusterRequiredLocalRadiusPx(DEFAULT_CLUSTER_NODE_RADIUS_PX, instances.length, 0) <= 320,
+  );
   assert.deepEqual(
-    clusterTargetPlaceIds(instances, [], 8, 16, 320, "expanded"),
+    clusterTargetPlaceIds(
+      instances,
+      [],
+      8,
+      DEFAULT_CLUSTER_NODE_RADIUS_PX,
+      320,
+      "expanded",
+    ),
     [],
     "an isolated group resolves when its projected members fit the available local radius",
   );
@@ -1753,7 +1817,8 @@ test("canonical focus crosses density threshold for a crowded place", () => {
   surface.focusEntity("dense-0");
 
   assert.ok(
-    surface.getCamera().zoom > clusterZoomThresholdForPlaceDensity(16, instances.length),
+    surface.getCamera().zoom >
+      clusterZoomThresholdForPlaceDensity(DEFAULT_CLUSTER_NODE_RADIUS_PX, instances.length),
     "explicit focus must zoom past the density threshold that keeps the place clustered",
   );
 });
