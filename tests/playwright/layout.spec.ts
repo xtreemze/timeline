@@ -373,6 +373,7 @@ test.describe("Mobile-first Timeline layout contracts", () => {
     await expect(forcePanel).toContainText("Link force");
     await expect(forcePanel).toContainText("Link strength");
     await expect(forcePanel).toContainText("Link distance ×");
+    await expect(forcePanel).toContainText("Link passes");
     await expect(forcePanel).toContainText("Collision radius");
     await expect(forcePanel).toContainText("Rendered node + border · fixed");
     await page.keyboard.press("Escape");
