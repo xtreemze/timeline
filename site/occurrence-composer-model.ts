@@ -1072,18 +1072,33 @@ export function occurrenceComposerSuggestions(
     );
   }
 
-  if (/\[[^\]]*$/.test(prefix)) {
-    const optionStart = prefix.lastIndexOf("[");
-    const optionText = prefix.slice(optionStart + 1);
-    const categoryMatch = optionText.match(/(?:^|,)\s*category\s*:\s*([^,\]]*)$/i);
-    const tagMatch = optionText.match(/(?:^|,)\s*tags\s*:\s*([^,\]]*)$/i);
+  const openOptions = findLastMarkerOutsideQuotes(prefix, "[");
+  const closeOptions = findLastMarkerOutsideQuotes(prefix, "]");
+  if (openOptions > closeOptions) {
+    const optionText = prefix.slice(openOptions + 1);
+    const activeOptionRange = splitRangesOutsideQuotes(optionText, ",").at(-1);
+    const activeOption = activeOptionRange
+      ? optionText.slice(activeOptionRange.start, activeOptionRange.end)
+      : "";
+    const optionSeparator = findMarkerOutsideQuotes(activeOption, ":");
+    const activeOptionKey =
+      optionSeparator >= 1
+        ? activeOption.slice(0, optionSeparator).trim().toLocaleLowerCase()
+        : "";
+    const activeOptionValue =
+      optionSeparator >= 0 ? activeOption.slice(optionSeparator + 1).trim() : "";
 
-    if (tagMatch) {
-      const rawTags = tagMatch[1] ?? "";
-      const segments = rawTags.split("|");
-      const activeTag = normalizedMatchText(segments.at(-1) ?? "");
-      const retainedTags = segments
+    if (activeOptionKey === "tags") {
+      const tagRanges = splitRangesOutsideQuotes(activeOptionValue, "|");
+      const activeTagRange = tagRanges.at(-1);
+      const activeTag = normalizedMatchText(
+        activeTagRange
+          ? unquote(activeOptionValue.slice(activeTagRange.start, activeTagRange.end))
+          : "",
+      );
+      const retainedTags = tagRanges
         .slice(0, -1)
+        .map((range) => unquote(activeOptionValue.slice(range.start, range.end)))
         .map((tag) => tag.trim())
         .filter(Boolean);
       const retainedKeys = new Set(retainedTags.map(normalizedMatchText));
@@ -1103,7 +1118,7 @@ export function occurrenceComposerSuggestions(
                   kind: "tag" as const,
                   label: tag,
                   detail: "existing tag",
-                  insertText: tag,
+                  insertText: quoteComposerName(tag),
                   replaceRange: Object.freeze({
                     start: editableSection.start,
                     end: editableSection.end,
@@ -1113,20 +1128,23 @@ export function occurrenceComposerSuggestions(
                   kind: "tag" as const,
                   label: tag,
                   detail: "existing tag",
-                  insertText: `tags: ${[...retainedTags, tag].join("|")}`,
+                  insertText: `tags: ${[...retainedTags, tag]
+                    .map(quoteComposerName)
+                    .join("|")}`,
                 },
           ),
       );
     }
 
+    const activeCategory =
+      editableSection?.kind === "category" || activeOptionKey !== "category"
+        ? ""
+        : normalizedMatchText(unquote(activeOptionValue));
     const categorySuggestions = options.categories
-      .filter((category) => {
-        const activeCategory =
-          editableSection?.kind === "category"
-            ? ""
-            : normalizedMatchText(categoryMatch?.[1] ?? "");
-        return !activeCategory || normalizedMatchText(category.name).includes(activeCategory);
-      })
+      .filter(
+        (category) =>
+          !activeCategory || normalizedMatchText(category.name).includes(activeCategory),
+      )
       .slice(0, 10)
       .map((category) =>
         editableSection?.kind === "category"
@@ -1148,7 +1166,7 @@ export function occurrenceComposerSuggestions(
             },
       );
 
-    if (categoryMatch) return uniqueSuggestions(categorySuggestions);
+    if (activeOptionKey === "category") return uniqueSuggestions(categorySuggestions);
 
     return uniqueSuggestions([
       ...categorySuggestions,
