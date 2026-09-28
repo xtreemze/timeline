@@ -53,6 +53,16 @@ export interface OccurrenceComposerSelectionContext {
   readonly metadata?: OccurrenceComposerRelationshipMetadata | null;
 }
 
+export interface OccurrenceComposerSessionSnapshot {
+  readonly ownerId: string | null;
+  readonly text: string;
+  readonly dirty: boolean;
+  readonly selectionStart: number;
+  readonly selectionEnd: number;
+  readonly activeSuggestion: number;
+  readonly activeSection: ComposerEditableSection | null;
+}
+
 export interface OccurrenceCommitDetail {
   readonly text: string;
   readonly draft: OccurrenceSentenceDraft;
@@ -562,6 +572,60 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.editing = false;
   }
 
+  sessionSnapshot(): OccurrenceComposerSessionSnapshot {
+    const input = this.renderRoot.querySelector<HTMLInputElement>("input");
+    const selectionStart = input?.selectionStart ?? this.cursorOffset;
+    const selectionEnd = input?.selectionEnd ?? selectionStart;
+    const activeSection =
+      composerEditableSections(this.value).find(
+        (section) => selectionStart >= section.start && selectionStart <= section.end,
+      ) ?? null;
+    return Object.freeze({
+      ownerId: this.selectionContext?.selectedOccurrenceId ?? null,
+      text: this.value,
+      dirty: Boolean(this.value.trim()) && !this.selectionSeeded,
+      selectionStart,
+      selectionEnd,
+      activeSuggestion: this.activeSuggestion,
+      activeSection,
+    });
+  }
+
+  focusInput(
+    options: Readonly<{ selectionStart?: number; selectionEnd?: number }> = {},
+  ): void {
+    void this.updateComplete.then(() => {
+      const input = this.renderRoot.querySelector<HTMLInputElement>("input");
+      if (!input) return;
+      const start = Math.max(
+        0,
+        Math.min(this.value.length, options.selectionStart ?? this.cursorOffset),
+      );
+      const end = Math.max(
+        start,
+        Math.min(this.value.length, options.selectionEnd ?? start),
+      );
+      input.focus({ preventScroll: true });
+      input.setSelectionRange(start, end);
+    });
+  }
+
+  private emitSessionChange(): void {
+    const emit = () => {
+      this.dispatchEvent(
+        new CustomEvent<OccurrenceComposerSessionSnapshot>(
+          "occurrencecomposersessionchange",
+          {
+            bubbles: true,
+            composed: true,
+            detail: this.sessionSnapshot(),
+          },
+        ),
+      );
+    };
+    void this.updateComplete.then(emit);
+  }
+
   setData(data: OccurrenceComposerData): void {
     this.data = Object.freeze({
       entities: Object.freeze([...data.entities]),
@@ -783,15 +847,15 @@ export class LuumOccurrenceComposerElement extends LitElement {
   show(): void {
     this.active = true;
     this.externalError = "";
-    void this.updateComplete.then(() => {
-      this.renderRoot.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
-    });
+    this.focusInput();
+    this.emitSessionChange();
   }
 
   hide(): void {
     this.sessionKey = this.currentContextKey();
     this.active = false;
     this.externalError = "";
+    this.emitSessionChange();
   }
 
   setError(message: string): void {
@@ -806,6 +870,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.sessionKey = this.currentContextKey();
     this.applySelectionSeed();
     this.requestUpdate();
+    this.emitSessionChange();
     void this.updateComplete.then(() => {
       this.renderRoot.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
     });
@@ -882,6 +947,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.activeSuggestion = 0;
     this.activeContextKind = null;
     this.requestUpdate();
+    this.emitSessionChange();
   }
 
   private syncCursorFromInput(target: HTMLInputElement): void {
@@ -890,6 +956,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.cursorOffset = next;
     this.activeSuggestion = 0;
     this.requestUpdate();
+    this.emitSessionChange();
   }
 
   private onInput(event: Event): void {
@@ -904,17 +971,13 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.syncCursorFromInput(target);
   }
 
-  private editSentenceSection(section: ComposerEditableSection): void {
+  activateSection(section: ComposerEditableSection): void {
     this.cursorOffset = section.start;
     this.activeSuggestion = 0;
     this.externalError = "";
     this.requestUpdate();
-    void this.updateComplete.then(() => {
-      const input = this.renderRoot.querySelector<HTMLInputElement>("input");
-      if (!input) return;
-      input.focus({ preventScroll: true });
-      input.setSelectionRange(section.start, section.end);
-    });
+    this.focusInput({ selectionStart: section.start, selectionEnd: section.end });
+    this.emitSessionChange();
   }
 
   private sectionIsActive(section: ComposerEditableSection): boolean {
@@ -1260,7 +1323,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
             data-context-state=${this.sectionIsActive(section) ? "editing" : "pinned"}
             aria-label=${`Edit ${label}: ${value}`}
             title=${`Select the ${label.toLocaleLowerCase()} text for editing`}
-            @click=${() => this.editSentenceSection(section)}
+            @click=${() => this.activateSection(section)}
             @keydown=${(event: KeyboardEvent) => this.onContextChipKeyDown(event)}
           >
             <span>${label}</span><strong>${value}</strong
