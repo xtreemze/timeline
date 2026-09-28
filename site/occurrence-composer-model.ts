@@ -196,8 +196,123 @@ function unquote(value: string): string {
 export function quoteComposerName(value: string): string {
   const trimmed = value.trim();
   if (!trimmed) return "";
-  if (/^[^\s()[\]"]+$/.test(trimmed)) return trimmed;
+  if (/^[^\s()[\]",|]+$/.test(trimmed)) return trimmed;
   return `"${trimmed.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
+
+function findMarkerOutsideQuotes(input: string, marker: string, fromIndex = 0): number {
+  let quoted = false;
+  let escaped = false;
+  for (let index = 0; index < input.length; index += 1) {
+    const character = input[index]!;
+    if (quoted) {
+      if (escaped) {
+        escaped = false;
+      } else if (character === "\\") {
+        escaped = true;
+      } else if (character === '"') {
+        quoted = false;
+      }
+      continue;
+    }
+    if (character === '"') {
+      quoted = true;
+      continue;
+    }
+    if (index >= fromIndex && input.startsWith(marker, index)) return index;
+  }
+  return -1;
+}
+
+function findLastMarkerOutsideQuotes(input: string, marker: string, fromIndex = 0): number {
+  let quoted = false;
+  let escaped = false;
+  let found = -1;
+  for (let index = 0; index < input.length; index += 1) {
+    const character = input[index]!;
+    if (quoted) {
+      if (escaped) {
+        escaped = false;
+      } else if (character === "\\") {
+        escaped = true;
+      } else if (character === '"') {
+        quoted = false;
+      }
+      continue;
+    }
+    if (character === '"') {
+      quoted = true;
+      continue;
+    }
+    if (index >= fromIndex && input.startsWith(marker, index)) found = index;
+  }
+  return found;
+}
+
+function splitRangesOutsideQuotes(
+  input: string,
+  delimiter: string,
+): readonly Readonly<{ start: number; end: number }>[] {
+  const ranges: Array<Readonly<{ start: number; end: number }>> = [];
+  let quoted = false;
+  let escaped = false;
+  let start = 0;
+  for (let index = 0; index < input.length; index += 1) {
+    const character = input[index]!;
+    if (quoted) {
+      if (escaped) {
+        escaped = false;
+      } else if (character === "\\") {
+        escaped = true;
+      } else if (character === '"') {
+        quoted = false;
+      }
+      continue;
+    }
+    if (character === '"') {
+      quoted = true;
+      continue;
+    }
+    if (input.startsWith(delimiter, index)) {
+      ranges.push(Object.freeze({ start, end: index }));
+      start = index + delimiter.length;
+      index += delimiter.length - 1;
+    }
+  }
+  ranges.push(Object.freeze({ start, end: input.length }));
+  return Object.freeze(ranges);
+}
+
+interface ComposerPropertyEntry {
+  readonly key: string;
+  readonly rawValue: string;
+  readonly valueStart: number;
+  readonly valueEnd: number;
+}
+
+function parsePropertyEntries(value: string): readonly ComposerPropertyEntry[] {
+  const entries: ComposerPropertyEntry[] = [];
+  for (const range of splitRangesOutsideQuotes(value, ",")) {
+    const segment = value.slice(range.start, range.end);
+    const separator = findMarkerOutsideQuotes(segment, ":");
+    if (separator < 1) continue;
+    const key = segment.slice(0, separator).trim();
+    if (!key) continue;
+    const valueRange = trimmedValueRange(
+      value,
+      range.start + separator + 1,
+      range.end,
+    );
+    entries.push(
+      Object.freeze({
+        key,
+        rawValue: value.slice(valueRange.start, valueRange.end),
+        valueStart: valueRange.start,
+        valueEnd: valueRange.end,
+      }),
+    );
+  }
+  return Object.freeze(entries);
 }
 
 export interface OccurrenceCompositionInput {
@@ -227,20 +342,16 @@ export function formatOccurrenceComposition(input: OccurrenceCompositionInput): 
   const category = input.category?.trim() ?? "";
   if (category) options.push(`category: ${quoteComposerName(category)}`);
   const tags = (input.tags ?? []).map((tag) => tag.trim()).filter(Boolean);
-  if (tags.length) options.push(`tags: ${tags.join("|")}`);
+  if (tags.length) options.push(`tags: ${tags.map(quoteComposerName).join("|")}`);
   if (options.length) sentence += ` [${options.join(", ")}]`;
   return sentence;
 }
 
 function parseProperties(value: string): Readonly<Record<string, string>> {
   const result: Record<string, string> = {};
-  for (const segment of value.split(",")) {
-    const separator = segment.indexOf(":");
-    if (separator < 1) continue;
-    const key = segment.slice(0, separator).trim();
-    const rawValue = segment.slice(separator + 1).trim();
-    if (!key || !rawValue) continue;
-    result[key] = unquote(rawValue);
+  for (const entry of parsePropertyEntries(value)) {
+    if (!entry.rawValue) continue;
+    result[entry.key] = unquote(entry.rawValue);
   }
   return Object.freeze(result);
 }
@@ -303,30 +414,39 @@ function stripOptions(input: string): {
   readonly malformed: boolean;
 } {
   const trimmed = input.trim();
-  if (!trimmed.endsWith("]")) {
+  const close = findLastMarkerOutsideQuotes(trimmed, "]");
+  if (close !== trimmed.length - 1) {
     return {
       source: trimmed,
       options: Object.freeze({ tags: Object.freeze([]) }),
       malformed: false,
     };
   }
-  const open = trimmed.lastIndexOf("[");
-  if (open < 0) {
+  const open = findLastMarkerOutsideQuotes(trimmed, "[");
+  if (open < 0 || open > close) {
     return {
       source: trimmed,
       options: Object.freeze({ tags: Object.freeze([]) }),
       malformed: true,
     };
   }
-  const properties = parseProperties(trimmed.slice(open + 1, -1));
-  const tags = (properties.tags ?? "")
-    .split("|")
-    .map((tag) => tag.trim())
-    .filter(Boolean);
+  const body = trimmed.slice(open + 1, close);
+  const entries = parsePropertyEntries(body);
+  const categoryEntry = entries.find(
+    (entry) => entry.key.toLocaleLowerCase() === "category",
+  );
+  const tagsEntry = entries.find((entry) => entry.key.toLocaleLowerCase() === "tags");
+  const category = categoryEntry?.rawValue ? unquote(categoryEntry.rawValue) : "";
+  const tags = tagsEntry
+    ? splitRangesOutsideQuotes(tagsEntry.rawValue, "|")
+        .map((range) => unquote(tagsEntry.rawValue.slice(range.start, range.end)))
+        .map((tag) => tag.trim())
+        .filter(Boolean)
+    : [];
   return {
     source: trimmed.slice(0, open).trimEnd(),
     options: Object.freeze({
-      ...(properties.category ? { category: properties.category } : {}),
+      ...(category ? { category } : {}),
       tags: Object.freeze(tags),
     }),
     malformed: false,
