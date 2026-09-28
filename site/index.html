@@ -194,7 +194,7 @@
 
                 <div id="item-calendar-popover" class="range-calendar" popover="auto" role="dialog" aria-label="Choose calendar date or date range">
                   <div class="range-calendar-header">
-                    <button id="item-calendar-prev" class="icon-button range-calendar-nav" type="button" aria-label="Previous month">←</button>
+                    <button id="item-calendar-prev" class="icon-button range-calendar-nav" type="button" data-semantic-icon="chevron-left" aria-label="Previous month" title="Previous month"><span class="sr-only">Previous month</span></button>
                     <div class="range-calendar-period">
                       <strong id="item-calendar-month">September</strong>
                       <label class="range-calendar-year-wrap">
@@ -202,7 +202,7 @@
                         <input id="item-calendar-year" class="range-calendar-year" type="number" min="1" max="9999" step="1" inputmode="numeric" aria-label="Calendar year">
                       </label>
                     </div>
-                    <button id="item-calendar-next" class="icon-button range-calendar-nav" type="button" aria-label="Next month">→</button>
+                    <button id="item-calendar-next" class="icon-button range-calendar-nav" type="button" data-semantic-icon="chevron-right" aria-label="Next month" title="Next month"><span class="sr-only">Next month</span></button>
                   </div>
                   <div id="item-calendar-grid" class="range-calendar-grid" role="grid" aria-label="Calendar days"></div>
                   <div class="range-calendar-footer">
@@ -691,7 +691,7 @@
               <details id="item-inference-details" class="optional-editor field-wide inference-editor">
                 <summary>AI extraction <small>optional · local built-in model</small></summary>
                 <div class="inference-actions">
-                  <button id="item-inference-run" class="button secondary" type="button" data-semantic-icon="relation">
+                  <button id="item-inference-run" class="button secondary" type="button" data-semantic-icon="relation" aria-label="Infer entities, places & actions" title="Infer entities, places & actions">
                     Infer entities, places & actions
                   </button>
                   <button id="item-inference-clear" class="button ghost" type="button" hidden>Clear inference</button>
@@ -1088,7 +1088,7 @@
               <input id="graph-edge-end-date" type="hidden">
               <div id="graph-edge-calendar-popover" class="range-calendar" popover="auto" role="dialog" aria-label="Choose relationship active date or range">
                 <div class="range-calendar-header">
-                  <button id="graph-edge-calendar-prev" class="icon-button range-calendar-nav" type="button" aria-label="Previous month">←</button>
+                  <button id="graph-edge-calendar-prev" class="icon-button range-calendar-nav" type="button" data-semantic-icon="chevron-left" aria-label="Previous month" title="Previous month"><span class="sr-only">Previous month</span></button>
                   <div class="range-calendar-period">
                     <strong id="graph-edge-calendar-month">September</strong>
                     <label class="range-calendar-year-wrap">
@@ -1096,7 +1096,7 @@
                       <input id="graph-edge-calendar-year" class="range-calendar-year" type="number" min="1" max="9999" step="1" inputmode="numeric" aria-label="Calendar year">
                     </label>
                   </div>
-                  <button id="graph-edge-calendar-next" class="icon-button range-calendar-nav" type="button" aria-label="Next month">→</button>
+                  <button id="graph-edge-calendar-next" class="icon-button range-calendar-nav" type="button" data-semantic-icon="chevron-right" aria-label="Next month" title="Next month"><span class="sr-only">Next month</span></button>
                 </div>
                 <div id="graph-edge-calendar-grid" class="range-calendar-grid" role="grid" aria-label="Calendar days"></div>
                 <div class="range-calendar-footer">
@@ -1274,16 +1274,16 @@
               <div class="project-actions">
                 <section class="project-menu-group" aria-labelledby="project-start-label">
                   <p id="project-start-label" class="project-menu-label">Start</p>
-                  <button id="load-sample" class="project-menu-action" type="button" role="menuitem" data-semantic-icon="magic" data-project-menu-close>
+                  <button id="load-sample" class="project-menu-action" type="button" role="menuitem" data-semantic-icon="magic" aria-label="Load example" title="Load example" data-project-menu-close>
                     <span>Load example</span><small>Replace this project with the example case</small>
                   </button>
                 </section>
                 <section class="project-menu-group" aria-labelledby="project-import-label">
                   <p id="project-import-label" class="project-menu-label">Import</p>
-                  <button id="import-json-trigger" class="project-menu-action" type="button" role="menuitem" data-semantic-icon="object" data-project-menu-close>
+                  <button id="import-json-trigger" class="project-menu-action" type="button" role="menuitem" data-semantic-icon="object" aria-label="Open project" title="Open project" data-project-menu-close>
                     <span>Open project</span><small>Lūm project or compatible JSON</small>
                   </button>
-                  <button id="import-interchange-trigger" class="project-menu-action" type="button" role="menuitem" data-semantic-icon="relation" data-project-menu-close>
+                  <button id="import-interchange-trigger" class="project-menu-action" type="button" role="menuitem" data-semantic-icon="relation" aria-label="Import interchange" title="Import interchange" data-project-menu-close>
                     <span>Interchange</span><small>JSON or XML interchange document</small>
                   </button>
                   <input id="import-json" type="file" accept="application/vnd.lum.project+json,application/json,application/x-luum+json,.lum.json,.luum,.json" hidden>
@@ -1291,28 +1291,28 @@
                 </section>
                 <section class="project-menu-group" aria-labelledby="project-export-label">
                   <p id="project-export-label" class="project-menu-label">Export</p>
-                  <button id="export-json" class="project-menu-action" type="button" role="menuitem" data-semantic-icon="object" data-project-menu-close>
+                  <button id="export-json" class="project-menu-action" type="button" role="menuitem" data-semantic-icon="object" aria-label="Save project" title="Save project" data-project-menu-close>
                     <span>Save project</span><small>Canonical Lūm project file</small>
                   </button>
-                  <button id="share-project" class="project-menu-action" type="button" role="menuitem" data-semantic-icon="relation" data-project-menu-close hidden>
+                  <button id="share-project" class="project-menu-action" type="button" role="menuitem" data-semantic-icon="relation" aria-label="Share project" title="Share project" data-project-menu-close hidden>
                     <span>Share project</span><small>Send the current project through the system share sheet</small>
                   </button>
-                  <button id="export-interchange" class="project-menu-action" type="button" role="menuitem" data-semantic-icon="relation" data-project-menu-close>
+                  <button id="export-interchange" class="project-menu-action" type="button" role="menuitem" data-semantic-icon="relation" aria-label="Export interchange JSON" title="Export interchange JSON" data-project-menu-close>
                     <span>Interchange JSON</span><small>Portable standards-oriented representation</small>
                   </button>
-                  <button id="export-markdown" class="project-menu-action" type="button" role="menuitem" data-semantic-icon="note" data-project-menu-close>
+                  <button id="export-markdown" class="project-menu-action" type="button" role="menuitem" data-semantic-icon="note" aria-label="Export Markdown" title="Export Markdown" data-project-menu-close>
                     <span>Markdown</span><small>Readable chronology document</small>
                   </button>
                 </section>
                 <section class="project-menu-group" aria-labelledby="project-other-label">
                   <p id="project-other-label" class="project-menu-label">Project</p>
-                  <button id="install-app" class="project-menu-action" type="button" role="menuitem" data-semantic-icon="magic" data-project-menu-close hidden>
+                  <button id="install-app" class="project-menu-action" type="button" role="menuitem" data-semantic-icon="magic" aria-label="Install Lūm" title="Install Lūm" data-project-menu-close hidden>
                     <span>Install Lūm</span><small>Open as a standalone app on this device</small>
                   </button>
                   <a class="project-menu-action" href="https://github.com/xtreemze/timeline" role="menuitem" data-semantic-icon="note" data-project-menu-close>
                     <span>GitHub</span><small>Source, issues and project history</small>
                   </a>
-                  <button id="clear-timeline" class="project-menu-action is-danger" type="button" role="menuitem" data-semantic-icon="danger" data-project-menu-close>
+                  <button id="clear-timeline" class="project-menu-action is-danger" type="button" role="menuitem" data-semantic-icon="danger" aria-label="Clear project" title="Clear project" data-project-menu-close>
                     <span>Clear project</span><small>Remove locally stored project data</small>
                   </button>
                 </section>
