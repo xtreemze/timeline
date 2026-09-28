@@ -122,13 +122,13 @@ function createWorldLayoutControls(
     button(
       "Reorganize relationship layout",
       "Reorganize relationship layout (D3 DAG)",
-      "relation",
+      "dag",
       actions.reorganizeDag,
     ),
     button(
       "Relax graph forces",
       "Relax graph forces (D3 force)",
-      "magic",
+      "force",
       actions.relaxForce,
     ),
   );
