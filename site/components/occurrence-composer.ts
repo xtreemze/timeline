@@ -65,8 +65,46 @@ export class LuumOccurrenceComposerElement extends LitElement {
       font-family: inherit;
     }
 
-    :host(:not([active])) {
-      display: none;
+    .compact {
+      appearance: none;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      align-items: center;
+      gap: 0.42rem;
+      inline-size: 100%;
+      min-inline-size: 0;
+      min-block-size: 44px;
+      box-sizing: border-box;
+      padding: 0 0.62rem;
+      border: 1px solid var(--line, #d1ccc4);
+      border-radius: var(--toolbar-control-radius, 0.58rem);
+      background: color-mix(in srgb, var(--paper, #fff) 86%, transparent);
+      color: var(--muted, #615d56);
+      cursor: text;
+      text-align: start;
+      touch-action: manipulation;
+    }
+
+    .compact:is(:hover, :focus-visible) {
+      border-color: var(--line-strong, #b8b1a5);
+      background: var(--paper-2, #f5f3ef);
+      color: var(--ink, #191714);
+      outline: 2px solid var(--focus, #315fbd);
+      outline-offset: -3px;
+    }
+
+    .compact-prompt {
+      font: 700 0.72rem/1 ui-monospace, "SFMono-Regular", Consolas, monospace;
+      color: currentColor;
+    }
+
+    .compact-hint {
+      min-inline-size: 0;
+      overflow: hidden;
+      font-size: 0.72rem;
+      font-weight: 520;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .composer {
@@ -485,6 +523,12 @@ export class LuumOccurrenceComposerElement extends LitElement {
     });
   }
 
+  private requestOpen(): void {
+    this.dispatchEvent(
+      new CustomEvent("occurrencecomposeropenrequest", { bubbles: true, composed: true }),
+    );
+  }
+
   private requestClose(): void {
     this.dispatchEvent(
       new CustomEvent("occurrencecomposercloserequest", { bubbles: true, composed: true }),
@@ -611,7 +655,20 @@ export class LuumOccurrenceComposerElement extends LitElement {
     return parsed.stage;
   }
   override render() {
-    if (!this.active) return nothing;
+    if (!this.active) {
+      return html`
+        <button
+          class="compact"
+          type="button"
+          aria-label="Open occurrence composer"
+          title="Compose an occurrence"
+          @click=${() => this.requestOpen()}
+        >
+          <span class="compact-prompt" aria-hidden="true">&gt;</span>
+          <span class="compact-hint">Compose occurrence…</span>
+        </button>
+      `;
+    }
 
     const parsed = this.parsed();
     const timeLabel = parsed.time?.start ?? this.timelineContext?.label ?? null;
