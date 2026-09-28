@@ -76,6 +76,12 @@ test("VS Code snippets scaffold strict current-format records", async () => {
   assert.equal(snippets["Lūm entity"].prefix, "lum-entity");
   assert.equal(snippets["Lūm relationship"].prefix, "lum-relationship");
   assert.equal(snippets["Lūm occurrence"].prefix, "lum-occurrence");
+  assert.equal(snippets["Lūm project module"].prefix, "lum-module");
+  assert.ok(
+    snippets["Lūm project module"].body.some((line) =>
+      line.includes('"format": "lum-project-module"'),
+    ),
+  );
   assert.equal(snippets["Lūm change proposal"].prefix, "lum-proposal");
   assert.ok(
     snippets["Lūm change proposal"].body.some((line) =>
