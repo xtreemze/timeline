@@ -706,7 +706,7 @@ const graphEdgeDatePicker = dateRangeFactory.create({
 });
 let presentationResizeObserver: ResizeObserver | null = null;
 let presentationResizeFrame = 0;
-let timelineOrientationBeforeFullscreen = null;
+let timelineOrientationBeforeFullscreen: "horizontal" | "vertical" | null = null;
 let presentationMap: PresentationMapController | null = null;
 let presentationMapKey = "";
 let focusedGraphContextAvailable = false;
