@@ -1060,6 +1060,44 @@ test.describe("contextual world authoring certification", () => {
       });
   });
 
+  test("reverting Details edits returns the composer transaction to clean state", async ({ page }) => {
+    await page.goto("/");
+    const relationships = await relationshipFocuses(page);
+    test.skip(!relationships.length, "Example project exposes no focusable relationship occurrence.");
+    await focusRelationship(page, relationships[0]!);
+    const composer = await openPersistentComposer(page);
+    await composer.locator('button.context-chip[data-context-kind="metadata"]').click();
+
+    const role = composer.locator("#occurrence-composer-metadata input[type='text']").first();
+    const baseline = await role.inputValue();
+    await role.fill(`${baseline} temporary`);
+    await role.fill(baseline);
+
+    await composer.getByRole("button", { name: "Save occurrence" }).click();
+    await expect(page.locator("#status")).toContainText("Occurrence unchanged");
+  });
+
+  test("invalid Details confidence is rejected without losing the draft", async ({ page }) => {
+    await page.goto("/");
+    const relationships = await relationshipFocuses(page);
+    test.skip(!relationships.length, "Example project exposes no focusable relationship occurrence.");
+    await focusRelationship(page, relationships[0]!);
+    const composer = await openPersistentComposer(page);
+    const input = composer.locator("input");
+    const before = await input.inputValue();
+    await composer.locator('button.context-chip[data-context-kind="metadata"]').click();
+
+    const confidence = composer.locator("#occurrence-composer-metadata input[type='number']");
+    await confidence.fill("1.2");
+    await composer.getByRole("button", { name: "Save occurrence" }).click();
+
+    await expect(composer.locator("#occurrence-composer-diagnostic")).toContainText(
+      "Confidence must be between 0 and 1",
+    );
+    await expect(input).toHaveValue(before);
+    await expect(composer).toHaveAttribute("active", "");
+  });
+
   test("S23-class portrait and landscape keep contextual composer fully contained without document scroll", async ({
     page,
   }, testInfo) => {
