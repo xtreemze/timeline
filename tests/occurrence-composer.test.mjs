@@ -945,8 +945,19 @@ test("Lit composer is a touch-safe ARIA combobox with live-context guidance", as
   assert.match(source, /@keyup=\$\{\(event: Event\) => this\.onCaretMove\(event\)\}/);
   assert.match(source, /replaceRange/);
   assert.match(source, /class="context-row"/);
-  assert.match(source, /data-context-state=\$\{placePinned \? "pinned" : "live"\}/);
-  assert.match(source, /data-context-state=\$\{timePinned \? "pinned" : "live"\}/);
+  assert.match(source, /data-context-kind="place"[\s\S]*activateContext\("place"\)/);
+  assert.match(source, /data-context-kind="time"[\s\S]*activateContext\("time"\)/);
+  assert.match(source, /class="commit"/);
+  assert.match(source, /aria-label=\$\{commitLabel\}/);
+  assert.match(source, /event\.metaKey \|\| event\.ctrlKey/);
+  assert.match(source, /private onContextChipKeyDown/);
+  assert.match(source, /data-context-kind="details"/);
+  assert.match(source, /id="occurrence-composer-metadata"/);
+  assert.match(source, /Evidence \/ source IDs/);
+  assert.match(source, /Open full edge editor/);
+  assert.match(source, /occurrencecomposeradvancededitrequest/);
+  assert.match(source, /metadataValue\(\)/);
+  assert.match(source, /explicitTimelineContext/);
   assert.match(source, /private sessionKey = ""/);
   assert.match(source, /hasPendingSelectionContext/);
   assert.match(source, /Use selected context/);
@@ -1023,6 +1034,12 @@ test("application keeps timeline and World live while composer uses their center
     /updateOccurrence\([\s\S]*relationshipId:\s*detail\.editTarget\.relationshipId/,
   );
   assert.match(source, /Occurrence unchanged\./);
+  assert.match(source, /composerMetadataIdentity/);
+  assert.match(source, /relationshipMetadataIdentity/);
+  assert.match(source, /role:\s*detail\.metadata\.role/);
+  assert.match(source, /sourceIds:\s*detail\.metadata\.sourceIds/);
+  assert.match(source, /confidence:\s*detail\.metadata\.confidence/);
+  assert.match(source, /occurrencecomposeradvancededitrequest/);
   assert.match(source, /result\.semanticReviewRequired/);
   assert.match(source, /Review its evidence, confidence, and semantic context/);
   assert.match(source, /composerItemIdForRelationship/);
