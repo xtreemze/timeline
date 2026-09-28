@@ -1433,6 +1433,11 @@ interface TouchPointerEvent {
 
 interface TouchContextMenuEvent {
   readonly pointerType?: unknown;
+  readonly offsetX?: unknown;
+  readonly offsetY?: unknown;
+  readonly clientX?: unknown;
+  readonly clientY?: unknown;
+  readonly target?: unknown;
   readonly preventDefault?: () => void;
 }
 
@@ -3244,9 +3249,44 @@ export class DeckWorldSurface implements WorldSurface {
     this.#setTouchDragState(null);
   };
 
+  #dispatchAuthoringContext(point: ScreenPoint, clientPoint: ScreenPoint): boolean {
+    const hit = this.pick(point, { depth: false });
+    if (hit) return false;
+    const position = this.unproject(point, 0);
+    if (!position) return false;
+    const request = new CustomEvent("worldcontextrequest", {
+      bubbles: true,
+      cancelable: true,
+      detail: {
+        point,
+        clientPoint,
+        position,
+      },
+    });
+    return this.#container.dispatchEvent?.(request) === false;
+  }
+
   readonly #handleTouchContextMenu = (event: TouchContextMenuEvent): void => {
     const state = (this.#container as { dataset?: DOMStringMap }).dataset?.worldTouchDrag;
-    if (event.pointerType === "mouse" || (state !== "holding" && state !== "active")) return;
+    if (event.pointerType === "mouse" || event.pointerType === undefined) {
+      const target = event.target as { closest?: (selector: string) => unknown } | null | undefined;
+      if (typeof target?.closest === "function" && target.closest(".world-camera-controls")) return;
+      const x = Number(event.offsetX);
+      const y = Number(event.offsetY);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+      const clientX = Number(event.clientX);
+      const clientY = Number(event.clientY);
+      const handled = this.#dispatchAuthoringContext(
+        Object.freeze({ x, y }),
+        Object.freeze({
+          x: Number.isFinite(clientX) ? clientX : x,
+          y: Number.isFinite(clientY) ? clientY : y,
+        }),
+      );
+      if (handled) event.preventDefault?.();
+      return;
+    }
+    if (state !== "holding" && state !== "active") return;
     // Mobile browsers may promote a stationary press to their native context
     // menu. Keep a world-node hold inside Lūm so it cannot terminate the
     // pointer sequence before the drag handoff.
