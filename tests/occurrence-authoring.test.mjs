@@ -317,7 +317,7 @@ test("authorOccurrence rejects unsupported semantic icons before mutation", () =
 });
 
 
-test("updateOccurrence edits the canonical relationship in place and preserves unrepresented metadata", () => {
+test("updateOccurrence preserves editorial metadata while flagging supported fact edits for review", () => {
   const original = editableState();
   const originalRelationship = structuredClone(original.relationships[0]);
   const originalItem = structuredClone(original.items[0]);
@@ -337,8 +337,16 @@ test("updateOccurrence edits the canonical relationship in place and preserves u
   assert.deepEqual(relationship.semanticMappings, originalRelationship.semanticMappings);
   assert.equal(relationship.initialState, originalRelationship.initialState);
   assert.deepEqual(relationship.sourceIds, originalRelationship.sourceIds);
-  assert.equal(relationship.confidence, originalRelationship.confidence);
-  assert.deepEqual(relationship.attributes, originalRelationship.attributes);
+  assert.equal(relationship.confidence, null, "material fact edits invalidate prior confidence");
+  assert.deepEqual(relationship.attributes, {
+    ...originalRelationship.attributes,
+    semanticReview: {
+      required: true,
+      reasons: ["predicate-changed"],
+    },
+  });
+  assert.equal(result.semanticReviewRequired, true);
+  assert.deepEqual(result.semanticReviewReasons, ["predicate-changed"]);
   assert.deepEqual(
     relationship.time,
     originalRelationship.time,
@@ -355,6 +363,62 @@ test("updateOccurrence edits the canonical relationship in place and preserves u
   assert.deepEqual(item.extensions, originalItem.extensions);
   assert.deepEqual(item.tags, originalItem.tags);
   assert.deepEqual(item.time, originalItem.time);
+});
+
+test("updateOccurrence invalidates endpoint-bound context when an endpoint changes", () => {
+  const state = editableState();
+  state.entities.push({
+    id: "charlie",
+    name: "Charlie",
+    type: "person",
+    alternateNames: [],
+    sourceIds: [],
+    attributes: {},
+  });
+
+  const result = updateOccurrence(
+    state,
+    editRequest({
+      subject: { name: "@charlie", properties: {} },
+      predicate: "meets",
+    }),
+    dependencies(),
+  );
+
+  const relationship = result.state.relationships[0];
+  assert.equal(relationship.subjectId, "charlie");
+  assert.equal(relationship.subjectContext, undefined);
+  assert.deepEqual(relationship.objectContext, { role: "participant" });
+  assert.deepEqual(relationship.sourceIds, ["source-a"]);
+  assert.equal(relationship.confidence, null);
+  assert.equal(result.semanticReviewRequired, true);
+  assert.deepEqual(result.semanticReviewReasons, ["subject-changed"]);
+  assert.deepEqual(relationship.attributes.semanticReview, {
+    required: true,
+    reasons: ["subject-changed"],
+  });
+});
+
+test("updateOccurrence does not invalidate semantic support for item-only metadata edits", () => {
+  const state = editableState();
+  const originalRelationship = structuredClone(state.relationships[0]);
+
+  const result = updateOccurrence(
+    state,
+    editRequest({
+      predicate: "meets",
+      tags: ["changed"],
+    }),
+    dependencies(),
+  );
+
+  const relationship = result.state.relationships[0];
+  assert.equal(result.semanticReviewRequired, undefined);
+  assert.equal(relationship.confidence, originalRelationship.confidence);
+  assert.deepEqual(relationship.attributes, originalRelationship.attributes);
+  assert.deepEqual(relationship.subjectContext, originalRelationship.subjectContext);
+  assert.deepEqual(relationship.objectContext, originalRelationship.objectContext);
+  assert.deepEqual(result.state.items[0].tags, [{ label: "changed" }]);
 });
 
 test("updateOccurrence updates explicit place, time, category, and tags only for the exact item", () => {
