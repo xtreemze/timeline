@@ -7,11 +7,11 @@ import {
   type WorldDagLayoutOrientation,
   type WorldDagLayoutTarget,
 } from "./world-dag-layout.ts";
-import type {
-  WorldForceAnchor,
-  WorldForceEdge,
-  WorldForceNode,
-  WorldForceScene,
+import {
+  type WorldForceAnchor,
+  type WorldForceEdge,
+  type WorldForceNode,
+  type WorldForceScene,
   worldForceNodePreferredRadiusMeters,
 } from "./world-force-simulation.ts";
 import {
@@ -49,7 +49,7 @@ export interface WorldForceSceneBuildOptions {
  * Compact markers must not collapse the force layout or DAG target geometry.
  */
 const WORLD_FORCE_LAYOUT_SCALE = 2;
-/** Nodes with one or two distinct neighbors keep only their physical footprint. */
+/** Nodes with one or two incident relationships keep only their physical footprint. */
 const CONNECTIVITY_CLEARANCE_FREE_DEGREE = 2;
 /** Square-root growth gives hubs more room without allowing degree to explode layout size. */
 const CONNECTIVITY_CLEARANCE_SQRT_SCALE = 0.35;
