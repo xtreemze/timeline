@@ -203,16 +203,28 @@
   border-radius: 0;
 }
 
-#app-shell.is-event-focused #presentation-stage > .timeline-focus-sidebar .timeline-focus-tabs {
+#app-shell.is-event-focused #presentation-stage > .timeline-focus-sidebar .timeline-focus-header {
   position: sticky;
   z-index: 5;
   top: -0.5rem;
+  right: auto;
   grid-column: 1 / -1;
   grid-row: 1;
+  inline-size: calc(100% + 1rem);
+  max-inline-size: none;
   margin: -0.5rem -0.5rem 0;
   padding: 0.42rem 0.5rem;
   background: color-mix(in srgb, var(--paper) 94%, transparent);
   backdrop-filter: blur(16px);
+}
+
+#app-shell.is-event-focused #presentation-stage > .timeline-focus-sidebar .timeline-focus-tabs {
+  position: static;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  backdrop-filter: none;
 }
 
 #app-shell.is-event-focused
