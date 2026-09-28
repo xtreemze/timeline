@@ -157,16 +157,15 @@ test("toolbar actions update state, labels, tooltips, and direct icons", async (
   await expect(investigation).toHaveAttribute("aria-label", "Investigation methodology");
 });
 
-test("composer exposes live context, pins explicit context, and leaves Tab for focus navigation", async ({ page }) => {
-  await page.locator("#editor-toggle").click();
-  const compose = page.locator("#occurrence-composer-toggle");
-  await compose.click();
-
+test("composer is persistent, exposes live context, and expands directly from the toolbar", async ({ page }) => {
   const composer = page.locator("#occurrence-composer");
   const input = composer.locator("input");
+  await expect(input).toBeVisible();
+  await expect(composer).not.toHaveAttribute("active", "");
+  await input.focus();
   await expect(composer).toHaveAttribute("active", "");
   await expect(page.locator("#app-shell")).toHaveAttribute("data-composer-open", "true");
-  await expect(page.locator("#editor-toggle")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("#editor-toggle")).toHaveAttribute("aria-pressed", "false");
   await expect(composer.locator('.context-chip[data-context-kind="place"]')).toHaveAttribute(
     "data-context-state",
     "live",
@@ -192,24 +191,22 @@ test("composer exposes live context, pins explicit context, and leaves Tab for f
   await expect(composer).toHaveAttribute("active", "");
   await close.click();
   await expect(composer).not.toHaveAttribute("active", "");
-  await expect(page.locator("#editor-toggle")).toBeFocused();
+  await expect(input).toBeVisible();
 });
 
 test("composer keeps drafts in the same context and clears them when spatial context changes", async ({
   page,
 }) => {
-  await page.locator("#editor-toggle").click();
-  await page.locator("#occurrence-composer-toggle").click();
-
   const composer = page.locator("#occurrence-composer");
   const input = composer.locator("input");
+  await input.focus();
   await input.fill("Alice meets Bob");
 
   await input.press("Escape");
   await expect(composer).not.toHaveAttribute("active", "");
 
-  await page.locator("#editor-toggle").click();
-  await page.locator("#occurrence-composer-toggle").click();
+  await input.blur();
+  await input.focus();
   await expect(composer).toHaveAttribute("active", "");
   await expect(input).toHaveValue("Alice meets Bob");
 
@@ -365,7 +362,8 @@ test("Edit is the single toolbar authoring entry and disables direct View contro
 
   await page.locator("#editor-toggle").click();
   await expect(page.locator("#editor-toggle")).toHaveAttribute("aria-expanded", "true");
-  await expect(page.locator("#occurrence-composer-toggle")).toBeVisible();
+  await expect(page.locator("#occurrence-composer-toggle")).toHaveCount(0);
+  await expect(page.locator("#occurrence-composer input")).toBeVisible();
   await expect(page.locator("#timeline-orientation-toggle")).toBeDisabled();
   await expect(page.locator(".world-camera-control").first()).toBeDisabled();
 
