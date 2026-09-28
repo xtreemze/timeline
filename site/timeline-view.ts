@@ -51,6 +51,7 @@ import {
   setPresentation,
   switchOccurrenceSelection,
 } from "./occurrence-interaction-session.ts";
+import { composerEditableSections } from "./occurrence-composer-model.ts";
 import { TimelineClustering as clustering } from "./timeline-clustering.ts";
 import { TimelineMotion as motion } from "./timeline-motion.ts";
 
@@ -127,6 +128,8 @@ interface TimelineItem {
   relationChanges?: unknown[];
   graphContext?: unknown;
   editable?: boolean;
+  relationshipId?: string;
+  composition?: string;
 }
 
 interface SemanticTickSpec {
@@ -3859,6 +3862,59 @@ export class TimelineViewController {
     summary.setAttribute("role", "tabpanel");
     summary.setAttribute("aria-labelledby", "timeline-focus-context-tab");
     summary.tabIndex = 0;
+
+    const composition = item.composition?.trim() || "";
+    if (composition) {
+      const compositionRegion = document.createElement("div");
+      compositionRegion.className = "timeline-focus-composition";
+      compositionRegion.setAttribute("aria-label", "Occurrence sentence");
+      const sections = composerEditableSections(composition).sort(
+        (left, right) => left.start - right.start || left.end - right.end,
+      );
+      const sectionCounts = new Map<string, number>();
+      let cursor = 0;
+      for (const section of sections) {
+        if (section.start > cursor) {
+          compositionRegion.append(document.createTextNode(composition.slice(cursor, section.start)));
+        }
+        const sectionIndex = sectionCounts.get(section.kind) ?? 0;
+        sectionCounts.set(section.kind, sectionIndex + 1);
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "timeline-focus-composition-segment";
+        button.dataset.composerSectionKind = section.kind;
+        button.dataset.composerSectionIndex = String(sectionIndex);
+        button.textContent = composition.slice(section.start, section.end);
+        button.setAttribute("aria-label", `Edit ${section.kind}: ${button.textContent}`);
+        button.addEventListener("click", () => {
+          this.root.dispatchEvent(
+            new CustomEvent("timelineoccurrencecomposerrequest", {
+              bubbles: true,
+              detail: {
+                id: item.id,
+                relationshipId: item.relationshipId ?? null,
+                composition,
+                sectionKind: section.kind,
+                sectionIndex,
+                host: focusHost,
+              },
+            }),
+          );
+        });
+        compositionRegion.append(button);
+        cursor = Math.max(cursor, section.end);
+      }
+      if (cursor < composition.length) {
+        compositionRegion.append(document.createTextNode(composition.slice(cursor)));
+      }
+      summary.append(compositionRegion);
+    }
+
+    const composerHost = document.createElement("div");
+    composerHost.className = "timeline-focus-composer-host";
+    composerHost.dataset.occurrenceComposerHost = "";
+    composerHost.hidden = true;
+
     const description = document.createElement("p");
     description.className = "timeline-focus-description";
     description.textContent =
@@ -4089,7 +4145,7 @@ export class TimelineViewController {
     header.append(tabs, contextActions);
     applyFocusTab(this.focusTab);
 
-    focusHost.replaceChildren(header, hero, summary, evidence);
+    focusHost.replaceChildren(header, hero, composerHost, summary, evidence);
     this.root.dispatchEvent(
       new CustomEvent("timelinefocusrender", {
         bubbles: true,
