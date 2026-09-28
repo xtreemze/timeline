@@ -124,25 +124,48 @@ test(
       /getSelectedPlaceId\(\)[\s\S]*state\.scope\.value = placeId === null \? "global" : "place"/,
     );
 
+    assert.match(inspector, /"sugiyama", "Sugiyama · layered"/);
+    assert.match(inspector, /"zherebko", "Zherebko · linear"/);
+    assert.match(inspector, /"grid", "Grid · topological"/);
     assert.match(inspector, /"longest-opt-greedy", "Longest path \+ optimal decross"/);
     assert.match(inspector, /"longest-two-layer-greedy", "Longest path \+ two-layer"/);
     assert.match(inspector, /"simplex-two-layer-greedy", "Simplex \+ two-layer"/);
+    assert.match(inspector, /"greedy", "Greedy"/);
+    assert.match(inspector, /"simplex", "Simplex"/);
+    assert.match(inspector, /"quad", "Quadratic"/);
+    assert.match(inspector, /"center", "Centered"/);
+    assert.match(inspector, /"routed", "D3 routed"/);
+    assert.match(inspector, /"straight", "Straight"/);
+    assert.match(inspector, /"orthogonal", "Orthogonal"/);
     assert.match(inspector, /"top-to-bottom", "Top → bottom"/);
     assert.match(inspector, /"left-to-right", "Left → right"/);
+    assert.match(
+      inspector,
+      /algorithm\.select\.value === "sugiyama"[\s\S]*strategy\.select\.disabled = !sugiyama[\s\S]*coordinate\.select\.disabled = !sugiyama/,
+    );
 
     for (const label of [
+      "Center force",
+      "Center strength",
+      "Center east",
+      "Center north",
+      "Collide force",
       "Collision strength",
       "Collision passes",
       "Connectivity clearance",
+      "Link force",
+      "Link strength",
+      "Link distance ×",
       "Repulsion",
-      "Relationship springs",
       "Place attraction",
       "DAG guidance",
     ]) {
       assert.match(inspector, new RegExp(label));
     }
     assert.match(inspector, /"Collision radius", "Rendered node \+ border · fixed"/);
-    assert.match(inspector, /Connectivity clearance reserves additional soft space/);
+    assert.match(inspector, /collision radius stays exact/);
+    assert.match(inspector, /linkDistanceScale: Number\(linkDistance\.input\.value\)/);
+    assert.match(inspector, /centerStrength: Number\(centerStrength\.input\.value\)/);
     assert.match(
       inspector,
       /addEventListener\("pointermove"[\s\S]*Math\.hypot[\s\S]*> 8[\s\S]*clearTimer\(\)/,
