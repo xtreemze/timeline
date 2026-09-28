@@ -1710,9 +1710,10 @@ function entityDatums(
     if (matches) matches.push(datum);
     else mutableByEntityId.set(datum.entityId, [datum]);
   }
-  const byEntityId = new Map<EntityId, readonly DeckWorldEntityDatum[]>(
-    [...mutableByEntityId].map(([entityId, matches]) => [entityId, Object.freeze(matches)]),
-  );
+  const byEntityId = new Map<EntityId, readonly DeckWorldEntityDatum[]>();
+  for (const [entityId, matches] of mutableByEntityId) {
+    byEntityId.set(entityId, Object.freeze([...matches]));
+  }
 
   return { datums, byId, byEntityId };
 }
