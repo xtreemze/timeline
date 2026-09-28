@@ -14,10 +14,15 @@ async function ensureSample(page: Page) {
 
 async function focusOccurrence(page: Page) {
   const terminal = await ensureSample(page);
+  const card = terminal.locator("xpath=ancestor::luum-event-card[1]");
   await terminal.evaluate((button: HTMLButtonElement) => button.click());
-  const focus = page.locator("#timeline-focus-view");
+  await terminal.evaluate((button: HTMLButtonElement) => button.click());
+  const focus = card.locator(".timeline-event-detail");
+  await expect(card).toHaveAttribute("data-expanded", "true");
   await expect(focus).toBeVisible();
-  await expect(page.locator("#app-shell")).toHaveClass(/is-event-focused/);
+  await expect(focus).toHaveAttribute("data-presentation-surface", "card");
+  await expect(page.locator("#timeline-focus-view")).toBeHidden();
+  await expect(page.locator("#app-shell")).toHaveClass(/is-event-card-focused/);
   return focus;
 }
 
@@ -93,7 +98,7 @@ test("landscape matches portrait timeline spacing at the physical edge", async (
 
 test("focused detail owns contextual actions without mutating the footer", async ({ page }) => {
   const focus = await focusOccurrence(page);
-  await expect(focus).toHaveAttribute("data-presentation-surface", "sidebar");
+  await expect(focus).toHaveAttribute("data-presentation-surface", "card");
   await expect(focus).not.toHaveAttribute("popover", /.+/);
   await expect
     .poll(() => focus.evaluate((element) => element.matches(":popover-open")))
@@ -170,7 +175,7 @@ test("composer opens from selected context without dismissing focus or activatin
 
   await expect(composer).toHaveAttribute("active", "");
   await expect(focus).toBeVisible();
-  await expect(page.locator("#app-shell")).toHaveClass(/is-event-focused/);
+  await expect(page.locator("#app-shell")).toHaveClass(/is-event-card-focused/);
   await expect(page.locator("#editor-toggle")).toHaveAttribute("aria-pressed", "false");
   await expect(page.locator("#editor-toggle")).toHaveAttribute("aria-label", "Edit timeline");
 
@@ -185,7 +190,7 @@ test("clicking the selected card keeps its attached detail open", async ({ page 
   const focus = await focusOccurrence(page);
   await terminal.evaluate((button: HTMLButtonElement) => button.click());
   await expect(focus).toBeVisible();
-  await expect(page.locator("#app-shell")).toHaveClass(/is-event-focused/);
+  await expect(page.locator("#app-shell")).toHaveClass(/is-event-card-focused/);
 });
 
 test("focused detail tabs use roving keyboard focus and proper tabpanel semantics", async ({
@@ -225,9 +230,12 @@ test("hero image changes preserve the active detail tab and keyboard focus", asy
     .locator("#timeline-view .timeline-event-terminal:has(.timeline-event-art):visible")
     .first();
   await expect(mediaTerminal).toBeVisible();
+  const mediaCard = mediaTerminal.locator("xpath=ancestor::luum-event-card[1]");
+  await mediaTerminal.evaluate((button: HTMLButtonElement) => button.click());
   await mediaTerminal.evaluate((button: HTMLButtonElement) => button.click());
 
-  const focus = page.locator("#timeline-focus-view");
+  const focus = mediaCard.locator(".timeline-event-detail");
+  await expect(focus).toBeVisible();
   const evidenceTab = focus.getByRole("tab", { name: "Evidence" });
   await evidenceTab.click();
   await expect(focus).toHaveAttribute("data-active-tab", "evidence");
@@ -277,51 +285,81 @@ test("semantic activation of the selected occurrence keeps explicit-close focus 
   const semantic = page.locator('.timeline-semantic-occurrence[aria-current="true"]').first();
   await semantic.evaluate((button: HTMLButtonElement) => button.click());
   await expect(focus).toBeVisible();
-  await expect(page.locator("#app-shell")).toHaveClass(/is-event-focused/);
+  await expect(page.locator("#app-shell")).toHaveClass(/is-event-card-focused/);
 });
 
-test("landscape preserves the bottom timeline rail while focused detail layers over the graph", async ({
+test("landscape keeps timeline and graph geometry stable while retained detail overlays the world", async ({
   page,
 }) => {
   await ensureOrientation(page, "landscape");
-  const before = await page.locator(".timeline-surface").boundingBox();
-  expect(before).not.toBeNull();
+  const [timelineBefore, graphBefore, stageBefore] = await Promise.all([
+    page.locator(".timeline-surface").boundingBox(),
+    page.locator("#graph-lens").boundingBox(),
+    page.locator("#presentation-stage").boundingBox(),
+  ]);
+  expect(timelineBefore).not.toBeNull();
+  expect(graphBefore).not.toBeNull();
+  expect(stageBefore).not.toBeNull();
 
   const focus = await focusOccurrence(page);
   const { focusBox, graphBox, timelineBox, stageBox } = await boxes(page, focus);
-  if (!before) throw new Error("Landscape timeline surface has no baseline bounds.");
+  if (!timelineBefore || !graphBefore || !stageBefore) {
+    throw new Error("Landscape baseline geometry is unavailable.");
+  }
 
-  expect(Math.abs(timelineBox.x - before.x)).toBeLessThanOrEqual(2);
-  expect(Math.abs(timelineBox.y - before.y)).toBeLessThanOrEqual(2);
-  expect(Math.abs(timelineBox.width - before.width)).toBeLessThanOrEqual(2);
-  expect(Math.abs(timelineBox.height - before.height)).toBeLessThanOrEqual(2);
-  expect(timelineBox.x).toBeLessThanOrEqual(stageBox.x + 2);
-  expect(timelineBox.x + timelineBox.width).toBeGreaterThanOrEqual(stageBox.x + stageBox.width - 2);
-  expect(graphBox.y + graphBox.height).toBeLessThanOrEqual(timelineBox.y + 3);
-  expect(focusBox.y + focusBox.height).toBeLessThanOrEqual(timelineBox.y + 3);
+  for (const [before, after] of [
+    [timelineBefore, timelineBox],
+    [graphBefore, graphBox],
+    [stageBefore, stageBox],
+  ] as const) {
+    expect(Math.abs(after.x - before.x)).toBeLessThanOrEqual(2);
+    expect(Math.abs(after.y - before.y)).toBeLessThanOrEqual(2);
+    expect(Math.abs(after.width - before.width)).toBeLessThanOrEqual(2);
+    expect(Math.abs(after.height - before.height)).toBeLessThanOrEqual(2);
+  }
+
   expect(overlapArea(focusBox, graphBox)).toBeGreaterThan(100);
+  expect(focusBox.x).toBeGreaterThanOrEqual(stageBox.x - 1);
+  expect(focusBox.y).toBeGreaterThanOrEqual(stageBox.y - 1);
+  expect(focusBox.x + focusBox.width).toBeLessThanOrEqual(stageBox.x + stageBox.width + 1);
+  expect(focusBox.y + focusBox.height).toBeLessThanOrEqual(stageBox.y + stageBox.height + 1);
 });
 
-test("portrait preserves the right timeline rail while focused detail layers inside the graph region", async ({
+test("portrait keeps timeline and graph geometry stable while retained detail overlays the world", async ({
   page,
 }) => {
   await ensureOrientation(page, "portrait");
-  const before = await page.locator(".timeline-surface").boundingBox();
-  expect(before).not.toBeNull();
+  const [timelineBefore, graphBefore, stageBefore] = await Promise.all([
+    page.locator(".timeline-surface").boundingBox(),
+    page.locator("#graph-lens").boundingBox(),
+    page.locator("#presentation-stage").boundingBox(),
+  ]);
+  expect(timelineBefore).not.toBeNull();
+  expect(graphBefore).not.toBeNull();
+  expect(stageBefore).not.toBeNull();
 
   const focus = await focusOccurrence(page);
-  const { focusBox, graphBox, timelineBox, stageBox, footerBox } = await boxes(page, focus);
-  if (!before) throw new Error("Portrait timeline surface has no baseline bounds.");
+  const { focusBox, graphBox, timelineBox, stageBox } = await boxes(page, focus);
+  if (!timelineBefore || !graphBefore || !stageBefore) {
+    throw new Error("Portrait baseline geometry is unavailable.");
+  }
 
-  expect(Math.abs(timelineBox.x - before.x)).toBeLessThanOrEqual(2);
-  expect(Math.abs(timelineBox.y - before.y)).toBeLessThanOrEqual(2);
-  expect(Math.abs(timelineBox.width - before.width)).toBeLessThanOrEqual(2);
-  expect(Math.abs(timelineBox.height - before.height)).toBeLessThanOrEqual(2);
-  expect(timelineBox.y).toBeLessThanOrEqual(stageBox.y + 2);
-  expect(Math.abs(timelineBox.y + timelineBox.height - footerBox.y)).toBeLessThanOrEqual(2);
-  expect(graphBox.x + graphBox.width).toBeLessThanOrEqual(timelineBox.x + 3);
-  expect(focusBox.x + focusBox.width).toBeLessThanOrEqual(timelineBox.x + 3);
+  for (const [before, after] of [
+    [timelineBefore, timelineBox],
+    [graphBefore, graphBox],
+    [stageBefore, stageBox],
+  ] as const) {
+    expect(Math.abs(after.x - before.x)).toBeLessThanOrEqual(2);
+    expect(Math.abs(after.y - before.y)).toBeLessThanOrEqual(2);
+    expect(Math.abs(after.width - before.width)).toBeLessThanOrEqual(2);
+    expect(Math.abs(after.height - before.height)).toBeLessThanOrEqual(2);
+  }
+
   expect(overlapArea(focusBox, graphBox)).toBeGreaterThan(100);
+  expect(focusBox.x).toBeGreaterThanOrEqual(stageBox.x - 1);
+  expect(focusBox.y).toBeGreaterThanOrEqual(stageBox.y - 1);
+  expect(focusBox.x + focusBox.width).toBeLessThanOrEqual(stageBox.x + stageBox.width + 1);
+  expect(focusBox.y + focusBox.height).toBeLessThanOrEqual(stageBox.y + stageBox.height + 1);
 });
 
 test("focused detail stays compact and physically attached to its selected occurrence card", async ({
@@ -333,9 +371,11 @@ test("focused detail stays compact and physically attached to its selected occur
     await page.goto("/");
     await ensureOrientation(page, orientation);
     const terminal = await ensureSample(page);
+    const card = terminal.locator("xpath=ancestor::luum-event-card[1]");
+    await terminal.evaluate((button: HTMLButtonElement) => button.click());
     await terminal.evaluate((button: HTMLButtonElement) => button.click());
 
-    const focus = page.locator("#timeline-focus-view");
+    const focus = card.locator(".timeline-event-detail");
     await expect(focus).toBeVisible();
     await expect(focus).toHaveAttribute("data-anchor-side", /^(above|below|left|right)$/);
 
@@ -374,13 +414,13 @@ test("focused detail stays compact and physically attached to its selected occur
       const computed = getComputedStyle(element);
       return {
         borderColor: computed.borderTopColor,
-        inlineStart: computed.insetInlineStart,
-        blockStart: computed.insetBlockStart,
+        left: computed.left,
+        top: computed.top,
       };
     });
     expect(style.borderColor).not.toBe("rgba(0, 0, 0, 0)");
-    expect(style.inlineStart).not.toBe("auto");
-    expect(style.blockStart).not.toBe("auto");
+    expect(style.left).not.toBe("auto");
+    expect(style.top).not.toBe("auto");
   }
 });
 
@@ -391,9 +431,9 @@ test("Browse and persistent View controls do not discard the focused occurrence"
 
   await page.locator("#timeline-browser-toggle").click();
   await expect(page.locator("#app-shell")).toHaveAttribute("data-browser-open", "true");
-  await expect(page.locator("#app-shell")).toHaveClass(/is-event-focused/);
+  await expect(page.locator("#app-shell")).toHaveClass(/is-event-card-focused/);
   await page.locator("#timeline-browser-close").click();
 
   await expect(page.locator("#timeline-view-controls")).toBeVisible();
-  await expect(page.locator("#app-shell")).toHaveClass(/is-event-focused/);
+  await expect(page.locator("#app-shell")).toHaveClass(/is-event-card-focused/);
 });

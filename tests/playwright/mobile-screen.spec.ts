@@ -347,9 +347,13 @@ test.describe("Narrow mobile screen contracts", () => {
       )
       .first();
     await expect(terminal).toBeVisible();
+    const card = terminal.locator("xpath=ancestor::luum-event-card[1]");
+    await terminal.click();
     await terminal.click();
 
-    const focus = page.locator("#timeline-focus-view");
+    const focus = card.locator(".timeline-event-detail");
+    await expect(focus).toBeVisible();
+    await expect(page.locator("#timeline-focus-view")).toBeHidden();
     const actions = focus.locator(".timeline-focus-context-actions");
     await expect(actions).toBeVisible();
     await expect(actions.locator("#timeline-focus-prev")).toBeVisible();

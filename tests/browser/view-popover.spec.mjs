@@ -547,7 +547,11 @@ test("overflowing occurrence cards stay interactive above the world while world 
 
   if (!overlap) throw new Error("Expected an occurrence card to overlap the world.");
   await page.mouse.click(overlap.x, overlap.y);
-  await expect(page.locator("#timeline-focus-view")).toBeVisible();
+  const focusedCard = page.locator("#timeline-view luum-event-card[data-focused]").first();
+  await expect(focusedCard).toBeVisible();
+  await focusedCard.locator(".timeline-event-terminal").click();
+  await expect(focusedCard.locator(".timeline-event-detail")).toBeVisible();
+  await expect(page.locator("#timeline-focus-view")).toBeHidden();
 });
 
 test("stale bundled demo storage refreshes the current example stories", async ({ page }) => {

@@ -604,21 +604,27 @@ async function desktopRoutine(page: Page, sceneName: string) {
   }
 
   if (sceneName === "02-focused-context") {
-    await (await firstVisibleOccurrence(page)).click();
-    const focus = page.locator("#timeline-focus-view");
+    const terminal = await firstVisibleOccurrence(page);
+    const card = terminal.locator("xpath=ancestor::luum-event-card[1]");
+    await terminal.click();
+    await terminal.click();
+    const focus = card.locator(".timeline-event-detail");
     await expect(focus).toBeVisible();
-    await expect(page.locator("#timeline-focus-context-panel")).toBeVisible();
+    await expect(focus.locator("#timeline-focus-context-panel")).toBeVisible();
     await page.waitForTimeout(700);
     return;
   }
 
   if (sceneName === "03-evidence") {
-    await (await firstVisibleOccurrence(page)).click();
-    const focus = page.locator("#timeline-focus-view");
+    const terminal = await firstVisibleOccurrence(page);
+    const card = terminal.locator("xpath=ancestor::luum-event-card[1]");
+    await terminal.click();
+    await terminal.click();
+    const focus = card.locator(".timeline-event-detail");
     await expect(focus).toBeVisible();
     await focus.getByRole("tab", { name: "Evidence" }).click();
-    await expect(page.locator("#timeline-focus-evidence-panel")).toBeVisible();
-    await expect(page.locator(".timeline-focus-evidence-card").first()).toBeVisible();
+    await expect(focus.locator("#timeline-focus-evidence-panel")).toBeVisible();
+    await expect(focus.locator(".timeline-focus-evidence-card").first()).toBeVisible();
     await page.waitForTimeout(700);
     return;
   }
@@ -660,21 +666,27 @@ async function mobileRoutine(page: Page, sceneName: string) {
   }
 
   if (sceneName === "02-focused-context") {
-    await (await firstVisibleOccurrence(page)).tap();
-    const focus = page.locator("#timeline-focus-view");
+    const terminal = await firstVisibleOccurrence(page);
+    const card = terminal.locator("xpath=ancestor::luum-event-card[1]");
+    await terminal.tap();
+    await terminal.tap();
+    const focus = card.locator(".timeline-event-detail");
     await expect(focus).toBeVisible();
-    await expect(page.locator("#timeline-focus-context-panel")).toBeVisible();
+    await expect(focus.locator("#timeline-focus-context-panel")).toBeVisible();
     await page.waitForTimeout(700);
     return;
   }
 
   if (sceneName === "03-evidence") {
-    await (await firstVisibleOccurrence(page)).tap();
-    const focus = page.locator("#timeline-focus-view");
+    const terminal = await firstVisibleOccurrence(page);
+    const card = terminal.locator("xpath=ancestor::luum-event-card[1]");
+    await terminal.tap();
+    await terminal.tap();
+    const focus = card.locator(".timeline-event-detail");
     await expect(focus).toBeVisible();
     await focus.getByRole("tab", { name: "Evidence" }).tap();
-    await expect(page.locator("#timeline-focus-evidence-panel")).toBeVisible();
-    await expect(page.locator(".timeline-focus-evidence-card").first()).toBeVisible();
+    await expect(focus.locator("#timeline-focus-evidence-panel")).toBeVisible();
+    await expect(focus.locator(".timeline-focus-evidence-card").first()).toBeVisible();
     await page.waitForTimeout(700);
     return;
   }

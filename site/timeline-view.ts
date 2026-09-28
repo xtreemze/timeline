@@ -41,6 +41,12 @@ import {
   visibleIntervalAnchor,
 } from "../src/projection/temporal-scene.ts";
 import { LuumEventCardElement } from "./components/timeline-event-card.ts";
+import {
+  createOccurrenceInteractionSession,
+  resolveOccurrencePresentation,
+  setPresentation,
+  switchOccurrenceSelection,
+} from "./occurrence-interaction-session.ts";
 import { TimelineClustering as clustering } from "./timeline-clustering.ts";
 import { TimelineMotion as motion } from "./timeline-motion.ts";
 
@@ -516,6 +522,9 @@ export class TimelineViewController {
   renderWindow: TemporalWindow = { start: 0, end: DEFAULT_SPAN_MS };
   retention: TemporalRetentionState = commitRetention(this.renderWindow);
   focusedId: string | null = null;
+  interactionSession = createOccurrenceInteractionSession();
+  explicitDetailOpen = false;
+  lastFocusPresentation: "resting" | "selected" | "focused" | "expanded" = "resting";
   applicationSelection: ApplicationSelection | null = null;
   selectedItemIds = new Set<string>();
   selectedRelationshipId: string | null = null;
@@ -1184,6 +1193,9 @@ export class TimelineViewController {
       this.lastClusterHapticAt = 0;
       this.geometryMeasurements.clear();
       this.focusedId = null;
+      this.explicitDetailOpen = false;
+      this.interactionSession = createOccurrenceInteractionSession();
+      this.lastFocusPresentation = "resting";
     }
 
     if (!this.viewportInitialized && this.items.length) {
@@ -2951,7 +2963,7 @@ export class TimelineViewController {
     const started = performance.now();
     const inputStartedAt = this.pendingInputStartedAt;
     this.renderScene();
-    this.syncFocusAttachment();
+    this.syncFocusedPresentation();
     const finished = performance.now();
     this.pendingInputStartedAt = null;
     this.performanceMetrics.recordFrame({
@@ -3217,6 +3229,160 @@ export class TimelineViewController {
     record.selected = selected;
     record.node.setSelected(selected);
     record.range?.classList.toggle("is-selected", selected);
+  }
+
+  hideLegacyFocusView(clear = false): void {
+    // Isolated controller fixtures may not provide the legacy focus element and
+    // therefore fall back to the timeline root. Never hide the owning timeline.
+    if (this.focusView === this.root) return;
+    this.focusView.hidden = true;
+    if (clear && this.focusView.childElementCount) this.focusView.replaceChildren();
+  }
+
+  logicalOccurrenceIds(viewport: TemporalWindow = this.viewport): string[] {
+    return this.items
+      .filter((item) => itemOverlapsViewport(item, viewport))
+      .map((item) => item.id)
+      .sort();
+  }
+
+  demotionOccurrenceIds(viewport: TemporalWindow = this.viewport): string[] {
+    const span = Math.max(MIN_SPAN_MS, viewport.end - viewport.start);
+    const inset = Math.min(span * 0.08, Math.max(0, span / 2 - MIN_SPAN_MS));
+    const inner =
+      inset > 0
+        ? { start: viewport.start + inset, end: viewport.end - inset }
+        : viewport;
+    return this.logicalOccurrenceIds(inner);
+  }
+
+  resolveFocusedPresentation(): "resting" | "selected" | "focused" | "expanded" {
+    if (!this.focusedId) {
+      this.interactionSession = createOccurrenceInteractionSession();
+      return "resting";
+    }
+
+    if (this.interactionSession.occurrenceId !== this.focusedId) {
+      this.interactionSession = switchOccurrenceSelection(
+        this.interactionSession,
+        this.focusedId,
+        { dirtyDraftPolicy: "preserve" },
+      ).session;
+    }
+    if (
+      this.interactionSession.presentation === "resting" ||
+      this.interactionSession.presentation === "selected"
+    ) {
+      this.interactionSession = setPresentation(this.interactionSession, "focused");
+    }
+
+    this.interactionSession = resolveOccurrencePresentation(this.interactionSession, {
+      logicalOccurrenceIds: this.logicalOccurrenceIds(),
+      demotionOccurrenceIds: this.demotionOccurrenceIds(),
+      explicitDetailOpen: this.explicitDetailOpen,
+      focused: true,
+    });
+    return this.interactionSession.presentation;
+  }
+
+  syncExpandedDetailGeometry(record: SceneRecord, detailHost: HTMLElement): void {
+    if (detailHost.hidden) return;
+    const surface = this.surface.getBoundingClientRect();
+    const origin = record.node.getBoundingClientRect();
+    const terminal = record.terminal.getBoundingClientRect();
+    const safe = 8;
+    const gap = 8;
+
+    detailHost.style.maxWidth = `${Math.max(1, surface.width - safe * 2)}px`;
+    detailHost.style.maxHeight = `${Math.max(1, surface.height - safe * 2)}px`;
+    const detail = detailHost.getBoundingClientRect();
+
+    const minX = surface.left + safe;
+    const maxX = Math.max(minX, surface.right - detail.width - safe);
+    const minY = surface.top + safe;
+    const maxY = Math.max(minY, surface.bottom - detail.height - safe);
+    let x = terminal.left + terminal.width / 2 - detail.width / 2;
+    let y = terminal.top - detail.height - gap;
+    let side: "above" | "below" | "left" | "right" = "above";
+
+    if (this.orientation === "horizontal") {
+      const above = terminal.top - surface.top - gap;
+      const below = surface.bottom - terminal.bottom - gap;
+      if (above < Math.min(detail.height, 160) && below > above) {
+        y = terminal.bottom + gap;
+        side = "below";
+      }
+    } else {
+      const left = terminal.left - surface.left - gap;
+      const right = surface.right - terminal.right - gap;
+      y = terminal.top + terminal.height / 2 - detail.height / 2;
+      if (left >= Math.min(detail.width, 220) || left >= right) {
+        x = terminal.left - detail.width - gap;
+        side = "left";
+      } else {
+        x = terminal.right + gap;
+        side = "right";
+      }
+    }
+
+    x = clamp(x, minX, maxX);
+    y = clamp(y, minY, maxY);
+    detailHost.style.left = `${x - origin.left}px`;
+    detailHost.style.top = `${y - origin.top}px`;
+    detailHost.dataset.anchorSide = side;
+  }
+
+  syncFocusedPresentation(): void {
+    if (this.retention.active) return;
+
+    const focusedId = this.focusedId;
+    for (const candidate of this.scene.values()) {
+      if (candidate.item.id !== focusedId) candidate.node.setExpanded(false);
+    }
+
+    if (!focusedId) {
+      this.hideLegacyFocusView(true);
+      delete this.root.dataset.focusPresentation;
+      this.lastFocusPresentation = "resting";
+      return;
+    }
+
+    const record = this.scene.get(occurrenceSceneKey(focusedId));
+    if (!record) return;
+    const presentationState = this.resolveFocusedPresentation();
+    const expanded = presentationState === "expanded";
+    record.node.setExpanded(expanded);
+    this.root.dataset.focusPresentation = presentationState;
+
+    // The old shell-owned focus surface stays mounted only as a migration
+    // boundary. The normal occurrence-detail path is now the retained card.
+    this.hideLegacyFocusView(true);
+
+    const detailHost = record.node.detailHost;
+    if (detailHost) detailHost.dataset.presentationSurface = "card";
+    if (expanded && detailHost) {
+      const needsRender =
+        detailHost.dataset.occurrenceId !== record.item.id || detailHost.childElementCount === 0;
+      if (needsRender) {
+        this.renderFocus(record.item, detailHost);
+        detailHost.dataset.occurrenceId = record.item.id;
+      }
+      this.syncExpandedDetailGeometry(record, detailHost);
+    }
+
+    if (presentationState !== this.lastFocusPresentation) {
+      this.lastFocusPresentation = presentationState;
+      this.root.dispatchEvent(
+        new CustomEvent("timelinefocusrender", {
+          bubbles: true,
+          detail: {
+            id: focusedId,
+            presentation: presentationState,
+            presentationSurface: "card",
+          },
+        }),
+      );
+    }
   }
 
   syncFocusAttachment(): void {
@@ -3607,7 +3773,7 @@ export class TimelineViewController {
     commit();
   }
 
-  createFocusHero(item: TimelineItem): HTMLElement {
+  createFocusHero(item: TimelineItem, focusHost: HTMLElement): HTMLElement {
     const hero = document.createElement("section");
     hero.className = "timeline-focus-hero";
     const media = Array.isArray(item.media) ? item.media.slice(0, 3) : [];
@@ -3662,9 +3828,9 @@ export class TimelineViewController {
 
       const selectMedia = (index: number, focusSelector: string) => {
         this.focusMediaIndex = (index + media.length) % media.length;
-        this.renderFocus(item);
+        this.renderFocus(item, focusHost);
         requestAnimationFrame(() => {
-          this.focusView
+          focusHost
             .querySelector<HTMLButtonElement>(focusSelector)
             ?.focus({ preventScroll: true });
         });
@@ -3716,14 +3882,20 @@ export class TimelineViewController {
     return hero;
   }
 
-  renderFocus(item: TimelineItem): void {
-    this.focusView.tabIndex = -1;
-    this.focusView.style.setProperty("--event-color", item.color || "var(--accent)");
-    this.focusView.dataset.layout = item.layoutVariant || "evidence-dossier";
-    this.focusView.dataset.activeTab = this.focusTab;
-    this.focusView.setAttribute("aria-labelledby", "timeline-focus-heading");
+  renderFocus(item: TimelineItem, host: HTMLElement | null = null): void {
+    const focusHost =
+      host ??
+      (this.focusedId
+        ? this.scene.get(occurrenceSceneKey(this.focusedId))?.node.detailHost ?? null
+        : null) ??
+      this.focusView;
+    focusHost.tabIndex = -1;
+    focusHost.style.setProperty("--event-color", item.color || "var(--accent)");
+    focusHost.dataset.layout = item.layoutVariant || "evidence-dossier";
+    focusHost.dataset.activeTab = this.focusTab;
+    focusHost.setAttribute("aria-labelledby", "timeline-focus-heading");
 
-    const hero = this.createFocusHero(item);
+    const hero = this.createFocusHero(item, focusHost);
 
     const summary = document.createElement("section");
     summary.id = "timeline-focus-context-panel";
@@ -3890,7 +4062,7 @@ export class TimelineViewController {
     const applyFocusTab = (name: "overview" | "evidence"): void => {
       const evidenceActive = name === "evidence";
       this.focusTab = name;
-      this.focusView.dataset.activeTab = name;
+      focusHost.dataset.activeTab = name;
       summary.hidden = evidenceActive;
       evidence.hidden = !evidenceActive;
       overviewTab.classList.toggle("is-active", !evidenceActive);
@@ -3919,13 +4091,21 @@ export class TimelineViewController {
       } else {
         apply();
       }
-      if (!evidenceActive) {
-        requestAnimationFrame(() => {
-          this.root.dispatchEvent(
-            new CustomEvent("timelinefocusrender", { bubbles: true, detail: { id: item.id } }),
-          );
-        });
-      }
+      requestAnimationFrame(() => {
+        const record = this.scene.get(occurrenceSceneKey(item.id));
+        if (record?.node.detailHost === focusHost && !focusHost.hidden) {
+          this.syncExpandedDetailGeometry(record, focusHost);
+        }
+        this.root.dispatchEvent(
+          new CustomEvent("timelinefocusrender", {
+            bubbles: true,
+            detail: {
+              id: item.id,
+              presentationSurface: focusHost === this.focusView ? "sidebar" : "card",
+            },
+          }),
+        );
+      });
     };
     overviewTab.addEventListener("click", () => setFocusTab("overview"));
     evidenceTab.addEventListener("click", () => setFocusTab("evidence"));
@@ -3954,11 +4134,14 @@ export class TimelineViewController {
     header.append(tabs, contextActions);
     applyFocusTab(this.focusTab);
 
-    this.focusView.replaceChildren(header, hero, summary, evidence);
+    focusHost.replaceChildren(header, hero, summary, evidence);
     this.root.dispatchEvent(
       new CustomEvent("timelinefocusrender", {
         bubbles: true,
-        detail: { id: item.id },
+        detail: {
+          id: item.id,
+          presentationSurface: focusHost === this.focusView ? "sidebar" : "card",
+        },
       }),
     );
   }
@@ -3988,27 +4171,40 @@ export class TimelineViewController {
     const direction = delta < 0 ? -1 : 1;
     this.focusMediaIndex = (this.focusMediaIndex + direction + media.length) % media.length;
     this.renderFocus(item);
+    const record = this.scene.get(occurrenceSceneKey(item.id));
+    if (record?.node.detailHost && !record.node.detailHost.hidden) {
+      this.syncExpandedDetailGeometry(record, record.node.detailHost);
+    }
     return true;
   }
 
   // Keep this signature stable while callers migrate: focusItem(id, options = {})
-  focusItem(id: string, options: { moveViewport?: boolean; direction?: number } = {}) {
+  focusItem(
+    id: string,
+    options: { moveViewport?: boolean; direction?: number; detail?: "auto" | "open" } = {},
+  ) {
     const item = this.items.find((candidate) => candidate.id === id);
     if (!item) return false;
     const moveViewport = options.moveViewport !== false;
-    if (this.focusedId !== id) {
+    const changedOccurrence = this.focusedId !== id;
+    if (changedOccurrence) {
       this.focusMediaIndex = 0;
       this.focusTab = "overview";
+      this.explicitDetailOpen = options.detail === "open";
+    } else if (options.detail === "open") {
+      this.explicitDetailOpen = true;
     }
 
     const update = () => {
       this.focusedId = id;
+      const selection = switchOccurrenceSelection(this.interactionSession, id, {
+        dirtyDraftPolicy: "preserve",
+      });
+      this.interactionSession = setPresentation(selection.session, "focused");
       this.syncSemanticChronologySelection();
-      this.root.classList.add("is-event-focused");
+      this.root.classList.add("is-event-card-focused");
       this.root.dataset.sceneState = "focused";
-      this.focusView.hidden = false;
-      this.focusView.dataset.presentationSurface = "sidebar";
-      this.renderFocus(item);
+      this.hideLegacyFocusView(true);
 
       if (moveViewport) {
         const sorted = [...this.items].sort((left, right) => left.start - right.start);
@@ -4029,13 +4225,7 @@ export class TimelineViewController {
       this.root.dispatchEvent(
         new CustomEvent("timelinefocuschange", {
           bubbles: true,
-          detail: { focused: true, id },
-        }),
-      );
-      this.root.dispatchEvent(
-        new CustomEvent("timelinefocusrender", {
-          bubbles: true,
-          detail: { id },
+          detail: { focused: true, id, presentationSurface: "card" },
         }),
       );
     };
@@ -4050,20 +4240,26 @@ export class TimelineViewController {
 
   ensureFocusPopover(): void {
     if (!this.focusedId) return;
-    this.focusView.hidden = false;
-    this.focusView.dataset.presentationSurface = "sidebar";
+    this.explicitDetailOpen = true;
+    this.interactionSession = setPresentation(this.interactionSession, "expanded");
+    this.render();
   }
 
   closeFocus(): void {
     if (!this.focusedId) return;
     const previous = this.focusedId;
     const update = () => {
+      const record = this.scene.get(occurrenceSceneKey(previous));
+      record?.node.setExpanded(false);
       this.focusedId = null;
+      this.explicitDetailOpen = false;
+      this.interactionSession = createOccurrenceInteractionSession();
+      this.lastFocusPresentation = "resting";
       this.syncSemanticChronologySelection();
-      this.root.classList.remove("is-event-focused");
+      this.root.classList.remove("is-event-card-focused");
       this.root.dataset.sceneState = this.items.length ? "populated" : "empty";
-      this.focusView.hidden = true;
-      this.focusView.replaceChildren();
+      delete this.root.dataset.focusPresentation;
+      this.hideLegacyFocusView(true);
       this.focusView.style.removeProperty("--event-color");
       this.focusView.removeAttribute("aria-labelledby");
       delete this.focusView.dataset.layout;
@@ -4074,7 +4270,7 @@ export class TimelineViewController {
       this.root.dispatchEvent(
         new CustomEvent("timelinefocuschange", {
           bubbles: true,
-          detail: { focused: false, id: previous },
+          detail: { focused: false, id: previous, presentationSurface: "card" },
         }),
       );
     };

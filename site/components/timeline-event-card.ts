@@ -47,11 +47,23 @@ export class LuumEventCardElement extends LitElement {
   }
 
   setFocused(focused: boolean): void {
-    this.terminal?.setAttribute("aria-expanded", String(focused));
+    this.classList.toggle("is-focused", focused);
+    this.toggleAttribute("data-focused", focused);
+  }
+
+  setExpanded(expanded: boolean): void {
+    this.classList.toggle("is-expanded", expanded);
+    this.dataset.expanded = String(expanded);
+    this.terminal?.setAttribute("aria-expanded", String(expanded));
+    if (this.detailHost) this.detailHost.hidden = !expanded;
   }
 
   get terminal(): HTMLButtonElement | null {
     return this.querySelector<HTMLButtonElement>(".timeline-event-terminal");
+  }
+
+  get detailHost(): HTMLElement | null {
+    return this.querySelector<HTMLElement>(".timeline-event-detail");
   }
 
   override render() {
@@ -69,6 +81,7 @@ export class LuumEventCardElement extends LitElement {
         ? `${item.startLabel || ""} → ${item.endLabel}`
         : item.startLabel || "";
     const ariaLabel = [item.title || item.id, detail].filter(Boolean).join(", ");
+    const detailId = `timeline-event-detail-${item.id}`;
 
     return html`
       <span class="timeline-event-connector" aria-hidden="true"></span>
@@ -78,7 +91,7 @@ export class LuumEventCardElement extends LitElement {
         class="timeline-event-terminal"
         data-id=${item.id}
         aria-label=${ariaLabel}
-        aria-controls="timeline-focus-view"
+        aria-controls=${detailId}
         aria-expanded="false"
       >
         <span
@@ -106,6 +119,13 @@ export class LuumEventCardElement extends LitElement {
           <span>${detail}</span>
         </span>
       </button>
+      <section
+        id=${detailId}
+        class="timeline-event-detail"
+        data-occurrence-detail
+        aria-label="Occurrence detail"
+        hidden
+      ></section>
     `;
   }
 
