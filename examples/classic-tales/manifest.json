@@ -15,7 +15,7 @@
       "title": "The Three Little Pigs",
       "sourceFile": "site/sample-case.ts",
       "targetDirectory": "examples/classic-tales/three-little-pigs",
-      "migrationStatus": "legacy-source"
+      "migrationStatus": "pilot"
     },
     {
       "id": "story-snow-white",
