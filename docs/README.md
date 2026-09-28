@@ -30,7 +30,7 @@ For product copy, use **Lūm**. The repository and some compatibility APIs still
 
 ## Persistence and interchange
 
-- [PROJECT-PERSISTENCE.md](PROJECT-PERSISTENCE.md) — local-first project repository boundary.
+- [PROJECT-PERSISTENCE.md](PROJECT-PERSISTENCE.md) — local-first project repository boundary.\n- [LUM-PROJECT-INTERCHANGE.md](LUM-PROJECT-INTERCHANGE.md) — strict portable `.lum.json` contract.\n- [LUM-DEVELOPER-TOOLING.md](LUM-DEVELOPER-TOOLING.md) — CLI, formatter, linter, schemas, LSP, and agent context.
 - [INTERCHANGE.md](INTERCHANGE.md) — general import/export contract.
 - [TEMPORAL-SPATIAL-INTERCHANGE.md](TEMPORAL-SPATIAL-INTERCHANGE.md) — precise temporal/spatial serialization and browser integration.
 - [WEBMCP-MEMGRAPH.md](WEBMCP-MEMGRAPH.md) — WebMCP authoring and Memgraph relay/round-trip.
