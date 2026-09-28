@@ -47,8 +47,9 @@ test("footer exposes view controls directly and keeps one primary Edit entry", a
   assert.match(world, /element\.className = "toolbar-control world-camera-control"/);
   assert.match(world, /element\.dataset\.viewControl = ""/);
   assert.match(world, /createIcon\(icon, \{ size: 20 \}\)/);
-  assert.match(world, /button\("Show whole world", "home"/);
-  assert.match(world, /className = "world-zoom-control"/);
+  assert.match(world, /button\("Show whole world", "world"/);
+  assert.doesNotMatch(world, /button\("Show whole world", "home"/);
+  assert.match(world, /className = "toolbar-compound-control world-zoom-control"/);
   assert.match(world, /className = "world-zoom-slider"/);
   assert.match(world, /slider\.min = String\(WORLD_CAMERA_MIN_ZOOM\)/);
   assert.match(world, /slider\.max = String\(WORLD_CAMERA_MAX_ZOOM\)/);
@@ -60,8 +61,9 @@ test("footer exposes view controls directly and keeps one primary Edit entry", a
   assert.match(factory, /element\.className = "toolbar-control world-layout-control"/);
   assert.match(factory, /element\.dataset\.viewControl = ""/);
   assert.match(factory, /createIcon\(icon, \{ size: 20 \}\)/);
-  assert.match(factory, /"dag",[\s\S]*actions\.reorganizeDag/);
-  assert.match(factory, /"force",[\s\S]*actions\.relaxForce/);
+  assert.match(factory, /"Arrange relationships",[\s\S]*"relation",[\s\S]*actions\.reorganizeDag/);
+  assert.match(factory, /"Settle relationships",[\s\S]*"force",[\s\S]*actions\.relaxForce/);
+  assert.doesNotMatch(factory, /"Reorganize relationship layout",[\s\S]*"dag"/);
 });
 
 test("all footer buttons and controls share the canonical toolbar surface", async () => {
@@ -73,14 +75,34 @@ test("all footer buttons and controls share the canonical toolbar surface", asyn
   assert.match(css, /--toolbar-control-size:\s*44px/);
   assert.match(
     css,
-    /\.app-footer-bar \.toolbar-control\s*\{[\s\S]*inline-size:\s*var\(--toolbar-control-size\)[\s\S]*block-size:\s*var\(--toolbar-control-size\)[\s\S]*border:\s*1px solid color-mix/,
+    /\.app-footer-bar :is\(\.toolbar-control, \.toolbar-compound-control\)\s*\{[\s\S]*block-size:\s*var\(--toolbar-control-size\)[\s\S]*border:\s*1px solid color-mix/,
   );
   assert.match(
     css,
-    /\.app-footer-bar \.toolbar-control:is\(:focus-visible, :focus-within\)/,
+    /:is\(\.toolbar-control, \.toolbar-compound-control\):is\(:focus-visible, :focus-within\)/,
+  );
+  assert.match(
+    css,
+    /\.toolbar-control:is\(\[aria-expanded="true"\], \[aria-pressed="true"\]\)/,
   );
   assert.match(css, /\.app-footer-bar \.toolbar-control-wide/);
   assert.match(css, /\.app-footer-bar \.toolbar-control-value/);
+  assert.match(
+    index,
+    /id="project-menu-toggle"[^>]*data-semantic-icon="folder"/,
+  );
+  assert.doesNotMatch(
+    index,
+    /id="project-menu-toggle"[\s\S]{0,420}<img\s+src="\.\/icon\.svg"/,
+  );
+  assert.match(
+    index,
+    /class="toolbar-compound-control toolbar-control-wide toolbar-range-control"/,
+  );
+  assert.match(
+    index,
+    /class="toolbar-compound-control toolbar-control-value toolbar-number-control"/,
+  );
 
   for (const id of [
     "project-menu-toggle",
@@ -142,6 +164,7 @@ test("toolbar actions use one direct semantic icon with explicit tooltips", asyn
   ]);
 
   for (const [id, icon, label] of [
+    ["project-menu-toggle", "folder", "Project actions"],
     ["editor-toggle", "edit", "Edit timeline"],
     ["timeline-browser-toggle", "search", "Browse timeline"],
     ["timeline-orientation-toggle", "portrait", "Switch to portrait timeline"],
@@ -153,6 +176,7 @@ test("toolbar actions use one direct semantic icon with explicit tooltips", asyn
     );
   }
 
+  assert.match(presentation, /folder:\s*\[/);
   assert.doesNotMatch(index, /data-semantic-icon-secondary/);
   assert.doesNotMatch(presentation, /createCompoundIcon/);
   assert.doesNotMatch(css, /compound-semantic-icon/);
