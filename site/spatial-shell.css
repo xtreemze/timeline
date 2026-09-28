@@ -822,3 +822,98 @@
 .timeline-related-world-action[hidden] {
   display: none;
 }
+
+
+/* Generated/source-derived project proposals are staged outside canonical state
+   until the user explicitly approves the exact fingerprinted candidate. */
+#app-shell[data-import-review-open="true"] > .project-import-review-sheet {
+  position: fixed;
+  z-index: 1550;
+  inset: 0 0 var(--workspace-footer-block-size, 64px);
+  display: grid;
+  place-items: center;
+  inline-size: 100%;
+  block-size: auto;
+  min-inline-size: 0;
+  min-block-size: 0;
+  padding:
+    max(0.65rem, env(safe-area-inset-top))
+    max(0.65rem, env(safe-area-inset-right))
+    max(0.65rem, env(safe-area-inset-bottom))
+    max(0.65rem, env(safe-area-inset-left));
+  pointer-events: auto;
+  background: color-mix(in srgb, var(--ink) 30%, transparent);
+  backdrop-filter: blur(7px);
+  isolation: isolate;
+}
+
+#app-shell[data-import-review-open="false"] > .project-import-review-sheet {
+  display: none;
+}
+
+.project-import-review-panel {
+  inline-size: min(720px, 100%);
+  max-inline-size: 100%;
+  max-block-size: 100%;
+  padding: 0.8rem;
+  overflow-x: clip;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid color-mix(in srgb, var(--line-strong) 84%, transparent);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--paper) 98%, transparent);
+  box-shadow: 0 14px 42px color-mix(in srgb, var(--ink) 18%, transparent);
+  backdrop-filter: blur(18px);
+}
+
+.project-import-review-status,
+.project-import-review-summary,
+.project-import-review-fingerprint {
+  margin: 0.55rem 0;
+}
+
+.project-import-review-fingerprint {
+  color: var(--muted);
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+.project-import-review-section {
+  padding-block: 0.55rem;
+  border-block-start: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
+}
+
+.project-import-review-section h3 {
+  margin: 0 0 0.35rem;
+  font-size: 0.86rem;
+}
+
+.project-import-review-section :is(ul, p) {
+  margin: 0;
+}
+
+.project-import-review-section ul {
+  display: grid;
+  gap: 0.3rem;
+  padding-inline-start: 1.2rem;
+}
+
+.project-import-review-findings-error {
+  color: var(--danger);
+}
+
+.project-import-review-actions {
+  position: sticky;
+  inset-block-end: -0.8rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin: 0.7rem -0.8rem -0.8rem;
+  padding: 0.7rem 0.8rem max(0.7rem, env(safe-area-inset-bottom));
+  border-block-start: 1px solid var(--line);
+  background: color-mix(in srgb, var(--paper) 97%, transparent);
+}
+
+.project-import-review-actions > .button {
+  min-block-size: 44px;
+}
