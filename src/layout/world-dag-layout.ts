@@ -1,13 +1,18 @@
 import {
+  coordCenter,
   coordGreedy,
+  coordQuad,
+  coordSimplex,
   type Decross,
   decrossOpt,
   decrossTwoLayer,
   type GraphNode,
   graphConnect,
+  grid,
   layeringLongestPath,
   layeringSimplex,
   sugiyama,
+  zherebko,
 } from "d3-dag";
 
 import type { PlaceId, RelationshipId } from "../domain/ids.ts";
@@ -26,6 +31,10 @@ export interface WorldDagLayoutNodeSize {
 
 export type WorldDagLayoutOrientation = "top-to-bottom" | "left-to-right";
 
+export type WorldDagLayoutAlgorithm = "sugiyama" | "zherebko" | "grid";
+export type WorldDagCoordinateStrategy = "greedy" | "simplex" | "quad" | "center";
+export type WorldDagEdgeStyle = "routed" | "straight" | "orthogonal";
+
 export type WorldDagLayoutStrategy =
   | "auto"
   | "longest-opt-greedy"
@@ -34,7 +43,10 @@ export type WorldDagLayoutStrategy =
 
 export interface WorldDagLayoutPlaceOverride {
   readonly orientation?: WorldDagLayoutOrientation;
+  readonly algorithm?: WorldDagLayoutAlgorithm;
   readonly strategy?: WorldDagLayoutStrategy;
+  readonly coordinate?: WorldDagCoordinateStrategy;
+  readonly edgeStyle?: WorldDagEdgeStyle;
 }
 
 export interface WorldDagLayoutOptions {
@@ -44,8 +56,14 @@ export interface WorldDagLayoutOptions {
    * are rotated into geographic tangent space after layout.
    */
   readonly orientation?: WorldDagLayoutOrientation;
+  /** Layout family. Sugiyama remains the default layered relationship layout. */
+  readonly algorithm?: WorldDagLayoutAlgorithm;
   /** Automatic selection is the default; explicit strategies are operator exploration state. */
   readonly strategy?: WorldDagLayoutStrategy;
+  /** Horizontal coordinate assignment used by Sugiyama. */
+  readonly coordinate?: WorldDagCoordinateStrategy;
+  /** Presentation-only route geometry derived from the selected layout. */
+  readonly edgeStyle?: WorldDagEdgeStyle;
   /**
    * Per-place overrides affect only the disposable local layout around that
    * authored geographic anchor. They never move or rewrite the place itself.
