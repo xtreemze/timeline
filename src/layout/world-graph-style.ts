@@ -86,6 +86,21 @@ export function worldNodeShapeVisualRadiusScale(shape: WorldNodeShape): number {
   }
 }
 
+/**
+ * Authoritative screen-space marker radius. Rendering, picking/collision,
+ * force layout, and relationship direction geometry must derive from this
+ * footprint so they cannot drift independently.
+ *
+ * The border itself supplies raster safety around the vector body. Borderless
+ * markers reserve one pixel for antialiasing so their atlas edge cannot clip.
+ */
+export function worldNodeStyleFootprintRadiusPx(
+  style: Pick<WorldNodeStyle, "radius" | "borderWidth" | "shape">,
+): number {
+  const bodyRadius = style.radius * worldNodeShapeVisualRadiusScale(style.shape);
+  return bodyRadius + Math.max(1, style.borderWidth);
+}
+
 function record(value: unknown): Readonly<Record<string, unknown>> | null {
   return typeof value === "object" && value !== null && !Array.isArray(value)
     ? (value as Readonly<Record<string, unknown>>)
@@ -186,9 +201,10 @@ function worldNodeDisplayMetrics(input: WorldNodeStyleInput): {
   const metrics = worldNodeMetrics(input);
   const shape = worldNodeShape(input);
   const shapeScale = worldNodeShapeVisualRadiusScale(shape);
+  const footprintBorder = Math.max(1, metrics.borderWidth);
   const minimumBodyRadius = Math.max(
     0,
-    (WORLD_ENTITY_MIN_HIT_RADIUS_PX - metrics.borderWidth) / shapeScale,
+    (WORLD_ENTITY_MIN_HIT_RADIUS_PX - footprintBorder) / shapeScale,
   );
   return Object.freeze({
     // Whole-pixel body radii keep the marker atlas bounded while guaranteeing
@@ -202,7 +218,7 @@ function worldNodeDisplayMetrics(input: WorldNodeStyleInput): {
 /** Full visible/touch/collision marker radius, including shape extent and border. */
 export function worldNodeVisualFootprintRadiusPx(input: WorldNodeStyleInput): number {
   const metrics = worldNodeDisplayMetrics(input);
-  return metrics.radius * worldNodeShapeVisualRadiusScale(metrics.shape) + metrics.borderWidth;
+  return worldNodeStyleFootprintRadiusPx(metrics);
 }
 
 /** Collision and picking use the exact same radius as the rendered node. */
@@ -280,8 +296,7 @@ function worldPlaceMarkerMetrics(placeStyle: unknown): WorldPlaceMarkerMetrics {
 
 /** Full visible footprint of a place marker, including shape extent and border. */
 export function worldPlaceVisualFootprintRadiusPx(placeStyle: unknown): number {
-  const metrics = worldPlaceMarkerMetrics(placeStyle);
-  return metrics.radius * worldNodeShapeVisualRadiusScale(metrics.shape) + metrics.borderWidth;
+  return worldNodeStyleFootprintRadiusPx(worldPlaceMarkerMetrics(placeStyle));
 }
 
 /**

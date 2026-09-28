@@ -6,7 +6,11 @@ import { createDeckWorldRuntime } from "../site/world/deck-world-runtime.ts";
 import { DECK_WORLD_LAYER_IDS, DeckWorldSurface } from "../site/world/deck-world-surface.ts";
 import { worldEntityIconName } from "../site/world/world-entity-icon.ts";
 import { worldNodeMarker } from "../site/world/world-node-marker.ts";
-import { WORLD_LIGHT_PALETTE, worldPlaceStyle } from "../src/layout/world-graph-style.ts";
+import {
+  WORLD_LIGHT_PALETTE,
+  worldNodeFootprintRadiusPx,
+  worldPlaceStyle,
+} from "../src/layout/world-graph-style.ts";
 import {
   createProjectedWorldInstance,
   createWorldProjection,
@@ -136,6 +140,32 @@ test("every entity renders as a styled node marker that picks as the entity", ()
 
   surface.pick({ x: 1, y: 1 });
   assert.ok(h.pickOptions().layerIds.includes(DECK_WORLD_LAYER_IDS.entityIcons));
+});
+
+test("entity icon, pick body, and shared node footprint use one screen-space radius", () => {
+  const h = harness();
+  const surface = new DeckWorldSurface({}, h.runtime, CAMERA);
+  surface.setProjection(
+    createWorldProjection({
+      instances: [entity(0, "person")],
+      edges: [],
+    }),
+  );
+
+  const layers = h.lastLayers();
+  const icons = layers.find((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entityIcons);
+  const entities = layers.find((layer) => layer.props.id === DECK_WORLD_LAYER_IDS.entities);
+  const iconDatum = icons.props.data[0];
+  const entityDatum = entities.props.data.find((datum) => datum.kind === "entity");
+
+  assert.ok(iconDatum);
+  assert.ok(entityDatum);
+  const iconRadius = icons.props.getSize(iconDatum) / 2;
+  const pickRadius = entities.props.getRadius(entityDatum);
+  const sharedRadius = worldNodeFootprintRadiusPx({ type: "person", visualWeight: 0.1 });
+
+  assert.equal(iconRadius, sharedRadius);
+  assert.equal(pickRadius, sharedRadius);
 });
 
 test("markers fade toward the globe horizon instead of popping at a hard cutoff", () => {
