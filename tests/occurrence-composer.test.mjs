@@ -243,6 +243,24 @@ test("composer exposes shell-style ghost completion text without mutating the dr
     insertText: "reports",
   };
   assert.equal(composerCompletionSuffix("Alice rep", suggestion), "orts");
+  assert.equal(
+    composerCompletionSuffix("Alice meets Big B", {
+      kind: "entity",
+      label: "Big Bad Wolf",
+      detail: "person · @big-bad-wolf",
+      insertText: "@big-bad-wolf",
+    }),
+    "ad Wolf",
+  );
+  assert.equal(
+    composerCompletionSuffix("Alice meets Bob at Central Sta", {
+      kind: "place",
+      label: "Central Station",
+      detail: "existing place · @central-station",
+      insertText: "at @central-station",
+    }),
+    "tion",
+  );
   assert.equal(composerCompletionSuffix("Alice xyz", suggestion), "");
 });
 
