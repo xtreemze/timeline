@@ -236,6 +236,9 @@ test("hero image changes preserve the active detail tab and keyboard focus", asy
 
   const focus = mediaCard.locator(".timeline-event-detail");
   await expect(focus).toBeVisible();
+  const deck = focus.locator("luum-occurrence-deck");
+  await expect(deck).toBeVisible();
+  await expect(deck).toHaveAttribute("data-frame-count", /[2-9]/);
   const evidenceTab = focus.getByRole("tab", { name: "Evidence" });
   await evidenceTab.click();
   await expect(focus).toHaveAttribute("data-active-tab", "evidence");
