@@ -5,9 +5,14 @@ test.beforeEach(async ({ page }) => {
   await expect(page.locator("#occurrence-composer .compact")).toBeVisible();
 });
 
-test("selecting an occurrence opens its composer-owned card without a second detail panel", async ({ page }) => {
-  const occurrence = page.locator(".timeline-semantic-occurrence").first();
-  await occurrence.evaluate((button: HTMLButtonElement) => button.click());
+test("selecting an occurrence through the visible card opens its composer-owned context", async ({ page }) => {
+  const occurrence = page
+    .locator(
+      ".timeline-event:not(.timeline-cluster):not(.is-buffered) .timeline-event-terminal:visible",
+    )
+    .first();
+  await expect(occurrence).toBeVisible();
+  await occurrence.click();
   const composer = page.locator("#occurrence-composer");
   await expect(composer).toHaveAttribute("active", "");
   await expect(composer.locator(".composer-occurrence-card")).toBeVisible();
