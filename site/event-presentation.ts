@@ -22,6 +22,7 @@ const ICON_NAMES = Object.freeze([
   "search",
   "crown",
   "object",
+  "view",
 ] as const);
 
 const ICON_PATHS: Record<string, string[]> = Object.freeze({
@@ -58,6 +59,7 @@ const ICON_PATHS: Record<string, string[]> = Object.freeze({
   search: ["M10.8 18a7.2 7.2 0 1 1 0-14.4 7.2 7.2 0 0 1 0 14.4z", "m16 16 5 5"],
   crown: ["m3 7 4 4 5-7 5 7 4-4-2 11H5z", "M6 21h12"],
   object: ["M12 3 20 7 12 11 4 7z", "M4 7v10l8 4 8-4V7", "M12 11v10"],
+  view: ["M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z", "M12 9a3 3 0 1 1 0 6 3 3 0 0 1 0-6z"],
   landscape: ["M3 5h18v14H3z", "M8 16h8"],
   portrait: ["M6 2h12v20H6z", "M10 18h4"],
   fullscreen: ["M8 3H3v5", "M16 3h5v5", "M8 21H3v-5", "M16 21h5v-5"],
