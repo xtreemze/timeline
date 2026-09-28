@@ -188,6 +188,11 @@ test("Lit composer is a touch-safe ARIA combobox with live-context guidance", as
 
 test("application keeps timeline and World live while composer uses their centers as defaults", async () => {
   const source = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
+  assert.match(
+    source,
+    /function syncOccurrenceComposerData\(\): void \{[\s\S]*occurrenceComposer\.setData\(/,
+  );
+
 
   assert.match(source, /requiredElement<LuumOccurrenceComposerElement>\("#occurrence-composer"\)/);
   assert.match(source, /requiredElement<HTMLButtonElement>\("#occurrence-composer-toggle"\)/);
