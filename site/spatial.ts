@@ -4,6 +4,11 @@
  * Supports GeoJSON Point, Polygon, and MultiPolygon geometries
  */
 
+import {
+  SEMANTIC_ICON_NAMES,
+  normalizeSemanticIconName,
+} from "../src/presentation/semantic-icons.ts";
+
 type UnknownRecord = Record<string, unknown>;
 
 function isRecord(value: unknown): value is UnknownRecord {
@@ -135,22 +140,7 @@ const PLACE_MARKER_SHAPES = new Set<string>(["pin", "circle", "square", "diamond
 const PLACE_PATH_LINE_CAPS = new Set<string>(["butt", "round", "square"]);
 const PLACE_PATH_LINE_JOINS = new Set<string>(["miter", "round", "bevel"]);
 const PLACE_AREA_FILL_RULES = new Set<string>(["nonzero", "evenodd"]);
-const PLACE_ICON_NAMES = new Set<string>([
-  "milestone",
-  "decision",
-  "evidence",
-  "person",
-  "place",
-  "media",
-  "relation",
-  "note",
-  "home",
-  "danger",
-  "magic",
-  "search",
-  "crown",
-  "object",
-]);
+const PLACE_ICON_NAMES = new Set<string>(SEMANTIC_ICON_NAMES);
 
 function clone(value: unknown): unknown {
   try {
@@ -344,7 +334,7 @@ export function normalizePlace(raw: unknown, index: number = 0): Place | null {
   }
 
   const iconCandidate = text(raw.icon || marker.icon || attributes.icon, 48);
-  const icon = PLACE_ICON_NAMES.has(iconCandidate) ? iconCandidate : "place";
+  const icon = normalizeSemanticIconName(iconCandidate) ?? "place";
   const markerShapeCandidate = text(raw.markerShape || marker.shape || attributes.markerShape, 24);
   const markerShape = PLACE_MARKER_SHAPES.has(markerShapeCandidate) ? markerShapeCandidate : "pin";
   const style = normalizePlaceStyle(raw.style || raw.mapStyle || attributes.style);
@@ -445,6 +435,11 @@ export function placeFromForm(options: {
     }
     if (lng !== null && lat !== null) geometry = { type: "Point", coordinates: [lng, lat] };
   }
+  const requestedIcon = text(options.icon, 48);
+  if (requestedIcon && !normalizeSemanticIconName(requestedIcon)) {
+    throw new Error(`Unsupported semantic icon “${requestedIcon}”.`);
+  }
+
   return normalizePlace({
     id: options.id,
     name: options.name,

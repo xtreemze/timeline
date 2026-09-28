@@ -3,9 +3,13 @@
  * Enforces one-entity-per-node, one-action-per-edge semantics with spatiotemporal properties
  */
 
+import {
+  normalizeEntityPresentationAttributes,
+  normalizeSemanticIconName,
+} from "../src/presentation/semantic-icons.ts";
 import { relationshipOccurrenceExtent } from "../src/projection/spatiotemporal-projection.ts";
 
-const GRAPH_CONTRACT_VERSION = "2026-09-21.1";
+const GRAPH_CONTRACT_VERSION = "2026-09-28.1";
 const GRAPH_MODEL_RULES = Object.freeze({
   nodeIdentity: "one-durable-entity",
   relationshipIdentity: "one-directed-action-fact",
@@ -21,6 +25,7 @@ const GRAPH_MODEL_RULES = Object.freeze({
   occurrenceType: "relationship.occurrenceType-is-semantic-classification-not-predicate",
   actorCapacity: "relationship.subjectContext-and-objectContext",
   representation: "actor-and-represented-entity-remain-distinct-canonical-nodes",
+  semanticIcons: "canonical-shared-vocabulary-with-entity-type-fallback",
   categories: "chronology-items-only",
   stories: "narrative-membership-not-graph-topology",
   namedNarrativeEntities: "known-canonical-mentions-must-be-endpoints-of-contextual-action-edges",
@@ -686,6 +691,23 @@ export function validateEntityNode(raw: any): ValidationResult {
   }
   const attributes = raw?.attributes || raw?.properties;
   if (attributes && typeof attributes === "object" && !Array.isArray(attributes)) {
+    const style =
+      attributes.style && typeof attributes.style === "object" && !Array.isArray(attributes.style)
+        ? attributes.style
+        : {};
+    const iconCandidate = style.icon ?? attributes.icon;
+    if (
+      iconCandidate !== undefined &&
+      iconCandidate !== null &&
+      String(iconCandidate).trim() &&
+      !normalizeSemanticIconName(iconCandidate)
+    ) {
+      return {
+        valid: false,
+        message: `Unsupported semantic icon “${String(iconCandidate)}”. Use the shared semantic icon vocabulary or leave the icon blank to derive it from entity type.`,
+      };
+    }
+
     const invalidKey = Object.keys(attributes).find((key) =>
       ENTITY_CONTEXT_KEYS.has(semanticKey(key)),
     );
@@ -773,11 +795,13 @@ function normalizeEntity(raw: any, index: number): EntityNode | null {
     semanticMappings: Array.isArray(raw.semanticMappings) ? cloneJson(raw.semanticMappings) : [],
     sourceIds: textList(raw.sourceIds, { maxItems: 96, maxLength: 120 }),
     attributes: cleanContextFreeAttributes(
-      raw.properties && typeof raw.properties === "object"
-        ? raw.properties
-        : raw.attributes && typeof raw.attributes === "object"
-          ? raw.attributes
-          : {},
+      normalizeEntityPresentationAttributes(
+        raw.properties && typeof raw.properties === "object"
+          ? raw.properties
+          : raw.attributes && typeof raw.attributes === "object"
+            ? raw.attributes
+            : {},
+      ),
       { actorContext: ACTOR_ENTITY_TYPES.has(semanticKey(raw.type || "entity")) },
     ),
   };

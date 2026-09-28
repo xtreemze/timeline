@@ -157,3 +157,43 @@ test("authorOccurrence rejects self-relations after canonical endpoint resolutio
     /two different entities/i,
   );
 });
+
+test("authorOccurrence stores semantic icon and color in canonical entity style", () => {
+  const result = authorOccurrence(
+    baseState(),
+    request({
+      object: {
+        name: "Bob",
+        properties: { type: "person", icon: "user", color: "#667085" },
+      },
+    }),
+    dependencies(),
+  );
+
+  const bob = result.state.entities.find((entity) => entity.name === "Bob");
+  assert.deepEqual(bob?.attributes, {
+    style: {
+      icon: "person",
+      fillColor: "#667085",
+    },
+  });
+});
+
+test("authorOccurrence rejects unsupported semantic icons before mutation", () => {
+  const state = baseState();
+  assert.throws(
+    () =>
+      authorOccurrence(
+        state,
+        request({
+          object: {
+            name: "Bob",
+            properties: { type: "person", icon: "made-up-glyph" },
+          },
+        }),
+        dependencies(),
+      ),
+    /unsupported semantic icon/i,
+  );
+  assert.equal(state.entities.length, 1);
+});

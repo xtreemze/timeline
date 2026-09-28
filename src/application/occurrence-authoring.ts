@@ -1,3 +1,5 @@
+import { normalizeSemanticIconName } from "../presentation/semantic-icons.ts";
+
 export interface OccurrenceAuthoringEndpointReference {
   readonly name: string;
   readonly properties: Readonly<Record<string, string>>;
@@ -155,9 +157,26 @@ function resolveEntity<TState extends OccurrenceAuthoringState<TExtent>, TExtent
   if (existing) return existing;
 
   const type = reference.properties.type?.trim() || "entity";
-  const attributes = Object.fromEntries(
-    Object.entries(reference.properties).filter(([property]) => property !== "type"),
+  const attributes: Record<string, unknown> = Object.fromEntries(
+    Object.entries(reference.properties).filter(
+      ([property]) => !["type", "icon", "color"].includes(property),
+    ),
   );
+  const rawIcon = reference.properties.icon?.trim();
+  const rawColor = reference.properties.color?.trim();
+  const style: Record<string, unknown> = {};
+  if (rawIcon) {
+    const icon = normalizeSemanticIconName(rawIcon);
+    if (!icon) throw new Error(`Unsupported semantic icon “${rawIcon}”.`);
+    style.icon = icon;
+  }
+  if (rawColor) {
+    if (!/^#[0-9a-f]{6}$/i.test(rawColor)) {
+      throw new Error("Entity color must use #RRGGBB hexadecimal notation.");
+    }
+    style.fillColor = rawColor.toLowerCase();
+  }
+  if (Object.keys(style).length > 0) attributes.style = style;
   const entity: AuthoringEntity = {
     id: dependencies.newId("entity"),
     name: rawName.slice(0, 180),

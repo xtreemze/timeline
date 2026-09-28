@@ -4,6 +4,10 @@
  */
 
 import { authorOccurrence } from "../src/application/occurrence-authoring.ts";
+import {
+  normalizeEntityPresentationAttributes,
+  normalizeSemanticIconName,
+} from "../src/presentation/semantic-icons.ts";
 import { applyProjectTransaction } from "../src/application/project-transaction.ts";
 import { projectTimelineOccurrences } from "../src/projection/timeline-projection.ts";
 import "./components/occurrence-composer.ts";
@@ -525,6 +529,8 @@ const els = {
   graphNodeId: requiredElement<HTMLInputElement>("#graph-node-id"),
   graphNodeName: requiredElement<HTMLInputElement>("#graph-node-name"),
   graphNodeType: requiredElement<HTMLInputElement>("#graph-node-type"),
+  graphNodeIcon: requiredElement<HTMLInputElement>("#graph-node-icon"),
+  semanticIconSuggestions: requiredElement<HTMLDataListElement>("#semantic-icon-suggestions"),
   graphNodeAlternateNames: requiredElement<HTMLTextAreaElement>("#graph-node-alternate-names"),
   graphNodeIdentifiers: requiredElement<HTMLTextAreaElement>("#graph-node-identifiers"),
   graphNodeSourceIds: requiredElement<HTMLTextAreaElement>("#graph-node-source-ids"),
@@ -542,7 +548,7 @@ const els = {
   graphPlaceLatitude: requiredElement<HTMLInputElement>("#graph-place-latitude"),
   graphPlaceLongitude: requiredElement<HTMLInputElement>("#graph-place-longitude"),
   graphPlaceRadius: requiredElement<HTMLInputElement>("#graph-place-radius"),
-  graphPlaceIcon: requiredElement<HTMLSelectElement>("#graph-place-icon"),
+  graphPlaceIcon: requiredElement<HTMLInputElement>("#graph-place-icon"),
   graphPlaceMarkerShape: requiredElement<HTMLSelectElement>("#graph-place-marker-shape"),
   graphPlaceMarkerColor: requiredElement<HTMLInputElement>("#graph-place-marker-color"),
   graphPlaceMarkerFillColor: requiredElement<HTMLInputElement>("#graph-place-marker-fill-color"),
@@ -625,6 +631,17 @@ const els = {
   list: requiredElement<HTMLElement>("#timeline-list"),
   status: requiredElement<HTMLElement>("#status"),
 };
+
+function populateSemanticIconSuggestions() {
+  els.semanticIconSuggestions.replaceChildren(
+    ...presentation.ICON_NAMES.map((icon) => {
+      const option = document.createElement("option");
+      option.value = icon;
+      return option;
+    }),
+  );
+}
+populateSemanticIconSuggestions();
 
 let state = loadState();
 let storyDraftIds: string[] = [];
@@ -2524,12 +2541,12 @@ function mediaRowParts(row) {
   };
 }
 
-function tagRowParts(row) {
+function tagRowParts(row: HTMLElement) {
   return {
-    label: row.querySelector('input[type="text"]'),
-    icon: row.querySelector("select"),
-    hue: row.querySelector('input[type="range"]'),
-    output: row.querySelector("output"),
+    label: requiredDescendant<HTMLInputElement>(row, 'input[id$="-label"]'),
+    icon: requiredDescendant<HTMLInputElement>(row, 'input[id$="-icon"]'),
+    hue: requiredDescendant<HTMLInputElement>(row, 'input[type="range"]'),
+    output: requiredDescendant<HTMLOutputElement>(row, "output"),
   };
 }
 
@@ -2569,9 +2586,14 @@ function collectTagForm() {
     const parts = tagRowParts(row);
     const label = parts.label.value.trim();
     if (!label) continue;
+    const rawIcon = parts.icon.value.trim();
+    const icon = rawIcon ? normalizeSemanticIconName(rawIcon) : "note";
+    if (rawIcon && !icon) {
+      throw new Error(`Unsupported semantic icon “${rawIcon}”.`);
+    }
     tags.push({
       label,
-      icon: parts.icon.value,
+      icon: icon ?? "note",
       hue: Number(parts.hue.value),
     });
   }
@@ -3835,10 +3857,49 @@ function graphContextItemOptions(
   select.replaceChildren(...options);
 }
 
+function graphNodeAttributesForEditor(value: unknown): Record<string, unknown> {
+  const attributes: Record<string, unknown> =
+    value && typeof value === "object" && !Array.isArray(value)
+      ? { ...(value as Record<string, unknown>) }
+      : {};
+  const rawStyle = attributes.style;
+  const style: Record<string, unknown> =
+    rawStyle && typeof rawStyle === "object" && !Array.isArray(rawStyle)
+      ? { ...(rawStyle as Record<string, unknown>) }
+      : {};
+  delete attributes.icon;
+  delete style.icon;
+  if (Object.keys(style).length > 0) attributes.style = style;
+  else delete attributes.style;
+  return attributes;
+}
+
+function graphNodeAttributesWithIcon(
+  value: unknown,
+  rawIcon: unknown,
+): Record<string, unknown> {
+  const attributes = graphNodeAttributesForEditor(value);
+  const iconText = String(rawIcon || "").trim();
+  const icon = iconText ? normalizeSemanticIconName(iconText) : null;
+  if (iconText && !icon) {
+    throw new Error(`Unsupported semantic icon “${iconText}”.`);
+  }
+  const rawStyle = attributes.style;
+  const style: Record<string, unknown> =
+    rawStyle && typeof rawStyle === "object" && !Array.isArray(rawStyle)
+      ? { ...(rawStyle as Record<string, unknown>) }
+      : {};
+  if (icon) style.icon = icon;
+  if (Object.keys(style).length > 0) attributes.style = style;
+  else delete attributes.style;
+  return normalizeEntityPresentationAttributes(attributes);
+}
+
 function resetGraphNodeForm() {
   els.graphNodeForm.reset();
   els.graphNodeId.value = "";
   els.graphNodeType.value = "entity";
+  els.graphNodeIcon.value = "";
   els.graphNodeAlternateNames.value = "";
   els.graphNodeIdentifiers.value = "[]";
   els.graphNodeSourceIds.value = "";
@@ -3855,10 +3916,22 @@ function beginGraphNodeEdit(id) {
   els.graphNodeId.value = entity.id;
   els.graphNodeName.value = entity.name || entity.id;
   els.graphNodeType.value = entity.type || "entity";
+  const presentationAttributes = normalizeEntityPresentationAttributes(entity.attributes || {});
+  const presentationStyle =
+    presentationAttributes.style &&
+    typeof presentationAttributes.style === "object" &&
+    !Array.isArray(presentationAttributes.style)
+      ? (presentationAttributes.style as Record<string, unknown>)
+      : {};
+  els.graphNodeIcon.value = normalizeSemanticIconName(presentationStyle.icon) ?? "";
   els.graphNodeAlternateNames.value = (entity.alternateNames || []).join("\n");
   els.graphNodeIdentifiers.value = JSON.stringify(entity.identifiers || [], null, 2);
   els.graphNodeSourceIds.value = (entity.sourceIds || []).join("\n");
-  els.graphNodeProperties.value = JSON.stringify(entity.attributes || {}, null, 2);
+  els.graphNodeProperties.value = JSON.stringify(
+    graphNodeAttributesForEditor(entity.attributes || {}),
+    null,
+    2,
+  );
   els.saveGraphNode.textContent = "Save node";
   els.cancelGraphNodeEdit.hidden = false;
   setError(els.graphNodeError);
@@ -4007,9 +4080,7 @@ function beginGraphPlaceEdit(id) {
   els.graphPlaceLatitude.value = String(parts.latitude ?? "");
   els.graphPlaceLongitude.value = String(parts.longitude ?? "");
   els.graphPlaceRadius.value = String(parts.radiusMeters ?? "");
-  els.graphPlaceIcon.value = presentation.ICON_NAMES.includes(String(parts.icon))
-    ? String(parts.icon)
-    : "place";
+  els.graphPlaceIcon.value = normalizeSemanticIconName(parts.icon) ?? "place";
   els.graphPlaceMarkerShape.value = String(parts.markerShape ?? "");
   els.graphPlaceMarkerColor.value = String(parts.markerColor ?? "");
   els.graphPlaceMarkerFillColor.value = String(parts.markerFillColor ?? "");
@@ -4778,7 +4849,10 @@ els.graphNodeForm.addEventListener("submit", (event) => {
   let attributes: ReturnType<typeof parseJsonObject>;
   try {
     identifiers = parseJsonArray(els.graphNodeIdentifiers.value, "Node identifiers");
-    attributes = parseJsonObject(els.graphNodeProperties.value, "Node properties");
+    attributes = graphNodeAttributesWithIcon(
+      parseJsonObject(els.graphNodeProperties.value, "Node properties"),
+      els.graphNodeIcon.value,
+    );
   } catch (error) {
     setError(
       els.graphNodeError,
