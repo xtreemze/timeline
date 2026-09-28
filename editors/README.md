@@ -13,7 +13,8 @@ Lūm Project Interchange v1 remains JSON. Both integrations intentionally use a 
 
 It provides:
 - schema association for `*.lum.json`, `*.module.lum.json`, and strict `*.lum-proposal.json` agent proposals;
-- the built-in JSON syntax grammar plus Lūm-specific semantic key highlighting;
+- the built-in JSON syntax grammar plus semantic tokens from `lum lsp`;
+- cross-file canonical-ID completion, hover, document/workspace symbols, definition/references, and guarded rename from the shared LSP;
 - strict diagnostics delegated to `lum check/lint`;
 - document formatting delegated to `lum fmt -`;
 - project/entity/relationship/occurrence snippets;
@@ -21,7 +22,7 @@ It provides:
 
 The extension first looks for `scripts/lum.mjs` in the current Lūm repository. Otherwise it runs the configured `lum.cliPath`, which defaults to `lum`.
 
-The extension does not implement a second validator.
+The extension does not implement a second validator or semantic index. A dependency-free protocol adapter starts the same `lum lsp` server used by Helix. If the server cannot start, explicit CLI check/lint/format behavior remains available rather than blocking extension activation.
 
 ## Helix
 
