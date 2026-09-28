@@ -19,6 +19,11 @@ import { CURRENT_PROJECT_SCHEMA_VERSION } from "../src/application/project-repos
 import { parseOccurrenceSentence } from "../site/occurrence-composer-model.ts";
 import { runLumLanguageServer } from "./lum-lsp.mjs";
 import { attachLumDiagnosticRanges } from "./lib/lum-diagnostics.mjs";
+import {
+  applyLumChangeProposal,
+  createLumChangeProposalScaffold,
+  validateLumChangeProposal,
+} from "./lib/lum-agent-proposal.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SCHEMA_PATH = path.join(ROOT, "schemas", "lum-project-v1.schema.json");
@@ -33,6 +38,9 @@ Usage:
   lum fmt <project.lum.json|-> [--check]
   lum compose "<subject> <action> <object> ..." [--json]
   lum agent context <project.lum.json|-> [--json]
+  lum agent validate-proposal <change.lum-proposal.json|-> --project <project.lum.json> [--json]
+  lum agent apply <change.lum-proposal.json|-> --project <project.lum.json> [--output <candidate.lum.json>] [--json]
+  lum agent scaffold-proposal --project <project.lum.json> [--output <change.lum-proposal.json>] [--instruction <text>]
   lum schema [--json]
   lum lsp
 `;
@@ -45,7 +53,7 @@ function optionValue(args, name) {
 }
 
 function positional(args) {
-  const withValue = new Set(["--project-key"]);
+  const withValue = new Set(["--project-key", "--project", "--output", "--instruction"]);
   const result = [];
   for (let index = 0; index < args.length; index += 1) {
     const value = args[index];
@@ -179,71 +187,184 @@ function commandCompose(args) {
 
 async function commandAgent(args) {
   const [subcommand, target] = positional(args);
-  if (subcommand !== "context" || !target) {
-    throw new Error("agent currently supports: lum agent context <project.lum.json|->");
-  }
+  const json = args.includes("--json");
 
-  const source = await readTarget(target);
-  const validation = validateProjectInterchange(source);
-  if (!validation.valid) {
-    outputValidation(false, validation.diagnostics, args.includes("--json"), source);
-    process.exitCode = 1;
+  if (subcommand === "context") {
+    if (!target) {
+      throw new Error("agent context requires a project.lum.json path or - for stdin.");
+    }
+
+    const source = await readTarget(target);
+    const validation = validateProjectInterchange(source);
+    if (!validation.valid) {
+      outputValidation(false, validation.diagnostics, json, source);
+      process.exitCode = 1;
+      return;
+    }
+
+    const project = validation.snapshot.project;
+    const context = {
+      protocol: "lum-agent-context-v1",
+      schema: {
+        id: LUM_PROJECT_SCHEMA_ID,
+        interchangeVersion: LUM_PROJECT_INTERCHANGE_VERSION,
+        canonicalSchemaVersion: CURRENT_PROJECT_SCHEMA_VERSION,
+      },
+      project: {
+        projectKey: validation.snapshot.projectKey,
+        revision: validation.snapshot.revision,
+        entities: project.entities.map((entity) => ({
+          id: String(entity.id),
+          name: entity.name,
+          type: entity.type,
+        })),
+        relationships: project.relationships.map((relationship) => ({
+          id: String(relationship.id),
+          subjectId: String(relationship.subjectId),
+          predicate: relationship.predicate,
+          objectId: String(relationship.objectId),
+        })),
+        occurrences: (project.occurrences ?? []).map((occurrence) => ({
+          id: String(occurrence.id),
+          ...(occurrence.title ? { title: occurrence.title } : {}),
+          ...(occurrence.occurrenceType ? { occurrenceType: occurrence.occurrenceType } : {}),
+          participantEntityIds: occurrence.participantContexts.map((participant) =>
+            String(participant.entityId),
+          ),
+          relationshipIds: occurrence.relationshipIds.map(String),
+        })),
+        trajectories: (project.trajectories ?? []).map((trajectory) => ({
+          id: String(trajectory.id),
+          sampleCount: trajectory.sampleCount,
+        })),
+      },
+      composer: {
+        syntax:
+          "SUBJECT ACTION OBJECT [at PLACE] [on INSTANT | from START to END] [[category: CATEGORY, tags: A|B]]",
+        command: 'lum compose "<sentence>" --json',
+        rule:
+          "Composer output is a proposal. It must pass canonical validation before any project mutation.",
+      },
+      proposalWorkflow: {
+        scaffold:
+          "lum agent scaffold-proposal --project <project.lum.json> --output change.lum-proposal.json",
+        validate:
+          "lum agent validate-proposal change.lum-proposal.json --project <project.lum.json> --json",
+        apply:
+          "lum agent apply change.lum-proposal.json --project <project.lum.json> --output candidate.lum.json --json",
+        rule:
+          "Apply writes a separate candidate by default; the source project is never overwritten implicitly.",
+      },
+      workflow: [
+        "lum agent context <project.lum.json> --json",
+        'lum compose "<occurrence sentence>" --json',
+        "author a strict lum-change-proposal-v1 document",
+        "lum agent validate-proposal <proposal.json> --project <project.lum.json> --json",
+        "lum agent apply <proposal.json> --project <project.lum.json> --json",
+        "lum lint <candidate.lum.json> --json",
+      ],
+    };
+
+    process.stdout.write(`${JSON.stringify(context, null, 2)}\n`);
     return;
   }
 
-  const project = validation.snapshot.project;
-  const context = {
-    protocol: "lum-agent-context-v1",
-    schema: {
-      id: LUM_PROJECT_SCHEMA_ID,
-      interchangeVersion: LUM_PROJECT_INTERCHANGE_VERSION,
-      canonicalSchemaVersion: CURRENT_PROJECT_SCHEMA_VERSION,
-    },
-    project: {
-      projectKey: validation.snapshot.projectKey,
-      revision: validation.snapshot.revision,
-      entities: project.entities.map((entity) => ({
-        id: String(entity.id),
-        name: entity.name,
-        type: entity.type,
-      })),
-      relationships: project.relationships.map((relationship) => ({
-        id: String(relationship.id),
-        subjectId: String(relationship.subjectId),
-        predicate: relationship.predicate,
-        objectId: String(relationship.objectId),
-      })),
-      occurrences: (project.occurrences ?? []).map((occurrence) => ({
-        id: String(occurrence.id),
-        ...(occurrence.title ? { title: occurrence.title } : {}),
-        ...(occurrence.occurrenceType ? { occurrenceType: occurrence.occurrenceType } : {}),
-        participantEntityIds: occurrence.participantContexts.map((participant) =>
-          String(participant.entityId),
-        ),
-        relationshipIds: occurrence.relationshipIds.map(String),
-      })),
-      trajectories: (project.trajectories ?? []).map((trajectory) => ({
-        id: String(trajectory.id),
-        sampleCount: trajectory.sampleCount,
-      })),
-    },
-    composer: {
-      syntax:
-        "SUBJECT ACTION OBJECT [at PLACE] [on INSTANT | from START to END] [[category: CATEGORY, tags: A|B]]",
-      command: 'lum compose "<sentence>" --json',
-      rule:
-        "Composer output is a proposal. It must pass canonical validation before any project mutation.",
-    },
-    workflow: [
-      "lum agent context <project.lum.json> --json",
-      'lum compose "<occurrence sentence>" --json',
-      "edit the bounded canonical records required by the proposal",
-      "lum fmt <project.lum.json>",
-      "lum lint <project.lum.json> --json",
-    ],
-  };
+  const projectTarget = optionValue(args, "--project");
+  if (!projectTarget) {
+    throw new Error(`agent ${subcommand || "command"} requires --project <project.lum.json>.`);
+  }
+  if (projectTarget === "-" && target === "-") {
+    throw new Error("Proposal and project cannot both read from stdin.");
+  }
 
-  process.stdout.write(`${JSON.stringify(context, null, 2)}\n`);
+  const projectSource = await readTarget(projectTarget);
+
+  if (subcommand === "scaffold-proposal") {
+    const projectValidation = validateProjectInterchange(projectSource);
+    if (!projectValidation.valid) {
+      outputValidation(false, projectValidation.diagnostics, json, projectSource);
+      process.exitCode = 1;
+      return;
+    }
+    const scaffold = createLumChangeProposalScaffold({
+      projectKey: projectValidation.snapshot.projectKey,
+      expectedRevision: projectValidation.snapshot.revision,
+      instruction: optionValue(args, "--instruction") ?? undefined,
+    });
+    const output = optionValue(args, "--output");
+    if (output) {
+      await writeFile(path.resolve(output), scaffold, "utf8");
+      process.stdout.write(`${path.resolve(output)}\n`);
+    } else {
+      process.stdout.write(scaffold);
+    }
+    return;
+  }
+
+  if (!target) {
+    throw new Error(
+      `agent ${subcommand || "command"} requires a change proposal path or - for stdin.`,
+    );
+  }
+
+  const proposalSource = await readTarget(target);
+
+  if (subcommand === "validate-proposal") {
+    const validation = validateLumChangeProposal(proposalSource, projectSource);
+    outputValidation(validation.valid, validation.diagnostics, json, proposalSource);
+    if (validation.valid && json) {
+      // outputValidation already emitted the machine validation payload.
+    }
+    if (!validation.valid) process.exitCode = 1;
+    return;
+  }
+
+  if (subcommand === "apply") {
+    const applied = applyLumChangeProposal(proposalSource, projectSource, {
+      savedAt: new Date().toISOString(),
+    });
+    if (!applied.valid) {
+      outputValidation(false, applied.diagnostics, json, proposalSource);
+      process.exitCode = 1;
+      return;
+    }
+
+    const explicitOutput = optionValue(args, "--output");
+    const projectPath = path.resolve(projectTarget);
+    const defaultOutput = projectPath.endsWith(LUM_PROJECT_FILE_EXTENSION)
+      ? `${projectPath.slice(0, -LUM_PROJECT_FILE_EXTENSION.length)}.candidate${LUM_PROJECT_FILE_EXTENSION}`
+      : `${projectPath}.candidate${LUM_PROJECT_FILE_EXTENSION}`;
+    const outputPath = path.resolve(explicitOutput ?? defaultOutput);
+
+    if (outputPath === projectPath) {
+      throw new Error(
+        "Refusing to overwrite the source project. Choose a separate --output candidate path.",
+      );
+    }
+
+    await writeFile(outputPath, applied.candidate, "utf8");
+    if (json) {
+      process.stdout.write(
+        `${JSON.stringify(
+          {
+            valid: true,
+            output: outputPath,
+            verificationRequired: true,
+            summary: applied.summary,
+          },
+          null,
+          2,
+        )}\n`,
+      );
+    } else {
+      process.stdout.write(`${outputPath}\n`);
+    }
+    return;
+  }
+
+  throw new Error(
+    "agent supports: context, scaffold-proposal, validate-proposal, and apply.",
+  );
 }
 
 function commandSchema(args) {
