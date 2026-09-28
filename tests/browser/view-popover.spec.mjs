@@ -335,7 +335,7 @@ test("overflowing occurrence cards own their hit targets above the world without
     globalThis.TimelineView?.create(root)?.fitVisible?.();
   });
 
-  const hitGeometry = await expect
+  await expect
     .poll(async () =>
       page.evaluate(() => {
         const graph = document.querySelector(".temporal-graph-canvas");
