@@ -4244,7 +4244,7 @@
   touch-action: pan-y;
 }
 
-.timeline-zoom-control {
+.timeline-view[data-orientation="landscape"] .timeline-zoom-control {
   grid-template-columns: 18px minmax(0, 1fr) 18px;
   grid-template-rows: 22px;
   align-items: center;
