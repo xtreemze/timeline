@@ -1655,6 +1655,7 @@ function entityDatums(
 ): {
   readonly datums: readonly DeckWorldEntityDatum[];
   readonly byId: Map<WorldInstanceId, DeckWorldEntityDatum>;
+  readonly byEntityId: Map<EntityId, readonly DeckWorldEntityDatum[]>;
 } {
   const byId = new Map<WorldInstanceId, DeckWorldEntityDatum>();
   const result: DeckWorldEntityDatum[] = [];
@@ -1698,14 +1699,22 @@ function entityDatums(
     result.push(datum);
   }
 
-  return {
-    datums: Object.freeze(
-      result.sort((left, right) =>
-        String(left.worldInstanceId).localeCompare(String(right.worldInstanceId)),
-      ),
+  const datums = Object.freeze(
+    result.sort((left, right) =>
+      String(left.worldInstanceId).localeCompare(String(right.worldInstanceId)),
     ),
-    byId,
-  };
+  );
+  const mutableByEntityId = new Map<EntityId, DeckWorldEntityDatum[]>();
+  for (const datum of datums) {
+    const matches = mutableByEntityId.get(datum.entityId);
+    if (matches) matches.push(datum);
+    else mutableByEntityId.set(datum.entityId, [datum]);
+  }
+  const byEntityId = new Map<EntityId, readonly DeckWorldEntityDatum[]>(
+    [...mutableByEntityId].map(([entityId, matches]) => [entityId, Object.freeze(matches)]),
+  );
+
+  return { datums, byId, byEntityId };
 }
 
 function worldPathEquals(
@@ -2410,6 +2419,7 @@ function labelDatums(input: {
   readonly clusters: readonly DeckWorldClusterDatum[];
   readonly relationships: readonly DeckWorldRelationshipDatum[];
   readonly entities: readonly DeckWorldEntityDatum[];
+  readonly entitiesByEntityId: ReadonlyMap<EntityId, readonly DeckWorldEntityDatum[]>;
   readonly clustered: boolean;
   readonly zoom: number;
   readonly focus: WorldLabelFocus | null;
@@ -2566,7 +2576,7 @@ function labelDatums(input: {
     input.entities.filter((entity) => entity.label && !input.clustered),
     {
       budget,
-      isPinned: () => false,
+      isPinned: pinnedEntity,
       importance: (entity) => entity.visualWeight,
       key: (entity) => entity.worldInstanceId,
     },
@@ -2727,6 +2737,7 @@ function labelDatums(input: {
   const interactionEntityIds = new Set<EntityId>(input.contextEntityIds);
   if (input.selection?.kind === "entity") interactionEntityIds.add(input.selection.id);
   if (input.hoverSelection?.kind === "entity") interactionEntityIds.add(input.hoverSelection.id);
+  if (input.focus?.kind === "entity") interactionEntityIds.add(input.focus.id as EntityId);
   const addRelationshipEndpointEntities = (selection: WorldSelection | null) => {
     if (selection?.kind !== "relationship") return;
     const relationship = input.relationships.find(
@@ -2739,13 +2750,20 @@ function labelDatums(input: {
   addRelationshipEndpointEntities(input.selection);
   addRelationshipEndpointEntities(input.hoverSelection);
   if (interactionEntityIds.size > 0) {
-    for (const entity of input.entities) {
-      if (!entity.label || !interactionEntityIds.has(entity.entityId)) continue;
+    const interactionEntities = new Map<WorldInstanceId, DeckWorldEntityDatum>();
+    for (const entityId of interactionEntityIds) {
+      for (const entity of input.entitiesByEntityId.get(entityId) ?? []) {
+        interactionEntities.set(entity.worldInstanceId, entity);
+      }
+    }
+    for (const entity of interactionEntities.values()) {
+      if (!entity.label) continue;
       const key = `entity:${entity.worldInstanceId}`;
       if (placedByKey.has(key)) continue;
       if (
         (input.selection?.kind === "entity" && input.selection.id === entity.entityId) ||
-        (input.hoverSelection?.kind === "entity" && input.hoverSelection.id === entity.entityId)
+        (input.hoverSelection?.kind === "entity" && input.hoverSelection.id === entity.entityId) ||
+        (input.focus?.kind === "entity" && input.focus.id === entity.entityId)
       ) {
         requiredInteractionLabelKeys.add(key);
       }
@@ -5338,10 +5356,10 @@ export class DeckWorldSurface implements WorldSurface {
           key: (entity) => entity.worldInstanceId,
         })
       : null;
-    // Labels need access to canonical member datums even while clustered geometry is
-    // suppressed. Ordinary cluster LOD is still enforced inside labelDatums; this only
-    // lets direct selection/hover identify the interacted node at every zoom level.
-    const labelEntities = entityResult.datums;
+    // Ordinary labels follow the rendered/LOD entity set. Hidden clustered members
+    // are resolved through entityResult.byEntityId only when interaction/focus needs
+    // a specific canonical entity, avoiding an extra all-entity label pass on hover.
+    const labelEntities = iconSource;
     const labelClusters = entities.filter(
       (datum): datum is DeckWorldClusterDatum => datum.kind === "cluster",
     );
@@ -5355,6 +5373,7 @@ export class DeckWorldSurface implements WorldSurface {
           clusters: labelClusters,
           relationships: labelRelationships,
           entities: labelEntities,
+          entitiesByEntityId: entityResult.byEntityId,
           clustered: clusterPhase === "collapsed",
           zoom: this.#camera.zoom,
           focus: this.#focus,
@@ -5362,9 +5381,9 @@ export class DeckWorldSurface implements WorldSurface {
           hoverSelection: this.#hoverSelection,
           hoveredClusterId: this.#hoverClusterId,
           contextEntityIds: new Set(
-            entityResult.datums
-              .filter((entity) => placeReveal.instanceIds.has(entity.worldInstanceId))
-              .map((entity) => entity.entityId),
+            [...placeReveal.instanceIds]
+              .map((instanceId) => entityResult.byId.get(instanceId)?.entityId)
+              .filter((entityId): entityId is EntityId => entityId !== undefined),
           ),
           contextRelationshipIds: placeReveal.relationshipIds,
           previous: this.#labelDatumCache,
@@ -5824,7 +5843,18 @@ export class DeckWorldSurface implements WorldSurface {
                   muteMembers && memberIds.has(datum.worldInstanceId)
                     ? this.#theme.labelPlace
                     : base;
-                return scaleAlpha(entityBase, facing * (entity ? entityExpansion(entity) : 0));
+                const directlyInteracted =
+                  (this.#selection?.kind === "entity" &&
+                    this.#selection.id === datum.entityId) ||
+                  (this.#hoverSelection?.kind === "entity" &&
+                    this.#hoverSelection.id === datum.entityId) ||
+                  (this.#focus?.kind === "entity" && this.#focus.id === datum.entityId);
+                const visibility = directlyInteracted
+                  ? 1
+                  : entity
+                    ? entityExpansion(entity)
+                    : 0;
+                return scaleAlpha(entityBase, facing * visibility);
               },
               getTextAnchor: "middle",
               getAlignmentBaseline: "center",
