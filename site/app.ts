@@ -3832,12 +3832,15 @@ function graphContextItemOptions(
   select.replaceChildren(...options);
 }
 
-function graphNodeAttributesForEditor(value) {
-  const attributes =
-    value && typeof value === "object" && !Array.isArray(value) ? { ...value } : {};
-  const style =
-    attributes.style && typeof attributes.style === "object" && !Array.isArray(attributes.style)
-      ? { ...attributes.style }
+function graphNodeAttributesForEditor(value: unknown): Record<string, unknown> {
+  const attributes: Record<string, unknown> =
+    value && typeof value === "object" && !Array.isArray(value)
+      ? { ...(value as Record<string, unknown>) }
+      : {};
+  const rawStyle = attributes.style;
+  const style: Record<string, unknown> =
+    rawStyle && typeof rawStyle === "object" && !Array.isArray(rawStyle)
+      ? { ...(rawStyle as Record<string, unknown>) }
       : {};
   delete attributes.icon;
   delete style.icon;
@@ -3846,16 +3849,20 @@ function graphNodeAttributesForEditor(value) {
   return attributes;
 }
 
-function graphNodeAttributesWithIcon(value, rawIcon) {
+function graphNodeAttributesWithIcon(
+  value: unknown,
+  rawIcon: unknown,
+): Record<string, unknown> {
   const attributes = graphNodeAttributesForEditor(value);
   const iconText = String(rawIcon || "").trim();
   const icon = iconText ? normalizeSemanticIconName(iconText) : null;
   if (iconText && !icon) {
     throw new Error(`Unsupported semantic icon “${iconText}”.`);
   }
-  const style =
-    attributes.style && typeof attributes.style === "object" && !Array.isArray(attributes.style)
-      ? { ...attributes.style }
+  const rawStyle = attributes.style;
+  const style: Record<string, unknown> =
+    rawStyle && typeof rawStyle === "object" && !Array.isArray(rawStyle)
+      ? { ...(rawStyle as Record<string, unknown>) }
       : {};
   if (icon) style.icon = icon;
   if (Object.keys(style).length > 0) attributes.style = style;
@@ -3884,8 +3891,14 @@ function beginGraphNodeEdit(id) {
   els.graphNodeId.value = entity.id;
   els.graphNodeName.value = entity.name || entity.id;
   els.graphNodeType.value = entity.type || "entity";
-  els.graphNodeIcon.value =
-    normalizeSemanticIconName(entity.attributes?.style?.icon ?? entity.attributes?.icon) ?? "";
+  const presentationAttributes = normalizeEntityPresentationAttributes(entity.attributes || {});
+  const presentationStyle =
+    presentationAttributes.style &&
+    typeof presentationAttributes.style === "object" &&
+    !Array.isArray(presentationAttributes.style)
+      ? (presentationAttributes.style as Record<string, unknown>)
+      : {};
+  els.graphNodeIcon.value = normalizeSemanticIconName(presentationStyle.icon) ?? "";
   els.graphNodeAlternateNames.value = (entity.alternateNames || []).join("\n");
   els.graphNodeIdentifiers.value = JSON.stringify(entity.identifiers || [], null, 2);
   els.graphNodeSourceIds.value = (entity.sourceIds || []).join("\n");
