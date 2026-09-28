@@ -847,7 +847,12 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const nextPlace = nextDraft.place?.name ?? null;
     if (!nextPlace && previousPlace) {
       this.explicitPlaceContext = null;
-    } else if (nextPlace && nextPlace !== previousPlace && this.worldContext) {
+    } else if (
+      nextPlace &&
+      nextPlace !== previousPlace &&
+      !this.explicitPlaceContext &&
+      this.worldContext
+    ) {
       this.explicitPlaceContext = this.worldContext;
     }
     if (nextDraft.time && !previousTime) {
