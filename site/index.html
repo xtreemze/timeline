@@ -120,6 +120,7 @@
         </section>
       </nav>
       <aside id="control-panel" class="control-panel app-editor-sheet" aria-label="Timeline editors" aria-hidden="true" hidden>
+      <datalist id="semantic-icon-suggestions"></datalist>
         <header class="app-surface-header">
           <div>
             <p class="kicker">Edit</p>
@@ -402,16 +403,7 @@
                     </label>
                     <label class="field">
                       <span>Icon</span>
-                      <select id="item-tag-1-icon">
-                        <option value="milestone">Milestone</option>
-                        <option value="decision">Decision</option>
-                        <option value="evidence">Evidence</option>
-                        <option value="person">Person</option>
-                        <option value="place">Place</option>
-                        <option value="media">Media</option>
-                        <option value="relation">Relation</option>
-                        <option value="note">Note</option>
-                      </select>
+                      <input id="item-tag-1-icon" type="text" maxlength="48" autocomplete="off" list="semantic-icon-suggestions" value="note">
                     </label>
                     <label class="field hue-field">
                       <span>Hue <output id="item-tag-1-hue-output">28°</output></span>
@@ -425,16 +417,7 @@
                     </label>
                     <label class="field">
                       <span>Icon</span>
-                      <select id="item-tag-2-icon">
-                        <option value="milestone">Milestone</option>
-                        <option value="decision">Decision</option>
-                        <option value="evidence">Evidence</option>
-                        <option value="person">Person</option>
-                        <option value="place">Place</option>
-                        <option value="media">Media</option>
-                        <option value="relation">Relation</option>
-                        <option value="note">Note</option>
-                      </select>
+                      <input id="item-tag-2-icon" type="text" maxlength="48" autocomplete="off" list="semantic-icon-suggestions" value="note">
                     </label>
                     <label class="field hue-field">
                       <span>Hue <output id="item-tag-2-hue-output">210°</output></span>
@@ -448,16 +431,7 @@
                     </label>
                     <label class="field">
                       <span>Icon</span>
-                      <select id="item-tag-3-icon">
-                        <option value="milestone">Milestone</option>
-                        <option value="decision">Decision</option>
-                        <option value="evidence">Evidence</option>
-                        <option value="person">Person</option>
-                        <option value="place">Place</option>
-                        <option value="media">Media</option>
-                        <option value="relation">Relation</option>
-                        <option value="note">Note</option>
-                      </select>
+                      <input id="item-tag-3-icon" type="text" maxlength="48" autocomplete="off" list="semantic-icon-suggestions" value="note">
                     </label>
                     <label class="field hue-field">
                       <span>Hue <output id="item-tag-3-hue-output">145°</output></span>
@@ -471,16 +445,7 @@
                     </label>
                     <label class="field">
                       <span>Icon</span>
-                      <select id="item-tag-4-icon">
-                        <option value="milestone">Milestone</option>
-                        <option value="decision">Decision</option>
-                        <option value="evidence">Evidence</option>
-                        <option value="person">Person</option>
-                        <option value="place">Place</option>
-                        <option value="media">Media</option>
-                        <option value="relation">Relation</option>
-                        <option value="note">Note</option>
-                      </select>
+                      <input id="item-tag-4-icon" type="text" maxlength="48" autocomplete="off" list="semantic-icon-suggestions" value="note">
                     </label>
                     <label class="field hue-field">
                       <span>Hue <output id="item-tag-4-hue-output">285°</output></span>
@@ -886,6 +851,10 @@
                 <option value="document"></option>
               </datalist>
             </label>
+            <label class="field">
+              <span>Semantic icon <small>optional</small></span>
+              <input id="graph-node-icon" type="text" maxlength="48" autocomplete="off" list="semantic-icon-suggestions" placeholder="Automatic from type">
+            </label>
             <p class="field-hint field-wide">One node = one durable entity. A canonical node must participate in at least one meaningful action edge; stories, categories, navigation containers, roles, events, actions, time, and places stay outside graph topology. A node must not contain a verb, date/time, place/location, coordinates, radius, or geometry. Put the action in the edge predicate, time in edge.time, and spatial context in edge.placeId.</p>
             <details id="graph-node-identity-details" class="optional-editor field-wide">
               <summary>Identity & provenance <small>optional</small></summary>
@@ -946,18 +915,7 @@
             </label>
             <label class="field">
               <span>Semantic icon</span>
-              <select id="graph-place-icon">
-                <option value="place">Place</option>
-                <option value="home">Home</option>
-                <option value="person">Person context</option>
-                <option value="object">Object context</option>
-                <option value="evidence">Evidence</option>
-                <option value="danger">Danger</option>
-                <option value="search">Search</option>
-                <option value="crown">Civic / institutional</option>
-                <option value="milestone">Milestone</option>
-                <option value="note">Note</option>
-              </select>
+              <input id="graph-place-icon" type="text" maxlength="48" autocomplete="off" list="semantic-icon-suggestions" value="place">
             </label>
             <label class="field">
               <span>Marker shape</span>
