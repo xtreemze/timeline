@@ -1,0 +1,632 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://xtreemze.github.io/timeline/schemas/lum-project-v1.schema.json",
+  "title": "Lūm Project Interchange v1",
+  "description": "Strict portable Lūm project envelope. Executable Lūm validation remains authoritative for cross-record and semantic invariants.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "format",
+    "interchangeVersion",
+    "schemaVersion",
+    "projectKey",
+    "revision",
+    "savedAt",
+    "project"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "https://xtreemze.github.io/timeline/schemas/lum-project-v1.schema.json"
+    },
+    "format": {
+      "const": "lum-project"
+    },
+    "interchangeVersion": {
+      "const": 1
+    },
+    "schemaVersion": {
+      "const": 3
+    },
+    "projectKey": {
+      "$ref": "#/$defs/nonEmptyString"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "savedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "entities",
+        "relationships"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 3
+        },
+        "entities": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/entity"
+          }
+        },
+        "relationships": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/relationship"
+          }
+        },
+        "occurrences": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/occurrence"
+          }
+        },
+        "trajectories": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/trajectory"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "stringArray": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/nonEmptyString"
+      }
+    },
+    "attributes": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "semanticMapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scheme",
+        "identifier",
+        "relation"
+      ],
+      "properties": {
+        "scheme": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "version": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "identifier": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "relation": {
+          "enum": [
+            "exact",
+            "broader",
+            "narrower",
+            "related"
+          ]
+        }
+      }
+    },
+    "identifier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scheme",
+        "value"
+      ],
+      "properties": {
+        "scheme": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "value": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "issuer": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "sourceIds": {
+          "$ref": "#/$defs/stringArray"
+        }
+      }
+    },
+    "appellation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value"
+      ],
+      "properties": {
+        "value": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "kind": {
+          "enum": [
+            "preferred",
+            "alias",
+            "legal",
+            "historical",
+            "other"
+          ]
+        },
+        "languageTag": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "sourceIds": {
+          "$ref": "#/$defs/stringArray"
+        }
+      }
+    },
+    "temporalExtent": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "start"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "instant",
+            "interval"
+          ]
+        },
+        "start": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": true
+        },
+        "end": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": true
+        },
+        "openStart": {
+          "type": "boolean"
+        },
+        "openEnd": {
+          "type": "boolean"
+        }
+      }
+    },
+    "entity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "name",
+        "alternateNames",
+        "sourceIds",
+        "attributes"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "type": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "name": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "alternateNames": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "identityResolution": {
+          "enum": [
+            "identified",
+            "unresolved",
+            "disputed"
+          ]
+        },
+        "identifiers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
+        },
+        "appellations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/appellation"
+          }
+        },
+        "semanticMappings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/semanticMapping"
+          }
+        },
+        "sourceIds": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "attributes": {
+          "$ref": "#/$defs/attributes"
+        }
+      }
+    },
+    "relationship": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "subjectId",
+        "objectId",
+        "predicate",
+        "itemIds",
+        "sourceIds",
+        "confidence",
+        "time",
+        "attributes"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "subjectId": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "objectId": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "predicate": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "role": {
+          "type": "string"
+        },
+        "occurrenceType": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "subjectContext": {
+          "$ref": "#/$defs/actorContext"
+        },
+        "objectContext": {
+          "$ref": "#/$defs/actorContext"
+        },
+        "semanticMappings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/semanticMapping"
+          }
+        },
+        "placeId": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "itemIds": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "sourceIds": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "confidence": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "time": {
+          "$ref": "#/$defs/temporalExtent"
+        },
+        "attributes": {
+          "$ref": "#/$defs/attributes"
+        }
+      }
+    },
+    "occurrence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "time",
+        "participantContexts",
+        "relationshipIds",
+        "sourceIds",
+        "confidence",
+        "attributes"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "title": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "occurrenceType": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "time": {
+          "$ref": "#/$defs/temporalExtent"
+        },
+        "placeId": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "participantContexts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/occurrenceParticipant"
+          }
+        },
+        "relationshipIds": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "trajectoryIds": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "sourceIds": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "confidence": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "semanticMappings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/semanticMapping"
+          }
+        },
+        "attributes": {
+          "$ref": "#/$defs/attributes"
+        }
+      }
+    },
+    "trajectoryBounds": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "minLongitude",
+        "minLatitude",
+        "maxLongitude",
+        "maxLatitude"
+      ],
+      "properties": {
+        "minLongitude": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        },
+        "minLatitude": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90
+        },
+        "maxLongitude": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        },
+        "maxLatitude": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90
+        },
+        "minElevationMeters": {
+          "type": "number"
+        },
+        "maxElevationMeters": {
+          "type": "number"
+        }
+      }
+    },
+    "trajectoryChannel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "unit": {
+          "type": "string"
+        },
+        "semantic": {
+          "type": "string"
+        }
+      }
+    },
+    "trajectoryLevel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "pointCount"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "pointCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "toleranceMeters": {
+          "type": "number",
+          "minimum": 0
+        },
+        "storageRef": {
+          "type": "string"
+        }
+      }
+    },
+    "trajectoryStorage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "ref"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "source-artifact",
+            "project-blob",
+            "indexeddb",
+            "external"
+          ]
+        },
+        "ref": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "mediaType": {
+          "type": "string"
+        },
+        "encoding": {
+          "type": "string"
+        }
+      }
+    },
+    "trajectory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "sourceIds",
+        "sampleCount",
+        "time",
+        "bounds",
+        "channels",
+        "levels",
+        "storage",
+        "attributes"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "sourceIds": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "sourceArtifactIds": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "observedEntityIds": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "sampleCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "time": {
+          "$ref": "#/$defs/temporalExtent"
+        },
+        "bounds": {
+          "$ref": "#/$defs/trajectoryBounds"
+        },
+        "channels": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/trajectoryChannel"
+          }
+        },
+        "levels": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/trajectoryLevel"
+          }
+        },
+        "storage": {
+          "$ref": "#/$defs/trajectoryStorage"
+        },
+        "externalMappings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/semanticMapping"
+          }
+        },
+        "attributes": {
+          "$ref": "#/$defs/attributes"
+        }
+      }
+    },
+    "actorContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "roleType": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "representedEntityId": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "organizationId": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "authoritySourceIds": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "externalMappings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/semanticMapping"
+          }
+        }
+      }
+    },
+    "occurrenceParticipant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entityId"
+      ],
+      "properties": {
+        "entityId": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "roleType": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "representedEntityId": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "organizationId": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "authoritySourceIds": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "externalMappings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/semanticMapping"
+          }
+        }
+      }
+    }
+  }
+}
