@@ -256,4 +256,43 @@ test.describe("contextual world authoring certification", () => {
       page.locator('.timeline-semantic-occurrence[data-selected][aria-label^="Selected:"]'),
     ).not.toHaveCount(0);
   });
+
+  test("closing contextual authoring restores its World invoker without changing selection or scroll", async ({
+    page,
+  }) => {
+    test.skip(!(await certifyWebGlWorld(page)), "WebGL2 unavailable; WorldSurface is not active.");
+
+    const entityId = await selectEntityWithTimelineContext(page);
+    const selectedChronology = page.locator(
+      '.timeline-semantic-occurrence[data-selected][aria-label^="Selected:"]',
+    );
+    await expect(selectedChronology).not.toHaveCount(0);
+
+    const world = page.locator(".temporal-graph-canvas");
+    await world.focus();
+    await expect(world).toBeFocused();
+
+    const beforeScroll = await page.evaluate(() => ({
+      x: globalThis.scrollX,
+      y: globalThis.scrollY,
+    }));
+
+    await page.keyboard.press("Shift+F10");
+    const composer = page.locator("#occurrence-composer");
+    const input = composer.locator("input");
+    await expect(input).toBeFocused();
+    await expect(input).toHaveValue("@" + entityId + " ");
+
+    await input.press("Escape");
+    await expect(composer).not.toHaveAttribute("active", "");
+    await expect(world).toBeFocused();
+    await expect(selectedChronology).not.toHaveCount(0);
+
+    const afterScroll = await page.evaluate(() => ({
+      x: globalThis.scrollX,
+      y: globalThis.scrollY,
+    }));
+    expect(afterScroll).toEqual(beforeScroll);
+  });
+
 });
