@@ -327,6 +327,94 @@ test.describe("Timeline interaction contracts", () => {
       .toBeLessThan(span(baseline));
   });
 
+  test("desktop point and range double-click keep occurrence selection and zoom further", async ({
+    page,
+  }) => {
+    const surface = page.locator(".timeline-surface");
+    await surface.focus();
+    await page.keyboard.press("Home");
+    await waitForViewportEvents(page);
+    await settleTimeline(page);
+
+    const targets = [
+      page
+        .locator(
+          ".timeline-event:not(.timeline-cluster):not(.is-buffered) .timeline-event-terminal:visible",
+        )
+        .first(),
+      page.locator(".timeline-range-segment:not(.is-buffered):visible").first(),
+    ];
+
+    for (const target of targets) {
+      await expect(target).toBeVisible();
+      const id = await target.getAttribute("data-id");
+      if (!id) throw new Error("Occurrence target has no data-id.");
+
+      await target.click();
+      await settleTimeline(page);
+      const selected = page.locator(".timeline-event-terminal").filter({ has: undefined }).locator("xpath=.");
+      const selectedById = page.locator(`.timeline-event-terminal[data-id="${id}"]`);
+      await expect(selectedById).toHaveAttribute("aria-expanded", "true");
+
+      const before = (await viewportEvents(page)).at(-1);
+      if (!before) throw new Error("Occurrence selection emitted no viewport event.");
+      await clearViewportEvents(page);
+
+      await target.dblclick();
+
+      await expect
+        .poll(async () => {
+          const latest = (await viewportEvents(page)).filter((event) => event.committed).at(-1);
+          return latest ? span(latest) : Number.POSITIVE_INFINITY;
+        })
+        .toBeLessThan(span(before));
+      await expect(selectedById).toHaveAttribute("aria-expanded", "true");
+      void selected;
+    }
+  });
+
+  test("touch double-tap on point and range selects the occurrence and zooms", async ({
+    page,
+  }, testInfo) => {
+    test.skip(!testInfo.project.use.hasTouch, "Requires a touch-enabled browser project.");
+
+    const surface = page.locator(".timeline-surface");
+    await surface.focus();
+    await page.keyboard.press("Home");
+    await waitForViewportEvents(page);
+    await settleTimeline(page);
+
+    const targets = [
+      page
+        .locator(
+          ".timeline-event:not(.timeline-cluster):not(.is-buffered) .timeline-event-terminal:visible",
+        )
+        .first(),
+      page.locator(".timeline-range-segment:not(.is-buffered):visible").first(),
+    ];
+
+    for (const target of targets) {
+      await expect(target).toBeVisible();
+      const [id, box] = await Promise.all([target.getAttribute("data-id"), target.boundingBox()]);
+      if (!id || !box) throw new Error("Occurrence target is missing identity or geometry.");
+      const baseline = (await viewportEvents(page)).at(-1);
+      if (!baseline) throw new Error("Timeline has no baseline viewport event.");
+      await clearViewportEvents(page);
+
+      await waitForQuietMainThread(page);
+      await doubleTap(page, { x: box.x + box.width / 2, y: box.y + box.height / 2 });
+
+      const selectedById = page.locator(`.timeline-event-terminal[data-id="${id}"]`);
+      await expect(selectedById).toHaveAttribute("aria-expanded", "true");
+      await expect
+        .poll(async () => {
+          const latest = (await viewportEvents(page)).filter((event) => event.committed).at(-1);
+          return latest ? span(latest) : Number.POSITIVE_INFINITY;
+        })
+        .toBeLessThan(span(baseline));
+    }
+  });
+
   test("touch pinch changes temporal span and commits after both pointers release", async ({
     page,
   }) => {
