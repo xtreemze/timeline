@@ -3560,6 +3560,7 @@ export class DeckWorldSurface implements WorldSurface {
       const element = doc.createElement("button");
       element.type = "button";
       element.className = "toolbar-control world-camera-control";
+      element.dataset.viewControl = "";
       element.setAttribute("aria-label", label);
       element.title = label;
       element.append(createIcon(icon, { size: 20 }));
