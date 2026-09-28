@@ -1,0 +1,15 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "lum_browser": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@mcp-b/webmcp-local-relay@5.1.0",
+        "--widget-origin",
+        "http://localhost:5173,http://localhost:4173,https://xtreemze.github.io"
+      ]
+    }
+  }
+}
