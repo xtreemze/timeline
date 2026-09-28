@@ -593,7 +593,9 @@ test("manual DAG reorganization rebuilds targets and routes while retaining geog
 });
 
 
-test("selected-place DAG settings reorganize only disposable layout while retaining authored anchors", () => {
+test(
+  "selected-place DAG settings reorganize only disposable layout while retaining authored anchors",
+  () => {
   const { calls, controller } = harness();
   controller.setProjection(projection());
   const initialScene = calls.find(([name]) => name === "force:scene")?.[1];
@@ -618,9 +620,10 @@ test("selected-place DAG settings reorganize only disposable layout while retain
     initialScene.anchors,
     "place-scoped organization must not rewrite geographic evidence",
   );
-  assert.equal(applyCall[1].reason, "topology");
-  assert.equal(applyCall[1].reheat, true);
-});
+    assert.equal(applyCall[1].reason, "topology");
+    assert.equal(applyCall[1].reheat, true);
+  },
+);
 
 test("force tuning can target a selected place without rebuilding the canonical scene", () => {
   const { calls, controller } = harness();
