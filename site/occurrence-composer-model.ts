@@ -335,6 +335,8 @@ export function occurrenceComposerSuggestions(
     readonly entities: readonly ComposerEntityOption[];
     readonly places: readonly ComposerPlaceOption[];
     readonly categories: readonly ComposerCategoryOption[];
+    readonly tags?: readonly string[];
+    readonly predicates?: readonly string[];
     readonly timelineDefault?: string | null;
     readonly locationDefault?: string | null;
     readonly preferredEntityIds?: readonly string[];
@@ -361,15 +363,67 @@ export function occurrenceComposerSuggestions(
   }
 
   if (/\[[^\]]*$/.test(input)) {
-    const categorySuggestions = options.categories.slice(0, 10).map((category) => ({
+    const open = input.lastIndexOf("[");
+    const fragment = input.slice(open + 1);
+    const segment = fragment.split(",").at(-1)?.trim() ?? "";
+    const separator = segment.indexOf(":");
+    const optionKey = separator >= 0 ? segment.slice(0, separator).trim().toLocaleLowerCase() : "";
+    const optionValue = separator >= 0 ? segment.slice(separator + 1).trim() : segment;
+
+    if (optionKey === "tags") {
+      const pipe = optionValue.lastIndexOf("|");
+      const retained = pipe >= 0 ? optionValue.slice(0, pipe + 1) : "";
+      const query = pipe >= 0 ? optionValue.slice(pipe + 1).trim() : optionValue;
+      return Object.freeze(
+        rankedStrings(options.tags ?? [], query)
+          .slice(0, 7)
+          .map((tag) => ({
+            kind: "tag" as const,
+            label: tag,
+            detail: "existing tag",
+            insertText: `tags: ${retained}${tag}`,
+          })),
+      );
+    }
+
+    if (optionKey === "category") {
+      return Object.freeze(
+        options.categories
+          .map((category) => ({
+            category,
+            score: suggestionScore(optionValue, category.name),
+          }))
+          .filter(({ score }) => Number.isFinite(score))
+          .sort(
+            (left, right) =>
+              left.score - right.score || left.category.name.localeCompare(right.category.name),
+          )
+          .slice(0, 7)
+          .map(({ category }) => ({
+            kind: "category" as const,
+            label: category.name,
+            detail: "existing category",
+            insertText: `category: ${quoteComposerName(category.name)}`,
+          })),
+      );
+    }
+
+    const categorySuggestions = options.categories.slice(0, 6).map((category) => ({
       kind: "category" as const,
       label: category.name,
-      detail: "category",
+      detail: "existing category",
       insertText: `category: ${quoteComposerName(category.name)}`,
+    }));
+    const tagSuggestions = (options.tags ?? []).slice(0, 4).map((tag) => ({
+      kind: "tag" as const,
+      label: tag,
+      detail: "existing tag",
+      insertText: `tags: ${tag}`,
     }));
     return uniqueSuggestions([
       ...categorySuggestions,
-      { kind: "tag", label: "tags", detail: "separate tags with |", insertText: "tags: " },
+      ...tagSuggestions,
+      { kind: "tag", label: "new tag", detail: "separate tags with |", insertText: "tags: " },
     ]);
   }
 
@@ -377,19 +431,24 @@ export function occurrenceComposerSuggestions(
     const preferredEntityIds = options.preferredEntityIds ?? [];
     const priority = new Map(preferredEntityIds.map((id, index) => [id, index] as const));
     const entitySuggestions = [...options.entities]
+      .map((entity) => ({
+        entity,
+        priority: priority.get(entity.id) ?? Number.MAX_SAFE_INTEGER,
+        score: Math.min(
+          ...[entity.name, ...(entity.alternateNames ?? [])].map((name) =>
+            suggestionScore(token, name),
+          ),
+        ),
+      }))
+      .filter(({ score }) => Number.isFinite(score))
       .sort(
         (left, right) =>
-          (priority.get(left.id) ?? Number.MAX_SAFE_INTEGER) -
-          (priority.get(right.id) ?? Number.MAX_SAFE_INTEGER),
+          left.priority - right.priority ||
+          left.score - right.score ||
+          left.entity.name.localeCompare(right.entity.name),
       )
-      .filter((entity) => {
-        if (!token) return true;
-        return [entity.name, ...(entity.alternateNames ?? [])].some((name) =>
-          name.toLocaleLowerCase().includes(token),
-        );
-      })
       .slice(0, 12)
-      .map((entity) => {
+      .map(({ entity }) => {
         const sameNameCount = options.entities.filter(
           (candidate) =>
             candidate.name.toLocaleLowerCase() === entity.name.toLocaleLowerCase(),
@@ -402,21 +461,21 @@ export function occurrenceComposerSuggestions(
               ? `${entity.type || "entity"} · ${entity.id}`
               : entity.type || "entity",
           ...(entity.icon ? { icon: entity.icon } : {}),
-          insertText:
-            sameNameCount > 1 ? `@${entity.id}` : quoteComposerName(entity.name),
+          insertText: `@${entity.id}`,
         };
       });
     return uniqueSuggestions(entitySuggestions);
   }
 
   if (parsed.stage === "predicate") {
+    const existing = new Set((options.predicates ?? []).map((predicate) => predicate.trim()));
     return Object.freeze(
-      ACTION_SUGGESTIONS.filter((action) => !token || action.includes(token))
+      rankedStrings([...(options.predicates ?? []), ...ACTION_SUGGESTIONS], token)
         .slice(0, 12)
         .map((action) => ({
           kind: "predicate" as const,
           label: action,
-          detail: "action",
+          detail: existing.has(action) ? "existing action" : "action",
           insertText: action,
         })),
     );
@@ -459,20 +518,53 @@ export function occurrenceComposerSuggestions(
   }
   if (!parsed.options.category) {
     contextSuggestions.push(
-      ...options.categories.slice(0, 6).map((category) => ({
+      ...options.categories.slice(0, 4).map((category) => ({
         kind: "category" as const,
         label: category.name,
-        detail: "occurrence category",
+        detail: "existing category",
         insertText: `[category: ${quoteComposerName(category.name)}]`,
+      })),
+    );
+  }
+  if (!parsed.options.tags.length) {
+    contextSuggestions.push(
+      ...(options.tags ?? []).slice(0, 3).map((tag) => ({
+        kind: "tag" as const,
+        label: tag,
+        detail: "existing tag",
+        insertText: `[tags: ${tag}]`,
       })),
     );
   }
   return uniqueSuggestions(contextSuggestions);
 }
 
+export function composerCompletionSuffix(
+  input: string,
+  suggestion: ComposerSuggestion | null | undefined,
+): string {
+  if (!suggestion) return "";
+  const token = currentToken(input);
+  if (!token) return "";
+  for (const candidate of [suggestion.label, suggestion.insertText]) {
+    if (candidate.toLocaleLowerCase().startsWith(token)) {
+      return candidate.slice(token.length);
+    }
+  }
+  return "";
+}
+
 export function replaceComposerTail(input: string, insertText: string, stage: OccurrenceComposerStage): string {
   if (!insertText) return input;
   const trimmed = input.trimEnd();
+
+  const bracketedOption = insertText.match(/^\[([^\]]+)\]$/)?.[1];
+  const existingOptions = trimmed.match(/\[([^\]]*)\]\s*$/);
+  if (bracketedOption && existingOptions) {
+    const start = existingOptions.index ?? trimmed.length;
+    const retained = existingOptions[1]!.trim();
+    return `${trimmed.slice(0, start)}[${retained}${retained ? ", " : ""}${bracketedOption}] `;
+  }
 
   const openEntityProperties = trimmed.lastIndexOf("(");
   const closeEntityProperties = trimmed.lastIndexOf(")");
