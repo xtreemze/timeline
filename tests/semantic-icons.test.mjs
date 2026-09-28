@@ -7,6 +7,10 @@ import {
   normalizeEntityPresentationAttributes,
   normalizeSemanticIconName,
 } from "../src/presentation/semantic-icons.ts";
+import {
+  auditSemanticIconQuality,
+  suggestSemanticIcon,
+} from "../src/presentation/semantic-icon-inference.ts";
 import { TimelinePresentation, iconPathData } from "../site/event-presentation.ts";
 import { TimelineGraph } from "../site/timeline-graph.ts";
 
@@ -86,4 +90,47 @@ test("graph validation rejects unknown icons and normalization migrates aliases"
     caseId: "A-42",
     style: { icon: "person" },
   });
+});
+
+
+test("semantic icon suggestions are deterministic and conservative", () => {
+  assert.deepEqual(suggestSemanticIcon({ name: "The Wolf", type: "person" }), {
+    icon: "wolf",
+    confidence: "high",
+    reason: "name:wolf",
+  });
+  assert.deepEqual(suggestSemanticIcon({ name: "Royal King", type: "person" }), {
+    icon: "crown",
+    confidence: "high",
+    reason: "name:royal",
+  });
+  assert.equal(suggestSemanticIcon({ name: "Alice", type: "person" }), null);
+  assert.equal(suggestSemanticIcon({ name: "Wolf Foundation", type: "organization" }), null);
+});
+
+test("semantic icon quality audit separates data validity from presentation quality", () => {
+  const audit = auditSemanticIconQuality([
+    {
+      id: "explicit",
+      name: "The Wolf",
+      type: "person",
+      attributes: { style: { icon: "wolf" } },
+    },
+    { id: "suggested", name: "The Wolf", type: "person", attributes: {} },
+    { id: "fallback", name: "Alice", type: "person", attributes: {} },
+    { id: "missing", name: "Unknown Vessel", type: "spaceship", attributes: {} },
+    {
+      id: "unsupported",
+      name: "Broken",
+      type: "person",
+      attributes: { style: { icon: "not-real" } },
+    },
+  ]);
+
+  assert.equal(audit.total, 5);
+  assert.deepEqual(audit.unsupportedIconIds, ["unsupported"]);
+  assert.deepEqual(audit.highConfidenceSuggestionIds, ["suggested"]);
+  assert.deepEqual(audit.genericFallbackIds, ["fallback"]);
+  assert.deepEqual(audit.missingIconIds, ["missing"]);
+  assert.equal(audit.explicitCount, 1);
 });
