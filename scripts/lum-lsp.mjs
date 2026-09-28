@@ -2,7 +2,7 @@ import process from "node:process";
 
 import {
   formatProjectInterchange,
-  validateProjectInterchange,
+  lintProjectInterchange,
 } from "../src/application/project-interchange.ts";
 
 function diagnosticRange() {
@@ -13,7 +13,7 @@ function diagnosticRange() {
 }
 
 function lspDiagnostics(source) {
-  const result = validateProjectInterchange(source);
+  const result = lintProjectInterchange(source);
   return result.diagnostics.map((diagnostic) => ({
     range: diagnosticRange(),
     severity: diagnostic.severity === "error" ? 1 : 2,
