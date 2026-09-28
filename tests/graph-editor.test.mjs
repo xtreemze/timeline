@@ -12,6 +12,8 @@ test("graph editor separates entity nodes, reusable places, and action-edge cont
   assert.match(html, /id="graph-node-identifiers"/);
   assert.match(html, /id="graph-node-source-ids"/);
   assert.match(html, /id="graph-node-properties"/);
+  assert.match(html, /id="graph-node-icon"/);
+  assert.match(html, /id="semantic-icon-suggestions"/);
   assert.match(html, /id="graph-place-form"/);
   assert.match(html, /id="graph-place-name"/);
   assert.match(html, /id="graph-place-latitude"/);
@@ -792,4 +794,15 @@ test("WebGL capability probing is cached across graph performance updates", asyn
     bridge,
     /function supportsWebGL2\(\)[\s\S]*webGL2Support !== undefined[\s\S]*canvas\.getContext\("webgl2"\)[\s\S]*return webGL2Support/,
   );
+});
+
+test("graph editor uses the shared semantic icon vocabulary for nodes and places", async () => {
+  const [html, app] = await Promise.all([
+    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(html, /id="graph-node-icon"[\s\S]*list="semantic-icon-suggestions"/);
+  assert.match(html, /id="graph-place-icon"[\s\S]*list="semantic-icon-suggestions"/);
+  assert.match(app, /presentation\.ICON_NAMES/);
+  assert.match(app, /attributes\.style/);
 });
