@@ -8,6 +8,7 @@ import {
 } from "../occurrence-composer-context.ts";
 import {
   composerCompletionSuffix,
+  occurrenceComposerCompletionStage,
   occurrenceComposerSuggestions,
   parseOccurrenceSentence,
   replaceComposerTail,
@@ -576,9 +577,9 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
   private applySuggestion(suggestion: ComposerSuggestion): void {
     if (!suggestion.insertText) return;
-    const parsed = this.parsed();
+    const completionStage = occurrenceComposerCompletionStage(this.value);
     this.setComposerValue(
-      replaceComposerTail(this.value, suggestion.insertText, parsed.stage),
+      replaceComposerTail(this.value, suggestion.insertText, completionStage),
     );
     void this.updateComplete.then(() => {
       const input = this.renderRoot.querySelector<HTMLInputElement>("input");
