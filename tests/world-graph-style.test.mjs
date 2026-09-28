@@ -10,6 +10,7 @@ import {
   worldNodeFootprintRadiusPx,
   worldNodeShapeVisualRadiusScale,
   worldNodeStyle,
+  worldNodeStyleFootprintRadiusPx,
   worldNodeVisualFootprintRadiusPx,
   worldPlaceFootprintRadiusPx,
   worldPlaceStyle,
@@ -339,6 +340,19 @@ test("visible, touch, and collision footprints are identical", () => {
     assert.equal(hit, visual);
     assert.ok(visual >= WORLD_ENTITY_MIN_HIT_RADIUS_PX);
   }
+});
+
+test("borderless nodes keep a one-pixel raster safety margin inside the same 44px footprint", () => {
+  const input = {
+    type: "person",
+    attributes: { style: { borderWidth: 0 } },
+  };
+  const style = worldNodeStyle(input, WORLD_LIGHT_PALETTE);
+  const footprint = worldNodeFootprintRadiusPx(input);
+
+  assert.equal(footprint, WORLD_ENTITY_MIN_HIT_RADIUS_PX);
+  assert.equal(worldNodeStyleFootprintRadiusPx(style), footprint);
+  assert.equal(style.radius + 1, footprint);
 });
 
 test("force footprint exactly matches rendered geometry and the mobile target", () => {
