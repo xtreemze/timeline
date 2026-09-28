@@ -33,7 +33,7 @@ export type WorldDagLayoutOrientation = "top-to-bottom" | "left-to-right";
 
 export type WorldDagLayoutAlgorithm = "sugiyama" | "zherebko" | "grid";
 export type WorldDagCoordinateStrategy = "greedy" | "simplex" | "quad" | "center";
-export type WorldDagEdgeStyle = "routed" | "straight" | "orthogonal";
+export type WorldDagEdgeStyle = "routed" | "curved" | "straight" | "orthogonal";
 
 export type WorldDagLayoutStrategy =
   | "auto"
@@ -152,6 +152,9 @@ const DAG_PORT_LANE_MIN_PITCH_METERS = 180;
 const DAG_PORT_LANE_MAX_PITCH_METERS = 420;
 const DAG_PORT_STUB_MIN_METERS = 180;
 const DAG_PORT_STUB_MAX_METERS = 720;
+const DAG_CURVED_EDGE_BEND_RATIO = 0.16;
+const DAG_CURVED_EDGE_BEND_MIN_METERS = 160;
+const DAG_CURVED_EDGE_BEND_MAX_METERS = 720;
 
 interface LocalDagEdge {
   readonly relationshipId: RelationshipId;
@@ -1129,12 +1132,62 @@ function priorOrderInitializer(
   };
 }
 
+function curvedEdgePoints(
+  points: readonly WorldDagRoutePoint[],
+  orientation: WorldDagLayoutOrientation,
+): readonly WorldDagRoutePoint[] {
+  const source = points[0];
+  const target = points.at(-1);
+  if (!source || !target) return points;
+
+  let controls = points;
+  if (points.length === 2) {
+    const east = target.eastMeters - source.eastMeters;
+    const north = target.northMeters - source.northMeters;
+    const distance = Math.hypot(east, north);
+    const bend = Math.max(
+      DAG_CURVED_EDGE_BEND_MIN_METERS,
+      Math.min(DAG_CURVED_EDGE_BEND_MAX_METERS, distance * DAG_CURVED_EDGE_BEND_RATIO),
+    );
+    const midpoint = Object.freeze({
+      eastMeters:
+        (source.eastMeters + target.eastMeters) / 2 +
+        (orientation === "top-to-bottom" ? bend : 0),
+      northMeters:
+        (source.northMeters + target.northMeters) / 2 +
+        (orientation === "left-to-right" ? bend : 0),
+    });
+    controls = Object.freeze([source, midpoint, target]);
+  }
+
+  if (controls.length < 3) return controls;
+
+  const smoothed: WorldDagRoutePoint[] = [controls[0] as WorldDagRoutePoint];
+  for (let index = 0; index < controls.length - 1; index += 1) {
+    const left = controls[index];
+    const right = controls[index + 1];
+    if (!left || !right) continue;
+    smoothed.push(
+      Object.freeze({
+        eastMeters: left.eastMeters * 0.75 + right.eastMeters * 0.25,
+        northMeters: left.northMeters * 0.75 + right.northMeters * 0.25,
+      }),
+      Object.freeze({
+        eastMeters: left.eastMeters * 0.25 + right.eastMeters * 0.75,
+        northMeters: left.northMeters * 0.25 + right.northMeters * 0.75,
+      }),
+    );
+  }
+  smoothed.push(controls.at(-1) as WorldDagRoutePoint);
+  return Object.freeze(smoothed);
+}
+
 function applyEdgeStyle(
   routes: readonly RawRoute[],
   orientation: WorldDagLayoutOrientation,
   edgeStyle: WorldDagEdgeStyle,
 ): readonly RawRoute[] {
-  if (edgeStyle === "routed") return routes;
+  if (edgeStyle === "routed" || edgeStyle === "curved") return routes;
 
   return Object.freeze(
     routes.map((route) => {
@@ -1360,18 +1413,30 @@ function runLayoutCandidate(
 
   const styledRoutes = applyEdgeStyle(routes, orientation, edgeStyle);
   // "Straight" is an explicit exploratory route mode, so do not reintroduce
-  // port doglegs after collapsing the D3 route to its endpoints.
+  // port doglegs after collapsing the D3 route to its endpoints. Curved routes
+  // smooth the port-aware D3 geometry so parallel-edge separation is retained.
   const portRouted =
     edgeStyle === "straight"
       ? styledRoutes
       : allocateRoutePorts(styledRoutes, targets, layoutSizes, orientation);
+  const presentationRoutes =
+    edgeStyle === "curved"
+      ? Object.freeze(
+          portRouted.map((route) =>
+            Object.freeze({
+              ...route,
+              points: curvedEdgePoints(route.points, orientation),
+            }),
+          ),
+        )
+      : portRouted;
 
   return scaledCandidate(
     {
       name,
       targets,
       routes: Object.freeze(
-        [...portRouted].sort((left, right) =>
+        [...presentationRoutes].sort((left, right) =>
           String(left.relationshipId).localeCompare(String(right.relationshipId)),
         ),
       ),
