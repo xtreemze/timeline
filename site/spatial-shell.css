@@ -1121,3 +1121,105 @@
 .project-import-review-actions > .button {
   min-block-size: 44px;
 }
+
+
+/* Contextual graph-layout inspectors opened from long-press/right-click/keyboard. */
+.world-layout-inspector {
+  position: fixed;
+  z-index: 2200;
+  inset: auto;
+  inline-size: min(360px, calc(100vw - 16px));
+  max-block-size: min(560px, calc(100dvh - 16px));
+  margin: 0;
+  padding: 0.7rem;
+  overflow: auto;
+  color: var(--ink);
+  border: 1px solid color-mix(in srgb, var(--line-strong) 86%, transparent);
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, var(--paper) 97%, transparent);
+  box-shadow: 0 14px 42px color-mix(in srgb, var(--ink) 18%, transparent);
+  backdrop-filter: blur(18px);
+}
+
+.world-layout-inspector::backdrop {
+  background: transparent;
+}
+
+.world-layout-inspector-title {
+  margin: 0 0 0.55rem;
+  font: inherit;
+  font-weight: 650;
+}
+
+.world-layout-inspector-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(132px, 1.2fr);
+  align-items: center;
+  gap: 0.7rem;
+  min-block-size: 36px;
+  font-size: 0.82rem;
+}
+
+.world-layout-inspector-row > select,
+.world-layout-inspector-row > input {
+  min-inline-size: 0;
+}
+
+.world-layout-inspector-range {
+  grid-template-columns: minmax(0, 1fr) minmax(100px, 1fr) 3.4rem;
+}
+
+.world-layout-inspector-range > output {
+  overflow: hidden;
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+  text-overflow: ellipsis;
+}
+
+.world-layout-inspector-note {
+  margin: 0.6rem 0 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.world-layout-inspector-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.45rem;
+  margin-block-start: 0.7rem;
+}
+
+.world-layout-inspector-actions > button {
+  min-block-size: 36px;
+  padding-inline: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--line-strong) 80%, transparent);
+  border-radius: 0.55rem;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.world-layout-inspector-apply {
+  font-weight: 650;
+}
+
+@media (max-width: 520px) {
+  .world-layout-inspector {
+    inline-size: calc(100vw - 12px);
+    max-block-size: min(70dvh, 560px);
+    padding: 0.62rem;
+  }
+
+  .world-layout-inspector-row,
+  .world-layout-inspector-range {
+    grid-template-columns: minmax(0, 1fr) minmax(112px, 1fr) auto;
+  }
+
+  .world-layout-inspector-row:not(.world-layout-inspector-range) > span {
+    grid-column: 1;
+  }
+
+  .world-layout-inspector-row:not(.world-layout-inspector-range) > select {
+    grid-column: 2 / -1;
+  }
+}
