@@ -208,4 +208,11 @@ test("shared semantic icons follow one Lucide-compatible monochrome stroke contr
     const overrides = css.match(/\.semantic-icon[^{}]*\{[^}]*stroke-width\s*:/gs) ?? [];
     assert.deepEqual(overrides, [], `${stylesheet}: semantic icons must inherit the shared 2px stroke`);
   }
+
+  const orbAdapter = await readFile(
+    new URL("../src/orb-graph-entry.js", import.meta.url),
+    "utf8",
+  );
+  assert.match(orbAdapter, /color="white" stroke="currentColor" stroke-width="2"/);
+  assert.doesNotMatch(orbAdapter, /stroke="white"/);
 });
