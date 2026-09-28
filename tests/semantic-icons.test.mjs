@@ -8,6 +8,7 @@ import {
   normalizeSemanticIconName,
 } from "../src/presentation/semantic-icons.ts";
 import { TimelinePresentation, iconPathData } from "../site/event-presentation.ts";
+import { TimelineGraph } from "../site/timeline-graph.ts";
 
 test("semantic icon registry is the single rendered vocabulary", () => {
   assert.deepEqual([...TimelinePresentation.ICON_NAMES], [...SEMANTIC_ICON_NAMES]);
@@ -43,4 +44,37 @@ test("legacy flat entity icon metadata migrates to canonical presentation style"
       style: { shape: "diamond", icon: "person" },
     },
   );
+});
+
+test("graph validation rejects unknown icons and normalization migrates aliases", () => {
+  assert.equal(
+    TimelineGraph.validateEntityNode({
+      id: "bad-icon",
+      type: "person",
+      name: "Bad Icon",
+      attributes: { style: { icon: "not-a-real-icon" } },
+    }).valid,
+    false,
+  );
+
+  const normalized = TimelineGraph.normalizeGraphData(
+    {
+      entities: [
+        {
+          id: "legacy-person",
+          type: "person",
+          name: "Legacy Person",
+          attributes: { icon: "user", caseId: "A-42" },
+        },
+      ],
+      places: [],
+      relationships: [],
+    },
+    null,
+    null,
+  );
+  assert.deepEqual(normalized.entities[0]?.attributes, {
+    caseId: "A-42",
+    style: { icon: "person" },
+  });
 });
