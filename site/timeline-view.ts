@@ -3132,13 +3132,20 @@ export class TimelineViewController {
     const connectorTurn = node.querySelector<HTMLElement>(".timeline-event-connector-turn");
     terminal.dataset.timelineGeometryId = item.id;
     this.geometryObserver?.observe(terminal);
+    const requestComposer = (): void => {
+      this.root.dispatchEvent(
+        new CustomEvent("timelineoccurrenceeditrequest", {
+          bubbles: true,
+          detail: { id: item.id },
+        }),
+      );
+    };
     const selectOccurrence = (): void => {
-      if (this.focusedId === item.id) {
-        this.ensureFocusPopover();
-        return;
+      if (this.focusedId !== item.id) {
+        this.focusItem(item.id, { moveViewport: false });
+        void motion.pulseHaptic("selection");
       }
-      this.focusItem(item.id, { moveViewport: false });
-      void motion.pulseHaptic("selection");
+      requestComposer();
     };
     terminal.addEventListener("click", selectOccurrence);
 
