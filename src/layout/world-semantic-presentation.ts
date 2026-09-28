@@ -631,7 +631,10 @@ export function worldLocalRadiusPx(meters: number, zoom: number, latitude = 0): 
  */
 export const WORLD_ENTITY_FLOAT_PX = 96;
 export const WORLD_ENTITY_FLOAT_MIN_PX = 12;
-export const WORLD_ENTITY_FLOAT_DETAIL_ZOOM = WORLD_FLOATING_GRAPH_DETAIL_ZOOM;
+// Entity altitude tapering keeps its own detail threshold. The old floating-graph
+// expansion threshold was removed when local graph radius became zoom-invariant;
+// coupling these two concerns left a production-only unresolved identifier.
+export const WORLD_ENTITY_FLOAT_DETAIL_ZOOM = 7;
 const WORLD_ENTITY_FLOAT_HALF_LIFE_ZOOM = 2;
 
 /**
