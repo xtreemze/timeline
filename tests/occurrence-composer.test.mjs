@@ -663,13 +663,13 @@ test("occurrence composer stays visibly integrated into the stable footer", asyn
   assert.equal((markup.match(/id="occurrence-composer-toggle"/g) ?? []).length, 0);
   assert.match(markup.slice(footerStart, footerEnd), /id="occurrence-composer"/);
 
-  assert.match(
+  assert.doesNotMatch(
     shellStyles,
     /#app-shell:has\(#occurrence-composer\[active\]\)[\s\S]*--workspace-footer-content-block-size:\s*116px/,
   );
   assert.match(
     shellStyles,
-    /#occurrence-composer\[active\][\s\S]*grid-column:\s*1 \/ -1[\s\S]*grid-row:\s*1/,
+    /#occurrence-composer\[active\][\s\S]*grid-column:\s*2[\s\S]*grid-row:\s*1/,
   );
   assert.match(
     shellStyles,
@@ -677,7 +677,7 @@ test("occurrence composer stays visibly integrated into the stable footer", asyn
   );
   assert.match(
     shellStyles,
-    /app-footer-actions[\s\S]*grid-row:\s*2[\s\S]*app-footer-view[\s\S]*grid-column:\s*2 \/ -1[\s\S]*grid-row:\s*2/,
+    /app-footer-actions[\s\S]*grid-row:\s*1[\s\S]*app-footer-view[\s\S]*grid-column:\s*3[\s\S]*grid-row:\s*1/,
   );
   assert.doesNotMatch(shellStyles, /app-footer-timeline/);
   assert.doesNotMatch(markup, /id="timeline-view-controls-toggle"/);
