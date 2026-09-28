@@ -222,6 +222,44 @@ test("expanded occurrence hosts the same composer element and restores it to the
   await expect(page.locator(".app-footer-bar .occurrence-composer-host-proxy")).toBeHidden();
 });
 
+test("investigative clue mode survives the same composer moving into the retained card", async ({
+  page,
+}) => {
+  const focus = await focusOccurrence(page);
+  const composer = page.locator("#occurrence-composer");
+  await composer.locator(".compact").click();
+
+  await expect(focus.locator(".timeline-event-composer-slot #occurrence-composer")).toHaveCount(1);
+
+  const input = composer.locator("input");
+  await input.fill("man?");
+
+  const investigation = composer.locator("[data-investigation-mode]");
+  await expect(investigation).toBeVisible();
+  const clue = investigation.locator(".investigation-qualifier").filter({ hasText: "man" }).first();
+  await expect(clue).toBeVisible();
+
+  const literal = investigation
+    .locator(".investigation-interpretation")
+    .filter({ hasText: /descriptor.*man/i })
+    .first();
+  await expect(literal).toBeVisible();
+  await literal.click();
+
+  await expect(investigation.locator(".investigation-candidate").first()).toBeVisible();
+  await expect(investigation).toContainText("None of the currently known candidates");
+  await expect(investigation.getByRole("button", { name: /Ask this question/i })).toBeVisible();
+  await expect(investigation.getByRole("button", { name: /Create enquiry/i })).toBeVisible();
+
+  await focus.getByRole("tab", { name: "Evidence" }).click();
+  await expect(input).toHaveValue("man?");
+  await expect(focus.locator(".timeline-event-composer-slot #occurrence-composer")).toHaveCount(1);
+
+  await page.locator(".app-footer-bar .occurrence-composer-host-proxy").click();
+  await expect(input).toBeFocused();
+  await expect(input).toHaveValue("man?");
+});
+
 test("clicking the selected card keeps its attached detail open", async ({ page }) => {
   const terminal = await ensureSample(page);
   const focus = await focusOccurrence(page);
