@@ -120,14 +120,14 @@ function createWorldLayoutControls(
 
   group.append(
     button(
-      "Reorganize relationship layout",
-      "Reorganize relationship layout (D3 DAG)",
-      "dag",
+      "Arrange relationships",
+      "Arrange relationships (D3 DAG)",
+      "relation",
       actions.reorganizeDag,
     ),
     button(
-      "Relax graph forces",
-      "Relax graph forces (D3 force)",
+      "Settle relationships",
+      "Settle relationships (D3 force)",
       "force",
       actions.relaxForce,
     ),
