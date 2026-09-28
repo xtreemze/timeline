@@ -14,6 +14,13 @@ test("composer owns the card and incremental world preview with interactive gram
   assert.match(source, /occurrenceContextDeckFrames/);
   assert.match(source, /LuumOccurrenceDeckElement/);
   assert.match(source, /class="composer-context-deck"/);
+  assert.match(source, /class="composer-card-media"/);
+  assert.match(source, /class="composer-card-context"/);
+  assert.match(source, /class="composer-chip-row"/);
+  assert.doesNotMatch(source, /class="composer-grammar"/);
+  assert.match(source, /private mediaDeckFrames\(\)/);
+  assert.match(source, /\.composer-card-details\s*\{[\s\S]*grid-template-columns:/);
+  assert.match(source, /@media \(max-width: 720px\)[\s\S]*\.composer-card-details\s*\{[\s\S]*grid-template-columns: 1fr/);
   assert.match(source, /class="composer-world-preview"/);
   assert.match(source, /class="mini-world-pin"/);
   assert.match(source, /composerEditableSections\(this\.value\)/);

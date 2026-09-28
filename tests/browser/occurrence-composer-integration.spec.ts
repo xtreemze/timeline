@@ -63,6 +63,8 @@ test("one composer card previews incomplete icons and chips select exact grammar
     "style", /--preview-accent:\s*#[0-9a-f]{3,8}/i,
   );
   await input.fill("@alice meets @bob at Stockholm");
+  await expect(composer.locator(".composer-chip-row")).toHaveCount(1);
+  await expect(composer.locator(".composer-grammar")).toHaveCount(0);
   const place = composer.locator('.grammar-chip[aria-label^="Edit place:"]');
   await place.click();
   await expect
@@ -298,12 +300,23 @@ test("same-occurrence media and context refresh preserve a dirty investigative d
   await expect(composer.locator("#occurrence-investigation-panel")).toBeVisible();
   await expect(composer.locator(".composer-card-heading")).toContainText("Updated context");
   const deck = composer.locator("luum-occurrence-deck.composer-context-deck");
-  await expect(deck).toHaveAttribute("data-frame-count", "3");
+  const contextPanel = composer.locator(".composer-card-context");
+  await expect(deck).toHaveAttribute("data-frame-count", "2");
+  await expect(contextPanel).toContainText("Updated description");
   await expect(deck.locator(".timeline-focus-hero-image")).toHaveAttribute("alt", "Updated evidence A");
   await deck.getByRole("button", { name: "Next frame" }).click();
   await expect(deck.locator(".timeline-focus-hero-image")).toHaveAttribute("alt", "Updated evidence B");
-  await deck.getByRole("button", { name: "Next frame" }).click();
-  await expect(deck.locator(".timeline-occurrence-deck-context-body")).toHaveText("Updated description");
+  await expect(contextPanel).toContainText("Updated description");
+
+  const mediaBox = await composer.locator(".composer-card-media").boundingBox();
+  const contextBox = await contextPanel.boundingBox();
+  expect(mediaBox).not.toBeNull();
+  expect(contextBox).not.toBeNull();
+  if ((page.viewportSize()?.width ?? 0) > 720) {
+    expect((mediaBox?.x ?? 0) + (mediaBox?.width ?? 0)).toBeLessThanOrEqual((contextBox?.x ?? 0) + 2);
+  } else {
+    expect(contextBox?.y ?? 0).toBeGreaterThanOrEqual((mediaBox?.y ?? 0) + (mediaBox?.height ?? 0) - 2);
+  }
 });
 
 

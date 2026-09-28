@@ -926,7 +926,8 @@ test("Lit composer is a touch-safe ARIA combobox with live-context guidance", as
   assert.match(source, /@click=\$\{\(event: Event\) => this\.onCaretMove\(event\)\}/);
   assert.match(source, /@keyup=\$\{\(event: Event\) => this\.onCaretMove\(event\)\}/);
   assert.match(source, /replaceRange/);
-  assert.match(source, /class="context-row"/);
+  assert.match(source, /class="composer-chip-row"/);
+  assert.doesNotMatch(source, /class="composer-grammar"/);
   assert.match(source, /data-context-kind="place"[\s\S]*activateContext\("place"\)/);
   assert.match(source, /data-context-kind="time"[\s\S]*activateContext\("time"\)/);
   assert.match(source, /class="commit"/);

@@ -293,8 +293,10 @@ export class LuumOccurrenceComposerElement extends LitElement {
       backdrop-filter: blur(14px);
     }
 
-    .context-row {
+    .composer-chip-row {
       display: flex;
+      flex-wrap: nowrap;
+      align-items: center;
       gap: 0.3rem;
       min-inline-size: 0;
       padding: 0.38rem 0.45rem;
@@ -316,15 +318,51 @@ export class LuumOccurrenceComposerElement extends LitElement {
     .composer-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; font-size: 0.8rem; }
     .composer-card-heading strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .composer-card-details {
-      position: relative;
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(14rem, 0.85fr);
       min-inline-size: 0;
-      min-block-size: clamp(8rem, 24vh, 13rem);
       overflow: hidden;
       border: 1px solid color-mix(in srgb, var(--line, #d1ccc4) 78%, transparent);
       border-radius: 0.6rem;
       background: #171716;
       color: #f1ede7;
       isolation: isolate;
+    }
+    .composer-card-media {
+      position: relative;
+      min-inline-size: 0;
+      min-block-size: clamp(8rem, 22vh, 12rem);
+      overflow: hidden;
+      background: #171716;
+    }
+    .composer-card-media:only-child,
+    .composer-card-context:only-child {
+      grid-column: 1 / -1;
+    }
+    .composer-card-context {
+      display: grid;
+      align-content: center;
+      gap: 0.45rem;
+      min-inline-size: 0;
+      padding: 1rem;
+      background: color-mix(in srgb, #171716 88%, var(--preview-accent, #315fbd));
+      color: #f1ede7;
+    }
+    .composer-card-context-label,
+    .composer-card-context-body {
+      margin: 0;
+    }
+    .composer-card-context-label {
+      font-size: 0.72rem;
+      font-weight: 760;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .composer-card-context-body {
+      max-inline-size: 48ch;
+      overflow-wrap: anywhere;
+      font-size: 0.76rem;
+      line-height: 1.45;
     }
     .composer-context-deck {
       position: absolute;
@@ -457,7 +495,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     .preview-edge { position: relative; z-index: 1; display: grid; gap: 0.3rem; min-inline-size: 0; color: var(--preview-accent, #a79bf4); font-size: 0.72rem; text-align: center; overflow-wrap: anywhere; }
     .preview-edge svg { inline-size: 100%; block-size: 14px; overflow: visible; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
     .preview-pending { opacity: 0.4; }
-    .composer-grammar, .composer-qualifiers { display: flex; gap: 0.3rem; overflow-x: auto; scrollbar-width: thin; }
+    .composer-qualifiers { display: flex; gap: 0.3rem; overflow-x: auto; scrollbar-width: thin; }
     .grammar-chip, .qualifier-chip, .interpretation-chip { flex: 0 0 auto; min-block-size: 44px; padding: 0.2rem 0.5rem; border: 1px solid var(--line, #d1ccc4); border-radius: 0.5rem; background: var(--paper, #fff); color: inherit; font: inherit; cursor: pointer; }
     .qualifier-chip { border-color: var(--accent, #315fbd); }
     .grammar-chip:focus-visible, .qualifier-chip:focus-visible, .interpretation-chip:focus-visible { outline: 2px solid var(--accent, #315fbd); outline-offset: -2px; }
@@ -476,7 +514,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     .candidate-sources { grid-column: 1 / -1; color: var(--muted, #615d56); font-size: 0.68rem; }
     .approval { min-inline-size: 44px; min-block-size: 44px; border: 1px solid var(--line, #d1ccc4); border-radius: 0.58rem; background: var(--paper, #fff); color: var(--ink, #191714); cursor: pointer; }
 
-    .context-row::-webkit-scrollbar {
+    .composer-chip-row::-webkit-scrollbar {
       display: none;
     }
 
@@ -485,7 +523,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
       flex: 0 0 auto;
       align-items: center;
       gap: 0.28rem;
-      min-block-size: 28px;
+      min-block-size: 44px;
       max-inline-size: min(18rem, 58vw);
       padding-inline: 0.5rem;
       border: 1px solid color-mix(in srgb, var(--line, #d1ccc4) 80%, transparent);
@@ -526,6 +564,16 @@ export class LuumOccurrenceComposerElement extends LitElement {
       font-weight: 760;
       letter-spacing: 0.03em;
       text-transform: uppercase;
+    }
+
+    @media (max-width: 720px) {
+      .composer-card-details {
+        grid-template-columns: 1fr;
+      }
+
+      .composer-card-media {
+        min-block-size: clamp(7.5rem, 21vh, 11rem);
+      }
     }
 
     @media (max-width: 480px) {
@@ -1304,6 +1352,10 @@ export class LuumOccurrenceComposerElement extends LitElement {
     );
   }
 
+  private mediaDeckFrames() {
+    return this.contextDeckFrames().filter((frame) => frame.kind === "image");
+  }
+
   private syncContextDeck(): void {
     const deck = this.renderRoot.querySelector<LuumOccurrenceDeckElement>(".composer-context-deck");
     if (!deck) return;
@@ -1312,7 +1364,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
         this.selectionContext?.selectedOccurrenceId ??
         this.selectionContext?.selectedItemId ??
         "composer-draft",
-      frames: this.contextDeckFrames(),
+      frames: this.mediaDeckFrames(),
       activeIndex: deck.activeIndex,
     });
   }
@@ -1365,7 +1417,6 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const placePinned = Boolean(parsed.place || this.selectionContext?.place);
     const timePinned = Boolean(parsed.time);
     const categoryLabel = parsed.options.category ?? null;
-    const tagLabels = parsed.options.tags;
     const sections = composerEditableSections(this.value);
     const preview = projectComposerPreview(
       this.value,
@@ -1377,6 +1428,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
       (category) => category.name === preview.category,
     );
     const previewPalette = this.previewPalette();
+    const mediaFrames = this.mediaDeckFrames();
+    const contextDescription = this.selectionContext?.description?.trim() ?? "";
 
     return html`
       <section class="composer" aria-label="Occurrence composer">
@@ -1464,9 +1517,19 @@ export class LuumOccurrenceComposerElement extends LitElement {
           <section class="composer-occurrence-card" aria-label="Occurrence card in composer">
             <div class="composer-card-heading"><strong>${this.selectionContext?.title || "New occurrence"}</strong>
               <span>${qualifiers.length ? "Investigating" : preview.category || "Draft"}</span></div>
-            ${this.contextDeckFrames().length
+            ${mediaFrames.length || contextDescription
               ? html`<div class="composer-card-details" aria-label="Occurrence media and context">
-                  <luum-occurrence-deck class="composer-context-deck"></luum-occurrence-deck>
+                  ${mediaFrames.length
+                    ? html`<div class="composer-card-media" aria-label="Occurrence slideshow">
+                        <luum-occurrence-deck class="composer-context-deck"></luum-occurrence-deck>
+                      </div>`
+                    : nothing}
+                  ${contextDescription
+                    ? html`<aside class="composer-card-context" aria-label="Occurrence context">
+                        <p class="composer-card-context-label">Context</p>
+                        <p class="composer-card-context-body">${contextDescription}</p>
+                      </aside>`
+                    : nothing}
                 </div>`
               : nothing}
             <div class="composer-world-preview" role="img"
@@ -1486,22 +1549,6 @@ export class LuumOccurrenceComposerElement extends LitElement {
                 <svg viewBox="0 0 100 14" preserveAspectRatio="none" aria-hidden="true"><path d="M1 7H96M89 1L97 7L89 13"></path></svg>
               </span>
               ${this.previewNode(preview.object, "Target", previewPalette)}
-            </div>
-            <div class="composer-grammar" aria-label="Editable sentence sections">
-              ${sections.map(
-                (section) => html`<button class="grammar-chip" type="button"
-                aria-label=${`Edit ${section.kind}: ${section.text}`}
-                @pointerdown=${(event: PointerEvent) => event.preventDefault()}
-                @click=${() => this.selectSection(section.start, section.end)}>${section.text}</button>`,
-              )}
-              ${preview.tags.map((tag) => {
-                const section = sections.find((entry) => entry.kind === "tag" && entry.text === tag);
-                return section
-                  ? html`<button class="context-chip" type="button" aria-label=${`Edit tag: ${tag}`}
-                      @pointerdown=${(event: PointerEvent) => event.preventDefault()}
-                      @click=${() => this.selectSection(section.start, section.end)}>#${tag}</button>`
-                  : nothing;
-              })}
             </div>
           </section>
           ${
@@ -1646,7 +1693,15 @@ export class LuumOccurrenceComposerElement extends LitElement {
                 ? "Investigation mode. Choose an interpretation to compare candidates."
                 : ""}
           </span>
-          <div class="context-row" aria-label="Occurrence context">
+          <div class="composer-chip-row" aria-label="Editable occurrence context">
+            ${sections.map(
+              (section) => html`<button class="grammar-chip" type="button"
+                data-context-kind=${section.kind}
+                data-context-state="pinned"
+                aria-label=${`Edit ${section.kind}: ${section.text}`}
+                @pointerdown=${(event: PointerEvent) => event.preventDefault()}
+                @click=${() => this.selectSection(section.start, section.end)}>${section.text}</button>`,
+            )}
             ${
               this.hasPendingSelectionContext
                 ? html`<button
@@ -1662,47 +1717,39 @@ export class LuumOccurrenceComposerElement extends LitElement {
                 : nothing
             }
             ${
-              subjectLabel
+              subjectLabel && !sections.some((section) => section.kind === "subject")
                 ? html`<button class="context-chip" type="button" data-context-kind="subject" data-context-state="pinned"
                   @click=${() => this.focusSection("subject")}>
                   <span>Subject</span><strong>${subjectLabel}</strong><span class="context-state">pinned</span>
                 </button>`
                 : nothing
             }
-            <button type="button" @click=${() => this.focusSection("place")}
-              class="context-chip"
-              data-context-kind="place"
-              data-context-state=${placePinned ? "pinned" : "live"}
-            >
-              <span>Place</span><strong>${placeLabel}</strong><span class="context-state">${placePinned ? "pinned" : "live"}</span>
-            </button>
-            <button type="button" @click=${() => this.focusSection("time")}
-              class="context-chip"
-              data-context-kind="time"
-              data-context-state=${timePinned ? "pinned" : "live"}
-            >
-              <span>Time</span><strong>${timeLabel ?? "timeline center"}</strong><span class="context-state">${timePinned ? "pinned" : "live"}</span>
-            </button>
+            ${!sections.some((section) => section.kind === "place")
+              ? html`<button type="button" @click=${() => this.focusSection("place")}
+                  class="context-chip"
+                  data-context-kind="place"
+                  data-context-state=${placePinned ? "pinned" : "live"}
+                >
+                  <span>Place</span><strong>${placeLabel}</strong><span class="context-state">${placePinned ? "pinned" : "live"}</span>
+                </button>`
+              : nothing}
+            ${!sections.some((section) => section.kind === "time")
+              ? html`<button type="button" @click=${() => this.focusSection("time")}
+                  class="context-chip"
+                  data-context-kind="time"
+                  data-context-state=${timePinned ? "pinned" : "live"}
+                >
+                  <span>Time</span><strong>${timeLabel ?? "timeline center"}</strong><span class="context-state">${timePinned ? "pinned" : "live"}</span>
+                </button>`
+              : nothing}
             ${
-              categoryLabel
+              categoryLabel && !sections.some((section) => section.kind === "category")
                 ? html`<button class="context-chip" type="button" data-context-kind="category" data-context-state="pinned"
                   @click=${() => this.focusSection("category")}>
                   <span>Category</span><strong>${categoryLabel}</strong>
                 </button>`
                 : nothing
             }
-            ${tagLabels.map(
-              (
-                tag,
-                index,
-              ) => html`<button class="context-chip" type="button" data-context-kind="tag" data-context-state="pinned"
-                @click=${() => {
-                  const section = sections.filter((candidate) => candidate.kind === "tag")[index];
-                  if (section) this.selectSection(section.start, section.end);
-                }}>
-                <span>Tag</span><strong>${tag}</strong>
-              </button>`,
-            )}
           </div>
           ${
             diagnostic
