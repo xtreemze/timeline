@@ -94,7 +94,9 @@ function finitePositive(value: number, label: string): number {
 function connectivityDegreeByInstance(
   projection: WorldProjection,
 ): ReadonlyMap<ProjectedWorldInstance["id"], number> {
-  const degree = new Map(projection.instances.map((instance) => [instance.id, 0] as const));
+  const degree = new Map<ProjectedWorldInstance["id"], number>(
+    projection.instances.map((instance) => [instance.id, 0]),
+  );
 
   for (const edge of projection.edges) {
     if (edge.sourceInstanceId === edge.targetInstanceId) continue;

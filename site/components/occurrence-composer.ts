@@ -90,6 +90,13 @@ export interface OccurrenceCommitDetail {
     readonly itemId: string | null;
     readonly initialText: string;
   } | null;
+  readonly metadata: {
+    readonly role: string | null;
+    readonly initialState: "active" | "inactive";
+    readonly sourceIds: readonly string[];
+    readonly confidence: number | null;
+    readonly attributes: Readonly<Record<string, unknown>>;
+  };
   readonly defaults: {
     readonly timeMs: number | null;
     readonly timeValue: string | null;
@@ -1050,6 +1057,16 @@ export class LuumOccurrenceComposerElement extends LitElement {
       this.requestUpdate();
       return;
     }
+    const metadata = this.selectionContext?.metadata;
+    const normalizedMetadata = Object.freeze({
+      role: metadata?.role?.trim() || null,
+      initialState: metadata?.initialState === "inactive" ? "inactive" as const : "active" as const,
+      sourceIds: Object.freeze([
+        ...new Set((metadata?.sourceIds ?? []).map((id) => id.trim()).filter(Boolean)),
+      ]),
+      confidence: metadata?.confidence ?? null,
+      attributes: Object.freeze({ ...(metadata?.attributes ?? {}) }),
+    });
     this.dispatchEvent(
       new CustomEvent<OccurrenceCommitDetail>("occurrencecommit", {
         bubbles: true,
@@ -1065,6 +1082,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
                   initialText: this.selectionContext.composition.trim(),
                 }
               : null,
+          metadata: normalizedMetadata,
           defaults: {
             timeMs: this.timelineContext?.centerMs ?? null,
             timeValue: this.timelineContext?.value ?? null,
@@ -1346,6 +1364,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const subjectLabel = this.selectedSubjectLabel();
     const placePinned = Boolean(parsed.place || this.selectionContext?.place);
     const timePinned = Boolean(parsed.time);
+    const categoryLabel = parsed.options.category ?? null;
     const tagLabels = parsed.options.tags;
     const sections = composerEditableSections(this.value);
     const preview = projectComposerPreview(

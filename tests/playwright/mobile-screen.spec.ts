@@ -45,12 +45,17 @@ test.describe("Narrow mobile screen contracts", () => {
         const agentAPI = (
           window as typeof window & { TimelineAgentAPI?: { getProject?: () => unknown } }
         ).TimelineAgentAPI;
-        const project = agentAPI?.getProject?.();
+        const project = agentAPI?.getProject?.() as { items?: unknown[] } | undefined;
         const root = document.querySelector("#timeline-view");
         const TimelineView = (
-          window as typeof window & { TimelineView?: { create?: (root: HTMLElement) => unknown } }
+          window as typeof window & {
+            TimelineView?: { create?: (root: HTMLElement) => { items?: unknown[] } | null };
+          }
         ).TimelineView;
-        const view = root instanceof HTMLElement ? TimelineView?.create(root) : null;
+        const view =
+          root instanceof HTMLElement && typeof TimelineView?.create === "function"
+            ? TimelineView.create(root)
+            : null;
         return {
           projectItems: project?.items?.length ?? 0,
           controllerItems: view?.items?.length ?? 0,
@@ -216,7 +221,7 @@ test.describe("Narrow mobile screen contracts", () => {
     expect(visibleCards.length).toBeGreaterThan(1);
     for (let first = 0; first < visibleCards.length; first += 1) {
       for (let second = first + 1; second < visibleCards.length; second += 1) {
-        const intersection = overlap(visibleCards[first], visibleCards[second]);
+        const intersection = overlap(visibleCards[first]!, visibleCards[second]!);
         expect(
           intersection.x > 2 && intersection.y > 2,
           `mobile timeline cards ${first} and ${second} overlap by ${Math.max(0, intersection.x).toFixed(1)}×${Math.max(0, intersection.y).toFixed(1)}px`,

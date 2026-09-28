@@ -155,3 +155,22 @@ test("contextual composer returns focus to its connected invoker on close", asyn
   );
   assert.match(app, /syncApplicationSurfaces\(\)[\s\S]*restoreComposerFocus/);
 });
+
+
+test("focused occurrence opens the composer directly and suppresses legacy detail", async () => {
+  const [app, css] = await Promise.all([
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/spatial-shell.css", import.meta.url), "utf8"),
+  ]);
+  const focusHandler = app.match(/timelinefocuschange"[\s\S]*?\n\}\);/)?.[0] ?? "";
+
+  assert.match(focusHandler, /focusSelection = selectionForTimelineFocus/);
+  assert.match(
+    focusHandler,
+    /focusSelection\?\.kind === "relationship"[\s\S]*setOccurrenceComposerOpen\(true\)/,
+  );
+  assert.match(
+    css,
+    /#app-shell:has\(#occurrence-composer\[active\]\) #timeline-focus-view,[\s\S]*\.timeline-event-detail[\s\S]*display:\s*none\s*!important/,
+  );
+});
