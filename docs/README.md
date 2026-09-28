@@ -53,3 +53,5 @@ For product copy, use **Lūm**. The repository and some compatibility APIs still
 7. If a behavior becomes normative, encode it in tests or lint rules as well as prose.
 - [LUM-PROJECT-INTERCHANGE.md](LUM-PROJECT-INTERCHANGE.md) — strict portable `.lum.json` contract.
 - [LUM-DEVELOPER-TOOLING.md](LUM-DEVELOPER-TOOLING.md) — CLI, formatter, linter, schemas, LSP, and agent context.
+
+- [LUM-AGENT-PROPOSALS.md](LUM-AGENT-PROPOSALS.md) — typed reviewable AI/agent change proposals and candidate application.
