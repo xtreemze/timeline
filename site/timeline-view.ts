@@ -1323,11 +1323,13 @@ export class TimelineViewController {
       button.toggleAttribute("data-selected", selected);
       button.setAttribute("aria-current", String(item.id === this.focusedId));
       button.addEventListener("click", () => {
-        if (this.focusedId === item.id) {
-          this.ensureFocusPopover();
-        } else {
-          this.focusItem(item.id);
-        }
+        if (this.focusedId !== item.id) this.focusItem(item.id);
+        this.root.dispatchEvent(
+          new CustomEvent("timelineoccurrenceeditrequest", {
+            bubbles: true,
+            detail: { id: item.id },
+          }),
+        );
       });
       row.append(button);
       return row;
@@ -2960,6 +2962,12 @@ export class TimelineViewController {
     if (expansion?.viewport) this.viewport = { ...expansion.viewport };
     this.commitInteraction();
     this.focusItem(selectedId, { moveViewport: false });
+    this.root.dispatchEvent(
+      new CustomEvent("timelineoccurrenceeditrequest", {
+        bubbles: true,
+        detail: { id: selectedId },
+      }),
+    );
     void motion.pulseHaptic("selection");
   }
 
