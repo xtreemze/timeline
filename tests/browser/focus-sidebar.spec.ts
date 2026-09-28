@@ -185,6 +185,43 @@ test("composer opens from selected context without dismissing focus or activatin
   await expect(focus).toBeVisible();
 });
 
+test("expanded occurrence hosts the same composer element and restores it to the footer", async ({
+  page,
+}) => {
+  const focus = await focusOccurrence(page);
+  const composer = page.locator("#occurrence-composer");
+  await composer.evaluate((element) => {
+    element.setAttribute("data-test-composer-identity", "shared-instance");
+  });
+
+  await composer.locator(".compact").click();
+
+  await expect(composer).toHaveAttribute("active", "");
+  await expect(focus.locator(".timeline-event-composer-slot #occurrence-composer")).toHaveCount(1);
+  await expect(page.locator("#occurrence-composer")).toHaveCount(1);
+  await expect(page.locator(".app-footer-bar .occurrence-composer-host-proxy")).toBeVisible();
+
+  const input = composer.locator("input");
+  await expect(input).toBeFocused();
+  const before = await input.inputValue();
+  await input.press("End");
+  await input.type(" ");
+  await expect(input).toHaveValue(`${before} `);
+
+  await focus.getByRole("tab", { name: "Evidence" }).click();
+  await expect(composer).toHaveAttribute("data-test-composer-identity", "shared-instance");
+  await expect(focus.locator(".timeline-event-composer-slot #occurrence-composer")).toHaveCount(1);
+  await expect(input).toHaveValue(`${before} `);
+
+  await page.locator(".app-footer-bar .occurrence-composer-host-proxy").click();
+  await expect(input).toBeFocused();
+
+  await input.press("Escape");
+  await expect(composer).not.toHaveAttribute("active", "");
+  await expect(page.locator(".app-footer-bar #occurrence-composer")).toHaveCount(1);
+  await expect(page.locator(".app-footer-bar .occurrence-composer-host-proxy")).toBeHidden();
+});
+
 test("clicking the selected card keeps its attached detail open", async ({ page }) => {
   const terminal = await ensureSample(page);
   const focus = await focusOccurrence(page);
