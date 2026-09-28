@@ -129,8 +129,12 @@ test("composer exposes live context, pins explicit context, and leaves Tab for f
   );
 
   await input.press("Tab");
-  await expect(composer.locator("button.close")).toBeFocused();
+  const close = composer.locator("button.close");
+  await expect(close).toBeFocused();
   await expect(composer).toHaveAttribute("active", "");
+  await close.click();
+  await expect(composer).not.toHaveAttribute("active", "");
+  await expect(page.locator("#editor-toggle")).toBeFocused();
 });
 
 test("composer keeps drafts in the same context and clears them when spatial context changes", async ({
