@@ -53,6 +53,7 @@
       "action": "./",
       "accept": {
         "application/json": [
+          ".lum.json",
           ".luum"
         ]
       }
@@ -60,9 +61,9 @@
   ],
   "shortcuts": [
     {
-      "name": "Add event",
-      "short_name": "Add event",
-      "description": "Open the Lūm event editor",
+      "name": "Add occurrence",
+      "short_name": "Add occurrence",
+      "description": "Open the Lūm occurrence composer",
       "url": "./?shortcut=new-event",
       "icons": [
         {
