@@ -17,7 +17,9 @@ test("selecting an occurrence through the visible card opens its composer-owned 
   await expect(composer).toHaveAttribute("active", "");
   await expect(composer.locator(".composer-occurrence-card")).toBeVisible();
   await expect(composer.locator('input[role="combobox"]')).toBeVisible();
+  await expect(composer.locator(".composer-context-deck")).toBeVisible();
   await expect(page.locator(".timeline-event-detail:visible")).toHaveCount(0);
+  await expect(page.locator("#timeline-focus-view:visible")).toHaveCount(0);
 
   // Regression: once this occurrence is already selected/focused, closing the
   // composer and activating the same card again must reopen the composer rather
