@@ -38,6 +38,17 @@ test("inline node style edits change the World marker before approval", () => {
   assert.match(svg, /fill="#876543"/);
 });
 
+test("quoted category suggestions preview the canonical category name", () => {
+  const draft = "@alice meets @bob [category: Dec";
+  const preview = projectComposerPreview(draft, entities, {
+    kind: "category",
+    label: "Decision / Choice",
+    insertText: '"Decision / Choice"',
+    icon: "tag",
+  });
+  assert.equal(preview.category, "Decision / Choice");
+});
+
 test("hovered category and tag suggestions appear in the preview before acceptance", () => {
   const draft = "@alice meets @bob [category: Fam";
   const category = projectComposerPreview(draft, entities, {
