@@ -1,0 +1,67 @@
+{
+  "Lūm project": {
+    "prefix": "lum-project",
+    "description": "Strict Lūm Project Interchange v1 scaffold",
+    "body": [
+      "{",
+      "  \"$schema\": \"https://xtreemze.github.io/timeline/schemas/lum-project-v1.schema.json\",",
+      "  \"format\": \"lum-project\",",
+      "  \"interchangeVersion\": 1,",
+      "  \"schemaVersion\": 3,",
+      "  \"projectKey\": \"${1:project-key}\",",
+      "  \"revision\": 1,",
+      "  \"savedAt\": \"${2:2026-01-01T00:00:00.000Z}\",",
+      "  \"project\": {",
+      "    \"schemaVersion\": 3,",
+      "    \"entities\": [],",
+      "    \"relationships\": []",
+      "  }",
+      "}"
+    ]
+  },
+  "Lūm entity": {
+    "prefix": "lum-entity",
+    "body": [
+      "{",
+      "  \"id\": \"${1:entity-id}\",",
+      "  \"type\": \"${2:person}\",",
+      "  \"name\": \"${3:Name}\",",
+      "  \"alternateNames\": [],",
+      "  \"sourceIds\": [],",
+      "  \"attributes\": {}",
+      "}"
+    ]
+  },
+  "Lūm relationship": {
+    "prefix": "lum-relationship",
+    "body": [
+      "{",
+      "  \"id\": \"${1:relationship-id}\",",
+      "  \"subjectId\": \"${2:subject-id}\",",
+      "  \"objectId\": \"${3:object-id}\",",
+      "  \"predicate\": \"${4:acts}\",",
+      "  \"itemIds\": [],",
+      "  \"sourceIds\": [],",
+      "  \"confidence\": null,",
+      "  \"time\": null,",
+      "  \"attributes\": {}",
+      "}"
+    ]
+  },
+  "Lūm occurrence": {
+    "prefix": "lum-occurrence",
+    "body": [
+      "{",
+      "  \"id\": \"${1:occurrence-id}\",",
+      "  \"time\": null,",
+      "  \"participantContexts\": [",
+      "    { \"entityId\": \"${2:entity-id}\" }",
+      "  ],",
+      "  \"relationshipIds\": [],",
+      "  \"sourceIds\": [],",
+      "  \"confidence\": null,",
+      "  \"attributes\": {}",
+      "}"
+    ]
+  }
+}
