@@ -241,7 +241,7 @@ export function createInvestigationWorkspace(
   toggle.setAttribute("aria-controls", "investigation-workspace-sheet");
   toggle.setAttribute("aria-label", "Investigation methodology");
   toggle.title = "Investigation methodology";
-  if (createIcon) toggle.append(createIcon("relation", { size: 22 }));
+  if (createIcon) toggle.append(createIcon("evidence", { size: 22 }));
   toggle.append(createElement("span", "app-tool-label sr-only", "Investigate"));
   footerActions.append(toggle);
 
