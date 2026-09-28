@@ -1170,3 +1170,61 @@
 .project-import-review-actions > .button {
   min-block-size: 44px;
 }
+
+
+/* The single occurrence composer may move into the promoted retained card.
+   This host affects presentation only; authoring state remains application-owned. */
+.timeline-focus-composer-host {
+  min-inline-size: 0;
+  inline-size: 100%;
+}
+
+.timeline-focus-composer-host[hidden] {
+  display: none;
+}
+
+.timeline-focus-composer-host > luum-occurrence-composer {
+  inline-size: 100%;
+}
+
+.timeline-focus-composition {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2rem;
+  margin-block-end: 0.6rem;
+  font: 600 clamp(0.9rem, 1.2vw, 1rem)/1.5 ui-monospace, "SFMono-Regular", Consolas, monospace;
+}
+
+.timeline-focus-composition-segment {
+  min-block-size: 44px;
+  padding-inline: 0.4rem;
+  border: 1px solid transparent;
+  border-radius: 0.45rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: text;
+  touch-action: manipulation;
+}
+
+.timeline-focus-composition-segment:is(:hover, :focus-visible) {
+  border-color: color-mix(
+    in srgb,
+    var(--event-color, var(--accent)) 55%,
+    var(--line, #d1ccc4)
+  );
+  background: color-mix(in srgb, var(--event-color, var(--accent)) 9%, transparent);
+  outline: none;
+}
+
+.occurrence-composer-proxy {
+  min-block-size: 44px;
+  min-inline-size: min(18rem, 42vw);
+  padding-inline: 0.7rem;
+  border: 1px solid var(--line, #d1ccc4);
+  border-radius: var(--toolbar-control-radius, 0.58rem);
+  background: color-mix(in srgb, var(--paper, #fff) 92%, transparent);
+  color: var(--muted, #615d56);
+  font: 600 0.72rem/1.2 ui-monospace, "SFMono-Regular", Consolas, monospace;
+}
