@@ -10,6 +10,32 @@ export interface SemanticIconSuggestion {
   readonly reason: string;
 }
 
+export type SemanticIconResolutionOrigin =
+  | "explicit"
+  | "inferred"
+  | "type-fallback"
+  | "unsupported"
+  | "none";
+
+export interface SemanticIconResolution {
+  readonly icon: SemanticIconName | null;
+  readonly origin: SemanticIconResolutionOrigin;
+  readonly confidence: "high" | null;
+  readonly reason:
+    | "authored"
+    | "entity-type"
+    | "unsupported-explicit-icon"
+    | "no-confident-semantic-icon"
+    | string;
+  readonly authoredIcon: string | null;
+}
+
+export interface SemanticIconEntityReview extends SemanticIconResolution {
+  readonly entityId: string;
+  readonly entityName: string;
+  readonly entityType: string;
+}
+
 export interface SemanticIconAuditEntity {
   readonly id: string;
   readonly name?: unknown;
@@ -108,6 +134,82 @@ export function suggestSemanticIcon(entity: {
   return null;
 }
 
+export function resolveSemanticIcon(entity: {
+  readonly name?: unknown;
+  readonly type?: unknown;
+  readonly attributes?: unknown;
+}): SemanticIconResolution {
+  const candidate = explicitIconCandidate(entity.attributes);
+  const authoredIcon =
+    candidate !== null && candidate !== undefined && String(candidate).trim()
+      ? String(candidate).trim().slice(0, 48)
+      : null;
+
+  if (authoredIcon) {
+    const explicit = normalizeSemanticIconName(authoredIcon);
+    return explicit
+      ? Object.freeze({
+          icon: explicit,
+          origin: "explicit" as const,
+          confidence: null,
+          reason: "authored",
+          authoredIcon,
+        })
+      : Object.freeze({
+          icon: null,
+          origin: "unsupported" as const,
+          confidence: null,
+          reason: "unsupported-explicit-icon",
+          authoredIcon,
+        });
+  }
+
+  const suggestion = suggestSemanticIcon(entity);
+  if (suggestion) {
+    return Object.freeze({
+      icon: suggestion.icon,
+      origin: "inferred" as const,
+      confidence: suggestion.confidence,
+      reason: suggestion.reason,
+      authoredIcon: null,
+    });
+  }
+
+  const fallback = defaultSemanticIconForEntityType(entity.type);
+  if (fallback) {
+    return Object.freeze({
+      icon: fallback,
+      origin: "type-fallback" as const,
+      confidence: null,
+      reason: "entity-type",
+      authoredIcon: null,
+    });
+  }
+
+  return Object.freeze({
+    icon: null,
+    origin: "none" as const,
+    confidence: null,
+    reason: "no-confident-semantic-icon",
+    authoredIcon: null,
+  });
+}
+
+export function semanticIconReviewForEntities(
+  entities: readonly SemanticIconAuditEntity[],
+): readonly SemanticIconEntityReview[] {
+  return Object.freeze(
+    entities.map((entity) =>
+      Object.freeze({
+        entityId: entity.id,
+        entityName: typeof entity.name === "string" ? entity.name.trim() : "",
+        entityType: typeof entity.type === "string" ? entity.type.trim() : "",
+        ...resolveSemanticIcon(entity),
+      }),
+    ),
+  );
+}
+
 export function auditSemanticIconQuality(
   entities: readonly SemanticIconAuditEntity[],
 ): SemanticIconQualityAudit {
@@ -118,26 +220,28 @@ export function auditSemanticIconQuality(
   let explicitCount = 0;
 
   for (const entity of entities) {
-    const candidate = explicitIconCandidate(entity.attributes);
-    if (candidate !== null && candidate !== undefined && String(candidate).trim()) {
-      const explicit = normalizeSemanticIconName(candidate);
-      if (explicit) explicitCount += 1;
-      else unsupportedIconIds.push(entity.id);
+    const resolution = resolveSemanticIcon(entity);
+    if (resolution.origin === "explicit") {
+      explicitCount += 1;
       continue;
     }
-
-    const suggestion = suggestSemanticIcon(entity);
-    if (suggestion) {
+    if (resolution.origin === "unsupported") {
+      unsupportedIconIds.push(entity.id);
+      continue;
+    }
+    if (resolution.origin === "inferred") {
       highConfidenceSuggestionIds.push(entity.id);
       continue;
     }
-
-    const fallback = defaultSemanticIconForEntityType(entity.type);
-    if (fallback && GENERIC_ICON_NAMES.has(fallback)) {
+    if (
+      resolution.origin === "type-fallback" &&
+      resolution.icon &&
+      GENERIC_ICON_NAMES.has(resolution.icon)
+    ) {
       genericFallbackIds.push(entity.id);
       continue;
     }
-    if (!fallback) missingIconIds.push(entity.id);
+    if (resolution.origin === "none") missingIconIds.push(entity.id);
   }
 
   return Object.freeze({
