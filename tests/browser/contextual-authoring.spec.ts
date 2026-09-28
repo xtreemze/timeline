@@ -923,6 +923,143 @@ test.describe("contextual world authoring certification", () => {
     expect(subjectActionObject.length).toBeGreaterThan(subjectAndAction.length);
   });
 
+  test("visible save control finalizes with pointer or touch instead of requiring Enter", async ({
+    page,
+  }, testInfo) => {
+    await page.goto("/");
+    const relationships = await relationshipFocuses(page);
+    test.skip(!relationships.length, "Example project exposes no focusable relationship occurrence.");
+    await focusRelationship(page, relationships[0]!);
+    const composer = await openPersistentComposer(page);
+    const save = composer.getByRole("button", { name: "Save occurrence" });
+    await expect(save).toBeEnabled();
+
+    if (testInfo.project.use.hasTouch) await save.tap();
+    else await save.click();
+
+    await expect(page.locator("#status")).toContainText("Occurrence unchanged");
+  });
+
+  test("Ctrl+Enter always commits even while the caret is editing a semantic component", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const relationships = await relationshipFocuses(page);
+    test.skip(!relationships.length, "Example project exposes no focusable relationship occurrence.");
+    await focusRelationship(page, relationships[0]!);
+    const composer = await openPersistentComposer(page);
+    const subjectChip = composer.locator('button.context-chip[data-context-kind="subject"]');
+    await expect(subjectChip).toBeVisible();
+    await subjectChip.click();
+
+    const input = composer.locator("input");
+    await expect(input).toBeFocused();
+    await input.press("Control+Enter");
+    await expect(page.locator("#status")).toContainText("Occurrence unchanged");
+  });
+
+  test("live context and semantic chips are keyboard-addressable controls", async ({ page }) => {
+    await page.goto("/");
+    const composer = await openPersistentComposer(page);
+    const placeChip = composer.locator('button.context-chip[data-context-kind="place"]');
+    const timeChip = composer.locator('button.context-chip[data-context-kind="time"]');
+    const detailsChip = composer.locator('button.context-chip[data-context-kind="metadata"]');
+
+    await expect(placeChip).toBeVisible();
+    await expect(timeChip).toBeVisible();
+    await expect(detailsChip).toBeVisible();
+
+    const tags = await Promise.all([
+      placeChip.evaluate((element) => element.tagName),
+      timeChip.evaluate((element) => element.tagName),
+      detailsChip.evaluate((element) => element.tagName),
+    ]);
+    expect(tags).toEqual(["BUTTON", "BUTTON", "BUTTON"]);
+
+    await placeChip.focus();
+    await expect(placeChip).toBeFocused();
+    await placeChip.press("ArrowRight");
+    await expect(timeChip).toBeFocused();
+    await timeChip.press("End");
+    await expect(detailsChip).toBeFocused();
+
+    if (await timeChip.isEnabled()) {
+      const before = await composer.locator("input").inputValue();
+      await timeChip.click();
+      await expect(timeChip).toHaveAttribute("data-context-state", "pinned");
+      await expect(composer.locator("input")).toHaveValue(before);
+    }
+  });
+
+  test("composer details edit role state confidence and provenance in the same transaction", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const relationships = await relationshipFocuses(page);
+    test.skip(!relationships.length, "Example project exposes no focusable relationship occurrence.");
+    const relationship = relationships[0]!;
+    await focusRelationship(page, relationship);
+    const composer = await openPersistentComposer(page);
+
+    const baseline = await page.evaluate((relationshipId) => {
+      const project = (
+        window as typeof window & {
+          TimelineAgentAPI?: { getProject?: () => any };
+        }
+      ).TimelineAgentAPI?.getProject?.();
+      const record = (project?.relationships ?? []).find(
+        (candidate: any) => String(candidate.id) === relationshipId,
+      );
+      const evidenceId = String(project?.evidence?.[0]?.id ?? record?.sourceIds?.[0] ?? "");
+      return {
+        initialState: record?.initialState === "inactive" ? "inactive" : "active",
+        evidenceId,
+      };
+    }, relationship.relationshipId);
+
+    const details = composer.locator('button.context-chip[data-context-kind="metadata"]');
+    await details.click();
+    const panel = composer.locator("#occurrence-composer-metadata");
+    await expect(panel).toBeVisible();
+
+    await panel.locator('input[type="text"]').first().fill("observer");
+    await panel.locator("select").selectOption(
+      baseline.initialState === "active" ? "inactive" : "active",
+    );
+    await panel.locator('input[type="number"]').fill("0.64");
+    if (baseline.evidenceId) {
+      await panel.locator('input[type="text"]').nth(1).fill(baseline.evidenceId);
+    }
+
+    await composer.getByRole("button", { name: "Save occurrence" }).click();
+    await expect(page.locator("#status")).toContainText("Occurrence updated");
+
+    await expect
+      .poll(async () =>
+        page.evaluate((relationshipId) => {
+          const record = (
+            window as typeof window & {
+              TimelineAgentAPI?: { getProject?: () => any };
+            }
+          ).TimelineAgentAPI?.getProject?.()?.relationships?.find(
+            (candidate: any) => String(candidate.id) === relationshipId,
+          );
+          return {
+            role: record?.role ?? null,
+            initialState: record?.initialState ?? "active",
+            confidence: record?.confidence ?? null,
+            sourceIds: record?.sourceIds ?? [],
+          };
+        }, relationship.relationshipId),
+      )
+      .toEqual({
+        role: "observer",
+        initialState: baseline.initialState === "active" ? "inactive" : "active",
+        confidence: 0.64,
+        sourceIds: baseline.evidenceId ? [baseline.evidenceId] : [],
+      });
+  });
+
   test("S23-class portrait and landscape keep contextual composer fully contained without document scroll", async ({
     page,
   }, testInfo) => {
