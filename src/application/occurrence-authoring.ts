@@ -1,4 +1,8 @@
-import { normalizeSemanticIconName } from "../presentation/semantic-icons.ts";
+import { suggestSemanticIcon } from "../presentation/semantic-icon-inference.ts";
+import {
+  defaultSemanticIconForEntityType,
+  normalizeSemanticIconName,
+} from "../presentation/semantic-icons.ts";
 
 export interface OccurrenceAuthoringEndpointReference {
   readonly name: string;
@@ -169,6 +173,11 @@ function resolveEntity<TState extends OccurrenceAuthoringState<TExtent>, TExtent
     const icon = normalizeSemanticIconName(rawIcon);
     if (!icon) throw new Error(`Unsupported semantic icon “${rawIcon}”.`);
     style["icon"] = icon;
+  } else {
+    const inferredIcon =
+      suggestSemanticIcon({ name: rawName, type })?.icon ??
+      defaultSemanticIconForEntityType(type);
+    if (inferredIcon) style["icon"] = inferredIcon;
   }
   if (rawColor) {
     if (!/^#[0-9a-f]{6}$/i.test(rawColor)) {
