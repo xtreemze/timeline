@@ -287,12 +287,14 @@ export function compileExampleStoryProject(
   if (!story) throw new Error(`Example story ${selectedStoryId} does not exist.`);
 
   const itemIdSet = new Set(story.itemIds);
-  const items = sample.items.filter((item) => itemIdSet.has(String(item.id)));
-  if (items.length !== story.itemIds.length) {
-    const present = new Set(items.map((item) => String(item.id)));
-    const missing = story.itemIds.filter((id) => !present.has(id));
-    throw new Error(`Example story ${selectedStoryId} is missing items: ${missing.join(", ")}.`);
+  const itemById = new Map(sample.items.map((item) => [String(item.id), item] as const));
+  const missingItems = story.itemIds.filter((id) => !itemById.has(id));
+  if (missingItems.length > 0) {
+    throw new Error(
+      `Example story ${selectedStoryId} is missing items: ${missingItems.join(", ")}.`,
+    );
   }
+  const items = story.itemIds.map((id) => itemById.get(id)!);
 
   const relationshipRows = sample.relationships.filter((relationship) => {
     const attributes = record(relationship.attributes);
