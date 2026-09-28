@@ -1412,7 +1412,6 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const placePinned = Boolean(parsed.place || this.selectionContext?.place);
     const timePinned = Boolean(parsed.time);
     const categoryLabel = parsed.options.category ?? null;
-    const tagLabels = parsed.options.tags;
     const sections = composerEditableSections(this.value);
     const preview = projectComposerPreview(
       this.value,
