@@ -58,6 +58,54 @@ test("D3 collision and rejection reserve the full visible force-node footprint",
   );
 });
 
+test("D3 gives high-connectivity nodes additional soft spacing beyond hard collision", () => {
+  const settleDistance = (clearanceMeters) => {
+    const simulation = new D3WorldForceSimulation();
+    const hub = `["hub-${clearanceMeters}",null]`;
+    const peer = `["peer-${clearanceMeters}",null]`;
+    simulation.setScene({
+      nodes: [
+        node(hub, -20, 180, { connectivityClearanceMeters: clearanceMeters }),
+        node(peer, 20, 180),
+      ],
+      edges: [],
+      anchors: [anchor(hub, "stockholm", 1), anchor(peer, "stockholm", 1)],
+    });
+    simulation.apply(topologyRequest());
+    for (let index = 0; index < 240; index += 1) simulation.step(1000 / 60);
+    return distance(simulation.getSnapshot(), hub, peer);
+  };
+
+  const ordinary = settleDistance(0);
+  const hub = settleDistance(720);
+  assert.ok(hub > ordinary + 150, `hub spacing ${hub} must exceed ordinary spacing ${ordinary}`);
+});
+
+test("cross-place D3 spacing honors hub connectivity clearance", () => {
+  const simulation = new D3WorldForceSimulation();
+  const hub = '["hub","place-a"]';
+  const peer = '["peer","place-b"]';
+  simulation.setScene({
+    nodes: [
+      node(hub, -10, 180, { connectivityClearanceMeters: 720 }),
+      node(peer, 10, 180),
+    ],
+    edges: [],
+    anchors: [
+      anchor(hub, "place-a", 0, { longitude: 18, latitude: 59 }),
+      anchor(peer, "place-b", 0, { longitude: 18, latitude: 59 }),
+    ],
+  });
+
+  simulation.apply(topologyRequest());
+  for (let index = 0; index < 240; index += 1) simulation.step(1000 / 60);
+
+  assert.ok(
+    distance(simulation.getSnapshot(), hub, peer) > 650,
+    "hub clearance must participate in the world-space cross-place collision island",
+  );
+});
+
 test("same-place D3 rejection is not truncated by a fixed kilometre cutoff", () => {
   const simulation = new D3WorldForceSimulation();
   const left = '["wide-left",null]';
@@ -270,6 +318,120 @@ test("D3 drag and post-drop stay local and publish sparse changed positions", ()
     .getSnapshot()
     .filter((entry) => entry.instanceId === remoteA || entry.instanceId === remoteB);
   assert.deepEqual(remoteAfter, remoteBefore);
+});
+
+test("D3 topology collision spans distinct place groups regardless of relationship", () => {
+  for (const related of [false, true]) {
+    const simulation = new D3WorldForceSimulation();
+    const left = `["left-${related}","place-a"]`;
+    const right = `["right-${related}","place-b"]`;
+
+    simulation.setScene({
+      nodes: [node(left, -20, 260), node(right, 20, 260)],
+      edges: related
+        ? [
+            {
+              id: `cross-place-${related}`,
+              sourceId: left,
+              targetId: right,
+              strength: 0.08,
+              restLengthMeters: 1_000,
+            },
+          ]
+        : [],
+      anchors: [
+        anchor(left, "place-a", 0, { longitude: 18, latitude: 59 }),
+        anchor(right, "place-b", 0, { longitude: 18, latitude: 59 }),
+      ],
+    });
+
+    simulation.apply(topologyRequest());
+    for (let index = 0; index < 180; index += 1) simulation.step(1000 / 60);
+
+    assert.ok(
+      distance(simulation.getSnapshot(), left, right) >= 500,
+      `cross-place topology collision must reserve marker footprints when related=${related}`,
+    );
+  }
+});
+
+test("D3 topology cross-place collision cools to a settled state", () => {
+  const simulation = new D3WorldForceSimulation();
+  const left = '["settle-left","place-a"]';
+  const right = '["settle-right","place-b"]';
+
+  simulation.setScene({
+    nodes: [node(left, -20, 260), node(right, 20, 260)],
+    edges: [],
+    anchors: [
+      anchor(left, "place-a", 1, { longitude: 18, latitude: 59 }),
+      anchor(right, "place-b", 1, { longitude: 18, latitude: 59 }),
+    ],
+  });
+
+  simulation.apply(topologyRequest());
+  for (
+    let index = 0;
+    index < 480 && !simulation.getDiagnostics().settled;
+    index += 1
+  ) {
+    simulation.step(1000 / 60);
+  }
+
+  assert.equal(
+    simulation.getDiagnostics().settled,
+    true,
+    "cross-place collision must cool with the owning place groups instead of reheating forever",
+  );
+  assert.ok(
+    distance(simulation.getSnapshot(), left, right) >= 500,
+    "settling must preserve the combined collision footprint",
+  );
+});
+
+test("D3 topology collision resolves multiple nearby places without waking remote geography", () => {
+  const simulation = new D3WorldForceSimulation();
+  const first = '["first","place-a"]';
+  const second = '["second","place-b"]';
+  const third = '["third","place-c"]';
+  const remote = '["remote","copenhagen"]';
+
+  simulation.setScene({
+    nodes: [
+      node(first, -10, 180),
+      node(second, 0, 180),
+      node(third, 10, 180),
+      node(remote, 123, 180),
+    ],
+    edges: [],
+    anchors: [
+      anchor(first, "place-a", 0, { longitude: 18, latitude: 59 }),
+      anchor(second, "place-b", 0, { longitude: 18, latitude: 59 }),
+      anchor(third, "place-c", 0, { longitude: 18, latitude: 59 }),
+      anchor(remote, "copenhagen", 0),
+    ],
+  });
+
+  const remoteBefore = simulation.getSnapshot().find((entry) => entry.instanceId === remote);
+  simulation.apply(topologyRequest());
+  for (let index = 0; index < 180; index += 1) simulation.step(1000 / 60);
+  const snapshot = simulation.getSnapshot();
+  const minimumNearDistance = Math.min(
+    distance(snapshot, first, second),
+    distance(snapshot, first, third),
+    distance(snapshot, second, third),
+  );
+  const remoteAfter = snapshot.find((entry) => entry.instanceId === remote);
+
+  assert.ok(
+    minimumNearDistance >= 330,
+    `three distinct place groups must resolve their shared collision island; minimum=${minimumNearDistance}`,
+  );
+  assert.deepEqual(
+    remoteAfter,
+    remoteBefore,
+    "remote unrelated geography must remain outside the cross-place collision broad phase",
+  );
 });
 
 test("D3 drag rejects nearby nodes across different geographic anchors before collision", () => {

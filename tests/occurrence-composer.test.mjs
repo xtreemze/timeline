@@ -1287,3 +1287,16 @@ test("composer-local glyphs preserve the shared Lucide construction contract", a
   assert.match(source, /iconPathData\("close"\)/);
   assert.doesNotMatch(source, />×<\/button>/);
 });
+
+
+test("composer-local suggestion glyphs preserve the shared Lucide construction contract", async () => {
+  const source = await readFile(
+    new URL("../site/components/occurrence-composer.ts", import.meta.url),
+    "utf8",
+  );
+  assert.doesNotMatch(source, /stroke-width:\s*1\.8/);
+  assert.match(
+    source,
+    /\.option-icon svg\s*\{[^}]*stroke:\s*currentColor;[^}]*stroke-width:\s*2;[^}]*stroke-linecap:\s*round;[^}]*stroke-linejoin:\s*round;/s,
+  );
+});

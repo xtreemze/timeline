@@ -95,6 +95,20 @@ test("authored storybook glyphs override the generic entity-kind icon", () => {
   assert.match(svg, /M4 8 6 3l4 3/, "the authored wolf glyph is embedded in the marker");
 });
 
+test("world node glyphs preserve Lucide monochrome stroke construction", () => {
+  const style = worldNodeStyle(
+    { type: "person", attributes: { style: { icon: "person" } } },
+    WORLD_LIGHT_PALETTE,
+  );
+  const svg = decodeURIComponent(worldNodeMarker(style).url);
+  assert.match(svg, /color="#ffffff"/);
+  assert.match(svg, /stroke="currentColor"/);
+  assert.match(svg, /stroke-width="2"/);
+  assert.match(svg, /stroke-linecap="round"/);
+  assert.match(svg, /stroke-linejoin="round"/);
+  assert.doesNotMatch(svg, /stroke-width="2\.2"/);
+});
+
 test("semantic icon changes never alter node geometry or collision footprint", () => {
   const baseInput = {
     type: "person",

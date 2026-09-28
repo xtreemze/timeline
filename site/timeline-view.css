@@ -25,8 +25,8 @@
 .timeline-project-heading {
   view-transition-name: timeline-project-heading;
   position: absolute;
-  /* Permanent titlebar chrome must stay above the persistent world canvas
-     (graph-lens is z-index 1050) while remaining below modal/utility sheets. */
+  /* This orders titlebar chrome within timeline-view. The timeline root itself
+     is raised above the non-fullscreen world stacking context below. */
   z-index: 1200;
   top: max(0.5rem, env(safe-area-inset-top));
   inset-inline-start: max(0.5rem, env(safe-area-inset-left));
@@ -865,7 +865,6 @@
 .timeline-cluster-tile > .semantic-icon {
   width: 1.3rem;
   height: 1.3rem;
-  stroke-width: 2.2;
 }
 .timeline-cluster-image {
   width: 100%;
@@ -890,7 +889,6 @@
 .timeline-cluster-icon-badge .semantic-icon {
   width: 0.72rem;
   height: 0.72rem;
-  stroke-width: 2.25;
 }
 .timeline-event-dot,
 .timeline-event-art {
@@ -911,7 +909,6 @@
 .timeline-event-dot .semantic-icon {
   width: 1.6rem;
   height: 1.6rem;
-  stroke-width: 2.2;
 }
 .timeline-event-art-image {
   width: 100%;
@@ -951,7 +948,6 @@
 .timeline-event-icon-badge .semantic-icon {
   width: 0.9rem;
   height: 0.9rem;
-  stroke-width: 2.25;
 }
 .timeline-event-copy {
   min-width: 0;
@@ -2496,8 +2492,18 @@ luum-occurrence-deck {
 
 /* The timeline root is a transparent full-stage composition layer. It must not
    steal background input from the persistent graph, while its actual rail,
-   labels, focus content, and controls stay above and interactive. */
-#presentation-stage > .timeline-view,
+   labels, focus content, and controls stay above and interactive.
+
+   Non-fullscreen graph-lens is a sibling stacking context at z-index: 1050.
+   Raising only descendants (for example the title bar at 1200) cannot escape
+   timeline-view's isolated stacking context, so the root itself must sit just
+   above the world. Pointer transparency preserves world interaction everywhere
+   outside the explicit timeline interaction islands below. */
+#presentation-stage:not(:fullscreen) > .timeline-view {
+  z-index: 1060;
+  pointer-events: none;
+}
+
 #presentation-stage:where(:fullscreen) > .timeline-view {
   z-index: 2;
   pointer-events: none;
@@ -4543,12 +4549,10 @@ luum-occurrence-deck {
 .timeline-zoom-endpoint .semantic-icon {
   width: 15px;
   height: 15px;
-  stroke-width: 1.9;
 }
 .timeline-focus-tags .event-tag .semantic-icon {
   width: 1.35rem;
   height: 1.35rem;
-  stroke-width: 2.1;
 }
 
 /* Simplified View toolbar: display controls, semantic zoom, then slideshow.
@@ -5477,7 +5481,6 @@ luum-occurrence-deck {
   display: block;
   inline-size: 20px;
   block-size: 20px;
-  stroke-width: 1.9;
 }
 
 .timeline-focus-context-action:disabled {

@@ -229,6 +229,166 @@ test("custom visible node size expands the force body instead of clipping throug
   );
 });
 
+test("force scene keeps physical collision exact while hubs reserve connectivity clearance", () => {
+  const hub = worldInstanceId("hub", "network");
+  const leaves = Array.from({ length: 8 }, (_, index) =>
+    worldInstanceId(`leaf-${index}`, "network"),
+  );
+  const instances = [
+    createProjectedWorldInstance({
+      id: hub,
+      canonicalId: "hub",
+      occurrenceId: "network",
+      kind: "person",
+      geographicAnchors: [],
+      temporalWeight: 1,
+      visualWeight: 0,
+      retained: false,
+    }),
+    ...leaves.map((id, index) =>
+      createProjectedWorldInstance({
+        id,
+        canonicalId: `leaf-${index}`,
+        occurrenceId: "network",
+        kind: "person",
+        geographicAnchors: [],
+        temporalWeight: 1,
+        visualWeight: 0,
+        retained: false,
+      }),
+    ),
+  ];
+  const edges = leaves.map((leaf, index) =>
+    createProjectedWorldEdge({
+      id: `hub-edge-${index}`,
+      sourceInstanceId: hub,
+      targetInstanceId: leaf,
+      temporalWeight: 1,
+      visible: true,
+      retained: false,
+    }),
+  );
+
+  const scene = createWorldForceScene(createWorldProjection({ instances, edges }));
+  const hubNode = scene.nodes.find((node) => node.id === hub);
+  const leafNode = scene.nodes.find((node) => node.id === leaves[0]);
+
+  assert.ok(hubNode);
+  assert.ok(leafNode);
+  assert.equal(hubNode.collisionRadiusPx, leafNode.collisionRadiusPx);
+  assert.equal(hubNode.collisionRadiusMeters, leafNode.collisionRadiusMeters);
+  assert.equal(hubNode.connectivityDegree, 8);
+  assert.equal(leafNode.connectivityDegree, 1);
+  assert.ok((hubNode.connectivityClearanceMeters ?? 0) > 0);
+  assert.equal(leafNode.connectivityClearanceMeters ?? 0, 0);
+});
+
+test("connectivity clearance grows sublinearly with graph degree", () => {
+  const build = (neighborCount) => {
+    const hub = worldInstanceId(`hub-${neighborCount}`, "network");
+    const leaves = Array.from({ length: neighborCount }, (_, index) =>
+      worldInstanceId(`leaf-${neighborCount}-${index}`, "network"),
+    );
+    const instances = [
+      createProjectedWorldInstance({
+        id: hub,
+        canonicalId: `hub-${neighborCount}`,
+        occurrenceId: "network",
+        geographicAnchors: [],
+        temporalWeight: 1,
+        visualWeight: 0,
+        retained: false,
+      }),
+      ...leaves.map((id, index) =>
+        createProjectedWorldInstance({
+          id,
+          canonicalId: `leaf-${neighborCount}-${index}`,
+          occurrenceId: "network",
+          geographicAnchors: [],
+          temporalWeight: 1,
+          visualWeight: 0,
+          retained: false,
+        }),
+      ),
+    ];
+    const edges = leaves.map((leaf, index) =>
+      createProjectedWorldEdge({
+        id: `edge-${neighborCount}-${index}`,
+        sourceInstanceId: hub,
+        targetInstanceId: leaf,
+        temporalWeight: 1,
+        visible: true,
+        retained: false,
+      }),
+    );
+    const scene = createWorldForceScene(createWorldProjection({ instances, edges }));
+    return scene.nodes.find((node) => node.id === hub);
+  };
+
+  const degreeTwo = build(2);
+  const degreeFour = build(4);
+  const degreeNine = build(9);
+  assert.ok(degreeTwo && degreeFour && degreeNine);
+  assert.equal(degreeTwo.connectivityClearanceMeters ?? 0, 0);
+  assert.ok(
+    (degreeFour.connectivityClearanceMeters ?? 0) >
+      (degreeTwo.connectivityClearanceMeters ?? 0),
+  );
+  assert.ok(
+    (degreeNine.connectivityClearanceMeters ?? 0) >
+      (degreeFour.connectivityClearanceMeters ?? 0),
+  );
+  assert.ok(
+    (degreeNine.connectivityClearanceMeters ?? 0) <
+      (degreeFour.connectivityClearanceMeters ?? 0) * 3,
+    "hub spacing must grow sublinearly instead of exploding with degree",
+  );
+});
+
+test("parallel relationships contribute to hub spacing because they need routing room", () => {
+  const hub = worldInstanceId("parallel-hub", "network");
+  const peer = worldInstanceId("parallel-peer", "network");
+  const instances = [
+    createProjectedWorldInstance({
+      id: hub,
+      canonicalId: "parallel-hub",
+      occurrenceId: "network",
+      geographicAnchors: [],
+      temporalWeight: 1,
+      visualWeight: 0,
+      retained: false,
+    }),
+    createProjectedWorldInstance({
+      id: peer,
+      canonicalId: "parallel-peer",
+      occurrenceId: "network",
+      geographicAnchors: [],
+      temporalWeight: 1,
+      visualWeight: 0,
+      retained: false,
+    }),
+  ];
+  const edges = Array.from({ length: 4 }, (_, index) =>
+    createProjectedWorldEdge({
+      id: `parallel-${index}`,
+      sourceInstanceId: hub,
+      targetInstanceId: peer,
+      temporalWeight: 1,
+      visible: true,
+      retained: false,
+    }),
+  );
+  const scene = createWorldForceScene(createWorldProjection({ instances, edges }));
+  const hubNode = scene.nodes.find((node) => node.id === hub);
+  const peerNode = scene.nodes.find((node) => node.id === peer);
+
+  assert.ok(hubNode && peerNode);
+  assert.equal(hubNode.connectivityDegree, 4);
+  assert.equal(peerNode.connectivityDegree, 4);
+  assert.ok((hubNode.connectivityClearanceMeters ?? 0) > 0);
+  assert.ok((peerNode.connectivityClearanceMeters ?? 0) > 0);
+});
+
 test("D3 component collision radius uses the largest rendered footprint", () => {
   const scene = createWorldForceScene(sampleProjection());
   assert.equal(

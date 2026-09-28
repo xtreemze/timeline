@@ -93,14 +93,15 @@ export function worldNodeShapeVisualRadiusScale(shape: WorldNodeShape): number {
  * force layout, and relationship direction geometry must derive from this
  * footprint so they cannot drift independently.
  *
- * The border itself supplies raster safety around the vector body. Borderless
- * markers reserve one pixel for antialiasing so their atlas edge cannot clip.
+ * The hard collision footprint is exactly the rendered shape extent plus the
+ * authored border. There is no hidden collision padding; connectivity spacing
+ * is modeled separately by the force scene.
  */
 export function worldNodeStyleFootprintRadiusPx(
   style: Pick<WorldNodeStyle, "radius" | "borderWidth" | "shape">,
 ): number {
   const bodyRadius = style.radius * worldNodeShapeVisualRadiusScale(style.shape);
-  return bodyRadius + Math.max(1, style.borderWidth);
+  return bodyRadius + Math.max(0, style.borderWidth);
 }
 
 function record(value: unknown): Readonly<Record<string, unknown>> | null {
@@ -203,7 +204,7 @@ function worldNodeDisplayMetrics(input: WorldNodeStyleInput): {
   const metrics = worldNodeMetrics(input);
   const shape = worldNodeShape(input);
   const shapeScale = worldNodeShapeVisualRadiusScale(shape);
-  const footprintBorder = Math.max(1, metrics.borderWidth);
+  const footprintBorder = Math.max(0, metrics.borderWidth);
   const minimumBodyRadius = Math.max(
     0,
     (WORLD_ENTITY_MIN_HIT_RADIUS_PX - footprintBorder) / shapeScale,

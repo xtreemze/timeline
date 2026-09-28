@@ -88,7 +88,7 @@ export function worldNodeMarker(style: WorldNodeStyle): WorldNodeMarker {
   const inner = style.image
     ? `<clipPath id="c">${shapePath(style.shape, center, Math.max(0, bodyRadius - 0.5))}</clipPath><image href="${escapeAttribute(style.image)}" x="${center - bodyRadius}" y="${center - bodyRadius}" width="${bodyRadius * 2}" height="${bodyRadius * 2}" preserveAspectRatio="xMidYMid slice" clip-path="url(#c)"/>`
     : iconName
-      ? `<g transform="translate(${glyphOrigin} ${glyphOrigin}) scale(${glyphSize / 24})" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${iconPathData(
+      ? `<g transform="translate(${glyphOrigin} ${glyphOrigin}) scale(${glyphSize / 24})" fill="none" color="#ffffff" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${iconPathData(
           iconName,
         )
           .map((d) => `<path d="${d}"/>`)

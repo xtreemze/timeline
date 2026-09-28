@@ -3,7 +3,11 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import { createDeckWorldRuntime } from "../site/world/deck-world-runtime.ts";
-import { DECK_WORLD_LAYER_IDS, DeckWorldSurface } from "../site/world/deck-world-surface.ts";
+import {
+  DECK_WORLD_LAYER_IDS,
+  DeckWorldSurface,
+  WORLD_CLUSTER_DETAIL_ZOOM_CEILING,
+} from "../site/world/deck-world-surface.ts";
 import {
   directedEdgePathArrowhead,
   relationshipEdgePath,
@@ -475,6 +479,46 @@ test("three very near places share one aggregate marker while readable nodes rem
         datum.text.includes("3 nodes"),
     ),
     "the aggregate marker communicates that nearby locations contain nodes",
+  );
+});
+
+test("local-detail zoom removes same-place aggregate markers before maximum zoom", () => {
+  const h = harness();
+  const instances = Array.from({ length: 5 }, (_, index) =>
+    instance(index, {
+      geographicAnchors: [
+        {
+          placeId: "shared-detail",
+          label: "Shared detail",
+          longitude: 12,
+          latitude: 41,
+          influence: 1,
+        },
+      ],
+    }),
+  );
+  const surface = new DeckWorldSurface({}, h.runtime, {
+    ...WORKING_CAMERA,
+    zoom: WORLD_CLUSTER_DETAIL_ZOOM_CEILING,
+  });
+  surface.setProjection(createWorldProjection({ instances, edges: [] }));
+
+  const layers = h.lastLayers();
+  const entities = layer(layers, DECK_WORLD_LAYER_IDS.entities);
+  assert.equal(
+    entities.props.data.some((datum) => datum.kind === "cluster"),
+    false,
+    "local detail must not retain an aggregate marker while additional camera zoom remains",
+  );
+  assert.equal(
+    entities.props.data.filter((datum) => datum.kind === "entity").length,
+    5,
+    "all same-place members remain directly represented from the detail ceiling onward",
+  );
+  assert.equal(
+    layer(layers, DECK_WORLD_LAYER_IDS.placeIcons).props.data.length,
+    1,
+    "the canonical place remains represented by its single authored place marker",
   );
 });
 
