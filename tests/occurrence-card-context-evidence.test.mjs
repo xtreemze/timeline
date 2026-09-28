@@ -10,13 +10,16 @@ test("promoted card keeps semantic identity outside Context/Evidence panels", as
     source.match(/const identity = document\.createElement\("section"\)[\s\S]*?const composerHost/)?.[0] ??
     "";
   assert.match(identity, /timeline-focus-composition/);
-  assert.match(source, /replaceChildren\(header, hero, identity, composerHost, summary/);
+  assert.match(
+    source,
+    /replaceChildren\([\s\S]*header,[\s\S]*hero,[\s\S]*identity,[\s\S]*composerHost,[\s\S]*summary/,
+  );
 });
 
 test("Evidence tab is meaningful-only and falls back deterministically to Context", async () => {
   const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
 
-  assert.match(source, /const hasEvidence = evidenceRecords\.length > 0/);
+  assert.match(source, /const hasEvidence = allEvidenceRecords\.length > 0/);
   assert.match(source, /if \(hasEvidence\) tabs\.append\(evidenceTab\)/);
   assert.match(source, /if \(!hasEvidence && this\.focusTab === "evidence"\) this\.focusTab = "overview"/);
   assert.doesNotMatch(source, /No supporting evidence attached\./);
