@@ -1,168 +1,33 @@
 /**
- * Lūm WebMCP tool definitions and graph contract management
- * Integrates Lūm with Model Context Protocol for agent-driven mutations
+ * Lūm WebMCP tool definitions and graph contract management.
+ * Canonical mutation is owned by the application transaction command.
  */
 
-const MANAGED_COLLECTIONS = Object.freeze([
-  "categories",
-  "items",
-  "stories",
-  "entities",
-  "places",
-  "relationships",
-  "evidence",
-  "custodyActions",
-] as const);
+import {
+  applyProjectTransaction,
+  PROJECT_TRANSACTION_COLLECTIONS,
+  PROJECT_TRANSACTION_TOP_LEVEL_FIELDS,
+  type ProjectTransactionOperation,
+} from "../src/application/project-transaction.ts";
 
-const TOP_LEVEL_FIELDS = Object.freeze(["title", "extensions", "reasoning"] as const);
-
-function clone(value: unknown): unknown {
-  return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
-}
+const MANAGED_COLLECTIONS = PROJECT_TRANSACTION_COLLECTIONS;
+const TOP_LEVEL_FIELDS = PROJECT_TRANSACTION_TOP_LEVEL_FIELDS;
 
 function text(value: unknown, max: number = 240): string {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
 }
 
-function deepMerge(target: unknown, patch: unknown): unknown {
-  if (!patch || typeof patch !== "object" || Array.isArray(patch)) return clone(patch);
-  const result =
-    target && typeof target === "object" && !Array.isArray(target) ? clone(target) : {};
-  for (const [key, value] of Object.entries(patch)) {
-    if (value && typeof value === "object" && !Array.isArray(value)) {
-      (result as any)[key] = deepMerge((result as any)[key], value);
-    } else {
-      (result as any)[key] = clone(value);
-    }
-  }
-  return result;
-}
+type Operation = ProjectTransactionOperation;
 
-function ensureCollection(project: any, collection: string): any[] {
-  if (!MANAGED_COLLECTIONS.includes(collection as any))
-    throw new Error(`Unsupported collection "${collection}".`);
-  if (!Array.isArray(project[collection])) project[collection] = [];
-  return project[collection];
-}
-
-function cleanupDelete(project: any, collection: string, id: string): void {
-  if (collection === "categories") {
-    const fallback = project.categories?.find((record: any) => String(record.id) !== id);
-    if (!fallback) throw new Error("The last category cannot be deleted.");
-    for (const item of project.items || []) {
-      if (String(item.categoryId) === id) item.categoryId = fallback.id;
-    }
-  }
-  if (collection === "items") {
-    for (const story of project.stories || []) {
-      story.itemIds = (story.itemIds || []).filter((itemId: any) => String(itemId) !== id);
-    }
-    for (const relationship of project.relationships || []) {
-      relationship.itemIds = (relationship.itemIds || []).filter(
-        (itemId: any) => String(itemId) !== id,
-      );
-    }
-  }
-  if (collection === "entities") {
-    project.relationships = (project.relationships || []).filter(
-      (relationship: any) =>
-        String(relationship.subjectId) !== id && String(relationship.objectId) !== id,
-    );
-  }
-  if (collection === "places") {
-    for (const relationship of project.relationships || []) {
-      if (String(relationship.placeId || "") === id) relationship.placeId = "";
-    }
-  }
-  if (collection === "relationships") {
-    for (const item of project.items || []) {
-      item.relationChanges = (item.relationChanges || []).filter(
-        (change: any) => String(change.relationshipId) !== id,
-      );
-    }
-  }
-  if (collection === "evidence") {
-    for (const item of project.items || []) {
-      item.evidenceIds = (item.evidenceIds || []).filter(
-        (evidenceId: any) => String(evidenceId) !== id,
-      );
-    }
-    project.custodyActions = (project.custodyActions || []).filter(
-      (action: any) =>
-        String(action.evidenceId || action.recordId || action.evidenceRecordId || "") !== id,
-    );
-  }
-}
-
-interface Operation {
-  op: string;
-  collection?: string;
-  id?: string;
-  field?: string;
-  value?: unknown;
-}
-
-function applyOperation(project: any, operation: Operation): void {
-  if (!operation || typeof operation !== "object")
-    throw new Error("Each operation must be an object.");
-  const op = text(operation.op, 32);
-
-  if (op === "set") {
-    const field = text(operation.field, 60);
-    if (!TOP_LEVEL_FIELDS.includes(field as any)) {
-      throw new Error(
-        `Unsupported top-level field "${field}". Use replace_project for a complete replacement.`,
-      );
-    }
-    project[field] = clone(operation.value);
-    return;
-  }
-
-  const collection = text(operation.collection, 60);
-  const records = ensureCollection(project, collection);
-  const suppliedId = text(operation.id, 120);
-  const valueId = text((operation.value as any)?.id, 120);
-  const id = suppliedId || valueId;
-  if (!id)
-    throw new Error(`${op || "collection"} operation on ${collection} requires a stable id.`);
-
-  const index = records.findIndex((record: any) => String(record?.id || "") === id);
-  if (op === "delete") {
-    if (index < 0) throw new Error(`${collection} record "${id}" does not exist.`);
-    cleanupDelete(project, collection, id);
-    const currentRecords = ensureCollection(project, collection);
-    const currentIndex = currentRecords.findIndex((record: any) => String(record?.id || "") === id);
-    if (currentIndex >= 0) currentRecords.splice(currentIndex, 1);
-    return;
-  }
-
-  if (op !== "upsert" && op !== "patch") {
-    throw new Error(`Unsupported operation "${op}". Use upsert, patch, delete, or set.`);
-  }
-  if (!operation.value || typeof operation.value !== "object" || Array.isArray(operation.value)) {
-    throw new Error(`${op} operation on ${collection} requires an object value.`);
-  }
-
-  const value = clone(operation.value);
-  (value as any).id = id;
-  if (index < 0) {
-    records.push(value);
-    return;
-  }
-  records[index] = op === "patch" ? deepMerge(records[index], value) : value;
-}
-
-export function applyOperations(project: any, operations: Operation[]): any {
-  if (!project || typeof project !== "object" || Array.isArray(project)) {
-    throw new Error("Lūm project must be an object.");
-  }
-  if (!Array.isArray(operations) || !operations.length) {
-    throw new Error("A non-empty operations array is required.");
-  }
-  if (operations.length > 500) throw new Error("A transaction is limited to 500 operations.");
-  const draft = clone(project);
-  for (const operation of operations) applyOperation(draft as any, operation);
-  return draft;
+/**
+ * Compatibility adapter for existing callers. Mutation semantics live in
+ * src/application/project-transaction.ts.
+ */
+export function applyOperations<TProject>(
+  project: TProject,
+  operations: readonly Operation[],
+): TProject {
+  return applyProjectTransaction(project, operations);
 }
 
 export function operationSchema(): Record<string, unknown> {
