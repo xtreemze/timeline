@@ -132,7 +132,9 @@ test("investigation stays inside the visual viewport and announces active state"
   await expect(status).toContainText("Candidate");
 
   const containment = await page.evaluate(() => {
-    const panel = document.querySelector("#occurrence-composer .completion-panel");
+    const panel = document
+      .querySelector("#occurrence-composer")
+      ?.shadowRoot?.querySelector(".completion-panel");
     const rect = panel?.getBoundingClientRect();
     const visual = window.visualViewport;
     const top = visual?.offsetTop ?? 0;
