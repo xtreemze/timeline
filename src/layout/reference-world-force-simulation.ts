@@ -1,13 +1,14 @@
 import type { WorldInstanceId } from "../projection/world-projection.ts";
-import type {
-  WorldForceAnchor,
-  WorldForceEdge,
-  WorldForceNode,
-  WorldForcePin,
-  WorldForceScene,
-  WorldForceSimulationBackend,
-  WorldSimulationDiagnostics,
-  WorldSimulationRequest,
+import {
+  type WorldForceAnchor,
+  type WorldForceEdge,
+  type WorldForceNode,
+  type WorldForcePin,
+  type WorldForceScene,
+  type WorldForceSimulationBackend,
+  type WorldSimulationDiagnostics,
+  type WorldSimulationRequest,
+  worldForceNodePreferredRadiusMeters,
 } from "./world-force-simulation.ts";
 
 export interface ReferenceWorldForceOptions {
@@ -304,7 +305,10 @@ function forceGroup(key: string, states: readonly NodeState[]): ForceGroup {
     maxY = Math.max(maxY, state.worldY);
     minZ = Math.min(minZ, state.worldZ);
     maxZ = Math.max(maxZ, state.worldZ);
-    maxCollisionRadiusMeters = Math.max(maxCollisionRadiusMeters, state.node.collisionRadiusMeters);
+    maxCollisionRadiusMeters = Math.max(
+      maxCollisionRadiusMeters,
+      worldForceNodePreferredRadiusMeters(state.node),
+    );
   }
 
   if (!bounded) {
@@ -350,6 +354,10 @@ function placeDomain(states: readonly NodeState[]): PlaceDomain | null {
     (radius, state) => Math.max(radius, state.node.collisionRadiusMeters),
     0,
   );
+  const maxPreferredRadiusMeters = anchored.reduce(
+    (radius, state) => Math.max(radius, worldForceNodePreferredRadiusMeters(state.node)),
+    0,
+  );
   const precisionRadiusMeters = anchored.reduce(
     (radius, state) => Math.max(radius, state.anchor?.precisionRadiusMeters ?? 0),
     0,
@@ -359,7 +367,7 @@ function placeDomain(states: readonly NodeState[]): PlaceDomain | null {
     const north = state.node.layoutTargetNorthMeters;
     return east === undefined || north === undefined
       ? radius
-      : Math.max(radius, Math.hypot(east, north) + state.node.collisionRadiusMeters);
+      : Math.max(radius, Math.hypot(east, north) + worldForceNodePreferredRadiusMeters(state.node));
   }, 0);
 
   // A place is the centre of a local layout domain, not the target position
@@ -369,7 +377,7 @@ function placeDomain(states: readonly NodeState[]): PlaceDomain | null {
   // anchor constraint never fights the structural target.
   const innerRadiusMeters = Math.max(1, maxCollisionRadiusMeters * PLACE_DOMAIN_INNER_RADIUS_SCALE);
   const packingWidthMeters =
-    maxCollisionRadiusMeters * Math.max(2, Math.sqrt(anchored.length) * PLACE_DOMAIN_WIDTH_SCALE);
+    maxPreferredRadiusMeters * Math.max(2, Math.sqrt(anchored.length) * PLACE_DOMAIN_WIDTH_SCALE);
   const outerRadiusMeters = Math.max(
     innerRadiusMeters + packingWidthMeters,
     precisionRadiusMeters,
@@ -453,13 +461,17 @@ function crossGroupCandidates(
 }
 
 function readableSeparationDistance(left: NodeState, right: NodeState): number {
-  return (
-    (left.node.collisionRadiusMeters + right.node.collisionRadiusMeters) * READABLE_SEPARATION_SCALE
-  );
+  const hardDistance = left.node.collisionRadiusMeters + right.node.collisionRadiusMeters;
+  const connectivityClearance =
+    Math.max(0, left.node.connectivityClearanceMeters ?? 0) +
+    Math.max(0, right.node.connectivityClearanceMeters ?? 0);
+  return hardDistance * READABLE_SEPARATION_SCALE + connectivityClearance;
 }
 
 function samePlaceNeighborhoodRadius(state: NodeState): number {
-  const readableDiameter = state.node.collisionRadiusMeters * 2 * READABLE_SEPARATION_SCALE;
+  const readableDiameter =
+    state.node.collisionRadiusMeters * 2 * READABLE_SEPARATION_SCALE +
+    Math.max(0, state.node.connectivityClearanceMeters ?? 0) * 2;
   const precisionRadius = state.anchor?.precisionRadiusMeters ?? 0;
   return Math.max(
     readableDiameter * SAME_PLACE_NEIGHBORHOOD_SCALE,

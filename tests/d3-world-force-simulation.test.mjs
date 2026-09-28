@@ -58,6 +58,54 @@ test("D3 collision and rejection reserve the full visible force-node footprint",
   );
 });
 
+test("D3 gives high-connectivity nodes additional soft spacing beyond hard collision", () => {
+  const settleDistance = (clearanceMeters) => {
+    const simulation = new D3WorldForceSimulation();
+    const hub = `["hub-${clearanceMeters}",null]`;
+    const peer = `["peer-${clearanceMeters}",null]`;
+    simulation.setScene({
+      nodes: [
+        node(hub, -20, 180, { connectivityClearanceMeters: clearanceMeters }),
+        node(peer, 20, 180),
+      ],
+      edges: [],
+      anchors: [anchor(hub, "stockholm", 1), anchor(peer, "stockholm", 1)],
+    });
+    simulation.apply(topologyRequest());
+    for (let index = 0; index < 240; index += 1) simulation.step(1000 / 60);
+    return distance(simulation.getSnapshot(), hub, peer);
+  };
+
+  const ordinary = settleDistance(0);
+  const hub = settleDistance(720);
+  assert.ok(hub > ordinary + 150, `hub spacing ${hub} must exceed ordinary spacing ${ordinary}`);
+});
+
+test("cross-place D3 spacing honors hub connectivity clearance", () => {
+  const simulation = new D3WorldForceSimulation();
+  const hub = '["hub","place-a"]';
+  const peer = '["peer","place-b"]';
+  simulation.setScene({
+    nodes: [
+      node(hub, -10, 180, { connectivityClearanceMeters: 720 }),
+      node(peer, 10, 180),
+    ],
+    edges: [],
+    anchors: [
+      anchor(hub, "place-a", 0, { longitude: 18, latitude: 59 }),
+      anchor(peer, "place-b", 0, { longitude: 18, latitude: 59 }),
+    ],
+  });
+
+  simulation.apply(topologyRequest());
+  for (let index = 0; index < 240; index += 1) simulation.step(1000 / 60);
+
+  assert.ok(
+    distance(simulation.getSnapshot(), hub, peer) > 650,
+    "hub clearance must participate in the world-space cross-place collision island",
+  );
+});
+
 test("same-place D3 rejection is not truncated by a fixed kilometre cutoff", () => {
   const simulation = new D3WorldForceSimulation();
   const left = '["wide-left",null]';

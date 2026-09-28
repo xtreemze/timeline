@@ -7,11 +7,12 @@ import {
   type WorldDagLayoutOrientation,
   type WorldDagLayoutTarget,
 } from "./world-dag-layout.ts";
-import type {
-  WorldForceAnchor,
-  WorldForceEdge,
-  WorldForceNode,
-  WorldForceScene,
+import {
+  type WorldForceAnchor,
+  type WorldForceEdge,
+  type WorldForceNode,
+  type WorldForceScene,
+  worldForceNodePreferredRadiusMeters,
 } from "./world-force-simulation.ts";
 import {
   WORLD_ENTITY_MIN_HIT_RADIUS_PX,
@@ -48,6 +49,12 @@ export interface WorldForceSceneBuildOptions {
  * Compact markers must not collapse the force layout or DAG target geometry.
  */
 const WORLD_FORCE_LAYOUT_SCALE = 2;
+/** Nodes with one or two incident relationships keep only their physical footprint. */
+const CONNECTIVITY_CLEARANCE_FREE_DEGREE = 2;
+/** Square-root growth gives hubs more room without allowing degree to explode layout size. */
+const CONNECTIVITY_CLEARANCE_SQRT_SCALE = 0.35;
+/** Connectivity may at most add 1.5 physical radii of preferred clearance. */
+const CONNECTIVITY_CLEARANCE_MAX_RADIUS_SCALE = 1.5;
 
 export const DEFAULT_WORLD_FORCE_SCENE_POLICY: WorldForceScenePolicy = Object.freeze({
   baseMass: 1,
@@ -70,6 +77,34 @@ function finitePositive(value: number, label: string): number {
     throw new Error(`${label} must be a finite positive number.`);
   }
   return value;
+}
+
+function connectivityDegreeByInstance(
+  projection: WorldProjection,
+): ReadonlyMap<ProjectedWorldInstance["id"], number> {
+  const degree = new Map(projection.instances.map((instance) => [instance.id, 0] as const));
+
+  for (const edge of projection.edges) {
+    if (edge.sourceInstanceId === edge.targetInstanceId) continue;
+    if (degree.has(edge.sourceInstanceId)) {
+      degree.set(edge.sourceInstanceId, (degree.get(edge.sourceInstanceId) ?? 0) + 1);
+    }
+    if (degree.has(edge.targetInstanceId)) {
+      degree.set(edge.targetInstanceId, (degree.get(edge.targetInstanceId) ?? 0) + 1);
+    }
+  }
+
+  return degree;
+}
+
+function connectivityClearanceMeters(collisionRadiusMeters: number, degree: number): number {
+  const excessDegree = Math.max(0, degree - CONNECTIVITY_CLEARANCE_FREE_DEGREE);
+  if (excessDegree === 0) return 0;
+  const scale = Math.min(
+    CONNECTIVITY_CLEARANCE_MAX_RADIUS_SCALE,
+    Math.sqrt(excessDegree) * CONNECTIVITY_CLEARANCE_SQRT_SCALE,
+  );
+  return collisionRadiusMeters * scale;
 }
 
 function validatePolicy(policy: WorldForceScenePolicy): WorldForceScenePolicy {
@@ -98,6 +133,7 @@ function validatePolicy(policy: WorldForceScenePolicy): WorldForceScenePolicy {
 function nodeFromInstance(
   instance: ProjectedWorldInstance,
   policy: WorldForceScenePolicy,
+  connectivityDegree: number,
   initialInstance: ProjectedWorldInstance = instance,
 ): WorldForceNode {
   const styleInput = {
@@ -106,13 +142,19 @@ function nodeFromInstance(
     visualWeight: instance.visualWeight,
   };
   const collisionRadiusPx = worldNodeFootprintRadiusPx(styleInput);
+  const collisionRadiusMeters =
+    policy.baseCollisionRadiusMeters * (collisionRadiusPx / WORLD_ENTITY_MIN_HIT_RADIUS_PX);
   return Object.freeze({
     id: instance.id,
     canonicalId: instance.canonicalId,
     mass: policy.baseMass + instance.visualWeight * policy.visualWeightMassScale,
     collisionRadiusPx,
-    collisionRadiusMeters:
-      policy.baseCollisionRadiusMeters * (collisionRadiusPx / WORLD_ENTITY_MIN_HIT_RADIUS_PX),
+    collisionRadiusMeters,
+    connectivityDegree,
+    connectivityClearanceMeters: connectivityClearanceMeters(
+      collisionRadiusMeters,
+      connectivityDegree,
+    ),
     initialEastMeters: initialInstance.localOffset?.eastMeters ?? 0,
     initialNorthMeters: initialInstance.localOffset?.northMeters ?? 0,
     initialVisualAltitudeMeters: initialInstance.visualAltitude ?? 0,
@@ -160,8 +202,14 @@ export function createWorldForceScene(
     ),
   );
 
+  const connectivityDegrees = connectivityDegreeByInstance(projection);
   const baseNodes = projection.instances.map((instance) =>
-    nodeFromInstance(instance, policy, initialInstances.get(instance.id) ?? instance),
+    nodeFromInstance(
+      instance,
+      policy,
+      connectivityDegrees.get(instance.id) ?? 0,
+      initialInstances.get(instance.id) ?? instance,
+    ),
   );
   const nodeSizes = new Map(
     baseNodes.map(
@@ -169,8 +217,8 @@ export function createWorldForceScene(
         [
           node.id,
           Object.freeze({
-            widthMeters: node.collisionRadiusMeters * 2,
-            heightMeters: node.collisionRadiusMeters * 2,
+            widthMeters: worldForceNodePreferredRadiusMeters(node) * 2,
+            heightMeters: worldForceNodePreferredRadiusMeters(node) * 2,
           }),
         ] as const,
     ),
