@@ -3434,7 +3434,6 @@ export class TimelineViewController {
       this.orientationToggle.setAttribute("aria-label", label);
       this.orientationToggle.title = label;
       this.orientationToggle.dataset.semanticIcon = targetOrientationIcon;
-      delete this.orientationToggle.dataset.semanticIconSecondary;
       const icon = presentation.createIcon(targetOrientationIcon, { size: 22 });
       const currentIcon = this.orientationToggle.querySelector(":scope > .semantic-icon");
       if (currentIcon) currentIcon.replaceWith(icon);
