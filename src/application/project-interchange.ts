@@ -427,7 +427,7 @@ export function validateProjectInterchange(
     });
   }
 
-  if (envelope["$schema"] !== undefined && envelope["$schema"] !== LUM_PROJECT_SCHEMA_ID) {
+  if (envelope["$schema"] !== LUM_PROJECT_SCHEMA_ID) {
     diagnostics.push({
       severity: "error",
       code: "unsupported-schema-id",
