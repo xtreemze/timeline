@@ -1818,6 +1818,22 @@ function syncOccurrenceComposerSelection(
   });
 }
 
+let occurrenceComposerReturnFocus: HTMLElement | null = null;
+
+function composerInvoker(): HTMLElement | null {
+  const active = document.activeElement;
+  if (!(active instanceof HTMLElement) || active === document.body) return null;
+  return active;
+}
+
+function restoreComposerFocus(target: HTMLElement | null): void {
+  if (!target?.isConnected) return;
+  globalThis.requestAnimationFrame(() => {
+    if (!target.isConnected) return;
+    target.focus({ preventScroll: true });
+  });
+}
+
 function syncOccurrenceComposerData(): void {
   els.occurrenceComposer.setData({
     entities: state.entities.map((entity) => ({
@@ -1840,7 +1856,11 @@ function syncOccurrenceComposerData(): void {
 }
 
 function setOccurrenceComposerOpen(open: boolean): void {
+  let focusToRestore: HTMLElement | null = null;
   if (open) {
+    if (!els.occurrenceComposer.active) {
+      occurrenceComposerReturnFocus = composerInvoker();
+    }
     closeLargeUtilitySurfaces("composer");
     ui.mode = "edit";
     ui.editorOpen = false;
@@ -1873,9 +1893,12 @@ function setOccurrenceComposerOpen(open: boolean): void {
     els.occurrenceComposer.show();
   } else {
     els.occurrenceComposer.hide();
+    focusToRestore = occurrenceComposerReturnFocus;
+    occurrenceComposerReturnFocus = null;
     if (!ui.editorOpen) ui.mode = "view";
   }
   syncApplicationSurfaces();
+  if (!open) restoreComposerFocus(focusToRestore);
 }
 
 function composerTime(
