@@ -1,0 +1,194 @@
+export const STORY_PROPOSAL_SCHEMA_VERSION = "lum-story-proposal-v1" as const;
+export const PROJECT_IMPORT_REVIEW_SCHEMA_VERSION = "lum-project-import-review-v1" as const;
+
+type JsonRecord = Record<string, unknown>;
+
+export interface ProjectImportValidation {
+  readonly valid: boolean;
+  readonly errors?: readonly string[];
+  readonly warnings?: readonly string[];
+}
+
+export interface ProjectImportReviewDependencies<TProject> {
+  normalize(project: unknown): TProject;
+  validate?(project: TProject): ProjectImportValidation;
+}
+
+export interface StagedProjectImport<TProject> {
+  readonly schemaVersion: typeof PROJECT_IMPORT_REVIEW_SCHEMA_VERSION;
+  readonly sourceSchemaVersion: typeof STORY_PROPOSAL_SCHEMA_VERSION;
+  readonly status: "ready-for-user-verification" | "needs-repair";
+  readonly verificationRequired: true;
+  readonly project: TProject;
+  readonly fingerprint: string;
+  readonly sources: readonly JsonRecord[];
+  readonly unresolved: readonly string[];
+  readonly generationNotes: string;
+  readonly verificationInstructions: readonly string[];
+  readonly errors: readonly string[];
+  readonly warnings: readonly string[];
+  readonly summary: Readonly<{
+    stories: number;
+    items: number;
+    entities: number;
+    relationships: number;
+    places: number;
+    evidence: number;
+    sources: number;
+  }>;
+}
+
+interface StoryProposalEnvelope extends JsonRecord {
+  readonly schemaVersion: typeof STORY_PROPOSAL_SCHEMA_VERSION;
+  readonly verificationRequired: true;
+  readonly project: JsonRecord;
+}
+
+function record(value: unknown): JsonRecord | null {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? (value as JsonRecord)
+    : null;
+}
+
+function cloneValue<T>(value: T): T {
+  return value === undefined ? value : (JSON.parse(JSON.stringify(value)) as T);
+}
+
+function strings(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value
+        .filter((entry): entry is string => typeof entry === "string")
+        .map((entry) => entry.trim())
+        .filter(Boolean)
+    : [];
+}
+
+function records(value: unknown): JsonRecord[] {
+  return Array.isArray(value)
+    ? value.flatMap((entry) => {
+        const candidate = record(entry);
+        return candidate ? [cloneValue(candidate)] : [];
+      })
+    : [];
+}
+
+function unique(values: readonly string[]): string[] {
+  return [...new Set(values.filter(Boolean))];
+}
+
+function collectionCount(project: unknown, key: string): number {
+  const value = record(project)?.[key];
+  return Array.isArray(value) ? value.length : 0;
+}
+
+function canonicalJson(value: unknown): string {
+  if (value === null || typeof value !== "object") {
+    if (typeof value === "number" && !Number.isFinite(value)) return "null";
+    const encoded = JSON.stringify(value);
+    return encoded === undefined ? "null" : encoded;
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map((entry) => canonicalJson(entry)).join(",")}]`;
+  }
+  const source = value as JsonRecord;
+  return `{${Object.keys(source)
+    .filter((key) => source[key] !== undefined)
+    .sort()
+    .map((key) => `${JSON.stringify(key)}:${canonicalJson(source[key])}`)
+    .join(",")}}`;
+}
+
+function fingerprint(value: unknown): string {
+  const source = canonicalJson(value);
+  let hash = 0xcbf29ce484222325n;
+  const prime = 0x100000001b3n;
+  const mask = 0xffffffffffffffffn;
+  for (let index = 0; index < source.length; index += 1) {
+    hash ^= BigInt(source.charCodeAt(index));
+    hash = (hash * prime) & mask;
+  }
+  return `fnv1a64:${hash.toString(16).padStart(16, "0")}:${source.length}`;
+}
+
+function envelopePreflight(value: JsonRecord): JsonRecord {
+  return record(value.preflight) ?? {};
+}
+
+export function isVerificationRequiredStoryProposal(
+  value: unknown,
+): value is StoryProposalEnvelope {
+  const candidate = record(value);
+  return Boolean(
+    candidate &&
+      candidate.schemaVersion === STORY_PROPOSAL_SCHEMA_VERSION &&
+      candidate.verificationRequired === true &&
+      record(candidate.project),
+  );
+}
+
+export function stageProjectImportReview<TProject>(
+  input: unknown,
+  dependencies: ProjectImportReviewDependencies<TProject>,
+): StagedProjectImport<TProject> | null {
+  if (!isVerificationRequiredStoryProposal(input)) return null;
+
+  const normalized = dependencies.normalize(cloneValue(input.project));
+  const validation = dependencies.validate?.(cloneValue(normalized)) ?? {
+    valid: true,
+    errors: [],
+    warnings: [],
+  };
+  const preflight = envelopePreflight(input);
+  const errors = unique([...strings(preflight.errors), ...(validation.errors ?? [])]);
+  const warnings = unique([...strings(preflight.warnings), ...(validation.warnings ?? [])]);
+  const sources = records(input.sources);
+
+  return {
+    schemaVersion: PROJECT_IMPORT_REVIEW_SCHEMA_VERSION,
+    sourceSchemaVersion: STORY_PROPOSAL_SCHEMA_VERSION,
+    status: errors.length === 0 && validation.valid ? "ready-for-user-verification" : "needs-repair",
+    verificationRequired: true,
+    project: cloneValue(normalized),
+    fingerprint: fingerprint(normalized),
+    sources: Object.freeze(sources),
+    unresolved: Object.freeze(strings(input.unresolved)),
+    generationNotes:
+      typeof input.generationNotes === "string" ? input.generationNotes.trim() : "",
+    verificationInstructions: Object.freeze(strings(input.verificationInstructions)),
+    errors: Object.freeze(errors),
+    warnings: Object.freeze(warnings),
+    summary: Object.freeze({
+      stories: collectionCount(normalized, "stories"),
+      items: collectionCount(normalized, "items"),
+      entities: collectionCount(normalized, "entities"),
+      relationships: collectionCount(normalized, "relationships"),
+      places: collectionCount(normalized, "places"),
+      evidence: collectionCount(normalized, "evidence"),
+      sources: sources.length,
+    }),
+  };
+}
+
+export function verifyStagedProjectImport<TProject>(
+  staged: StagedProjectImport<TProject>,
+  dependencies: ProjectImportReviewDependencies<TProject>,
+): TProject {
+  if (staged.status !== "ready-for-user-verification" || staged.errors.length > 0) {
+    throw new Error("The staged project still has verification errors and cannot be committed.");
+  }
+
+  const normalized = dependencies.normalize(cloneValue(staged.project));
+  if (fingerprint(normalized) !== staged.fingerprint) {
+    throw new Error("The staged project changed after it was staged; review it again before commit.");
+  }
+
+  const validation = dependencies.validate?.(cloneValue(normalized));
+  if (validation && (!validation.valid || (validation.errors?.length ?? 0) > 0)) {
+    const errors = validation.errors?.length
+      ? validation.errors.join("\n- ")
+      : "Local project validation failed.";
+    throw new Error(`The staged project no longer passes validation:\n- ${errors}`);
+  }
+
+  return cloneValue(normalized);
+}
