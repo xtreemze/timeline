@@ -222,6 +222,28 @@ test("authorOccurrence stores relationship metadata from the composer transactio
   assert.deepEqual(relationship.attributes, { amount: 1200, currency: "SEK" });
 });
 
+test("occurrence metadata rejects confidence outside the canonical 0–1 range", () => {
+  assert.throws(
+    () =>
+      authorOccurrence(
+        baseState(),
+        request({ confidence: 1.2 }),
+        dependencies(),
+      ),
+    /confidence.*0 to 1/i,
+  );
+
+  assert.throws(
+    () =>
+      updateOccurrence(
+        editableState(),
+        editRequest({ predicate: "meets", confidence: -0.01 }),
+        dependencies(),
+      ),
+    /confidence.*0 to 1/i,
+  );
+});
+
 test("authorOccurrence rejects ambiguous endpoint names instead of guessing", () => {
   const state = baseState();
   state.entities.push({
