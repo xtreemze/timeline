@@ -434,6 +434,7 @@ const els = {
   projectImportReviewSources: requiredElement<HTMLUListElement>("#project-import-review-sources"),
   projectImportReviewUnresolved: requiredElement<HTMLUListElement>("#project-import-review-unresolved"),
   projectImportReviewFindings: requiredElement<HTMLUListElement>("#project-import-review-findings"),
+  projectImportReviewIcons: requiredElement<HTMLUListElement>("#project-import-review-icons"),
   projectImportReviewNotes: requiredElement<HTMLElement>("#project-import-review-notes"),
   projectImportReviewInstructions: requiredElement<HTMLUListElement>(
     "#project-import-review-instructions",
@@ -6043,6 +6044,35 @@ function renderProjectImportReview(review: StagedProjectImport<TimelineState>): 
   ];
   els.projectImportReviewFindings.replaceChildren(
     ...(findings.length ? findings : [reviewListItem("No validation findings.")]),
+  );
+
+  const semanticIconItems = review.semanticIcons.map((resolution) => {
+    const name = resolution.entityName || resolution.entityId;
+    let description: string;
+    if (resolution.origin === "explicit") {
+      description = resolution.icon
+        ? `${name} · ${resolution.icon} · authored explicitly`
+        : `${name} · authored explicitly`;
+    } else if (resolution.origin === "inferred") {
+      description = `${name} · ${resolution.icon ?? "no icon"} · inferred ${resolution.confidence ?? ""} confidence (${resolution.reason}) · suggested, not applied`;
+    } else if (resolution.origin === "type-fallback") {
+      description = `${name} · ${resolution.icon ?? "no icon"} · type fallback`;
+    } else if (resolution.origin === "unsupported") {
+      description = `${name} · unsupported authored icon “${resolution.authoredIcon ?? ""}”`;
+    } else {
+      description = `${name} · no confident semantic icon`;
+    }
+    const item = reviewListItem(description);
+    item.dataset.iconOrigin = resolution.origin;
+    if (resolution.icon) {
+      item.prepend(presentation.createIcon(resolution.icon, { size: 18 }));
+    }
+    return item;
+  });
+  els.projectImportReviewIcons.replaceChildren(
+    ...(semanticIconItems.length
+      ? semanticIconItems
+      : [reviewListItem("No entities require semantic icon review.")]),
   );
 
   els.projectImportReviewNotes.textContent =
