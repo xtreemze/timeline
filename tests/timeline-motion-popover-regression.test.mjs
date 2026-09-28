@@ -27,8 +27,11 @@ test("retained timeline preserves weighted drag response and decaying release in
   );
 });
 
-test("focused popover emits the surviving rich presentation contract", async () => {
-  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
+test("focused retained detail delegates media controls while preserving the rich presentation contract", async () => {
+  const [source, deck] = await Promise.all([
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/components/occurrence-media-deck.ts", import.meta.url), "utf8"),
+  ]);
 
   assert.doesNotMatch(source, /timeline-focus-layout/);
   assert.match(source, /timeline-focus-tabs/);
@@ -37,7 +40,8 @@ test("focused popover emits the surviving rich presentation contract", async () 
   assert.doesNotMatch(source, /timeline-focus-place-panel/);
   assert.match(source, /timeline-focus-evidence/);
   assert.doesNotMatch(source, /timeline-focus-edit|createFocusEditButton|timelinefocusedit/);
-  assert.match(source, /timeline-focus-media-control/);
+  assert.match(source, /new LuumOccurrenceDeckElement\(\)/);
+  assert.match(deck, /timeline-focus-media-control/);
   assert.match(source, /timeline-focus-close/);
   assert.match(source, /data-active-tab|dataset\.activeTab/);
   assert.match(source, /timelinefocusrender/);
