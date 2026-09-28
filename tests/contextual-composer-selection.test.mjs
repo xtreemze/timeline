@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import { occurrenceComposerSuggestions } from "../site/occurrence-composer-model.ts";
+import {
+  formatOccurrenceComposition,
+  occurrenceComposerSuggestions,
+  parseOccurrenceSentence,
+} from "../site/occurrence-composer-model.ts";
 
 test("composer prioritizes canonical relationship endpoint context", () => {
   const suggestions = occurrenceComposerSuggestions("@alice calls ", {
@@ -18,6 +22,46 @@ test("composer prioritizes canonical relationship endpoint context", () => {
   assert.equal(suggestions[0]?.insertText, "Bob");
 });
 
+test("selected node seeds the action stage", () => {
+  const suggestions = occurrenceComposerSuggestions("@pigs-wolf ", {
+    entities: [
+      { id: "pigs-wolf", name: "Big Bad Wolf" },
+      { id: "pigs-third", name: "Third Pig" },
+    ],
+    places: [],
+    categories: [],
+  });
+
+  assert.equal(suggestions[0]?.kind, "predicate");
+});
+
+test("selected occurrence composition round-trips canonical context", () => {
+  const composition = formatOccurrenceComposition({
+    subjectId: "pigs-wolf",
+    predicate: "pursues",
+    objectId: "pigs-third",
+    placeId: "brick-house",
+    start: "1975-02-01",
+    category: "Conflict",
+    tags: ["chase", "house"],
+  });
+
+  assert.equal(
+    composition,
+    "@pigs-wolf pursues @pigs-third at @brick-house on 1975-02-01 [category: Conflict, tags: chase|house]",
+  );
+
+  const parsed = parseOccurrenceSentence(composition);
+  assert.equal(parsed.subject?.name, "@pigs-wolf");
+  assert.equal(parsed.predicate, "pursues");
+  assert.equal(parsed.object?.name, "@pigs-third");
+  assert.equal(parsed.place?.name, "@brick-house");
+  assert.equal(parsed.time?.start, "1975-02-01");
+  assert.equal(parsed.options.category, "Conflict");
+  assert.deepEqual(parsed.options.tags, ["chase", "house"]);
+  assert.equal(parsed.stage, "complete");
+});
+
 test("composer selection context reuses canonical entity and place identities", async () => {
   const [composer, app] = await Promise.all([
     readFile(new URL("../site/components/occurrence-composer.ts", import.meta.url), "utf8"),
@@ -25,7 +69,11 @@ test("composer selection context reuses canonical entity and place identities", 
   ]);
 
   assert.match(composer, /setSelectionContext\(/);
+  assert.match(composer, /selectedOccurrenceId/);
+  assert.match(composer, /composition/);
+  assert.match(composer, /this\.value = composition/);
   assert.match(composer, /@\$\{subjectId\}/);
+  assert.match(composer, /previousKey !== nextKey/);
   assert.match(composer, /placeReference:/);
   assert.match(composer, /preferredEntityIds/);
   assert.match(composer, /selectionSeeded/);
@@ -33,6 +81,8 @@ test("composer selection context reuses canonical entity and place identities", 
   assert.match(app, /syncOccurrenceComposerSelection/);
   assert.match(app, /applicationSelection\.subscribe[\s\S]*syncOccurrenceComposerSelection/);
   assert.match(app, /selectedEntityId:/);
+  assert.match(app, /selectedOccurrenceId:/);
+  assert.match(app, /composition:\s*occurrenceCompositionForRelationship\(relationship\)/);
   assert.match(app, /relationship:[\s\S]*subjectId:[\s\S]*objectId:/);
   assert.match(app, /place:[\s\S]*id:[\s\S]*name:/);
   assert.match(app, /placeName:\s*detail\.draft\.place\?\.name\s*\?\?\s*detail\.defaults\.placeReference/);
