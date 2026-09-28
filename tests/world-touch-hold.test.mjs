@@ -67,8 +67,14 @@ test("world node drag initiation preserves modified and secondary-button browser
 function surfaceHarness() {
   const listeners = new Map();
   const dataset = {};
+  const dispatched = [];
   const container = {
     dataset,
+    dispatchEvent(event) {
+      dispatched.push(event);
+      if (event.type === "worldcontextrequest") event.preventDefault();
+      return !event.defaultPrevented;
+    },
     addEventListener(type, listener) {
       listeners.set(type, listener);
     },
@@ -163,6 +169,7 @@ function surfaceHarness() {
     updates,
     releases,
     cancels,
+    dispatched,
     alice,
     aliceIcon,
     entityLayer,
@@ -387,15 +394,65 @@ for (const ending of ["pointerup", "pointercancel"]) {
   });
 }
 
-test("touch presses off any entity never arm a hold", (t) => {
+test("stationary long-press on empty world launches authoring without claiming a node drag", (t) => {
   t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: 10_000 });
   const h = surfaceHarness();
   h.setPickResult(null);
 
-  h.touch("pointerdown", 4, 10, 10);
-  t.mock.timers.tick(WORLD_TOUCH_HOLD_MS * 2);
-  assert.equal(h.dataset.worldTouchDrag, undefined);
+  h.touch("pointerdown", 4, 118, 259, 1_000);
+  t.mock.timers.tick(WORLD_TOUCH_HOLD_MS + 1);
+
+  const request = h.dispatched.find((event) => event.type === "worldcontextrequest");
+  assert.ok(request, "empty-world hold publishes the authoring context request");
+  assert.deepEqual(request.detail.position, {
+    longitude: 18,
+    latitude: 59,
+    altitudeMeters: 0,
+  });
+  assert.deepEqual(h.begins, [], "authoring hold never starts the node drag sink");
+
+  const move = h.touch("pointermove", 4, 130, 270, 1_600);
+  assert.equal(move.defaultPrevented, true);
+  assert.equal(move.propagationStopped, true, "camera cannot move after authoring owns the hold");
+
+  const release = h.touch("pointerup", 4, 130, 270, 1_650);
+  assert.equal(release.defaultPrevented, true);
+  assert.equal(release.propagationStopped, false, "deck still receives terminal pointer-up cleanup");
 });
+
+test("moving empty-world touch before the hold threshold remains camera-owned", (t) => {
+  t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: 10_000 });
+  const h = surfaceHarness();
+  h.setPickResult(null);
+
+  h.touch("pointerdown", 4, 10, 10, 1_000);
+  t.mock.timers.tick(80);
+  h.touch("pointermove", 4, 40, 10, 1_080);
+  t.mock.timers.tick(WORLD_TOUCH_HOLD_MS * 2);
+
+  assert.equal(
+    h.dispatched.some((event) => event.type === "worldcontextrequest"),
+    false,
+  );
+  assert.deepEqual(h.begins, []);
+});
+
+test("a second finger cancels empty-world authoring hold and yields to camera pinch", (t) => {
+  t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: 10_000 });
+  const h = surfaceHarness();
+  h.setPickResult(null);
+
+  h.touch("pointerdown", 4, 10, 10, 1_000);
+  t.mock.timers.tick(100);
+  h.touch("pointerdown", 5, 60, 10, 1_100);
+  t.mock.timers.tick(WORLD_TOUCH_HOLD_MS * 2);
+
+  assert.equal(
+    h.dispatched.some((event) => event.type === "worldcontextrequest"),
+    false,
+  );
+});
+
 
 test("mouse and pen drags stay immediate", () => {
   const h = surfaceHarness();
