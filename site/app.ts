@@ -2498,6 +2498,40 @@ function renderTimelineList(visible: TimelineItemRecord[], activeStory: StoryRec
   els.list.replaceChildren(...groups);
 }
 
+function reasoningContextForOccurrence(
+  itemId: string | null,
+  relationshipIds: readonly string[],
+): Array<{ id: string; type?: string; text?: string; status?: string }> {
+  const normalizedItemId = itemId ? String(itemId) : "";
+  const relationships = new Set(relationshipIds.map(String).filter(Boolean));
+  const itemEvidenceIds = normalizedItemId
+    ? new Set(getItem(normalizedItemId)?.evidenceIds ?? [])
+    : new Set<string>();
+
+  return (caseReasoning.recordsOf(state.reasoning) as Record<string, unknown>[])
+    .filter((record) => {
+      const recordItems = reasoningRecordStringList(record, "itemIds");
+      if (normalizedItemId && recordItems.includes(normalizedItemId)) return true;
+      const recordRelationships = reasoningRecordStringList(record, "relationshipIds");
+      if (recordRelationships.some((id) => relationships.has(id))) return true;
+      const recordEvidence = reasoningRecordStringList(record, "evidenceIds");
+      return recordEvidence.some((id) => itemEvidenceIds.has(id));
+    })
+    .slice(0, 12)
+    .map((record) => ({
+      id: String(record.id || ""),
+      type: typeof record.type === "string" ? record.type : undefined,
+      text:
+        typeof record.text === "string"
+          ? record.text
+          : typeof record.title === "string"
+            ? record.title
+            : String(record.id || ""),
+      status: typeof record.status === "string" ? record.status : undefined,
+    }))
+    .filter((record) => Boolean(record.id));
+}
+
 function renderTimeline() {
   renderBrowserStories();
   const activeStory = getStory(ui.activeStoryId);
@@ -2586,6 +2620,11 @@ function renderTimeline() {
       [
         ...visible.map((item) => {
           const category = getCategory(item.categoryId);
+          const itemRelationships = state.relationships.filter((relationship) =>
+            (relationship.itemIds || []).some((id) => String(id) === String(item.id)),
+          );
+          const editableRelationship =
+            itemRelationships.length === 1 ? itemRelationships[0] ?? null : null;
           const itemTime = temporal.sortKey(item.time?.start || item.start);
           const eventViewport = Number.isFinite(itemTime)
             ? { start: itemTime, end: itemTime }
@@ -2595,6 +2634,17 @@ function renderTimeline() {
             kind: item.kind,
             title: item.title,
             description: item.description,
+            relationshipId: editableRelationship?.id ? String(editableRelationship.id) : undefined,
+            composition: editableRelationship
+              ? occurrenceCompositionForRelationship(editableRelationship, String(item.id))
+              : "",
+            storyNames: state.stories
+              .filter((story) => story.itemIds.some((id) => String(id) === String(item.id)))
+              .map((story) => story.title),
+            reasoningContext: reasoningContextForOccurrence(
+              String(item.id),
+              itemRelationships.map((relationship) => String(relationship.id)),
+            ),
             categoryName: category.name,
             color: category.color,
             start: temporal.sortKey(item.time?.start || item.start),
@@ -2616,11 +2666,7 @@ function renderTimeline() {
             evidence: (item.evidenceIds || [])
               .map((id) => state.evidence.find((record) => record.id === id))
               .filter(Boolean),
-            relations: state.relationships
-              .filter((relationship) =>
-                (relationship.itemIds || []).some((id) => String(id) === String(item.id)),
-              )
-              .map((relationship) => ({
+            relations: itemRelationships.map((relationship) => ({
                 id: relationship.id,
                 predicate: relationship.predicate,
                 role: relationship.role || "",
@@ -2665,6 +2711,23 @@ function renderTimeline() {
             id: occurrence.occurrenceId,
             kind: occurrence.end === null ? "event" : "range",
             title: occurrence.title,
+            relationshipId: relationship?.id ? String(relationship.id) : undefined,
+            composition: relationship
+              ? occurrenceCompositionForRelationship(relationship, null)
+              : "",
+            storyNames: relationship
+              ? state.stories
+                  .filter((story) =>
+                    (relationship.itemIds || []).some((itemId) =>
+                      story.itemIds.some((storyItemId) => String(storyItemId) === String(itemId)),
+                    ),
+                  )
+                  .map((story) => story.title)
+              : [],
+            reasoningContext: reasoningContextForOccurrence(
+              null,
+              relationship ? [String(relationship.id)] : [],
+            ),
             description: relationship?.role
               ? `${occurrence.subjectName} ${occurrence.predicate} ${occurrence.objectName} · ${relationship.role}`
               : `${occurrence.subjectName} ${occurrence.predicate} ${occurrence.objectName}`,
@@ -6117,6 +6180,24 @@ els.timelineViewRoot.addEventListener("timelinefocusrender", (event) => {
   syncContextualPresentationPanels();
   syncTimelineContextControls();
   schedulePresentationGeometryRefresh({ recenterGraph: !cardFocused });
+});
+
+els.timelineViewRoot.addEventListener("timelinefocusreasoningopen", (event) => {
+  if (!(event instanceof CustomEvent)) return;
+  const id = String(event.detail?.id || "");
+  if (!id) return;
+  const record = (caseReasoning.recordsOf(state.reasoning) as Record<string, unknown>[]).find(
+    (candidate) => String(candidate.id || "") === id,
+  );
+  if (!record) {
+    showStatus(`Reasoning record ${id} is no longer available.`);
+    return;
+  }
+  setInvestigationSurfaceOpen(true);
+  investigationWorkspace?.render();
+  showStatus(
+    `Opened ${typeof record.type === "string" ? record.type : "reasoning"} ${id} in investigation methodology.`,
+  );
 });
 
 els.graphViewRoot.addEventListener("graphcontextchange", (event) => {
