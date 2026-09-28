@@ -23,8 +23,8 @@ export interface OccurrenceComposerData {
   readonly entities: readonly ComposerEntityOption[];
   readonly places: readonly ComposerPlaceOption[];
   readonly categories: readonly ComposerCategoryOption[];
-  readonly tags: readonly string[];
-  readonly predicates: readonly string[];
+  readonly tags?: readonly string[];
+  readonly predicates?: readonly string[];
 }
 
 export interface OccurrenceComposerSelectionContext {
@@ -392,8 +392,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
       entities: Object.freeze([...data.entities]),
       places: Object.freeze([...data.places]),
       categories: Object.freeze([...data.categories]),
-      tags: Object.freeze([...data.tags]),
-      predicates: Object.freeze([...data.predicates]),
+      tags: Object.freeze([...(data.tags ?? [])]),
+      predicates: Object.freeze([...(data.predicates ?? [])]),
     });
     this.requestUpdate();
   }
@@ -502,6 +502,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.sessionKey = this.currentContextKey();
     this.active = false;
     this.externalError = "";
+    this.suggestionNavigated = false;
   }
 
   setError(message: string): void {
@@ -524,11 +525,11 @@ export class LuumOccurrenceComposerElement extends LitElement {
   }
 
   private suggestions(): readonly ComposerSuggestion[] {
-    const parsed = this.parsed();
+    const completionStage = occurrenceComposerCompletionStage(this.value);
     const preferredEntityIds =
-      parsed.stage === "object" && this.selectionContext?.relationship?.objectId
+      completionStage === "object" && this.selectionContext?.relationship?.objectId
         ? [this.selectionContext.relationship.objectId]
-        : parsed.stage === "subject" && this.selectedSubjectId()
+        : completionStage === "subject" && this.selectedSubjectId()
           ? [this.selectedSubjectId()!]
           : [];
     return occurrenceComposerSuggestions(this.value, {
@@ -803,7 +804,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
                 </div>
                 <div class="completion-heading" aria-hidden="true">
                   <span>Suggestions</span>
-                  <span>↑↓ select · Enter accept</span>
+                  <span>↑↓ choose · Enter accepts selection or commits</span>
                 </div>
                 ${diagnostic
                   ? html`<p id="occurrence-composer-diagnostic" class="diagnostic" role="alert">${diagnostic}</p>`
@@ -844,6 +845,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
               </div>
             `
           : nothing}
+        ${expanded ? nothing : html`<span id="occurrence-composer-diagnostic" hidden></span>`}
 
         <p id="occurrence-composer-help" class="help">
           Focus expands the composer. Arrow keys navigate suggestions · Enter accepts the active
