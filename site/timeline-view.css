@@ -651,6 +651,27 @@
   display: none;
 }
 
+.timeline-event-detail-content {
+  display: contents;
+}
+
+.timeline-event-composer-slot {
+  grid-column: 1;
+  grid-row: auto;
+  min-width: 0;
+  padding: 0.5rem 0.12rem 0.08rem;
+  border-top: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+}
+
+.timeline-event-composer-slot[hidden] {
+  display: none;
+}
+
+.timeline-event-composer-slot > luum-occurrence-composer {
+  width: 100%;
+  min-width: 0;
+}
+
 .timeline-event.is-expanded .timeline-event-terminal {
   z-index: 22;
   border-color: var(--event-color);
@@ -725,7 +746,9 @@
   line-height: 1.48;
 }
 
-.timeline-event-detail[data-active-tab="evidence"] > .timeline-focus-hero {
+.timeline-event-detail[data-active-tab="evidence"]
+  > .timeline-event-detail-content
+  > .timeline-focus-hero {
   display: none;
 }
 
