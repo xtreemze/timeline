@@ -5,15 +5,19 @@
 
 import { authorOccurrence } from "../src/application/occurrence-authoring.ts";
 import {
-  defaultSemanticIconForEntityType,
-  normalizeEntityPresentationAttributes,
-  normalizeSemanticIconName,
-} from "../src/presentation/semantic-icons.ts";
+  stageProjectImportReview,
+  type StagedProjectImport,
+} from "../src/application/project-import-review.ts";
 import { applyProjectTransaction } from "../src/application/project-transaction.ts";
 import {
   createApplicationSelectionController,
   selectionForTimelineFocus,
 } from "../src/application/selection.ts";
+import {
+  defaultSemanticIconForEntityType,
+  normalizeEntityPresentationAttributes,
+  normalizeSemanticIconName,
+} from "../src/presentation/semantic-icons.ts";
 import { projectTimelineOccurrences } from "../src/projection/timeline-projection.ts";
 import "./components/occurrence-composer.ts";
 import type {
@@ -649,6 +653,7 @@ function populateSemanticIconSuggestions() {
 populateSemanticIconSuggestions();
 
 let state = loadState();
+let pendingProjectImportReview: StagedProjectImport<TimelineState> | null = null;
 let storyDraftIds: string[] = [];
 let storyDraftPlaceIds: string[] = [];
 const evidenceExtractionDrafts = new Map<string, EvidenceExtractionDraft>();
@@ -5929,7 +5934,18 @@ els.loadSample.addEventListener("click", () => {
   showStatus("Example timeline loaded.");
 });
 
+function stageVerificationRequiredProjectImport(
+  input: unknown,
+): StagedProjectImport<TimelineState> | null {
+  return stageProjectImportReview<TimelineState>(input, {
+    normalize: (project) =>
+      normalizeTimeline(project as TimelineInputRecord, { strictGraph: true }),
+    validate: (project) => validateAgentProject(project),
+  });
+}
+
 function applyImportedTimeline(imported, statusPrefix = "Imported", warningCount = 0) {
+  pendingProjectImportReview = null;
   state = normalizeTimeline(imported, { strictGraph: true });
   collapseAllCategories();
   ui.search = "";
@@ -6259,6 +6275,18 @@ async function importProjectFile(file: File, statusPrefix = "Imported"): Promise
   try {
     if (file.size > 5_000_000) throw new Error("Import is limited to 5 MB.");
     const raw = JSON.parse(await file.text());
+    const staged = stageVerificationRequiredProjectImport(raw);
+    if (staged) {
+      pendingProjectImportReview = staged;
+      const review = pendingProjectImportReview;
+      const issueCount = review.errors.length + review.warnings.length + review.unresolved.length;
+      showStatus(
+        review.status === "ready-for-user-verification"
+          ? `Staged ${review.summary.items} items and ${review.summary.stories} stories for verification · ${issueCount} review ${issueCount === 1 ? "item" : "items"} · current project unchanged.`
+          : `Generated proposal needs repair before verification · ${review.errors.length} ${review.errors.length === 1 ? "error" : "errors"} · current project unchanged.`,
+      );
+      return true;
+    }
     const adapter = interchangeAdapter;
     const converted = adapter?.isLikelyInterchange(raw) ? adapter.importData(raw) : null;
     const imported = converted?.timeline || raw;
