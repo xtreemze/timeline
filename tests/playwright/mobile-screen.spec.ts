@@ -120,19 +120,31 @@ test.describe("Narrow mobile screen contracts", () => {
       );
       expect(composerViewportHeight).toBe(String(Math.round(visualViewportHeight)) + "px");
 
-      const [expanded, inputBox, completionBox] = await Promise.all([
+      const actions = page.locator(".app-footer-actions");
+      const viewControls = page.locator("#timeline-view-controls");
+      const [expanded, inputBox, completionBox, actionsBox, viewBox, composerBox] = await Promise.all([
         dock.boundingBox(),
         input.boundingBox(),
         composer.locator(".completion-panel").boundingBox(),
+        actions.boundingBox(),
+        viewControls.boundingBox(),
+        composer.boundingBox(),
       ]);
       expect(expanded).not.toBeNull();
       expect(inputBox).not.toBeNull();
       expect(completionBox).not.toBeNull();
-      if (!expanded || !inputBox || !completionBox) {
+      expect(actionsBox).not.toBeNull();
+      expect(viewBox).not.toBeNull();
+      expect(composerBox).not.toBeNull();
+      if (!expanded || !inputBox || !completionBox || !actionsBox || !viewBox || !composerBox) {
         throw new Error("Footer composer geometry is unavailable after expansion.");
       }
-      expect(expanded.height).toBeGreaterThan(before.height + 40);
-      expect(inputBox.width).toBeGreaterThanOrEqual(Math.min(220, viewport.width * 0.6));
+      expect(Math.abs(expanded.height - before.height)).toBeLessThanOrEqual(8);
+      const rowCenter = expanded.y + expanded.height / 2;
+      for (const box of [actionsBox, composerBox, viewBox]) {
+        expect(Math.abs(box.y + box.height / 2 - rowCenter)).toBeLessThanOrEqual(4);
+      }
+      expect(inputBox.width).toBeGreaterThanOrEqual(Math.min(150, viewport.width * 0.4));
       expect(inputBox.x).toBeGreaterThanOrEqual(expanded.x - 1);
       expect(inputBox.x + inputBox.width).toBeLessThanOrEqual(expanded.x + expanded.width + 1);
       expect(inputBox.y).toBeGreaterThanOrEqual(expanded.y - 1);
@@ -144,8 +156,8 @@ test.describe("Narrow mobile screen contracts", () => {
         Math.max(112, visualViewportHeight * 0.42) + 2,
       );
 
-      await expect(page.locator(".app-footer-actions")).toBeVisible();
-      await expect(page.locator("#timeline-view-controls")).toBeVisible();
+      await expect(actions).toBeVisible();
+      await expect(viewControls).toBeVisible();
       await expect(timelineToggle).toBeEnabled();
 
       const nextOrientation = orientation === "portrait" ? "landscape" : "portrait";
@@ -160,7 +172,7 @@ test.describe("Narrow mobile screen contracts", () => {
 
       const collapsed = await dock.boundingBox();
       expect(collapsed).not.toBeNull();
-      if (collapsed) expect(collapsed.height).toBeLessThan(expanded.height - 40);
+      if (collapsed) expect(Math.abs(collapsed.height - expanded.height)).toBeLessThanOrEqual(8);
       await expectNoPageScroll(page, viewport);
     }
   });
