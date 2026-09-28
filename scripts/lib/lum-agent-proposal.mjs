@@ -8,6 +8,7 @@ export const LUM_CHANGE_PROPOSAL_SCHEMA_ID =
   "https://xtreemze.github.io/timeline/schemas/lum-change-proposal-v1.schema.json";
 export const LUM_CHANGE_PROPOSAL_FORMAT = "lum-change-proposal";
 export const LUM_CHANGE_PROPOSAL_VERSION = 1;
+export const LUM_CHANGE_PROPOSAL_FILE_EXTENSION = ".lum-proposal.json";
 
 const COLLECTIONS = new Set([
   "entities",
@@ -430,6 +431,20 @@ function validateComposerRelationship(operation, project, path) {
     ];
   }
 
+  const hasEntityProperties =
+    Object.keys(parsed.subject?.properties ?? {}).length > 0 ||
+    Object.keys(parsed.object?.properties ?? {}).length > 0;
+  if (hasEntityProperties) {
+    return [
+      diagnostic(
+        "composer-properties-unverifiable",
+        `${path}/composerSentence`,
+        "Composer entity properties cannot be verified against a relationship-only proposal operation.",
+        "Create or replace the affected entity records explicitly in separate typed operations.",
+      ),
+    ];
+  }
+
   if (parsed.options.category || parsed.options.tags.length > 0) {
     return [
       diagnostic(
@@ -515,6 +530,8 @@ function applyOperations(proposal, sourceSnapshot, savedAt) {
     created: { entities: 0, relationships: 0, occurrences: 0, trajectories: 0 },
     replaced: { entities: 0, relationships: 0, occurrences: 0, trajectories: 0 },
     deleted: { entities: 0, relationships: 0, occurrences: 0, trajectories: 0 },
+    operations: [],
+    unresolvedFacts: cloneJson(proposal.unresolvedFacts),
   };
 
   proposal.operations.forEach((operation, index) => {
@@ -565,16 +582,19 @@ function applyOperations(proposal, sourceSnapshot, savedAt) {
     if (operation.op === "create") {
       records.push(cloneJson(operation.record));
       summary.created[collection] += 1;
+      summary.operations.push({ op: "create", collection, id });
       return;
     }
     if (operation.op === "replace") {
       records[existingIndex] = cloneJson(operation.record);
       summary.replaced[collection] += 1;
+      summary.operations.push({ op: "replace", collection, id });
       return;
     }
 
     records.splice(existingIndex, 1);
     summary.deleted[collection] += 1;
+    summary.operations.push({ op: "delete", collection, id });
   });
 
   if (diagnostics.length > 0) {
@@ -702,9 +722,25 @@ export function validateLumChangeProposal(
   options = {},
 ) {
   const result = evaluateProposal(proposalSource, projectSource, options);
+  const diagnostics = [...result.diagnostics];
+  if (
+    options.fileName &&
+    options.fileName !== "-" &&
+    !options.fileName.endsWith(LUM_CHANGE_PROPOSAL_FILE_EXTENSION)
+  ) {
+    diagnostics.push(
+      diagnostic(
+        "non-canonical-proposal-extension",
+        "",
+        `Lūm change proposals must use the ${LUM_CHANGE_PROPOSAL_FILE_EXTENSION} suffix.`,
+      ),
+    );
+  }
   return {
-    valid: result.valid,
-    diagnostics: result.diagnostics,
+    valid:
+      result.valid &&
+      !diagnostics.some((finding) => finding.severity === "error"),
+    diagnostics,
     ...(result.summary ? { summary: result.summary } : {}),
   };
 }
