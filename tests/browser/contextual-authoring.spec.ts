@@ -894,6 +894,153 @@ test.describe("contextual world authoring certification", () => {
     expect(afterScroll).toEqual(beforeScroll);
   });
 
+  test("live place and time chips are real controls that can pin context before grammar completion", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const composer = await openPersistentComposer(page);
+    const place = composer.locator('button.context-chip[data-context-kind="place"]');
+    const time = composer.locator('button.context-chip[data-context-kind="time"]');
+
+    await expect(place).toBeVisible();
+    await expect(time).toBeVisible();
+    await expect(place).toHaveAttribute("data-context-state", "live");
+    await expect(time).toHaveAttribute("data-context-state", "live");
+
+    await place.click();
+    await expect(place).toHaveAttribute("data-context-state", "pinned");
+    await time.click();
+    await expect(time).toHaveAttribute("data-context-state", "pinned");
+
+    await place.focus();
+    await place.press("ArrowRight");
+    await expect(time).toBeFocused();
+    await time.press("ArrowRight");
+    await expect(composer.locator('button.context-chip[data-context-kind="details"]')).toBeFocused();
+  });
+
+  test("visible Save occurrence control commits relationship details without pressing Enter", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const [relationship] = await relationshipFocuses(page);
+    test.skip(!relationship, "Example project exposes no focusable relationship occurrence.");
+
+    await focusRelationship(page, relationship!);
+    const composer = await openPersistentComposer(page);
+    await composer.locator('button.context-chip[data-context-kind="details"]').click();
+
+    await composer.getByLabel("Role").fill("composer-recipient");
+    await composer.getByLabel("Confidence · 0–1").fill("0.83");
+    await composer.locator('textarea[placeholder*="evidence-17"]').fill("source-composer\nevidence-composer");
+
+    const save = composer.getByRole("button", { name: "Save occurrence" });
+    await expect(save).toBeEnabled();
+    await save.click();
+
+    await expect
+      .poll(async () =>
+        page.evaluate((relationshipId) => {
+          const relationship = (
+            window as typeof window & {
+              TimelineAgentAPI?: { getProject?: () => any };
+            }
+          ).TimelineAgentAPI?.getProject?.()?.relationships?.find(
+            (candidate: any) => String(candidate.id) === relationshipId,
+          );
+          return {
+            role: relationship?.role ?? null,
+            confidence: relationship?.confidence ?? null,
+            sourceIds: relationship?.sourceIds ?? [],
+          };
+        }, relationship!.relationshipId),
+      )
+      .toEqual({
+        role: "composer-recipient",
+        confidence: 0.83,
+        sourceIds: ["source-composer", "evidence-composer"],
+      });
+  });
+
+  test("Ctrl+Enter finalizes the same composer transaction without consuming a suggestion", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const [relationship] = await relationshipFocuses(page);
+    test.skip(!relationship, "Example project exposes no focusable relationship occurrence.");
+
+    await focusRelationship(page, relationship!);
+    const composer = await openPersistentComposer(page);
+    await composer.locator('button.context-chip[data-context-kind="details"]').click();
+    await composer.getByLabel("Role").fill("keyboard-recipient");
+
+    const input = composer.locator('input[role="combobox"]');
+    await input.focus();
+    await input.press("Control+Enter");
+
+    await expect
+      .poll(async () =>
+        page.evaluate((relationshipId) => {
+          const relationship = (
+            window as typeof window & {
+              TimelineAgentAPI?: { getProject?: () => any };
+            }
+          ).TimelineAgentAPI?.getProject?.()?.relationships?.find(
+            (candidate: any) => String(candidate.id) === relationshipId,
+          );
+          return relationship?.role ?? null;
+        }, relationship!.relationshipId),
+      )
+      .toBe("keyboard-recipient");
+  });
+
+  test("Details bridges an existing occurrence into the full edge editor", async ({ page }) => {
+    await page.goto("/");
+    const [relationship] = await relationshipFocuses(page);
+    test.skip(!relationship, "Example project exposes no focusable relationship occurrence.");
+
+    await focusRelationship(page, relationship!);
+    const composer = await openPersistentComposer(page);
+    await composer.locator('button.context-chip[data-context-kind="details"]').click();
+    await composer.getByRole("button", { name: "Open full edge editor" }).click();
+
+    await expect(page.locator("#graph-edge-id")).toHaveValue(relationship!.relationshipId);
+    await expect(page.locator("#graph-edge-predicate")).toHaveValue(relationship!.predicate);
+    await expect(composer).not.toHaveAttribute("active", "");
+  });
+
+  test("mobile touch can activate semantic chips and finalize through the visible control", async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== "Mobile Chrome", "Touch parity is certified on Mobile Chrome.");
+    await page.goto("/");
+    const [relationship] = await relationshipFocuses(page);
+    test.skip(!relationship, "Example project exposes no focusable relationship occurrence.");
+
+    await focusRelationship(page, relationship!);
+    const composer = await openPersistentComposer(page);
+    const details = composer.locator('button.context-chip[data-context-kind="details"]');
+    await details.tap();
+    await composer.getByLabel("Role").fill("touch-recipient");
+
+    const save = composer.getByRole("button", { name: "Save occurrence" });
+    await save.tap();
+    await expect
+      .poll(async () =>
+        page.evaluate((relationshipId) => {
+          const relationship = (
+            window as typeof window & {
+              TimelineAgentAPI?: { getProject?: () => any };
+            }
+          ).TimelineAgentAPI?.getProject?.()?.relationships?.find(
+            (candidate: any) => String(candidate.id) === relationshipId,
+          );
+          return relationship?.role ?? null;
+        }, relationship!.relationshipId),
+      )
+      .toBe("touch-recipient");
+  });
+
   test("suggestion clicks compose subject action and object without erasing accepted components", async ({
     page,
   }) => {
