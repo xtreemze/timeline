@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
@@ -133,4 +134,23 @@ test("verification revalidates the exact fingerprinted candidate before commit",
     () => verifyStagedProjectImport(staged, dependencies),
     /changed after it was staged/i,
   );
+});
+
+test("application stages public story proposal envelopes without replacing canonical state", async () => {
+  const app = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
+  assert.match(app, /stageProjectImportReview/);
+  assert.match(app, /pendingProjectImportReview/);
+  assert.match(
+    app,
+    /importProjectFile[\s\S]*stageVerificationRequiredProjectImport\(raw\)[\s\S]*current project unchanged/,
+  );
+
+  const importBody = app.match(
+    /async function importProjectFile[\s\S]*?\n\}/,
+  )?.[0] ?? "";
+  const stageIndex = importBody.indexOf("stageVerificationRequiredProjectImport(raw)");
+  const applyIndex = importBody.indexOf("applyImportedTimeline(");
+  assert.ok(stageIndex >= 0);
+  assert.ok(applyIndex > stageIndex, "ordinary trusted import may apply only after staged-proposal detection");
+  assert.doesNotMatch(importBody, /applyImportedTimeline\(\s*staged/);
 });
