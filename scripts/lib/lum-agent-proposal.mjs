@@ -750,6 +750,18 @@ export function applyLumChangeProposal(
   projectSource,
   options = {},
 ) {
+  const validation = validateLumChangeProposal(
+    proposalSource,
+    projectSource,
+    options,
+  );
+  if (!validation.valid) {
+    return {
+      valid: false,
+      diagnostics: validation.diagnostics,
+    };
+  }
+
   const result = evaluateProposal(proposalSource, projectSource, options);
   if (!result.valid) {
     return {
