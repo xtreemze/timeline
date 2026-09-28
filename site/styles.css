@@ -2056,6 +2056,42 @@ footer > :last-child {
   display: grid;
   gap: 0.7rem;
 }
+.semantic-icon-field-row {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 0.5rem;
+  align-items: center;
+}
+.semantic-icon-preview {
+  display: grid;
+  inline-size: 44px;
+  block-size: 44px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 0.58rem;
+  background: var(--paper);
+}
+.semantic-icon-preview[data-icon-origin="type-fallback"] {
+  opacity: 0.72;
+}
+.semantic-icon-preview[data-icon-origin="invalid"] {
+  border-style: dashed;
+}
+.semantic-icon-status {
+  display: block;
+  margin-top: 0.28rem;
+  color: var(--muted);
+  font-size: 0.66rem;
+  line-height: 1.35;
+}
+.graph-record-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.graph-record-title .semantic-icon {
+  flex: 0 0 auto;
+}
 .graph-edge-time {
   margin-top: 0.2rem;
 }
