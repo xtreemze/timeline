@@ -27,6 +27,7 @@ import {
 import { suggestSemanticIconForPlace } from "../src/presentation/semantic-icon-inference.ts";
 import { projectTimelineOccurrences } from "../src/projection/timeline-projection.ts";
 import "./components/occurrence-composer.ts";
+import { shouldOpenComposerForSelection } from "./occurrence-composer-selection.ts";
 import type {
   LuumOccurrenceComposerElement,
   OccurrenceCommitDetail,
@@ -745,10 +746,16 @@ try {
   console.error("Failed to initialize TemporalGraphView:", error);
 }
 const applicationSelection = createApplicationSelectionController();
-applicationSelection.subscribe(({ selection }) => {
+applicationSelection.subscribe((change) => {
+  const { selection } = change;
   temporalGraphView?.setSelection?.(selection);
   timelineView?.setSelection(selection);
   syncOccurrenceComposerSelection(selection);
+  if (shouldOpenComposerForSelection(change)) {
+    requestAnimationFrame(() => {
+      if (applicationSelection.current === selection) setOccurrenceComposerOpen(true);
+    });
+  }
 });
 const dateRangePicker = dateRangeFactory.create({
   input: els.itemDateRange,
