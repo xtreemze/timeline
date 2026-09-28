@@ -279,8 +279,10 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
     button.context-chip {
       appearance: none;
+      min-block-size: 44px;
       font: inherit;
       cursor: pointer;
+      touch-action: manipulation;
     }
 
     button.context-chip:hover,
