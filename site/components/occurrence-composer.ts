@@ -235,6 +235,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
   private externalError = "";
   private explicitPlaceContext: ComposerWorldContext | null = null;
   private selectionContext: OccurrenceComposerSelectionContext | null = null;
+  private selectionSeeded = false;
 
   constructor() {
     super();
@@ -291,9 +292,16 @@ export class LuumOccurrenceComposerElement extends LitElement {
   }
 
   private applySelectionSeed(): void {
-    if (this.value.trim()) return;
     const subjectId = this.selectedSubjectId();
-    if (subjectId) this.value = `@${subjectId} `;
+    if (!subjectId) {
+      if (this.selectionSeeded) this.value = "";
+      this.selectionSeeded = false;
+      return;
+    }
+    if (!this.value.trim() || this.selectionSeeded) {
+      this.value = `@${subjectId} `;
+      this.selectionSeeded = true;
+    }
   }
 
   setEditing(editing: boolean): void {
@@ -321,6 +329,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
   markCommitted(): void {
     this.value = "";
+    this.selectionSeeded = false;
     this.explicitPlaceContext = null;
     this.externalError = "";
     this.activeSuggestion = 0;
@@ -362,6 +371,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
   private setComposerValue(value: string): void {
     const previousPlace = this.parsed().place?.name ?? null;
     this.value = value;
+    this.selectionSeeded = false;
     const nextPlace = this.parsed().place?.name ?? null;
     if (!nextPlace) {
       this.explicitPlaceContext = null;
