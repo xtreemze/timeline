@@ -24,6 +24,7 @@ import {
   serializeProjectInterchange,
   validateProjectInterchange,
 } from "./project-interchange.ts";
+import { createProjectModule } from "./project-module.ts";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -388,4 +389,39 @@ export function compileExampleStoryProject(
     );
   }
   return Object.freeze({ snapshot: validation.snapshot, serialized });
+}
+
+
+export function compileExampleStoryModules(
+  sample: LegacyExampleSample,
+  selectedStoryId: string,
+  options: { readonly savedAt: string; readonly projectKey?: string },
+): readonly string[] {
+  const compiled = compileExampleStoryProject(sample, selectedStoryId, options);
+  const project = compiled.snapshot.project;
+  const ownership = {
+    projectKey: compiled.snapshot.projectKey,
+    storyId: selectedStoryId,
+  } as const;
+  return Object.freeze([
+    createProjectModule({ ...ownership, collection: "entities", records: project.entities }),
+    createProjectModule({
+      ...ownership,
+      collection: "relationships",
+      records: project.relationships,
+    }),
+    createProjectModule({
+      ...ownership,
+      collection: "occurrences",
+      records: project.occurrences ?? [],
+    }),
+    createProjectModule({ ...ownership, collection: "places", records: project.places ?? [] }),
+    createProjectModule({ ...ownership, collection: "sources", records: project.sources ?? [] }),
+    createProjectModule({
+      ...ownership,
+      collection: "categories",
+      records: project.categories ?? [],
+    }),
+    createProjectModule({ ...ownership, collection: "stories", records: project.stories ?? [] }),
+  ]);
 }

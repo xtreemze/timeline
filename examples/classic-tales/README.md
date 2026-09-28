@@ -51,3 +51,8 @@ pnpm compile:example-story story-three-little-pigs --out examples/classic-tales/
 ```
 
 The generated `project.lum.json` is not a hand-edited source. The pilot compiler preserves the story's explicit occurrence order, collects only reference-closed canonical records, and fails if the result does not pass strict Lūm validation. Once parity is proven and modular source files replace the legacy source, the manifest can advance this story from `pilot` to `modular` and later `canonical`.
+
+
+### Collection modules
+
+A modular story uses one `*.module.lum.json` file per canonical collection. Module envelopes are strict and versioned, while record semantics are referenced from the canonical Lūm project schema. Cross-record and cross-module semantics are validated only after assembly into a full project, preventing module/editor validators from becoming competing authorities.

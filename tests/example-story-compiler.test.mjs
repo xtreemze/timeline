@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { compileExampleStoryProject } from "../src/application/example-story-compiler.ts";
+import {
+  compileExampleStoryModules,
+  compileExampleStoryProject,
+} from "../src/application/example-story-compiler.ts";
+import { assembleProjectModules } from "../src/application/project-module.ts";
 import { validateProjectInterchange } from "../src/application/project-interchange.ts";
 
 await import("../site/timeline-graph-shim.ts");
@@ -89,4 +93,28 @@ test("pilot does not serialize renderer or camera state into canonical records",
   assert.equal("selection" in parsed.project, false);
   assert.equal("force" in parsed.project, false);
   assert.equal("cluster" in parsed.project, false);
+});
+
+test("pilot can split into bounded modules and reassemble without semantic drift", () => {
+  const compiled = compileExampleStoryProject(sample, storyId, { savedAt });
+  const modules = compileExampleStoryModules(sample, storyId, { savedAt });
+  const parsed = modules.map((serialized) => JSON.parse(serialized));
+  assert.deepEqual(
+    parsed.map((module) => module.collection),
+    ["entities", "relationships", "occurrences", "places", "sources", "categories", "stories"],
+  );
+
+  const assembled = assembleProjectModules(modules, { savedAt });
+  assert.deepEqual(
+    assembled.snapshot.project.stories?.[0]?.occurrenceIds.map(String),
+    compiled.snapshot.project.stories?.[0]?.occurrenceIds.map(String),
+  );
+  assert.deepEqual(
+    assembled.snapshot.project.entities.map((entity) => String(entity.id)),
+    compiled.snapshot.project.entities.map((entity) => String(entity.id)),
+  );
+  assert.deepEqual(
+    assembled.snapshot.project.relationships.map((relationship) => String(relationship.id)),
+    compiled.snapshot.project.relationships.map((relationship) => String(relationship.id)),
+  );
 });

@@ -1,0 +1,207 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://xtreemze.github.io/timeline/schemas/lum-project-module-v1.schema.json",
+  "title": "Lūm Project Module v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "format",
+    "moduleVersion",
+    "canonicalSchemaVersion",
+    "projectSchema",
+    "projectKey",
+    "storyId",
+    "collection",
+    "records"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "https://xtreemze.github.io/timeline/schemas/lum-project-module-v1.schema.json"
+    },
+    "format": {
+      "const": "lum-project-module"
+    },
+    "moduleVersion": {
+      "const": 1
+    },
+    "canonicalSchemaVersion": {
+      "const": 3
+    },
+    "projectSchema": {
+      "const": "https://xtreemze.github.io/timeline/schemas/lum-project-v1.schema.json"
+    },
+    "projectKey": {
+      "type": "string",
+      "minLength": 1
+    },
+    "storyId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "collection": {
+      "enum": [
+        "entities",
+        "relationships",
+        "occurrences",
+        "trajectories",
+        "places",
+        "sources",
+        "categories",
+        "stories"
+      ]
+    },
+    "records": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "collection": {
+            "const": "entities"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "records": {
+            "items": {
+              "$ref": "lum-project-v1.schema.json#/$defs/entity"
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "collection": {
+            "const": "relationships"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "records": {
+            "items": {
+              "$ref": "lum-project-v1.schema.json#/$defs/relationship"
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "collection": {
+            "const": "occurrences"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "records": {
+            "items": {
+              "$ref": "lum-project-v1.schema.json#/$defs/occurrence"
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "collection": {
+            "const": "trajectories"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "records": {
+            "items": {
+              "$ref": "lum-project-v1.schema.json#/$defs/trajectory"
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "collection": {
+            "const": "places"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "records": {
+            "items": {
+              "$ref": "lum-project-v1.schema.json#/$defs/place"
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "collection": {
+            "const": "sources"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "records": {
+            "items": {
+              "$ref": "lum-project-v1.schema.json#/$defs/source"
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "collection": {
+            "const": "categories"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "records": {
+            "items": {
+              "$ref": "lum-project-v1.schema.json#/$defs/category"
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "collection": {
+            "const": "stories"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "records": {
+            "items": {
+              "$ref": "lum-project-v1.schema.json#/$defs/story"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

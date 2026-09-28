@@ -101,3 +101,12 @@ Legacy `.luum` handling is tracked by #930. New format work must use `lum`, neve
 The current canonical project owns entities, relationships, occurrences, and trajectory manifests. #720 expands canonical ownership for stories, reusable places, evidence/provenance, custody, analysis, and other authoritative records.
 
 The interchange schema must evolve with that canonical ownership. It must not independently invent those records first.
+
+
+## Modular story sources
+
+Large example and agent-maintained projects may be split into bounded collection modules using `lum-project-module` v1. A module owns exactly one canonical collection and declares the parent `projectKey`, `storyId`, canonical schema version, and collection name.
+
+The module schema is `schemas/lum-project-module-v1.schema.json`. Its record definitions reference the canonical `lum-project-v1.schema.json` definitions; modules do not define parallel entity/relationship/occurrence/place/source/story semantics.
+
+Module validation checks packaging only. Semantic and cross-reference validity is authoritative only after modules are assembled and passed through the full Lūm Project Interchange validator. Duplicate collection modules or mixed project/story ownership fail closed.
