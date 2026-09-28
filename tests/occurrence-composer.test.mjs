@@ -238,7 +238,7 @@ test("Lit composer is a touch-safe ARIA combobox with live-context guidance", as
   assert.doesNotMatch(source, /event\.key === "Home"/);
   assert.doesNotMatch(source, /event\.key === "End"/);
   assert.match(source, /Tab moves focus/);
-  assert.match(source, /--composer-visual-viewport-height/);
+  assert.match(source, /--composer-completion-max-height/);
 });
 
 test("application keeps timeline and World live while composer uses their centers as defaults", async () => {
