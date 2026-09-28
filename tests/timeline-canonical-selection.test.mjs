@@ -73,6 +73,10 @@ test("timeline controller keeps canonical selection separate from focus semantic
   );
   assert.match(timeline, /timeline-relation-segment[\s\S]*is-selected/);
   assert.match(timeline, /aria-label[\s\S]*Selected:/);
+  const selectionMethod =
+    timeline.match(/setSelection\(selection: ApplicationSelection \| null\): void \{[\s\S]*?\n  \}/)?.[0] ??
+    "";
+  assert.doesNotMatch(selectionMethod, /focusItem|emitViewport|timelinefocuschange|dispatchEvent/);
 
   assert.match(card, /setFocused\(focused: boolean\)/);
   assert.match(card, /aria-expanded/);
