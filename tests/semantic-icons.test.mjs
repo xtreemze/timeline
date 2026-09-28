@@ -9,6 +9,8 @@ import {
 } from "../src/presentation/semantic-icons.ts";
 import {
   auditSemanticIconQuality,
+  resolveSemanticIcon,
+  semanticIconReviewForEntities,
   suggestSemanticIcon,
 } from "../src/presentation/semantic-icon-inference.ts";
 import { TimelinePresentation, iconPathData } from "../site/event-presentation.ts";
@@ -133,4 +135,107 @@ test("semantic icon quality audit separates data validity from presentation qual
   assert.deepEqual(audit.genericFallbackIds, ["fallback"]);
   assert.deepEqual(audit.missingIconIds, ["missing"]);
   assert.equal(audit.explicitCount, 1);
+});
+
+test("semantic icon resolution reports explicit, inferred, fallback, unsupported, and none without mutation", () => {
+  const cases = [
+    {
+      entity: {
+        id: "explicit",
+        name: "The Wolf",
+        type: "person",
+        attributes: { style: { icon: "wolf" }, caseId: "A" },
+      },
+      expected: {
+        icon: "wolf",
+        origin: "explicit",
+        confidence: null,
+        reason: "authored",
+        authoredIcon: "wolf",
+      },
+    },
+    {
+      entity: { id: "inferred", name: "The Wolf", type: "person", attributes: {} },
+      expected: {
+        icon: "wolf",
+        origin: "inferred",
+        confidence: "high",
+        reason: "name:wolf",
+        authoredIcon: null,
+      },
+    },
+    {
+      entity: { id: "fallback", name: "Alice", type: "person", attributes: {} },
+      expected: {
+        icon: "person",
+        origin: "type-fallback",
+        confidence: null,
+        reason: "entity-type",
+        authoredIcon: null,
+      },
+    },
+    {
+      entity: { id: "unsupported", name: "Broken", type: "person", attributes: { icon: "spaceship" } },
+      expected: {
+        icon: null,
+        origin: "unsupported",
+        confidence: null,
+        reason: "unsupported-explicit-icon",
+        authoredIcon: "spaceship",
+      },
+    },
+    {
+      entity: { id: "none", name: "Unknown Vessel", type: "spaceship", attributes: {} },
+      expected: {
+        icon: null,
+        origin: "none",
+        confidence: null,
+        reason: "no-confident-semantic-icon",
+        authoredIcon: null,
+      },
+    },
+  ];
+
+  for (const { entity, expected } of cases) {
+    const before = structuredClone(entity);
+    assert.deepEqual(resolveSemanticIcon(entity), expected);
+    assert.deepEqual(entity, before, `${entity.id}: resolution must not mutate canonical data`);
+  }
+});
+
+test("entity icon review carries identity and provenance without applying inferred suggestions", () => {
+  const entities = [
+    { id: "wolf", name: "The Wolf", type: "person", attributes: {} },
+    {
+      id: "queen",
+      name: "Queen",
+      type: "person",
+      attributes: { style: { icon: "crown" } },
+    },
+  ];
+  const before = structuredClone(entities);
+  assert.deepEqual(semanticIconReviewForEntities(entities), [
+    {
+      entityId: "wolf",
+      entityName: "The Wolf",
+      entityType: "person",
+      icon: "wolf",
+      origin: "inferred",
+      confidence: "high",
+      reason: "name:wolf",
+      authoredIcon: null,
+    },
+    {
+      entityId: "queen",
+      entityName: "Queen",
+      entityType: "person",
+      icon: "crown",
+      origin: "explicit",
+      confidence: null,
+      reason: "authored",
+      authoredIcon: "crown",
+    },
+  ]);
+  assert.deepEqual(entities, before);
+  assert.equal(entities[0].attributes.style, undefined);
 });
