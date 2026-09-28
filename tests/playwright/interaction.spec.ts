@@ -350,6 +350,8 @@ test.describe("Timeline interaction contracts", () => {
       await page.keyboard.press("Home");
       await waitForViewportEvents(page);
       await settleTimeline(page);
+      const baseline = (await viewportEvents(page)).at(-1);
+      if (!baseline) throw new Error("Timeline has no baseline viewport event.");
       await clearViewportEvents(page);
       await expect(target).toBeVisible();
       const id = await target.getAttribute("data-id");
@@ -369,8 +371,9 @@ test.describe("Timeline interaction contracts", () => {
         )
         .toBe("true");
 
-      const before = (await viewportEvents(page)).at(-1);
-      if (!before) throw new Error("Occurrence selection emitted no viewport event.");
+      const selectedViewport = (await viewportEvents(page)).at(-1);
+      if (!selectedViewport) throw new Error("Occurrence selection emitted no viewport event.");
+      expect(span(selectedViewport)).toBe(span(baseline));
       await clearViewportEvents(page);
 
       await target.dblclick();
@@ -380,7 +383,7 @@ test.describe("Timeline interaction contracts", () => {
           const latest = (await viewportEvents(page)).filter((event) => event.committed).at(-1);
           return latest ? span(latest) : Number.POSITIVE_INFINITY;
         })
-        .toBeLessThan(span(before));
+        .toBeLessThan(span(selectedViewport));
       await expect
         .poll(() =>
           page.locator(".timeline-event-terminal").evaluateAll(
