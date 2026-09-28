@@ -55,11 +55,43 @@ test("atomic and compound toolbar controls share height, centerline, and icon si
   const count = await icons.count();
   expect(count).toBeGreaterThanOrEqual(10);
   for (let index = 0; index < count; index += 1) {
-    const box = await icons.nth(index).boundingBox();
+    const icon = icons.nth(index);
+    const [box, buttonBox] = await Promise.all([
+      icon.boundingBox(),
+      icon.locator("xpath=..").boundingBox(),
+    ]);
     expect(box).not.toBeNull();
-    if (!box) continue;
+    expect(buttonBox).not.toBeNull();
+    if (!box || !buttonBox) continue;
     expect(Math.abs(box.width - 20)).toBeLessThanOrEqual(1);
     expect(Math.abs(box.height - 20)).toBeLessThanOrEqual(1);
+    expect(
+      Math.abs(box.x + box.width / 2 - (buttonBox.x + buttonBox.width / 2)),
+    ).toBeLessThanOrEqual(0.75);
+    expect(
+      Math.abs(box.y + box.height / 2 - (buttonBox.y + buttonBox.height / 2)),
+    ).toBeLessThanOrEqual(0.75);
+  }
+
+  const worldZoom = page.locator(".world-zoom-control");
+  const timelineZoom = page.locator(".timeline-zoom-control");
+  const [worldZoomBox, timelineZoomBox, worldSliderBox, timelineSliderBox] = await Promise.all([
+    worldZoom.boundingBox(),
+    timelineZoom.boundingBox(),
+    worldZoom.locator(".toolbar-zoom-slider").boundingBox(),
+    timelineZoom.locator(".toolbar-zoom-slider").boundingBox(),
+  ]);
+  expect(worldZoomBox).not.toBeNull();
+  expect(timelineZoomBox).not.toBeNull();
+  expect(worldSliderBox).not.toBeNull();
+  expect(timelineSliderBox).not.toBeNull();
+  if (worldZoomBox && timelineZoomBox) {
+    expect(Math.abs(worldZoomBox.width - timelineZoomBox.width)).toBeLessThanOrEqual(1);
+    expect(Math.abs(worldZoomBox.height - timelineZoomBox.height)).toBeLessThanOrEqual(1);
+  }
+  if (worldSliderBox && timelineSliderBox) {
+    expect(Math.abs(worldSliderBox.width - timelineSliderBox.width)).toBeLessThanOrEqual(1);
+    expect(Math.abs(worldSliderBox.height - timelineSliderBox.height)).toBeLessThanOrEqual(1);
   }
 });
 
@@ -161,15 +193,15 @@ test("toolbar actions update state, labels, tooltips, and direct icons", async (
 test("composer exposes live context, pins explicit context, and leaves Tab for focus navigation", async ({
   page,
 }) => {
-  await page.locator("#editor-toggle").click();
-  const compose = page.locator("#occurrence-composer-toggle");
+  const composer = page.locator("#occurrence-composer");
+  const compose = composer.locator(".compact");
+  await expect(compose).toBeVisible();
   await compose.click();
 
-  const composer = page.locator("#occurrence-composer");
   const input = composer.locator("input");
   await expect(composer).toHaveAttribute("active", "");
   await expect(page.locator("#app-shell")).toHaveAttribute("data-composer-open", "true");
-  await expect(page.locator("#editor-toggle")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("#editor-toggle")).toHaveAttribute("aria-expanded", "false");
   await expect(composer.locator('.context-chip[data-context-kind="place"]')).toHaveAttribute(
     "data-context-state",
     "live",
