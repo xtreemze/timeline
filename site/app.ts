@@ -3895,6 +3895,10 @@ function syncGraphNodeIconPreview(): void {
   const origin = explicit ? "explicit" : raw ? "invalid" : fallback ? "type-fallback" : "none";
 
   els.graphNodeIconPreview.dataset.iconOrigin = origin;
+  els.graphNodeIcon.setAttribute("aria-invalid", String(origin === "invalid"));
+  els.graphNodeIcon.setCustomValidity(
+    origin === "invalid" ? "Choose a supported semantic icon or clear the field." : "",
+  );
   els.graphNodeIconPreview.replaceChildren(
     ...(icon ? [presentation.createIcon(icon, { size: 22 })] : []),
   );
