@@ -1123,6 +1123,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const placeLabel =
       resolvedPlaceLabel(parsed.place?.name) ??
       this.selectionContext?.place?.name ??
+      this.explicitPlaceContext?.label ??
       this.worldContext?.label ??
       "World center";
     const suggestions = this.suggestions().slice(0, 7);
