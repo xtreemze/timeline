@@ -42,6 +42,12 @@ interface StoryProposalEnvelope extends JsonRecord {
   readonly schemaVersion: typeof STORY_PROPOSAL_SCHEMA_VERSION;
   readonly verificationRequired: true;
   readonly project: JsonRecord;
+  readonly status?: unknown;
+  readonly sources?: unknown;
+  readonly unresolved?: unknown;
+  readonly generationNotes?: unknown;
+  readonly preflight?: unknown;
+  readonly verificationInstructions?: unknown;
 }
 
 function record(value: unknown): JsonRecord | null {
@@ -110,7 +116,7 @@ function fingerprint(value: unknown): string {
   return `fnv1a64:${hash.toString(16).padStart(16, "0")}:${source.length}`;
 }
 
-function envelopePreflight(value: JsonRecord): JsonRecord {
+function envelopePreflight(value: StoryProposalEnvelope): JsonRecord {
   return record(value.preflight) ?? {};
 }
 
@@ -120,9 +126,9 @@ export function isVerificationRequiredStoryProposal(
   const candidate = record(value);
   return Boolean(
     candidate &&
-      candidate.schemaVersion === STORY_PROPOSAL_SCHEMA_VERSION &&
-      candidate.verificationRequired === true &&
-      record(candidate.project),
+      candidate["schemaVersion"] === STORY_PROPOSAL_SCHEMA_VERSION &&
+      candidate["verificationRequired"] === true &&
+      record(candidate["project"]),
   );
 }
 
@@ -133,8 +139,8 @@ export function stageProjectImportReview<TProject>(
   if (!isVerificationRequiredStoryProposal(input)) return null;
 
   const preflight = envelopePreflight(input);
-  const errors = strings(preflight.errors);
-  const warnings = strings(preflight.warnings);
+  const errors = strings(preflight["errors"]);
+  const warnings = strings(preflight["warnings"]);
   const rawProject = cloneValue(input.project) as unknown as TProject;
   let normalized = rawProject;
   let validation: ProjectImportValidation = { valid: true, errors: [], warnings: [] };
@@ -163,7 +169,7 @@ export function stageProjectImportReview<TProject>(
 
   errors.push(...(validation.errors ?? []));
   warnings.push(...(validation.warnings ?? []));
-  if (preflight.valid === false && errors.length === 0) {
+  if (preflight["valid"] === false && errors.length === 0) {
     errors.push("Public proposal preflight reported that the project needs repair.");
   }
   if (input.status === "needs-repair" && errors.length === 0) {
