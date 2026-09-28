@@ -1123,6 +1123,68 @@ function priorOrderInitializer(
   };
 }
 
+function applyEdgeStyle(
+  routes: readonly RawRoute[],
+  orientation: WorldDagLayoutOrientation,
+  edgeStyle: WorldDagEdgeStyle,
+): readonly RawRoute[] {
+  if (edgeStyle === "routed") return routes;
+
+  return Object.freeze(
+    routes.map((route) => {
+      const source = route.points[0];
+      const target = route.points.at(-1);
+      if (!source || !target) return route;
+
+      if (edgeStyle === "straight") {
+        return Object.freeze({
+          ...route,
+          points: Object.freeze([source, target]),
+        });
+      }
+
+      const points: WorldDagRoutePoint[] =
+        orientation === "left-to-right"
+          ? [
+              source,
+              Object.freeze({
+                eastMeters: (source.eastMeters + target.eastMeters) / 2,
+                northMeters: source.northMeters,
+              }),
+              Object.freeze({
+                eastMeters: (source.eastMeters + target.eastMeters) / 2,
+                northMeters: target.northMeters,
+              }),
+              target,
+            ]
+          : [
+              source,
+              Object.freeze({
+                eastMeters: source.eastMeters,
+                northMeters: (source.northMeters + target.northMeters) / 2,
+              }),
+              Object.freeze({
+                eastMeters: target.eastMeters,
+                northMeters: (source.northMeters + target.northMeters) / 2,
+              }),
+              target,
+            ];
+
+      return Object.freeze({
+        ...route,
+        points: Object.freeze(
+          points.filter(
+            (point, index) =>
+              index === 0 ||
+              point.eastMeters !== points[index - 1]?.eastMeters ||
+              point.northMeters !== points[index - 1]?.northMeters,
+          ),
+        ),
+      });
+    }),
+  );
+}
+
 function runLayoutCandidate(
   name: string,
   nodeIds: readonly WorldInstanceId[],
@@ -1135,6 +1197,9 @@ function runLayoutCandidate(
   decross: "opt" | "two-layer",
   placeObstacles: readonly DagPlaceObstacle[] = Object.freeze([]),
   rootSize: readonly [number, number] = Object.freeze([1, 1]),
+  algorithm: WorldDagLayoutAlgorithm = "sugiyama",
+  coordinate: WorldDagCoordinateStrategy = "greedy",
+  edgeStyle: WorldDagEdgeStyle = "routed",
 ): CandidateLayout {
   const rootId = "__lum-layout-root__";
   const indegree = new Map<WorldInstanceId, number>(nodeIds.map((id) => [id, 0] as const));
@@ -1191,17 +1256,34 @@ function runLayoutCandidate(
   }
 
   const graph = graphConnect()(links);
-  const defaultTwoLayer = decrossTwoLayer();
-  const twoLayer = defaultTwoLayer
-    .passes(nodeIds.length > 64 ? 8 : nodeIds.length > 24 ? 16 : 24)
-    .inits([priorOrderInitializer(previousTargets, orientation), ...defaultTwoLayer.inits()]);
-  const layout = sugiyama()
-    .layering(layering === "longest" ? layeringLongestPath() : layeringSimplex())
-    .decross(decross === "opt" ? decrossOpt() : twoLayer)
-    .coord(coordGreedy())
-    .nodeSize((node: GraphNode<string, DagLinkData>) => dagSizes.get(node.data) ?? [1, 1])
-    .gap(dagGap);
-  const dimensions = layout(graph);
+  const nodeSize = (node: GraphNode<string, DagLinkData>): readonly [number, number] =>
+    dagSizes.get(node.data) ?? [1, 1];
+
+  let dimensions: { readonly width: number; readonly height: number };
+  if (algorithm === "zherebko") {
+    dimensions = zherebko().nodeSize(nodeSize).gap(dagGap)(graph);
+  } else if (algorithm === "grid") {
+    dimensions = grid().nodeSize(nodeSize).gap(dagGap)(graph);
+  } else {
+    const defaultTwoLayer = decrossTwoLayer();
+    const twoLayer = defaultTwoLayer
+      .passes(nodeIds.length > 64 ? 8 : nodeIds.length > 24 ? 16 : 24)
+      .inits([priorOrderInitializer(previousTargets, orientation), ...defaultTwoLayer.inits()]);
+    const baseLayout = sugiyama()
+      .layering(layering === "longest" ? layeringLongestPath() : layeringSimplex())
+      .decross(decross === "opt" ? decrossOpt() : twoLayer)
+      .nodeSize(nodeSize)
+      .gap(dagGap);
+    const layout =
+      coordinate === "simplex"
+        ? baseLayout.coord(coordSimplex())
+        : coordinate === "quad"
+          ? baseLayout.coord(coordQuad())
+          : coordinate === "center"
+            ? baseLayout.coord(coordCenter())
+            : baseLayout.coord(coordGreedy());
+    dimensions = layout(graph);
+  }
 
   const graphNodes = [...graph.nodes()];
   const root = graphNodes.find((node) => node.data === rootId);
@@ -1270,7 +1352,8 @@ function runLayoutCandidate(
     );
   }
 
-  const portRouted = allocateRoutePorts(routes, targets, layoutSizes, orientation);
+  const styledRoutes = applyEdgeStyle(routes, orientation, edgeStyle);
+  const portRouted = allocateRoutePorts(styledRoutes, targets, layoutSizes, orientation);
 
   return scaledCandidate(
     {
