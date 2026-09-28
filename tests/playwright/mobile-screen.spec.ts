@@ -104,9 +104,24 @@ test.describe("Narrow mobile screen contracts", () => {
       const input = composer.locator("input");
       const timelineToggle = page.locator("#timeline-orientation-toggle");
       await expect(compact).toBeVisible();
-      const before = await dock.boundingBox();
+      const actions = page.locator(".app-footer-actions");
+      const viewControls = page.locator("#timeline-view-controls");
+      const [before, collapsedActions, collapsedComposer, collapsedView] = await Promise.all([
+        dock.boundingBox(),
+        actions.boundingBox(),
+        composer.boundingBox(),
+        viewControls.boundingBox(),
+      ]);
       expect(before).not.toBeNull();
-      if (!before) throw new Error("Footer geometry is unavailable before composer expansion.");
+      expect(collapsedActions).not.toBeNull();
+      expect(collapsedComposer).not.toBeNull();
+      expect(collapsedView).not.toBeNull();
+      if (!before || !collapsedActions || !collapsedComposer || !collapsedView) {
+        throw new Error("Footer geometry is unavailable before composer expansion.");
+      }
+      expect(collapsedComposer.width).toBeGreaterThanOrEqual(170);
+      expect(collapsedActions.x).toBeLessThan(collapsedComposer.x);
+      expect(collapsedComposer.x).toBeLessThan(collapsedView.x);
 
       await compact.click();
       await expect(composer).toHaveAttribute("active", "");
@@ -120,8 +135,6 @@ test.describe("Narrow mobile screen contracts", () => {
       );
       expect(composerViewportHeight).toBe(String(Math.round(visualViewportHeight)) + "px");
 
-      const actions = page.locator(".app-footer-actions");
-      const viewControls = page.locator("#timeline-view-controls");
       const [expanded, inputBox, completionBox, actionsBox, viewBox, composerBox] = await Promise.all([
         dock.boundingBox(),
         input.boundingBox(),
