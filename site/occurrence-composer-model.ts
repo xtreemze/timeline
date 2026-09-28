@@ -1055,8 +1055,16 @@ export function occurrenceComposerSuggestions(
   const closeEntityProperties = findLastMarkerOutsideQuotes(prefix, ")");
   if (openEntityProperties > closeEntityProperties) {
     const propertyText = prefix.slice(openEntityProperties + 1);
-    const activeProperty = parsePropertyEntries(propertyText).at(-1);
-    const iconValueActive = activeProperty?.key.toLocaleLowerCase() === "icon";
+    const activePropertyRange = splitRangesOutsideQuotes(propertyText, ",").at(-1);
+    const activePropertyText = activePropertyRange
+      ? propertyText.slice(activePropertyRange.start, activePropertyRange.end)
+      : "";
+    const propertySeparator = findMarkerOutsideQuotes(activePropertyText, ":");
+    const activePropertyKey =
+      propertySeparator >= 1
+        ? activePropertyText.slice(0, propertySeparator).trim().toLocaleLowerCase()
+        : "";
+    const iconValueActive = activePropertyKey === "icon";
     const properties = iconValueActive
       ? ENTITY_ICON_PROPERTY_SUGGESTIONS
       : ENTITY_PROPERTY_SUGGESTIONS;
