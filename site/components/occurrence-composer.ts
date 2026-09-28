@@ -374,6 +374,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
   private timelineContext: ComposerTimelineContext | null = null;
   private worldContext: ComposerWorldContext | null = null;
   private activeSuggestion = 0;
+  private suggestionNavigated = false;
   private externalError = "";
   private explicitPlaceContext: ComposerWorldContext | null = null;
   private selectionContext: OccurrenceComposerSelectionContext | null = null;
@@ -448,6 +449,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.explicitPlaceContext = null;
     this.externalError = "";
     this.activeSuggestion = 0;
+    this.suggestionNavigated = false;
   }
 
   private currentContextKey(): string {
@@ -566,6 +568,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     }
     this.externalError = "";
     this.activeSuggestion = 0;
+    this.suggestionNavigated = false;
     this.requestUpdate();
   }
 
@@ -644,6 +647,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     if (event.key === "ArrowDown" && suggestions.length) {
       event.preventDefault();
       this.activeSuggestion = (this.activeSuggestion + 1) % suggestions.length;
+      this.suggestionNavigated = true;
       this.requestUpdate();
       return;
     }
@@ -651,27 +655,38 @@ export class LuumOccurrenceComposerElement extends LitElement {
       event.preventDefault();
       this.activeSuggestion =
         (this.activeSuggestion - 1 + suggestions.length) % suggestions.length;
+      this.suggestionNavigated = true;
       this.requestUpdate();
       return;
     }
     if (event.key !== "Enter") return;
     event.preventDefault();
     const draft = this.parsed();
-    if (draft.stage !== "complete" && suggestions.length) {
-      const suggestion = suggestions[this.activeSuggestion] ?? suggestions[0];
-      if (suggestion) this.applySuggestion(suggestion);
+    const completionStage = occurrenceComposerCompletionStage(this.value);
+    const suggestion = suggestions[this.activeSuggestion] ?? suggestions[0];
+    const fillsCurrentToken =
+      (suggestion?.kind === "entity" &&
+        (completionStage === "subject" || completionStage === "object")) ||
+      (suggestion?.kind === "predicate" && completionStage === "predicate") ||
+      (suggestion?.kind === "place" && completionStage === "place");
+    if (
+      suggestion?.insertText &&
+      (draft.stage !== "complete" || fillsCurrentToken || this.suggestionNavigated)
+    ) {
+      this.applySuggestion(suggestion);
       return;
     }
+    this.suggestionNavigated = false;
     this.commit();
   }
 
-  private stageLabel(parsed: OccurrenceSentenceDraft): string {
-    if (parsed.stage === "predicate") return "action";
-    if (parsed.stage === "place" || parsed.stage === "time" || parsed.stage === "options") {
+  private stageLabel(stage: OccurrenceSentenceDraft["stage"]): string {
+    if (stage === "predicate") return "action";
+    if (stage === "place" || stage === "time" || stage === "options") {
       return "context";
     }
-    if (parsed.stage === "complete") return "ready";
-    return parsed.stage;
+    if (stage === "complete") return "ready";
+    return stage;
   }
   override render() {
     const parsed = this.parsed();
@@ -681,6 +696,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
       this.selectionContext?.place?.name ??
       this.worldContext?.label ??
       "World center";
+    const completionStage = occurrenceComposerCompletionStage(this.value);
     const suggestions = this.suggestions().slice(0, 7);
     const selectedIndex = Math.min(
       this.activeSuggestion,
@@ -706,7 +722,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
       >
         <div class="input-row">
           ${expanded
-            ? html`<span class="stage" aria-hidden="true">${this.stageLabel(parsed)}</span>`
+            ? html`<span class="stage" aria-hidden="true">${this.stageLabel(completionStage)}</span>`
             : nothing}
           <div class="input-shell">
             <span class="ghost-completion" aria-hidden="true">
