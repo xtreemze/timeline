@@ -131,9 +131,11 @@ test("graph layout buttons expose advanced options with input-modality parity an
   ]) {
     assert.match(inspector, new RegExp(label));
   }
+  assert.match(inspector, /"Collision radius", "Rendered node \+ border · fixed"/);
+  assert.match(inspector, /Connectivity clearance reserves additional soft space/);
   assert.match(
     inspector,
-    /Collision radius is fixed to the rendered node \+ border[\s\S]*Connectivity clearance/,
+    /addEventListener\("pointermove"[\s\S]*Math\.hypot[\s\S]*> 8[\s\S]*clearTimer\(\)/,
   );
   assert.match(css, /\.world-layout-inspector\s*\{[\s\S]*position:\s*fixed[\s\S]*z-index:\s*2200/);
 });
