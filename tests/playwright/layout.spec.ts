@@ -460,7 +460,7 @@ test.describe("Mobile-first Timeline layout contracts", () => {
     await expect(page.locator("#control-panel")).toBeVisible();
     await expect(page.locator("#app-shell")).toHaveAttribute("data-mode", "edit");
     await expect(editorButton).toHaveAttribute("aria-label", "Done editing");
-    await expect(page.locator("#occurrence-composer-toggle")).toBeVisible();
+    await expect(toolDock.locator("#occurrence-composer .compact")).toBeVisible();
 
     await expect(projectButton).toBeVisible();
     await expect(browseButton).toBeVisible();
