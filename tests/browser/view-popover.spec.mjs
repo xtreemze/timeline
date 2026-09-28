@@ -24,25 +24,22 @@ test("View controls are direct persistent toolbar content", async ({ page }) => 
   await expect(view.locator(".world-layout-controls")).toBeVisible();
 });
 
-test("toolbar actions update state, labels, and scoped icons", async ({ page }) => {
+test("toolbar actions update state, labels, tooltips, and direct icons", async ({ page }) => {
   const edit = page.locator("#editor-toggle");
   const browse = page.locator("#timeline-browser-toggle");
   const orientation = page.locator("#timeline-orientation-toggle");
   const slideshow = page.locator("#timeline-auto-toggle");
 
   await expect(edit).toHaveAttribute("data-semantic-icon", "edit");
-  await expect(edit).toHaveAttribute("data-semantic-icon-secondary", "timeline");
   await edit.click();
   await expect(edit).toHaveAttribute("aria-label", "Done editing");
   await expect(edit).toHaveAttribute("data-semantic-icon", "check");
-  await expect(edit).toHaveAttribute("data-semantic-icon-secondary", "timeline");
   await edit.click();
   await expect(edit).toHaveAttribute("data-semantic-icon", "edit");
 
   await browse.click();
   await expect(browse).toHaveAttribute("aria-label", "Close timeline browser");
   await expect(browse).toHaveAttribute("data-semantic-icon", "close");
-  await expect(browse).toHaveAttribute("data-semantic-icon-secondary", "timeline");
   await browse.click();
   await expect(browse).toHaveAttribute("aria-label", "Browse timeline");
   await expect(browse).toHaveAttribute("data-semantic-icon", "search");
@@ -60,25 +57,25 @@ test("toolbar actions update state, labels, and scoped icons", async ({ page }) 
   await expect(slideshow).toHaveAttribute("aria-pressed", "true");
   await expect(slideshow).toHaveAttribute("aria-label", "Pause slideshow");
   await expect(slideshow).toHaveAttribute("data-semantic-icon", "pause");
-  await expect(slideshow).toHaveAttribute("data-semantic-icon-secondary", "timeline");
   await slideshow.click();
   await expect(slideshow).toHaveAttribute("aria-pressed", "false");
   await expect(slideshow).toHaveAttribute("data-semantic-icon", "play");
 
-  for (const name of ["Zoom in", "Zoom out", "Fit to content"]) {
+  for (const name of ["Zoom in", "Zoom out", "Fit to content", "Show whole world"]) {
     const button = page.getByRole("button", { name });
     await expect(button).toBeEnabled();
-    await expect(button.locator(".compound-semantic-icon")).toHaveCount(1);
+    await expect(button).toHaveAttribute("title", name);
+    await expect(button.locator(":scope > .semantic-icon")).toHaveCount(1);
+    await expect(button.locator(".compound-semantic-icon")).toHaveCount(0);
     await button.click();
   }
-  const wholeGlobe = page.getByRole("button", { name: "Show whole globe" });
-  await expect(wholeGlobe).toBeEnabled();
-  await wholeGlobe.click();
 
   for (const name of ["Reorganize relationship layout", "Relax graph forces"]) {
     const button = page.getByRole("button", { name });
     await expect(button).toBeEnabled();
-    await expect(button.locator(".compound-semantic-icon")).toHaveCount(1);
+    await expect(button).toHaveAttribute("title", /.+/);
+    await expect(button.locator(":scope > .semantic-icon")).toHaveCount(1);
+    await expect(button.locator(".compound-semantic-icon")).toHaveCount(0);
     await button.click();
   }
 
