@@ -598,6 +598,22 @@ test.describe("Persistent footer and focus geometry", () => {
       expect(beforeTimeline).not.toBeNull();
       expect(beforeSurface).not.toBeNull();
 
+      const dock = page.locator(".app-tool-dock");
+      const stableContextControls = [
+        page.locator("#timeline-related-zoom"),
+        page.locator("#timeline-related-fit"),
+        page.locator("#timeline-focus-prev"),
+        page.locator("#timeline-focus-next"),
+      ];
+      for (const control of stableContextControls) {
+        await expect(control).toBeVisible();
+        await expect(control).toBeDisabled();
+      }
+      const beforeContextBoxes = await Promise.all(
+        stableContextControls.map((control) => control.boundingBox()),
+      );
+      const beforeDockScroll = await dock.evaluate((element) => element.scrollLeft);
+
       await terminal.evaluate((button: HTMLButtonElement) => button.click());
       await expect(page.locator("#app-shell")).toHaveClass(/is-event-focused/);
       await expect(page.locator("#timeline-focus-view")).toBeVisible();
@@ -620,17 +636,29 @@ test.describe("Persistent footer and focus geometry", () => {
         "Edit focused event",
       );
 
-      const contextActions = page.locator(
-        ".app-footer-context-actions .timeline-context-action:visible",
+      await expect(page.locator("#timeline-focus-prev")).toBeEnabled();
+      await expect(page.locator("#timeline-focus-next")).toBeEnabled();
+      const afterContextBoxes = await Promise.all(
+        stableContextControls.map((control) => control.boundingBox()),
       );
-      const contextActionCount = await contextActions.count();
-      expect(contextActionCount).toBeGreaterThan(0);
-      for (let index = 0; index < contextActionCount; index += 1) {
-        const actionBox = await contextActions.nth(index).boundingBox();
-        expect(actionBox).not.toBeNull();
-        if (!actionBox) throw new Error("Focused event action has no bounds.");
-        expect(actionBox.width).toBeGreaterThanOrEqual(44);
-        expect(actionBox.height).toBeGreaterThanOrEqual(44);
+      const afterDockScroll = await dock.evaluate((element) => element.scrollLeft);
+      expect(Math.abs(afterDockScroll - beforeDockScroll)).toBeLessThanOrEqual(1);
+      for (let index = 0; index < stableContextControls.length; index += 1) {
+        const beforeBox = beforeContextBoxes[index];
+        const afterBox = afterContextBoxes[index];
+        expect(beforeBox).not.toBeNull();
+        expect(afterBox).not.toBeNull();
+        if (!beforeBox || !afterBox) continue;
+        expect(Math.abs(afterBox.x - beforeBox.x)).toBeLessThanOrEqual(1);
+        expect(Math.abs(afterBox.y - beforeBox.y)).toBeLessThanOrEqual(1);
+        expect(Math.abs(afterBox.width - beforeBox.width)).toBeLessThanOrEqual(1);
+        expect(Math.abs(afterBox.height - beforeBox.height)).toBeLessThanOrEqual(1);
+        const icon = stableContextControls[index].locator(":scope > .semantic-icon");
+        const iconBox = await icon.boundingBox();
+        expect(iconBox).not.toBeNull();
+        if (!iconBox) continue;
+        expect(Math.abs(iconBox.width - 20)).toBeLessThanOrEqual(1);
+        expect(Math.abs(iconBox.height - 20)).toBeLessThanOrEqual(1);
       }
 
       const afterTimeline = await timeline.boundingBox();
