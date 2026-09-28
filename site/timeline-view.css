@@ -271,9 +271,14 @@
 }
 .timeline-stage {
   position: absolute;
+  z-index: 1060;
   inset: 0;
   display: block;
-  overflow: hidden;
+  /* The retained chronology is an interaction-island layer above the world.
+     Transparent scene space stays pointer-transparent; occurrence terminals
+     explicitly opt back into hit testing. Extra lanes can therefore overflow
+     the reserved rail without stealing world gestures between cards. */
+  overflow: visible;
   pointer-events: none;
 }
 .timeline-axis {
@@ -3263,11 +3268,12 @@
    remaining stage pixel. Application chrome may overlay the graph instead of creating gutters. */
 @media (min-width: 700px) {
   #app-shell[data-graph-open="true"] #presentation-stage {
-    --relations-inline-rail: clamp(280px, 28dvw, 400px);
-    --relations-block-rail: clamp(200px, 27dvh, 288px);
-    /* The horizontal rail's existing 68% axis leaves 32% of its block size
-       outside the axis. Reuse that physical distance for the vertical rail so
-       portrait and landscape have the same edge gutter in pixels. */
+    /* Reserve only the first occurrence-card lane. Additional committed lanes
+       remain spatial callouts and project inward over the world canvas. */
+    --relations-inline-rail: clamp(208px, 21dvw, 248px);
+    --relations-block-rail: clamp(156px, 18dvh, 184px);
+    /* Keep the physical date/tick gutter. With the smaller rail this leaves
+       roughly one measured card lane between the world edge and the axis. */
     --timeline-edge-gutter: clamp(64px, 8.64dvh, 92.16px);
     --relations-right-safe: max(0.55rem, env(safe-area-inset-right));
     --relations-bottom-safe: max(4.45rem, calc(env(safe-area-inset-bottom) + 4.1rem));
@@ -3370,13 +3376,10 @@
    the complete complementary canvas; mobile chrome may cover graph edges without shrinking it. */
 @media (max-width: 699px) {
   #app-shell[data-graph-open="true"] #presentation-stage {
-    --mobile-relations-inline-rail: clamp(156px, 44dvw, 196px);
-    /* On a physically portrait phone the world is the primary manipulation
-       surface. Keep the horizontal chronology edge-docked to the footer and
-       reserve roughly one third of the pre-footer height for it, leaving about
-       two thirds for the world view. Short physical landscape keeps its tighter
-       override below. */
-    --mobile-relations-block-rail: clamp(188px, 30dvh, 280px);
+    --mobile-relations-inline-rail: clamp(132px, 36dvw, 164px);
+    /* Mobile also reserves one chronology lane. Later lanes overflow inward as
+       interactive callouts instead of consuming another third of the viewport. */
+    --mobile-relations-block-rail: clamp(132px, 18dvh, 160px);
     --mobile-bottom-chrome: max(3.95rem, calc(env(safe-area-inset-bottom) + 3.65rem));
   }
 
@@ -3503,7 +3506,7 @@
       #presentation-stage:has(> #timeline-view[data-orientation="landscape"]) {
       /* A physically short landscape viewport needs a compact horizontal rail.
          Portrait phones keep the larger mobile-first chronology allocation. */
-      --mobile-relations-block-rail: clamp(156px, 40dvh, 184px);
+      --mobile-relations-block-rail: clamp(128px, 34dvh, 152px);
     }
   }
 }
