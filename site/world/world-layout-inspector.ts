@@ -1,5 +1,8 @@
 import type { PlaceId } from "../../src/domain/ids.ts";
 import type {
+  WorldDagCoordinateStrategy,
+  WorldDagEdgeStyle,
+  WorldDagLayoutAlgorithm,
   WorldDagLayoutOrientation,
   WorldDagLayoutStrategy,
 } from "../../src/layout/world-dag-layout.ts";
@@ -14,7 +17,10 @@ const LONG_PRESS_MS = 500;
 export interface WorldLayoutInspectorActions {
   readonly reorganizeDag: (settings: {
     readonly orientation?: WorldDagLayoutOrientation | "auto";
+    readonly algorithm?: WorldDagLayoutAlgorithm;
     readonly strategy?: WorldDagLayoutStrategy;
+    readonly coordinate?: WorldDagCoordinateStrategy;
+    readonly edgeStyle?: WorldDagEdgeStyle;
     readonly placeId?: PlaceId;
   }) => boolean;
   readonly relaxForce: () => boolean;
@@ -271,6 +277,13 @@ function scopeRow(doc: Document): {
   };
 }
 
+function sectionLabel(doc: Document, text: string): HTMLHeadingElement {
+  const heading = doc.createElement("h4");
+  heading.className = "world-layout-inspector-section";
+  heading.textContent = text;
+  return heading;
+}
+
 function footerActions(
   doc: Document,
   applyLabel: string,
@@ -313,42 +326,101 @@ export function createWorldLayoutControls(
 
   const dagPanel = panelShell(doc, "world-dag-layout-inspector", "D3 DAG options");
   const dagScope = scopeRow(doc);
+  const algorithm = selectRow(doc, "Algorithm", [
+    ["sugiyama", "Sugiyama · layered"],
+    ["zherebko", "Zherebko · linear"],
+    ["grid", "Grid · topological"],
+  ]);
   const direction = selectRow(doc, "Direction", [
     ["auto", "Auto from viewport"],
     ["top-to-bottom", "Top → bottom"],
     ["left-to-right", "Left → right"],
   ]);
-  const strategy = selectRow(doc, "Strategy", [
+  const strategy = selectRow(doc, "Sugiyama strategy", [
     ["auto", "Auto / best bounded candidate"],
     ["longest-opt-greedy", "Longest path + optimal decross"],
     ["longest-two-layer-greedy", "Longest path + two-layer"],
     ["simplex-two-layer-greedy", "Simplex + two-layer"],
   ]);
+  const coordinate = selectRow(doc, "Coordinates", [
+    ["greedy", "Greedy"],
+    ["simplex", "Simplex"],
+    ["quad", "Quadratic"],
+    ["center", "Centered"],
+  ]);
+  const edgeStyle = selectRow(doc, "Edge routing", [
+    ["routed", "D3 routed"],
+    ["straight", "Straight"],
+    ["orthogonal", "Orthogonal"],
+  ]);
+  const syncDagControls = (): void => {
+    const sugiyama = algorithm.select.value === "sugiyama";
+    strategy.select.disabled = !sugiyama;
+    coordinate.select.disabled = !sugiyama;
+  };
+  algorithm.select.addEventListener("change", syncDagControls);
+  syncDagControls();
+
   const dagNote = doc.createElement("p");
   dagNote.className = "world-layout-inspector-note";
   dagNote.textContent =
-    "Selected-place scope changes disposable organization around that geographic anchor; " +
-    "canonical place coordinates never move.";
-  dagPanel.append(dagScope.row, direction.row, strategy.row, dagNote);
+    "Algorithm, coordinates, and edge routing are disposable organization state. " +
+    "Selected-place scope never changes canonical place coordinates.";
+  dagPanel.append(
+    dagScope.row,
+    algorithm.row,
+    direction.row,
+    strategy.row,
+    coordinate.row,
+    edgeStyle.row,
+    dagNote,
+  );
 
   const dagApply = (): void => {
     const placeId =
       dagScope.state.scope.value === "place" ? actions.getSelectedPlaceId() : null;
     actions.reorganizeDag({
       orientation: direction.select.value as WorldDagLayoutOrientation | "auto",
+      algorithm: algorithm.select.value as WorldDagLayoutAlgorithm,
       strategy: strategy.select.value as WorldDagLayoutStrategy,
+      coordinate: coordinate.select.value as WorldDagCoordinateStrategy,
+      edgeStyle: edgeStyle.select.value as WorldDagEdgeStyle,
       ...(placeId === null ? {} : { placeId }),
     });
     hidePanel(dagPanel, dagButton);
   };
   const dagReset = (): void => {
+    algorithm.select.value = "sugiyama";
     direction.select.value = "auto";
     strategy.select.value = "auto";
+    coordinate.select.value = "greedy";
+    edgeStyle.select.value = "routed";
+    syncDagControls();
   };
   dagPanel.append(footerActions(doc, "Arrange", dagApply, dagReset));
 
   const forcePanel = panelShell(doc, "world-force-layout-inspector", "D3 force options");
   const forceScope = scopeRow(doc);
+
+  const centerStrength = rangeRow(doc, "Center strength", {
+    min: 0,
+    max: 1,
+    step: 0.05,
+    value: DEFAULT_D3_WORLD_FORCE_TUNING.centerStrength ?? 0,
+  });
+  const centerEast = rangeRow(doc, "Center east", {
+    min: -5_000,
+    max: 5_000,
+    step: 100,
+    value: DEFAULT_D3_WORLD_FORCE_TUNING.centerEastMeters ?? 0,
+  });
+  const centerNorth = rangeRow(doc, "Center north", {
+    min: -5_000,
+    max: 5_000,
+    step: 100,
+    value: DEFAULT_D3_WORLD_FORCE_TUNING.centerNorthMeters ?? 0,
+  });
+
   const radiusPolicy = valueRow(doc, "Collision radius", "Rendered node + border · fixed");
   const collision = rangeRow(doc, "Collision strength", {
     min: 0,
@@ -368,17 +440,25 @@ export function createWorldLayoutControls(
     step: 0.25,
     value: DEFAULT_D3_WORLD_FORCE_TUNING.connectivityClearanceScale,
   });
+
+  const linkStrength = rangeRow(doc, "Link strength", {
+    min: 0,
+    max: 2,
+    step: 0.1,
+    value: DEFAULT_D3_WORLD_FORCE_TUNING.linkStrengthScale,
+  });
+  const linkDistance = rangeRow(doc, "Link distance ×", {
+    min: 0.25,
+    max: 3,
+    step: 0.05,
+    value: DEFAULT_D3_WORLD_FORCE_TUNING.linkDistanceScale ?? 1,
+  });
+
   const repulsion = rangeRow(doc, "Repulsion", {
     min: 0,
     max: 5200,
     step: 100,
     value: Math.abs(DEFAULT_D3_WORLD_FORCE_TUNING.manyBodyStrength),
-  });
-  const links = rangeRow(doc, "Relationship springs", {
-    min: 0,
-    max: 2,
-    step: 0.1,
-    value: DEFAULT_D3_WORLD_FORCE_TUNING.linkStrengthScale,
   });
   const anchors = rangeRow(doc, "Place attraction", {
     min: 0,
@@ -392,45 +472,75 @@ export function createWorldLayoutControls(
     step: 0.1,
     value: DEFAULT_D3_WORLD_FORCE_TUNING.dagStrengthScale,
   });
-  const radiusNote = doc.createElement("p");
-  radiusNote.className = "world-layout-inspector-note";
-  radiusNote.textContent =
-    "Connectivity clearance reserves additional soft space for hubs and participates in " +
-    "nearby cross-place rejection.";
+
+  const forceNote = doc.createElement("p");
+  forceNote.className = "world-layout-inspector-note";
+  forceNote.textContent =
+    "Center targets are local tangent-space offsets. Link distance scales each relationship's " +
+    "existing rest length. Connectivity clearance is soft hub spacing; collision radius stays exact.";
+
   forcePanel.append(
     forceScope.row,
+    sectionLabel(doc, "Center force"),
+    centerStrength.row,
+    centerEast.row,
+    centerNorth.row,
+    sectionLabel(doc, "Collide force"),
     radiusPolicy,
     collision.row,
     iterations.row,
     clearance.row,
+    sectionLabel(doc, "Link force"),
+    linkStrength.row,
+    linkDistance.row,
+    sectionLabel(doc, "Other forces"),
     repulsion.row,
-    links.row,
     anchors.row,
     dagGuidance.row,
-    radiusNote,
+    forceNote,
   );
 
   const currentForceTuning = (): WorldForceTuning =>
     Object.freeze({
+      centerStrength: Number(centerStrength.input.value),
+      centerEastMeters: Number(centerEast.input.value),
+      centerNorthMeters: Number(centerNorth.input.value),
       collisionStrength: Number(collision.input.value),
       collisionIterations: Number(iterations.input.value),
       connectivityClearanceScale: Number(clearance.input.value),
       manyBodyStrength: -Number(repulsion.input.value),
-      linkStrengthScale: Number(links.input.value),
+      linkStrengthScale: Number(linkStrength.input.value),
+      linkDistanceScale: Number(linkDistance.input.value),
       anchorStrengthScale: Number(anchors.input.value),
       dagStrengthScale: Number(dagGuidance.input.value),
     });
+
+  const forceRows = [
+    centerStrength,
+    centerEast,
+    centerNorth,
+    collision,
+    iterations,
+    clearance,
+    linkStrength,
+    linkDistance,
+    repulsion,
+    anchors,
+    dagGuidance,
+  ] as const;
   const forceReset = (): void => {
+    centerStrength.input.value = String(DEFAULT_D3_WORLD_FORCE_TUNING.centerStrength ?? 0);
+    centerEast.input.value = String(DEFAULT_D3_WORLD_FORCE_TUNING.centerEastMeters ?? 0);
+    centerNorth.input.value = String(DEFAULT_D3_WORLD_FORCE_TUNING.centerNorthMeters ?? 0);
     collision.input.value = String(DEFAULT_D3_WORLD_FORCE_TUNING.collisionStrength);
     iterations.input.value = String(DEFAULT_D3_WORLD_FORCE_TUNING.collisionIterations);
     clearance.input.value = String(DEFAULT_D3_WORLD_FORCE_TUNING.connectivityClearanceScale);
+    linkStrength.input.value = String(DEFAULT_D3_WORLD_FORCE_TUNING.linkStrengthScale);
+    linkDistance.input.value = String(DEFAULT_D3_WORLD_FORCE_TUNING.linkDistanceScale ?? 1);
     repulsion.input.value = String(Math.abs(DEFAULT_D3_WORLD_FORCE_TUNING.manyBodyStrength));
-    links.input.value = String(DEFAULT_D3_WORLD_FORCE_TUNING.linkStrengthScale);
     anchors.input.value = String(DEFAULT_D3_WORLD_FORCE_TUNING.anchorStrengthScale);
     dagGuidance.input.value = String(DEFAULT_D3_WORLD_FORCE_TUNING.dagStrengthScale);
-    for (const entry of [collision, iterations, clearance, repulsion, links, anchors, dagGuidance]) {
-      entry.output.value = entry.input.value;
-    }
+    for (const entry of forceRows) entry.output.value = entry.input.value;
   };
   const forceApply = (): void => {
     const placeId =
