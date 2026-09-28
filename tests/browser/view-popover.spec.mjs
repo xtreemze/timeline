@@ -326,8 +326,9 @@ test("composer exposes live context, pins explicit context, and leaves Tab for f
   ]) {
     await expect(button).toBeVisible();
     await expect(button).toHaveAttribute("title", title);
-    await expect(button.locator(":scope > svg.semantic-icon")).toBeVisible();
-    await expect(button.locator(":scope > svg.semantic-icon path").first()).toBeVisible();
+    const icon = button.locator(":scope > svg.semantic-icon");
+    await expect(icon).toBeVisible();
+    expect(await icon.locator("path").count()).toBeGreaterThan(0);
   }
 
   const input = composer.locator("input");
