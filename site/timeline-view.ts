@@ -46,10 +46,14 @@ import {
   type OccurrenceDeckChangeDetail,
 } from "./components/occurrence-media-deck.ts";
 import {
+  activateComposerHost,
   createOccurrenceInteractionSession,
   resolveOccurrencePresentation,
+  setComposerDraft,
+  setComposerTarget,
   setPresentation,
   switchOccurrenceSelection,
+  type OccurrenceComposerHost,
 } from "./occurrence-interaction-session.ts";
 import { TimelineClustering as clustering } from "./timeline-clustering.ts";
 import { TimelineMotion as motion } from "./timeline-motion.ts";
@@ -1605,6 +1609,52 @@ export class TimelineViewController {
       candidate.label.hidden = !collisionVisible || !candidate.inViewport;
       if (collisionVisible) lastEnd = end;
     }
+  }
+
+  composerHostForFocusedOccurrence(): HTMLElement | null {
+    if (!this.focusedId) return null;
+    const record = this.scene.get(occurrenceSceneKey(this.focusedId));
+    const detailHost = record?.node.detailHost ?? null;
+    if (!detailHost || detailHost.hidden) return null;
+    return detailHost.querySelector<HTMLElement>("[data-occurrence-composer-slot]");
+  }
+
+  syncComposerSession(snapshot: Readonly<{
+    ownerId: string | null;
+    text: string;
+    dirty: boolean;
+    selectionStart: number;
+    selectionEnd: number;
+    activeSuggestion: number;
+    activeSection: Readonly<{
+      kind: "subject" | "predicate" | "object" | "place" | "time" | "category" | "tag";
+      start: number;
+      end: number;
+      index?: number;
+    }> | null;
+  }>, host: OccurrenceComposerHost | null = null): void {
+    let session = setComposerDraft(this.interactionSession, {
+      ownerId: snapshot.ownerId,
+      text: snapshot.text,
+      dirty: snapshot.dirty,
+      selectionStart: snapshot.selectionStart,
+      selectionEnd: snapshot.selectionEnd,
+      activeSuggestion: snapshot.activeSuggestion,
+    });
+    session = setComposerTarget(
+      session,
+      snapshot.activeSection
+        ? {
+            kind: snapshot.activeSection.kind,
+            start: snapshot.activeSection.start,
+            end: snapshot.activeSection.end,
+            ...(snapshot.activeSection.index === undefined
+              ? {}
+              : { index: snapshot.activeSection.index }),
+          }
+        : null,
+    );
+    this.interactionSession = activateComposerHost(session, host);
   }
 
   retainedObjectCount(): number {
@@ -4089,7 +4139,22 @@ export class TimelineViewController {
     header.append(tabs, contextActions);
     applyFocusTab(this.focusTab);
 
-    focusHost.replaceChildren(header, hero, summary, evidence);
+    let contentHost = focusHost.querySelector<HTMLElement>(".timeline-event-detail-content");
+    let composerSlot = focusHost.querySelector<HTMLElement>("[data-occurrence-composer-slot]");
+    if (!contentHost) {
+      contentHost = document.createElement("div");
+      contentHost.className = "timeline-event-detail-content";
+    }
+    if (!composerSlot) {
+      composerSlot = document.createElement("div");
+      composerSlot.className = "timeline-event-composer-slot";
+      composerSlot.dataset.occurrenceComposerSlot = "";
+      composerSlot.hidden = true;
+    }
+    if (contentHost.parentElement !== focusHost || composerSlot.parentElement !== focusHost) {
+      focusHost.replaceChildren(contentHost, composerSlot);
+    }
+    contentHost.replaceChildren(header, hero, summary, evidence);
     this.root.dispatchEvent(
       new CustomEvent("timelinefocusrender", {
         bubbles: true,
