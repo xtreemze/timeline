@@ -986,3 +986,40 @@ export function replaceComposerTail(
   const separator = trimmed ? " " : "";
   return `${trimmed}${separator}${insertText} `;
 }
+
+export interface ComposerSuggestionApplication {
+  readonly value: string;
+  readonly cursorOffset: number;
+}
+
+export function acceptComposerSuggestion(
+  input: string,
+  suggestion: ComposerSuggestion,
+  stage: OccurrenceComposerStage,
+): ComposerSuggestionApplication {
+  if (!suggestion.insertText) {
+    return Object.freeze({ value: input, cursorOffset: input.length });
+  }
+
+  const range = suggestion.replaceRange;
+  if (!range) {
+    const value = replaceComposerTail(input, suggestion.insertText, stage);
+    return Object.freeze({ value, cursorOffset: value.length });
+  }
+
+  const before = input.slice(0, range.start);
+  const after = input.slice(range.end);
+  const terminalGrammarSuggestion =
+    range.end === input.length &&
+    (suggestion.kind === "entity" ||
+      suggestion.kind === "predicate" ||
+      suggestion.kind === "place" ||
+      suggestion.kind === "time");
+  const separator =
+    terminalGrammarSuggestion && !suggestion.insertText.endsWith(" ") ? " " : "";
+  const value = `${before}${suggestion.insertText}${separator}${after}`;
+  return Object.freeze({
+    value,
+    cursorOffset: range.start + suggestion.insertText.length + separator.length,
+  });
+}
