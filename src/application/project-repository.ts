@@ -17,6 +17,7 @@ import type {
 import { validateOccurrence } from "../domain/occurrence.ts";
 import type { CanonicalProject } from "../domain/project.ts";
 import type { CanonicalRelationship } from "../domain/relationship.ts";
+import type { ExternalSemanticMapping } from "../domain/semantics.ts";
 import type {
   TrajectoryArtifact,
   TrajectoryBounds,
@@ -107,6 +108,10 @@ interface PersistedRecord extends Record<string, unknown> {
   readonly savedAt?: unknown;
   readonly schemaVersion?: unknown;
   readonly semanticMappings?: unknown;
+  readonly scheme?: unknown;
+  readonly identifier?: unknown;
+  readonly relation?: unknown;
+  readonly version?: unknown;
   readonly sourceIds?: unknown;
   readonly authoritySourceIds?: unknown;
   readonly subjectContext?: unknown;
@@ -148,6 +153,44 @@ function requireNonEmptyString(value: unknown, label: string): string {
     throw new Error(`${label} must be a non-empty string.`);
   }
   return value.trim();
+}
+
+function semanticMappingRelation(
+  value: unknown,
+  label: string,
+): ExternalSemanticMapping["relation"] {
+  const relation = requireNonEmptyString(value, label);
+  if (
+    relation === "exact" ||
+    relation === "broader" ||
+    relation === "narrower" ||
+    relation === "related"
+  ) {
+    return relation;
+  }
+  throw new Error(`${label} must be exact, broader, narrower, or related.`);
+}
+
+function assertExternalSemanticMappings(
+  value: unknown,
+  label: string,
+): readonly ExternalSemanticMapping[] | undefined {
+  const mappings = optionalRecordArray(value, label);
+  if (!mappings) return undefined;
+
+  return mappings.map((mapping, index) => {
+    const itemLabel = `${label} ${index + 1}`;
+    const version =
+      mapping.version === undefined
+        ? undefined
+        : requireNonEmptyString(mapping.version, `${itemLabel} version`);
+    return {
+      scheme: requireNonEmptyString(mapping.scheme, `${itemLabel} scheme`),
+      identifier: requireNonEmptyString(mapping.identifier, `${itemLabel} identifier`),
+      relation: semanticMappingRelation(mapping.relation, `${itemLabel} relation`),
+      ...(version ? { version } : {}),
+    };
+  });
 }
 
 function requireNonNegativeInteger(value: unknown, label: string): number {
@@ -410,7 +453,7 @@ function assertOccurrenceParticipantShape(value: unknown): CanonicalOccurrencePa
   if (!isRecord(value)) {
     throw new Error("Occurrence participant must be an object.");
   }
-  const mappings = optionalRecordArray(
+  const mappings = assertExternalSemanticMappings(
     value.externalMappings,
     "Occurrence participant externalMappings",
   );
@@ -470,12 +513,7 @@ function assertOccurrenceParticipantShape(value: unknown): CanonicalOccurrencePa
     ...(value.authoritySourceIds
       ? { authoritySourceIds: value.authoritySourceIds.map(sourceId) }
       : {}),
-    ...(mappings
-      ? {
-          externalMappings:
-            mappings as NonNullable<CanonicalOccurrenceParticipant["externalMappings"]>,
-        }
-      : {}),
+    ...(mappings ? { externalMappings: mappings } : {}),
   };
 }
 
