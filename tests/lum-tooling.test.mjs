@@ -110,6 +110,69 @@ test("formatter is deterministic, idempotent, and preserves array order", () => 
   assert.ok(once.endsWith("\n"));
 });
 
+test("formatter uses semantic canonical field order rather than arbitrary alphabetic order", () => {
+  const parsed = JSON.parse(
+    createEmptyProjectInterchange({
+      projectKey: "order-case",
+      savedAt: "2026-09-28T08:00:00.000Z",
+    }),
+  );
+  parsed.project.entities = [
+    {
+      attributes: { zeta: 2, alpha: 1 },
+      sourceIds: [],
+      alternateNames: [],
+      name: "Alice",
+      type: "person",
+      id: "alice",
+    },
+  ];
+  parsed.project.relationships = [
+    {
+      attributes: {},
+      time: null,
+      confidence: 1,
+      sourceIds: [],
+      itemIds: [],
+      objectId: "bob",
+      predicate: "warns",
+      subjectId: "alice",
+      id: "rel-1",
+    },
+  ];
+
+  const formatted = formatProjectInterchange(JSON.stringify(parsed));
+  const envelopeKeys = Object.keys(JSON.parse(formatted));
+  assert.deepEqual(envelopeKeys, [
+    "$schema",
+    "format",
+    "interchangeVersion",
+    "schemaVersion",
+    "projectKey",
+    "revision",
+    "savedAt",
+    "project",
+  ]);
+
+  const project = JSON.parse(formatted).project;
+  assert.deepEqual(Object.keys(project), ["schemaVersion", "entities", "relationships"]);
+  assert.deepEqual(Object.keys(project.entities[0]), [
+    "id",
+    "type",
+    "name",
+    "alternateNames",
+    "sourceIds",
+    "attributes",
+  ]);
+  assert.deepEqual(Object.keys(project.relationships[0]).slice(0, 4), [
+    "id",
+    "subjectId",
+    "predicate",
+    "objectId",
+  ]);
+  assert.deepEqual(Object.keys(project.entities[0].attributes), ["alpha", "zeta"]);
+});
+
 test("strict validator rejects unknown fields rather than preserving agent guesses", () => {
   const parsed = JSON.parse(
     createEmptyProjectInterchange({
