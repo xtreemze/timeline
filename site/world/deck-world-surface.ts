@@ -2998,6 +2998,7 @@ export class DeckWorldSurface implements WorldSurface {
   readonly #localView: unknown | null;
   readonly #container: HTMLElement;
   #controls: HTMLElement | null = null;
+  #zoomSlider: HTMLInputElement | null = null;
   #basemap: WorldBasemap | null = null;
   #palette: WorldGraphPalette = WORLD_LIGHT_PALETTE;
   #theme: WorldThemeColors = worldThemeColors(WORLD_LIGHT_PALETTE);
@@ -3675,9 +3676,9 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   /**
-   * Visible camera controls (zoom in, zoom out, fit to content). Plain DOM
-   * buttons so pointer, touch and keyboard users all get them; they only
-   * change the derived camera.
+   * Visible camera controls. World zoom mirrors the timeline zoom bar, but its
+   * endpoint glyphs are real 44px buttons so touch, pointer and keyboard users
+   * can step the camera without having to acquire the range thumb.
    */
   #createControls(): HTMLElement | null {
     const doc = this.#container.ownerDocument;
@@ -3686,7 +3687,8 @@ export class DeckWorldSurface implements WorldSurface {
     if (typeof bar.append !== "function") return null;
     bar.className = "world-camera-controls";
     bar.setAttribute("role", "group");
-    bar.setAttribute("aria-label", "Globe camera controls");
+    bar.setAttribute("aria-label", "World camera controls");
+
     const button = (label: string, icon: string, action: () => void) => {
       const element = doc.createElement("button");
       element.type = "button";
@@ -3705,14 +3707,56 @@ export class DeckWorldSurface implements WorldSurface {
       });
       return element;
     };
+
+    const zoomControl = doc.createElement("div");
+    zoomControl.className = "world-zoom-control";
+    zoomControl.setAttribute("role", "group");
+    zoomControl.setAttribute("aria-label", "World zoom");
+
+    const zoomOut = button("Zoom out", "zoom-out", () => this.#zoomBy(-1));
+    zoomOut.classList.add("world-zoom-endpoint-button");
+
+    const slider = doc.createElement("input");
+    slider.type = "range";
+    slider.className = "world-zoom-slider";
+    slider.dataset.viewControl = "";
+    slider.min = String(WORLD_CAMERA_MIN_ZOOM);
+    slider.max = String(WORLD_CAMERA_MAX_ZOOM);
+    slider.step = "0.1";
+    slider.setAttribute("aria-label", "World zoom level");
+    slider.title = "World zoom";
+    slider.addEventListener("input", (event) => {
+      event.stopPropagation();
+      const zoom = Number(slider.value);
+      if (!Number.isFinite(zoom)) return;
+      this.setCamera({ ...this.#camera, zoom });
+    });
+
+    const zoomIn = button("Zoom in", "zoom-in", () => this.#zoomBy(1));
+    zoomIn.classList.add("world-zoom-endpoint-button");
+
+    this.#zoomSlider = slider;
+    this.#syncZoomControls();
+    zoomControl.append(zoomOut, slider, zoomIn);
+
     bar.append(
-      button("Zoom in", "zoom-in", () => this.#zoomBy(1)),
-      button("Zoom out", "zoom-out", () => this.#zoomBy(-1)),
+      zoomControl,
       button("Fit to content", "fit", () => this.fitToContent()),
       button("Show whole globe", "world", () => this.showWholeGlobe()),
     );
     this.#container.appendChild?.(bar);
     return bar;
+  }
+
+  #syncZoomControls(): void {
+    const slider = this.#zoomSlider;
+    if (!slider) return;
+    const zoom = Math.min(
+      WORLD_CAMERA_MAX_ZOOM,
+      Math.max(WORLD_CAMERA_MIN_ZOOM, this.#camera.zoom),
+    );
+    slider.value = String(Math.round(zoom * 10) / 10);
+    slider.setAttribute("aria-valuetext", `World zoom ${zoom.toFixed(1)}`);
   }
 
   #applyTheme(): void {
@@ -4277,6 +4321,7 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   #publishCameraContext(): void {
+    this.#syncZoomControls();
     this.#container.dispatchEvent?.(
       new CustomEvent("worldviewportchange", {
         bubbles: true,
