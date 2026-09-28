@@ -225,6 +225,50 @@ test("a quick one-finger touch drag starting on an entity pans the globe instead
   assert.deepEqual(h.begins, []);
 });
 
+test("camera-owned touch release cannot become compatibility double-click focus", (t) => {
+  t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: 10_000 });
+  const h = surfaceHarness();
+  h.setPickResult({ object: h.alice() });
+  h.surface.setCamera({ longitude: 18, latitude: 59, zoom: 2, bearing: 0, pitch: 0 });
+
+  h.touch("pointerdown", 4, 118, 259, 1_000);
+  h.touch("pointermove", 4, 150, 259, 1_080);
+  h.touch("pointerup", 4, 150, 259, 1_120);
+  const beforeCompatibilityEvent = h.surface.getCamera();
+
+  h.listeners.get("dblclick")?.({
+    offsetX: 118,
+    offsetY: 259,
+  });
+
+  assert.deepEqual(
+    h.surface.getCamera(),
+    beforeCompatibilityEvent,
+    "touch-generated compatibility dblclick after camera navigation must be ignored",
+  );
+});
+
+test("clean touch taps still double-tap focus immediately after camera navigation", (t) => {
+  t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: 10_000 });
+  const h = surfaceHarness();
+  h.setPickResult({ object: h.alice() });
+  h.surface.setCamera({ longitude: 18, latitude: 59, zoom: 2, bearing: 0, pitch: 0 });
+
+  h.touch("pointerdown", 4, 118, 259, 1_000);
+  h.touch("pointermove", 4, 150, 259, 1_080);
+  h.touch("pointerup", 4, 150, 259, 1_120);
+
+  h.touch("pointerdown", 5, 118, 259, 2_000);
+  h.touch("pointerup", 5, 118, 259, 2_040);
+  h.touch("pointerdown", 6, 119, 260, 2_180);
+  h.touch("pointerup", 6, 119, 260, 2_220);
+
+  assert.ok(
+    h.surface.getCamera().zoom > 2,
+    "two clean tap epochs should focus even when they follow a camera-owned gesture",
+  );
+});
+
 test("a queued pre-threshold move processed after the hold timer still remains a pan", (t) => {
   t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: 10_000 });
   const h = surfaceHarness();

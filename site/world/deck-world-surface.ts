@@ -175,6 +175,7 @@ interface DeckRuntimePointerEvent {
 interface DoubleClickEvent {
   readonly offsetX?: unknown;
   readonly offsetY?: unknown;
+  readonly sourceCapabilities?: unknown;
 }
 
 export interface DeckWorldCameraInteractionSink {
@@ -1430,6 +1431,14 @@ interface TouchContextMenuEvent {
   readonly preventDefault?: () => void;
 }
 
+const WORLD_TOUCH_DOUBLE_TAP_MS = 320;
+const WORLD_TOUCH_DOUBLE_TAP_DISTANCE_PX = 28;
+
+interface WorldTouchTap {
+  readonly time: number;
+  readonly point: ScreenPoint;
+}
+
 function touchPointer(
   event: TouchPointerEvent,
 ): { readonly pointerId: number; readonly point: ScreenPoint } | null {
@@ -1445,6 +1454,11 @@ function touchPointer(
 function touchEventTimeStamp(event: TouchPointerEvent): number | null {
   const value = event.timeStamp;
   return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
+}
+
+function doubleClickIsTouchGenerated(event: DoubleClickEvent): boolean {
+  const capabilities = isRecord(event.sourceCapabilities) ? event.sourceCapabilities : null;
+  return capabilities?.firesTouchEvents === true;
 }
 
 function pointerIdFromRuntimeEvent(event: DeckRuntimePointerEvent): number | null {
@@ -3101,8 +3115,12 @@ export class DeckWorldSurface implements WorldSurface {
   readonly #touchDrag = createWorldTouchDragArbiter();
   #touchHoldTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
   #touchHoldCommitTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
+  #touchTapCandidatePointerId: number | null = null;
+  #lastTouchTap: WorldTouchTap | null = null;
+  #lastPointerType: string | null = null;
 
   readonly #handleTouchPointerDown = (event: TouchPointerEvent): void => {
+    if (typeof event.pointerType === "string") this.#lastPointerType = event.pointerType;
     const touch = touchPointer(event);
     if (!touch) return;
 
@@ -3127,9 +3145,16 @@ export class DeckWorldSurface implements WorldSurface {
     });
     this.#clearTouchHoldTimer();
     if (disposition !== "holding") {
+      // A second contact or another camera-owned transition invalidates the
+      // tap sequence immediately. Touch double-tap semantics are recognized
+      // from clean pointer epochs below rather than browser compatibility
+      // mouse events, so navigation can never become focus on release.
+      this.#touchTapCandidatePointerId = null;
+      this.#lastTouchTap = null;
       this.#setTouchDragState(null);
       return;
     }
+    this.#touchTapCandidatePointerId = touch.pointerId;
 
     // Object-only pick: the long-press gate needs no 3D unprojection, and
     // skipping its extra depth pass keeps touch-down fast so a quick swipe's
@@ -3150,6 +3175,9 @@ export class DeckWorldSurface implements WorldSurface {
       this.#touchHoldCommitTimer = globalThis.setTimeout(() => {
         this.#touchHoldCommitTimer = null;
         if (this.#destroyed || !this.#touchDrag.claim(touch.pointerId, Date.now())) return;
+
+        this.#touchTapCandidatePointerId = null;
+        this.#lastTouchTap = null;
 
         if (!entityHit) {
           const handled = this.#dispatchAuthoringContext(touch.point, touch.point);
@@ -3207,6 +3235,8 @@ export class DeckWorldSurface implements WorldSurface {
     }
 
     if (disposition === "camera" && this.#activeDragPointerId === null) {
+      this.#touchTapCandidatePointerId = null;
+      this.#lastTouchTap = null;
       this.#clearTouchHoldTimer();
       this.#setTouchDragState(null);
     }
@@ -3218,6 +3248,8 @@ export class DeckWorldSurface implements WorldSurface {
 
     if (this.#authoringContextPointerId === touch.pointerId) {
       event.preventDefault?.();
+      this.#touchTapCandidatePointerId = null;
+      this.#lastTouchTap = null;
       this.#touchDrag.release(touch.pointerId);
       this.#clearTouchHoldTimer();
       this.#authoringContextPointerId = null;
@@ -3237,6 +3269,8 @@ export class DeckWorldSurface implements WorldSurface {
 
     if (this.#activeDragPointerId === touch.pointerId) {
       event.preventDefault?.();
+      this.#touchTapCandidatePointerId = null;
+      this.#lastTouchTap = null;
       this.#touchDrag.release(touch.pointerId);
       this.#clearTouchHoldTimer();
       this.#setTouchDragState(null);
@@ -3257,11 +3291,39 @@ export class DeckWorldSurface implements WorldSurface {
       return;
     }
 
+    const tapCandidate =
+      this.#touchTapCandidatePointerId === touch.pointerId &&
+      this.#touchDrag.isPending(touch.pointerId);
     this.#touchDrag.release(touch.pointerId);
+    if (this.#touchTapCandidatePointerId === touch.pointerId) {
+      this.#touchTapCandidatePointerId = null;
+    }
     this.#clearTouchHoldTimer();
     this.#clearDragFlash();
     this.#setTouchDragState(null);
+    if (tapCandidate) {
+      this.#registerTouchTap(
+        touch.point,
+        touchEventTimeStamp(event) ?? globalThis.performance?.now?.() ?? Date.now(),
+      );
+    }
   };
+
+  #registerTouchTap(point: ScreenPoint, time: number): void {
+    const previous = this.#lastTouchTap;
+    if (
+      previous &&
+      time - previous.time >= 0 &&
+      time - previous.time <= WORLD_TOUCH_DOUBLE_TAP_MS &&
+      Math.hypot(point.x - previous.point.x, point.y - previous.point.y) <=
+        WORLD_TOUCH_DOUBLE_TAP_DISTANCE_PX
+    ) {
+      this.#lastTouchTap = null;
+      this.#focusAtPoint(point);
+      return;
+    }
+    this.#lastTouchTap = Object.freeze({ time, point });
+  }
 
   #dispatchAuthoringContext(point: ScreenPoint, clientPoint: ScreenPoint): boolean {
     const hit = this.pick(point, { depth: false });
@@ -3310,6 +3372,8 @@ export class DeckWorldSurface implements WorldSurface {
   readonly #handlePointerCancel = (event: PointerEvent): void => {
     if (event.pointerType === "touch") {
       const authoringOwned = this.#authoringContextPointerId === event.pointerId;
+      this.#touchTapCandidatePointerId = null;
+      this.#lastTouchTap = null;
       this.#touchDrag.cancel(event.pointerId);
       if (authoringOwned) {
         this.#authoringContextPointerId = null;
@@ -3335,6 +3399,8 @@ export class DeckWorldSurface implements WorldSurface {
 
   readonly #handleLostPointerCapture = (event: PointerEvent): void => {
     if (this.#authoringContextPointerId === event.pointerId) {
+      this.#touchTapCandidatePointerId = null;
+      this.#lastTouchTap = null;
       this.#touchDrag.cancel(event.pointerId);
       this.#authoringContextPointerId = null;
       this.#clearTouchHoldTimer();
@@ -3345,6 +3411,8 @@ export class DeckWorldSurface implements WorldSurface {
       return;
     }
     if (event.pointerType === "touch") {
+      this.#touchTapCandidatePointerId = null;
+      this.#lastTouchTap = null;
       this.#touchDrag.cancel(event.pointerId);
       this.#clearTouchHoldTimer();
       this.#setTouchDragState(null);
@@ -3441,23 +3509,24 @@ export class DeckWorldSurface implements WorldSurface {
     if (changed) void pulseHaptic("selection");
   };
 
-  // Double-tap/double-click focus (issue #445 Priority 4). deck.gl's own
-  // `doubleClickZoom` controller option is left off (see
-  // `deckControllerOptions` above) so this native `dblclick` listener — which
-  // fires for both mouse double-click and touch double-tap — is the sole
-  // owner of double-tap semantics: it picks whatever is under the pointer
-  // and focuses that canonical entity/occurrence/place. A miss (no hit under
-  // the pointer) is a no-op rather than falling back to a generic zoom.
-  readonly #handleDoubleClick = (event: DoubleClickEvent): void => {
-    const point = screenPointFromDoubleClickEvent(event);
-    if (!point) return;
-
+  #focusAtPoint(point: ScreenPoint): void {
     const hit = this.pick(point);
     if (!hit) return;
 
     if (hit.kind === "entity") this.focusEntity(hit.entityId);
     else if (hit.kind === "relationship") this.focusOccurrence(hit.relationshipId);
     else if (hit.kind === "place") this.focusPlace(hit.placeId);
+  }
+
+  // Mouse double-click keeps native browser semantics. Touch double-tap is
+  // recognized from the pointer sequence above so Lūm can prove both taps
+  // remained tap candidates; Chromium compatibility mouse events from a
+  // camera-owned rotate/pan must never be able to focus/zoom on release.
+  readonly #handleDoubleClick = (event: DoubleClickEvent): void => {
+    if (this.#lastPointerType === "touch" || doubleClickIsTouchGenerated(event)) return;
+    const point = screenPointFromDoubleClickEvent(event);
+    if (!point) return;
+    this.#focusAtPoint(point);
   };
 
   // deck.gl's controller already provides keyboard camera pan (arrow keys)
