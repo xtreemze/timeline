@@ -1,7 +1,7 @@
 {
   "name": "lum-language-tools",
   "displayName": "Lūm Language Tools",
-  "description": "Strict schema validation, diagnostics, formatting, scaffolding, and semantic highlighting for Lūm projects and change proposals.",
+  "description": "Strict schema validation, diagnostics, formatting, scaffolding, and semantic highlighting for Lūm projects, modules, and change proposals.",
   "version": "0.1.0",
   "publisher": "xtreemze",
   "license": "UNLICENSED",
@@ -25,9 +25,18 @@
       {
         "fileMatch": [
           "*.lum.json",
-          "**/*.lum.json"
+          "**/*.lum.json",
+          "!*.module.lum.json",
+          "!**/*.module.lum.json"
         ],
         "url": "https://xtreemze.github.io/timeline/schemas/lum-project-v1.schema.json"
+      },
+      {
+        "fileMatch": [
+          "*.module.lum.json",
+          "**/*.module.lum.json"
+        ],
+        "url": "https://xtreemze.github.io/timeline/schemas/lum-project-module-v1.schema.json"
       },
       {
         "fileMatch": [
