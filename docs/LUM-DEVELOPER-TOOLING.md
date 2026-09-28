@@ -79,6 +79,37 @@ lum agent apply change.lum-proposal.json --project project.lum.json --json
 
 `apply` writes a separate candidate by default, revalidates it as an ordinary Lūm project, and preserves the application's explicit verification boundary.
 
+### Bounded agent context
+
+`lum agent context` can limit an agent's view without changing canonical semantics:
+
+```sh
+lum agent context project.lum.json --story story-id --json
+lum agent context project.lum.json --occurrence occurrence-id --json
+lum agent context project.lum.json --entity entity-id --depth 2 --json
+lum agent context project.lum.json --ids entity-id,occurrence-id --json
+```
+
+The context contains selected records plus deterministic direct dependencies, a compact whole-project manifest, schema/proposal identifiers, and explicit unresolved references. Arbitrary `attributes` and full source notes are intentionally excluded from bounded context.
+
+Entity neighborhood depth is limited to 0–3. One selector mode may be used at a time.
+
+### Provider-neutral agent run
+
+Core Lūm can invoke an explicitly selected stdin/stdout adapter without embedding a provider SDK:
+
+```sh
+lum agent run project.lum.json \
+  --entity entity-id \
+  --adapter /path/to/agent-adapter \
+  --output change.lum-proposal.json \
+  --json
+```
+
+The adapter receives one JSON context document on stdin and must emit exactly one `lum-change-proposal-v1` JSON document on stdout. Core Lūm treats stdout as untrusted input and runs the ordinary proposal validator before returning or writing it. `agent run` never applies the proposal and never replaces the source project. Candidate creation remains the separate `lum agent apply` step and still requires user verification before canonical replacement.
+
+Core Lūm performs no implicit network access. Credentials belong to an explicitly invoked adapter's process environment or provider configuration; they are never copied into project, context, proposal, or candidate documents.
+
 ### Schema
 
 ```sh
