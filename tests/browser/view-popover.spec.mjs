@@ -284,6 +284,7 @@ test("Browse opens an example story into visible timeline context", async ({ pag
   await expect(page.locator("#story-focus-position")).toHaveText(`1 / ${storyItems.length}`);
   await expect(page.locator("#story-prev")).toBeDisabled();
   await expect(page.locator("#story-next")).toBeEnabled();
+  await expect(page.locator("#presentation-stage > .graph-lens:not([hidden])")).toBeVisible();
   await expect
     .poll(() =>
       page
@@ -292,6 +293,13 @@ test("Browse opens an example story into visible timeline context", async ({ pag
     )
     .toBeGreaterThan(0);
   await expect(page.locator(`.timeline-event[data-id="${storyItems[0].id}"]`)).toBeVisible();
+
+  const storyNextOwnsHitTarget = await page.locator("#story-next").evaluate((button) => {
+    const rect = button.getBoundingClientRect();
+    const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    return Boolean(hit?.closest("#story-next"));
+  });
+  expect(storyNextOwnsHitTarget).toBe(true);
 
   await page.locator("#story-next").click();
   await expect(page.locator("#story-focus-position")).toHaveText(`2 / ${storyItems.length}`);
