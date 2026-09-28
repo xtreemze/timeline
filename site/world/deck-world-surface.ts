@@ -40,6 +40,7 @@ import {
   worldNodeFootprintRadiusPx,
   worldNodeStyle,
   worldNodeVisualFootprintRadiusPx,
+  worldPlaceFootprintRadiusPx,
   worldPlaceStyle,
 } from "../../src/layout/world-graph-style.ts";
 import {
@@ -4263,7 +4264,7 @@ export class DeckWorldSurface implements WorldSurface {
       picked = this.#deck.pickObject({
         x: point.x,
         y: point.y,
-        radius: 22,
+        radius: WORLD_PICKING_RADIUS_PX,
         unproject3D: options.depth !== false,
         layerIds: [
           DECK_WORLD_LAYER_IDS.entityIcons,
@@ -5453,11 +5454,7 @@ export class DeckWorldSurface implements WorldSurface {
         // >=44px fallback and pick body.
         radiusUnits: "pixels",
         getPosition: (datum: DeckWorldPlaceDatum) => datum.position,
-        getRadius: (datum: DeckWorldPlaceDatum) =>
-          Math.max(
-            WORLD_ENTITY_MIN_HIT_RADIUS_PX,
-            this.#placeStyle(datum).radius + this.#placeStyle(datum).borderWidth,
-          ),
+        getRadius: (datum: DeckWorldPlaceDatum) => worldPlaceFootprintRadiusPx(datum.style),
         stroked: true,
         lineWidthUnits: "pixels",
         getLineWidth: (datum: DeckWorldPlaceDatum) =>
