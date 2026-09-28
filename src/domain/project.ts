@@ -1,4 +1,10 @@
 import type { CanonicalEntity } from "./entity.ts";
+import type {
+  CanonicalCategory,
+  CanonicalPlace,
+  CanonicalSource,
+  CanonicalStory,
+} from "./composition.ts";
 import type { OccurrenceId, RelationshipId, TrajectoryId } from "./ids.ts";
 import type { CanonicalOccurrence } from "./occurrence.ts";
 import type { TrajectoryArtifact } from "./trajectory.ts";
@@ -17,6 +23,10 @@ export interface CanonicalProject {
   readonly relationships: readonly CanonicalRelationship[];
   readonly occurrences?: readonly CanonicalOccurrence[];
   readonly trajectories?: readonly TrajectoryArtifact[];
+  readonly places?: readonly CanonicalPlace[];
+  readonly sources?: readonly CanonicalSource[];
+  readonly categories?: readonly CanonicalCategory[];
+  readonly stories?: readonly CanonicalStory[];
 }
 
 export interface RecordTrajectoryResult {

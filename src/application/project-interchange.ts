@@ -63,6 +63,10 @@ const PROJECT_FIELDS = new Set([
   "relationships",
   "occurrences",
   "trajectories",
+  "places",
+  "sources",
+  "categories",
+  "stories",
 ]);
 
 const ENTITY_FIELDS = new Set([
@@ -123,6 +127,36 @@ const OCCURRENCE_PARTICIPANT_FIELDS = new Set([
   "entityId",
   ...ACTOR_CONTEXT_FIELDS,
 ]);
+
+const PLACE_FIELDS = new Set([
+  "id",
+  "name",
+  "geometry",
+  "geographicIdentifier",
+  "address",
+  "sourceIds",
+  "attributes",
+]);
+const SOURCE_FIELDS = new Set([
+  "id",
+  "kind",
+  "title",
+  "sourceName",
+  "note",
+  "publishedAt",
+  "url",
+  "attributes",
+]);
+const CATEGORY_FIELDS = new Set(["id", "name", "color", "attributes"]);
+const STORY_FIELDS = new Set([
+  "id",
+  "title",
+  "description",
+  "occurrenceIds",
+  "placeIds",
+  "attributes",
+]);
+const GEOMETRY_FIELDS = new Set(["type", "coordinates"]);
 
 const TRAJECTORY_FIELDS = new Set([
   "id",
@@ -259,6 +293,13 @@ function inspectOccurrence(
   ];
 }
 
+function inspectPlace(place: JsonRecord, path: string): ProjectInterchangeDiagnostic[] {
+  const geometry = record(place["geometry"]);
+  return geometry
+    ? unknownFieldDiagnostics(geometry, GEOMETRY_FIELDS, `${path}/geometry`)
+    : [];
+}
+
 function inspectTrajectory(
   trajectory: JsonRecord,
   path: string,
@@ -314,6 +355,10 @@ function strictShapeDiagnostics(envelope: JsonRecord): ProjectInterchangeDiagnos
       TRAJECTORY_FIELDS,
       inspectTrajectory,
     ),
+    ...inspectRecordArray(project["places"], "/project/places", PLACE_FIELDS, inspectPlace),
+    ...inspectRecordArray(project["sources"], "/project/sources", SOURCE_FIELDS),
+    ...inspectRecordArray(project["categories"], "/project/categories", CATEGORY_FIELDS),
+    ...inspectRecordArray(project["stories"], "/project/stories", STORY_FIELDS),
   );
   return diagnostics;
 }
@@ -331,10 +376,26 @@ const CANONICAL_KEY_ORDER = Object.freeze([
   "relationships",
   "occurrences",
   "trajectories",
+  "places",
+  "sources",
+  "categories",
+  "stories",
   "id",
   "type",
   "name",
   "title",
+  "description",
+  "kind",
+  "geometry",
+  "geographicIdentifier",
+  "address",
+  "sourceName",
+  "note",
+  "publishedAt",
+  "url",
+  "color",
+  "occurrenceIds",
+  "placeIds",
   "identityResolution",
   "alternateNames",
   "identifiers",

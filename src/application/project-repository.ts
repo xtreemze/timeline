@@ -1,4 +1,18 @@
 import type { CanonicalEntity } from "../domain/entity.ts";
+import type {
+  CanonicalCategory,
+  CanonicalPlace,
+  CanonicalSource,
+  CanonicalStory,
+} from "../domain/composition.ts";
+import {
+  validateCategory,
+  validatePlace,
+  validateSource,
+  validateStory,
+} from "../domain/composition.ts";
+import type { CanonicalSpatialGeometry } from "../domain/geotemporal.ts";
+import { validateSpatialGeometry } from "../domain/geotemporal.ts";
 import { validateEntity } from "../domain/entity.ts";
 import type { TimelineId } from "../domain/ids.ts";
 import {
@@ -8,6 +22,7 @@ import {
   relationshipId,
   sourceArtifactId,
   sourceId,
+  storyId,
   trajectoryId,
 } from "../domain/ids.ts";
 import type {
@@ -84,6 +99,22 @@ interface PersistedRecord extends Record<string, unknown> {
   readonly objectId?: unknown;
   readonly occurrenceType?: unknown;
   readonly occurrences?: unknown;
+  readonly places?: unknown;
+  readonly sources?: unknown;
+  readonly categories?: unknown;
+  readonly stories?: unknown;
+  readonly geometry?: unknown;
+  readonly geographicIdentifier?: unknown;
+  readonly address?: unknown;
+  readonly kind?: unknown;
+  readonly sourceName?: unknown;
+  readonly note?: unknown;
+  readonly publishedAt?: unknown;
+  readonly url?: unknown;
+  readonly color?: unknown;
+  readonly description?: unknown;
+  readonly occurrenceIds?: unknown;
+  readonly placeIds?: unknown;
   readonly trajectories?: unknown;
   readonly trajectoryIds?: unknown;
   readonly observedEntityIds?: unknown;
@@ -449,6 +480,94 @@ function assertTrajectoryShape(
   return trajectory;
 }
 
+function assertPlaceShape(value: unknown): CanonicalPlace {
+  if (!isRecord(value)) throw new Error("Project place must be an object.");
+  const id = placeId(requireNonEmptyString(value.id, "Place ID"));
+  const name = requireNonEmptyString(value.name, "Place name");
+  if (!isStringArray(value.sourceIds)) {
+    throw new Error("Place sourceIds must be a string array.");
+  }
+  if (!isRecord(value.attributes)) {
+    throw new Error("Place attributes must be an object.");
+  }
+  const geometry = value.geometry as CanonicalSpatialGeometry;
+  const geometryFindings = validateSpatialGeometry(geometry);
+  if (geometryFindings.length > 0) throw new Error(geometryFindings.join(" "));
+  const place: CanonicalPlace = {
+    id,
+    name,
+    geometry,
+    ...(typeof value.geographicIdentifier === "string"
+      ? { geographicIdentifier: value.geographicIdentifier }
+      : {}),
+    ...(typeof value.address === "string" ? { address: value.address } : {}),
+    sourceIds: value.sourceIds.map(sourceId),
+    attributes: value.attributes,
+  };
+  const findings = validatePlace(place);
+  if (findings.length > 0) throw new Error(findings.join(" "));
+  return place;
+}
+
+function assertSourceShape(value: unknown): CanonicalSource {
+  if (!isRecord(value)) throw new Error("Project source must be an object.");
+  if (!isRecord(value.attributes)) throw new Error("Source attributes must be an object.");
+  const source: CanonicalSource = {
+    id: sourceId(requireNonEmptyString(value.id, "Source ID")),
+    kind: requireNonEmptyString(value.kind, "Source kind"),
+    title: requireNonEmptyString(value.title, "Source title"),
+    ...(typeof value.sourceName === "string" ? { sourceName: value.sourceName } : {}),
+    ...(typeof value.note === "string" ? { note: value.note } : {}),
+    ...(typeof value.publishedAt === "string" ? { publishedAt: value.publishedAt } : {}),
+    ...(typeof value.url === "string" ? { url: value.url } : {}),
+    attributes: value.attributes,
+  };
+  const findings = validateSource(source);
+  if (findings.length > 0) throw new Error(findings.join(" "));
+  return source;
+}
+
+function assertCategoryShape(value: unknown): CanonicalCategory {
+  if (!isRecord(value)) throw new Error("Project category must be an object.");
+  if (!isRecord(value.attributes)) throw new Error("Category attributes must be an object.");
+  const category: CanonicalCategory = {
+    id: requireNonEmptyString(value.id, "Category ID"),
+    name: requireNonEmptyString(value.name, "Category name"),
+    ...(typeof value.color === "string" ? { color: value.color } : {}),
+    attributes: value.attributes,
+  };
+  const findings = validateCategory(category);
+  if (findings.length > 0) throw new Error(findings.join(" "));
+  return category;
+}
+
+function assertStoryShape(
+  value: unknown,
+  occurrenceIds: ReadonlySet<string>,
+  placeIds: ReadonlySet<string>,
+): CanonicalStory {
+  if (!isRecord(value)) throw new Error("Project story must be an object.");
+  if (!isStringArray(value.occurrenceIds)) {
+    throw new Error("Story occurrenceIds must be a string array.");
+  }
+  if (!isStringArray(value.placeIds)) {
+    throw new Error("Story placeIds must be a string array.");
+  }
+  if (!isRecord(value.attributes)) throw new Error("Story attributes must be an object.");
+  const story: CanonicalStory = {
+    id: storyId(requireNonEmptyString(value.id, "Story ID")),
+    title: requireNonEmptyString(value.title, "Story title"),
+    ...(typeof value.description === "string" ? { description: value.description } : {}),
+    occurrenceIds: value.occurrenceIds.map(occurrenceId),
+    placeIds: value.placeIds.map(placeId),
+    attributes: value.attributes,
+  };
+  const findings = validateStory(story, occurrenceIds, placeIds);
+  if (findings.length > 0) throw new Error(findings.join(" "));
+  return story;
+}
+
+
 function assertOccurrenceParticipantShape(value: unknown): CanonicalOccurrenceParticipant {
   if (!isRecord(value)) {
     throw new Error("Occurrence participant must be an object.");
@@ -688,12 +807,81 @@ export function assertCanonicalProject(value: unknown): CanonicalProject {
     }
   }
 
+  if (value.places !== undefined && !Array.isArray(value.places)) {
+    throw new Error("Canonical project places must be an array when present.");
+  }
+  const places = Array.isArray(value.places) ? value.places.map(assertPlaceShape) : undefined;
+  const placeIds = new Set<string>();
+  for (const place of places ?? []) {
+    const id = String(place.id);
+    if (placeIds.has(id)) throw new Error(`Duplicate place ID "${id}".`);
+    placeIds.add(id);
+  }
+
+  if (places) {
+    for (const relationship of relationships) {
+      if (relationship.placeId && !placeIds.has(String(relationship.placeId))) {
+        throw new Error(
+          `Relationship ${String(relationship.id)} references unknown place ${String(relationship.placeId)}.`,
+        );
+      }
+    }
+    for (const occurrence of occurrences ?? []) {
+      if (occurrence.placeId && !placeIds.has(String(occurrence.placeId))) {
+        throw new Error(
+          `Occurrence ${String(occurrence.id)} references unknown place ${String(occurrence.placeId)}.`,
+        );
+      }
+    }
+  }
+
+  if (value.sources !== undefined && !Array.isArray(value.sources)) {
+    throw new Error("Canonical project sources must be an array when present.");
+  }
+  const sources = Array.isArray(value.sources) ? value.sources.map(assertSourceShape) : undefined;
+  const sourceIds = new Set<string>();
+  for (const source of sources ?? []) {
+    const id = String(source.id);
+    if (sourceIds.has(id)) throw new Error(`Duplicate source ID "${id}".`);
+    sourceIds.add(id);
+  }
+
+  if (value.categories !== undefined && !Array.isArray(value.categories)) {
+    throw new Error("Canonical project categories must be an array when present.");
+  }
+  const categories = Array.isArray(value.categories)
+    ? value.categories.map(assertCategoryShape)
+    : undefined;
+  const categoryIds = new Set<string>();
+  for (const category of categories ?? []) {
+    if (categoryIds.has(category.id)) throw new Error(`Duplicate category ID "${category.id}".`);
+    categoryIds.add(category.id);
+  }
+
+  if (value.stories !== undefined && !Array.isArray(value.stories)) {
+    throw new Error("Canonical project stories must be an array when present.");
+  }
+  const canonicalOccurrenceIds = new Set((occurrences ?? []).map((occurrence) => String(occurrence.id)));
+  const stories = Array.isArray(value.stories)
+    ? value.stories.map((story) => assertStoryShape(story, canonicalOccurrenceIds, placeIds))
+    : undefined;
+  const storyIds = new Set<string>();
+  for (const story of stories ?? []) {
+    const id = String(story.id);
+    if (storyIds.has(id)) throw new Error(`Duplicate story ID "${id}".`);
+    storyIds.add(id);
+  }
+
   return {
     schemaVersion,
     entities,
     relationships,
     ...(occurrences ? { occurrences } : {}),
     ...(trajectories ? { trajectories } : {}),
+    ...(places ? { places } : {}),
+    ...(sources ? { sources } : {}),
+    ...(categories ? { categories } : {}),
+    ...(stories ? { stories } : {}),
   };
 }
 

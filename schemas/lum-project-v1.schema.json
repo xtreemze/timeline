@@ -74,6 +74,30 @@
           "items": {
             "$ref": "#/$defs/trajectory"
           }
+        },
+        "places": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/place"
+          }
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source"
+          }
+        },
+        "categories": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/category"
+          }
+        },
+        "stories": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/story"
+          }
         }
       }
     }
@@ -625,6 +649,176 @@
           "items": {
             "$ref": "#/$defs/semanticMapping"
           }
+        }
+      }
+    },
+    "geometry": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "coordinates"
+          ],
+          "properties": {
+            "type": {
+              "const": "Point"
+            },
+            "coordinates": {
+              "type": "array",
+              "minItems": 2,
+              "items": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "coordinates"
+          ],
+          "properties": {
+            "type": {
+              "enum": [
+                "LineString",
+                "MultiLineString",
+                "Polygon",
+                "MultiPolygon"
+              ]
+            },
+            "coordinates": {
+              "type": "array"
+            }
+          }
+        }
+      ]
+    },
+    "place": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "geometry",
+        "sourceIds",
+        "attributes"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "name": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "geometry": {
+          "$ref": "#/$defs/geometry"
+        },
+        "geographicIdentifier": {
+          "type": "string"
+        },
+        "address": {
+          "type": "string"
+        },
+        "sourceIds": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "attributes": {
+          "$ref": "#/$defs/attributes"
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "title",
+        "attributes"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "kind": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "title": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "sourceName": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        },
+        "publishedAt": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "attributes": {
+          "$ref": "#/$defs/attributes"
+        }
+      }
+    },
+    "category": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "attributes"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "name": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "color": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$"
+        },
+        "attributes": {
+          "$ref": "#/$defs/attributes"
+        }
+      }
+    },
+    "story": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "title",
+        "occurrenceIds",
+        "placeIds",
+        "attributes"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "title": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "description": {
+          "type": "string"
+        },
+        "occurrenceIds": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "placeIds": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "attributes": {
+          "$ref": "#/$defs/attributes"
         }
       }
     }
