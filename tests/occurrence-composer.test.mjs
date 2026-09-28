@@ -10,6 +10,7 @@ import {
   worldContextFromCamera,
 } from "../site/occurrence-composer-context.ts";
 import {
+  composerCursorSection,
   occurrenceComposerSuggestions,
   parseOccurrenceSentence,
   replaceComposerTail,
@@ -50,6 +51,215 @@ test("quoted endpoint names and ranges remain deterministic", () => {
     start: "2026-09-26T14:00Z",
     end: "2026-09-26T14:30Z",
   });
+});
+
+test("composer identifies the grammatical section under the caret", () => {
+  const sentence =
+    'Alice meets "The Wolf" at "Deep Forest" on 2026-09-28 [category: Conflict]';
+
+  assert.equal(composerCursorSection(sentence, sentence.indexOf("Alice") + 2).kind, "subject");
+  assert.equal(composerCursorSection(sentence, sentence.indexOf("meets") + 2).kind, "predicate");
+  assert.equal(composerCursorSection(sentence, sentence.indexOf("The Wolf") + 3).kind, "object");
+  assert.equal(composerCursorSection(sentence, sentence.indexOf("Deep Forest") + 3).kind, "place");
+  assert.equal(composerCursorSection(sentence, sentence.indexOf("2026-09-28") + 2).kind, "time");
+  assert.equal(composerCursorSection(sentence, sentence.indexOf("[category") + 2).kind, "options");
+});
+
+test("composer stays on the current grammatical token until whitespace advances it", () => {
+  const baseOptions = {
+    entities: [
+      { id: "alice", name: "Alice", type: "person", icon: "person" },
+      { id: "bob", name: "Bob", type: "person", icon: "person" },
+    ],
+    places: [{ id: "deep-forest", name: "Deep Forest", icon: "forest" }],
+    categories: [{ id: "observation", name: "Observation" }],
+    timelineDefault: "2026-09-28T10:00:00Z",
+  };
+
+  const subject = occurrenceComposerSuggestions("A", {
+    ...baseOptions,
+    cursorOffset: 1,
+  });
+  assert.equal(subject[0]?.kind, "entity");
+  assert.equal(subject[0]?.label, "Alice");
+
+  const predicate = occurrenceComposerSuggestions("Alice m", {
+    ...baseOptions,
+    cursorOffset: "Alice m".length,
+  });
+  assert.equal(predicate[0]?.kind, "predicate");
+  assert.equal(predicate[0]?.label, "meets");
+
+  const object = occurrenceComposerSuggestions("Alice meets B", {
+    ...baseOptions,
+    cursorOffset: "Alice meets B".length,
+  });
+  assert.equal(object[0]?.kind, "entity");
+  assert.equal(object[0]?.label, "Bob");
+
+  const objectAdvanced = occurrenceComposerSuggestions("Alice meets Bob ", {
+    ...baseOptions,
+    cursorOffset: "Alice meets Bob ".length,
+  });
+  assert.equal(
+    objectAdvanced.some((suggestion) => suggestion.detail?.startsWith("nearest object")),
+    false,
+  );
+  assert.ok(objectAdvanced.some((suggestion) => suggestion.kind === "place"));
+
+  const placeText = 'Alice meets Bob at "Deep Forest"';
+  const place = occurrenceComposerSuggestions(placeText, {
+    ...baseOptions,
+    cursorOffset: placeText.length,
+  });
+  assert.equal(place[0]?.kind, "place");
+  assert.equal(place[0]?.label, "Deep Forest");
+
+  const placeAdvancedText = `${placeText} `;
+  const placeAdvanced = occurrenceComposerSuggestions(placeAdvancedText, {
+    ...baseOptions,
+    cursorOffset: placeAdvancedText.length,
+  });
+  assert.equal(placeAdvanced.some((suggestion) => suggestion.detail === "nearest place"), false);
+  assert.ok(placeAdvanced.some((suggestion) => suggestion.kind === "time"));
+});
+
+test("single object character does not advance into occurrence context", () => {
+  const input = "Alice meets B";
+  assert.equal(composerCursorSection(input, input.length).kind, "object");
+
+  const suggestions = occurrenceComposerSuggestions(input, {
+    entities: [{ id: "bob", name: "Bob", type: "person", icon: "person" }],
+    places: [{ id: "stockholm", name: "Stockholm", icon: "place" }],
+    categories: [{ id: "observation", name: "Observation" }],
+    timelineDefault: "2026-09-28T10:00:00Z",
+    cursorOffset: input.length,
+  });
+
+  assert.equal(suggestions[0]?.kind, "entity");
+  assert.equal(suggestions[0]?.label, "Bob");
+  assert.equal(suggestions.some((suggestion) => suggestion.kind === "time"), false);
+});
+
+test("caret-local entity suggestions rank nearest canonical matches and show their icons", () => {
+  const sentence = "Alic meets Bob";
+  const suggestions = occurrenceComposerSuggestions(sentence, {
+    entities: [
+      { id: "wolf", name: "The Wolf", type: "person", icon: "wolf" },
+      { id: "alice", name: "Alice", type: "person", icon: "person" },
+      { id: "alicia", name: "Alicia", type: "person", icon: "person" },
+    ],
+    places: [],
+    categories: [],
+    cursorOffset: 2,
+  });
+
+  assert.equal(suggestions[0]?.label, "Alice");
+  assert.equal(suggestions[0]?.icon, "person");
+  assert.deepEqual(suggestions[0]?.replaceRange, { start: 0, end: 4 });
+});
+
+test("caret-local action suggestions rank typo-nearest actions and carry semantic glyphs", () => {
+  const sentence = "Alice attaks Bob";
+  const cursorOffset = sentence.indexOf("attaks") + 3;
+  const suggestions = occurrenceComposerSuggestions(sentence, {
+    entities: [],
+    places: [],
+    categories: [],
+    cursorOffset,
+  });
+
+  assert.equal(suggestions[0]?.label, "attacks");
+  assert.equal(suggestions[0]?.icon, "danger");
+  assert.equal(suggestions[0]?.kind, "predicate");
+});
+
+test("caret-local action suggestions include project predicates and infer their glyph family", () => {
+  const sentence = "Alice confrnts Bob";
+  const cursorOffset = sentence.indexOf("confrnts") + 4;
+  const suggestions = occurrenceComposerSuggestions(sentence, {
+    entities: [],
+    places: [],
+    categories: [],
+    predicates: ["confronts", "reunitesWith"],
+    cursorOffset,
+  });
+
+  assert.equal(suggestions[0]?.label, "confronts");
+  assert.equal(suggestions[0]?.icon, "danger");
+});
+
+test("caret-local place suggestions show canonical and inferred place iconography", () => {
+  const sentence = 'Alice visits Bob at "Deep Forst" on 2026-09-28';
+  const cursorOffset = sentence.indexOf("Deep Forst") + 4;
+  const suggestions = occurrenceComposerSuggestions(sentence, {
+    entities: [],
+    places: [
+      { id: "deep-forest", name: "Deep Forest", icon: "forest" },
+      { id: "market-road", name: "Market Road", icon: "road" },
+    ],
+    categories: [],
+    cursorOffset,
+  });
+
+  assert.equal(suggestions[0]?.label, "Deep Forest");
+  assert.equal(suggestions[0]?.icon, "forest");
+  assert.equal(suggestions[0]?.kind, "place");
+});
+
+test("new semantic entity and place text exposes an icon suggestion at the caret", () => {
+  const entitySuggestions = occurrenceComposerSuggestions("Wolf meets Bob", {
+    entities: [],
+    places: [],
+    categories: [],
+    cursorOffset: 2,
+  });
+  assert.equal(entitySuggestions[0]?.icon, "wolf");
+  assert.match(entitySuggestions[0]?.detail ?? "", /suggested wolf icon/);
+  assert.match(entitySuggestions[0]?.insertText ?? "", /icon: wolf/);
+
+  const placeSentence = 'Alice visits Bob at "Old Well"';
+  const placeSuggestions = occurrenceComposerSuggestions(placeSentence, {
+    entities: [],
+    places: [],
+    categories: [],
+    cursorOffset: placeSentence.indexOf("Old Well") + 2,
+  });
+  assert.equal(placeSuggestions[0]?.icon, "well");
+  assert.match(placeSuggestions[0]?.detail ?? "", /suggested well icon/);
+});
+
+test("complete sentence tail keeps contextual suggestions after an explicit separator", () => {
+  const sentence = "Alice meets Bob ";
+  const suggestions = occurrenceComposerSuggestions(sentence, {
+    entities: [
+      { id: "bob", name: "Bob", type: "person", icon: "person" },
+    ],
+    places: [{ id: "stockholm", name: "Stockholm", icon: "place" }],
+    categories: [{ id: "observation", name: "Observation" }],
+    timelineDefault: "2026-09-28T10:00:00Z",
+    locationDefault: "World center",
+    cursorOffset: sentence.length,
+  });
+
+  assert.ok(suggestions.some((suggestion) => suggestion.kind === "place"));
+  assert.ok(suggestions.some((suggestion) => suggestion.kind === "time"));
+  assert.equal(suggestions.some((suggestion) => suggestion.detail?.startsWith("nearest object")), false);
+});
+
+test("caret over the time section suggests the live timeline center with iconography", () => {
+  const sentence = "Alice meets Bob on 2026-09-27";
+  const suggestions = occurrenceComposerSuggestions(sentence, {
+    entities: [],
+    places: [],
+    categories: [],
+    timelineDefault: "2026-09-28T10:00:00Z",
+    cursorOffset: sentence.indexOf("2026-09-27") + 3,
+  });
+
+  assert.equal(suggestions[0]?.kind, "time");
+  assert.equal(suggestions[0]?.icon, "milestone");
+  assert.equal(suggestions[0]?.insertText, "2026-09-28T10:00:00Z");
 });
 
 test("composer exposes cursor-local entity properties before generic entity completion", () => {
@@ -112,6 +322,25 @@ test("composer renders semantic glyphs beside entity completions", async () => {
   );
   assert.match(source, /iconPathData\(suggestion\.icon\)/);
   assert.match(source, /class="option-icon"/);
+});
+
+test("cursor-local ambiguous matches still replace with canonical IDs", () => {
+  const sentence = "Alice meets Bob";
+  const suggestions = occurrenceComposerSuggestions(sentence, {
+    entities: [
+      { id: "alice-a", name: "Alice", type: "person", icon: "person" },
+      { id: "alice-b", name: "Alice", type: "person", icon: "person" },
+      { id: "bob", name: "Bob", type: "person", icon: "person" },
+    ],
+    places: [],
+    categories: [],
+    cursorOffset: 2,
+  });
+
+  assert.deepEqual(
+    suggestions.slice(0, 2).map((suggestion) => suggestion.insertText),
+    ["@alice-a", "@alice-b"],
+  );
 });
 
 test("ambiguous entity names complete by canonical ID", () => {
@@ -230,6 +459,12 @@ test("Lit composer is a touch-safe ARIA combobox with live-context guidance", as
   assert.match(source, /setTimelineViewport/);
   assert.match(source, /setWorldContext/);
   assert.match(source, /placeholder=\$\{\`Who did what to whom · at/);
+  assert.match(source, /private cursorOffset = 0/);
+  assert.match(source, /selectionStart/);
+  assert.match(source, /@focus=\$\{\(event: Event\) => this\.onCaretMove\(event\)\}/);
+  assert.match(source, /@click=\$\{\(event: Event\) => this\.onCaretMove\(event\)\}/);
+  assert.match(source, /@keyup=\$\{\(event: Event\) => this\.onCaretMove\(event\)\}/);
+  assert.match(source, /replaceRange/);
   assert.match(source, /class="context-row"/);
   assert.match(source, /data-context-state=\$\{placePinned \? "pinned" : "live"\}/);
   assert.match(source, /data-context-state=\$\{timePinned \? "pinned" : "live"\}/);
@@ -278,6 +513,11 @@ test("application keeps timeline and World live while composer uses their center
     /setOccurrenceComposerOpen[\s\S]*temporalGraphView\?\.getCamera\?\.\(\)[\s\S]*setWorldContext/,
   );
   assert.match(source, /occurrenceComposer\.beginSession\(\)/);
+  assert.match(source, /predicates:\s*\[\.\.\.new Set\(state\.relationships\.map/);
+  assert.match(
+    source,
+    /createPointPlace:[\s\S]*suggestSemanticIconForPlace\(\{ name \}\)\?\.icon \?\? "place"/,
+  );
   assert.match(source, /function syncComposerVisualViewport\(\)/);
   assert.match(source, /visualViewport\?\.addEventListener\("resize", syncComposerVisualViewport\)/);
   assert.match(source, /dataset\.composerOpen = String\(composerActive\)/);
