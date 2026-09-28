@@ -3,46 +3,48 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 test("composer investigation mode reuses qualifier parser and investigative projection", async () => {
-  const source = await readFile(
-    new URL("../site/components/occurrence-composer.ts", import.meta.url),
-    "utf8",
-  );
+  const [composer, panel] = await Promise.all([
+    readFile(new URL("../site/components/occurrence-composer.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/components/occurrence-investigation.ts", import.meta.url), "utf8"),
+  ]);
 
-  assert.match(source, /interpretInvestigativeQualifier/);
-  assert.match(source, /projectInvestigativeCandidateMatrix/);
-  assert.match(source, /investigation-panel/);
-  assert.match(source, /investigation-qualifier/);
-  assert.match(source, /investigation-interpretation/);
-  assert.match(source, /investigation-candidate/);
-  assert.match(source, /consistent/);
-  assert.match(source, /contradicts/);
-  assert.match(source, /unknown/);
-  assert.doesNotMatch(source, /investigation[^\n]{0,80}(score|winner|probability)/i);
+  assert.match(composer, /luum-occurrence-investigation/);
+  assert.match(panel, /interpretInvestigativeQualifier/);
+  assert.match(panel, /projectInvestigativeCandidateMatrix/);
+  assert.match(panel, /investigation-panel/);
+  assert.match(panel, /investigation-qualifier/);
+  assert.match(panel, /investigation-interpretation/);
+  assert.match(panel, /investigation-candidate/);
+  assert.match(panel, /consistent/);
+  assert.match(panel, /contradicts/);
+  assert.match(panel, /unknown/);
+  assert.doesNotMatch(panel, /investigation[^\n]{0,80}(score|winner|probability)/i);
 });
 
 test("investigative qualifier chips select their exact source spans", async () => {
-  const source = await readFile(
-    new URL("../site/components/occurrence-composer.ts", import.meta.url),
-    "utf8",
-  );
+  const [composer, panel] = await Promise.all([
+    readFile(new URL("../site/components/occurrence-composer.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/components/occurrence-investigation.ts", import.meta.url), "utf8"),
+  ]);
 
-  assert.match(source, /selectInvestigativeQualifier/);
-  assert.match(source, /setSelectionRange\(qualifier\.start, qualifier\.end\)/);
-  assert.match(source, /data-investigative-qualifier-id/);
+  assert.match(composer, /selectInvestigativeQualifier/);
+  assert.match(composer, /setSelectionRange\(start, end\)/);
+  assert.match(panel, /data-investigative-qualifier-id/);
+  assert.match(panel, /investigativequalifierselect/);
 });
 
 test("methodology actions leave persistence to the application reasoning path", async () => {
-  const [composer, app] = await Promise.all([
-    readFile(new URL("../site/components/occurrence-composer.ts", import.meta.url), "utf8"),
+  const [panel, app] = await Promise.all([
+    readFile(new URL("../site/components/occurrence-investigation.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
   ]);
 
-  assert.match(composer, /occurrenceinvestigationaction/);
-  assert.match(composer, /buildQuestionDraft/);
-  assert.match(composer, /buildIdentityHypothesisDrafts/);
-  assert.match(composer, /buildLineOfEnquiryDraft/);
-  assert.match(composer, /buildDisconfirmationEnquiryDraft/);
-  assert.match(composer, /buildInformationReviewDraft/);
+  assert.match(panel, /occurrenceinvestigationaction/);
+  assert.match(panel, /buildQuestionDraft/);
+  assert.match(panel, /buildIdentityHypothesisDrafts/);
+  assert.match(panel, /buildLineOfEnquiryDraft/);
+  assert.match(panel, /buildDisconfirmationEnquiryDraft/);
+  assert.match(panel, /buildInformationReviewDraft/);
   assert.match(app, /occurrenceinvestigationaction/);
   assert.match(app, /applyInvestigationReasoning/);
   assert.match(app, /caseReasoning\.validateReasoning/);
