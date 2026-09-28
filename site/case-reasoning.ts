@@ -649,6 +649,21 @@ function evidenceReferenceIds(record: Record<string, any> | undefined): readonly
   );
 }
 
+function expandedEvidenceReferenceIds(
+  record: Record<string, any> | undefined,
+  recordsById: ReadonlyMap<string, Record<string, any>>,
+): readonly string[] {
+  const direct = evidenceReferenceIds(record);
+  return Object.freeze(
+    [
+      ...new Set([
+        ...direct,
+        ...direct.flatMap((id) => evidenceReferenceIds(recordsById.get(id))),
+      ]),
+    ].sort(),
+  );
+}
+
 export function competingHypothesisMatrix(reasoning: any, alternativeGroupId: unknown) {
   const normalized = normalizeReasoning(reasoning);
   const groupId = text(alternativeGroupId, 160);
@@ -695,7 +710,7 @@ export function identityCandidateEvidenceAssessments(
   reasoning: any,
 ): readonly IdentityCandidateEvidenceAssessment[] {
   const normalized = normalizeReasoning(reasoning);
-  const evidenceById = new Map(
+  const evidenceById = new Map<string, Record<string, any>>(
     [...normalized.observations, ...normalized.assertions, ...normalized.citations].map(
       (record: Record<string, any>) => [record.id, record],
     ),
@@ -737,7 +752,7 @@ export function identityCandidateEvidenceAssessments(
     const recordIds = [
       ...new Set(
         evidence.flatMap(({ row, cell }: any) => [
-          ...evidenceReferenceIds(evidenceById.get(row.evidenceId)),
+          ...expandedEvidenceReferenceIds(evidenceById.get(row.evidenceId), evidenceById),
           ...(cell.edgeIds ?? []),
         ]),
       ),
