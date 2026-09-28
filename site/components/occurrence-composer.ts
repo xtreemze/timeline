@@ -647,6 +647,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.selectionContext = nextContext;
     if (previousKey !== nextKey) {
       this.resetDraft();
+    } else if (!dirtyDraft) {
+      this.resetMetadataFromSelection();
     }
     this.applySelectionSeed();
     this.requestUpdate();
