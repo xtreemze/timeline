@@ -757,6 +757,7 @@ export function occurrenceComposerSuggestions(
     readonly entities: readonly ComposerEntityOption[];
     readonly places: readonly ComposerPlaceOption[];
     readonly categories: readonly ComposerCategoryOption[];
+    readonly tags?: readonly string[];
     readonly timelineDefault?: string | null;
     readonly locationDefault?: string | null;
     readonly preferredEntityIds?: readonly string[];
@@ -790,15 +791,76 @@ export function occurrenceComposerSuggestions(
   }
 
   if (/\[[^\]]*$/.test(prefix)) {
-    const categorySuggestions = options.categories.slice(0, 10).map((category) => ({
+    const open = prefix.lastIndexOf("[");
+    const fragment = prefix.slice(open + 1);
+    const segment = fragment.split(",").at(-1)?.trim() ?? "";
+    const separator = segment.indexOf(":");
+    const optionKey =
+      separator >= 0 ? segment.slice(0, separator).trim().toLocaleLowerCase() : "";
+    const optionValue = separator >= 0 ? segment.slice(separator + 1).trim() : segment;
+
+    if (optionKey === "tags") {
+      const pipe = optionValue.lastIndexOf("|");
+      const retained = pipe >= 0 ? optionValue.slice(0, pipe + 1) : "";
+      const query = pipe >= 0 ? optionValue.slice(pipe + 1).trim() : optionValue;
+      const selectedTags = new Set(
+        retained
+          .split("|")
+          .map((tag) => tag.trim())
+          .filter(Boolean),
+      );
+      return Object.freeze(
+        (options.tags ?? [])
+          .filter((tag) => !selectedTags.has(tag))
+          .map((tag) => ({ tag, score: nearestMatchScore(query, [tag]) }))
+          .sort((left, right) => left.score - right.score || left.tag.localeCompare(right.tag))
+          .slice(0, 7)
+          .map(({ tag }) => ({
+            kind: "tag" as const,
+            label: tag,
+            detail: "existing tag",
+            insertText: `tags: ${retained}${tag}`,
+          })),
+      );
+    }
+
+    if (optionKey === "category") {
+      return Object.freeze(
+        options.categories
+          .map((category) => ({
+            category,
+            score: nearestMatchScore(optionValue, [category.name, category.id]),
+          }))
+          .sort(
+            (left, right) =>
+              left.score - right.score || left.category.name.localeCompare(right.category.name),
+          )
+          .slice(0, 7)
+          .map(({ category }) => ({
+            kind: "category" as const,
+            label: category.name,
+            detail: "existing category",
+            insertText: `category: ${quoteComposerName(category.name)}`,
+          })),
+      );
+    }
+
+    const categorySuggestions = options.categories.slice(0, 6).map((category) => ({
       kind: "category" as const,
       label: category.name,
-      detail: "category",
+      detail: "existing category",
       insertText: `category: ${quoteComposerName(category.name)}`,
+    }));
+    const tagSuggestions = (options.tags ?? []).slice(0, 4).map((tag) => ({
+      kind: "tag" as const,
+      label: tag,
+      detail: "existing tag",
+      insertText: `tags: ${tag}`,
     }));
     return uniqueSuggestions([
       ...categorySuggestions,
-      { kind: "tag", label: "tags", detail: "separate tags with |", insertText: "tags: " },
+      ...tagSuggestions,
+      { kind: "tag", label: "new tag", detail: "separate tags with |", insertText: "tags: " },
     ]);
   }
 
@@ -921,7 +983,40 @@ export function occurrenceComposerSuggestions(
       })),
     );
   }
+  if (parsed.options.tags.length === 0) {
+    contextSuggestions.push(
+      ...(options.tags ?? []).slice(0, 4).map((tag) => ({
+        kind: "tag" as const,
+        label: tag,
+        detail: "existing tag",
+        insertText: `[tags: ${tag}]`,
+      })),
+    );
+  }
   return uniqueSuggestions(contextSuggestions);
+}
+
+export function composerCompletionSuffix(
+  input: string,
+  suggestion: ComposerSuggestion | null | undefined,
+): string {
+  if (!suggestion) return "";
+  const trimmed = input.trimEnd();
+  const inputParts = trimmed.split(/\s+/);
+  for (const candidate of [suggestion.label, suggestion.insertText]) {
+    const candidateLower = candidate.toLocaleLowerCase();
+    for (let start = 0; start < inputParts.length; start += 1) {
+      const fragment = inputParts
+        .slice(start)
+        .join(" ")
+        .replace(/^[@"'([]+/, "");
+      if (!fragment) continue;
+      if (candidateLower.startsWith(fragment.toLocaleLowerCase())) {
+        return candidate.slice(fragment.length);
+      }
+    }
+  }
+  return "";
 }
 
 export function replaceComposerTail(input: string, insertText: string, stage: OccurrenceComposerStage): string {
