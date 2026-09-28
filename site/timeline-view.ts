@@ -9,7 +9,7 @@
 import type { ApplicationSelection } from "../src/application/selection.ts";
 import { projectTimelineSelection } from "../src/application/timeline-selection.ts";
 import { surfacePointerMayStartDirectManipulation } from "../src/interaction/surface-input-policy.ts";
-import { createCompoundIcon, TimelinePresentation } from "./event-presentation.ts";
+import { TimelinePresentation } from "./event-presentation.ts";
 import { TimelineScale } from "./time-scale.ts";
 import {
   geometryMeasurementKey,
@@ -3434,8 +3434,8 @@ export class TimelineViewController {
       this.orientationToggle.setAttribute("aria-label", label);
       this.orientationToggle.title = label;
       this.orientationToggle.dataset.semanticIcon = targetOrientationIcon;
-      this.orientationToggle.dataset.semanticIconSecondary = "timeline";
-      const icon = createCompoundIcon(targetOrientationIcon, "timeline", { size: 22 });
+      delete this.orientationToggle.dataset.semanticIconSecondary;
+      const icon = presentation.createIcon(targetOrientationIcon, { size: 22 });
       const currentIcon = this.orientationToggle.querySelector(":scope > .semantic-icon");
       if (currentIcon) currentIcon.replaceWith(icon);
       else this.orientationToggle.prepend(icon);
