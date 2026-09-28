@@ -884,11 +884,42 @@ export class LuumOccurrenceComposerElement extends LitElement {
         ? composerCompletionSuffix(this.value, activeSuggestion)
         : "";
     const diagnostic = this.externalError || parsed.diagnostics[0] || "";
-    const subjectLabel = this.selectedSubjectLabel();
+    const editableSections = composerEditableSections(this.value);
+    const sectionFor = (
+      kind: ComposerEditableSection["kind"],
+      index = 0,
+    ): ComposerEditableSection | undefined =>
+      editableSections.filter((section) => section.kind === kind)[index];
+    const subjectSection = sectionFor("subject");
+    const predicateSection = sectionFor("predicate");
+    const objectSection = sectionFor("object");
+    const placeSection = sectionFor("place");
+    const timeSection = sectionFor("time");
+    const categorySection = sectionFor("category");
+    const subjectLabel = parsed.subject?.name ?? this.selectedSubjectLabel();
     const placePinned = Boolean(parsed.place || this.selectionContext?.place);
     const timePinned = Boolean(parsed.time);
     const categoryLabel = parsed.options.category ?? null;
     const tagLabels = parsed.options.tags;
+    const editableChip = (
+      label: string,
+      value: string | null | undefined,
+      section: ComposerEditableSection | undefined,
+    ) =>
+      value && section
+        ? html`<button
+            class="context-chip"
+            type="button"
+            data-context-kind=${section.kind}
+            data-context-state=${this.sectionIsActive(section) ? "editing" : "pinned"}
+            aria-label=${`Edit ${label}: ${value}`}
+            title=${`Select the ${label.toLocaleLowerCase()} text for editing`}
+            @click=${() => this.editSentenceSection(section)}
+          >
+            <span>${label}</span><strong>${value}</strong
+            ><span class="context-state">${this.sectionIsActive(section) ? "editing" : "edit"}</span>
+          </button>`
+        : nothing;
 
     return html`
       <section class="composer" aria-label="Occurrence composer">
@@ -945,36 +976,32 @@ export class LuumOccurrenceComposerElement extends LitElement {
                 </button>`
               : nothing
             }
-            ${
-              subjectLabel
-                ? html`<span class="context-chip" data-context-kind="subject" data-context-state="pinned">
-                  <span>Subject</span><strong>${subjectLabel}</strong><span class="context-state">pinned</span>
-                </span>`
-                : nothing
-            }
-            <span
-              class="context-chip"
-              data-context-kind="place"
-              data-context-state=${placePinned ? "pinned" : "live"}
-            >
-              <span>Place</span><strong>${placeLabel}</strong><span class="context-state">${placePinned ? "pinned" : "live"}</span>
-            </span>
-            <span
-              class="context-chip"
-              data-context-kind="time"
-              data-context-state=${timePinned ? "pinned" : "live"}
-            >
-              <span>Time</span><strong>${timeLabel ?? "timeline center"}</strong><span class="context-state">${timePinned ? "pinned" : "live"}</span>
-            </span>
-            ${categoryLabel
-              ? html`<span class="context-chip" data-context-kind="category" data-context-state="pinned">
-                  <span>Category</span><strong>${categoryLabel}</strong>
-                </span>`
-              : nothing}
-            ${tagLabels.map(
-              (tag) => html`<span class="context-chip" data-context-kind="tag" data-context-state="pinned">
-                <span>Tag</span><strong>${tag}</strong>
-              </span>`,
+            ${editableChip("Subject", subjectLabel, subjectSection)}
+            ${editableChip("Action", parsed.predicate, predicateSection)}
+            ${editableChip("Object", parsed.object?.name, objectSection)}
+            ${placeSection
+              ? editableChip("Place", parsed.place?.name ?? placeLabel, placeSection)
+              : html`<span
+                  class="context-chip"
+                  data-context-kind="place"
+                  data-context-state=${placePinned ? "pinned" : "live"}
+                >
+                  <span>Place</span><strong>${placeLabel}</strong
+                  ><span class="context-state">${placePinned ? "context" : "live"}</span>
+                </span>`}
+            ${timeSection
+              ? editableChip("Time", timeLabel ?? "timeline center", timeSection)
+              : html`<span
+                  class="context-chip"
+                  data-context-kind="time"
+                  data-context-state=${timePinned ? "pinned" : "live"}
+                >
+                  <span>Time</span><strong>${timeLabel ?? "timeline center"}</strong
+                  ><span class="context-state">${timePinned ? "context" : "live"}</span>
+                </span>`}
+            ${editableChip("Category", categoryLabel, categorySection)}
+            ${tagLabels.map((tag, index) =>
+              editableChip("Tag", tag, sectionFor("tag", index)),
             )}
           </div>
           ${
@@ -1023,7 +1050,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
         <p id="occurrence-composer-help" class="help">
           Arrow keys navigate suggestions · Enter accepts the active suggestion or commits ·
-          Tab moves focus · Esc closes. Quote multi-word entity names.
+          Tab moves focus · Esc closes. Activate a semantic chip to select exactly that sentence
+          section, then type or choose a suggestion. Quote multi-word entity names.
           Defaults follow ${placeLabel} and ${timeLabel ?? "the timeline center"} until explicitly pinned.
           Move the timeline or World while this is open to change unpinned defaults.
           A changed graph selection never replaces a modified draft until its context action is chosen.
