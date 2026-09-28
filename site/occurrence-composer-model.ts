@@ -1,3 +1,5 @@
+import { SEMANTIC_ICON_NAMES } from "../src/presentation/semantic-icons.ts";
+
 export type OccurrenceComposerStage =
   | "subject"
   | "predicate"
@@ -83,17 +85,18 @@ const ACTION_SUGGESTIONS = Object.freeze([
   "transfers",
 ]);
 
+const PRIMARY_ENTITY_ICONS = Object.freeze(["person", "group", "object", "evidence"] as const);
+const ENTITY_ICON_PROPERTY_SUGGESTIONS = Object.freeze(
+  SEMANTIC_ICON_NAMES.map((icon) => `icon: ${icon}`),
+);
 const ENTITY_PROPERTY_SUGGESTIONS = Object.freeze([
   "type: person",
   "type: organization",
   "type: group",
   "type: document",
   "type: object",
-  "icon: user",
-  "icon: building",
-  "icon: document",
+  ...PRIMARY_ENTITY_ICONS.map((icon) => `icon: ${icon}`),
   "color: #667085",
-  "style: default",
 ]);
 
 function unquote(value: string): string {
@@ -338,15 +341,19 @@ export function occurrenceComposerSuggestions(
   const token = currentToken(input);
 
   if (/\([^)]*$/.test(input)) {
+    const iconValueActive = /(?:^|[,([])\s*icon\s*:\s*[^,)]*$/i.test(input);
+    const properties = iconValueActive
+      ? ENTITY_ICON_PROPERTY_SUGGESTIONS
+      : ENTITY_PROPERTY_SUGGESTIONS;
     return Object.freeze(
-      ENTITY_PROPERTY_SUGGESTIONS.filter(
-        (property) => !token || property.toLocaleLowerCase().includes(token),
-      ).map((property) => ({
-        kind: "property" as const,
-        label: property,
-        detail: "entity property",
-        insertText: property,
-      })),
+      properties
+        .filter((property) => !token || property.toLocaleLowerCase().includes(token))
+        .map((property) => ({
+          kind: "property" as const,
+          label: property,
+          detail: iconValueActive ? "semantic icon" : "entity property",
+          insertText: property,
+        })),
     );
   }
 
