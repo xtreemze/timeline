@@ -223,7 +223,7 @@ test.describe("Mobile-first Timeline layout contracts", () => {
       }
 
       const visibleFooterButtons = dock.locator(
-        ":scope > .app-footer-actions > button:visible, :scope > .app-footer-view button:visible, :scope > .app-footer-timeline > button:visible",
+        ":scope > .app-footer-actions > button:visible, :scope > .app-footer-view button:visible",
       );
       const visibleFooterButtonCount = await visibleFooterButtons.count();
       expect(visibleFooterButtonCount).toBeGreaterThanOrEqual(8);
@@ -351,7 +351,7 @@ test.describe("Mobile-first Timeline layout contracts", () => {
 
     await expect(actions.locator(":scope > .app-tool")).toHaveCount(3);
     await expect(dock.locator("#timeline-view-controls-toggle")).toHaveCount(0);
-    await expect(dock.locator(".app-footer-timeline")).toBeHidden();
+    await expect(dock.locator(".app-footer-timeline")).toHaveCount(0);
     await expect(view).toBeVisible();
     await expect(view.locator(".world-camera-controls")).toBeVisible();
     await expect(view.locator("#timeline-view-toolbar")).toBeVisible();
@@ -455,6 +455,7 @@ test.describe("Mobile-first Timeline layout contracts", () => {
     const viewControls = toolDock.locator("#timeline-view-controls");
 
     await expect(toolDock.locator("#occurrence-composer-toggle")).toHaveCount(0);
+    await expect(toolDock.locator("#occurrence-composer .compact")).toBeVisible();
     await editorButton.click();
     await expect(page.locator("#control-panel")).toBeVisible();
     await expect(page.locator("#app-shell")).toHaveAttribute("data-mode", "edit");
@@ -602,35 +603,35 @@ test.describe("Persistent footer and focus geometry", () => {
       await expect(page.locator("#app-shell")).toHaveClass(/is-event-focused/);
       await expect(page.locator("#timeline-focus-view")).toBeVisible();
 
-      const focusedTimelineZone = page.locator(".app-footer-timeline");
-      await expect(focusedTimelineZone).toBeVisible();
-      await expect(focusedTimelineZone.locator("#timeline-focus-prev")).toBeVisible();
-      await expect(focusedTimelineZone.locator("#timeline-focus-next")).toBeVisible();
-      const focusedTimelineZoneBox = await focusedTimelineZone.boundingBox();
-      expect(focusedTimelineZoneBox).not.toBeNull();
-      if (!focusedTimelineZoneBox) {
-        throw new Error("Focused chronology navigation lost its layout bounds.");
-      }
-
-      await expect(page.locator("#timeline-related-zoom")).toBeVisible();
-      await expect(page.locator("#timeline-related-fit")).toBeVisible();
+      const focusActions = page.locator("#timeline-focus-view .timeline-focus-context-actions");
+      await expect(focusActions).toBeVisible();
+      await expect(focusActions.locator("#timeline-focus-prev")).toBeVisible();
+      await expect(focusActions.locator("#timeline-focus-next")).toBeVisible();
+      await expect(focusActions.locator("#timeline-related-zoom")).toBeVisible();
+      await expect(focusActions.locator("#timeline-related-fit")).toBeVisible();
+      await expect(page.locator(".app-footer-bar #timeline-focus-prev")).toHaveCount(0);
+      await expect(page.locator(".app-footer-bar #timeline-related-zoom")).toHaveCount(0);
       await expect(page.locator("#timeline-focus-edit")).toHaveCount(0);
       await expect(page.locator("#editor-toggle")).toHaveAttribute(
         "aria-label",
         "Edit focused event",
       );
 
-      const contextActions = page.locator(
-        ".app-footer-context-actions .timeline-context-action:visible",
-      );
-      const contextActionCount = await contextActions.count();
-      expect(contextActionCount).toBeGreaterThan(0);
+      const contextActionCount = await focusActions.locator(".timeline-focus-context-action").count();
+      expect(contextActionCount).toBe(4);
       for (let index = 0; index < contextActionCount; index += 1) {
-        const actionBox = await contextActions.nth(index).boundingBox();
+        const action = focusActions.locator(".timeline-focus-context-action").nth(index);
+        const [actionBox, iconBox] = await Promise.all([
+          action.boundingBox(),
+          action.locator(":scope > .semantic-icon").boundingBox(),
+        ]);
         expect(actionBox).not.toBeNull();
-        if (!actionBox) throw new Error("Focused event action has no bounds.");
-        expect(actionBox.width).toBeGreaterThanOrEqual(44);
-        expect(actionBox.height).toBeGreaterThanOrEqual(44);
+        expect(iconBox).not.toBeNull();
+        if (!actionBox || !iconBox) throw new Error("Focused event action has no bounds.");
+        expect(Math.abs(actionBox.width - 44)).toBeLessThanOrEqual(1);
+        expect(Math.abs(actionBox.height - 44)).toBeLessThanOrEqual(1);
+        expect(Math.abs(iconBox.width - 20)).toBeLessThanOrEqual(1);
+        expect(Math.abs(iconBox.height - 20)).toBeLessThanOrEqual(1);
       }
 
       const afterTimeline = await timeline.boundingBox();
