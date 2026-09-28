@@ -915,7 +915,7 @@ export function extendSampleCase(sample) {
   );
 
   patchRelationship(sample, "rel-pigs-wolf-threat", {
-    time: temporalInterval("0976-04-20T08:00Z", "0976-04-30T08:00Z"),
+    time: temporalInterval("1000-04-20T08:00Z", "1000-04-30T08:00Z"),
     placeId: "place-three-little-pigs-pursuit-corridor",
     itemIds: ["pigs-wolf-straw", "pigs-brick-siege", "pigs-safe"],
   });
