@@ -347,6 +347,11 @@ test.describe("Mobile-first Timeline layout contracts", () => {
     await expect(dagButton).toHaveAttribute("aria-expanded", "true");
     await expect(dagPanel.getByText("Longest path + optimal decross")).toBeVisible();
     await expect(dagPanel.getByText("Simplex + two-layer")).toBeVisible();
+    await expect(dagPanel).toContainText("Sugiyama · layered");
+    await expect(dagPanel).toContainText("Zherebko · linear");
+    await expect(dagPanel).toContainText("Grid · topological");
+    await expect(dagPanel).toContainText("Quadratic");
+    await expect(dagPanel).toContainText("Orthogonal");
     await page.keyboard.press("Escape");
     await expect(dagButton).toHaveAttribute("aria-expanded", "false");
 
@@ -360,8 +365,14 @@ test.describe("Mobile-first Timeline layout contracts", () => {
     await expect(forcePanel).toBeVisible();
     await page.mouse.up();
     await expect(forceButton).toHaveAttribute("aria-expanded", "true");
-    await expect(forcePanel.getByText("Collision strength")).toBeVisible();
-    await expect(forcePanel.getByText("Connectivity clearance")).toBeVisible();
+    await expect(forcePanel).toContainText("Center force");
+    await expect(forcePanel).toContainText("Center strength");
+    await expect(forcePanel).toContainText("Collide force");
+    await expect(forcePanel).toContainText("Collision strength");
+    await expect(forcePanel).toContainText("Connectivity clearance");
+    await expect(forcePanel).toContainText("Link force");
+    await expect(forcePanel).toContainText("Link strength");
+    await expect(forcePanel).toContainText("Link distance ×");
     await expect(forcePanel).toContainText("Collision radius");
     await expect(forcePanel).toContainText("Rendered node + border · fixed");
     await page.keyboard.press("Escape");
