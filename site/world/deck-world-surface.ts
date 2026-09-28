@@ -3117,8 +3117,10 @@ export class DeckWorldSurface implements WorldSurface {
   #touchHoldCommitTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
   #touchTapCandidatePointerId: number | null = null;
   #lastTouchTap: WorldTouchTap | null = null;
+  #lastPointerType: string | null = null;
 
   readonly #handleTouchPointerDown = (event: TouchPointerEvent): void => {
+    if (typeof event.pointerType === "string") this.#lastPointerType = event.pointerType;
     const touch = touchPointer(event);
     if (!touch) return;
 
@@ -3521,7 +3523,7 @@ export class DeckWorldSurface implements WorldSurface {
   // remained tap candidates; Chromium compatibility mouse events from a
   // camera-owned rotate/pan must never be able to focus/zoom on release.
   readonly #handleDoubleClick = (event: DoubleClickEvent): void => {
-    if (doubleClickIsTouchGenerated(event)) return;
+    if (this.#lastPointerType === "touch" || doubleClickIsTouchGenerated(event)) return;
     const point = screenPointFromDoubleClickEvent(event);
     if (!point) return;
     this.#focusAtPoint(point);
