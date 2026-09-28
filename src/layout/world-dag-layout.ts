@@ -1359,7 +1359,12 @@ function runLayoutCandidate(
   }
 
   const styledRoutes = applyEdgeStyle(routes, orientation, edgeStyle);
-  const portRouted = allocateRoutePorts(styledRoutes, targets, layoutSizes, orientation);
+  // "Straight" is an explicit exploratory route mode, so do not reintroduce
+  // port doglegs after collapsing the D3 route to its endpoints.
+  const portRouted =
+    edgeStyle === "straight"
+      ? styledRoutes
+      : allocateRoutePorts(styledRoutes, targets, layoutSizes, orientation);
 
   return scaledCandidate(
     {
