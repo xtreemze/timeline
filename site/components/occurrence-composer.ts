@@ -984,7 +984,10 @@ export class LuumOccurrenceComposerElement extends LitElement {
     | null {
     const confidenceText = this.metadataConfidence.trim();
     const confidence = confidenceText ? Number(confidenceText) : null;
-    if (confidenceText && (!Number.isFinite(confidence) || confidence! < 0 || confidence! > 1)) {
+    if (
+      confidence !== null &&
+      (!Number.isFinite(confidence) || confidence < 0 || confidence > 1)
+    ) {
       this.externalError = "Confidence must be a number from 0 to 1.";
       this.requestUpdate();
       return null;
