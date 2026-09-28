@@ -145,10 +145,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
       inset-inline: 0;
       inset-block-end: calc(100% + 0.38rem);
       display: grid;
-      max-block-size: min(
-        18rem,
-        calc(var(--composer-visual-viewport-height, 100dvh) * 0.42)
-      );
+      max-block-size: min(18rem, var(--composer-completion-max-height, 42dvh));
       overflow: hidden;
       border: 1px solid var(--line-strong, #b8b1a5);
       border-radius: 0.72rem;
