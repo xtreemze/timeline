@@ -83,7 +83,7 @@ function placed(longitude, latitude) {
   });
 }
 
-test("without a caller camera the first placed content fits the camera exactly once", () => {
+test("without a caller camera startup zooms to readable content exactly once", () => {
   const r = runtime();
   const surface = new DeckWorldSurface({ clientWidth: 1000, clientHeight: 600 }, r);
   surface.setProjection(createWorldProjection({ instances: [], edges: [] }));
@@ -92,6 +92,11 @@ test("without a caller camera the first placed content fits the camera exactly o
   surface.setProjection(placed(30, 40));
   assert.equal(surface.getCamera().longitude, 30);
   assert.equal(surface.getCamera().latitude, 40);
+  assert.equal(
+    surface.getCamera().zoom,
+    6,
+    "startup should use the bounded readable content fit instead of the whole-globe overview",
+  );
 
   surface.setProjection(placed(-60, -10));
   assert.equal(surface.getCamera().longitude, 30, "later updates never yank the camera");

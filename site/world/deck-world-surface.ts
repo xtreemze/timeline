@@ -3022,7 +3022,7 @@ export class DeckWorldSurface implements WorldSurface {
   // True while the camera is the automatic content fit and nobody has moved
   // it since; a resize then re-fits (the first fit can run before layout).
   #autoFitted = false;
-  #autoFitMode: "globe" | "content" = "globe";
+  #autoFitMode: "globe" | "content" = "content";
   // Equatorial reference values used only to detect zoom-driven presentation changes.
   // Actual node geometry derives its scale/float from each instance's primary anchor latitude.
   #offsetScale = 1;
@@ -4012,10 +4012,10 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   /**
-   * Automatic framing when the host supplied no camera: the whole globe,
-   * turned so the content faces the viewer. "Fit to content" zooms in.
+   * Automatic framing when the host supplied no camera: start at the readable
+   * content view. Whole-globe framing remains an explicit user command.
    */
-  #autoFitCamera(mode: "globe" | "content" = "globe"): void {
+  #autoFitCamera(mode: "globe" | "content" = "content"): void {
     if (this.#cameraOwned) return;
     // Frame the true geography, not the magnified presentation offsets.
     const positions = this.#projection.instances
