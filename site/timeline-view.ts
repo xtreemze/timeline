@@ -3852,10 +3852,18 @@ export class TimelineViewController {
     focusHost.tabIndex = -1;
     focusHost.style.setProperty("--event-color", item.color || "var(--accent)");
     focusHost.dataset.layout = item.layoutVariant || "evidence-dossier";
-    focusHost.dataset.activeTab = this.focusTab;
     focusHost.setAttribute("aria-labelledby", "timeline-focus-heading");
 
+    const allEvidenceRecords = (item.evidence || []).filter(isRecord);
+    const hasEvidence = allEvidenceRecords.length > 0;
+    if (!hasEvidence && this.focusTab === "evidence") this.focusTab = "overview";
+    focusHost.dataset.activeTab = this.focusTab;
+
     const hero = this.createFocusHero(item);
+
+    const identity = document.createElement("section");
+    identity.className = "timeline-focus-identity";
+    identity.setAttribute("aria-label", "Occurrence identity");
 
     const summary = document.createElement("section");
     summary.id = "timeline-focus-context-panel";
@@ -3864,11 +3872,151 @@ export class TimelineViewController {
     summary.setAttribute("role", "tabpanel");
     summary.setAttribute("aria-labelledby", "timeline-focus-context-tab");
     summary.tabIndex = 0;
+
+    const composition = item.composition?.trim() || "";
+    if (composition) {
+      const compositionRegion = document.createElement("div");
+      compositionRegion.className = "timeline-focus-composition";
+      compositionRegion.setAttribute("aria-label", "Occurrence sentence");
+      const sections = composerEditableSections(composition).sort(
+        (left, right) => left.start - right.start || left.end - right.end,
+      );
+      const sectionCounts = new Map<string, number>();
+      let cursor = 0;
+      for (const section of sections) {
+        if (section.start > cursor) {
+          compositionRegion.append(document.createTextNode(composition.slice(cursor, section.start)));
+        }
+        const sectionIndex = sectionCounts.get(section.kind) ?? 0;
+        sectionCounts.set(section.kind, sectionIndex + 1);
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "timeline-focus-composition-segment";
+        button.dataset.composerSectionKind = section.kind;
+        button.dataset.composerSectionIndex = String(sectionIndex);
+        button.textContent = composition.slice(section.start, section.end);
+        button.setAttribute("aria-label", `Edit ${section.kind}: ${button.textContent}`);
+        button.addEventListener("click", () => {
+          this.root.dispatchEvent(
+            new CustomEvent("timelineoccurrencecomposerrequest", {
+              bubbles: true,
+              detail: {
+                id: item.id,
+                relationshipId: item.relationshipId ?? null,
+                composition,
+                sectionKind: section.kind,
+                sectionIndex,
+                host: focusHost,
+              },
+            }),
+          );
+        });
+        compositionRegion.append(button);
+        cursor = Math.max(cursor, section.end);
+      }
+      if (cursor < composition.length) {
+        compositionRegion.append(document.createTextNode(composition.slice(cursor)));
+      }
+      identity.append(compositionRegion);
+    }
+    identity.hidden = identity.childElementCount === 0;
+
+    const composerHost = document.createElement("div");
+    composerHost.className = "timeline-focus-composer-host";
+    composerHost.dataset.occurrenceComposerHost = "";
+    composerHost.hidden = true;
+
     const description = document.createElement("p");
     description.className = "timeline-focus-description";
-    description.textContent =
-      item.description || "No narrative description has been recorded for this event.";
-    summary.append(description);
+    if (item.description?.trim()) {
+      description.textContent = item.description.trim();
+      summary.append(description);
+    }
+
+    const contextFacts: Array<{ label: string; value: string }> = [];
+    if (item.locationName?.trim()) {
+      contextFacts.push({ label: "Place", value: item.locationName.trim() });
+    }
+    if (item.categoryName?.trim()) {
+      contextFacts.push({ label: "Category", value: item.categoryName.trim() });
+    }
+    const tagLabels = (item.tags || [])
+      .map((tag) => (typeof tag === "string" ? tag : tag?.label || ""))
+      .map((tag) => tag.trim())
+      .filter(Boolean);
+    if (tagLabels.length) contextFacts.push({ label: "Tags", value: tagLabels.join(", ") });
+    const storyNames = (item.storyNames || []).map((name) => name.trim()).filter(Boolean);
+    if (storyNames.length) contextFacts.push({ label: "Stories", value: storyNames.join(", ") });
+    const relationRecords = (item.relations || []).filter(isRecord);
+    const participantNames = [
+      ...new Set(
+        relationRecords
+          .flatMap((record) => [
+            recordString(record, "subjectName"),
+            recordString(record, "objectName"),
+          ])
+          .filter(Boolean),
+      ),
+    ];
+    if (participantNames.length) {
+      contextFacts.push({ label: "Participants", value: participantNames.join(", ") });
+    }
+    if (contextFacts.length) {
+      const facts = document.createElement("dl");
+      facts.className = "timeline-focus-context-facts";
+      for (const fact of contextFacts) {
+        const wrapper = document.createElement("div");
+        const term = document.createElement("dt");
+        term.textContent = fact.label;
+        const detail = document.createElement("dd");
+        detail.textContent = fact.value;
+        wrapper.append(term, detail);
+        facts.append(wrapper);
+      }
+      summary.append(facts);
+    }
+
+    const reasoningRecords = (item.reasoningContext || []).slice(0, 8);
+    if (reasoningRecords.length) {
+      const reasoning = document.createElement("section");
+      reasoning.className = "timeline-focus-reasoning";
+      reasoning.setAttribute("aria-label", "Investigation context");
+      const reasoningHeading = document.createElement("h3");
+      reasoningHeading.textContent = "Investigation";
+      reasoning.append(reasoningHeading);
+      const list = document.createElement("div");
+      list.className = "timeline-focus-reasoning-list";
+      for (const record of reasoningRecords) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "timeline-focus-reasoning-record";
+        button.dataset.reasoningType = record.type || "reasoning";
+        const title = document.createElement("strong");
+        title.textContent = record.text || record.id;
+        const meta = document.createElement("span");
+        meta.textContent = [record.type, record.status].filter(Boolean).join(" · ");
+        button.append(title);
+        if (meta.textContent) button.append(meta);
+        button.addEventListener("click", () => {
+          this.root.dispatchEvent(
+            new CustomEvent("timelinefocusreasoningopen", {
+              bubbles: true,
+              detail: { id: record.id },
+            }),
+          );
+        });
+        list.append(button);
+      }
+      reasoning.append(list);
+      summary.append(reasoning);
+    }
+
+    if (!summary.childElementCount) {
+      const empty = document.createElement("p");
+      empty.className = "timeline-focus-muted";
+      empty.textContent = "No additional context recorded.";
+      summary.append(empty);
+    }
 
     const evidence = document.createElement("section");
     evidence.id = "timeline-focus-evidence-panel";
@@ -3878,7 +4026,7 @@ export class TimelineViewController {
     evidence.setAttribute("aria-labelledby", "timeline-focus-evidence-tab");
     evidence.tabIndex = 0;
     evidence.hidden = this.focusTab !== "evidence";
-    const evidenceRecords = (item.evidence || []).filter(isRecord).slice(0, 6);
+    const evidenceRecords = allEvidenceRecords.slice(0, this.focusEvidenceLimit);
     if (evidenceRecords.length) {
       const grid = document.createElement("div");
       grid.className = "timeline-focus-evidence-grid";
@@ -3956,18 +4104,27 @@ export class TimelineViewController {
         grid.append(card);
       }
       evidence.append(grid);
-      const hiddenCount = Math.max(0, (item.evidence?.length || 0) - evidenceRecords.length);
+      const hiddenCount = Math.max(0, allEvidenceRecords.length - evidenceRecords.length);
       if (hiddenCount) {
-        const more = document.createElement("p");
+        const more = document.createElement("button");
+        more.type = "button";
         more.className = "timeline-focus-evidence-more";
-        more.textContent = `${hiddenCount} more evidence record${hiddenCount === 1 ? "" : "s"} available`;
+        const batchSize = Math.min(6, hiddenCount);
+        more.textContent = `Show ${batchSize} more evidence record${batchSize === 1 ? "" : "s"}`;
+        more.addEventListener("click", () => {
+          this.focusEvidenceLimit = Math.min(
+            allEvidenceRecords.length,
+            this.focusEvidenceLimit + 6,
+          );
+          this.renderFocus(item, focusHost);
+          requestAnimationFrame(() => {
+            focusHost
+              .querySelector<HTMLElement>(".timeline-focus-evidence-more")
+              ?.focus({ preventScroll: true });
+          });
+        });
         evidence.append(more);
       }
-    } else {
-      const missing = document.createElement("p");
-      missing.className = "timeline-focus-muted";
-      missing.textContent = "No supporting evidence attached.";
-      evidence.append(missing);
     }
 
     const header = document.createElement("div");
@@ -4020,9 +4177,10 @@ export class TimelineViewController {
     close.addEventListener("click", () => this.closeFocus());
 
     const applyFocusTab = (name: "overview" | "evidence"): void => {
-      const evidenceActive = name === "evidence";
-      this.focusTab = name;
-      focusHost.dataset.activeTab = name;
+      const resolvedName = name === "evidence" && hasEvidence ? "evidence" : "overview";
+      const evidenceActive = resolvedName === "evidence";
+      this.focusTab = resolvedName;
+      focusHost.dataset.activeTab = resolvedName;
       summary.hidden = evidenceActive;
       evidence.hidden = !evidenceActive;
       overviewTab.classList.toggle("is-active", !evidenceActive);
@@ -4079,7 +4237,7 @@ export class TimelineViewController {
       let next: "overview" | "evidence" | null = null;
       if (event.key === "ArrowLeft" || event.key === "Home") {
         next = "overview";
-      } else if (event.key === "ArrowRight" || event.key === "End") {
+      } else if ((event.key === "ArrowRight" || event.key === "End") && hasEvidence) {
         next = "evidence";
       }
       if (!next) return;
@@ -4088,12 +4246,20 @@ export class TimelineViewController {
       const nextTab = next === "evidence" ? evidenceTab : overviewTab;
       nextTab.focus({ preventScroll: true });
     });
-    tabs.append(overviewTab, evidenceTab);
+    tabs.append(overviewTab);
+    if (hasEvidence) tabs.append(evidenceTab);
     contextActions.append(close);
     header.append(tabs, contextActions);
     applyFocusTab(this.focusTab);
 
-    focusHost.replaceChildren(header, hero, summary, evidence);
+    focusHost.replaceChildren(
+      header,
+      hero,
+      identity,
+      composerHost,
+      summary,
+      ...(hasEvidence ? [evidence] : []),
+    );
     this.root.dispatchEvent(
       new CustomEvent("timelinefocusrender", {
         bubbles: true,
