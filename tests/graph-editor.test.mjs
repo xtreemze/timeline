@@ -151,6 +151,10 @@ test("Orb styling uses semantic iconography, weighted physics, and worker CPU fa
   const source = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
   assert.match(source, /NodeShapeType/);
   assert.match(source, /semanticIconUrl/);
+  assert.match(source, /iconPathData/);
+  assert.match(source, /normalizeSemanticIconName/);
+  assert.match(source, /properties\?\.attributes\?\.style\?\.icon/);
+  assert.doesNotMatch(source, /const ICON_PATHS = Object\.freeze/);
   assert.match(source, /imageUrl:/);
   assert.match(source, /mass:/);
   assert.match(source, /isPhysicsEnabled:\s*true/);
