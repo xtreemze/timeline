@@ -89,6 +89,9 @@ test("composer suggests only supported semantic icon properties", async () => {
   assert.ok(iconSuggestions.includes("person"));
   assert.ok(iconSuggestions.includes("group"));
   assert.ok(iconSuggestions.includes("evidence"));
+  for (const placeIcon of ["forest", "road", "garden", "well", "room", "gate", "market", "castle"]) {
+    assert.ok(iconSuggestions.includes(placeIcon), `${placeIcon}: shared composer vocabulary`);
+  }
 });
 
 test("entity completions carry their resolved semantic icon into the composer", () => {
