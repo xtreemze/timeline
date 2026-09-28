@@ -6197,7 +6197,12 @@ els.occurrenceComposer.addEventListener("occurrenceinvestigationactionrequest", 
         action?: string;
         unknownEntityId?: string | null;
         candidates?: readonly { entityId: string; label: string }[];
-        qualifier?: { kind?: string; text?: string } | null;
+        qualifier?: {
+          kind?: string;
+          text?: string;
+          normalizedText?: string;
+          scope?: "section" | "sentence" | "ambiguous";
+        } | null;
         provenance?: {
           sourceIds?: readonly string[];
           relationshipId?: string | null;
@@ -6212,7 +6217,9 @@ els.occurrenceComposer.addEventListener("occurrenceinvestigationactionrequest", 
     const knownEvidenceIds = new Set(state.evidence.map((record) => record.id));
     const sourceIds = [...new Set((provenance?.sourceIds ?? []).filter((id) => knownEvidenceIds.has(id)))];
     const relationshipId = provenance?.relationshipId ?? null;
-    const qualifierText = String(qualifier?.text ?? "").replace(/\?$/, "").trim();
+    const qualifierText = String(qualifier?.normalizedText ?? qualifier?.text ?? "")
+      .replace(/\?$/, "")
+      .trim();
     const qualifierKind = String(qualifier?.kind ?? "clue").trim() || "clue";
     if (!relationshipId || !qualifierText || !sourceIds.length) {
       els.occurrenceComposer.setError(
