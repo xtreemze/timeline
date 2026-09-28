@@ -6263,6 +6263,8 @@ els.graphViewRoot.addEventListener("worldcontextrequest", (event) => {
   if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return;
 
   setOccurrenceComposerOpen(true);
+  const worldInvoker = els.graphViewRoot.querySelector<HTMLElement>(".temporal-graph-canvas");
+  if (worldInvoker) occurrenceComposerReturnFocus = worldInvoker;
   const zoom = Number(temporalGraphView?.getCamera?.()?.zoom);
   els.occurrenceComposer.setWorldContext(longitude, latitude, Number.isFinite(zoom) ? zoom : null);
   els.occurrenceComposer.beginSession();
@@ -6597,6 +6599,33 @@ function assertAgentGraphValid(project) {
   );
 }
 
+function linkedOccurrenceProjectionErrors(project: TimelineState): string[] {
+  const errors: string[] = [];
+  const itemById = new Map(project.items.map((item) => [String(item.id), item] as const));
+  const timeKey = (value: unknown): number | null => {
+    const key = temporal.sortKey(value);
+    return Number.isFinite(key) ? key : null;
+  };
+
+  for (const relationship of project.relationships) {
+    const relationshipStart = timeKey(relationship.time?.start);
+    const relationshipEnd = timeKey(relationship.time?.end);
+    if (relationshipStart === null) continue;
+    for (const itemId of relationship.itemIds || []) {
+      const item = itemById.get(String(itemId));
+      if (!item) continue;
+      const itemStart = timeKey(item.time?.start || item.start);
+      const itemEnd = timeKey(item.time?.end || item.end);
+      if (itemStart !== relationshipStart || itemEnd !== relationshipEnd) {
+        errors.push(
+          `Canonical occurrence time and its linked projections must agree: ${relationship.id} → ${item.id}.`,
+        );
+      }
+    }
+  }
+  return errors;
+}
+
 function validateAgentProject(project) {
   try {
     const candidate = clone(project ?? state);
@@ -6606,6 +6635,15 @@ function validateAgentProject(project) {
         valid: false,
         graphContractVersion: graphAudit.graphContractVersion,
         errors: graphAudit.errors,
+        graph: graphAudit.structure,
+      };
+    }
+    const projectionErrors = linkedOccurrenceProjectionErrors(candidate as TimelineState);
+    if (projectionErrors.length) {
+      return {
+        valid: false,
+        graphContractVersion: graphAudit.graphContractVersion,
+        errors: projectionErrors,
         graph: graphAudit.structure,
       };
     }
