@@ -4960,7 +4960,7 @@ els.projectImportReviewApprove.addEventListener("click", () => {
     ui.importReviewOpen = false;
     syncApplicationSurfaces();
     timelineView?.closeFocus();
-    applyImportedTimeline(verified, "Verified import", review.warnings.length);
+    applyImportedTimeline(verified, "Verified import");
   } catch (error) {
     showStatus(
       error instanceof Error ? error.message : "The staged project could not be verified.",
@@ -6075,6 +6075,8 @@ function setProjectImportReviewOpen(open: boolean): void {
   syncApplicationSurfaces();
   if (ui.importReviewOpen) {
     requestAnimationFrame(() => els.projectImportReviewClose.focus({ preventScroll: true }));
+  } else {
+    requestAnimationFrame(() => els.projectMenuToggle.focus({ preventScroll: true }));
   }
 }
 
