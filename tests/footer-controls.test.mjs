@@ -51,6 +51,8 @@ test("footer exposes view controls directly and keeps one primary Edit entry", a
   assert.match(factory, /element\.className = "toolbar-control world-layout-control"/);
   assert.match(factory, /element\.dataset\.viewControl = ""/);
   assert.match(factory, /createCompoundIcon\("world", icon, \{ size: 20 \}\)/);
+  assert.match(factory, /"dag",[\s\S]*actions\.reorganizeDag/);
+  assert.match(factory, /"force",[\s\S]*actions\.relaxForce/);
 });
 
 test("all footer buttons and compound controls share the canonical toolbar surface", async () => {
@@ -107,6 +109,10 @@ test("narrow toolbar scrolls horizontally instead of hiding direct controls", as
   );
   assert.doesNotMatch(css, /\.app-view-controls\[popover\]/);
   assert.doesNotMatch(css, /#timeline-view-controls-toggle/);
+  assert.match(css, /@media \(max-width: 699px\)[\s\S]*\.app-footer-actions[\s\S]*order:\s*1/);
+  assert.match(css, /@media \(max-width: 699px\)[\s\S]*\.app-footer-timeline[\s\S]*order:\s*2/);
+  assert.match(css, /@media \(max-width: 699px\)[\s\S]*\.app-footer-view[\s\S]*order:\s*3/);
+  assert.match(css, /scroll-padding-inline:[\s\S]*safe-area-inset-left[\s\S]*safe-area-inset-right/);
 });
 
 
