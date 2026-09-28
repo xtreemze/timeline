@@ -12,8 +12,10 @@ on:
       - 'config/architecture-lint-baseline.json'
       - 'scripts/lint-architecture.mjs'
       - 'scripts/check-quality-changed.mjs'
+      - 'scripts/check-test-accompaniment.mjs'
       - 'tests/architecture-lint-policy.test.mjs'
       - 'tests/quality-tooling-policy.test.mjs'
+      - 'tests/tdd-policy.test.mjs'
       - 'site/index.html'
       - 'package.json'
       - 'pnpm-lock.yaml'
@@ -86,6 +88,7 @@ on:
       - 'benchmarks/retained-timeline.mjs'
       - 'benchmarks/graph-data.mjs'
       - 'benchmarks/world-force.mjs'
+      - 'AGENTS.md'
       - 'docs/CONTRIBUTOR-ARCHITECTURE.md'
       - 'docs/RETAINED-TIMELINE-PERFORMANCE.md'
       - 'tests/temporal-layout-runtime.test.mjs'
@@ -116,8 +119,10 @@ on:
       - 'config/architecture-lint-baseline.json'
       - 'scripts/lint-architecture.mjs'
       - 'scripts/check-quality-changed.mjs'
+      - 'scripts/check-test-accompaniment.mjs'
       - 'tests/architecture-lint-policy.test.mjs'
       - 'tests/quality-tooling-policy.test.mjs'
+      - 'tests/tdd-policy.test.mjs'
       - 'site/index.html'
       - 'package.json'
       - 'pnpm-lock.yaml'
@@ -182,6 +187,7 @@ on:
       - 'benchmarks/retained-timeline.mjs'
       - 'benchmarks/graph-data.mjs'
       - 'benchmarks/world-force.mjs'
+      - 'AGENTS.md'
       - 'docs/CONTRIBUTOR-ARCHITECTURE.md'
       - 'docs/RETAINED-TIMELINE-PERFORMANCE.md'
       - 'tests/temporal-layout-runtime.test.mjs'
@@ -225,6 +231,8 @@ jobs:
         run: pnpm install --frozen-lockfile
       - continue-on-error: true
         run: pnpm check:quality
+      - name: Enforce test accompaniment
+        run: pnpm check:tdd
       - continue-on-error: true
         run: pnpm types:migrated
       - continue-on-error: true
