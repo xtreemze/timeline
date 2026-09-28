@@ -39,6 +39,123 @@ test("occurrence sentence maps grammar into canonical authoring slots", () => {
   assert.deepEqual(parsed.diagnostics, []);
 });
 
+test("selection-only composition preserves every previously accepted grammar component", () => {
+  const options = {
+    entities: [
+      { id: "stick-house", name: "Stick House", type: "place-like object", icon: "object" },
+      { id: "wolf", name: "Big Bad Wolf", type: "person", icon: "person" },
+    ],
+    places: [{ id: "forest-clearing", name: "Forest Clearing", icon: "forest" }],
+    categories: [{ id: "encounter", name: "Encounter" }],
+    tags: ["story", "danger"],
+    predicates: ["calls"],
+    timelineDefault: "2026-09-28",
+  };
+
+  let value = "";
+  let cursorOffset = 0;
+  const accept = (predicate) => {
+    const suggestions = occurrenceComposerSuggestions(value, {
+      ...options,
+      cursorOffset,
+    });
+    const suggestion = suggestions.find(predicate);
+    assert.ok(suggestion, `missing suggestion after: ${value}`);
+    const accepted = acceptComposerSuggestion(
+      value,
+      suggestion,
+      parseOccurrenceSentence(value).stage,
+    );
+    value = accepted.value;
+    cursorOffset = accepted.cursorOffset;
+    return value;
+  };
+
+  assert.equal(
+    accept((suggestion) => suggestion.kind === "entity" && suggestion.label === "Stick House"),
+    '"Stick House" ',
+  );
+  assert.equal(
+    accept((suggestion) => suggestion.kind === "predicate" && suggestion.insertText === "calls"),
+    '"Stick House" calls ',
+  );
+  assert.equal(
+    accept((suggestion) => suggestion.kind === "entity" && suggestion.label === "Big Bad Wolf"),
+    '"Stick House" calls "Big Bad Wolf" ',
+  );
+  assert.equal(
+    accept((suggestion) => suggestion.kind === "place" && suggestion.label === "Forest Clearing"),
+    '"Stick House" calls "Big Bad Wolf" at "Forest Clearing" ',
+  );
+  assert.equal(
+    accept((suggestion) => suggestion.kind === "time" && suggestion.insertText === "on 2026-09-28"),
+    '"Stick House" calls "Big Bad Wolf" at "Forest Clearing" on 2026-09-28 ',
+  );
+  assert.equal(
+    accept((suggestion) => suggestion.kind === "category" && suggestion.label === "Encounter"),
+    '"Stick House" calls "Big Bad Wolf" at "Forest Clearing" on 2026-09-28 [category: Encounter] ',
+  );
+
+  const parsed = parseOccurrenceSentence(value);
+  assert.equal(parsed.subject?.name, "Stick House");
+  assert.equal(parsed.predicate, "calls");
+  assert.equal(parsed.object?.name, "Big Bad Wolf");
+  assert.equal(parsed.place?.name, "Forest Clearing");
+  assert.equal(parsed.time?.start, "2026-09-28");
+  assert.equal(parsed.options.category, "Encounter");
+});
+
+test("accepting a missing predicate or object appends without reconstructing quoted or canonical prefixes", () => {
+  const predicate = {
+    kind: "predicate",
+    label: "calls",
+    detail: "action",
+    insertText: "calls",
+  };
+  const entity = {
+    kind: "entity",
+    label: "Big Bad Wolf",
+    detail: "person",
+    insertText: '"Big Bad Wolf"',
+  };
+
+  const afterPredicate = acceptComposerSuggestion(
+    '"Stick House" ',
+    predicate,
+    parseOccurrenceSentence('"Stick House" ').stage,
+  );
+  assert.equal(afterPredicate.value, '"Stick House" calls ');
+
+  const afterObject = acceptComposerSuggestion(
+    "@stick-house calls ",
+    entity,
+    parseOccurrenceSentence("@stick-house calls ").stage,
+  );
+  assert.equal(afterObject.value, '@stick-house calls "Big Bad Wolf" ');
+});
+
+test("cursor-local replacement changes only the selected component and preserves later components", () => {
+  const original = '"Stick House" calls "Big Bad Wolf" at "Forest Clearing" on 2026-09-28';
+  const cursorOffset = original.indexOf("calls") + 2;
+  const suggestion = occurrenceComposerSuggestions(original, {
+    entities: [],
+    places: [],
+    categories: [],
+    predicates: ["visits"],
+    cursorOffset,
+  }).find((candidate) => candidate.kind === "predicate" && candidate.insertText === "visits");
+  assert.ok(suggestion);
+  const accepted = acceptComposerSuggestion(
+    original,
+    suggestion,
+    parseOccurrenceSentence(original).stage,
+  );
+  assert.equal(
+    accepted.value,
+    '"Stick House" visits "Big Bad Wolf" at "Forest Clearing" on 2026-09-28',
+  );
+});
+
 test("accepted terminal action advances from predicate to object suggestions", () => {
   const input = "Alice receives";
   const predicateSuggestions = occurrenceComposerSuggestions(input, {
