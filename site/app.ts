@@ -5,6 +5,10 @@
 
 import { authorOccurrence } from "../src/application/occurrence-authoring.ts";
 import {
+  stageProjectImportReview,
+  type StagedProjectImport,
+} from "../src/application/project-import-review.ts";
+import {
   defaultSemanticIconForEntityType,
   normalizeEntityPresentationAttributes,
   normalizeSemanticIconName,
@@ -649,6 +653,7 @@ function populateSemanticIconSuggestions() {
 populateSemanticIconSuggestions();
 
 let state = loadState();
+let pendingProjectImportReview: StagedProjectImport<TimelineState> | null = null;
 let storyDraftIds: string[] = [];
 let storyDraftPlaceIds: string[] = [];
 const evidenceExtractionDrafts = new Map<string, EvidenceExtractionDraft>();
@@ -5929,7 +5934,18 @@ els.loadSample.addEventListener("click", () => {
   showStatus("Example timeline loaded.");
 });
 
+function stageVerificationRequiredProjectImport(
+  input: unknown,
+): StagedProjectImport<TimelineState> | null {
+  return stageProjectImportReview<TimelineState>(input, {
+    normalize: (project) =>
+      normalizeTimeline(project as TimelineInputRecord, { strictGraph: true }),
+    validate: (project) => validateAgentProject(project),
+  });
+}
+
 function applyImportedTimeline(imported, statusPrefix = "Imported", warningCount = 0) {
+  pendingProjectImportReview = null;
   state = normalizeTimeline(imported, { strictGraph: true });
   collapseAllCategories();
   ui.search = "";
@@ -6259,6 +6275,17 @@ async function importProjectFile(file: File, statusPrefix = "Imported"): Promise
   try {
     if (file.size > 5_000_000) throw new Error("Import is limited to 5 MB.");
     const raw = JSON.parse(await file.text());
+    const staged = stageVerificationRequiredProjectImport(raw);
+    if (staged) {
+      pendingProjectImportReview = staged;
+      const issueCount = staged.errors.length + staged.warnings.length + staged.unresolved.length;
+      showStatus(
+        staged.status === "ready-for-user-verification"
+          ? `Staged ${staged.summary.items} items and ${staged.summary.stories} stories for verification · ${issueCount} review ${issueCount === 1 ? "item" : "items"} · current project unchanged.`
+          : `Generated proposal needs repair before verification · ${staged.errors.length} ${staged.errors.length === 1 ? "error" : "errors"} · current project unchanged.`,
+      );
+      return true;
+    }
     const adapter = interchangeAdapter;
     const converted = adapter?.isLikelyInterchange(raw) ? adapter.importData(raw) : null;
     const imported = converted?.timeline || raw;
