@@ -112,6 +112,49 @@ test("accepted partial action and multi-word object advance exactly one grammar 
   assert.equal(parseOccurrenceSentence(acceptedObject.value).stage, "complete");
 });
 
+test("accepted place and time suggestions advance out of their cursor-local sections", () => {
+  const placeInput = 'Alice meets Bob at "Deep Forst"';
+  const placeSuggestion = occurrenceComposerSuggestions(placeInput, {
+    entities: [],
+    places: [{ id: "deep-forest", name: "Deep Forest", icon: "forest" }],
+    categories: [],
+    cursorOffset: placeInput.length,
+  })[0];
+  assert.equal(placeSuggestion?.kind, "place");
+
+  const acceptedPlace = acceptComposerSuggestion(
+    placeInput,
+    placeSuggestion,
+    parseOccurrenceSentence(placeInput).stage,
+  );
+  assert.equal(acceptedPlace.value, 'Alice meets Bob at "Deep Forest" ');
+  assert.equal(
+    composerCursorSection(acceptedPlace.value, acceptedPlace.cursorOffset).kind,
+    "tail",
+  );
+
+  const timeInput = "Alice meets Bob on 2026-09-27";
+  const timeSuggestion = occurrenceComposerSuggestions(timeInput, {
+    entities: [],
+    places: [],
+    categories: [],
+    timelineDefault: "2026-09-28",
+    cursorOffset: timeInput.length,
+  })[0];
+  assert.equal(timeSuggestion?.kind, "time");
+
+  const acceptedTime = acceptComposerSuggestion(
+    timeInput,
+    timeSuggestion,
+    parseOccurrenceSentence(timeInput).stage,
+  );
+  assert.equal(acceptedTime.value, "Alice meets Bob on 2026-09-28 ");
+  assert.equal(
+    composerCursorSection(acceptedTime.value, acceptedTime.cursorOffset).kind,
+    "tail",
+  );
+});
+
 test("editing an existing action replaces in place without inserting another separator", () => {
   const input = "Alice meets Bob";
   const cursorOffset = input.indexOf("meets") + 2;
