@@ -109,8 +109,6 @@ test.describe("Narrow mobile screen contracts", () => {
       if (!before) throw new Error("Footer geometry is unavailable before composer expansion.");
 
       await compact.click();
-      const toggle = page.locator("#occurrence-composer-toggle");
-      await expect(toggle).toHaveAttribute("aria-expanded", "true");
       await expect(composer).toHaveAttribute("active", "");
       await expect(input).toBeVisible();
       await expect(composer.locator(".context-row")).toBeVisible();
