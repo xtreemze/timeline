@@ -408,7 +408,6 @@ const els = {
   appShell: requiredElement<HTMLElement>("#app-shell"),
   appToolDock: requiredElement<HTMLElement>(".app-tool-dock"),
   occurrenceComposer: requiredElement<LuumOccurrenceComposerElement>("#occurrence-composer"),
-  occurrenceComposerToggle: requiredElement<HTMLButtonElement>("#occurrence-composer-toggle"),
   controlPanel: requiredElement<HTMLElement>("#control-panel"),
   controlPanelClose: requiredElement<HTMLButtonElement>("#control-panel-close"),
   editorToggle: requiredElement<HTMLButtonElement>("#editor-toggle"),
@@ -444,10 +443,6 @@ const els = {
   projectImportReviewApprove: requiredElement<HTMLButtonElement>("#project-import-review-approve"),
   projectImportReviewCancel: requiredElement<HTMLButtonElement>("#project-import-review-cancel"),
   projectImportReviewClose: requiredElement<HTMLButtonElement>("#project-import-review-close"),
-  focusPrev: requiredElement<HTMLButtonElement>("#timeline-focus-prev"),
-  focusNext: requiredElement<HTMLButtonElement>("#timeline-focus-next"),
-  relatedZoom: requiredElement<HTMLButtonElement>("#timeline-related-zoom"),
-  relatedFit: requiredElement<HTMLButtonElement>("#timeline-related-fit"),
   loadSample: requiredElement<HTMLButtonElement>("#load-sample"),
   importJson: requiredElement<HTMLInputElement>("#import-json"),
   importInterchange: requiredElement<HTMLInputElement>("#import-interchange"),
@@ -1717,15 +1712,6 @@ function syncApplicationSurfaces() {
   els.occurrenceComposer.hidden = Boolean(
     ui.browserOpen || ui.investigationOpen || ui.editorOpen || ui.importReviewOpen,
   );
-els.occurrenceComposer.setEditing(editing);
-  els.occurrenceComposerToggle.setAttribute("aria-expanded", String(els.occurrenceComposer.active));
-  els.occurrenceComposerToggle.setAttribute(
-    "aria-label",
-    els.occurrenceComposer.active ? "Close occurrence composer" : "Compose occurrence",
-  );
-  els.occurrenceComposerToggle.title = els.occurrenceComposer.active
-    ? "Close occurrence composer"
-    : "Compose occurrence";
   if (els.appToolDock) els.appToolDock.inert = ui.importReviewOpen;
   if (els.title) {
     const titleEditing = ui.editorOpen;
@@ -1777,37 +1763,14 @@ function closeFocusedEventForUtility() {
   if (timelineView?.hasFocusedItem?.()) timelineView.closeFocus();
 }
 
-let toolbarFocusedNavigationActive = false;
-
-function revealFocusedToolbarNavigation() {
-  if (!globalThis.matchMedia?.("(max-width: 699px)").matches) return;
-  const navigation = els.focusPrev.parentElement;
-  if (!(navigation instanceof HTMLElement) || navigation.hidden) return;
-  const dockRect = els.appToolDock.getBoundingClientRect();
-  const navigationRect = navigation.getBoundingClientRect();
-  const inset = 8;
-  let delta = 0;
-  if (navigationRect.right > dockRect.right - inset) {
-    delta = navigationRect.right - (dockRect.right - inset);
-  } else if (navigationRect.left < dockRect.left + inset) {
-    delta = navigationRect.left - (dockRect.left + inset);
-  }
-  if (Math.abs(delta) > 1) els.appToolDock.scrollLeft += delta;
-}
-
 function syncTimelineContextControls() {
   const focused = Boolean(timelineView?.hasFocusedItem?.());
-  const focusBecameActive = focused && !toolbarFocusedNavigationActive;
-  toolbarFocusedNavigationActive = focused;
   const navigation = focused ? timelineView?.focusNavigationState?.() : null;
-  els.focusPrev.hidden = !focused;
-  els.focusNext.hidden = !focused;
-  els.focusPrev.disabled = !focused;
-  els.focusNext.disabled = !focused;
-  els.relatedZoom.hidden = !focused;
-  els.relatedFit.hidden = !focused;
-  els.relatedZoom.disabled = !focusedGraphContextAvailable;
-  els.relatedFit.disabled = !focusedGraphContextAvailable;
+  for (const control of els.timelineViewRoot.querySelectorAll<HTMLButtonElement>(
+    ".timeline-focus-related-action",
+  )) {
+    control.disabled = !focusedGraphContextAvailable;
+  }
 
   if (els.editorToggle) {
     const editableFocus = focused && navigation?.editable === true;
@@ -1826,7 +1789,6 @@ function syncTimelineContextControls() {
       accessibleLabel.textContent = ui.editorOpen ? "Done" : composerActive ? "Editor" : "Edit";
     }
   }
-  if (focusBecameActive) requestAnimationFrame(revealFocusedToolbarNavigation);
 }
 
 function syncOccurrenceComposerSelection(selection = applicationSelection.current): void {
@@ -1894,6 +1856,10 @@ function composerInvoker(): HTMLElement | null {
 
 function restoreComposerFocus(target: HTMLElement | null): void {
   globalThis.requestAnimationFrame(() => {
+    if (target === els.occurrenceComposer && target.isConnected) {
+      els.occurrenceComposer.focusLauncher();
+      return;
+    }
     const visibleTarget =
       target?.isConnected && target.getClientRects().length > 0 ? target : els.editorToggle;
     if (!visibleTarget?.isConnected) return;
@@ -5031,25 +4997,6 @@ els.projectImportReviewClose.addEventListener("click", () => {
   setProjectImportReviewOpen(false);
   showStatus("Generated project proposal discarded · current project unchanged.");
 });
-els.focusPrev.addEventListener("click", () => {
-  timelineView?.focusAdjacent(-1, { reference: "viewport" });
-  syncTimelineContextControls();
-});
-els.focusNext.addEventListener("click", () => {
-  timelineView?.focusAdjacent(1, { reference: "viewport" });
-  syncTimelineContextControls();
-});
-els.relatedZoom.addEventListener("click", () => {
-  if (!temporalGraphView?.zoomContext?.()) {
-    showStatus("This occurrence has no related nodes to zoom to.");
-  }
-});
-els.relatedFit.addEventListener("click", () => {
-  if (!temporalGraphView?.fitContext?.()) {
-    showStatus("This occurrence has no related nodes to fit.");
-  }
-});
-
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
   if (ui.importReviewOpen) {
@@ -5893,6 +5840,19 @@ els.timelineViewRoot.addEventListener("timelinefocusrender", () => {
   schedulePresentationGeometryRefresh({ recenterGraph: true });
 });
 
+els.timelineViewRoot.addEventListener("timelinefocuscontextaction", (event) => {
+  const action = (event as CustomEvent<{ action?: unknown }>).detail?.action;
+  if (action === "zoom-related") {
+    if (!temporalGraphView?.zoomContext?.()) {
+      showStatus("This occurrence has no related nodes to zoom to.");
+    }
+    return;
+  }
+  if (action === "fit-related" && !temporalGraphView?.fitContext?.()) {
+    showStatus("This occurrence has no related nodes to fit.");
+  }
+});
+
 els.graphViewRoot.addEventListener("graphcontextchange", (event) => {
   focusedGraphContextAvailable = Boolean(event.detail?.hasContext);
   syncContextualPresentationPanels();
@@ -5953,8 +5913,8 @@ els.occurrenceComposer.setWorldContext(
   request.preventDefault();
 });
 
-els.occurrenceComposerToggle.addEventListener("click", () => {
-  setOccurrenceComposerOpen(!els.occurrenceComposer.active);
+els.occurrenceComposer.addEventListener("occurrencecomposeropenrequest", () => {
+  setOccurrenceComposerOpen(true);
 });
 els.occurrenceComposer.addEventListener("occurrencecomposercloserequest", () => {
   setOccurrenceComposerOpen(false);
