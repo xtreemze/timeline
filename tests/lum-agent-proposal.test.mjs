@@ -133,6 +133,67 @@ test("valid relationship create proposal yields a separately valid candidate", (
   assert.equal(applied.summary.created.relationships, 1);
 });
 
+test("agent proposals cover canonical place/source/category/story composition", () => {
+  const result = applyLumChangeProposal(
+    proposal([
+      {
+        op: "create",
+        collection: "places",
+        record: {
+          id: "stockholm",
+          name: "Stockholm",
+          geometry: { type: "Point", coordinates: [18.0686, 59.3293] },
+          sourceIds: [],
+          attributes: {},
+        },
+      },
+      {
+        op: "create",
+        collection: "sources",
+        record: {
+          id: "source-1",
+          kind: "document",
+          title: "Source document",
+          attributes: {},
+        },
+      },
+      {
+        op: "create",
+        collection: "categories",
+        record: {
+          id: "incident",
+          name: "Incident",
+          color: "#667085",
+          attributes: {},
+        },
+      },
+      {
+        op: "create",
+        collection: "stories",
+        record: {
+          id: "story-1",
+          title: "Review story",
+          occurrenceIds: [],
+          placeIds: ["stockholm"],
+          attributes: {},
+        },
+      },
+    ]),
+    baseProject(),
+    { savedAt: "2026-09-28T09:00:00.000Z" },
+  );
+
+  assert.equal(result.valid, true, JSON.stringify(result.diagnostics));
+  if (!result.valid) return;
+  const candidate = validateProjectInterchange(result.candidate);
+  assert.equal(candidate.valid, true);
+  if (!candidate.valid) return;
+  assert.equal(candidate.snapshot.project.places?.[0]?.id, "stockholm");
+  assert.equal(candidate.snapshot.project.sources?.[0]?.id, "source-1");
+  assert.equal(candidate.snapshot.project.categories?.[0]?.id, "incident");
+  assert.deepEqual(candidate.snapshot.project.stories?.[0]?.placeIds, ["stockholm"]);
+});
+
 test("proposal fails closed when expected project revision is stale", () => {
   const result = validateLumChangeProposal(
     proposal(
