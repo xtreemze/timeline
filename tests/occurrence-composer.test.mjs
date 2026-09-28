@@ -11,6 +11,7 @@ import {
 } from "../site/occurrence-composer-context.ts";
 import {
   composerCompletionSuffix,
+  occurrenceComposerCompletionStage,
   occurrenceComposerSuggestions,
   parseOccurrenceSentence,
   replaceComposerTail,
@@ -148,6 +149,50 @@ test("ambiguous entity names remain disambiguated by canonical ID", () => {
   assert.deepEqual(
     suggestions.map((suggestion) => suggestion.insertText),
     ["@alice-a", "@alice-b"],
+  );
+});
+
+test("completion target follows the token being edited rather than the next missing slot", () => {
+  assert.equal(occurrenceComposerCompletionStage("Ali"), "subject");
+  assert.equal(occurrenceComposerCompletionStage("Alice "), "predicate");
+  assert.equal(occurrenceComposerCompletionStage("Alice rep"), "predicate");
+  assert.equal(occurrenceComposerCompletionStage("Alice reports "), "object");
+  assert.equal(occurrenceComposerCompletionStage("Alice reports Big"), "object");
+  assert.equal(occurrenceComposerCompletionStage("Alice reports Bob "), "complete");
+  assert.equal(occurrenceComposerCompletionStage("Alice reports Bob at Sto"), "place");
+});
+
+test("partial multi-word entities and places resolve through canonical IDs", () => {
+  const entities = occurrenceComposerSuggestions("Alice meets Big", {
+    entities: [{ id: "big-bad-wolf", name: "Big Bad Wolf", type: "person", icon: "wolf" }],
+    places: [],
+    categories: [],
+  });
+  assert.equal(entities[0]?.label, "Big Bad Wolf");
+  assert.equal(entities[0]?.insertText, "@big-bad-wolf");
+  assert.equal(
+    replaceComposerTail(
+      "Alice meets Big",
+      entities[0]?.insertText ?? "",
+      occurrenceComposerCompletionStage("Alice meets Big"),
+    ),
+    "Alice meets @big-bad-wolf ",
+  );
+
+  const places = occurrenceComposerSuggestions("Alice meets Bob at Central Sta", {
+    entities: [],
+    places: [{ id: "central-station", name: "Central Station" }],
+    categories: [],
+  });
+  assert.equal(places[0]?.label, "Central Station");
+  assert.equal(places[0]?.insertText, "at @central-station");
+  assert.equal(
+    replaceComposerTail(
+      "Alice meets Bob at Central Sta",
+      places[0]?.insertText ?? "",
+      occurrenceComposerCompletionStage("Alice meets Bob at Central Sta"),
+    ),
+    "Alice meets Bob at @central-station ",
   );
 });
 
