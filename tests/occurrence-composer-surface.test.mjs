@@ -20,6 +20,9 @@ test("composer owns the card and incremental world preview with interactive gram
   assert.match(source, /selectSection\(section\.start, section\.end\)/);
   assert.match(source, /input\.setSelectionRange\(start, end\)/);
   assert.match(source, /aria-label="Approve occurrence"/);
+  assert.match(source, /import \{ LitElement, css, html, nothing, svg \} from "lit"/);
+  assert.match(source, /iconPathData\("close"\)\.map\(\(path\) => svg`<path d=\$\{path\}><\/path>`\)/);
+  assert.match(source, /iconPathData\("check"\)\.map\(\(path\) => svg`<path d=\$\{path\}><\/path>`\)/);
   assert.match(source, /projectInvestigativeQualifiers\(this\.value\)/);
   assert.match(source, /draft\.investigation\.qualifiers\.length/);
   assert.match(source, /interpretInvestigativeQualifier/);

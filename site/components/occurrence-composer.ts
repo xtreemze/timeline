@@ -1,4 +1,4 @@
-import { LitElement, css, html, nothing } from "lit";
+import { LitElement, css, html, nothing, svg } from "lit";
 import {
   interpretInvestigativeQualifier,
   projectInvestigativeCandidateMatrix,
@@ -1437,7 +1437,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
               aria-hidden="true"
               focusable="false"
             >
-              ${iconPathData("close").map((path) => html`<path d=${path}></path>`)}
+              ${iconPathData("close").map((path) => svg`<path d=${path}></path>`)}
             </svg>
           </button>
           <button class="approval" type="button" aria-label="Approve occurrence" title="Approve occurrence"
@@ -1455,7 +1455,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
               aria-hidden="true"
               focusable="false"
             >
-              ${iconPathData("check").map((path) => html`<path d=${path}></path>`)}
+              ${iconPathData("check").map((path) => svg`<path d=${path}></path>`)}
             </svg>
           </button>
         </div>
