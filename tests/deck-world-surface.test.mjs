@@ -17,7 +17,11 @@ import {
   worldLabelCollisionPriority,
 } from "../site/world/deck-world-surface.ts";
 import { WorldRenderTopologyIndex } from "../site/world/world-render-topology.ts";
-import { selectWorldSpatialMode } from "../src/layout/world-spatial-mode.ts";
+import {
+  selectWorldSpatialMode,
+  WORLD_CAMERA_MAX_ZOOM,
+  WORLD_CAMERA_MIN_ZOOM,
+} from "../src/layout/world-spatial-mode.ts";
 import {
   createProjectedWorldEdge,
   createProjectedWorldInstance,
@@ -867,6 +871,8 @@ test("deck controller uses timeline-weighted inertia and smooth pointer-anchored
   new DeckWorldSurface({}, runtime);
 
   assert.deepEqual(calls.deckProps.controller, {
+    minZoom: WORLD_CAMERA_MIN_ZOOM,
+    maxZoom: WORLD_CAMERA_MAX_ZOOM,
     dragPan: true,
     dragRotate: true,
     scrollZoom: { smooth: true },
@@ -2145,6 +2151,8 @@ test("world spatial mode uses hysteresis around the local precision threshold", 
 test("DeckWorldSurface switches to local geographic view only at high zoom", () => {
   const { calls, runtime } = harness();
   const localViews = [];
+  class PrecisionMapController {}
+  runtime.createMapControllerType = () => PrecisionMapController;
   runtime.createMapView = (props) => {
     const view = { type: "map", props };
     localViews.push(view);
@@ -2166,11 +2174,13 @@ test("DeckWorldSurface switches to local geographic view only at high zoom", () 
   const localSwitch = calls.setProps.find((props) => props.views?.[0]?.type === "map");
   assert.ok(localSwitch);
   assert.deepEqual(localSwitch.views[0].props, { id: "lum-world-local" });
+  assert.equal(localSwitch.controller.type, PrecisionMapController);
   assert.equal(
     localSwitch.controller.zoomAround,
-    "center",
-    "local MapView must not retain GlobeController pointer-anchor math",
+    "pointer",
+    "explicit local MapController keeps the geographic point under the pointer stable",
   );
+  assert.equal(localSwitch.controller.maxZoom, WORLD_CAMERA_MAX_ZOOM);
 
   const localSwitchCount = calls.setProps.filter(
     (props) => props.views?.[0]?.type === "map",
@@ -2199,6 +2209,25 @@ test("DeckWorldSurface switches to local geographic view only at high zoom", () 
   const globeSwitches = calls.setProps.filter((props) => props.views?.[0]?.type === "globe");
   assert.ok(globeSwitches.length >= 1);
   assert.equal(globeSwitches.at(-1).controller.zoomAround, "pointer");
+});
+
+test("local precision mode keeps the safe center-anchor fallback without an explicit MapController", () => {
+  const { calls, runtime } = harness();
+  runtime.createMapView = (props) => ({ type: "map", props });
+
+  const surface = new DeckWorldSurface({}, runtime);
+  surface.setCamera({
+    longitude: 18.0686,
+    latitude: 59.3293,
+    zoom: 12.75,
+    bearing: 0,
+    pitch: 0,
+  });
+
+  const localSwitch = calls.setProps.find((props) => props.views?.[0]?.type === "map");
+  assert.ok(localSwitch);
+  assert.equal(localSwitch.controller.type, undefined);
+  assert.equal(localSwitch.controller.zoomAround, "center");
 });
 
 test("entity layers expose sparse deck row diffs for position-only projection updates", () => {
@@ -2951,13 +2980,54 @@ test("detail zoom fades the retained place-cluster envelope to zero and restores
 function harnessWithLocalView() {
   const built = harness();
   const localViews = [];
+  class PrecisionMapController {}
+  built.runtime.createMapControllerType = () => PrecisionMapController;
   built.runtime.createMapView = (props) => {
     const view = { type: "map", props };
     localViews.push(view);
     return view;
   };
-  return { ...built, localViews };
+  return { ...built, localViews, PrecisionMapController };
 }
+
+test("world camera exposes one explicit deep-zoom ceiling across programmatic navigation", () => {
+  const { calls, runtime, PrecisionMapController } = harnessWithLocalView();
+  const surface = new DeckWorldSurface(
+    {},
+    runtime,
+    { longitude: 18.0686, latitude: 59.3293, zoom: 30, bearing: 0, pitch: 0 },
+  );
+
+  assert.equal(surface.getCamera().zoom, WORLD_CAMERA_MAX_ZOOM);
+  assert.equal(calls.deckProps.views[0].type, "map");
+  assert.equal(calls.deckProps.controller.type, PrecisionMapController);
+  assert.equal(calls.deckProps.controller.zoomAround, "pointer");
+  assert.equal(calls.deckProps.initialViewState.maxZoom, WORLD_CAMERA_MAX_ZOOM);
+  assert.equal(calls.deckProps.initialViewState.zoom, WORLD_CAMERA_MAX_ZOOM);
+
+  calls.deckProps.onViewStateChange({
+    viewState: {
+      longitude: 18.0686,
+      latitude: 59.3293,
+      zoom: WORLD_CAMERA_MAX_ZOOM + 8,
+      bearing: 0,
+      pitch: 0,
+    },
+    interactionState: { isZooming: true },
+  });
+  assert.equal(surface.getCamera().zoom, WORLD_CAMERA_MAX_ZOOM);
+
+  surface.setCamera({
+    longitude: 18.0686,
+    latitude: 59.3293,
+    zoom: WORLD_CAMERA_MAX_ZOOM + 5,
+    bearing: 0,
+    pitch: 0,
+  });
+  assert.equal(surface.getCamera().zoom, WORLD_CAMERA_MAX_ZOOM);
+  assert.equal(calls.setProps.at(-1).viewState.maxZoom, WORLD_CAMERA_MAX_ZOOM);
+  assert.equal(calls.setProps.at(-1).viewState.zoom, WORLD_CAMERA_MAX_ZOOM);
+});
 
 test("crossing into local precision mode preserves the current canonical selection", () => {
   const { runtime } = harnessWithLocalView();
@@ -2983,7 +3053,11 @@ test("a globe<->local view switch carries the current camera into the new view's
 
   const viewSwitch = calls.setProps.find((props) => props.views?.[0]?.type === "map");
   assert.ok(viewSwitch);
-  assert.deepEqual(viewSwitch.viewState, nextCamera);
+  assert.deepEqual(viewSwitch.viewState, {
+    ...nextCamera,
+    minZoom: WORLD_CAMERA_MIN_ZOOM,
+    maxZoom: WORLD_CAMERA_MAX_ZOOM,
+  });
 });
 
 test("live zoom defers the globe/local controller swap until interaction settles", () => {
@@ -3022,7 +3096,11 @@ test("live zoom defers the globe/local controller swap until interaction settles
   assert.equal(mapSwitchCount(), 1);
   const viewSwitch = calls.setProps.find((props) => props.views?.[0]?.type === "map");
   assert.ok(viewSwitch);
-  assert.deepEqual(viewSwitch.viewState, surface.getCamera());
+  assert.deepEqual(viewSwitch.viewState, {
+    ...surface.getCamera(),
+    minZoom: WORLD_CAMERA_MIN_ZOOM,
+    maxZoom: WORLD_CAMERA_MAX_ZOOM,
+  });
 });
 
 test("a spatial-mode crossing with no drag in flight does not touch the drag sink", () => {

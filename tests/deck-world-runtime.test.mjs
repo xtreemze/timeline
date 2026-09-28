@@ -420,3 +420,46 @@ test("deck world runtime exposes MapView only when the binding is supplied", () 
   });
   assert.deepEqual(calls, [{ id: "local" }]);
 });
+
+test("deck world runtime exposes an optional map controller type lazily", () => {
+  class PrecisionMapController {}
+  let calls = 0;
+  const runtime = createDeckWorldRuntime({
+    deck() {
+      throw new Error("not used");
+    },
+    globeView() {
+      throw new Error("not used");
+    },
+    mapControllerType() {
+      calls += 1;
+      return PrecisionMapController;
+    },
+    scatterplotLayer() {
+      throw new Error("not used");
+    },
+    pathLayer() {
+      throw new Error("not used");
+    },
+  });
+
+  assert.equal(calls, 0);
+  assert.equal(runtime.createMapControllerType(), PrecisionMapController);
+  assert.equal(calls, 1);
+
+  const withoutController = createDeckWorldRuntime({
+    deck() {
+      throw new Error("not used");
+    },
+    globeView() {
+      throw new Error("not used");
+    },
+    scatterplotLayer() {
+      throw new Error("not used");
+    },
+    pathLayer() {
+      throw new Error("not used");
+    },
+  });
+  assert.equal(withoutController.createMapControllerType, undefined);
+});
