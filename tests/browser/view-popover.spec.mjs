@@ -32,7 +32,7 @@ test("atomic and compound toolbar controls share height, centerline, and icon si
   const controls = [
     page.locator("#editor-toggle"),
     page.locator("#timeline-orientation-toggle"),
-    page.locator(".toolbar-range-control"),
+    page.locator(".timeline-zoom-control"),
     page.locator(".toolbar-number-control"),
     page.locator(".world-zoom-control"),
   ];
