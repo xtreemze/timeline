@@ -25,6 +25,8 @@ export interface OccurrenceComposerData {
 
 export interface OccurrenceComposerSelectionContext {
   readonly selectedEntityId?: string | null;
+  readonly selectedOccurrenceId?: string | null;
+  readonly composition?: string | null;
   readonly relationship?: {
     readonly subjectId: string;
     readonly objectId: string;
@@ -354,9 +356,14 @@ export class LuumOccurrenceComposerElement extends LitElement {
   }
 
   setSelectionContext(context: OccurrenceComposerSelectionContext | null): void {
+    const previousKey = this.selectionIdentityKey(this.selectionContext);
     this.selectionContext = context
       ? Object.freeze({
           ...(context.selectedEntityId ? { selectedEntityId: context.selectedEntityId } : {}),
+          ...(context.selectedOccurrenceId
+            ? { selectedOccurrenceId: context.selectedOccurrenceId }
+            : {}),
+          ...(context.composition ? { composition: context.composition } : {}),
           ...(context.relationship
             ? {
                 relationship: Object.freeze({
@@ -370,8 +377,27 @@ export class LuumOccurrenceComposerElement extends LitElement {
             : {}),
         })
       : null;
+    const nextKey = this.selectionIdentityKey(this.selectionContext);
+    if (previousKey !== nextKey) {
+      this.value = "";
+      this.selectionSeeded = false;
+      this.externalError = "";
+      this.activeSuggestion = 0;
+    }
     this.applySelectionSeed();
     this.requestUpdate();
+  }
+
+  private selectionIdentityKey(
+    context: OccurrenceComposerSelectionContext | null,
+  ): string {
+    return JSON.stringify({
+      occurrence: context?.selectedOccurrenceId ?? "",
+      entity: context?.selectedEntityId ?? "",
+      subject: context?.relationship?.subjectId ?? "",
+      object: context?.relationship?.objectId ?? "",
+      place: context?.place?.id ?? "",
+    });
   }
 
   private selectedSubjectId(): string | null {
@@ -398,6 +424,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
   private currentContextKey(): string {
     return JSON.stringify({
+      occurrence: this.selectionContext?.selectedOccurrenceId ?? "",
       subject: this.selectedSubjectId() ?? "",
       object: this.selectionContext?.relationship?.objectId ?? "",
       place: this.selectionContext?.place?.id ?? "",
@@ -417,6 +444,15 @@ export class LuumOccurrenceComposerElement extends LitElement {
   }
 
   private applySelectionSeed(): void {
+    const composition = this.selectionContext?.composition?.trim() ?? "";
+    if (composition) {
+      if (!this.value.trim() || this.selectionSeeded) {
+        this.value = composition;
+        this.selectionSeeded = true;
+      }
+      return;
+    }
+
     const subjectId = this.selectedSubjectId();
     if (!subjectId) {
       if (this.selectionSeeded) this.value = "";

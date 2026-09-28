@@ -27,6 +27,7 @@ import type {
   LuumOccurrenceComposerElement,
   OccurrenceCommitDetail,
 } from "./components/occurrence-composer.ts";
+import { formatOccurrenceComposition } from "./occurrence-composer-model.ts";
 import { TimelineEvidence } from "./evidence-store.ts";
 import { TimelineGraphInference } from "./graph-inference.ts";
 import { TimelineInterchangeAdapter } from "./interchange-adapter.ts";
@@ -1832,6 +1833,31 @@ function syncTimelineContextControls() {
   if (focusBecameActive) requestAnimationFrame(revealFocusedToolbarNavigation);
 }
 
+function occurrenceCompositionForRelationship(
+  relationship: RelationshipRecord,
+): string {
+  const linkedItemId = (relationship.itemIds ?? []).find((itemId) =>
+    state.items.some((item) => String(item.id) === String(itemId)),
+  );
+  const linkedItem = linkedItemId
+    ? state.items.find((item) => String(item.id) === String(linkedItemId)) ?? null
+    : null;
+  const category = linkedItem
+    ? state.categories.find((candidate) => String(candidate.id) === String(linkedItem.categoryId))
+    : null;
+  const extent = relationship.time ?? linkedItem?.time ?? null;
+  return formatOccurrenceComposition({
+    subjectId: String(relationship.subjectId),
+    predicate: relationship.predicate,
+    objectId: String(relationship.objectId),
+    placeId: relationship.placeId ? String(relationship.placeId) : null,
+    start: extent?.start?.value ?? linkedItem?.start ?? null,
+    end: extent?.end?.value ?? linkedItem?.end ?? null,
+    category: category?.name ?? null,
+    tags: linkedItem?.tags?.map((tag) => tag.label) ?? [],
+  });
+}
+
 function syncOccurrenceComposerSelection(selection = applicationSelection.current): void {
   if (!selection) {
     els.occurrenceComposer.setSelectionContext(null);
@@ -1872,6 +1898,8 @@ function syncOccurrenceComposerSelection(selection = applicationSelection.curren
     ? state.places.find((candidate) => String(candidate.id) === String(relationship.placeId))
     : null;
   els.occurrenceComposer.setSelectionContext({
+    selectedOccurrenceId: String(relationship.id),
+    composition: occurrenceCompositionForRelationship(relationship),
     relationship: {
       subjectId: String(relationship.subjectId),
       objectId: String(relationship.objectId),

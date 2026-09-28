@@ -116,6 +116,38 @@ export function quoteComposerName(value: string): string {
   return `"${trimmed.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 }
 
+export interface OccurrenceCompositionInput {
+  readonly subjectId: string;
+  readonly predicate: string;
+  readonly objectId: string;
+  readonly placeId?: string | null;
+  readonly start?: string | null;
+  readonly end?: string | null;
+  readonly category?: string | null;
+  readonly tags?: readonly string[];
+}
+
+export function formatOccurrenceComposition(input: OccurrenceCompositionInput): string {
+  const subjectId = input.subjectId.trim();
+  const objectId = input.objectId.trim();
+  const predicate = input.predicate.trim();
+  if (!subjectId || !objectId || !predicate) return "";
+  let sentence = `@${subjectId} ${predicate} @${objectId}`;
+  const placeId = input.placeId?.trim() ?? "";
+  if (placeId) sentence += ` at @${placeId}`;
+  const start = input.start?.trim() ?? "";
+  const end = input.end?.trim() ?? "";
+  if (start && end) sentence += ` from ${start} to ${end}`;
+  else if (start) sentence += ` on ${start}`;
+  const options: string[] = [];
+  const category = input.category?.trim() ?? "";
+  if (category) options.push(`category: ${quoteComposerName(category)}`);
+  const tags = (input.tags ?? []).map((tag) => tag.trim()).filter(Boolean);
+  if (tags.length) options.push(`tags: ${tags.join("|")}`);
+  if (options.length) sentence += ` [${options.join(", ")}]`;
+  return sentence;
+}
+
 function parseProperties(value: string): Readonly<Record<string, string>> {
   const result: Record<string, string> = {};
   for (const segment of value.split(",")) {
