@@ -313,8 +313,74 @@ export function parseOccurrenceSentence(input: string): OccurrenceSentenceDraft 
 }
 
 function currentToken(input: string): string {
+  const openQuote = input.match(/"([^"]*)$/);
+  if (openQuote) return openQuote[1]!.trimStart().toLocaleLowerCase();
   const match = input.match(/(?:^|\s)([^\s]*)$/);
   return (match?.[1] ?? "").replace(/^["([]/, "").toLocaleLowerCase();
+}
+
+function normalizedSearch(value: string): string {
+  return value
+    .trim()
+    .toLocaleLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function suggestionScore(query: string, candidate: string): number {
+  const needle = normalizedSearch(query);
+  if (!needle) return 0;
+  const haystack = normalizedSearch(candidate);
+  if (!haystack) return Number.POSITIVE_INFINITY;
+  if (haystack === needle) return 0;
+  if (haystack.startsWith(needle)) return 1;
+  if (haystack.split(" ").some((word) => word.startsWith(needle))) return 2;
+  if (haystack.includes(needle)) return 3;
+  return Number.POSITIVE_INFINITY;
+}
+
+function rankedStrings(values: readonly string[], query: string): readonly string[] {
+  return Object.freeze(
+    [...new Set(values.map((value) => value.trim()).filter(Boolean))]
+      .map((value) => ({ value, score: suggestionScore(query, value) }))
+      .filter(({ score }) => Number.isFinite(score))
+      .sort((left, right) => left.score - right.score || left.value.localeCompare(right.value))
+      .map(({ value }) => value),
+  );
+}
+
+function composerPlaceTailQuery(input: string): string | null {
+  const match = input.match(/\s+at\s+([^\[]*)$/i);
+  if (!match) return null;
+  const raw = match[1] ?? "";
+  if (/\s+(?:on|from)\s+/i.test(raw)) return null;
+  if (raw.trim() && /\s$/.test(input)) return null;
+  return unquote(raw.trim());
+}
+
+export function occurrenceComposerCompletionStage(input: string): OccurrenceComposerStage {
+  const parsed = parseOccurrenceSentence(input);
+  const trailingWhitespace = /\s$/.test(input);
+
+  if (composerPlaceTailQuery(input) !== null) return "place";
+  if (parsed.stage === "subject") return "subject";
+  if (parsed.stage === "predicate") return trailingWhitespace ? "predicate" : "subject";
+  if (parsed.stage === "object") {
+    if (parsed.object) return "object";
+    return trailingWhitespace ? "object" : "predicate";
+  }
+  if (
+    parsed.stage === "complete" &&
+    !parsed.place &&
+    !parsed.time &&
+    !parsed.options.category &&
+    parsed.options.tags.length === 0 &&
+    !trailingWhitespace
+  ) {
+    return "object";
+  }
+  return parsed.stage;
 }
 
 function uniqueSuggestions(suggestions: readonly ComposerSuggestion[]): readonly ComposerSuggestion[] {
@@ -335,12 +401,15 @@ export function occurrenceComposerSuggestions(
     readonly entities: readonly ComposerEntityOption[];
     readonly places: readonly ComposerPlaceOption[];
     readonly categories: readonly ComposerCategoryOption[];
+    readonly tags?: readonly string[];
+    readonly predicates?: readonly string[];
     readonly timelineDefault?: string | null;
     readonly locationDefault?: string | null;
     readonly preferredEntityIds?: readonly string[];
   },
 ): readonly ComposerSuggestion[] {
   const parsed = parseOccurrenceSentence(input);
+  const completionStage = occurrenceComposerCompletionStage(input);
   const token = currentToken(input);
 
   if (/\([^)]*$/.test(input)) {
@@ -361,82 +430,163 @@ export function occurrenceComposerSuggestions(
   }
 
   if (/\[[^\]]*$/.test(input)) {
-    const categorySuggestions = options.categories.slice(0, 10).map((category) => ({
+    const open = input.lastIndexOf("[");
+    const fragment = input.slice(open + 1);
+    const segment = fragment.split(",").at(-1)?.trim() ?? "";
+    const separator = segment.indexOf(":");
+    const optionKey = separator >= 0 ? segment.slice(0, separator).trim().toLocaleLowerCase() : "";
+    const optionValue = separator >= 0 ? segment.slice(separator + 1).trim() : segment;
+
+    if (optionKey === "tags") {
+      const pipe = optionValue.lastIndexOf("|");
+      const retained = pipe >= 0 ? optionValue.slice(0, pipe + 1) : "";
+      const query = pipe >= 0 ? optionValue.slice(pipe + 1).trim() : optionValue;
+      const selectedTags = new Set(
+        retained
+          .split("|")
+          .map((tag) => tag.trim())
+          .filter(Boolean),
+      );
+      return Object.freeze(
+        rankedStrings(
+          (options.tags ?? []).filter((tag) => !selectedTags.has(tag)),
+          query,
+        )
+          .slice(0, 7)
+          .map((tag) => ({
+            kind: "tag" as const,
+            label: tag,
+            detail: "existing tag",
+            insertText: `tags: ${retained}${tag}`,
+          })),
+      );
+    }
+
+    if (optionKey === "category") {
+      return Object.freeze(
+        options.categories
+          .map((category) => ({
+            category,
+            score: suggestionScore(optionValue, category.name),
+          }))
+          .filter(({ score }) => Number.isFinite(score))
+          .sort(
+            (left, right) =>
+              left.score - right.score || left.category.name.localeCompare(right.category.name),
+          )
+          .slice(0, 7)
+          .map(({ category }) => ({
+            kind: "category" as const,
+            label: category.name,
+            detail: "existing category",
+            insertText: `category: ${quoteComposerName(category.name)}`,
+          })),
+      );
+    }
+
+    const categorySuggestions = options.categories.slice(0, 6).map((category) => ({
       kind: "category" as const,
       label: category.name,
-      detail: "category",
+      detail: "existing category",
       insertText: `category: ${quoteComposerName(category.name)}`,
+    }));
+    const tagSuggestions = (options.tags ?? []).slice(0, 4).map((tag) => ({
+      kind: "tag" as const,
+      label: tag,
+      detail: "existing tag",
+      insertText: `tags: ${tag}`,
     }));
     return uniqueSuggestions([
       ...categorySuggestions,
-      { kind: "tag", label: "tags", detail: "separate tags with |", insertText: "tags: " },
+      ...tagSuggestions,
+      { kind: "tag", label: "new tag", detail: "separate tags with |", insertText: "tags: " },
     ]);
   }
 
-  if (parsed.stage === "subject" || parsed.stage === "object") {
+  const placeQuery = composerPlaceTailQuery(input);
+  if (completionStage === "place" && placeQuery !== null) {
+    return Object.freeze(
+      options.places
+        .map((place) => ({
+          place,
+          score: suggestionScore(placeQuery, place.name),
+        }))
+        .filter(({ score }) => Number.isFinite(score))
+        .sort(
+          (left, right) =>
+            left.score - right.score || left.place.name.localeCompare(right.place.name),
+        )
+        .slice(0, 7)
+        .map(({ place }) => ({
+          kind: "place" as const,
+          label: place.name,
+          detail: `existing place · @${place.id}`,
+          insertText: `at @${place.id}`,
+        })),
+    );
+  }
+
+  if (completionStage === "subject" || completionStage === "object") {
     const preferredEntityIds = options.preferredEntityIds ?? [];
     const priority = new Map(preferredEntityIds.map((id, index) => [id, index] as const));
     const entitySuggestions = [...options.entities]
+      .map((entity) => ({
+        entity,
+        priority: priority.get(entity.id) ?? Number.MAX_SAFE_INTEGER,
+        score: Math.min(
+          ...[entity.name, ...(entity.alternateNames ?? [])].map((name) =>
+            suggestionScore(token, name),
+          ),
+        ),
+      }))
+      .filter(({ score }) => Number.isFinite(score))
       .sort(
         (left, right) =>
-          (priority.get(left.id) ?? Number.MAX_SAFE_INTEGER) -
-          (priority.get(right.id) ?? Number.MAX_SAFE_INTEGER),
+          left.priority - right.priority ||
+          left.score - right.score ||
+          left.entity.name.localeCompare(right.entity.name),
       )
-      .filter((entity) => {
-        if (!token) return true;
-        return [entity.name, ...(entity.alternateNames ?? [])].some((name) =>
-          name.toLocaleLowerCase().includes(token),
-        );
-      })
       .slice(0, 12)
-      .map((entity) => {
-        const sameNameCount = options.entities.filter(
-          (candidate) =>
-            candidate.name.toLocaleLowerCase() === entity.name.toLocaleLowerCase(),
-        ).length;
-        return {
-          kind: "entity" as const,
-          label: entity.name,
-          detail:
-            sameNameCount > 1
-              ? `${entity.type || "entity"} · ${entity.id}`
-              : entity.type || "entity",
-          ...(entity.icon ? { icon: entity.icon } : {}),
-          insertText:
-            sameNameCount > 1 ? `@${entity.id}` : quoteComposerName(entity.name),
-        };
-      });
-    return uniqueSuggestions(entitySuggestions);
+      .map(({ entity }) => ({
+        kind: "entity" as const,
+        label: entity.name,
+        detail: `${entity.type || "entity"} · @${entity.id}`,
+        ...(entity.icon ? { icon: entity.icon } : {}),
+        insertText: `@${entity.id}`,
+      }));
+    if (entitySuggestions.length > 0 || parsed.stage !== "complete") {
+      return uniqueSuggestions(entitySuggestions);
+    }
   }
 
-  if (parsed.stage === "predicate") {
+  if (completionStage === "predicate") {
+    const existing = new Set((options.predicates ?? []).map((predicate) => predicate.trim()));
     return Object.freeze(
-      ACTION_SUGGESTIONS.filter((action) => !token || action.includes(token))
+      rankedStrings([...(options.predicates ?? []), ...ACTION_SUGGESTIONS], token)
         .slice(0, 12)
         .map((action) => ({
           kind: "predicate" as const,
           label: action,
-          detail: "action",
+          detail: existing.has(action) ? "existing action" : "action",
           insertText: action,
         })),
     );
   }
 
-  const placeSuggestions = options.places.slice(0, 10).map((place) => {
-    const sameNameCount = options.places.filter(
-      (candidate) =>
-        candidate.name.toLocaleLowerCase() === place.name.toLocaleLowerCase(),
-    ).length;
-    return {
-      kind: "place" as const,
-      label: place.name,
-      detail: sameNameCount > 1 ? `place · ${place.id}` : "place",
-      insertText:
-        sameNameCount > 1
-          ? `at @${place.id}`
-          : `at ${quoteComposerName(place.name)}`,
-    };
-  });
+  if (
+    completionStage === "subject" ||
+    completionStage === "predicate" ||
+    (completionStage === "object" && parsed.stage !== "complete")
+  ) {
+    return Object.freeze([]);
+  }
+
+  const placeSuggestions = options.places.slice(0, 10).map((place) => ({
+    kind: "place" as const,
+    label: place.name,
+    detail: `existing place · @${place.id}`,
+    insertText: `at @${place.id}`,
+  }));
   const contextSuggestions: ComposerSuggestion[] = [];
   if (!parsed.place) {
     if (options.locationDefault) {
@@ -459,20 +609,69 @@ export function occurrenceComposerSuggestions(
   }
   if (!parsed.options.category) {
     contextSuggestions.push(
-      ...options.categories.slice(0, 6).map((category) => ({
+      ...options.categories.slice(0, 4).map((category) => ({
         kind: "category" as const,
         label: category.name,
-        detail: "occurrence category",
+        detail: "existing category",
         insertText: `[category: ${quoteComposerName(category.name)}]`,
+      })),
+    );
+  }
+  if (!parsed.options.tags.length) {
+    contextSuggestions.push(
+      ...(options.tags ?? []).slice(0, 3).map((tag) => ({
+        kind: "tag" as const,
+        label: tag,
+        detail: "existing tag",
+        insertText: `[tags: ${tag}]`,
       })),
     );
   }
   return uniqueSuggestions(contextSuggestions);
 }
 
+export function composerCompletionSuffix(
+  input: string,
+  suggestion: ComposerSuggestion | null | undefined,
+): string {
+  if (!suggestion) return "";
+  const trimmed = input.trimEnd();
+  const inputParts = trimmed.split(/\s+/);
+  for (const candidate of [suggestion.label, suggestion.insertText]) {
+    const candidateLower = candidate.toLocaleLowerCase();
+    for (let start = 0; start < inputParts.length; start += 1) {
+      const fragment = inputParts
+        .slice(start)
+        .join(" ")
+        .replace(/^[@"'([]+/, "");
+      if (!fragment) continue;
+      if (candidateLower.startsWith(fragment.toLocaleLowerCase())) {
+        return candidate.slice(fragment.length);
+      }
+    }
+  }
+  return "";
+}
+
 export function replaceComposerTail(input: string, insertText: string, stage: OccurrenceComposerStage): string {
   if (!insertText) return input;
   const trimmed = input.trimEnd();
+
+  if (stage === "place" && /^at\s+/i.test(insertText)) {
+    const placeTail = trimmed.match(/\s+at\s+([^\[]*)$/i);
+    if (placeTail && !/\s+(?:on|from)\s+/i.test(placeTail[1] ?? "")) {
+      const start = placeTail.index ?? trimmed.length;
+      return `${trimmed.slice(0, start)} ${insertText} `;
+    }
+  }
+
+  const bracketedOption = insertText.match(/^\[([^\]]+)\]$/)?.[1];
+  const existingOptions = trimmed.match(/\[([^\]]*)\]\s*$/);
+  if (bracketedOption && existingOptions) {
+    const start = existingOptions.index ?? trimmed.length;
+    const retained = existingOptions[1]!.trim();
+    return `${trimmed.slice(0, start)}[${retained}${retained ? ", " : ""}${bracketedOption}] `;
+  }
 
   const openEntityProperties = trimmed.lastIndexOf("(");
   const closeEntityProperties = trimmed.lastIndexOf(")");
@@ -501,9 +700,13 @@ export function replaceComposerTail(input: string, insertText: string, stage: Oc
   }
   if (stage === "object") {
     const parsedSubject = parseEntityAtStart(trimmed);
-    const predicate = parsedSubject.rest.match(/^([^\s()\[\]]+)/)?.[1] ?? "";
-    const prefix = `${quoteComposerName(parsedSubject.entity?.name ?? "")} ${predicate}`.trim();
-    return `${prefix} ${insertText} `;
+    const predicateMatch = parsedSubject.rest.match(/^([^\s()\[\]]+)/);
+    if (predicateMatch) {
+      const restStart = trimmed.length - parsedSubject.rest.length;
+      const prefix = trimmed.slice(0, restStart + predicateMatch[0].length).trimEnd();
+      return `${prefix} ${insertText} `;
+    }
+    return `${insertText} `;
   }
   const separator = trimmed ? " " : "";
   return `${trimmed}${separator}${insertText} `;
