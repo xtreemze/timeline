@@ -227,6 +227,18 @@ test("Lit composer is a touch-safe ARIA combobox with live-context guidance", as
   assert.match(source, /setTimelineViewport/);
   assert.match(source, /setWorldContext/);
   assert.match(source, /placeholder=\$\{\`Who did what to whom · at/);
+  assert.match(source, /class="context-row"/);
+  assert.match(source, /data-context-state=\$\{placePinned \? "pinned" : "live"\}/);
+  assert.match(source, /data-context-state=\$\{timePinned \? "pinned" : "live"\}/);
+  assert.match(source, /private sessionKey = ""/);
+  assert.match(source, /beginSession\(\): void/);
+  assert.match(source, /currentContextKey\(\)/);
+  assert.match(source, /resetDraft\(\)/);
+  assert.doesNotMatch(source, /event\.key === "Tab"/);
+  assert.doesNotMatch(source, /event\.key === "Home"/);
+  assert.doesNotMatch(source, /event\.key === "End"/);
+  assert.match(source, /Tab moves focus/);
+  assert.match(source, /--composer-visual-viewport-height/);
 });
 
 test("application keeps timeline and World live while composer uses their centers as defaults", async () => {
@@ -261,6 +273,11 @@ test("application keeps timeline and World live while composer uses their center
     source,
     /setOccurrenceComposerOpen[\s\S]*temporalGraphView\?\.getCamera\?\.\(\)[\s\S]*setWorldContext/,
   );
+  assert.match(source, /occurrenceComposer\.beginSession\(\)/);
+  assert.match(source, /function syncComposerVisualViewport\(\)/);
+  assert.match(source, /visualViewport\?\.addEventListener\("resize", syncComposerVisualViewport\)/);
+  assert.match(source, /dataset\.composerOpen = String\(composerActive\)/);
+  assert.match(source, /editorToggle\.setAttribute\("aria-pressed", String\(authoringActive\)\)/);
   assert.match(
     source,
     /worldviewportchange[\s\S]*camera\?\.zoom[\s\S]*setWorldContext\(longitude, latitude, zoom\)/,
