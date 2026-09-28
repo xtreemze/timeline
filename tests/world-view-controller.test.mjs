@@ -596,35 +596,34 @@ test("manual DAG reorganization rebuilds targets and routes while retaining geog
 test(
   "selected-place DAG settings reorganize only disposable layout while retaining authored anchors",
   () => {
-  const { calls, controller } = harness();
-  controller.setProjection(projection());
-  const initialScene = calls.find(([name]) => name === "force:scene")?.[1];
-  assert.ok(initialScene);
+    const { calls, controller } = harness();
+    controller.setProjection(projection());
+    const initialScene = calls.find(([name]) => name === "force:scene")?.[1];
+    assert.ok(initialScene);
 
-  calls.length = 0;
-  assert.equal(
-    controller.reorganizeDag({
-      placeId: "stockholm",
-      orientation: "left-to-right",
-      strategy: "simplex-two-layer-greedy",
-    }),
-    true,
-  );
+    calls.length = 0;
+    assert.equal(
+      controller.reorganizeDag({
+        placeId: "stockholm",
+        orientation: "left-to-right",
+        strategy: "simplex-two-layer-greedy",
+      }),
+      true,
+    );
 
-  const sceneCall = calls.find(([name]) => name === "force:scene");
-  const applyCall = calls.find(([name]) => name === "force:apply");
-  assert.ok(sceneCall);
-  assert.ok(applyCall);
-  assert.deepEqual(
-    sceneCall[1].anchors,
-    initialScene.anchors,
-    "place-scoped organization must not rewrite geographic evidence",
-  );
+    const sceneCall = calls.find(([name]) => name === "force:scene");
+    const applyCall = calls.find(([name]) => name === "force:apply");
+    assert.ok(sceneCall);
+    assert.ok(applyCall);
+    assert.deepEqual(
+      sceneCall[1].anchors,
+      initialScene.anchors,
+      "place-scoped organization must not rewrite geographic evidence",
+    );
     assert.equal(applyCall[1].reason, "topology");
     assert.equal(applyCall[1].reheat, true);
   },
 );
-
 test("force tuning can target a selected place without rebuilding the canonical scene", () => {
   const { calls, controller } = harness();
   controller.setProjection(projection());
