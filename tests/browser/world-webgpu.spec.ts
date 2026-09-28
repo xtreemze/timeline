@@ -1,9 +1,9 @@
 import { expect, test } from "@playwright/test";
 
 /**
- * The WorldSurface renders on WebGL2 by default (deck.gl 9.4 cannot pick on
- * WebGPU yet) and on WebGPU when opted in with `?renderer=webgpu`. Chromium's
- * software Vulkan (SwiftShader) gives CI a real WebGPU adapter.
+ * The WorldSurface keeps WebGL2 as the production default while WebGPU remains
+ * an explicitly opted-in certification backend via `?renderer=webgpu`.
+ * Chromium's software Vulkan (SwiftShader) gives CI a real WebGPU adapter.
  */
 test.use({
   launchOptions: {
@@ -25,7 +25,7 @@ test("the production world defaults to WebGL2 and renders on WebGPU when opted i
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
 
-  // Default: WebGL2, where picking (click/drag on nodes) works.
+  // Default production baseline remains WebGL2 while WebGPU parity is certified.
   await page.goto("/");
   await expect(page.locator(".temporal-graph-canvas").first()).toHaveAttribute(
     "data-world-renderer",
