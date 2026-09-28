@@ -1036,7 +1036,7 @@ function canonicalPlaceToRuntime(place: any): any {
     place?.attributes && typeof place.attributes === "object" && !Array.isArray(place.attributes)
       ? structuredClone(place.attributes)
       : {};
-  const runtime = {
+  const runtime: Record<string, any> = {
     id: String(place.id),
     name: place.name,
     geometry: structuredClone(place.geometry),
