@@ -4033,6 +4033,7 @@ export class TimelineViewController {
       for (const record of evidenceRecords) {
         const card = document.createElement("article");
         card.className = "timeline-focus-evidence-card";
+        card.tabIndex = -1;
         const type = recordString(record, "type") || "source";
         card.dataset.type = type;
 
@@ -4112,15 +4113,22 @@ export class TimelineViewController {
         const batchSize = Math.min(6, hiddenCount);
         more.textContent = `Show ${batchSize} more evidence record${batchSize === 1 ? "" : "s"}`;
         more.addEventListener("click", () => {
+          const previousCount = evidenceRecords.length;
           this.focusEvidenceLimit = Math.min(
             allEvidenceRecords.length,
             this.focusEvidenceLimit + 6,
           );
           this.renderFocus(item, focusHost);
           requestAnimationFrame(() => {
-            focusHost
-              .querySelector<HTMLElement>(".timeline-focus-evidence-more")
-              ?.focus({ preventScroll: true });
+            const nextMore = focusHost.querySelector<HTMLElement>(".timeline-focus-evidence-more");
+            if (nextMore) {
+              nextMore.focus({ preventScroll: true });
+              return;
+            }
+            const cards = focusHost.querySelectorAll<HTMLElement>(".timeline-focus-evidence-card");
+            cards[Math.min(previousCount, Math.max(0, cards.length - 1))]?.focus({
+              preventScroll: true,
+            });
           });
         });
         evidence.append(more);
