@@ -1027,6 +1027,39 @@ export function occurrenceComposerSuggestions(
   }
 
   const cursorSection = composerCursorSection(input, cursorOffset);
+  if (editableSection?.kind === "subject" || editableSection?.kind === "object") {
+    return cursorEntitySuggestions(
+      Object.freeze({
+        kind: editableSection.kind,
+        start: editableSection.start,
+        end: editableSection.end,
+        text: editableSection.text,
+      }),
+      options.entities,
+    );
+  }
+  if (editableSection?.kind === "predicate") {
+    return cursorPredicateSuggestions(
+      Object.freeze({
+        kind: "predicate",
+        start: editableSection.start,
+        end: editableSection.end,
+        text: editableSection.text,
+      }),
+      options.predicates,
+    );
+  }
+  if (editableSection?.kind === "place") {
+    return cursorPlaceSuggestions(
+      Object.freeze({
+        kind: "place",
+        start: editableSection.start,
+        end: editableSection.end,
+        text: editableSection.text,
+      }),
+      options.places,
+    );
+  }
   if (cursorSection.kind === "subject" || cursorSection.kind === "object") {
     return cursorEntitySuggestions(cursorSection, options.entities);
   }
