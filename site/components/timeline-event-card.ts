@@ -43,7 +43,11 @@ export class LuumEventCardElement extends LitElement {
 
   setSelected(selected: boolean): void {
     this.classList.toggle("is-selected", selected);
-    this.terminal?.setAttribute("aria-expanded", String(selected));
+    this.terminal?.toggleAttribute("data-selected", selected);
+  }
+
+  setFocused(focused: boolean): void {
+    this.terminal?.setAttribute("aria-expanded", String(focused));
   }
 
   get terminal(): HTMLButtonElement | null {

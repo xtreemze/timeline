@@ -6,6 +6,8 @@
  * alive across pan/zoom so rendering does not become a destructive per-frame rebuild.
  */
 
+import type { ApplicationSelection } from "../src/application/selection.ts";
+import { projectTimelineSelection } from "../src/application/timeline-selection.ts";
 import { surfacePointerMayStartDirectManipulation } from "../src/interaction/surface-input-policy.ts";
 import { TimelinePresentation } from "./event-presentation.ts";
 import { TimelineScale } from "./time-scale.ts";
@@ -501,6 +503,9 @@ export class TimelineViewController {
   renderWindow: TemporalWindow = { start: 0, end: DEFAULT_SPAN_MS };
   retention: TemporalRetentionState = commitRetention(this.renderWindow);
   focusedId: string | null = null;
+  applicationSelection: ApplicationSelection | null = null;
+  selectedItemIds = new Set<string>();
+  selectedRelationshipId: string | null = null;
   focusMediaIndex = 0;
   focusTab: "overview" | "evidence" = "overview";
   orientation: Orientation = loadViewPreferences().orientation;
@@ -1117,6 +1122,7 @@ export class TimelineViewController {
       : this.items.flatMap((item) =>
           Number.isFinite(item.end) ? [item.start, Number(item.end)] : [item.start],
         );
+    this.refreshCanonicalSelectionProjection();
 
     if (!this.items.length) {
       this.cancelInertia();
@@ -1171,6 +1177,54 @@ export class TimelineViewController {
     }
   }
 
+  setSelection(selection: ApplicationSelection | null): void {
+    const same =
+      selection === null
+        ? this.applicationSelection === null
+        : this.applicationSelection?.kind === selection.kind &&
+          this.applicationSelection.id === selection.id;
+    if (same) return;
+
+    this.applicationSelection = selection
+      ? Object.freeze({ kind: selection.kind, id: selection.id })
+      : null;
+    this.refreshCanonicalSelectionProjection();
+
+    for (const record of this.scene.values()) this.syncRecordSelection(record);
+    this.syncClusterSelection();
+    this.syncRelationshipBandSelection();
+    this.syncSemanticChronologySelection();
+  }
+
+  refreshCanonicalSelectionProjection(): void {
+    const projection = projectTimelineSelection(this.applicationSelection, this.items);
+    this.selectedItemIds = new Set(projection.itemIds);
+    this.selectedRelationshipId = projection.relationshipId;
+  }
+
+  syncClusterSelection(): void {
+    for (const record of this.clusterScene.values()) {
+      let clusterSelected = false;
+      for (const tile of record.node.querySelectorAll<HTMLElement>("[data-cluster-item-id]")) {
+        const selected = Boolean(
+          tile.dataset.clusterItemId && this.selectedItemIds.has(tile.dataset.clusterItemId),
+        );
+        tile.classList.toggle("is-selected", selected);
+        if (selected) clusterSelected = true;
+      }
+      record.node.classList.toggle("is-selected", clusterSelected);
+    }
+  }
+
+  syncRelationshipBandSelection(): void {
+    for (const segment of this.relationshipBandScene.values()) {
+      const selected =
+        Boolean(segment.dataset.relationshipId) &&
+        segment.dataset.relationshipId === this.selectedRelationshipId;
+      segment.classList.toggle("is-selected", selected);
+    }
+  }
+
   semanticChronologyLabel(item: TimelineItem): string {
     const temporalLabel =
       Number.isFinite(item.end) && item.endLabel
@@ -1201,7 +1255,11 @@ export class TimelineViewController {
       button.type = "button";
       button.className = "timeline-semantic-occurrence";
       button.dataset.id = item.id;
-      button.textContent = this.semanticChronologyLabel(item);
+      const semanticLabel = this.semanticChronologyLabel(item);
+      const selected = this.selectedItemIds.has(item.id);
+      button.textContent = semanticLabel;
+      button.setAttribute("aria-label", selected ? `Selected: ${semanticLabel}` : semanticLabel);
+      button.toggleAttribute("data-selected", selected);
       button.setAttribute("aria-current", String(item.id === this.focusedId));
       button.addEventListener("click", () => {
         if (this.focusedId === item.id) {
@@ -1221,6 +1279,11 @@ export class TimelineViewController {
     for (const button of this.semanticList.querySelectorAll<HTMLButtonElement>(
       ".timeline-semantic-occurrence",
     )) {
+      const item = this.items.find((candidate) => candidate.id === button.dataset.id);
+      const selected = Boolean(item && this.selectedItemIds.has(item.id));
+      const label = item ? this.semanticChronologyLabel(item) : button.textContent || "";
+      button.toggleAttribute("data-selected", selected);
+      button.setAttribute("aria-label", selected ? `Selected: ${label}` : label);
       button.setAttribute("aria-current", String(button.dataset.id === this.focusedId));
     }
   }
@@ -1902,6 +1965,9 @@ export class TimelineViewController {
         this.relationshipBandZone.append(segment);
         this.frameCreatedObjects += 1;
       }
+
+      const selected = relationship.id === this.selectedRelationshipId;
+      segment.classList.toggle("is-selected", selected);
 
       const presentation = this.relationshipBandPresentation.get(relationship.id);
       const title = presentation?.title || "Temporal relationship";
@@ -2657,6 +2723,7 @@ export class TimelineViewController {
       const tile = document.createElement("span");
       tile.className = "timeline-cluster-tile";
       tile.dataset.clusterItemId = item.id;
+      tile.classList.toggle("is-selected", this.selectedItemIds.has(item.id));
       tile.title = item.title || item.startLabel || "Timeline occurrence";
       tile.style.setProperty("--cluster-tile-color", item.color || "var(--accent)");
       const media = item.media?.[0];
@@ -2694,6 +2761,10 @@ export class TimelineViewController {
     detail.textContent = "Nearby · select and expand";
     copy.append(title, detail);
     record.terminal.replaceChildren(tiles, copy);
+    record.node.classList.toggle(
+      "is-selected",
+      items.some((item) => this.selectedItemIds.has(item.id)),
+    );
   }
 
   positionCommittedClusters(padding: number, usable: number, axisCross: number): void {
@@ -3073,11 +3144,13 @@ export class TimelineViewController {
   }
 
   syncRecordSelection(record: SceneRecord): void {
-    const selected = record.item.id === this.focusedId;
+    const focused = record.item.id === this.focusedId;
+    const selected = focused || this.selectedItemIds.has(record.item.id);
+    record.node.setFocused(focused);
+    record.terminal.toggleAttribute("data-focus-anchor", focused);
     if (record.selected === selected) return;
     record.selected = selected;
     record.node.setSelected(selected);
-    record.terminal.toggleAttribute("data-focus-anchor", selected);
     record.range?.classList.toggle("is-selected", selected);
   }
 

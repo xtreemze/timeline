@@ -703,6 +703,7 @@ try {
 const applicationSelection = createApplicationSelectionController();
 applicationSelection.subscribe(({ selection }) => {
   temporalGraphView?.setSelection?.(selection);
+  timelineView?.setSelection(selection);
   syncOccurrenceComposerSelection(selection);
 });
 const dateRangePicker = dateRangeFactory.create({
