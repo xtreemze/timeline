@@ -83,8 +83,8 @@ interface ValidationResult {
 }
 
 export interface OccurrenceAuthoringDependencies<
+  TExtent,
   TState extends OccurrenceAuthoringState<TExtent>,
-  TExtent = unknown,
 > {
   cloneState(state: TState): TState;
   newId(kind: "entity" | "place" | "category" | "item" | "relationship"): string;
@@ -128,7 +128,7 @@ function normalizedName(value: string): string {
 function resolveEntity<TState extends OccurrenceAuthoringState<TExtent>, TExtent>(
   reference: OccurrenceAuthoringEndpointReference,
   draft: TState,
-  dependencies: OccurrenceAuthoringDependencies<TState, TExtent>,
+  dependencies: OccurrenceAuthoringDependencies<TExtent, TState>,
 ): AuthoringEntity {
   const rawName = reference.name.trim();
   if (!rawName) throw new Error("Each endpoint needs an entity name.");
@@ -189,7 +189,7 @@ function pointCoordinates(place: AuthoringPlace): readonly [number, number] | nu
 function resolvePlace<TState extends OccurrenceAuthoringState<TExtent>, TExtent>(
   request: OccurrenceAuthoringRequest<TExtent>,
   draft: TState,
-  dependencies: OccurrenceAuthoringDependencies<TState, TExtent>,
+  dependencies: OccurrenceAuthoringDependencies<TExtent, TState>,
 ): AuthoringPlace {
   const requested = request.placeName?.trim() || "";
   if (requested.startsWith("@")) {
@@ -265,7 +265,7 @@ function resolvePlace<TState extends OccurrenceAuthoringState<TExtent>, TExtent>
 function resolveCategory<TState extends OccurrenceAuthoringState<TExtent>, TExtent>(
   name: string | undefined,
   draft: TState,
-  dependencies: OccurrenceAuthoringDependencies<TState, TExtent>,
+  dependencies: OccurrenceAuthoringDependencies<TExtent, TState>,
 ): AuthoringCategory {
   if (!name?.trim()) {
     const fallback = draft.categories[0];
@@ -295,7 +295,7 @@ export function authorOccurrence<
 >(
   state: TState,
   request: OccurrenceAuthoringRequest<TExtent>,
-  dependencies: OccurrenceAuthoringDependencies<TState, TExtent>,
+  dependencies: OccurrenceAuthoringDependencies<TExtent, TState>,
 ): OccurrenceAuthoringResult<TState> {
   const subjectReference = request.subject;
   const objectReference = request.object;
