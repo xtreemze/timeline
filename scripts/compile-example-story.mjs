@@ -74,24 +74,22 @@ if (args.includes("--all")) {
   for (const entry of entries) {
     const compiledEntry = byId.get(entry.id);
     if (!compiledEntry) throw new Error(`Compiled corpus is missing ${entry.id}.`);
-    const directory = path.resolve(String(entry.targetDirectory || ""));
     if (!entry.targetDirectory) throw new Error(`Manifest story ${entry.id} has no targetDirectory.`);
-    await writeCompiledStory(directory, compiledEntry, compiledEntry.modules);
+    await writeCompiledStory(path.resolve(String(entry.targetDirectory)), compiledEntry, compiledEntry.modules);
   }
   process.stdout.write(`${entries.length} stories compiled from ${manifestPath}\n`);
-  process.exit(0);
-}
-
-const compiled = compileExampleStoryProject(sample, storyId, { savedAt });
-if (modulesDirectory) {
-  const modules = compileExampleStoryModules(sample, storyId, { savedAt });
-  const directory = path.resolve(modulesDirectory);
-  await writeCompiledStory(directory, compiled, modules);
-  process.stdout.write(`${directory}\n`);
-} else if (outputPath) {
-  await mkdir(path.dirname(path.resolve(outputPath)), { recursive: true });
-  await writeFile(outputPath, compiled.serialized, "utf8");
-  process.stdout.write(`${path.resolve(outputPath)}\n`);
 } else {
-  process.stdout.write(compiled.serialized);
+  const compiled = compileExampleStoryProject(sample, storyId, { savedAt });
+  if (modulesDirectory) {
+    const modules = compileExampleStoryModules(sample, storyId, { savedAt });
+    const directory = path.resolve(modulesDirectory);
+    await writeCompiledStory(directory, compiled, modules);
+    process.stdout.write(`${directory}\n`);
+  } else if (outputPath) {
+    await mkdir(path.dirname(path.resolve(outputPath)), { recursive: true });
+    await writeFile(outputPath, compiled.serialized, "utf8");
+    process.stdout.write(`${path.resolve(outputPath)}\n`);
+  } else {
+    process.stdout.write(compiled.serialized);
+  }
 }
