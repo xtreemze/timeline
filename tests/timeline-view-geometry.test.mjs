@@ -203,6 +203,10 @@ test("selected events use a shell-owned detail surface without changing footer c
   );
   assert.doesNotMatch(css, /position-anchor:\s*--timeline-detail-anchor/);
   assert.match(css, /timeline-focus-anchor-local-x/);
+  assert.match(css, /timeline-focus-inline-start/);
+  assert.match(css, /inline-size:\s*min\(32rem,/);
+  assert.match(css, /max-block-size:\s*min\(28rem,/);
+  assert.match(js, /dataset\.anchorSide/);
   assert.match(css, /> \.timeline-focus-summary[\s\S]*grid-column:\s*1 \/ -1/);
 });
 
