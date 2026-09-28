@@ -2,6 +2,7 @@ import {
   DOCUMENT_STORY_GUIDE,
   authoringGuideResult,
   stageStoryProject,
+  validateStoryProjectModule,
 } from "./story-authoring.ts";
 
 type JsonRecord = Record<string, unknown>;
@@ -18,9 +19,9 @@ const SERVER_INSTRUCTIONS =
   "Build source-grounded Lūm story proposals from user-provided documents/text. " +
   "For new projects, call lum.get_story_authoring_guide before authoring. " +
   "Read uploaded documents in the host; do not send raw document binaries to this server. " +
-  "Construct the complete project, preserve uncertainty and evidence locators, then call " +
-  "lum.stage_story_project. A successful preflight is structural only: the user must import " +
-  "the proposal into Lūm and verify it with the live graph audit/project validator.";
+  "Construct canonical Lūm interchange or bounded Lūm modules, preserve uncertainty and source locators, then call " +
+  "lum.stage_story_project. A successful canonical validation is structural/semantic only: the user must import " +
+  "the proposal into Lūm and verify source-grounded facts before accepting it.";
 
 const EMPTY_SCHEMA = {
   type: "object",
@@ -67,7 +68,7 @@ const TOOLS = Object.freeze([
         project: {
           type: "object",
           description:
-            "Complete Lūm project proposal with stories, chronology items, entities, relationships, evidence, and optional places/categories.",
+            "Complete canonical Lūm Project Interchange envelope (format lum-project, interchangeVersion 1).",
         },
         sources: {
           type: "array",
@@ -90,6 +91,30 @@ const TOOLS = Object.freeze([
         },
       },
       required: ["project", "sources"],
+    },
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
+  {
+    name: "lum.validate_project_module",
+    title: "Validate a bounded Lūm project module",
+    description:
+      "Validate the strict module envelope used for limited-context authoring. Whole-project semantic/reference validation is still required before staging can become ready for user verification.",
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        module: {
+          type: "object",
+          description:
+            "Canonical lum-project-module v1 envelope for exactly one project collection.",
+        },
+      },
+      required: ["module"],
     },
     annotations: {
       readOnlyHint: true,
@@ -311,6 +336,10 @@ function callTool(params: JsonRecord, modern: boolean): JsonRecord {
   if (name === "lum.stage_story_project") {
     const staged = stageStoryProject(args);
     return toolResult(staged, modern);
+  }
+  if (name === "lum.validate_project_module") {
+    const validation = validateStoryProjectModule(args.module);
+    return toolResult(validation, modern);
   }
   return errorToolResult("Unknown Lūm MCP tool: " + (name || "(missing name)"), modern);
 }
