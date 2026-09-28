@@ -737,7 +737,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
 
       const maximumRadius = Math.max(
         1,
-        ...nodes.map((node) => worldForceNodePreferredRadiusMeters(node.node)),
+        ...nodes.map((node) => node.node.collisionRadiusMeters),
       );
       const simulation = forceSimulation<D3WorldNodeState>(nodes as D3WorldNodeState[])
         .stop()
