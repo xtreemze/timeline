@@ -13,7 +13,8 @@ Lūm Project Interchange v1 remains JSON. Both integrations intentionally use a 
 
 It provides:
 - schema association for `*.lum.json`, `*.module.lum.json`, and strict `*.lum-proposal.json` agent proposals;
-- the built-in JSON syntax grammar plus Lūm-specific semantic key highlighting;
+- the built-in JSON syntax grammar plus semantic tokens from `lum lsp`;
+- cross-file canonical-ID completion, hover, symbols, definition/references, and guarded rename from the shared LSP;
 - strict diagnostics delegated to `lum check/lint`;
 - document formatting delegated to `lum fmt -`;
 - project/entity/relationship/occurrence snippets;
@@ -21,7 +22,7 @@ It provides:
 
 The extension first looks for `scripts/lum.mjs` in the current Lūm repository. Otherwise it runs the configured `lum.cliPath`, which defaults to `lum`.
 
-The extension does not implement a second validator.
+The extension does not implement a second validator or semantic index. Its dependency-free protocol adapter launches the same `lum lsp` server used by Helix. If the LSP cannot start, explicit CLI check/lint/format commands remain available.
 
 ## Helix
 
@@ -39,7 +40,7 @@ Diagnostics and language intelligence come from:
 lum lsp
 ```
 
-The LSP supplies strict diagnostics, semantic tokens, canonical-ID completion, field/reference hover, document symbols, go-to-definition, and find-references. Helix continues to use the JSON tree-sitter grammar for syntax; the semantic layer only adds Lūm meaning.
+The LSP supplies strict diagnostics, semantic tokens, canonical-ID completion, field/reference hover, document/workspace symbols, cross-file go-to-definition/find-references, and guarded canonical-ID rename previews. Helix continues to use the JSON tree-sitter grammar for syntax; the semantic layer only adds Lūm meaning.
 
 Formatting comes from:
 
@@ -62,3 +63,10 @@ VS Code associates `*.lum-proposal.json` with the proposal schema and includes a
 ## Project modules
 
 Project modules use the same JSON grammar, `lum lsp`, and `lum fmt -` path as complete projects. VS Code associates `*.module.lum.json` with the strict module schema and excludes those files from the complete-project schema association. Use `lum check-modules` when cross-module reference validation is required.
+
+
+## Workspace authority and rename
+
+The LSP indexes complete projects and modular sources by canonical project identity. If an assembled `project.lum.json` is present beside `*.module.lum.json` sources, the modules are treated as the authoring authority for navigation and rename.
+
+Canonical-ID rename is intentionally narrower than text rename. Only the unique canonical `id` declaration and typed reference fields are edited. The server simulates the workspace edit and runs strict validation before returning it; ambiguous declarations or invalid resulting projects return no rename.
