@@ -3226,25 +3226,71 @@ export class TimelineViewController {
     );
     const stage = this.focusView.parentElement;
     if (!record || !stage) return;
+
     const anchor = record.terminal.getBoundingClientRect();
     const host = stage.getBoundingClientRect();
-    const centerX = clamp(anchor.left + anchor.width / 2 - host.left, 0, host.width);
-    const centerY = clamp(anchor.top + anchor.height / 2 - host.top, 0, host.height);
+    const anchorLeft = anchor.left - host.left;
+    const anchorTop = anchor.top - host.top;
+    const anchorRight = anchorLeft + anchor.width;
+    const anchorBottom = anchorTop + anchor.height;
+    const centerX = clamp(anchorLeft + anchor.width / 2, 0, host.width);
+    const centerY = clamp(anchorTop + anchor.height / 2, 0, host.height);
+
     this.focusView.style.setProperty("--timeline-focus-anchor-x", `${centerX}px`);
     this.focusView.style.setProperty("--timeline-focus-anchor-y", `${centerY}px`);
     this.focusView.style.setProperty("--timeline-focus-anchor-width", `${anchor.width}px`);
     this.focusView.style.setProperty("--timeline-focus-anchor-height", `${anchor.height}px`);
+
     const detail = this.focusView.getBoundingClientRect();
+    const safe = 8;
+    const gap = 8;
+    const maxInlineStart = Math.max(safe, host.width - detail.width - safe);
+    const maxBlockStart = Math.max(safe, host.height - detail.height - safe);
+    let inlineStart = clamp(centerX - detail.width / 2, safe, maxInlineStart);
+    let blockStart = clamp(centerY - detail.height / 2, safe, maxBlockStart);
+    let attachmentSide: "above" | "below" | "left" | "right";
+
+    if (this.orientation === "horizontal") {
+      const spaceAbove = anchorTop - gap - safe;
+      const spaceBelow = host.height - anchorBottom - gap - safe;
+      const attachAbove =
+        spaceAbove >= Math.min(detail.height, 180) || spaceAbove >= spaceBelow;
+      attachmentSide = attachAbove ? "above" : "below";
+      blockStart = attachAbove ? anchorTop - detail.height - gap : anchorBottom + gap;
+    } else {
+      const spaceLeft = anchorLeft - gap - safe;
+      const spaceRight = host.width - anchorRight - gap - safe;
+      const attachLeft =
+        spaceLeft >= Math.min(detail.width, 240) || spaceLeft >= spaceRight;
+      attachmentSide = attachLeft ? "left" : "right";
+      inlineStart = attachLeft ? anchorLeft - detail.width - gap : anchorRight + gap;
+    }
+
+    inlineStart = clamp(inlineStart, safe, maxInlineStart);
+    blockStart = clamp(blockStart, safe, maxBlockStart);
+    this.focusView.style.setProperty("--timeline-focus-inline-start", `${inlineStart}px`);
+    this.focusView.style.setProperty("--timeline-focus-block-start", `${blockStart}px`);
+    this.focusView.dataset.anchorOrientation =
+      this.orientation === "horizontal" ? "landscape" : "portrait";
+    this.focusView.dataset.anchorSide = attachmentSide;
+
+    const positioned = this.focusView.getBoundingClientRect();
     this.focusView.style.setProperty(
       "--timeline-focus-anchor-local-x",
-      `${clamp(anchor.left + anchor.width / 2 - detail.left, 24, Math.max(24, detail.width - 24))}px`,
+      `${clamp(
+        anchor.left + anchor.width / 2 - positioned.left,
+        18,
+        Math.max(18, positioned.width - 18),
+      )}px`,
     );
     this.focusView.style.setProperty(
       "--timeline-focus-anchor-local-y",
-      `${clamp(anchor.top + anchor.height / 2 - detail.top, 24, Math.max(24, detail.height - 24))}px`,
+      `${clamp(
+        anchor.top + anchor.height / 2 - positioned.top,
+        18,
+        Math.max(18, positioned.height - 18),
+      )}px`,
     );
-    this.focusView.dataset.anchorOrientation =
-      this.orientation === "horizontal" ? "landscape" : "portrait";
   }
 
   positionRecord(
