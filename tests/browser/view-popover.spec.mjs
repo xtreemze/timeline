@@ -78,6 +78,22 @@ test("toolbar actions update state, labels, and scoped icons", async ({ page }) 
     await expect(button.locator(".compound-semantic-icon")).toHaveCount(1);
     await button.click();
   }
+
+  const project = page.locator("#project-menu-toggle");
+  await project.click();
+  await expect(project).toHaveAttribute("aria-expanded", "true");
+  await expect(project).toHaveAttribute("aria-label", "Close project actions");
+  await project.click();
+  await expect(project).toHaveAttribute("aria-expanded", "false");
+  await expect(project).toHaveAttribute("aria-label", "Project actions");
+
+  const investigation = page.locator("#investigation-workspace-toggle");
+  await investigation.click();
+  await expect(investigation).toHaveAttribute("aria-expanded", "true");
+  await expect(investigation).toHaveAttribute("aria-label", "Close investigation methodology");
+  await investigation.click();
+  await expect(investigation).toHaveAttribute("aria-expanded", "false");
+  await expect(investigation).toHaveAttribute("aria-label", "Investigation methodology");
 });
 
 test("opening Browse disables direct View controls without changing spatial stage geometry", async ({
