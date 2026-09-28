@@ -238,6 +238,26 @@ async function commandAgent(args) {
           id: String(trajectory.id),
           sampleCount: trajectory.sampleCount,
         })),
+        places: (project.places ?? []).map((place) => ({
+          id: String(place.id),
+          name: place.name,
+        })),
+        sources: (project.sources ?? []).map((source) => ({
+          id: String(source.id),
+          kind: source.kind,
+          title: source.title,
+        })),
+        categories: (project.categories ?? []).map((category) => ({
+          id: category.id,
+          name: category.name,
+          ...(category.color ? { color: category.color } : {}),
+        })),
+        stories: (project.stories ?? []).map((story) => ({
+          id: String(story.id),
+          title: story.title,
+          occurrenceIds: story.occurrenceIds.map(String),
+          placeIds: story.placeIds.map(String),
+        })),
       },
       composer: {
         syntax:
