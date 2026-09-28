@@ -3564,7 +3564,7 @@ body {
   backdrop-filter: blur(14px);
 }
 
-.app-view-controls {
+.app-footer-view {
   view-transition-name: timeline-view-controls;
 }
 
