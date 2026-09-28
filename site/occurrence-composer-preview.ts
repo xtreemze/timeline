@@ -56,7 +56,8 @@ export function projectComposerPreview(
       ? suggestion.insertText.replace(/^icon:\s*/i, "").trim()
       : null;
   const iconOffset = input.lastIndexOf("icon:");
-  const iconSection = composerEditableSections(input).find(
+  const sections = composerEditableSections(input);
+  const iconSection = sections.find(
     (section) => iconOffset >= section.start && iconOffset < section.end,
   );
   const previewSubjectIcon = iconSection?.kind === "subject" ? iconSuggestion : null;
@@ -70,14 +71,14 @@ export function projectComposerPreview(
     : null;
   return Object.freeze({
     subject: previewNode(
-      parsed.subject?.name,
+      parsed.subject?.name ?? sections.find((section) => section.kind === "subject")?.text,
       parsed.subject?.properties,
       entities,
       previewSubjectIcon,
     ),
     edge: parsed.predicate ? Object.freeze({ label: parsed.predicate }) : null,
     object: previewNode(
-      parsed.object?.name,
+      parsed.object?.name ?? sections.find((section) => section.kind === "object")?.text,
       parsed.object?.properties,
       entities,
       previewObjectIcon,

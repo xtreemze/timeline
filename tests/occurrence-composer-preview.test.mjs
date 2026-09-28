@@ -48,6 +48,20 @@ test("composer preview builds the world incrementally and previews icon suggesti
     icon: "pig",
   });
   assert.equal(targetPreview.object?.icon, "pig");
+  const unfinishedSubject = projectComposerPreview("Alice(icon: pi", entities, {
+    kind: "property",
+    label: "icon: pig",
+    insertText: "icon: pig",
+    icon: "pig",
+  });
+  assert.deepEqual(unfinishedSubject.subject, { label: "Alice", icon: "pig" });
+  const unfinishedTarget = projectComposerPreview("@alice meets Bob(icon: pi", entities, {
+    kind: "property",
+    label: "icon: pig",
+    insertText: "icon: pig",
+    icon: "pig",
+  });
+  assert.deepEqual(unfinishedTarget.object, { label: "Bob", icon: "pig" });
 });
 
 test("method actions stay in reasoning collections and retain falsification intent", () => {
