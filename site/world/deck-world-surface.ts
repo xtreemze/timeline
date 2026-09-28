@@ -3171,11 +3171,18 @@ export class DeckWorldSurface implements WorldSurface {
       return;
     }
 
-    this.#scheduleTouchHold(
-      touch,
-      null,
-      this.#pickAsyncOnly(touch.point, { depth: false }),
-    );
+    const pendingHit = this.#pickAsyncOnly(touch.point, { depth: false });
+    void pendingHit.then((hit) => {
+      const draggableEntity = hit?.kind === "entity" && this.#nodeDragSink;
+      if (!hit || draggableEntity || !this.#touchDrag.isPending(touch.pointerId)) return;
+      // Match the synchronous path: places/relationships are not long-press
+      // drag targets, so release the provisional hold as soon as WebGPU
+      // resolves the object rather than waiting for the hold threshold.
+      this.#touchDrag.cancel(touch.pointerId);
+      this.#clearTouchHoldTimer();
+      this.#setTouchDragState(null);
+    });
+    this.#scheduleTouchHold(touch, null, pendingHit);
   };
 
   readonly #handleTouchPointerMove = (event: TouchPointerEvent): void => {
