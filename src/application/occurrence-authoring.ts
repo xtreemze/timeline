@@ -65,6 +65,11 @@ interface AuthoringRelationship<TExtent = unknown> {
   subjectId: string;
   objectId: string;
   predicate: string;
+  role?: string;
+  occurrenceType?: string;
+  subjectContext?: Record<string, unknown>;
+  objectContext?: Record<string, unknown>;
+  semanticMappings?: unknown[];
   placeId?: string;
   itemIds?: string[];
   initialState?: "active" | "inactive";
@@ -152,6 +157,8 @@ export interface OccurrenceAuthoringResult<TState> {
   readonly objectId: string;
   readonly placeId: string;
   readonly categoryId: string;
+  readonly semanticReviewRequired?: boolean;
+  readonly semanticReviewReasons?: readonly string[];
 }
 
 function normalizedName(value: string): string {
@@ -471,6 +478,60 @@ function itemIdOf(value: unknown): string {
   return typeof id === "string" || typeof id === "number" ? String(id) : "";
 }
 
+type OccurrenceSemanticReviewReason =
+  | "subject-changed"
+  | "object-changed"
+  | "predicate-changed"
+  | "place-changed"
+  | "time-changed";
+
+function relationshipHasSemanticSupport(
+  relationship: AuthoringRelationship,
+  items: readonly unknown[],
+  linkedItemIds: readonly string[],
+): boolean {
+  if ((relationship.sourceIds ?? []).length > 0) return true;
+  if (relationship.confidence !== null && relationship.confidence !== undefined) return true;
+  if ((relationship.semanticMappings ?? []).length > 0) return true;
+  if (Boolean(relationship.role?.trim()) || Boolean(relationship.occurrenceType?.trim())) return true;
+  if (relationship.subjectContext || relationship.objectContext) return true;
+  return linkedItemIds.some((itemId) => {
+    const item = items.find((candidate) => itemIdOf(candidate) === itemId);
+    const record = itemRecord(item);
+    return Array.isArray(record?.["evidenceIds"]) && record!["evidenceIds"].length > 0;
+  });
+}
+
+function semanticReviewReasons(
+  attributes: Record<string, unknown> | undefined,
+): OccurrenceSemanticReviewReason[] {
+  const review = itemRecord(attributes?.["semanticReview"]);
+  const reasons = Array.isArray(review?.["reasons"]) ? review!["reasons"] : [];
+  return reasons.filter(
+    (reason): reason is OccurrenceSemanticReviewReason =>
+      reason === "subject-changed" ||
+      reason === "object-changed" ||
+      reason === "predicate-changed" ||
+      reason === "place-changed" ||
+      reason === "time-changed",
+  );
+}
+
+function markSemanticReview(
+  relationship: AuthoringRelationship,
+  reasons: readonly OccurrenceSemanticReviewReason[],
+): void {
+  if (!reasons.length) return;
+  const mergedReasons = [...new Set([...semanticReviewReasons(relationship.attributes), ...reasons])];
+  relationship.attributes = {
+    ...(relationship.attributes ?? {}),
+    semanticReview: {
+      required: true,
+      reasons: mergedReasons,
+    },
+  };
+}
+
 function derivedRelationshipTitle(
   state: Pick<OccurrenceAuthoringState, "entities">,
   relationship: Pick<AuthoringRelationship, "subjectId" | "predicate" | "objectId">,
@@ -517,12 +578,18 @@ export function updateOccurrence<TExtent, TState extends OccurrenceAuthoringStat
     throw new Error("An occurrence must connect two different entities.");
   }
 
+  const nextPredicate = predicate.slice(0, 120);
+  const subjectChanged = existing.subjectId !== subject.id;
+  const objectChanged = existing.objectId !== object.id;
+  const predicateChanged = existing.predicate !== nextPredicate;
   const next: AuthoringRelationship<TExtent> = {
     ...existing,
     subjectId: subject.id,
     objectId: object.id,
-    predicate: predicate.slice(0, 120),
+    predicate: nextPredicate,
   };
+  if (subjectChanged) delete next.subjectContext;
+  if (objectChanged) delete next.objectContext;
 
   if (request.placeName !== undefined) {
     if (request.placeName === null) {
@@ -570,6 +637,25 @@ export function updateOccurrence<TExtent, TState extends OccurrenceAuthoringStat
   draft.relationships[existingIndex] = next;
 
   const linkedItemIds = [...new Set((existing.itemIds ?? []).map(String).filter(Boolean))];
+  const reviewReasons: OccurrenceSemanticReviewReason[] = [];
+  if (subjectChanged) reviewReasons.push("subject-changed");
+  if (objectChanged) reviewReasons.push("object-changed");
+  if (predicateChanged) reviewReasons.push("predicate-changed");
+  if ((existing.placeId ?? "") !== (next.placeId ?? "")) reviewReasons.push("place-changed");
+  if (
+    request.time !== undefined &&
+    JSON.stringify(existing.time ?? null) !== JSON.stringify(next.time ?? null)
+  ) {
+    reviewReasons.push("time-changed");
+  }
+  const requiresSemanticReview =
+    reviewReasons.length > 0 &&
+    relationshipHasSemanticSupport(existing, draft.items, linkedItemIds);
+  if (requiresSemanticReview) {
+    next.confidence = null;
+    markSemanticReview(next, reviewReasons);
+  }
+
   const requestedItemId = request.itemId?.trim() || "";
   if (requestedItemId && !linkedItemIds.includes(requestedItemId)) {
     throw new Error(
@@ -687,5 +773,11 @@ export function updateOccurrence<TExtent, TState extends OccurrenceAuthoringStat
     objectId: object.id,
     placeId: next.placeId ?? "",
     categoryId,
+    ...(requiresSemanticReview
+      ? {
+          semanticReviewRequired: true,
+          semanticReviewReasons: Object.freeze([...reviewReasons]),
+        }
+      : {}),
   };
 }
