@@ -1,3 +1,9 @@
+import {
+  semanticIconReviewForEntities,
+  type SemanticIconAuditEntity,
+  type SemanticIconEntityReview,
+} from "../presentation/semantic-icon-inference.ts";
+
 export const STORY_PROPOSAL_SCHEMA_VERSION = "lum-story-proposal-v1" as const;
 export const PROJECT_IMPORT_REVIEW_SCHEMA_VERSION = "lum-project-import-review-v1" as const;
 
@@ -21,6 +27,7 @@ export interface StagedProjectImport<TProject> {
   readonly verificationRequired: true;
   readonly project: TProject;
   readonly fingerprint: string;
+  readonly semanticIcons: readonly SemanticIconEntityReview[];
   readonly sources: readonly JsonRecord[];
   readonly unresolved: readonly string[];
   readonly generationNotes: string;
@@ -85,6 +92,26 @@ function unique(values: readonly string[]): string[] {
 function collectionCount(project: unknown, key: string): number {
   const value = record(project)?.[key];
   return Array.isArray(value) ? value.length : 0;
+}
+
+function projectSemanticIconEntities(project: unknown): SemanticIconAuditEntity[] {
+  const values = record(project)?.["entities"];
+  if (!Array.isArray(values)) return [];
+  return values.flatMap((entry) => {
+    const entity = record(entry);
+    const idValue = entity?.["id"];
+    const id =
+      typeof idValue === "string" || typeof idValue === "number" ? String(idValue).trim() : "";
+    if (!entity || !id) return [];
+    return [
+      {
+        id,
+        name: entity["name"],
+        type: entity["type"],
+        attributes: entity["attributes"],
+      },
+    ];
+  });
 }
 
 function canonicalJson(value: unknown): string {
@@ -179,6 +206,7 @@ export function stageProjectImportReview<TProject>(
   const uniqueErrors = unique(errors);
   const uniqueWarnings = unique(warnings);
   const sources = records(input.sources);
+  const semanticIcons = semanticIconReviewForEntities(projectSemanticIconEntities(normalized));
 
   return {
     schemaVersion: PROJECT_IMPORT_REVIEW_SCHEMA_VERSION,
@@ -190,6 +218,7 @@ export function stageProjectImportReview<TProject>(
     verificationRequired: true,
     project: cloneValue(normalized),
     fingerprint: fingerprint(normalized),
+    semanticIcons,
     sources: Object.freeze(sources),
     unresolved: Object.freeze(strings(input.unresolved)),
     generationNotes:
