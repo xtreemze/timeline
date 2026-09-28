@@ -208,14 +208,14 @@ function inspectParticipant(
   participant: JsonRecord,
   path: string,
 ): ProjectInterchangeDiagnostic[] {
-  return inspectMappings(participant.externalMappings, `${path}/externalMappings`);
+  return inspectMappings(participant["externalMappings"], `${path}/externalMappings`);
 }
 
 function inspectEntity(entity: JsonRecord, path: string): ProjectInterchangeDiagnostic[] {
   return [
-    ...inspectRecordArray(entity.identifiers, `${path}/identifiers`, IDENTIFIER_FIELDS),
-    ...inspectRecordArray(entity.appellations, `${path}/appellations`, APPELLATION_FIELDS),
-    ...inspectMappings(entity.semanticMappings, `${path}/semanticMappings`),
+    ...inspectRecordArray(entity["identifiers"], `${path}/identifiers`, IDENTIFIER_FIELDS),
+    ...inspectRecordArray(entity["appellations"], `${path}/appellations`, APPELLATION_FIELDS),
+    ...inspectMappings(entity["semanticMappings"], `${path}/semanticMappings`),
   ];
 }
 
@@ -224,8 +224,8 @@ function inspectRelationship(
   path: string,
 ): ProjectInterchangeDiagnostic[] {
   const diagnostics = [
-    ...inspectMappings(relationship.semanticMappings, `${path}/semanticMappings`),
-    ...inspectTemporal(relationship.time, `${path}/time`),
+    ...inspectMappings(relationship["semanticMappings"], `${path}/semanticMappings`),
+    ...inspectTemporal(relationship["time"], `${path}/time`),
   ];
   for (const field of ["subjectContext", "objectContext"] as const) {
     const context = record(relationship[field]);
@@ -242,10 +242,10 @@ function inspectOccurrence(
   path: string,
 ): ProjectInterchangeDiagnostic[] {
   return [
-    ...inspectTemporal(occurrence.time, `${path}/time`),
-    ...inspectMappings(occurrence.semanticMappings, `${path}/semanticMappings`),
+    ...inspectTemporal(occurrence["time"], `${path}/time`),
+    ...inspectMappings(occurrence["semanticMappings"], `${path}/semanticMappings`),
     ...inspectRecordArray(
-      occurrence.participantContexts,
+      occurrence["participantContexts"],
       `${path}/participantContexts`,
       PARTICIPANT_FIELDS,
       inspectParticipant,
@@ -258,22 +258,22 @@ function inspectTrajectory(
   path: string,
 ): ProjectInterchangeDiagnostic[] {
   const diagnostics = [
-    ...inspectTemporal(trajectory.time, `${path}/time`),
-    ...inspectMappings(trajectory.externalMappings, `${path}/externalMappings`),
+    ...inspectTemporal(trajectory["time"], `${path}/time`),
+    ...inspectMappings(trajectory["externalMappings"], `${path}/externalMappings`),
     ...inspectRecordArray(
-      trajectory.channels,
+      trajectory["channels"],
       `${path}/channels`,
       TRAJECTORY_CHANNEL_FIELDS,
     ),
-    ...inspectRecordArray(trajectory.levels, `${path}/levels`, TRAJECTORY_LEVEL_FIELDS),
+    ...inspectRecordArray(trajectory["levels"], `${path}/levels`, TRAJECTORY_LEVEL_FIELDS),
   ];
-  const bounds = record(trajectory.bounds);
+  const bounds = record(trajectory["bounds"]);
   if (bounds) {
     diagnostics.push(
       ...unknownFieldDiagnostics(bounds, TRAJECTORY_BOUNDS_FIELDS, `${path}/bounds`),
     );
   }
-  const storage = record(trajectory.storage);
+  const storage = record(trajectory["storage"]);
   if (storage) {
     diagnostics.push(
       ...unknownFieldDiagnostics(storage, TRAJECTORY_STORAGE_FIELDS, `${path}/storage`),
@@ -284,7 +284,7 @@ function inspectTrajectory(
 
 function strictShapeDiagnostics(envelope: JsonRecord): ProjectInterchangeDiagnostic[] {
   const diagnostics = unknownFieldDiagnostics(envelope, ENVELOPE_FIELDS);
-  const project = record(envelope.project);
+  const project = record(envelope["project"]);
   if (!project) return diagnostics;
 
   diagnostics.push(...unknownFieldDiagnostics(project, PROJECT_FIELDS, "/project"));
@@ -402,7 +402,7 @@ export function validateProjectInterchange(
 
   const diagnostics = strictShapeDiagnostics(envelope);
 
-  if (envelope.format !== LUM_PROJECT_INTERCHANGE_FORMAT) {
+  if (envelope["format"] !== LUM_PROJECT_INTERCHANGE_FORMAT) {
     diagnostics.push({
       severity: "error",
       code: "unsupported-format",
@@ -411,7 +411,7 @@ export function validateProjectInterchange(
     });
   }
 
-  if (envelope.interchangeVersion !== LUM_PROJECT_INTERCHANGE_VERSION) {
+  if (envelope["interchangeVersion"] !== LUM_PROJECT_INTERCHANGE_VERSION) {
     diagnostics.push({
       severity: "error",
       code: "unsupported-interchange-version",
@@ -421,7 +421,7 @@ export function validateProjectInterchange(
     });
   }
 
-  if (envelope.$schema !== undefined && envelope.$schema !== LUM_PROJECT_SCHEMA_ID) {
+  if (envelope["$schema"] !== undefined && envelope["$schema"] !== LUM_PROJECT_SCHEMA_ID) {
     diagnostics.push({
       severity: "error",
       code: "unsupported-schema-id",
