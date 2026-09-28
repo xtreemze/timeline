@@ -4596,6 +4596,7 @@ export class DeckWorldSurface implements WorldSurface {
     this.#destroyed = true;
     this.#controls?.remove();
     this.#controls = null;
+    this.#zoomSlider = null;
     this.#themeQuery?.removeEventListener?.("change", this.#handleThemeChange);
     this.#themeQuery = null;
     this.#container.removeEventListener?.("pointercancel", this.#handlePointerCancel);
