@@ -114,6 +114,61 @@ test("cross-place relationships participate in one DAG and influence nodes back 
   );
 });
 
+test("selected-place DAG options propagate through its cross-place connected topology", () => {
+  const forest = {
+    placeId: "forest-scope",
+    longitude: 18,
+    latitude: 59,
+    influence: 1,
+  };
+  const village = {
+    placeId: "village-scope",
+    longitude: 18.05,
+    latitude: 59.02,
+    influence: 1,
+  };
+  const make = (name, geographicAnchor) =>
+    createProjectedWorldInstance({
+      id: worldInstanceId(name, `occ-${name}`),
+      canonicalId: name,
+      occurrenceId: `occ-${name}`,
+      geographicAnchors: [geographicAnchor],
+      temporalWeight: 1,
+      visualWeight: 0.5,
+      retained: false,
+    });
+
+  const source = make("scoped-source", forest);
+  const bridge = make("scoped-bridge", village);
+  const target = make("scoped-target", forest);
+  const projection = createWorldProjection({
+    instances: [source, bridge, target],
+    edges: [edge("scoped-out", source, bridge), edge("scoped-back", bridge, target)],
+  });
+
+  createWorldDagLayout(projection, { reorganize: true });
+  const scoped = createWorldDagLayout(projection, {
+    reorganizePlaceId: "forest-scope",
+    placeOverrides: new Map([
+      [
+        "forest-scope",
+        {
+          algorithm: "grid",
+          orientation: "left-to-right",
+          edgeStyle: "orthogonal",
+        },
+      ],
+    ]),
+  });
+
+  assert.equal(
+    scoped.metrics.algorithmCounts["cross-place:grid"],
+    1,
+    "selected-place algorithm should govern the connected cross-place structural pass",
+  );
+  assert.equal(scoped.targets.length, 3);
+});
+
 test("Sugiyama flow follows viewport orientation", () => {
   const source = instance("orientation-source");
   const target = instance("orientation-target");
