@@ -4,6 +4,18 @@
  * Vendor-neutral import/export with extension preservation
  */
 
+import {
+  compileExampleStoryProject,
+  type LegacyExampleSample,
+} from "../src/application/example-story-compiler.ts";
+import {
+  serializeProjectInterchange,
+  validateProjectInterchange,
+} from "../src/application/project-interchange.ts";
+import type { CanonicalProject } from "../src/domain/project.ts";
+import type { ProjectSnapshot } from "../src/application/project-repository.ts";
+
+
 const FORMAT = "timeline.interchange";
 const SCHEMA_VERSION = 1;
 const MAX_PRESERVED_RECORD_CHARS = 64_000;
@@ -724,6 +736,213 @@ export function exportData(timeline: any): ExportResult {
   };
 }
 
+
+export interface LegacyCanonicalBridgeOptions {
+  readonly projectKey: string;
+  readonly savedAt: string;
+}
+
+export interface LegacyCanonicalBridgeResult {
+  readonly serialized: string;
+  readonly snapshot: ProjectSnapshot;
+  readonly validation: ReturnType<typeof validateProjectInterchange>;
+  readonly warnings: readonly string[];
+}
+
+function itemWithCanonicalTime(item: any): any {
+  if (item?.time && typeof item.time === "object") return item;
+  const start = typeof item?.start === "string" && item.start.trim() ? item.start.trim() : null;
+  if (!start) return item;
+  if (item.kind === "range") {
+    const end = typeof item?.end === "string" && item.end.trim() ? item.end.trim() : null;
+    return {
+      ...item,
+      time: {
+        type: "interval",
+        start: { value: start },
+        ...(end ? { end: { value: end } } : {}),
+      },
+    };
+  }
+  return {
+    ...item,
+    time: {
+      type: "instant",
+      start: { value: start },
+    },
+  };
+}
+
+function stableJson(value: unknown): string {
+  return JSON.stringify(value);
+}
+
+function mergeCanonicalRecords(
+  collection: string,
+  target: Map<string, any>,
+  records: readonly any[],
+): void {
+  for (const record of records) {
+    const id = String(record?.id ?? "");
+    if (!id) throw new Error(`Legacy ${collection} contains a record without a canonical ID.`);
+    const existing = target.get(id);
+    if (existing && stableJson(existing) !== stableJson(record)) {
+      throw new Error(
+        `Legacy ${collection} record ${id} resolves to conflicting canonical values across stories.`,
+      );
+    }
+    if (!existing) target.set(id, structuredClone(record));
+  }
+}
+
+function timelineStoryItemIds(story: any): string[] {
+  return Array.isArray(story?.itemIds)
+    ? story.itemIds.filter((id: unknown): id is string => typeof id === "string" && id.trim().length > 0)
+    : [];
+}
+
+export function timelineToLumInterchange(
+  timeline: any,
+  options: LegacyCanonicalBridgeOptions,
+): LegacyCanonicalBridgeResult {
+  if (!timeline || typeof timeline !== "object") {
+    throw new Error("Expected a legacy Timeline document to canonicalize.");
+  }
+  const stories = Array.isArray(timeline.stories) ? timeline.stories : [];
+  if (stories.length === 0) {
+    throw new Error(
+      "Legacy chronology cannot become canonical Lūm without an explicit story/occurrence ownership context. The adapter will not invent actors, relationships, or story membership.",
+    );
+  }
+  if (Array.isArray(timeline.trajectories) && timeline.trajectories.length > 0) {
+    throw new Error(
+      "Legacy Timeline trajectories must be migrated through the canonical trajectory importer; the compatibility adapter will not drop them.",
+    );
+  }
+
+  const items = (Array.isArray(timeline.items) ? timeline.items : []).map(itemWithCanonicalTime);
+  const itemIds = new Set(items.map((item: any) => String(item?.id ?? "")).filter(Boolean));
+  const coveredItemIds = new Set(stories.flatMap(timelineStoryItemIds));
+  const uncoveredItems = [...itemIds].filter((id) => !coveredItemIds.has(id));
+  if (uncoveredItems.length > 0) {
+    throw new Error(
+      `Legacy Timeline items are not owned by any story and cannot be dropped during canonical conversion: ${uncoveredItems.join(", ")}.`,
+    );
+  }
+
+  const sample: LegacyExampleSample = {
+    title: typeof timeline.title === "string" ? timeline.title : "",
+    entities: Array.isArray(timeline.entities) ? timeline.entities : [],
+    relationships: Array.isArray(timeline.relationships) ? timeline.relationships : [],
+    items,
+    places: Array.isArray(timeline.places) ? timeline.places : [],
+    evidence: Array.isArray(timeline.evidence) ? timeline.evidence : [],
+    categories: Array.isArray(timeline.categories) ? timeline.categories : [],
+    stories,
+  };
+
+  const entities = new Map<string, any>();
+  const relationships = new Map<string, any>();
+  const occurrences = new Map<string, any>();
+  const places = new Map<string, any>();
+  const sources = new Map<string, any>();
+  const categories = new Map<string, any>();
+  const canonicalStories = new Map<string, any>();
+  let schemaVersion: number | null = null;
+
+  for (const story of stories) {
+    const storyId = typeof story?.id === "string" ? story.id : "";
+    if (!storyId) throw new Error("Every legacy story needs a stable ID before canonical conversion.");
+    const compiled = compileExampleStoryProject(sample, storyId, {
+      projectKey: options.projectKey,
+      savedAt: options.savedAt,
+    });
+    schemaVersion ??= compiled.snapshot.project.schemaVersion;
+    mergeCanonicalRecords("entities", entities, compiled.snapshot.project.entities);
+    mergeCanonicalRecords("relationships", relationships, compiled.snapshot.project.relationships);
+    mergeCanonicalRecords("occurrences", occurrences, compiled.snapshot.project.occurrences ?? []);
+    mergeCanonicalRecords("places", places, compiled.snapshot.project.places ?? []);
+    mergeCanonicalRecords("sources", sources, compiled.snapshot.project.sources ?? []);
+    mergeCanonicalRecords("categories", categories, compiled.snapshot.project.categories ?? []);
+    mergeCanonicalRecords("stories", canonicalStories, compiled.snapshot.project.stories ?? []);
+  }
+
+  const rawRelationshipIds = new Set(
+    sample.relationships.map((relationship: any) => String(relationship?.id ?? "")).filter(Boolean),
+  );
+  const droppedRelationships = [...rawRelationshipIds].filter((id) => !relationships.has(id));
+  if (droppedRelationships.length > 0) {
+    throw new Error(
+      `Legacy relationships are not owned by any canonical story occurrence and cannot be dropped: ${droppedRelationships.join(", ")}.`,
+    );
+  }
+
+  const rawEntityIds = new Set(
+    sample.entities.map((entity: any) => String(entity?.id ?? "")).filter(Boolean),
+  );
+  const droppedEntities = [...rawEntityIds].filter((id) => !entities.has(id));
+  if (droppedEntities.length > 0) {
+    throw new Error(
+      `Legacy entities are not connected to canonical story facts and cannot be dropped: ${droppedEntities.join(", ")}.`,
+    );
+  }
+
+  const rawPlaceIds = new Set(
+    sample.places.map((place: any) => String(place?.id ?? "")).filter(Boolean),
+  );
+  const droppedPlaces = [...rawPlaceIds].filter((id) => !places.has(id));
+  if (droppedPlaces.length > 0) {
+    throw new Error(
+      `Legacy places are not referenced by canonical stories/facts and cannot be dropped: ${droppedPlaces.join(", ")}.`,
+    );
+  }
+
+  const project: CanonicalProject = {
+    schemaVersion: schemaVersion ?? 3,
+    entities: [...entities.values()],
+    relationships: [...relationships.values()],
+    occurrences: [...occurrences.values()],
+    places: [...places.values()],
+    sources: [...sources.values()],
+    categories: [...categories.values()],
+    stories: [...canonicalStories.values()],
+  };
+  const snapshot: ProjectSnapshot = {
+    projectKey: options.projectKey,
+    revision: 1,
+    savedAt: options.savedAt,
+    project,
+  };
+  const serialized = serializeProjectInterchange(snapshot);
+  const validation = validateProjectInterchange(serialized);
+  if (!validation.valid) {
+    throw new Error(
+      `Legacy Timeline conversion produced invalid canonical Lūm: ${validation.diagnostics
+        .map((finding) => `${finding.path || "/"}: ${finding.message}`)
+        .join(" ")}`,
+    );
+  }
+  return Object.freeze({
+    serialized,
+    snapshot: validation.snapshot,
+    validation,
+    warnings: Object.freeze([]),
+  });
+}
+
+export function toLumInterchange(
+  input: unknown,
+  options: LegacyCanonicalBridgeOptions,
+): LegacyCanonicalBridgeResult {
+  const imported = importData(input);
+  const converted = timelineToLumInterchange(imported.timeline, options);
+  return Object.freeze({
+    ...converted,
+    warnings: Object.freeze([...imported.warnings]),
+  });
+}
+
+
 // Export public API as frozen object for backward compatibility
 const TimelineInterchangeAdapterObj = {
   FORMAT,
@@ -731,6 +950,8 @@ const TimelineInterchangeAdapterObj = {
   importData,
   exportData,
   isLikelyInterchange,
+  toLumInterchange,
+  timelineToLumInterchange,
 } as const;
 
 export const TimelineInterchangeAdapter = Object.freeze(TimelineInterchangeAdapterObj);
