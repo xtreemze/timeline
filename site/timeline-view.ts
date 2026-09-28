@@ -3762,7 +3762,7 @@ export class TimelineViewController {
     commit();
   }
 
-  createFocusHero(item: TimelineItem): HTMLElement {
+  createFocusHero(item: TimelineItem, focusHost: HTMLElement): HTMLElement {
     const hero = document.createElement("section");
     hero.className = "timeline-focus-hero";
     const media = Array.isArray(item.media) ? item.media.slice(0, 3) : [];
@@ -3817,9 +3817,9 @@ export class TimelineViewController {
 
       const selectMedia = (index: number, focusSelector: string) => {
         this.focusMediaIndex = (index + media.length) % media.length;
-        this.renderFocus(item);
+        this.renderFocus(item, focusHost);
         requestAnimationFrame(() => {
-          this.focusView
+          focusHost
             .querySelector<HTMLButtonElement>(focusSelector)
             ?.focus({ preventScroll: true });
         });
@@ -3871,14 +3871,20 @@ export class TimelineViewController {
     return hero;
   }
 
-  renderFocus(item: TimelineItem): void {
-    this.focusView.tabIndex = -1;
-    this.focusView.style.setProperty("--event-color", item.color || "var(--accent)");
-    this.focusView.dataset.layout = item.layoutVariant || "evidence-dossier";
-    this.focusView.dataset.activeTab = this.focusTab;
-    this.focusView.setAttribute("aria-labelledby", "timeline-focus-heading");
+  renderFocus(item: TimelineItem, host: HTMLElement | null = null): void {
+    const focusHost =
+      host ??
+      (this.focusedId
+        ? this.scene.get(occurrenceSceneKey(this.focusedId))?.node.detailHost ?? null
+        : null) ??
+      focusHost;
+    focusHost.tabIndex = -1;
+    focusHost.style.setProperty("--event-color", item.color || "var(--accent)");
+    focusHost.dataset.layout = item.layoutVariant || "evidence-dossier";
+    focusHost.dataset.activeTab = this.focusTab;
+    focusHost.setAttribute("aria-labelledby", "timeline-focus-heading");
 
-    const hero = this.createFocusHero(item);
+    const hero = this.createFocusHero(item, focusHost);
 
     const summary = document.createElement("section");
     summary.id = "timeline-focus-context-panel";
@@ -4045,7 +4051,7 @@ export class TimelineViewController {
     const applyFocusTab = (name: "overview" | "evidence"): void => {
       const evidenceActive = name === "evidence";
       this.focusTab = name;
-      this.focusView.dataset.activeTab = name;
+      focusHost.dataset.activeTab = name;
       summary.hidden = evidenceActive;
       evidence.hidden = !evidenceActive;
       overviewTab.classList.toggle("is-active", !evidenceActive);
@@ -4109,11 +4115,14 @@ export class TimelineViewController {
     header.append(tabs, contextActions);
     applyFocusTab(this.focusTab);
 
-    this.focusView.replaceChildren(header, hero, summary, evidence);
+    focusHost.replaceChildren(header, hero, summary, evidence);
     this.root.dispatchEvent(
       new CustomEvent("timelinefocusrender", {
         bubbles: true,
-        detail: { id: item.id },
+        detail: {
+          id: item.id,
+          presentationSurface: focusHost === this.focusView ? "sidebar" : "card",
+        },
       }),
     );
   }
@@ -4143,6 +4152,10 @@ export class TimelineViewController {
     const direction = delta < 0 ? -1 : 1;
     this.focusMediaIndex = (this.focusMediaIndex + direction + media.length) % media.length;
     this.renderFocus(item);
+    const record = this.scene.get(occurrenceSceneKey(item.id));
+    if (record?.node.detailHost && !record.node.detailHost.hidden) {
+      this.syncExpandedDetailGeometry(record, record.node.detailHost);
+    }
     return true;
   }
 
