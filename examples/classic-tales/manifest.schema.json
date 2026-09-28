@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://xtreemze.github.io/timeline/schemas/example-corpus-manifest-v1.json",
+  "title": "Lūm example corpus manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "version", "project", "stories"],
+  "properties": {
+    "format": {
+      "const": "lum-example-corpus"
+    },
+    "version": {
+      "const": 1
+    },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "currentSourceFiles"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "currentSourceFiles": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "stories": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/story"
+      }
+    }
+  },
+  "$defs": {
+    "story": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "title",
+        "sourceFile",
+        "targetDirectory",
+        "migrationStatus"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^story-[a-z0-9-]+$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sourceFile": {
+          "type": "string",
+          "enum": [
+            "site/sample-case.ts",
+            "site/sample-case-additions.ts"
+          ]
+        },
+        "targetDirectory": {
+          "type": "string",
+          "pattern": "^examples/classic-tales/[a-z0-9-]+$"
+        },
+        "migrationStatus": {
+          "enum": [
+            "legacy-source",
+            "pilot",
+            "modular",
+            "canonical"
+          ]
+        }
+      }
+    }
+  }
+}
