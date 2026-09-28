@@ -2224,6 +2224,32 @@ footer > :last-child {
   background: var(--paper);
   box-shadow: 0 1px 3px rgb(23 23 23 / 12%);
 }
+.world-camera-controls:not(.is-footer-control) .world-zoom-control {
+  display: grid;
+  grid-template-columns: 44px minmax(72px, 96px) 44px;
+  align-items: center;
+  min-block-size: 44px;
+}
+
+.world-camera-controls:not(.is-footer-control) .world-zoom-slider {
+  inline-size: 100%;
+  min-inline-size: 0;
+  block-size: 44px;
+  margin: 0;
+  padding-inline: 0.4rem;
+  border: 0;
+  outline: 0;
+  accent-color: currentcolor;
+  background: transparent;
+  cursor: ew-resize;
+  touch-action: pan-y;
+}
+
+.world-camera-controls:not(.is-footer-control) .world-zoom-slider:focus-visible {
+  outline: 2px solid currentcolor;
+  outline-offset: -3px;
+}
+
 .world-camera-controls:not(.is-footer-control) .world-camera-control {
   display: grid;
   place-items: center;
