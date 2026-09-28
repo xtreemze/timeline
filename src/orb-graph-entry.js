@@ -103,7 +103,7 @@ function semanticIconUrl(icon) {
   const paths = iconPathData(icon);
   const fallbackPaths = paths.length > 0 ? paths : iconPathData("relation");
   const pathMarkup = fallbackPaths.map((d) => `<path d="${d}"/>`).join("");
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${pathMarkup}</svg>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" color="white" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${pathMarkup}</svg>`;
   const url = `data:image/svg+xml,${encodeURIComponent(svg)}`;
   iconCache.set(icon, url);
   return url;
