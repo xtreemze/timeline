@@ -240,10 +240,11 @@ test("same-occurrence media and context refresh preserve a dirty investigative d
       composition: "@alice calls @bob",
       title: "Initial context",
       description: "Initial description",
-      media: {
+      media: [{
         src: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==",
         alt: "Initial evidence",
-      },
+        caption: "Initial caption",
+      }],
       relationship: { subjectId: "alice", objectId: "bob" },
     });
   });
@@ -259,10 +260,18 @@ test("same-occurrence media and context refresh preserve a dirty investigative d
       composition: "@alice calls @bob",
       title: "Updated context",
       description: "Updated description",
-      media: {
-        src: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==",
-        alt: "Updated evidence",
-      },
+      media: [
+        {
+          src: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==",
+          alt: "Updated evidence A",
+          caption: "Updated caption A",
+        },
+        {
+          src: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==",
+          alt: "Updated evidence B",
+          caption: "Updated caption B",
+        },
+      ],
       relationship: { subjectId: "alice", objectId: "bob" },
     });
   });
@@ -270,8 +279,13 @@ test("same-occurrence media and context refresh preserve a dirty investigative d
   await expect(input).toHaveValue("man? calls @alice");
   await expect(composer.locator("#occurrence-investigation-panel")).toBeVisible();
   await expect(composer.locator(".composer-card-heading")).toContainText("Updated context");
-  await expect(composer.locator(".composer-card-context")).toHaveText("Updated description");
-  await expect(composer.locator(".composer-card-media")).toHaveAttribute("alt", "Updated evidence");
+  const deck = composer.locator("luum-occurrence-deck.composer-context-deck");
+  await expect(deck).toHaveAttribute("data-frame-count", "3");
+  await expect(deck.locator(".timeline-focus-hero-image")).toHaveAttribute("alt", "Updated evidence A");
+  await deck.getByRole("button", { name: "Next frame" }).click();
+  await expect(deck.locator(".timeline-focus-hero-image")).toHaveAttribute("alt", "Updated evidence B");
+  await deck.getByRole("button", { name: "Next frame" }).click();
+  await expect(deck.locator(".timeline-occurrence-deck-context-body")).toHaveText("Updated description");
 });
 
 
