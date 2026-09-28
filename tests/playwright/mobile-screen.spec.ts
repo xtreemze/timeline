@@ -106,6 +106,23 @@ test.describe("Narrow mobile screen contracts", () => {
       expect(before).not.toBeNull();
       if (!before) throw new Error("Footer geometry is unavailable before composer expansion.");
 
+      await expect(composer).not.toHaveAttribute("active", "");
+      await expect(input).toBeVisible();
+      const idleInputBox = await input.boundingBox();
+      expect(idleInputBox).not.toBeNull();
+      if (idleInputBox) {
+        expect(idleInputBox.width).toBeGreaterThanOrEqual(Math.min(120, viewport.width * 0.3));
+        expect(idleInputBox.x).toBeGreaterThanOrEqual(before.x - 1);
+        expect(idleInputBox.x + idleInputBox.width).toBeLessThanOrEqual(before.x + before.width + 1);
+      }
+
+      await input.focus();
+      await expect(composer).toHaveAttribute("active", "");
+      await expect(input).toBeFocused();
+      await input.press("Escape");
+      await expect(composer).not.toHaveAttribute("active", "");
+      await expect(input).toBeVisible();
+
       await page.locator("#editor-toggle").click();
       const toggle = page.locator("#occurrence-composer-toggle");
       await expect(toggle).toBeVisible();
