@@ -271,6 +271,12 @@ export class LuumOccurrenceComposerElement extends LitElement {
       color: var(--ink, #191714);
     }
 
+    .context-chip[data-context-state="editing"] {
+      border-color: var(--focus, #315fbd);
+      background: color-mix(in srgb, var(--focus, #315fbd) 10%, var(--paper, #fff));
+      color: var(--ink, #191714);
+    }
+
     button.context-chip {
       appearance: none;
       font: inherit;
