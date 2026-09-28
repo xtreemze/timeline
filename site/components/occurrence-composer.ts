@@ -1,5 +1,6 @@
 import { LitElement, css, html, nothing } from "lit";
 import { iconPathData } from "../event-presentation.ts";
+import "./occurrence-investigation.ts";
 import {
   timelineContextFromViewport,
   worldContextFromCamera,
@@ -926,6 +927,22 @@ export class LuumOccurrenceComposerElement extends LitElement {
     });
   }
 
+  private selectInvestigativeQualifier(event: CustomEvent): void {
+    const start = Number(event.detail?.start);
+    const end = Number(event.detail?.end);
+    if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end < start) return;
+    this.cursorOffset = start;
+    this.activeSuggestion = 0;
+    this.externalError = "";
+    this.requestUpdate();
+    void this.updateComplete.then(() => {
+      const input = this.renderRoot.querySelector<HTMLInputElement>("input");
+      if (!input) return;
+      input.focus({ preventScroll: true });
+      input.setSelectionRange(start, end);
+    });
+  }
+
   private sectionIsActive(section: ComposerEditableSection): boolean {
     return this.cursorOffset >= section.start && this.cursorOffset <= section.end;
   }
@@ -1214,7 +1231,16 @@ export class LuumOccurrenceComposerElement extends LitElement {
       this.explicitPlaceContext?.label ??
       this.worldContext?.label ??
       "World center";
-    const suggestions = this.metadataOpen ? [] : this.suggestions().slice(0, 7);
+    const investigating = parsed.investigation.qualifiers.length > 0;
+    const activeInvestigativeQualifier =
+      parsed.investigation.qualifiers.find(
+        (qualifier) =>
+          this.cursorOffset >= qualifier.start && this.cursorOffset <= qualifier.end,
+      ) ??
+      parsed.investigation.qualifiers[0] ??
+      null;
+    const suggestions =
+      this.metadataOpen || investigating ? [] : this.suggestions().slice(0, 7);
     const selectedIndex = Math.min(
       this.activeSuggestion,
       Math.max(0, suggestions.length - 1),
@@ -1245,7 +1271,11 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const categoryLabel = parsed.options.category ?? null;
     const tagLabels = parsed.options.tags;
     const canCommit = Boolean(
-      parsed.subject && parsed.predicate && parsed.object && parsed.diagnostics.length === 0,
+      parsed.subject &&
+        parsed.predicate &&
+        parsed.object &&
+        parsed.diagnostics.length === 0 &&
+        parsed.investigation.qualifiers.length === 0,
     );
     const commitLabel = this.selectionContext?.selectedOccurrenceId
       ? "Save occurrence"
@@ -1280,7 +1310,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     return html`
       <section class="composer" aria-label="Occurrence composer">
         <div class="input-row">
-          <span class="stage" aria-hidden="true">${this.stageLabel(parsed)}</span>
+          <span class="stage" aria-hidden="true">${investigating ? "investigate" : this.stageLabel(parsed)}</span>
           <div class="input-shell">
             <span class="ghost-completion" aria-hidden="true">
               <span class="ghost-base">${this.value}</span><span class="ghost-suffix">${ghostSuffix}</span>
@@ -1292,8 +1322,14 @@ export class LuumOccurrenceComposerElement extends LitElement {
               spellcheck="false"
               role="combobox"
               aria-autocomplete="both"
-              aria-expanded=${String(suggestions.length > 0)}
-              aria-controls=${suggestions.length ? "occurrence-composer-listbox" : nothing}
+              aria-expanded=${String(investigating || suggestions.length > 0)}
+              aria-controls=${
+                investigating
+                  ? "occurrence-composer-investigation"
+                  : suggestions.length
+                    ? "occurrence-composer-listbox"
+                    : nothing
+              }
               aria-activedescendant=${
                 suggestions.length ? `occurrence-composer-option-${selectedIndex}` : nothing
               }
@@ -1521,6 +1557,18 @@ export class LuumOccurrenceComposerElement extends LitElement {
                 </div>`
               : nothing
           }
+          ${investigating
+            ? html`
+                <luum-occurrence-investigation
+                  .qualifiers=${parsed.investigation.qualifiers}
+                  .entities=${this.data.entities}
+                  .sourceText=${this.value}
+                  .activeQualifierId=${activeInvestigativeQualifier?.id ?? ""}
+                  @investigativequalifierselect=${(event: CustomEvent) =>
+                    this.selectInvestigativeQualifier(event)}
+                ></luum-occurrence-investigation>
+              `
+            : nothing}
           ${
             diagnostic
               ? html`<p id="occurrence-composer-diagnostic" class="diagnostic" role="alert">${diagnostic}</p>`
