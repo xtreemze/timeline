@@ -355,6 +355,7 @@ function composerPlaceTailQuery(input: string): string | null {
   if (!match) return null;
   const raw = match[1] ?? "";
   if (/\s+(?:on|from)\s+/i.test(raw)) return null;
+  if (raw.trim() && /\s$/.test(input)) return null;
   return unquote(raw.trim());
 }
 
@@ -440,8 +441,17 @@ export function occurrenceComposerSuggestions(
       const pipe = optionValue.lastIndexOf("|");
       const retained = pipe >= 0 ? optionValue.slice(0, pipe + 1) : "";
       const query = pipe >= 0 ? optionValue.slice(pipe + 1).trim() : optionValue;
+      const selectedTags = new Set(
+        retained
+          .split("|")
+          .map((tag) => tag.trim())
+          .filter(Boolean),
+      );
       return Object.freeze(
-        rankedStrings(options.tags ?? [], query)
+        rankedStrings(
+          (options.tags ?? []).filter((tag) => !selectedTags.has(tag)),
+          query,
+        )
           .slice(0, 7)
           .map((tag) => ({
             kind: "tag" as const,
