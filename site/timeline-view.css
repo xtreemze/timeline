@@ -4270,12 +4270,6 @@
   height: 15px;
   stroke-width: 1.9;
 }
-.timeline-focus-icon-action > .semantic-icon {
-  position: relative;
-  z-index: 1;
-  inline-size: 16px;
-  block-size: 16px;
-}
 .timeline-focus-tags .event-tag .semantic-icon {
   width: 1.35rem;
   height: 1.35rem;
