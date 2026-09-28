@@ -1432,22 +1432,22 @@ export function replaceComposerTail(
   if (!insertText) return input;
   const trimmed = input.trimEnd();
 
-  const openEntityProperties = trimmed.lastIndexOf("(");
-  const closeEntityProperties = trimmed.lastIndexOf(")");
+  const openEntityProperties = findLastMarkerOutsideQuotes(trimmed, "(");
+  const closeEntityProperties = findLastMarkerOutsideQuotes(trimmed, ")");
   if (openEntityProperties > closeEntityProperties) {
     const prefix = trimmed.slice(0, openEntityProperties + 1);
     const current = trimmed.slice(openEntityProperties + 1);
-    const comma = current.lastIndexOf(",");
+    const comma = findLastMarkerOutsideQuotes(current, ",");
     const retained = comma >= 0 ? current.slice(0, comma + 1) : "";
     return `${prefix}${retained}${retained ? " " : ""}${insertText}`;
   }
 
-  const openOptions = trimmed.lastIndexOf("[");
-  const closeOptions = trimmed.lastIndexOf("]");
+  const openOptions = findLastMarkerOutsideQuotes(trimmed, "[");
+  const closeOptions = findLastMarkerOutsideQuotes(trimmed, "]");
   if (openOptions > closeOptions) {
     const prefix = trimmed.slice(0, openOptions + 1);
     const current = trimmed.slice(openOptions + 1);
-    const comma = current.lastIndexOf(",");
+    const comma = findLastMarkerOutsideQuotes(current, ",");
     const retained = comma >= 0 ? current.slice(0, comma + 1) : "";
     return `${prefix}${retained}${retained ? " " : ""}${insertText}`;
   }
