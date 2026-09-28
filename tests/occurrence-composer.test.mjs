@@ -523,7 +523,8 @@ test("application keeps timeline and World live while composer uses their center
   assert.match(source, /function syncComposerVisualViewport\(\)/);
   assert.match(source, /visualViewport\?\.addEventListener\("resize", syncComposerVisualViewport\)/);
   assert.match(source, /dataset\.composerOpen = String\(composerActive\)/);
-  assert.match(source, /editorToggle\.setAttribute\("aria-pressed", String\(authoringActive\)\)/);
+  assert.match(source, /editorToggle\.setAttribute\("aria-pressed", String\(ui\.editorOpen\)\)/);
+  assert.doesNotMatch(source, /const authoringActive = ui\.editorOpen \|\| composerActive/);
   assert.match(
     source,
     /restoreComposerFocus[\s\S]*getClientRects\(\)\.length > 0[\s\S]*els\.editorToggle/,
