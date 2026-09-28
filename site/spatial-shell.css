@@ -410,7 +410,7 @@
 
 .app-footer-view {
   grid-column: 3;
-  justify-content: safe center;
+  justify-content: flex-start;
   overflow-x: auto;
   overflow-y: hidden;
   overscroll-behavior-inline: contain;
