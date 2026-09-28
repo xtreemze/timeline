@@ -570,7 +570,7 @@ test.describe("contextual world authoring certification", () => {
         "WebGL2 unavailable; WorldSurface is not active.",
       );
 
-      const empty = await discoverEmptyWorldPoint(page);
+      await discoverEmptyWorldPoint(page);
       await assertComposerInsideFooter(page);
 
       const composer = page.locator("#occurrence-composer");
