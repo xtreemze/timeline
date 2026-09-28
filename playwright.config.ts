@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
+  failOnFlakyTests: Boolean(process.env.CI),
   testDir: "./tests",
   testMatch: ["**/*.spec.ts", "**/*.spec.mjs"],
   testIgnore: ["**/pages-runtime.spec.ts", "**/highlight/**"],
