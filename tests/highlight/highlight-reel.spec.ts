@@ -605,26 +605,26 @@ async function desktopRoutine(page: Page, sceneName: string) {
 
   if (sceneName === "02-focused-context") {
     const terminal = await firstVisibleOccurrence(page);
-    const card = terminal.locator("xpath=ancestor::luum-event-card[1]");
     await terminal.click();
-    await terminal.click();
-    const focus = card.locator(".timeline-event-detail");
-    await expect(focus).toBeVisible();
-    await expect(focus.locator("#timeline-focus-context-panel")).toBeVisible();
+    const composer = page.locator("#occurrence-composer");
+    await expect(composer).toHaveAttribute("active", "");
+    await expect(composer.locator(".composer-occurrence-card")).toBeVisible();
+    await expect(composer.locator(".composer-context-deck")).toBeVisible();
+    await expect(page.locator(".timeline-event-detail:visible")).toHaveCount(0);
     await page.waitForTimeout(700);
     return;
   }
 
   if (sceneName === "03-evidence") {
     const terminal = await firstVisibleOccurrence(page);
-    const card = terminal.locator("xpath=ancestor::luum-event-card[1]");
     await terminal.click();
-    await terminal.click();
-    const focus = card.locator(".timeline-event-detail");
-    await expect(focus).toBeVisible();
-    await focus.getByRole("tab", { name: "Evidence" }).click();
-    await expect(focus.locator("#timeline-focus-evidence-panel")).toBeVisible();
-    await expect(focus.locator(".timeline-focus-evidence-card").first()).toBeVisible();
+    const composer = page.locator("#occurrence-composer");
+    await expect(composer).toHaveAttribute("active", "");
+    const deck = composer.locator("luum-occurrence-deck.composer-context-deck");
+    await expect(deck).toBeVisible();
+    const next = deck.getByRole("button", { name: "Next frame" });
+    if (await next.isVisible()) await next.click();
+    await expect(page.locator(".timeline-event-detail:visible")).toHaveCount(0);
     await page.waitForTimeout(700);
     return;
   }
@@ -667,26 +667,26 @@ async function mobileRoutine(page: Page, sceneName: string) {
 
   if (sceneName === "02-focused-context") {
     const terminal = await firstVisibleOccurrence(page);
-    const card = terminal.locator("xpath=ancestor::luum-event-card[1]");
     await terminal.tap();
-    await terminal.tap();
-    const focus = card.locator(".timeline-event-detail");
-    await expect(focus).toBeVisible();
-    await expect(focus.locator("#timeline-focus-context-panel")).toBeVisible();
+    const composer = page.locator("#occurrence-composer");
+    await expect(composer).toHaveAttribute("active", "");
+    await expect(composer.locator(".composer-occurrence-card")).toBeVisible();
+    await expect(composer.locator(".composer-context-deck")).toBeVisible();
+    await expect(page.locator(".timeline-event-detail:visible")).toHaveCount(0);
     await page.waitForTimeout(700);
     return;
   }
 
   if (sceneName === "03-evidence") {
     const terminal = await firstVisibleOccurrence(page);
-    const card = terminal.locator("xpath=ancestor::luum-event-card[1]");
     await terminal.tap();
-    await terminal.tap();
-    const focus = card.locator(".timeline-event-detail");
-    await expect(focus).toBeVisible();
-    await focus.getByRole("tab", { name: "Evidence" }).tap();
-    await expect(focus.locator("#timeline-focus-evidence-panel")).toBeVisible();
-    await expect(focus.locator(".timeline-focus-evidence-card").first()).toBeVisible();
+    const composer = page.locator("#occurrence-composer");
+    await expect(composer).toHaveAttribute("active", "");
+    const deck = composer.locator("luum-occurrence-deck.composer-context-deck");
+    await expect(deck).toBeVisible();
+    const next = deck.getByRole("button", { name: "Next frame" });
+    if (await next.isVisible()) await next.tap();
+    await expect(page.locator(".timeline-event-detail:visible")).toHaveCount(0);
     await page.waitForTimeout(700);
     return;
   }
