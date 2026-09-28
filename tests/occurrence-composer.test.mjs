@@ -254,17 +254,14 @@ test("application keeps timeline and World live while composer uses their center
 
 
   assert.match(source, /requiredElement<LuumOccurrenceComposerElement>\("#occurrence-composer"\)/);
-  assert.match(source, /requiredElement<HTMLButtonElement>\("#occurrence-composer-toggle"\)/);
-  assert.match(
-    source,
-    /occurrenceComposerToggle\.addEventListener\("click"[\s\S]*setOccurrenceComposerOpen\(!els\.occurrenceComposer\.active\)/,
-  );
+  assert.doesNotMatch(source, /occurrenceComposerToggle|#occurrence-composer-toggle/);
+  assert.match(source, /occurrencecomposeropenrequest[\s\S]*setOccurrenceComposerOpen\(true\)/);
   assert.match(
     source,
     /presentationStage\.inert = Boolean\([\s\S]*ui\.browserOpen[\s\S]*ui\.investigationOpen[\s\S]*ui\.editorOpen/,
   );
   assert.match(source, /const titleEditing = ui\.editorOpen/);
-  assert.match(source, /occurrenceComposer\.hidden = Boolean\([\s\S]*ui\.investigationOpen/);
+  assert.match(source, /occurrenceComposer\.hidden = ui\.importReviewOpen/);
   assert.match(
     source,
     /timelineviewportchange[\s\S]*setTimelineViewport\([\s\S]*viewport\.start[\s\S]*viewport\.end/,
@@ -281,7 +278,7 @@ test("application keeps timeline and World live while composer uses their center
   assert.match(source, /function syncComposerVisualViewport\(\)/);
   assert.match(source, /visualViewport\?\.addEventListener\("resize", syncComposerVisualViewport\)/);
   assert.match(source, /dataset\.composerOpen = String\(composerActive\)/);
-  assert.match(source, /editorToggle\.setAttribute\("aria-pressed", String\(authoringActive\)\)/);
+  assert.match(source, /editorToggle\.setAttribute\("aria-pressed", String\(ui\.editorOpen\)\)/);
   assert.match(
     source,
     /restoreComposerFocus[\s\S]*getClientRects\(\)\.length > 0[\s\S]*els\.editorToggle/,
@@ -308,7 +305,7 @@ test("application keeps timeline and World live while composer uses their center
   );
 });
 
-test("occurrence composer is integrated into the footer through the single Edit surface", async () => {
+test("occurrence composer is persistent footer chrome and expands in place", async () => {
   const [markup, shellStyles] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/spatial-shell.css", import.meta.url), "utf8"),
