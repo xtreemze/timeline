@@ -295,21 +295,21 @@ function strictShapeDiagnostics(envelope: JsonRecord): ProjectInterchangeDiagnos
 
   diagnostics.push(...unknownFieldDiagnostics(project, PROJECT_FIELDS, "/project"));
   diagnostics.push(
-    ...inspectRecordArray(project.entities, "/project/entities", ENTITY_FIELDS, inspectEntity),
+    ...inspectRecordArray(project["entities"], "/project/entities", ENTITY_FIELDS, inspectEntity),
     ...inspectRecordArray(
-      project.relationships,
+      project["relationships"],
       "/project/relationships",
       RELATIONSHIP_FIELDS,
       inspectRelationship,
     ),
     ...inspectRecordArray(
-      project.occurrences,
+      project["occurrences"],
       "/project/occurrences",
       OCCURRENCE_FIELDS,
       inspectOccurrence,
     ),
     ...inspectRecordArray(
-      project.trajectories,
+      project["trajectories"],
       "/project/trajectories",
       TRAJECTORY_FIELDS,
       inspectTrajectory,
