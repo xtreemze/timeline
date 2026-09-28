@@ -87,7 +87,7 @@ test.describe("Narrow mobile screen contracts", () => {
     expect(intersection.y).toBeGreaterThan(0);
     expect(pageErrors).toEqual([]);
   });
-  test("footer composer opens through Edit and keeps direct timeline controls usable", async ({
+  test("persistent footer composer expands directly and keeps timeline controls usable", async ({
     page,
   }) => {
     for (const { viewport, orientation } of [
@@ -106,11 +106,9 @@ test.describe("Narrow mobile screen contracts", () => {
       expect(before).not.toBeNull();
       if (!before) throw new Error("Footer geometry is unavailable before composer expansion.");
 
-      await page.locator("#editor-toggle").click();
-      const toggle = page.locator("#occurrence-composer-toggle");
-      await expect(toggle).toBeVisible();
-      await toggle.click();
-      await expect(toggle).toHaveAttribute("aria-expanded", "true");
+      await expect(input).toBeVisible();
+      await expect(composer).not.toHaveAttribute("active", "");
+      await input.focus();
       await expect(composer).toHaveAttribute("active", "");
       await expect(input).toBeVisible();
       await expect(composer.locator(".context-row")).toBeVisible();
