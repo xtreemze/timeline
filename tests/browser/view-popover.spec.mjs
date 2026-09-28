@@ -116,6 +116,8 @@ test("footer view-control groups keep intrinsic width instead of overlapping", a
 test("atomic and compound toolbar controls share height, centerline, and icon sizing", async ({
   page,
 }) => {
+  await page.setViewportSize({ width: 2048, height: 1267 });
+
   const controls = [
     page.locator("#editor-toggle"),
     page.locator("#timeline-orientation-toggle"),
@@ -179,6 +181,38 @@ test("atomic and compound toolbar controls share height, centerline, and icon si
   if (worldSliderBox && timelineSliderBox) {
     expect(Math.abs(worldSliderBox.width - timelineSliderBox.width)).toBeLessThanOrEqual(1);
     expect(Math.abs(worldSliderBox.height - timelineSliderBox.height)).toBeLessThanOrEqual(1);
+  }
+
+  const [worldZoomGrid, timelineZoomGrid] = await Promise.all(
+    [worldZoom, timelineZoom].map((control) =>
+      control.evaluate((element) => {
+        const style = getComputedStyle(element);
+        return {
+          gridTemplateRows: style.gridTemplateRows,
+          rowGap: style.rowGap,
+          columnGap: style.columnGap,
+        };
+      }),
+    ),
+  );
+  expect(worldZoomGrid.gridTemplateRows).toBe("44px");
+  expect(timelineZoomGrid.gridTemplateRows).toBe(worldZoomGrid.gridTemplateRows);
+  expect(timelineZoomGrid.rowGap).toBe(worldZoomGrid.rowGap);
+  expect(timelineZoomGrid.columnGap).toBe(worldZoomGrid.columnGap);
+
+  const timelineZoomCenterY =
+    timelineZoomBox === null ? null : timelineZoomBox.y + timelineZoomBox.height / 2;
+  if (timelineZoomCenterY !== null) {
+    for (const part of [
+      timelineZoom.locator("#timeline-zoom-out"),
+      timelineZoom.locator(".timeline-zoom-slider"),
+      timelineZoom.locator("#timeline-zoom-in"),
+    ]) {
+      const box = await part.boundingBox();
+      expect(box).not.toBeNull();
+      if (!box) continue;
+      expect(Math.abs(box.y + box.height / 2 - timelineZoomCenterY)).toBeLessThanOrEqual(0.75);
+    }
   }
 });
 
