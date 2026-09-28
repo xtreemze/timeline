@@ -1914,10 +1914,13 @@ function syncOccurrenceComposerSelection(selection = applicationSelection.curren
     ...(selectedItemId ? { selectedItemId } : {}),
     title: selectedItem?.title ?? null,
     description: selectedItem?.description ?? relationship.role ?? null,
-    media: (() => {
-      const image = selectedItem?.media?.find((entry) => Boolean(entry.src));
-      return image?.src ? { src: image.src, alt: image.alt ?? "" } : null;
-    })(),
+    media: selectedItem?.media
+      ?.filter((entry) => Boolean(entry.src))
+      .map((entry) => ({
+        src: entry.src,
+        alt: entry.alt ?? "",
+        caption: entry.caption ?? "",
+      })) ?? [],
     composition: occurrenceCompositionForRelationship(relationship, selectedItemId),
     relationship: {
       subjectId: String(relationship.subjectId),
