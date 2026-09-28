@@ -797,6 +797,35 @@ test.describe("contextual world authoring certification", () => {
     expect(afterScroll).toEqual(beforeScroll);
   });
 
+  test("suggestion clicks compose subject action and object without erasing accepted components", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const composer = await openPersistentComposer(page);
+    const input = composer.locator("input");
+    await input.fill("");
+    await input.focus();
+
+    const firstOption = composer.locator(".option").first();
+    await expect(firstOption).toBeVisible();
+    await firstOption.click();
+    const subject = await input.inputValue();
+    expect(subject.trim().length).toBeGreaterThan(0);
+    expect(subject.endsWith(" ")).toBe(true);
+
+    await expect(firstOption).toBeVisible();
+    await firstOption.click();
+    const subjectAndAction = await input.inputValue();
+    expect(subjectAndAction.startsWith(subject)).toBe(true);
+    expect(subjectAndAction.length).toBeGreaterThan(subject.length);
+
+    await expect(firstOption).toBeVisible();
+    await firstOption.click();
+    const subjectActionObject = await input.inputValue();
+    expect(subjectActionObject.startsWith(subjectAndAction)).toBe(true);
+    expect(subjectActionObject.length).toBeGreaterThan(subjectAndAction.length);
+  });
+
   test("S23-class portrait and landscape keep contextual composer fully contained without document scroll", async ({
     page,
   }, testInfo) => {
@@ -850,6 +879,12 @@ test.describe("contextual world authoring certification", () => {
           },
           visualWidth,
           visualHeight,
+          shell: (() => {
+            const element = document.querySelector("#app-shell");
+            if (!(element instanceof HTMLElement)) return null;
+            const rect = element.getBoundingClientRect();
+            return { top: rect.top, bottom: rect.bottom, height: rect.height };
+          })(),
           scrollWidth: document.documentElement.scrollWidth,
           scrollHeight: document.documentElement.scrollHeight,
         };
@@ -863,6 +898,14 @@ test.describe("contextual world authoring certification", () => {
       expect(visualContainment.composer.top, viewport.name).toBeGreaterThanOrEqual(-1);
       expect(visualContainment.composer.bottom, viewport.name).toBeLessThanOrEqual(
         visualContainment.visualHeight + 1,
+      );
+      expect(visualContainment.shell, viewport.name).not.toBeNull();
+      expect(visualContainment.shell!.top, viewport.name).toBeGreaterThanOrEqual(-1);
+      expect(visualContainment.shell!.bottom, viewport.name).toBeGreaterThanOrEqual(
+        visualContainment.visualHeight - 1,
+      );
+      expect(visualContainment.shell!.height, viewport.name).toBeGreaterThanOrEqual(
+        visualContainment.visualHeight - 1,
       );
       expect(visualContainment.scrollWidth, viewport.name).toBeLessThanOrEqual(viewport.width + 2);
       expect(visualContainment.scrollHeight, viewport.name).toBeLessThanOrEqual(
