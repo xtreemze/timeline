@@ -42,6 +42,10 @@ import {
 } from "../src/projection/temporal-scene.ts";
 import { LuumEventCardElement } from "./components/timeline-event-card.ts";
 import {
+  LuumOccurrenceDeckElement,
+  type OccurrenceDeckChangeDetail,
+} from "./components/occurrence-media-deck.ts";
+import {
   createOccurrenceInteractionSession,
   resolveOccurrencePresentation,
   setPresentation,
@@ -3776,19 +3780,29 @@ export class TimelineViewController {
   createFocusHero(item: TimelineItem, focusHost: HTMLElement): HTMLElement {
     const hero = document.createElement("section");
     hero.className = "timeline-focus-hero";
-    const media = Array.isArray(item.media) ? item.media.slice(0, 3) : [];
-    const activeIndex = media.length ? this.focusMediaIndex % media.length : 0;
-    const active = media[activeIndex];
+    const media = Array.isArray(item.media) ? item.media : [];
+    const frames = media.map((entry) => ({
+      kind: "image" as const,
+      src: entry?.src,
+      alt: entry?.alt,
+      caption: entry?.caption,
+    }));
 
-    if (active?.src) {
-      const image = document.createElement("img");
-      image.className = "timeline-focus-hero-image";
-      image.src = active.src;
-      image.alt = active.alt || "";
-      image.decoding = "async";
-      image.draggable = false;
-      hero.append(image);
-    } else {
+    const deck = new LuumOccurrenceDeckElement();
+    deck.setDeck({
+      occurrenceId: item.id,
+      frames,
+      activeIndex: this.focusMediaIndex,
+    });
+    this.focusMediaIndex = deck.activeIndex;
+    deck.addEventListener("occurrencedeckchange", (event) => {
+      const detail = (event as CustomEvent<OccurrenceDeckChangeDetail>).detail;
+      if (detail.occurrenceId !== item.id) return;
+      this.focusMediaIndex = detail.activeIndex;
+    });
+    hero.append(deck);
+
+    if (!frames.some((frame) => Boolean(frame.src?.trim()))) {
       hero.classList.add("has-no-media");
       const fallback = document.createElement("div");
       fallback.className = "timeline-focus-hero-fallback";
@@ -3820,65 +3834,6 @@ export class TimelineViewController {
 
     veil.append(kicker, heading, time);
     hero.append(veil);
-    if (media.length > 1) {
-      const controls = document.createElement("div");
-      controls.className = "timeline-focus-slideshow-controls";
-      controls.setAttribute("role", "group");
-      controls.setAttribute("aria-label", "Event images");
-
-      const selectMedia = (index: number, focusSelector: string) => {
-        this.focusMediaIndex = (index + media.length) % media.length;
-        this.renderFocus(item, focusHost);
-        requestAnimationFrame(() => {
-          focusHost
-            .querySelector<HTMLButtonElement>(focusSelector)
-            ?.focus({ preventScroll: true });
-        });
-      };
-      const step = (delta: number, focusSelector: string) => {
-        selectMedia(activeIndex + delta, focusSelector);
-      };
-      const previous = document.createElement("button");
-      previous.type = "button";
-      previous.className = "timeline-focus-media-control is-previous";
-      previous.setAttribute("aria-label", "Previous image");
-      const previousIcon =
-        presentation && typeof presentation.createIcon === "function"
-          ? presentation.createIcon("chevron-left", { size: 20 })
-          : null;
-      if (previousIcon) previous.append(previousIcon);
-      previous.addEventListener("click", () =>
-        step(-1, ".timeline-focus-media-control.is-previous"),
-      );
-      controls.append(previous);
-
-      media.forEach((_, index) => {
-        const dot = document.createElement("button");
-        dot.type = "button";
-        dot.className = "timeline-focus-slide-dot";
-        dot.dataset.slideIndex = String(index);
-        dot.setAttribute("aria-label", `Show image ${index + 1} of ${media.length}`);
-        dot.setAttribute("aria-current", index === activeIndex ? "true" : "false");
-        dot.classList.toggle("is-active", index === activeIndex);
-        dot.addEventListener("click", () => {
-          selectMedia(index, `[data-slide-index="${index}"]`);
-        });
-        controls.append(dot);
-      });
-      const next = document.createElement("button");
-      next.type = "button";
-      next.className = "timeline-focus-media-control is-next";
-      next.setAttribute("aria-label", "Next image");
-      const nextIcon =
-        presentation && typeof presentation.createIcon === "function"
-          ? presentation.createIcon("chevron-right", { size: 20 })
-          : null;
-      if (nextIcon) next.append(nextIcon);
-      next.addEventListener("click", () => step(1, ".timeline-focus-media-control.is-next"));
-      controls.append(next);
-      hero.append(controls);
-    }
-
     return hero;
   }
 
