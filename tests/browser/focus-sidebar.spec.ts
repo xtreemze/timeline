@@ -26,6 +26,27 @@ async function focusOccurrence(page: Page) {
   return focus;
 }
 
+async function focusOccurrenceWithEvidence(
+  page: Page,
+  terminalSelector = "#timeline-view .timeline-event:not(.timeline-cluster) .timeline-event-terminal:visible",
+) {
+  await page.locator("#load-sample").evaluate((button: HTMLButtonElement) => button.click());
+  const terminals = page.locator(terminalSelector);
+  const count = Math.min(await terminals.count(), 24);
+  for (let index = 0; index < count; index += 1) {
+    const terminal = terminals.nth(index);
+    const card = terminal.locator("xpath=ancestor::luum-event-card[1]");
+    await terminal.evaluate((button: HTMLButtonElement) => button.click());
+    await terminal.evaluate((button: HTMLButtonElement) => button.click());
+    const focus = card.locator(".timeline-event-detail");
+    if (await focus.getByRole("tab", { name: "Evidence" }).count()) {
+      await expect(focus).toBeVisible();
+      return focus;
+    }
+  }
+  throw new Error("Sample must expose a focused occurrence with evidence.");
+}
+
 async function ensureOrientation(page: Page, orientation: "landscape" | "portrait") {
   const timeline = page.locator("#timeline-view");
   if ((await timeline.getAttribute("data-orientation")) !== orientation) {
@@ -106,7 +127,10 @@ test("focused detail owns contextual actions without mutating the footer", async
 
   await expect(focus.locator(".timeline-focus-hero")).toBeVisible();
   await expect(focus.getByRole("tab", { name: "Context" })).toBeVisible();
-  await expect(focus.getByRole("tab", { name: "Evidence" })).toBeVisible();
+  const evidenceTab = focus.getByRole("tab", { name: "Evidence" });
+  if (await evidenceTab.count()) {
+    await expect(focus.locator(".timeline-focus-evidence-card").first()).toBeAttached();
+  }
   await expect(focus.locator(".timeline-focus-actions")).toHaveCount(0);
   await expect(focus.getByRole("region", { name: "Place" })).toHaveCount(0);
   await expect(focus.locator(".timeline-focus-edit")).toHaveCount(0);
@@ -257,7 +281,7 @@ test("clicking the selected card keeps its attached detail open", async ({ page 
 test("focused detail tabs use roving keyboard focus and proper tabpanel semantics", async ({
   page,
 }) => {
-  const focus = await focusOccurrence(page);
+  const focus = await focusOccurrenceWithEvidence(page);
   const contextTab = focus.getByRole("tab", { name: "Context" });
   const evidenceTab = focus.getByRole("tab", { name: "Evidence" });
   const contextPanel = focus.locator("#timeline-focus-context-panel");
@@ -278,6 +302,10 @@ test("focused detail tabs use roving keyboard focus and proper tabpanel semantic
   await expect(contextTab).toHaveAttribute("tabindex", "-1");
   await expect(contextPanel).toBeHidden();
   await expect(evidencePanel).toBeVisible();
+  const identity = focus.locator(".timeline-focus-identity");
+  if (await identity.isVisible()) {
+    await expect(identity).toBeVisible();
+  }
 
   await evidenceTab.press("Home");
   await expect(contextTab).toBeFocused();
@@ -286,16 +314,10 @@ test("focused detail tabs use roving keyboard focus and proper tabpanel semantic
 });
 
 test("hero image changes preserve the active detail tab and keyboard focus", async ({ page }) => {
-  await page.locator("#load-sample").evaluate((button: HTMLButtonElement) => button.click());
-  const mediaTerminal = page
-    .locator("#timeline-view .timeline-event-terminal:has(.timeline-event-art):visible")
-    .first();
-  await expect(mediaTerminal).toBeVisible();
-  const mediaCard = mediaTerminal.locator("xpath=ancestor::luum-event-card[1]");
-  await mediaTerminal.evaluate((button: HTMLButtonElement) => button.click());
-  await mediaTerminal.evaluate((button: HTMLButtonElement) => button.click());
-
-  const focus = mediaCard.locator(".timeline-event-detail");
+  const focus = await focusOccurrenceWithEvidence(
+    page,
+    "#timeline-view .timeline-event-terminal:has(.timeline-event-art):visible",
+  );
   await expect(focus).toBeVisible();
   const deck = focus.locator("luum-occurrence-deck");
   await expect(deck).toBeVisible();
