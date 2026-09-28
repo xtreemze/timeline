@@ -99,6 +99,72 @@ test("toolbar actions update state, labels, and scoped icons", async ({ page }) 
   await expect(investigation).toHaveAttribute("aria-label", "Investigation methodology");
 });
 
+test("composer exposes live context, pins explicit context, and leaves Tab for focus navigation", async ({ page }) => {
+  await page.locator("#editor-toggle").click();
+  const compose = page.locator("#occurrence-composer-toggle");
+  await compose.click();
+
+  const composer = page.locator("#occurrence-composer");
+  const input = composer.locator("input");
+  await expect(composer).toHaveAttribute("active", "");
+  await expect(page.locator("#app-shell")).toHaveAttribute("data-composer-open", "true");
+  await expect(page.locator("#editor-toggle")).toHaveAttribute("aria-pressed", "true");
+  await expect(composer.locator('.context-chip[data-context-kind="place"]')).toHaveAttribute(
+    "data-context-state",
+    "live",
+  );
+  await expect(composer.locator('.context-chip[data-context-kind="time"]')).toHaveAttribute(
+    "data-context-state",
+    "live",
+  );
+
+  await input.fill('Alice meets Bob at Stockholm on 2026-09-28');
+  await expect(composer.locator('.context-chip[data-context-kind="place"]')).toHaveAttribute(
+    "data-context-state",
+    "pinned",
+  );
+  await expect(composer.locator('.context-chip[data-context-kind="time"]')).toHaveAttribute(
+    "data-context-state",
+    "pinned",
+  );
+
+  await input.press("Tab");
+  const close = composer.locator("button.close");
+  await expect(close).toBeFocused();
+  await expect(composer).toHaveAttribute("active", "");
+  await close.click();
+  await expect(composer).not.toHaveAttribute("active", "");
+  await expect(page.locator("#editor-toggle")).toBeFocused();
+});
+
+test("composer keeps drafts in the same context and clears them when spatial context changes", async ({
+  page,
+}) => {
+  await page.locator("#editor-toggle").click();
+  await page.locator("#occurrence-composer-toggle").click();
+
+  const composer = page.locator("#occurrence-composer");
+  const input = composer.locator("input");
+  await input.fill("Alice meets Bob");
+
+  await page.evaluate(() => {
+    const element = document.querySelector("#occurrence-composer");
+    if (!(element instanceof HTMLElement)) throw new Error("Composer unavailable.");
+    const composerElement = element;
+    composerElement.beginSession?.();
+  });
+  await expect(input).toHaveValue("Alice meets Bob");
+
+  await page.evaluate(() => {
+    const element = document.querySelector("#occurrence-composer");
+    if (!(element instanceof HTMLElement)) throw new Error("Composer unavailable.");
+    const composerElement = element;
+    composerElement.setWorldContext?.(0, 0, 18);
+    composerElement.beginSession?.();
+  });
+  await expect(input).toHaveValue("");
+});
+
 test("opening Browse disables direct View controls without changing spatial stage geometry", async ({
   page,
 }) => {

@@ -101,18 +101,36 @@ test.describe("Narrow mobile screen contracts", () => {
       await expect(toggle).toHaveAttribute("aria-expanded", "true");
       await expect(composer).toHaveAttribute("active", "");
       await expect(input).toBeVisible();
+      await expect(composer.locator(".context-row")).toBeVisible();
+      const visualViewportHeight = await page.evaluate(
+        () => window.visualViewport?.height ?? innerHeight,
+      );
+      const composerViewportHeight = await composer.evaluate((element) =>
+        getComputedStyle(element).getPropertyValue("--composer-visual-viewport-height").trim(),
+      );
+      expect(composerViewportHeight).toBe(String(Math.round(visualViewportHeight)) + "px");
 
-      const [expanded, inputBox] = await Promise.all([dock.boundingBox(), input.boundingBox()]);
+      const [expanded, inputBox, completionBox] = await Promise.all([
+        dock.boundingBox(),
+        input.boundingBox(),
+        composer.locator(".completion-panel").boundingBox(),
+      ]);
       expect(expanded).not.toBeNull();
       expect(inputBox).not.toBeNull();
-      if (!expanded || !inputBox) {
+      expect(completionBox).not.toBeNull();
+      if (!expanded || !inputBox || !completionBox) {
         throw new Error("Footer composer geometry is unavailable after expansion.");
       }
       expect(expanded.height).toBeGreaterThan(before.height + 40);
+      expect(inputBox.width).toBeGreaterThanOrEqual(Math.min(220, viewport.width * 0.6));
       expect(inputBox.x).toBeGreaterThanOrEqual(expanded.x - 1);
       expect(inputBox.x + inputBox.width).toBeLessThanOrEqual(expanded.x + expanded.width + 1);
       expect(inputBox.y).toBeGreaterThanOrEqual(expanded.y - 1);
       expect(inputBox.y + inputBox.height).toBeLessThanOrEqual(expanded.y + expanded.height + 1);
+      expect(completionBox.x).toBeGreaterThanOrEqual(-1);
+      expect(completionBox.x + completionBox.width).toBeLessThanOrEqual(viewport.width + 1);
+      expect(completionBox.y).toBeGreaterThanOrEqual(-1);
+      expect(completionBox.height).toBeLessThanOrEqual(Math.max(112, visualViewportHeight * 0.42) + 2);
 
       await expect(page.locator(".app-footer-actions")).toBeVisible();
       await expect(page.locator("#timeline-view-controls")).toBeVisible();
