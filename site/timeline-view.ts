@@ -3228,6 +3228,152 @@ export class TimelineViewController {
     record.range?.classList.toggle("is-selected", selected);
   }
 
+  logicalOccurrenceIds(viewport: TemporalWindow = this.viewport): string[] {
+    return this.items
+      .filter((item) => itemOverlapsViewport(item, viewport))
+      .map((item) => item.id)
+      .sort();
+  }
+
+  demotionOccurrenceIds(viewport: TemporalWindow = this.viewport): string[] {
+    const span = Math.max(MIN_SPAN_MS, viewport.end - viewport.start);
+    const inset = Math.min(span * 0.08, Math.max(0, span / 2 - MIN_SPAN_MS));
+    const inner =
+      inset > 0
+        ? { start: viewport.start + inset, end: viewport.end - inset }
+        : viewport;
+    return this.logicalOccurrenceIds(inner);
+  }
+
+  resolveFocusedPresentation(): "resting" | "selected" | "focused" | "expanded" {
+    if (!this.focusedId) {
+      this.interactionSession = createOccurrenceInteractionSession();
+      return "resting";
+    }
+
+    if (this.interactionSession.occurrenceId !== this.focusedId) {
+      this.interactionSession = switchOccurrenceSelection(
+        this.interactionSession,
+        this.focusedId,
+        { dirtyDraftPolicy: "preserve" },
+      ).session;
+    }
+    if (
+      this.interactionSession.presentation === "resting" ||
+      this.interactionSession.presentation === "selected"
+    ) {
+      this.interactionSession = setPresentation(this.interactionSession, "focused");
+    }
+
+    this.interactionSession = resolveOccurrencePresentation(this.interactionSession, {
+      logicalOccurrenceIds: this.logicalOccurrenceIds(),
+      demotionOccurrenceIds: this.demotionOccurrenceIds(),
+      explicitDetailOpen: this.explicitDetailOpen,
+      focused: true,
+    });
+    return this.interactionSession.presentation;
+  }
+
+  syncExpandedDetailGeometry(record: SceneRecord, detailHost: HTMLElement): void {
+    if (detailHost.hidden) return;
+    const surface = this.surface.getBoundingClientRect();
+    const origin = record.node.getBoundingClientRect();
+    const terminal = record.terminal.getBoundingClientRect();
+    const safe = 8;
+    const gap = 8;
+
+    detailHost.style.maxWidth = `${Math.max(1, surface.width - safe * 2)}px`;
+    detailHost.style.maxHeight = `${Math.max(1, surface.height - safe * 2)}px`;
+    const detail = detailHost.getBoundingClientRect();
+
+    const minX = surface.left + safe;
+    const maxX = Math.max(minX, surface.right - detail.width - safe);
+    const minY = surface.top + safe;
+    const maxY = Math.max(minY, surface.bottom - detail.height - safe);
+    let x = terminal.left + terminal.width / 2 - detail.width / 2;
+    let y = terminal.top - detail.height - gap;
+    let side: "above" | "below" | "left" | "right" = "above";
+
+    if (this.orientation === "horizontal") {
+      const above = terminal.top - surface.top - gap;
+      const below = surface.bottom - terminal.bottom - gap;
+      if (above < Math.min(detail.height, 160) && below > above) {
+        y = terminal.bottom + gap;
+        side = "below";
+      }
+    } else {
+      const left = terminal.left - surface.left - gap;
+      const right = surface.right - terminal.right - gap;
+      y = terminal.top + terminal.height / 2 - detail.height / 2;
+      if (left >= Math.min(detail.width, 220) || left >= right) {
+        x = terminal.left - detail.width - gap;
+        side = "left";
+      } else {
+        x = terminal.right + gap;
+        side = "right";
+      }
+    }
+
+    x = clamp(x, minX, maxX);
+    y = clamp(y, minY, maxY);
+    detailHost.style.left = `${x - origin.left}px`;
+    detailHost.style.top = `${y - origin.top}px`;
+    detailHost.dataset.anchorSide = side;
+  }
+
+  syncFocusedPresentation(): void {
+    if (this.retention.active) return;
+
+    const focusedId = this.focusedId;
+    for (const candidate of this.scene.values()) {
+      if (candidate.item.id !== focusedId) candidate.node.setExpanded(false);
+    }
+
+    if (!focusedId) {
+      this.focusView.hidden = true;
+      delete this.root.dataset.focusPresentation;
+      this.lastFocusPresentation = "resting";
+      return;
+    }
+
+    const record = this.scene.get(occurrenceSceneKey(focusedId));
+    if (!record) return;
+    const presentationState = this.resolveFocusedPresentation();
+    const expanded = presentationState === "expanded";
+    record.node.setExpanded(expanded);
+    this.root.dataset.focusPresentation = presentationState;
+
+    // The old shell-owned focus surface stays mounted only as a migration
+    // boundary. The normal occurrence-detail path is now the retained card.
+    this.focusView.hidden = true;
+    if (this.focusView.childElementCount) this.focusView.replaceChildren();
+
+    const detailHost = record.node.detailHost;
+    if (expanded && detailHost) {
+      const needsRender =
+        detailHost.dataset.occurrenceId !== record.item.id || detailHost.childElementCount === 0;
+      if (needsRender) {
+        this.renderFocus(record.item, detailHost);
+        detailHost.dataset.occurrenceId = record.item.id;
+      }
+      this.syncExpandedDetailGeometry(record, detailHost);
+    }
+
+    if (presentationState !== this.lastFocusPresentation) {
+      this.lastFocusPresentation = presentationState;
+      this.root.dispatchEvent(
+        new CustomEvent("timelinefocusrender", {
+          bubbles: true,
+          detail: {
+            id: focusedId,
+            presentation: presentationState,
+            presentationSurface: "card",
+          },
+        }),
+      );
+    }
+  }
+
   syncFocusAttachment(): void {
     if (!this.focusedId || this.focusView.hidden) return;
     const record = [...this.scene.values()].find(
