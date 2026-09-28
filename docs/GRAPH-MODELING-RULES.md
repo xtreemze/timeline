@@ -45,6 +45,7 @@ Rules:
 5. Node attributes describe the entity itself. Spatiotemporal context belongs on an action edge.
 6. A canonical entity must participate in at least one meaningful action edge. A temporarily orphaned node may exist while authoring, but canonical import/demo/export data must not contain orphan/container-only topology.
 7. A group node is appropriate only when the collective itself is a durable actor or target. Do not manufacture membership edges such as `memberOf` or `joinsSiblingGroup` merely to connect individuals to a grouping construct.
+8. Semantic icon presentation is optional and does not change identity or type. An explicit entity icon belongs at `attributes.style.icon`, must use the shared semantic icon vocabulary, and overrides the type-derived icon. Legacy flat `attributes.icon` aliases are normalized on import; new authoring must use `attributes.style.icon`.
 
 ### Directed action edge
 
