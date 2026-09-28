@@ -113,3 +113,10 @@ lum fmt --check project.lum.json
 JSON Schema is structural. The executable validator owns semantic invariants. The formatter owns text normalization. Editors are adapters. AI agents are clients.
 
 No editor, extension, or agent is allowed to weaken those layers.
+
+
+## Editor integrations
+
+VS Code and Helix adapters are documented in [../editors/README.md](../editors/README.md).
+
+They consume the same CLI/schema/LSP contracts defined here. Editor-specific behavior must not redefine validation or formatting semantics.
