@@ -703,6 +703,7 @@ try {
 const applicationSelection = createApplicationSelectionController();
 applicationSelection.subscribe(({ selection }) => {
   temporalGraphView?.setSelection?.(selection);
+  syncOccurrenceComposerSelection(selection);
 });
 const dateRangePicker = dateRangeFactory.create({
   input: els.itemDateRange,
@@ -1756,6 +1757,63 @@ function syncTimelineContextControls() {
   }
 }
 
+function syncOccurrenceComposerSelection(
+  selection = applicationSelection.current,
+): void {
+  if (!selection) {
+    els.occurrenceComposer.setSelectionContext(null);
+    return;
+  }
+
+  if (selection.kind === "entity") {
+    const entity = state.entities.find((candidate) => String(candidate.id) === selection.id);
+    els.occurrenceComposer.setSelectionContext(
+      entity ? { selectedEntityId: String(entity.id) } : null,
+    );
+    return;
+  }
+
+  if (selection.kind === "place") {
+    const place = state.places.find((candidate) => String(candidate.id) === selection.id);
+    els.occurrenceComposer.setSelectionContext(
+      place
+        ? {
+            place: {
+              id: String(place.id),
+              name: place.name || String(place.id),
+            },
+          }
+        : null,
+    );
+    return;
+  }
+
+  const relationship = state.relationships.find(
+    (candidate) => String(candidate.id) === selection.id,
+  );
+  if (!relationship) {
+    els.occurrenceComposer.setSelectionContext(null);
+    return;
+  }
+  const relationshipPlace = relationship.placeId
+    ? state.places.find((candidate) => String(candidate.id) === String(relationship.placeId))
+    : null;
+  els.occurrenceComposer.setSelectionContext({
+    relationship: {
+      subjectId: String(relationship.subjectId),
+      objectId: String(relationship.objectId),
+    },
+    ...(relationshipPlace
+      ? {
+          place: {
+            id: String(relationshipPlace.id),
+            name: relationshipPlace.name || String(relationshipPlace.id),
+          },
+        }
+      : {}),
+  });
+}
+
 function syncOccurrenceComposerData(): void {
   els.occurrenceComposer.setData({
     entities: state.entities.map((entity) => ({
@@ -1773,6 +1831,7 @@ function syncOccurrenceComposerData(): void {
       name: category.name,
     })),
   });
+  syncOccurrenceComposerSelection(applicationSelection.current);
 }
 
 function setOccurrenceComposerOpen(open: boolean): void {
@@ -1783,6 +1842,7 @@ function setOccurrenceComposerOpen(open: boolean): void {
     closeProjectMenu();
     closeFocusedEventForUtility();
     syncOccurrenceComposerData();
+    syncOccurrenceComposerSelection(applicationSelection.current);
 
     const timelineViewport = timelineView?.getViewport?.();
     if (
@@ -1855,7 +1915,7 @@ function commitOccurrenceComposer(detail: OccurrenceCommitDetail): void {
         subject: detail.draft.subject,
         object: detail.draft.object,
         predicate: detail.draft.predicate,
-        placeName: detail.draft.place?.name ?? null,
+        placeName: detail.draft.place?.name ?? detail.defaults.placeReference,
         longitude: detail.defaults.longitude,
         latitude: detail.defaults.latitude,
         accuracyMeters: detail.defaults.accuracyMeters,
@@ -5591,10 +5651,12 @@ els.timelineViewRoot.addEventListener("timelineorientationchange", (event) => {
 
 els.timelineViewRoot.addEventListener("timelinefocuschange", (event) => {
   const focused = Boolean(event.detail?.focused);
-  applicationSelection.select(
-    focused ? selectionForTimelineFocus(event.detail?.id, state.relationships) : null,
-    "timeline",
-  );
+  if (focused) {
+    applicationSelection.select(
+      selectionForTimelineFocus(event.detail?.id, state.relationships),
+      "timeline",
+    );
+  }
   if (focused && ui.mode === "edit") {
     requestAnimationFrame(() => timelineView?.closeFocus());
     return;

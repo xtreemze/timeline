@@ -335,6 +335,7 @@ export function occurrenceComposerSuggestions(
     readonly categories: readonly ComposerCategoryOption[];
     readonly timelineDefault?: string | null;
     readonly locationDefault?: string | null;
+    readonly preferredEntityIds?: readonly string[];
   },
 ): readonly ComposerSuggestion[] {
   const parsed = parseOccurrenceSentence(input);
@@ -371,7 +372,14 @@ export function occurrenceComposerSuggestions(
   }
 
   if (parsed.stage === "subject" || parsed.stage === "object") {
-    const entitySuggestions = options.entities
+    const preferredEntityIds = options.preferredEntityIds ?? [];
+    const priority = new Map(preferredEntityIds.map((id, index) => [id, index] as const));
+    const entitySuggestions = [...options.entities]
+      .sort(
+        (left, right) =>
+          (priority.get(left.id) ?? Number.MAX_SAFE_INTEGER) -
+          (priority.get(right.id) ?? Number.MAX_SAFE_INTEGER),
+      )
       .filter((entity) => {
         if (!token) return true;
         return [entity.name, ...(entity.alternateNames ?? [])].some((name) =>
