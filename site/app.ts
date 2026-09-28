@@ -4801,13 +4801,10 @@ els.graphNodeForm.addEventListener("submit", (event) => {
     return;
   }
   const index = state.entities.findIndex((candidate) => candidate.id === entity.id);
-  if (index >= 0) {
-    state.entities[index] = entity;
-    showStatus("Graph node updated.");
-  } else {
-    state.entities.push(entity);
-    showStatus("Graph node added.");
-  }
+  state = applyProjectTransaction(state, [
+    { op: "upsert", collection: "entities", id: entity.id, value: entity },
+  ]);
+  showStatus(index >= 0 ? "Graph node updated." : "Graph node added.");
   persist();
   resetGraphNodeForm();
   renderAll();
@@ -4872,13 +4869,10 @@ els.graphPlaceForm.addEventListener("submit", (event) => {
         `This location already exists as “${duplicate.name}”. Reuse it from the edge Place selector instead of creating a duplicate.`,
       );
     const index = state.places.findIndex((candidate) => candidate.id === place.id);
-    if (index >= 0) {
-      state.places[index] = place;
-      showStatus("Place updated.");
-    } else {
-      state.places.push(place);
-      showStatus("Place added.");
-    }
+    state = applyProjectTransaction(state, [
+      { op: "upsert", collection: "places", id: place.id, value: place },
+    ]);
+    showStatus(index >= 0 ? "Place updated." : "Place added.");
     persist();
     resetGraphPlaceForm();
     renderAll();
@@ -5001,13 +4995,15 @@ els.graphEdgeForm.addEventListener("submit", (event) => {
   }
 
   const index = state.relationships.findIndex((candidate) => candidate.id === relationship.id);
-  if (index >= 0) {
-    state.relationships[index] = relationship;
-    showStatus("Graph edge updated.");
-  } else {
-    state.relationships.push(relationship);
-    showStatus("Graph edge added.");
-  }
+  state = applyProjectTransaction(state, [
+    {
+      op: "upsert",
+      collection: "relationships",
+      id: relationship.id,
+      value: relationship,
+    },
+  ]);
+  showStatus(index >= 0 ? "Graph edge updated." : "Graph edge added.");
   persist();
   resetGraphEdgeForm();
   renderAll();
@@ -5399,13 +5395,10 @@ els.storyForm.addEventListener("submit", (event) => {
     state.places,
   );
   const index = state.stories.findIndex((candidate) => candidate.id === story.id);
-  if (index >= 0) {
-    state.stories[index] = story;
-    showStatus("Story updated.");
-  } else {
-    state.stories.push(story);
-    showStatus("Story created.");
-  }
+  state = applyProjectTransaction(state, [
+    { op: "upsert", collection: "stories", id: story.id, value: story },
+  ]);
+  showStatus(index >= 0 ? "Story updated." : "Story created.");
   persist();
   resetStoryForm();
   renderAll();
@@ -5463,14 +5456,11 @@ els.categoryForm.addEventListener("submit", (event) => {
     color: normalizeColor(els.categoryColor.value),
   };
   const index = state.categories.findIndex((candidate) => candidate.id === category.id);
-  if (index >= 0) {
-    state.categories[index] = category;
-    showStatus("Category updated.");
-  } else {
-    state.categories.push(category);
-    ui.collapsedCategoryIds.add(category.id);
-    showStatus("Category added.");
-  }
+  state = applyProjectTransaction(state, [
+    { op: "upsert", collection: "categories", id: category.id, value: category },
+  ]);
+  if (index < 0) ui.collapsedCategoryIds.add(category.id);
+  showStatus(index >= 0 ? "Category updated." : "Category added.");
   persist();
   resetCategoryForm();
   renderAll();
