@@ -875,9 +875,25 @@ export class LuumOccurrenceComposerElement extends LitElement {
     }
 
     const parsed = this.parsed();
-    const timeLabel = parsed.time?.start ?? this.timelineContext?.label ?? null;
+    const entityLabel = (reference: string | null | undefined): string | null => {
+      if (!reference) return null;
+      if (!reference.startsWith("@")) return reference;
+      const id = reference.slice(1);
+      return this.data.entities.find((entity) => entity.id === id)?.name ?? reference;
+    };
+    const resolvedPlaceLabel = (reference: string | null | undefined): string | null => {
+      if (!reference) return null;
+      if (!reference.startsWith("@")) return reference;
+      const id = reference.slice(1);
+      return this.data.places.find((place) => place.id === id)?.name ?? reference;
+    };
+    const timeLabel = parsed.time
+      ? parsed.time.kind === "range"
+        ? `${parsed.time.start} – ${parsed.time.end ?? parsed.time.start}`
+        : parsed.time.start
+      : (this.timelineContext?.label ?? null);
     const placeLabel =
-      parsed.place?.name ??
+      resolvedPlaceLabel(parsed.place?.name) ??
       this.selectionContext?.place?.name ??
       this.worldContext?.label ??
       "World center";
@@ -904,7 +920,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const placeSection = sectionFor("place");
     const timeSection = sectionFor("time");
     const categorySection = sectionFor("category");
-    const subjectLabel = parsed.subject?.name ?? this.selectedSubjectLabel();
+    const subjectLabel = entityLabel(parsed.subject?.name) ?? this.selectedSubjectLabel();
     const placePinned = Boolean(parsed.place || this.selectionContext?.place);
     const timePinned = Boolean(parsed.time);
     const categoryLabel = parsed.options.category ?? null;
@@ -986,7 +1002,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
             }
             ${editableChip("Subject", subjectLabel, subjectSection)}
             ${editableChip("Action", parsed.predicate, predicateSection)}
-            ${editableChip("Object", parsed.object?.name, objectSection)}
+            ${editableChip("Object", entityLabel(parsed.object?.name), objectSection)}
             ${placeSection
               ? editableChip("Place", parsed.place?.name ?? placeLabel, placeSection)
               : html`<span
