@@ -715,6 +715,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.sessionKey = this.currentContextKey();
     this.applySelectionSeed();
     this.requestUpdate();
+    this.emitSessionChange();
     void this.updateComplete.then(() => {
       this.renderRoot.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
     });
