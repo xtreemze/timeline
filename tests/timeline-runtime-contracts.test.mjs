@@ -54,9 +54,11 @@ test("retained event terminals preserve semantic media, tag icons, and connector
   assert.match(card, /setSemanticItem\(item: TimelineEventCardItem\)/);
   assert.match(card, /data-timeline-icon/);
   assert.match(card, /this\.dataset\.connectorWeight/);
-  assert.match(card, /aria-controls="timeline-focus-view"/);
+  assert.match(card, /aria-controls=\$\{detailId\}/);
   assert.match(card, /aria-expanded="false"/);
-  assert.match(card, /setAttribute\("aria-expanded", String\(selected\)\)/);
+  assert.match(card, /setExpanded\(expanded: boolean\)/);
+  assert.match(card, /setAttribute\("aria-expanded", String\(expanded\)\)/);
+  assert.match(card, /class="timeline-event-detail"/);
   assert.match(
     view,
     /connectorWeight === "fine" \? 1 : item\.connectorWeight === "strong" \? 4 : 2/,
