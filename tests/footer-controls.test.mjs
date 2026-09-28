@@ -30,11 +30,11 @@ test("footer exposes view controls directly and keeps one primary Edit entry", a
   );
   assert.match(
     index,
-    /id="timeline-related-zoom"[^>]*data-view-control[^>]*data-semantic-icon="zoom-in"/,
+    /id="timeline-related-zoom"[^>]*data-view-control[^>]*data-semantic-icon="relation"[^>]*data-semantic-icon-secondary="zoom-in"/,
   );
   assert.match(
     index,
-    /id="timeline-related-fit"[^>]*data-view-control[^>]*data-semantic-icon="fit"/,
+    /id="timeline-related-fit"[^>]*data-view-control[^>]*data-semantic-icon="relation"[^>]*data-semantic-icon-secondary="fit"/,
   );
 
   const footerStart = index.indexOf('<nav class="app-tool-dock app-footer-bar"');
@@ -46,9 +46,11 @@ test("footer exposes view controls directly and keeps one primary Edit entry", a
 
   assert.match(world, /element\.className = "toolbar-control world-camera-control"/);
   assert.match(world, /element\.dataset\.viewControl = ""/);
-  assert.match(world, /element\.append\(createIcon\(icon, \{ size: 20 \}\)\)/);
+  assert.match(world, /createCompoundIcon\("world", icon, \{ size: 20 \}\)/);
+  assert.match(world, /button\("Show whole globe", "world"/);
   assert.match(factory, /element\.className = "toolbar-control world-layout-control"/);
   assert.match(factory, /element\.dataset\.viewControl = ""/);
+  assert.match(factory, /createCompoundIcon\("world", icon, \{ size: 20 \}\)/);
 });
 
 test("all footer buttons and compound controls share the canonical toolbar surface", async () => {
@@ -105,4 +107,21 @@ test("narrow toolbar scrolls horizontally instead of hiding direct controls", as
   );
   assert.doesNotMatch(css, /\.app-view-controls\[popover\]/);
   assert.doesNotMatch(css, /#timeline-view-controls-toggle/);
+});
+
+
+test("toolbar compound icon contract preserves scoped meaning and proportional outlines", async () => {
+  const [index, presentation, css] = await Promise.all([
+    readFile(indexUrl, "utf8"),
+    readFile(new URL("../site/event-presentation.ts", import.meta.url), "utf8"),
+    readFile(shellUrl, "utf8"),
+  ]);
+
+  assert.match(index, /id="editor-toggle"[^>]*data-semantic-icon="timeline"[^>]*data-semantic-icon-secondary="edit"/);
+  assert.match(index, /id="timeline-browser-toggle"[^>]*data-semantic-icon="timeline"[^>]*data-semantic-icon-secondary="search"/);
+  assert.match(index, /id="timeline-orientation-toggle"[^>]*data-semantic-icon="timeline"[^>]*data-semantic-icon-secondary="portrait"/);
+  assert.match(index, /id="timeline-auto-toggle"[^>]*data-semantic-icon="timeline"[^>]*data-semantic-icon-secondary="play"/);
+  assert.match(presentation, /export function createCompoundIcon/);
+  assert.match(presentation, /secondary\.setAttribute\("stroke-width",[\s\S]*size[\s\S]*secondarySize/);
+  assert.match(css, /\.compound-semantic-icon-secondary[\s\S]*inline-size:\s*11px[\s\S]*block-size:\s*11px/);
 });
