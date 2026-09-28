@@ -336,16 +336,22 @@ test.describe("Mobile-first Timeline layout contracts", () => {
 
     const dock = page.locator(".app-tool-dock.app-footer-bar");
     const actions = dock.locator(".app-footer-actions");
+    const composer = dock.locator("#occurrence-composer");
     const view = dock.locator("#timeline-view-controls");
-    const [dockBox, actionsBox, viewBox] = await Promise.all([
+    const firstViewControl = view.locator("button:visible, .toolbar-compound-control:visible").first();
+    const [dockBox, actionsBox, composerBox, viewBox, firstViewControlBox] = await Promise.all([
       dock.boundingBox(),
       actions.boundingBox(),
+      composer.boundingBox(),
       view.boundingBox(),
+      firstViewControl.boundingBox(),
     ]);
     expect(dockBox).not.toBeNull();
     expect(actionsBox).not.toBeNull();
+    expect(composerBox).not.toBeNull();
     expect(viewBox).not.toBeNull();
-    if (!dockBox || !actionsBox || !viewBox) {
+    expect(firstViewControlBox).not.toBeNull();
+    if (!dockBox || !actionsBox || !composerBox || !viewBox || !firstViewControlBox) {
       throw new Error("Desktop command dock has no live bounds.");
     }
 
@@ -357,6 +363,13 @@ test.describe("Mobile-first Timeline layout contracts", () => {
     await expect(view.locator("#timeline-view-toolbar")).toBeVisible();
     expect(viewBox.y).toBeGreaterThanOrEqual(dockBox.y - 1);
     expect(viewBox.y + viewBox.height).toBeLessThanOrEqual(dockBox.y + dockBox.height + 1);
+
+    const composerEnd = composerBox.x + composerBox.width;
+    const actionsEnd = actionsBox.x + actionsBox.width;
+    expect(composerBox.x - actionsEnd).toBeGreaterThanOrEqual(-1);
+    expect(composerBox.x - actionsEnd).toBeLessThanOrEqual(20);
+    expect(firstViewControlBox.x - composerEnd).toBeGreaterThanOrEqual(-1);
+    expect(firstViewControlBox.x - composerEnd).toBeLessThanOrEqual(24);
   });
 
   test("orientation changes retain rendered occurrence identity and update control semantics", async ({
