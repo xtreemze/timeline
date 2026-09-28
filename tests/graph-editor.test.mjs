@@ -104,6 +104,22 @@ test("application provides CRUD handlers for entity nodes, places, and structure
   assert.match(source, /buildGraphEdgeTime/);
   assert.match(source, /timelineviewportchange/);
   assert.match(source, /temporalGraphView\?\.setWindow/);
+  assert.match(source, /applyProjectTransaction/);
+  for (const collection of ["entities", "places", "relationships", "stories", "categories"]) {
+    assert.match(
+      source,
+      new RegExp(
+        `applyProjectTransaction\\(state,\\s*\\[\\s*\\{\\s*op:\\s*["']upsert["'],\\s*collection:\\s*["']${collection}["']`,
+        "s",
+      ),
+      `${collection} form must delegate its canonical upsert to the application command`,
+    );
+  }
+  assert.doesNotMatch(source, /state\\.entities(?:\\[[^\\]]+\\]\\s*=|\\.push\\()/);
+  assert.doesNotMatch(source, /state\\.places(?:\\[[^\\]]+\\]\\s*=|\\.push\\()/);
+  assert.doesNotMatch(source, /state\\.relationships(?:\\[[^\\]]+\\]\\s*=|\\.push\\()/);
+  assert.doesNotMatch(source, /state\\.stories(?:\\[[^\\]]+\\]\\s*=|\\.push\\()/);
+  assert.doesNotMatch(source, /state\\.categories(?:\\[[^\\]]+\\]\\s*=|\\.push\\()/);
 });
 
 test("ESM graph bridge uses Memgraph Orb worker-backed force simulation with dense-graph GPU escalation", async () => {
