@@ -121,12 +121,6 @@ function rangeFromOffsets(source, start, end, starts = lineStarts(source)) {
   };
 }
 
-function containsOffset(range, source, offset) {
-  const start = positionToOffset(source, range.start);
-  const end = positionToOffset(source, range.end);
-  return offset >= start && offset <= end;
-}
-
 function quotedTokens(source) {
   const result = [];
   const pattern = /"((?:\\.|[^"\\])*)"/g;
