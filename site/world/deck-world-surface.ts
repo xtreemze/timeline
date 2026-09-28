@@ -2825,6 +2825,7 @@ function labelDatums(input: {
   }
   if (input.hoverSelection?.kind === "relationship") {
     interactionRelationshipIds.add(input.hoverSelection.id);
+    requiredInteractionLabelKeys.add(`relationship:${input.hoverSelection.id}`);
   }
   if (input.focus?.kind === "relationship") {
     interactionRelationshipIds.add(input.focus.id as RelationshipId);
@@ -5578,7 +5579,9 @@ export class DeckWorldSurface implements WorldSurface {
         showActiveClusterEdges ||
         showReleasingClusterEdges ||
         (this.#selection?.kind === "relationship" &&
-          this.#selection.id === relationship.relationshipId),
+          this.#selection.id === relationship.relationshipId) ||
+        (this.#hoverSelection?.kind === "relationship" &&
+          this.#hoverSelection.id === relationship.relationshipId),
     );
     const labelResult = this.#runtime.createTextLayer
       ? labelDatums({

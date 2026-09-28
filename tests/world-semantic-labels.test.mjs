@@ -896,6 +896,22 @@ test("dense detail scenes keep only collision-free labels and reveal interaction
     ),
     "selected place labels survive saturated collision placement",
   );
+
+  surface.setSelection(null);
+  h.getDeckProps().onHover({
+    object: {
+      kind: "entity",
+      entityId: hidden.canonicalId,
+      worldInstanceId: hidden.id,
+    },
+  });
+  const hoveredEntityLabels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
+  assert.ok(
+    hoveredEntityLabels.some(
+      (datum) => datum.kind === "entity-label" && datum.entityId === hidden.canonicalId,
+    ),
+    "hovered node labels survive saturated collision placement",
+  );
 });
 
 test("selected objects without authored labels fall back to canonical identity", () => {
@@ -2054,6 +2070,36 @@ test("directly selected relationship labels survive saturated collision placemen
   );
 });
 
+test("hovered relationship labels survive saturated collision placement", () => {
+  const h = harness();
+  const projection = crowdedIncidentProjection();
+  const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 9 });
+  surface.setProjection(projection);
+
+  const before = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
+  const visibleRelationshipIds = new Set(
+    before
+      .filter((datum) => datum.kind === "relationship-label")
+      .map((datum) => datum.relationshipId),
+  );
+  const hidden = projection.edges.find((edge) => !visibleRelationshipIds.has(edge.id));
+  assert.ok(hidden, "crowded relationship fixture suppresses at least one predicate label");
+
+  h.getDeckProps().onHover({
+    object: {
+      kind: "relationship",
+      relationshipId: hidden.id,
+    },
+  });
+  const after = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
+  assert.ok(
+    after.some(
+      (datum) => datum.kind === "relationship-label" && datum.relationshipId === hidden.id,
+    ),
+    "a hovered relationship label cannot be dropped by collision declutter",
+  );
+});
+
 test("selected relationship labels remain visible inside collapsed clusters", () => {
   const h = harness();
   const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 0.2 });
@@ -2085,6 +2131,39 @@ test("selected relationship labels remain visible inside collapsed clusters", ()
         datum.relationshipId === "clustered-selected-edge",
     ),
     "selection overrides cluster label suppression",
+  );
+});
+
+test("hovered relationship labels remain visible inside collapsed clusters", () => {
+  const h = harness();
+  const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 0.2 });
+  surface.setProjection(clusteredRelationshipProjection());
+
+  let labels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
+  assert.equal(
+    labels.some(
+      (datum) =>
+        datum.kind === "relationship-label" &&
+        datum.relationshipId === "clustered-selected-edge",
+    ),
+    false,
+    "ordinary clustered relationship labels remain suppressed",
+  );
+
+  h.getDeckProps().onHover({
+    object: {
+      kind: "relationship",
+      relationshipId: "clustered-selected-edge",
+    },
+  });
+  labels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
+  assert.ok(
+    labels.some(
+      (datum) =>
+        datum.kind === "relationship-label" &&
+        datum.relationshipId === "clustered-selected-edge",
+    ),
+    "hover overrides cluster label suppression",
   );
 });
 
