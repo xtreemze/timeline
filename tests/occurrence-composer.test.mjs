@@ -107,6 +107,18 @@ test("quoted entity property delimiters do not terminate properties or trigger f
   });
   assert.equal(suggestions.some((suggestion) => suggestion.kind === "property"), false);
   assert.equal(suggestions[0]?.kind, "entity");
+
+  const nextProperty = occurrenceComposerSuggestions("Alice(icon: person, ty", {
+    entities: [],
+    places: [],
+    categories: [],
+    cursorOffset: "Alice(icon: person, ty".length,
+  });
+  assert.ok(nextProperty.some((suggestion) => suggestion.label === "type: person"));
+  assert.equal(
+    nextProperty.some((suggestion) => suggestion.detail === "semantic icon"),
+    false,
+  );
 });
 
 test("quoted commas are preserved when accepting later property and option suggestions", () => {
