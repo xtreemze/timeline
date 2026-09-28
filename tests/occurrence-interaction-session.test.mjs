@@ -46,46 +46,37 @@ test("occurrence interaction session keeps presentation, content, media and auth
   });
 });
 
-test("committed logical viewport controls density expansion while explicit open remains an override", () => {
+test("timeline focus never promotes a competing detached occurrence detail", () => {
   let session = createOccurrenceInteractionSession({ occurrenceId: "occ-1" });
   session = setPresentation(session, "focused");
 
-  session = resolveOccurrencePresentation(session, {
-    logicalOccurrenceIds: ["occ-1", "occ-2"],
-    focused: true,
-  });
-  assert.equal(session.presentation, "focused");
+  for (const viewport of [
+    { logicalOccurrenceIds: ["occ-1", "occ-2"], focused: true },
+    { logicalOccurrenceIds: ["occ-1"], focused: true },
+    {
+      logicalOccurrenceIds: ["occ-1", "occ-2"],
+      demotionOccurrenceIds: ["occ-1"],
+      focused: true,
+    },
+    {
+      logicalOccurrenceIds: ["occ-1", "occ-2"],
+      explicitDetailOpen: true,
+      focused: true,
+    },
+  ]) {
+    session = resolveOccurrencePresentation(session, viewport);
+    assert.equal(
+      session.presentation,
+      "focused",
+      "the persistent composer owns occurrence detail regardless of timeline density",
+    );
+  }
 
   session = resolveOccurrencePresentation(session, {
     logicalOccurrenceIds: ["occ-1"],
-    focused: true,
+    focused: false,
   });
-  assert.equal(session.presentation, "expanded");
-
-  session = resolveOccurrencePresentation(session, {
-    logicalOccurrenceIds: ["occ-1", "occ-2"],
-    demotionOccurrenceIds: ["occ-1"],
-    focused: true,
-  });
-  assert.equal(
-    session.presentation,
-    "expanded",
-    "hysteresis keeps an already-expanded card open while a neighbor only touches the outer boundary",
-  );
-
-  session = resolveOccurrencePresentation(session, {
-    logicalOccurrenceIds: ["occ-1", "occ-2"],
-    demotionOccurrenceIds: ["occ-1", "occ-2"],
-    focused: true,
-  });
-  assert.equal(session.presentation, "focused");
-
-  session = resolveOccurrencePresentation(session, {
-    logicalOccurrenceIds: ["occ-1", "occ-2"],
-    explicitDetailOpen: true,
-    focused: true,
-  });
-  assert.equal(session.presentation, "expanded");
+  assert.equal(session.presentation, "selected");
 });
 
 test("coincident occurrences never qualify as density-isolated", () => {
