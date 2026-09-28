@@ -104,6 +104,7 @@ type Orientation = "horizontal" | "vertical";
 
 interface TimelineItem {
   id: string;
+  relationshipId?: string;
   composition?: string;
   kind?: string;
   title?: string;
@@ -1327,7 +1328,7 @@ export class TimelineViewController {
         this.root.dispatchEvent(
           new CustomEvent("timelineoccurrenceeditrequest", {
             bubbles: true,
-            detail: { id: item.id },
+            detail: { id: item.id, relationshipId: item.relationshipId },
           }),
         );
       });
@@ -2962,10 +2963,11 @@ export class TimelineViewController {
     if (expansion?.viewport) this.viewport = { ...expansion.viewport };
     this.commitInteraction();
     this.focusItem(selectedId, { moveViewport: false });
+    const selectedItem = this.items.find((item) => item.id === selectedId);
     this.root.dispatchEvent(
       new CustomEvent("timelineoccurrenceeditrequest", {
         bubbles: true,
-        detail: { id: selectedId },
+        detail: { id: selectedId, relationshipId: selectedItem?.relationshipId },
       }),
     );
     void motion.pulseHaptic("selection");
@@ -3144,7 +3146,7 @@ export class TimelineViewController {
       this.root.dispatchEvent(
         new CustomEvent("timelineoccurrenceeditrequest", {
           bubbles: true,
-          detail: { id: item.id },
+          detail: { id: item.id, relationshipId: item.relationshipId },
         }),
       );
     };
@@ -3878,7 +3880,7 @@ export class TimelineViewController {
         this.root.dispatchEvent(
           new CustomEvent("timelineoccurrenceeditrequest", {
             bubbles: true,
-            detail: { id: item.id, field },
+            detail: { id: item.id, relationshipId: item.relationshipId, field },
           }),
         );
       });
@@ -3893,7 +3895,7 @@ export class TimelineViewController {
       this.root.dispatchEvent(
         new CustomEvent("timelineoccurrenceeditrequest", {
           bubbles: true,
-          detail: { id: item.id },
+          detail: { id: item.id, relationshipId: item.relationshipId },
         }),
       );
     });
@@ -4229,7 +4231,12 @@ export class TimelineViewController {
       this.root.dispatchEvent(
         new CustomEvent("timelinefocuschange", {
           bubbles: true,
-          detail: { focused: true, id, presentationSurface: "card" },
+          detail: {
+            focused: true,
+            id,
+            relationshipId: item.relationshipId,
+            presentationSurface: "card",
+          },
         }),
       );
     };
@@ -4244,9 +4251,14 @@ export class TimelineViewController {
 
   ensureFocusPopover(): void {
     if (!this.focusedId) return;
-    this.explicitDetailOpen = true;
-    this.interactionSession = setPresentation(this.interactionSession, "expanded");
-    this.render();
+    const item = this.items.find((candidate) => candidate.id === this.focusedId);
+    this.explicitDetailOpen = false;
+    this.root.dispatchEvent(
+      new CustomEvent("timelineoccurrenceeditrequest", {
+        bubbles: true,
+        detail: { id: this.focusedId, relationshipId: item?.relationshipId },
+      }),
+    );
   }
 
   closeFocus(): void {
