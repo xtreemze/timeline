@@ -3231,6 +3231,14 @@ export class TimelineViewController {
     record.range?.classList.toggle("is-selected", selected);
   }
 
+  hideLegacyFocusView(clear = false): void {
+    // Isolated controller fixtures may not provide the legacy focus element and
+    // therefore fall back to the timeline root. Never hide the owning timeline.
+    if (this.focusView === this.root) return;
+    this.focusView.hidden = true;
+    if (clear && this.focusView.childElementCount) this.focusView.replaceChildren();
+  }
+
   logicalOccurrenceIds(viewport: TemporalWindow = this.viewport): string[] {
     return this.items
       .filter((item) => itemOverlapsViewport(item, viewport))
@@ -3333,7 +3341,7 @@ export class TimelineViewController {
     }
 
     if (!focusedId) {
-      this.focusView.hidden = true;
+      this.hideLegacyFocusView(true);
       delete this.root.dataset.focusPresentation;
       this.lastFocusPresentation = "resting";
       return;
@@ -3348,8 +3356,7 @@ export class TimelineViewController {
 
     // The old shell-owned focus surface stays mounted only as a migration
     // boundary. The normal occurrence-detail path is now the retained card.
-    this.focusView.hidden = true;
-    if (this.focusView.childElementCount) this.focusView.replaceChildren();
+    this.hideLegacyFocusView(true);
 
     const detailHost = record.node.detailHost;
     if (detailHost) detailHost.dataset.presentationSurface = "card";
@@ -4189,7 +4196,7 @@ export class TimelineViewController {
       this.syncSemanticChronologySelection();
       this.root.classList.add("is-event-focused");
       this.root.dataset.sceneState = "focused";
-      this.focusView.hidden = true;
+      this.hideLegacyFocusView(true);
 
       if (moveViewport) {
         const sorted = [...this.items].sort((left, right) => left.start - right.start);
@@ -4244,8 +4251,7 @@ export class TimelineViewController {
       this.root.classList.remove("is-event-focused");
       this.root.dataset.sceneState = this.items.length ? "populated" : "empty";
       delete this.root.dataset.focusPresentation;
-      this.focusView.hidden = true;
-      this.focusView.replaceChildren();
+      this.hideLegacyFocusView(true);
       this.focusView.style.removeProperty("--event-color");
       this.focusView.removeAttribute("aria-labelledby");
       delete this.focusView.dataset.layout;
