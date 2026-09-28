@@ -41,6 +41,12 @@ test("VS Code integration delegates diagnostics and formatting to the lum CLI", 
   assert.match(source, /registerDocumentFormattingEditProvider/);
   assert.match(source, /createDiagnosticCollection/);\n  assert.match(source, /finding\\?\\.range|finding\\.range/);
   assert.doesNotMatch(source, /validateProjectInterchange|formatProjectInterchange/);
+  for (const collection of ["places", "sources", "categories", "stories"]) {
+    assert.match(source, new RegExp(`"${collection}"`));
+  }
+  for (const reference of ["categoryId", "storyId"]) {
+    assert.match(source, new RegExp(`"${reference}"`));
+  }
 });
 
 test("VS Code snippets scaffold strict current-format records", async () => {
