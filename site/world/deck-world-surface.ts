@@ -251,7 +251,7 @@ interface DeckWorldRelationshipDatum {
   readonly targetEntityId: EntityId;
   readonly path: readonly WorldRenderPosition[];
   readonly selected: boolean;
-  /** Incident to the selected/hovered node, or endpoint of the selected edge. */
+  /** Incident to interaction context, or explicitly active from timeline event context. */
   readonly emphasized: boolean;
   readonly temporalWeight: number;
   readonly style?: WorldPresentationStyle;
@@ -2444,6 +2444,7 @@ function labelDatums(input: {
   readonly hoveredClusterId: string | null;
   readonly contextEntityIds: ReadonlySet<EntityId>;
   readonly contextRelationshipIds: ReadonlySet<RelationshipId>;
+  readonly activeRelationshipIds: ReadonlySet<RelationshipId>;
   readonly previous: ReadonlyMap<string, DeckWorldLabelDatum>;
   readonly entityMarkerRadiusPx: (instanceId: WorldInstanceId) => number;
   readonly placeMarkerRadiusPx: (placeId: PlaceId) => number;
@@ -2807,6 +2808,10 @@ function labelDatums(input: {
   }
 
   const interactionRelationshipIds = new Set<RelationshipId>(input.contextRelationshipIds);
+  for (const relationshipId of input.activeRelationshipIds) {
+    interactionRelationshipIds.add(relationshipId);
+    requiredInteractionLabelKeys.add(`relationship:${relationshipId}`);
+  }
   if (input.selection?.kind === "entity") {
     for (const relationship of input.relationships) {
       if (
@@ -3029,6 +3034,7 @@ export class DeckWorldSurface implements WorldSurface {
   #relationshipRouteHints: ReadonlyMap<RelationshipId, WorldRelationshipRouteHint> = new Map();
   #selection: WorldSelection | null = null;
   #hoverSelection: WorldSelection | null = null;
+  #contextRelationshipIds: ReadonlySet<RelationshipId> = new Set();
   #hoverClusterId: string | null = null;
   #camera: WorldCameraState;
   // True once the camera was chosen explicitly (constructor, setCamera,
@@ -4253,6 +4259,19 @@ export class DeckWorldSurface implements WorldSurface {
     this.#render();
   }
 
+  setContextRelationships(ids: readonly RelationshipId[]): void {
+    this.#assertAlive();
+    const next = new Set(ids);
+    if (
+      next.size === this.#contextRelationshipIds.size &&
+      [...next].every((id) => this.#contextRelationshipIds.has(id))
+    ) {
+      return;
+    }
+    this.#contextRelationshipIds = next;
+    this.#render();
+  }
+
   getRenderedInstanceContinuity(): ReadonlyMap<
     WorldInstanceId,
     WorldRenderContinuitySample
@@ -5302,6 +5321,9 @@ export class DeckWorldSurface implements WorldSurface {
     const neighborhood = this.#topologyIndex.interactionNeighborhood([
       this.#selection,
       this.#hoverSelection,
+      ...[...this.#contextRelationshipIds].map(
+        (id) => ({ kind: "relationship", id }) as const,
+      ),
     ]);
     const placeResult = placeDatums(
       this.#projection.instances,
@@ -5392,14 +5414,16 @@ export class DeckWorldSurface implements WorldSurface {
       return (
         !edgeIsClusterAffected(edge) ||
         showActiveClusterEdges ||
-        placeReveal.relationshipIds.has(edge.relationshipId)
+        placeReveal.relationshipIds.has(edge.relationshipId) ||
+        this.#contextRelationshipIds.has(edge.relationshipId)
       );
     });
     const releasingRelationships = showReleasingClusterEdges
       ? relationships.filter(
           (relationship) =>
             edgeIsClusterAffected(relationship) &&
-            !placeReveal.relationshipIds.has(relationship.relationshipId),
+            !placeReveal.relationshipIds.has(relationship.relationshipId) &&
+            !this.#contextRelationshipIds.has(relationship.relationshipId),
         )
       : Object.freeze([] as DeckWorldRelationshipDatum[]);
     const releasingSegments = releasingRelationshipSegments(releasingRelationships);
@@ -5478,7 +5502,8 @@ export class DeckWorldSurface implements WorldSurface {
       (relationship) =>
         !edgeIsClusterAffected(relationship) ||
         showActiveClusterEdges ||
-        placeReveal.relationshipIds.has(relationship.relationshipId),
+        placeReveal.relationshipIds.has(relationship.relationshipId) ||
+        this.#contextRelationshipIds.has(relationship.relationshipId),
     );
     const directionResult = directionDatums(
       visibleDirectionRelationships,
@@ -5511,7 +5536,8 @@ export class DeckWorldSurface implements WorldSurface {
     ): number =>
       !edgeIsClusterAffected(edge) ||
       showActiveClusterEdges ||
-      placeReveal.relationshipIds.has(edge.relationshipId)
+      placeReveal.relationshipIds.has(edge.relationshipId) ||
+      this.#contextRelationshipIds.has(edge.relationshipId)
         ? 1
         : 0;
     const entityExpansion = (entity: DeckWorldEntityDatum): number =>
@@ -5534,6 +5560,7 @@ export class DeckWorldSurface implements WorldSurface {
       this.#hoverClusterId ?? "",
       this.#focus?.kind ?? "",
       this.#focus?.id ?? "",
+      [...this.#contextRelationshipIds].sort().join(","),
     ].join(":");
     const labelInteractionEmphasized = (datum: DeckWorldLabelDatum): boolean => {
       if (datum.kind === "cluster-label") return datum.emphasized;
@@ -5581,7 +5608,8 @@ export class DeckWorldSurface implements WorldSurface {
         (this.#selection?.kind === "relationship" &&
           this.#selection.id === relationship.relationshipId) ||
         (this.#hoverSelection?.kind === "relationship" &&
-          this.#hoverSelection.id === relationship.relationshipId),
+          this.#hoverSelection.id === relationship.relationshipId) ||
+        this.#contextRelationshipIds.has(relationship.relationshipId),
     );
     const labelResult = this.#runtime.createTextLayer
       ? labelDatums({
@@ -5602,6 +5630,7 @@ export class DeckWorldSurface implements WorldSurface {
               .filter((entityId): entityId is EntityId => entityId !== undefined),
           ),
           contextRelationshipIds: placeReveal.relationshipIds,
+          activeRelationshipIds: this.#contextRelationshipIds,
           previous: this.#labelDatumCache,
           entityMarkerRadiusPx: visibleEntityRadiusPx,
           placeMarkerRadiusPx: (placeId) => {
