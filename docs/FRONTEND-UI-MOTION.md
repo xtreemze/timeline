@@ -2,7 +2,7 @@
 
 Status: accepted pilot, 2026-09-21.
 
-Timeline remains browser-first. Vite and TypeScript provide build/type infrastructure; Lit is adopted selectively as a declarative rendering layer for bounded UI where manual DOM construction, replacement, event wiring, or lifecycle coordination has become costly.
+Lūm remains browser-first. Vite and TypeScript provide build/type infrastructure; Lit is adopted selectively as a declarative rendering layer for bounded UI where manual DOM construction, replacement, event wiring, or lifecycle coordination has become costly.
 
 Lit is not the owner of the chronology engine, graph engine, map engine, input physics, canonical data model, evidence/inference pipeline, or WebMCP surface.
 
