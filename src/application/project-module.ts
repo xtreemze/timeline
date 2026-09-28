@@ -6,6 +6,7 @@ import {
 import {
   formatProjectInterchange,
   LUM_PROJECT_SCHEMA_ID,
+  projectCollectionShapeDiagnostics,
   serializeProjectInterchange,
   validateProjectInterchange,
   type ProjectInterchangeDiagnostic,
@@ -190,6 +191,19 @@ export function validateProjectModule(serialized: string): ProjectModuleValidati
         );
       }
     });
+    if (
+      typeof envelope["collection"] === "string" &&
+      LUM_PROJECT_MODULE_COLLECTIONS.includes(
+        envelope["collection"] as ProjectModuleCollection,
+      )
+    ) {
+      diagnostics.push(
+        ...projectCollectionShapeDiagnostics(
+          envelope["collection"] as ProjectModuleCollection,
+          envelope["records"],
+        ),
+      );
+    }
   }
 
   if (diagnostics.length > 0) return { valid: false, diagnostics };
