@@ -1782,8 +1782,28 @@ function closeFocusedEventForUtility() {
   if (timelineView?.hasFocusedItem?.()) timelineView.closeFocus();
 }
 
+let toolbarFocusedNavigationActive = false;
+
+function revealFocusedToolbarNavigation() {
+  if (!globalThis.matchMedia?.("(max-width: 699px)").matches) return;
+  const navigation = els.focusPrev.parentElement;
+  if (!(navigation instanceof HTMLElement) || navigation.hidden) return;
+  const dockRect = els.appToolDock.getBoundingClientRect();
+  const navigationRect = navigation.getBoundingClientRect();
+  const inset = 8;
+  let delta = 0;
+  if (navigationRect.right > dockRect.right - inset) {
+    delta = navigationRect.right - (dockRect.right - inset);
+  } else if (navigationRect.left < dockRect.left + inset) {
+    delta = navigationRect.left - (dockRect.left + inset);
+  }
+  if (Math.abs(delta) > 1) els.appToolDock.scrollLeft += delta;
+}
+
 function syncTimelineContextControls() {
   const focused = Boolean(timelineView?.hasFocusedItem?.());
+  const focusBecameActive = focused && !toolbarFocusedNavigationActive;
+  toolbarFocusedNavigationActive = focused;
   const navigation = focused ? timelineView?.focusNavigationState?.() : null;
   els.focusPrev.hidden = !focused;
   els.focusNext.hidden = !focused;
@@ -1811,6 +1831,7 @@ function syncTimelineContextControls() {
     const accessibleLabel = els.editorToggle.querySelector(".app-tool-label");
     if (accessibleLabel) accessibleLabel.textContent = ui.editorOpen ? "Done" : "Edit";
   }
+  if (focusBecameActive) requestAnimationFrame(revealFocusedToolbarNavigation);
 }
 
 function syncOccurrenceComposerSelection(
