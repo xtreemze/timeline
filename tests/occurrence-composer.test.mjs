@@ -251,10 +251,10 @@ test("application keeps timeline and World live while composer uses their center
 
 
   assert.match(source, /requiredElement<LuumOccurrenceComposerElement>\("#occurrence-composer"\)/);
-  assert.match(source, /requiredElement<HTMLButtonElement>\("#occurrence-composer-toggle"\)/);
+  assert.doesNotMatch(source, /occurrenceComposerToggle|#occurrence-composer-toggle/);
   assert.match(
     source,
-    /occurrenceComposerToggle\.addEventListener\("click"[\s\S]*setOccurrenceComposerOpen\(!els\.occurrenceComposer\.active\)/,
+    /occurrenceComposer\.addEventListener\("occurrencecomposeropenrequest"[\s\S]*setOccurrenceComposerOpen\(true\)/,
   );
   assert.match(
     source,
@@ -305,27 +305,28 @@ test("application keeps timeline and World live while composer uses their center
   );
 });
 
-test("occurrence composer is integrated into the footer through the single Edit surface", async () => {
-  const [markup, shellStyles] = await Promise.all([
+test("occurrence composer has one persistent footer launcher and expands in place", async () => {
+  const [markup, shellStyles, component] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/spatial-shell.css", import.meta.url), "utf8"),
+    readFile(new URL("../site/components/occurrence-composer.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(
     markup,
     /<nav class="app-tool-dock app-footer-bar"[\s\S]*<luum-occurrence-composer id="occurrence-composer"><\/luum-occurrence-composer>/,
   );
+  assert.doesNotMatch(markup, /occurrence-composer-toggle/);
+  assert.match(component, /class="launcher"/);
+  assert.match(component, /aria-label="Compose occurrence"/);
+  assert.match(component, /occurrencecomposeropenrequest/);
+  assert.match(component, /focusLauncher\(\): void/);
+  assert.match(component, /iconPathData\("add"\)/);
+  assert.match(component, /iconPathData\("close"\)/);
+  assert.doesNotMatch(component, /:host\(:not\(\[active\]\)\)\s*\{\s*display:\s*none/);
   assert.match(
-    markup,
-    /id="occurrence-composer-toggle"[^>]*aria-controls="occurrence-composer"[^>]*aria-expanded="false"/,
-  );
-
-  const footerStart = markup.indexOf('<nav class="app-tool-dock app-footer-bar"');
-  const footerEnd = markup.indexOf("</nav>", footerStart);
-  assert.equal(
-    (markup.slice(footerStart, footerEnd).match(/id="occurrence-composer-toggle"/g) ?? []).length,
-    0,
-    "Compose is reached through the editor instead of a second toolbar authoring button",
+    component,
+    /:host\(:not\(\[active\]\)\)[\s\S]*inline-size:\s*44px[\s\S]*block-size:\s*44px/,
   );
 
   assert.match(
@@ -338,8 +339,9 @@ test("occurrence composer is integrated into the footer through the single Edit 
   );
   assert.match(
     shellStyles,
-    /app-footer-actions[\s\S]*grid-row:\s*2[\s\S]*app-footer-view[\s\S]*grid-row:\s*2[\s\S]*app-footer-timeline[\s\S]*grid-row:\s*2/,
+    /app-footer-actions[\s\S]*grid-row:\s*2[\s\S]*app-footer-view[\s\S]*grid-row:\s*2/,
   );
+  assert.doesNotMatch(shellStyles, /app-footer-timeline/);
   assert.doesNotMatch(markup, /id="timeline-view-controls-toggle"/);
   assert.match(
     markup,
