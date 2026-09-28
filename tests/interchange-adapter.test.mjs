@@ -191,3 +191,139 @@ test("publishes a JSON Schema and documents the vendor-schema boundary", async (
   assert.equal(schema.properties._timeline.properties.places.type, "array");
   assert.match(docs, /vendor-neutral/i);
 });
+
+
+test("legacy Timeline interchange can emit canonical Lūm interchange without re-keying graph-rich stories", () => {
+  const legacy = {
+    title: "Legacy story",
+    groups: [{ id: "cat-a", name: "Category A", color: "#123456" }],
+    events: [
+      { id: "occ-a", title: "Warning", date: "2026-01-02", group: "cat-a" },
+    ],
+    _timeline: {
+      format: "timeline-interchange",
+      schemaVersion: 1,
+      generatedBy: "fixture",
+      canonicalVersion: 2,
+      stories: [{ id: "story-a", title: "Story A", description: "", itemIds: ["ext-occ-a"] }],
+      entities: [
+        { id: "alice", type: "person", name: "Alice", alternateNames: [], sourceIds: [], attributes: {} },
+        { id: "bob", type: "person", name: "Bob", alternateNames: [], sourceIds: [], attributes: {} },
+      ],
+      places: [],
+      relationships: [
+        {
+          id: "rel-a",
+          subjectId: "alice",
+          objectId: "bob",
+          predicate: "warns",
+          itemIds: ["ext-occ-a"],
+          sourceIds: [],
+          confidence: 1,
+          time: null,
+          attributes: {},
+        },
+      ],
+      evidence: [],
+      reasoning: {},
+    },
+  };
+
+  const converted = adapter.toLumInterchange(legacy, {
+    projectKey: "legacy-story",
+    savedAt: "2026-09-28T10:30:00.000Z",
+  });
+  const parsed = JSON.parse(converted.serialized);
+  assert.equal(parsed.format, "lum-project");
+  assert.equal(parsed.interchangeVersion, 1);
+  assert.equal(parsed.projectKey, "legacy-story");
+  assert.deepEqual(parsed.project.entities.map((entity) => entity.id), ["alice", "bob"]);
+  assert.deepEqual(parsed.project.relationships.map((relationship) => relationship.id), ["rel-a"]);
+  assert.deepEqual(parsed.project.occurrences.map((occurrence) => occurrence.id), ["ext-occ-a"]);
+  assert.deepEqual(parsed.project.stories.map((story) => story.id), ["story-a"]);
+  assert.equal(converted.validation.valid, true);
+});
+
+test("legacy canonical bridge merges multiple stories without duplicating shared canonical records", () => {
+  const timeline = {
+    version: 2,
+    title: "Two stories",
+    categories: [{ id: "cat-a", name: "A", color: "#123456" }],
+    items: [
+      { id: "occ-a", kind: "event", start: "2026-01-01", end: null, title: "A", description: "", categoryId: "cat-a", evidenceIds: [] },
+      { id: "occ-b", kind: "event", start: "2026-01-02", end: null, title: "B", description: "", categoryId: "cat-a", evidenceIds: [] },
+    ],
+    stories: [
+      { id: "story-a", title: "A", itemIds: ["occ-a"] },
+      { id: "story-b", title: "B", itemIds: ["occ-b"] },
+    ],
+    entities: [
+      { id: "alice", type: "person", name: "Alice", alternateNames: [], sourceIds: [], attributes: {} },
+      { id: "bob", type: "person", name: "Bob", alternateNames: [], sourceIds: [], attributes: {} },
+    ],
+    places: [],
+    relationships: [
+      { id: "rel-a", subjectId: "alice", objectId: "bob", predicate: "warns", itemIds: ["occ-a"], sourceIds: [], confidence: 1, time: null, attributes: {} },
+      { id: "rel-b", subjectId: "bob", objectId: "alice", predicate: "answers", itemIds: ["occ-b"], sourceIds: [], confidence: 1, time: null, attributes: {} },
+    ],
+    evidence: [],
+    reasoning: {},
+  };
+
+  const converted = adapter.timelineToLumInterchange(timeline, {
+    projectKey: "two-stories",
+    savedAt: "2026-09-28T10:31:00.000Z",
+  });
+  const project = JSON.parse(converted.serialized).project;
+  assert.deepEqual(project.entities.map((entity) => entity.id), ["alice", "bob"]);
+  assert.deepEqual(project.stories.map((story) => story.id), ["story-a", "story-b"]);
+  assert.deepEqual(project.occurrences.map((occurrence) => occurrence.id), ["occ-a", "occ-b"]);
+});
+
+test("legacy canonical bridge fails closed instead of inventing actors for generic chronology", () => {
+  assert.throws(
+    () =>
+      adapter.toLumInterchange(
+        {
+          title: "Generic chronology",
+          events: [{ id: "e1", title: "Something happened", date: "2026-01-01" }],
+        },
+        {
+          projectKey: "generic",
+          savedAt: "2026-09-28T10:32:00.000Z",
+        },
+      ),
+    /cannot become canonical Lūm|story|participant|relationship/i,
+  );
+});
+
+test("legacy canonical bridge rejects timeline items omitted from every story instead of dropping them", () => {
+  const timeline = {
+    version: 2,
+    title: "Uncovered item",
+    categories: [{ id: "cat-a", name: "A", color: "#123456" }],
+    items: [
+      { id: "covered", kind: "event", start: "2026-01-01", end: null, title: "Covered", description: "", categoryId: "cat-a", evidenceIds: [] },
+      { id: "orphan", kind: "event", start: "2026-01-02", end: null, title: "Orphan", description: "", categoryId: "cat-a", evidenceIds: [] },
+    ],
+    stories: [{ id: "story-a", title: "A", itemIds: ["covered"] }],
+    entities: [
+      { id: "alice", type: "person", name: "Alice", alternateNames: [], sourceIds: [], attributes: {} },
+      { id: "bob", type: "person", name: "Bob", alternateNames: [], sourceIds: [], attributes: {} },
+    ],
+    relationships: [
+      { id: "rel-a", subjectId: "alice", objectId: "bob", predicate: "warns", itemIds: ["covered"], sourceIds: [], confidence: 1, time: null, attributes: {} },
+    ],
+    places: [],
+    evidence: [],
+    reasoning: {},
+  };
+  assert.throws(
+    () =>
+      adapter.timelineToLumInterchange(timeline, {
+        projectKey: "uncovered",
+        savedAt: "2026-09-28T10:33:00.000Z",
+      }),
+    /not owned by any story/i,
+  );
+});
