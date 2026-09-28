@@ -535,6 +535,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     predicates: Object.freeze([]),
   });
   private timelineContext: ComposerTimelineContext | null = null;
+  private explicitTimelineContext: ComposerTimelineContext | null = null;
   private worldContext: ComposerWorldContext | null = null;
   private activeSuggestion = 0;
   private cursorOffset = 0;
@@ -716,6 +717,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.cursorOffset = 0;
     this.selectionSeeded = false;
     this.explicitPlaceContext = null;
+    this.explicitTimelineContext = null;
     this.externalError = "";
     this.activeSuggestion = 0;
     this.activeContextKind = null;
@@ -920,6 +922,19 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
   private activateContext(kind: "place" | "time"): void {
     this.metadataOpen = false;
+    const parsed = this.parsed();
+    if (parsed.stage !== "complete") {
+      if (kind === "place" && this.worldContext) {
+        this.explicitPlaceContext = this.worldContext;
+      }
+      if (kind === "time" && this.timelineContext) {
+        this.explicitTimelineContext = this.timelineContext;
+      }
+      this.activeContextKind = null;
+      this.externalError = "";
+      this.requestUpdate();
+      return;
+    }
     this.activeContextKind = kind;
     this.activeSuggestion = 0;
     this.cursorOffset = this.value.length;
@@ -1047,6 +1062,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const metadata = this.metadataValue();
     if (!metadata) return;
     const placeContext = this.explicitPlaceContext ?? this.worldContext;
+    const timelineContext = this.explicitTimelineContext ?? this.timelineContext;
     this.dispatchEvent(
       new CustomEvent<OccurrenceCommitDetail>("occurrencecommit", {
         bubbles: true,
@@ -1064,9 +1080,9 @@ export class LuumOccurrenceComposerElement extends LitElement {
               : null,
           metadata,
           defaults: {
-            timeMs: this.timelineContext?.centerMs ?? null,
-            timeValue: this.timelineContext?.value ?? null,
-            timePrecision: this.timelineContext?.precision ?? null,
+            timeMs: timelineContext?.centerMs ?? null,
+            timeValue: timelineContext?.value ?? null,
+            timePrecision: timelineContext?.precision ?? null,
             longitude: placeContext?.longitude ?? null,
             latitude: placeContext?.latitude ?? null,
             worldZoom: placeContext?.zoom ?? null,
@@ -1166,7 +1182,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
       ? parsed.time.kind === "range"
         ? `${parsed.time.start} – ${parsed.time.end ?? parsed.time.start}`
         : parsed.time.start
-      : (this.timelineContext?.label ?? null);
+      : (this.explicitTimelineContext?.label ?? this.timelineContext?.label ?? null);
     const placeLabel =
       resolvedPlaceLabel(parsed.place?.name) ??
       this.selectionContext?.place?.name ??
@@ -1200,7 +1216,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const placePinned = Boolean(
       parsed.place || this.selectionContext?.place || this.explicitPlaceContext,
     );
-    const timePinned = Boolean(parsed.time);
+    const timePinned = Boolean(parsed.time || this.explicitTimelineContext);
     const categoryLabel = parsed.options.category ?? null;
     const tagLabels = parsed.options.tags;
     const canCommit = Boolean(
