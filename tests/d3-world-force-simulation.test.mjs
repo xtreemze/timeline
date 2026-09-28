@@ -190,8 +190,8 @@ test("cross-place D3 spacing honors hub connectivity clearance", () => {
 test("selected-place tuning participates in cross-place collision islands", () => {
   const settle = (clearanceScale) => {
     const simulation = new D3WorldForceSimulation();
-    const hub = \`["cross-tuned-hub-\${clearanceScale}","place-a"]\`;
-    const peer = \`["cross-tuned-peer-\${clearanceScale}","place-b"]\`;
+    const hub = `["cross-tuned-hub-${clearanceScale}","place-a"]`;
+    const peer = `["cross-tuned-peer-${clearanceScale}","place-b"]`;
     simulation.setScene({
       nodes: [
         node(hub, -10, 180, { connectivityClearanceMeters: 720 }),
