@@ -44,6 +44,7 @@ export interface ComposerEntityOption {
   readonly id: string;
   readonly name: string;
   readonly type?: string;
+  readonly icon?: string;
   readonly alternateNames?: readonly string[];
 }
 
@@ -61,6 +62,7 @@ export interface ComposerSuggestion {
   readonly kind: "entity" | "predicate" | "place" | "time" | "property" | "category" | "tag";
   readonly label: string;
   readonly detail?: string;
+  readonly icon?: string;
   readonly insertText: string;
 }
 
@@ -391,6 +393,7 @@ export function occurrenceComposerSuggestions(
             sameNameCount > 1
               ? `${entity.type || "entity"} · ${entity.id}`
               : entity.type || "entity",
+          ...(entity.icon ? { icon: entity.icon } : {}),
           insertText:
             sameNameCount > 1 ? `@${entity.id}` : quoteComposerName(entity.name),
         };
