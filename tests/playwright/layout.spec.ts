@@ -424,10 +424,10 @@ test.describe("Mobile-first Timeline layout contracts", () => {
 
     expect(timelineBox.width).toBeGreaterThan(TABLET_LANDSCAPE.width * 0.6);
     expect(timelineBox.height).toBeGreaterThan(TABLET_LANDSCAPE.height * 0.5);
-    // The desktop/tablet relation composition deliberately uses a 220px minimum
-    // chronology rail while reserving the complementary majority for the graph.
-    expect(surfaceBox.height).toBeGreaterThanOrEqual(220);
-    expect(graphBox?.height ?? 0).toBeGreaterThan(TABLET_LANDSCAPE.height * 0.4);
+    // Only one card lane is reserved; later lanes may project over the graph.
+    expect(surfaceBox.height).toBeGreaterThanOrEqual(154);
+    expect(surfaceBox.height).toBeLessThanOrEqual(186);
+    expect(graphBox?.height ?? 0).toBeGreaterThan(TABLET_LANDSCAPE.height * 0.52);
     await expectVisibleChronology(page, TABLET_LANDSCAPE);
     await expectNoPrimaryDocumentScroll(page, TABLET_LANDSCAPE);
   });
