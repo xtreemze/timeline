@@ -39,6 +39,11 @@ test("promoted occurrence card and footer share one physical composer", async ()
   assert.match(app, /occurrence-composer-home/);
   assert.match(app, /mountOccurrenceComposerInCard/);
   assert.match(app, /restoreOccurrenceComposerHome/);
+  assert.match(app, /remountOccurrenceComposerCardHost/);
+  assert.match(
+    app,
+    /timelinefocusrender"[\s\S]*remountOccurrenceComposerCardHost/,
+  );
   assert.match(app, /timelineoccurrencecomposerrequest/);
   assert.match(view, /data-occurrence-composer-host/);
   assert.match(view, /data-composer-section-kind/);
