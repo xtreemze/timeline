@@ -296,6 +296,40 @@ test("inference reconciliation reuses canonical records and rejects unsafe graph
   assert.ok(proposal.unresolved.some((entry) => /not an entity-node type/i.test(entry.reason)));
 });
 
+test("reconciled entity proposals carry advisory semantic icon provenance without persisting it", () => {
+  const raw = {
+    entities: [
+      {
+        key: "wolf-key",
+        name: "Big Bad Wolf",
+        type: "person",
+        confidence: 0.91,
+        sourceRefs: ["event:title"],
+        rationale: "Named actor",
+      },
+    ],
+    places: [],
+    relationships: [],
+    unresolved: [],
+  };
+
+  const proposal = inference.reconcileProposal(raw, context(), {
+    graph,
+    spatial,
+    idFactory: idFactory(),
+  });
+  const wolf = proposal.entities[0];
+
+  assert.deepEqual(wolf.semanticIconSuggestion, {
+    icon: "wolf",
+    confidence: "high",
+    reason: "name:wolf",
+    origin: "inferred",
+  });
+  assert.equal(wolf.record?.attributes?.style?.icon, undefined);
+  assert.equal(wolf.record?.attributes?.semanticIconSuggestion, undefined);
+});
+
 test("new inferred places require explicit source coordinates", () => {
   const ctx = context();
   ctx.fragments.push({
