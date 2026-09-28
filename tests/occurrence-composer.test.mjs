@@ -280,6 +280,10 @@ test("application keeps timeline and World live while composer uses their center
   assert.match(source, /editorToggle\.setAttribute\("aria-pressed", String\(authoringActive\)\)/);
   assert.match(
     source,
+    /restoreComposerFocus[\s\S]*getClientRects\(\)\.length > 0[\s\S]*els\.editorToggle/,
+  );
+  assert.match(
+    source,
     /worldviewportchange[\s\S]*camera\?\.zoom[\s\S]*setWorldContext\(longitude, latitude, zoom\)/,
   );
   assert.match(
