@@ -59,4 +59,7 @@ test("unresolved clue remains editable and cannot be approved as a fact", async 
   await expect(composer.locator(".diagnostic")).toContainText("Resolve or persist");
   await expect(input).toHaveValue("man? calls @alice");
   await expect(composer.getByRole("button", { name: "Ask this question" })).toBeVisible();
+  await expect(composer.getByRole("table", { name: "Candidate comparison" })).toBeVisible();
+  await expect(composer.locator(".candidate-row")).not.toHaveCount(0);
+  await expect(composer.getByRole("button", { name: "Compare candidates" })).toBeVisible();
 });

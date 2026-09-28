@@ -18,6 +18,10 @@ test("composer owns the card and incremental world preview with interactive gram
   assert.match(source, /input\.setSelectionRange\(start, end\)/);
   assert.match(source, /aria-label="Approve occurrence"/);
   assert.match(source, /projectInvestigativeQualifiers\(this\.value\)/);
+  assert.match(source, /interpretInvestigativeQualifier/);
+  assert.match(source, /projectInvestigativeCandidateMatrix/);
+  assert.match(source, /aria-label="Candidate comparison"/);
+  assert.match(source, /Compare candidates/);
   assert.match(source, /previewCategory\?\.color/);
 });
 
@@ -30,6 +34,8 @@ test("investigative question travels to application reasoning authority", async 
   assert.match(app, /addEventListener\("occurrenceinvestigationactionrequest"/);
   assert.match(app, /caseReasoning\s*\.validateReasoning\(next/);
   assert.match(app, /applyInvestigationReasoning\(next/);
+  assert.match(app, /buildIdentityHypothesisDrafts/);
+  assert.match(app, /action === "compare-candidates"/);
 });
 
 test("expanded timeline detail yields to the composer-owned card while editing", async () => {

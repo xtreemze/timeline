@@ -36,6 +36,7 @@ import {
   parseOccurrenceSentence,
   type ComposerTimeReference,
 } from "./occurrence-composer-model.ts";
+import { buildIdentityHypothesisDrafts } from "../src/application/investigative-query.ts";
 import { proposeInvestigationAction } from "./occurrence-composer-preview.ts";
 import { TimelineEvidence } from "./evidence-store.ts";
 import { TimelineGraphInference } from "./graph-inference.ts";
@@ -1970,6 +1971,8 @@ function syncOccurrenceComposerData(): void {
       name: entity.name,
       type: entity.type,
       alternateNames: entity.alternateNames ?? [],
+      attributes: entity.attributes ?? {},
+      sourceIds: entity.sourceIds ?? [],
       icon: semanticIconStateForEntity(entity).icon ?? undefined,
     })),
     places: state.places.map((place) => ({
@@ -6175,11 +6178,59 @@ els.occurrenceComposer.addEventListener("occurrencecomposercloserequest", () => 
   setOccurrenceComposerOpen(false);
 });
 els.occurrenceComposer.addEventListener("occurrenceinvestigationactionrequest", (event) => {
-  const { text = "", action = "" } =
-    (event as CustomEvent<{ text?: string; action?: string }>).detail ?? {};
+  const { text = "", action = "", unknownEntityId = null, candidates = [] } =
+    (
+      event as CustomEvent<{
+        text?: string;
+        action?: string;
+        unknownEntityId?: string | null;
+        candidates?: readonly { entityId: string; label: string }[];
+      }>
+    ).detail ?? {};
+  const current = caseReasoning.normalizeReasoning(state.reasoning);
+  if (action === "compare-candidates") {
+    if (!unknownEntityId || !state.entities.some((entity) => entity.id === unknownEntityId)) {
+      els.occurrenceComposer.setError(
+        "Compare candidates requires a canonical unresolved entity in the active clue.",
+      );
+      return;
+    }
+    const candidateIds = new Set(state.entities.map((entity) => entity.id));
+    const boundedCandidates = candidates
+      .filter((candidate) => candidateIds.has(candidate.entityId) && candidate.entityId !== unknownEntityId)
+      .slice(0, 50);
+    if (!boundedCandidates.length) {
+      els.occurrenceComposer.setError("No canonical identity candidates are available to compare.");
+      return;
+    }
+    const drafts = buildIdentityHypothesisDrafts({
+      unknownEntityId,
+      candidates: boundedCandidates,
+      alternativeGroupId: `${unknownEntityId}-identity`,
+    });
+    const draftIds = new Set(drafts.map((draft) => draft.id));
+    const next = caseReasoning.normalizeReasoning({
+      ...current,
+      hypotheses: [
+        ...current.hypotheses.filter((hypothesis) => !draftIds.has(hypothesis.id)),
+        ...drafts,
+      ],
+    });
+    const errors = caseReasoning
+      .validateReasoning(next, {
+        entityIds: state.entities.map((entity) => entity.id),
+        externalIds: investigationExternalIds(),
+      })
+      .filter((finding) => finding.severity === "error");
+    if (errors.length) {
+      els.occurrenceComposer.setError(errors[0]?.message ?? "Cannot create identity hypotheses.");
+      return;
+    }
+    applyInvestigationReasoning(next, "Identity alternatives recorded in case reasoning.");
+    return;
+  }
   const proposal = proposeInvestigationAction(text, action);
   if (!proposal) return;
-  const current = caseReasoning.normalizeReasoning(state.reasoning);
   const next = caseReasoning.normalizeReasoning({
     ...current,
     [proposal.collection]: [

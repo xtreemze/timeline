@@ -6,6 +6,7 @@ export interface InvestigativeEntity {
   readonly type?: string;
   readonly alternateNames?: readonly string[];
   readonly attributes?: Readonly<Record<string, unknown>>;
+  readonly sourceIds?: readonly string[];
 }
 
 export interface InvestigativeQualifierInput {
@@ -258,6 +259,12 @@ export function interpretInvestigativeQualifier(
   );
 }
 
+function sourceRecordIds(entity: InvestigativeEntity): readonly string[] {
+  return Object.freeze(
+    [...new Set((entity.sourceIds ?? []).map(text).filter(Boolean))].sort(),
+  );
+}
+
 function scalarAttributeValue(
   entity: InvestigativeEntity,
   property: string,
@@ -284,7 +291,7 @@ function inferredCell(
         stableEntityId(entity) === interpretation.entityId
           ? `Candidate identity matches ${interpretation.label}.`
           : "The identity clue does not by itself exclude other candidates.",
-      recordIds: Object.freeze([]),
+      recordIds: sourceRecordIds(entity),
     });
   }
 
@@ -295,7 +302,7 @@ function inferredCell(
         qualifierId: qualifier.id,
         assessment: "unknown",
         reason: "Candidate type is not recorded.",
-        recordIds: Object.freeze([]),
+        recordIds: sourceRecordIds(entity),
       });
     }
     const consistent = semanticallyEqual(candidateType, interpretation.value);
@@ -305,7 +312,7 @@ function inferredCell(
       reason: consistent
         ? `Candidate type is ${candidateType}.`
         : `Candidate type is ${candidateType}, not ${interpretation.value}.`,
-      recordIds: Object.freeze([]),
+      recordIds: sourceRecordIds(entity),
     });
   }
 
@@ -316,7 +323,7 @@ function inferredCell(
         qualifierId: qualifier.id,
         assessment: "unknown",
         reason: `Candidate has no recorded ${interpretation.property} value.`,
-        recordIds: Object.freeze([]),
+        recordIds: sourceRecordIds(entity),
       });
     }
     const consistent = semanticallyEqual(value, interpretation.value);
@@ -326,7 +333,7 @@ function inferredCell(
       reason: consistent
         ? `${interpretation.property} is recorded as ${value}.`
         : `${interpretation.property} is recorded as ${value}, not ${interpretation.value}.`,
-      recordIds: Object.freeze([]),
+      recordIds: sourceRecordIds(entity),
     });
   }
 
@@ -338,7 +345,7 @@ function inferredCell(
     reason: matchingName
       ? `Candidate name or alias “${matchingName}” matches the descriptor text.`
       : "No canonical property is available to test this free-text descriptor.",
-    recordIds: Object.freeze([]),
+    recordIds: sourceRecordIds(entity),
   });
 }
 

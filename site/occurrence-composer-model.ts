@@ -50,6 +50,8 @@ export interface ComposerEntityOption {
   readonly type?: string;
   readonly icon?: string;
   readonly alternateNames?: readonly string[];
+  readonly attributes?: Readonly<Record<string, unknown>>;
+  readonly sourceIds?: readonly string[];
 }
 
 export interface ComposerPlaceOption {

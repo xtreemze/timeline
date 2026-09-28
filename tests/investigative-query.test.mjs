@@ -30,6 +30,7 @@ const entities = [
     type: "person",
     alternateNames: ["Robert"],
     attributes: { sex: "male", jacket: "blue" },
+    sourceIds: ["source-bob-profile"],
   },
   {
     id: "charlie",
@@ -134,6 +135,10 @@ test("candidate matrix uses categorical clue cells and keeps missing information
   assert.equal(
     bob.cells.find((cell) => cell.qualifierId === "q-jacket")?.assessment,
     "contradicts",
+  );
+  assert.deepEqual(
+    bob.cells.find((cell) => cell.qualifierId === "q-jacket")?.recordIds,
+    ["source-bob-profile"],
   );
   assert.equal(
     charlie.cells.find((cell) => cell.qualifierId === "q-jacket")?.assessment,
