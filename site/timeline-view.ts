@@ -46,6 +46,7 @@ import {
   LuumOccurrenceDeckElement,
   type OccurrenceDeckChangeDetail,
 } from "./components/occurrence-media-deck.ts";
+import { occurrenceContextDeckFrames } from "./occurrence-context-deck.ts";
 import {
   createOccurrenceInteractionSession,
   resolveOccurrencePresentation,
@@ -1322,11 +1323,13 @@ export class TimelineViewController {
       button.toggleAttribute("data-selected", selected);
       button.setAttribute("aria-current", String(item.id === this.focusedId));
       button.addEventListener("click", () => {
-        if (this.focusedId === item.id) {
-          this.ensureFocusPopover();
-        } else {
-          this.focusItem(item.id);
-        }
+        if (this.focusedId !== item.id) this.focusItem(item.id);
+        this.root.dispatchEvent(
+          new CustomEvent("timelineoccurrenceeditrequest", {
+            bubbles: true,
+            detail: { id: item.id },
+          }),
+        );
       });
       row.append(button);
       return row;
@@ -2959,6 +2962,12 @@ export class TimelineViewController {
     if (expansion?.viewport) this.viewport = { ...expansion.viewport };
     this.commitInteraction();
     this.focusItem(selectedId, { moveViewport: false });
+    this.root.dispatchEvent(
+      new CustomEvent("timelineoccurrenceeditrequest", {
+        bubbles: true,
+        detail: { id: selectedId },
+      }),
+    );
     void motion.pulseHaptic("selection");
   }
 
@@ -3131,13 +3140,20 @@ export class TimelineViewController {
     const connectorTurn = node.querySelector<HTMLElement>(".timeline-event-connector-turn");
     terminal.dataset.timelineGeometryId = item.id;
     this.geometryObserver?.observe(terminal);
+    const requestComposer = (): void => {
+      this.root.dispatchEvent(
+        new CustomEvent("timelineoccurrenceeditrequest", {
+          bubbles: true,
+          detail: { id: item.id },
+        }),
+      );
+    };
     const selectOccurrence = (): void => {
-      if (this.focusedId === item.id) {
-        this.ensureFocusPopover();
-        return;
+      if (this.focusedId !== item.id) {
+        this.focusItem(item.id, { moveViewport: false });
+        void motion.pulseHaptic("selection");
       }
-      this.focusItem(item.id, { moveViewport: false });
-      void motion.pulseHaptic("selection");
+      requestComposer();
     };
     terminal.addEventListener("click", selectOccurrence);
 
@@ -3774,19 +3790,7 @@ export class TimelineViewController {
   createFocusHero(item: TimelineItem): HTMLElement {
     const hero = document.createElement("section");
     hero.className = "timeline-focus-hero";
-    const media = Array.isArray(item.media) ? item.media : [];
-    const frames: Array<
-      | { kind: "image"; src?: string; alt?: string; caption?: string }
-      | { kind: "context"; label: string; body: string }
-    > = media.map((entry) => ({
-      kind: "image" as const,
-      src: entry?.src,
-      alt: entry?.alt,
-      caption: entry?.caption,
-    }));
-
-    if (item.description?.trim())
-      frames.push({ kind: "context", label: "Context", body: item.description.trim() });
+    const frames = occurrenceContextDeckFrames(item.media, item.description);
 
     const deck = new LuumOccurrenceDeckElement();
     deck.setDeck({

@@ -11,6 +11,9 @@ test("composer owns the card and incremental world preview with interactive gram
   assert.match(source, /class="composer-occurrence-card"/);
   assert.match(source, /selectionContext\?\.description/);
   assert.match(source, /selectionContext\?\.media/);
+  assert.match(source, /occurrenceContextDeckFrames/);
+  assert.match(source, /LuumOccurrenceDeckElement/);
+  assert.match(source, /class="composer-context-deck"/);
   assert.match(source, /class="composer-world-preview"/);
   assert.match(source, /class="mini-world-pin"/);
   assert.match(source, /composerEditableSections\(this\.value\)/);

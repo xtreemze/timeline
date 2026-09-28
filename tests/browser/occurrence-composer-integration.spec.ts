@@ -5,10 +5,26 @@ test.beforeEach(async ({ page }) => {
   await expect(page.locator("#occurrence-composer .compact")).toBeVisible();
 });
 
-test("selecting an occurrence opens its composer-owned card without a second detail panel", async ({ page }) => {
-  const occurrence = page.locator(".timeline-semantic-occurrence").first();
-  await occurrence.evaluate((button: HTMLButtonElement) => button.click());
+test("selecting an occurrence through the visible card opens its composer-owned context", async ({ page }) => {
+  const occurrence = page
+    .locator(
+      ".timeline-event:not(.timeline-cluster):not(.is-buffered) .timeline-event-terminal:visible",
+    )
+    .first();
+  await expect(occurrence).toBeVisible();
+  await occurrence.click();
   const composer = page.locator("#occurrence-composer");
+  await expect(composer).toHaveAttribute("active", "");
+  await expect(composer.locator(".composer-occurrence-card")).toBeVisible();
+  await expect(composer.locator('input[role="combobox"]')).toBeVisible();
+  await expect(page.locator(".timeline-event-detail:visible")).toHaveCount(0);
+
+  // Regression: once this occurrence is already selected/focused, closing the
+  // composer and activating the same card again must reopen the composer rather
+  // than falling back to the legacy detached timeline detail.
+  await composer.getByRole("button", { name: "Close occurrence composer" }).click();
+  await expect(composer.locator(".compact")).toBeVisible();
+  await occurrence.click();
   await expect(composer).toHaveAttribute("active", "");
   await expect(composer.locator(".composer-occurrence-card")).toBeVisible();
   await expect(composer.locator('input[role="combobox"]')).toBeVisible();
@@ -240,10 +256,11 @@ test("same-occurrence media and context refresh preserve a dirty investigative d
       composition: "@alice calls @bob",
       title: "Initial context",
       description: "Initial description",
-      media: {
+      media: [{
         src: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==",
         alt: "Initial evidence",
-      },
+        caption: "Initial caption",
+      }],
       relationship: { subjectId: "alice", objectId: "bob" },
     });
   });
@@ -259,10 +276,18 @@ test("same-occurrence media and context refresh preserve a dirty investigative d
       composition: "@alice calls @bob",
       title: "Updated context",
       description: "Updated description",
-      media: {
-        src: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==",
-        alt: "Updated evidence",
-      },
+      media: [
+        {
+          src: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==",
+          alt: "Updated evidence A",
+          caption: "Updated caption A",
+        },
+        {
+          src: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==",
+          alt: "Updated evidence B",
+          caption: "Updated caption B",
+        },
+      ],
       relationship: { subjectId: "alice", objectId: "bob" },
     });
   });
@@ -270,8 +295,13 @@ test("same-occurrence media and context refresh preserve a dirty investigative d
   await expect(input).toHaveValue("man? calls @alice");
   await expect(composer.locator("#occurrence-investigation-panel")).toBeVisible();
   await expect(composer.locator(".composer-card-heading")).toContainText("Updated context");
-  await expect(composer.locator(".composer-card-context")).toHaveText("Updated description");
-  await expect(composer.locator(".composer-card-media")).toHaveAttribute("alt", "Updated evidence");
+  const deck = composer.locator("luum-occurrence-deck.composer-context-deck");
+  await expect(deck).toHaveAttribute("data-frame-count", "3");
+  await expect(deck.locator(".timeline-focus-hero-image")).toHaveAttribute("alt", "Updated evidence A");
+  await deck.getByRole("button", { name: "Next frame" }).click();
+  await expect(deck.locator(".timeline-focus-hero-image")).toHaveAttribute("alt", "Updated evidence B");
+  await deck.getByRole("button", { name: "Next frame" }).click();
+  await expect(deck.locator(".timeline-occurrence-deck-context-body")).toHaveText("Updated description");
 });
 
 

@@ -4,6 +4,8 @@ import {
   projectInvestigativeCandidateMatrix,
 } from "../../src/application/investigative-query.ts";
 import { iconPathData } from "../event-presentation.ts";
+import { LuumOccurrenceDeckElement } from "./occurrence-media-deck.ts";
+import { occurrenceContextDeckFrames } from "../occurrence-context-deck.ts";
 import {
   WORLD_DARK_PALETTE,
   WORLD_LIGHT_PALETTE,
@@ -58,7 +60,11 @@ export interface OccurrenceComposerSelectionContext {
   readonly composition?: string | null;
   readonly title?: string | null;
   readonly description?: string | null;
-  readonly media?: { readonly src: string; readonly alt: string } | null;
+  readonly media?: readonly {
+    readonly src?: string;
+    readonly alt?: string;
+    readonly caption?: string;
+  }[] | null;
   readonly metadata?: {
     readonly role?: string | null;
     readonly initialState?: "active" | "inactive";
@@ -302,9 +308,126 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
     .composer-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; font-size: 0.8rem; }
     .composer-card-heading strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .composer-card-context { display: -webkit-box; min-inline-size: 0; margin: 0; overflow: hidden; color: var(--muted, #615d56); font-size: 0.73rem; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-    .composer-card-media { inline-size: 3.25rem; block-size: 3.25rem; object-fit: cover; border-radius: 0.4rem; }
-    .composer-card-details { display: flex; align-items: start; gap: 0.5rem; min-inline-size: 0; }
+    .composer-card-details {
+      position: relative;
+      min-inline-size: 0;
+      min-block-size: clamp(8rem, 24vh, 13rem);
+      overflow: hidden;
+      border: 1px solid color-mix(in srgb, var(--line, #d1ccc4) 78%, transparent);
+      border-radius: 0.6rem;
+      background: #171716;
+      color: #f1ede7;
+      isolation: isolate;
+    }
+    .composer-context-deck {
+      position: absolute;
+      inset: 0;
+      display: block;
+      min-inline-size: 0;
+      min-block-size: 0;
+    }
+    .composer-context-deck .timeline-focus-hero-image,
+    .composer-context-deck .timeline-focus-hero-fallback {
+      position: absolute;
+      inset: 0;
+      inline-size: 100%;
+      block-size: 100%;
+    }
+    .composer-context-deck .timeline-focus-hero-image {
+      object-fit: cover;
+    }
+    .composer-context-deck .timeline-focus-hero-fallback {
+      background:
+        radial-gradient(circle at 18% 20%, color-mix(in srgb, var(--preview-accent, #315fbd) 62%, transparent), transparent 42%),
+        linear-gradient(135deg, #141414, #39332f 58%, #111);
+    }
+    .composer-context-deck .timeline-occurrence-deck-caption {
+      position: absolute;
+      z-index: 3;
+      inset-inline: 0.6rem;
+      inset-block-start: 0.55rem;
+      width: fit-content;
+      max-inline-size: calc(100% - 1.2rem);
+      margin: 0;
+      padding: 0.3rem 0.46rem;
+      border-radius: 0.42rem;
+      background: color-mix(in srgb, black 54%, transparent);
+      color: white;
+      font-size: 0.7rem;
+      line-height: 1.35;
+    }
+    .composer-context-deck .timeline-occurrence-deck-context {
+      z-index: 1;
+      display: grid;
+      align-content: center;
+      gap: 0.45rem;
+      box-sizing: border-box;
+      padding: 1rem;
+      color: white;
+    }
+    .composer-context-deck .timeline-occurrence-deck-context-label,
+    .composer-context-deck .timeline-occurrence-deck-context-body {
+      position: relative;
+      z-index: 1;
+      margin: 0;
+    }
+    .composer-context-deck .timeline-occurrence-deck-context-label {
+      font-size: 0.9rem;
+      font-weight: 760;
+    }
+    .composer-context-deck .timeline-occurrence-deck-context-body {
+      max-inline-size: 48ch;
+      font-size: 0.76rem;
+      line-height: 1.45;
+    }
+    .composer-context-deck .timeline-focus-slideshow-controls {
+      position: absolute;
+      z-index: 4;
+      inset-inline-start: 50%;
+      inset-block-end: 0.35rem;
+      display: flex;
+      align-items: center;
+      transform: translateX(-50%);
+    }
+    .composer-context-deck .timeline-focus-media-control,
+    .composer-context-deck .timeline-focus-slide-dot {
+      display: grid;
+      inline-size: 44px;
+      block-size: 44px;
+      padding: 0;
+      place-items: center;
+      border: 0;
+      border-radius: 50%;
+      background: color-mix(in srgb, black 42%, transparent);
+      color: white;
+      cursor: pointer;
+    }
+    .composer-context-deck .timeline-focus-slide-dot {
+      background: transparent;
+    }
+    .composer-context-deck .timeline-focus-slide-dot::before {
+      inline-size: 0.5rem;
+      block-size: 0.5rem;
+      border: 1px solid rgba(255, 255, 255, 0.78);
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.28);
+      content: "";
+    }
+    .composer-context-deck .timeline-focus-slide-dot.is-active::before {
+      background: white;
+    }
+    .composer-context-deck .timeline-focus-slide-count {
+      display: grid;
+      min-inline-size: 3rem;
+      min-block-size: 44px;
+      place-items: center;
+      color: white;
+      font: 700 0.68rem/1 ui-monospace, "SFMono-Regular", Consolas, monospace;
+    }
+    .composer-context-deck .timeline-occurrence-deck-icon {
+      display: grid;
+      place-items: center;
+    }
     .composer-world-preview {
       position: relative;
       display: grid;
@@ -575,7 +698,13 @@ export class LuumOccurrenceComposerElement extends LitElement {
           ...(context.composition ? { composition: context.composition } : {}),
           ...(context.title ? { title: context.title } : {}),
           ...(context.description ? { description: context.description } : {}),
-          ...(context.media ? { media: Object.freeze({ ...context.media }) } : {}),
+          ...(context.media?.length
+            ? {
+                media: Object.freeze(
+                  context.media.map((entry) => Object.freeze({ ...entry })),
+                ),
+              }
+            : {}),
           ...(context.metadata
             ? {
                 metadata: Object.freeze({
@@ -1150,6 +1279,30 @@ export class LuumOccurrenceComposerElement extends LitElement {
         <span title=${node.label}>${node.label}</span></span>`
       : html`<span class="preview-node preview-pending">${label}</span>`;
   }
+  private contextDeckFrames() {
+    return occurrenceContextDeckFrames(
+      this.selectionContext?.media,
+      this.selectionContext?.description,
+    );
+  }
+
+  private syncContextDeck(): void {
+    const deck = this.renderRoot.querySelector<LuumOccurrenceDeckElement>(".composer-context-deck");
+    if (!deck) return;
+    deck.setDeck({
+      occurrenceId:
+        this.selectionContext?.selectedOccurrenceId ??
+        this.selectionContext?.selectedItemId ??
+        "composer-draft",
+      frames: this.contextDeckFrames(),
+      activeIndex: deck.activeIndex,
+    });
+  }
+
+  override updated(): void {
+    this.syncContextDeck();
+  }
+
   override render() {
     if (!this.active) {
       return html`
@@ -1268,12 +1421,11 @@ export class LuumOccurrenceComposerElement extends LitElement {
           <section class="composer-occurrence-card" aria-label="Occurrence card in composer">
             <div class="composer-card-heading"><strong>${this.selectionContext?.title || "New occurrence"}</strong>
               <span>${qualifiers.length ? "Investigating" : preview.category || "Draft"}</span></div>
-            ${this.selectionContext?.media || this.selectionContext?.description
-              ? html`<div class="composer-card-details">
-                ${this.selectionContext?.media ? html`<img class="composer-card-media"
-                  src=${this.selectionContext.media.src} alt=${this.selectionContext.media.alt}>` : nothing}
-                ${this.selectionContext?.description ? html`<p class="composer-card-context">${this.selectionContext.description}</p>` : nothing}
-              </div>` : nothing}
+            ${this.contextDeckFrames().length
+              ? html`<div class="composer-card-details" aria-label="Occurrence media and context">
+                  <luum-occurrence-deck class="composer-context-deck"></luum-occurrence-deck>
+                </div>`
+              : nothing}
             <div class="composer-world-preview" role="img"
               style=${`--preview-accent: ${previewCategory?.color ?? "var(--accent, #315fbd)"}`}
               aria-label=${`World preview: ${preview.subject?.label ?? "subject pending"}, ${preview.edge?.label ?? "action pending"}, ${preview.object?.label ?? "target pending"}${preview.place ? ` at ${preview.place.label}${preview.place.longitude === null ? " (coordinates unknown)" : ""}` : ""}`}>
