@@ -17,7 +17,7 @@ export interface WorldForceNode {
   readonly collisionRadiusPx: number;
   /** Tangent-space equivalent of the exact rendered body + border footprint. */
   readonly collisionRadiusMeters: number;
-  /** Distinct neighboring world instances connected by active relationships. */
+  /** Incident active relationships; parallel relationships contribute independently. */
   readonly connectivityDegree?: number;
   /**
    * Additional preferred clearance for highly connected nodes. This is layout
