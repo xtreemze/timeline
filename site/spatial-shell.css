@@ -465,6 +465,26 @@
   block-size: 20px;
 }
 
+.app-footer-bar .compound-semantic-icon {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 20px;
+}
+
+.app-footer-bar .compound-semantic-icon-primary {
+  inline-size: 18px;
+  block-size: 18px;
+}
+
+.app-footer-bar .compound-semantic-icon-secondary {
+  position: absolute;
+  inset-inline-end: -2px;
+  inset-block-end: -2px;
+  inline-size: 11px;
+  block-size: 11px;
+}
+
 .app-footer-bar .toolbar-control > .semantic-icon {
   stroke-width: 1.9;
 }
