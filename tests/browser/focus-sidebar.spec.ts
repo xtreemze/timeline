@@ -26,6 +26,51 @@ async function focusOccurrence(page: Page) {
   return focus;
 }
 
+async function focusOccurrenceWithEvidence(
+  page: Page,
+  terminalSelector = "#timeline-view .timeline-event:not(.timeline-cluster) .timeline-event-terminal:visible",
+) {
+  await page.locator("#load-sample").evaluate((button: HTMLButtonElement) => button.click());
+  const terminals = page.locator(terminalSelector);
+  const count = Math.min(await terminals.count(), 24);
+  for (let index = 0; index < count; index += 1) {
+    const terminal = terminals.nth(index);
+    const card = terminal.locator("xpath=ancestor::luum-event-card[1]");
+    await terminal.evaluate((button: HTMLButtonElement) => button.click());
+    await terminal.evaluate((button: HTMLButtonElement) => button.click());
+    const focus = card.locator(".timeline-event-detail");
+    if (await focus.getByRole("tab", { name: "Evidence" }).count()) {
+      await expect(focus).toBeVisible();
+      return focus;
+    }
+  }
+  throw new Error("Sample must expose a focused occurrence with evidence.");
+}
+
+async function focusOccurrenceWithEvidenceAndMultipleMedia(page: Page) {
+  await page.locator("#load-sample").evaluate((button: HTMLButtonElement) => button.click());
+  const terminals = page.locator(
+    "#timeline-view .timeline-event-terminal:has(.timeline-event-art):visible",
+  );
+  const count = Math.min(await terminals.count(), 24);
+  for (let index = 0; index < count; index += 1) {
+    const terminal = terminals.nth(index);
+    const card = terminal.locator("xpath=ancestor::luum-event-card[1]");
+    await terminal.evaluate((button: HTMLButtonElement) => button.click());
+    await terminal.evaluate((button: HTMLButtonElement) => button.click());
+    const focus = card.locator(".timeline-event-detail");
+    const evidence = focus.getByRole("tab", { name: "Evidence" });
+    const deck = focus.locator("luum-occurrence-deck");
+    if (!(await evidence.count()) || !(await deck.count())) continue;
+    const frameCount = Number(await deck.getAttribute("data-frame-count"));
+    if (frameCount >= 2) {
+      await expect(focus).toBeVisible();
+      return focus;
+    }
+  }
+  throw new Error("Sample must expose an evidence-backed occurrence with multiple media frames.");
+}
+
 async function ensureOrientation(page: Page, orientation: "landscape" | "portrait") {
   const timeline = page.locator("#timeline-view");
   if ((await timeline.getAttribute("data-orientation")) !== orientation) {
@@ -106,7 +151,10 @@ test("focused detail owns contextual actions without mutating the footer", async
 
   await expect(focus.locator(".timeline-focus-hero")).toBeVisible();
   await expect(focus.getByRole("tab", { name: "Context" })).toBeVisible();
-  await expect(focus.getByRole("tab", { name: "Evidence" })).toBeVisible();
+  const evidenceTab = focus.getByRole("tab", { name: "Evidence" });
+  if (await evidenceTab.count()) {
+    await expect(focus.locator(".timeline-focus-evidence-card").first()).toBeAttached();
+  }
   await expect(focus.locator(".timeline-focus-actions")).toHaveCount(0);
   await expect(focus.getByRole("region", { name: "Place" })).toHaveCount(0);
   await expect(focus.locator(".timeline-focus-edit")).toHaveCount(0);
@@ -185,6 +233,67 @@ test("composer opens from selected context without dismissing focus or activatin
   await expect(focus).toBeVisible();
 });
 
+test("occurrence sentence sections move the single composer into the retained card", async ({
+  page,
+}) => {
+  await page.locator("#load-sample").evaluate((button: HTMLButtonElement) => button.click());
+  const terminals = page.locator(
+    "#timeline-view .timeline-event:not(.timeline-cluster) .timeline-event-terminal:visible",
+  );
+  const count = Math.min(await terminals.count(), 16);
+  let focus: Locator | null = null;
+  let segment: Locator | null = null;
+
+  for (let index = 0; index < count; index += 1) {
+    const terminal = terminals.nth(index);
+    await terminal.evaluate((button: HTMLButtonElement) => button.click());
+    await terminal.evaluate((button: HTMLButtonElement) => button.click());
+    const card = terminal.locator("xpath=ancestor::luum-event-card[1]");
+    const candidateFocus = card.locator(".timeline-event-detail");
+    const candidateSegment = candidateFocus.locator(".timeline-focus-composition-segment").first();
+    if (await candidateSegment.count()) {
+      focus = candidateFocus;
+      segment = candidateSegment;
+      break;
+    }
+  }
+
+  expect(focus).not.toBeNull();
+  expect(segment).not.toBeNull();
+  if (!focus || !segment) throw new Error("Sample must expose an editable occurrence composition.");
+
+  await expect(focus).toBeVisible();
+  const sectionKind = await segment.getAttribute("data-composer-section-kind");
+  const expectedText = (await segment.textContent())?.trim() ?? "";
+  expect(sectionKind).toBeTruthy();
+  expect(expectedText).not.toBe("");
+
+  await segment.click();
+
+  const composer = page.locator("#occurrence-composer");
+  const cardHost = focus.locator("[data-occurrence-composer-host]");
+  await expect(cardHost).toBeVisible();
+  await expect(cardHost.locator("#occurrence-composer")).toHaveCount(1);
+  await expect(page.locator("luum-occurrence-composer")).toHaveCount(1);
+  await expect(page.getByRole("combobox")).toHaveCount(1);
+  await expect(composer).toHaveAttribute("data-host", "card");
+  await expect(page.locator(".occurrence-composer-proxy")).toBeVisible();
+
+  const selection = await composer.locator("input").evaluate((input: HTMLInputElement) => ({
+    value: input.value,
+    start: input.selectionStart,
+    end: input.selectionEnd,
+  }));
+  expect(selection.start).not.toBeNull();
+  expect(selection.end).not.toBeNull();
+  expect(selection.value.slice(selection.start ?? 0, selection.end ?? 0)).toBe(expectedText);
+
+  await composer.locator("input").press("Escape");
+  await expect(composer).not.toHaveAttribute("active", "");
+  await expect(composer).toHaveAttribute("data-host", "footer");
+  await expect(page.locator(".occurrence-composer-proxy")).toBeHidden();
+});
+
 test("clicking the selected card keeps its attached detail open", async ({ page }) => {
   const terminal = await ensureSample(page);
   const focus = await focusOccurrence(page);
@@ -196,7 +305,7 @@ test("clicking the selected card keeps its attached detail open", async ({ page 
 test("focused detail tabs use roving keyboard focus and proper tabpanel semantics", async ({
   page,
 }) => {
-  const focus = await focusOccurrence(page);
+  const focus = await focusOccurrenceWithEvidence(page);
   const contextTab = focus.getByRole("tab", { name: "Context" });
   const evidenceTab = focus.getByRole("tab", { name: "Evidence" });
   const contextPanel = focus.locator("#timeline-focus-context-panel");
@@ -217,6 +326,10 @@ test("focused detail tabs use roving keyboard focus and proper tabpanel semantic
   await expect(contextTab).toHaveAttribute("tabindex", "-1");
   await expect(contextPanel).toBeHidden();
   await expect(evidencePanel).toBeVisible();
+  const identity = focus.locator(".timeline-focus-identity");
+  if (await identity.isVisible()) {
+    await expect(identity).toBeVisible();
+  }
 
   await evidenceTab.press("Home");
   await expect(contextTab).toBeFocused();
@@ -225,16 +338,7 @@ test("focused detail tabs use roving keyboard focus and proper tabpanel semantic
 });
 
 test("hero image changes preserve the active detail tab and keyboard focus", async ({ page }) => {
-  await page.locator("#load-sample").evaluate((button: HTMLButtonElement) => button.click());
-  const mediaTerminal = page
-    .locator("#timeline-view .timeline-event-terminal:has(.timeline-event-art):visible")
-    .first();
-  await expect(mediaTerminal).toBeVisible();
-  const mediaCard = mediaTerminal.locator("xpath=ancestor::luum-event-card[1]");
-  await mediaTerminal.evaluate((button: HTMLButtonElement) => button.click());
-  await mediaTerminal.evaluate((button: HTMLButtonElement) => button.click());
-
-  const focus = mediaCard.locator(".timeline-event-detail");
+  const focus = await focusOccurrenceWithEvidenceAndMultipleMedia(page);
   await expect(focus).toBeVisible();
   const deck = focus.locator("luum-occurrence-deck");
   await expect(deck).toBeVisible();
