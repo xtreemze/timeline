@@ -91,6 +91,26 @@ test("composer suggests only supported semantic icon properties", async () => {
   assert.ok(iconSuggestions.includes("evidence"));
 });
 
+test("entity completions carry their resolved semantic icon into the composer", () => {
+  const suggestions = occurrenceComposerSuggestions("", {
+    entities: [{ id: "wolf", name: "The Wolf", type: "person", icon: "wolf" }],
+    places: [],
+    categories: [],
+  });
+
+  assert.equal(suggestions[0]?.kind, "entity");
+  assert.equal(suggestions[0]?.icon, "wolf");
+});
+
+test("composer renders semantic glyphs beside entity completions", async () => {
+  const source = await readFile(
+    new URL("../site/components/occurrence-composer.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /iconPathData\(suggestion\.icon\)/);
+  assert.match(source, /class="option-icon"/);
+});
+
 test("ambiguous entity names complete by canonical ID", () => {
   const suggestions = occurrenceComposerSuggestions("", {
     entities: [
