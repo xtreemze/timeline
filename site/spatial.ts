@@ -435,6 +435,11 @@ export function placeFromForm(options: {
     }
     if (lng !== null && lat !== null) geometry = { type: "Point", coordinates: [lng, lat] };
   }
+  const requestedIcon = text(options.icon, 48);
+  if (requestedIcon && !normalizeSemanticIconName(requestedIcon)) {
+    throw new Error(`Unsupported semantic icon “${requestedIcon}”.`);
+  }
+
   return normalizePlace({
     id: options.id,
     name: options.name,
