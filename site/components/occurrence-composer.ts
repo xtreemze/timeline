@@ -1,6 +1,12 @@
 import { LitElement, css, html, nothing } from "lit";
 import { iconPathData } from "../event-presentation.ts";
 import {
+  interpretInvestigativeQualifier,
+  projectInvestigativeCandidateMatrix,
+  type InvestigativeCandidateMatrix,
+  type InvestigativeInterpretation,
+} from "../../src/application/investigative-query.ts";
+import {
   timelineContextFromViewport,
   worldContextFromCamera,
   type ComposerTimelineContext,
@@ -18,6 +24,7 @@ import {
   type ComposerEntityOption,
   type ComposerPlaceOption,
   type ComposerSuggestion,
+  type OccurrenceInvestigativeQualifier,
   type OccurrenceSentenceDraft,
 } from "../occurrence-composer-model.ts";
 
@@ -44,6 +51,38 @@ export interface OccurrenceComposerSelectionContext {
   } | null;
 }
 
+export interface OccurrenceComposerSessionInvestigationSnapshot {
+  readonly qualifiers: readonly Readonly<{
+    id: string;
+    section: OccurrenceInvestigativeQualifier["section"];
+    start: number;
+    end: number;
+    rawText: string;
+    normalizedText: string;
+  }>[];
+  readonly activeQualifierId: string | null;
+  readonly activeInterpretationId: string | null;
+  readonly proposedMethodAction: OccurrenceInvestigationAction | null;
+}
+
+export type OccurrenceInvestigationAction =
+  | "ask-question"
+  | "compare-candidates"
+  | "add-assumption"
+  | "create-enquiry"
+  | "disconfirm"
+  | "review-information-quality";
+
+export interface OccurrenceInvestigationActionDetail {
+  readonly action: OccurrenceInvestigationAction;
+  readonly occurrenceId: string | null;
+  readonly sourceText: string;
+  readonly qualifier: OccurrenceInvestigativeQualifier;
+  readonly interpretation: InvestigativeInterpretation | null;
+  readonly candidateEntityIds: readonly string[];
+  readonly selectedCandidateEntityId: string | null;
+}
+
 export interface OccurrenceComposerSessionSnapshot {
   readonly ownerId: string | null;
   readonly text: string;
@@ -52,6 +91,7 @@ export interface OccurrenceComposerSessionSnapshot {
   readonly selectionEnd: number;
   readonly activeSuggestion: number;
   readonly activeSection: ComposerEditableSection | null;
+  readonly investigation: OccurrenceComposerSessionInvestigationSnapshot;
 }
 
 export interface OccurrenceCommitDetail {
@@ -338,6 +378,140 @@ export class LuumOccurrenceComposerElement extends LitElement {
       font-size: 0.72rem;
     }
 
+    .investigation-panel {
+      display: grid;
+      min-block-size: 0;
+      overflow: hidden;
+    }
+
+    .investigation-section {
+      display: grid;
+      gap: 0.3rem;
+      padding: 0.42rem 0.45rem;
+      border-block-end: 1px solid var(--line, #d1ccc4);
+    }
+
+    .investigation-section:last-child {
+      border-block-end: 0;
+    }
+
+    .investigation-heading {
+      margin: 0;
+      color: var(--muted, #615d56);
+      font-size: 0.64rem;
+      font-weight: 760;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .investigation-qualifiers,
+    .investigation-interpretations,
+    .investigation-method-actions {
+      display: flex;
+      gap: 0.3rem;
+      min-inline-size: 0;
+      overflow-x: auto;
+      overscroll-behavior-inline: contain;
+      scrollbar-width: none;
+    }
+
+    .investigation-qualifiers::-webkit-scrollbar,
+    .investigation-interpretations::-webkit-scrollbar,
+    .investigation-method-actions::-webkit-scrollbar {
+      display: none;
+    }
+
+    .investigation-qualifier,
+    .investigation-interpretation,
+    .investigation-method-action {
+      appearance: none;
+      flex: 0 0 auto;
+      min-block-size: 44px;
+      padding-inline: 0.58rem;
+      border: 1px solid var(--line, #d1ccc4);
+      border-radius: 0.58rem;
+      background: var(--paper, #fff);
+      color: inherit;
+      font: inherit;
+      font-size: 0.7rem;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    .investigation-qualifier[aria-pressed="true"],
+    .investigation-interpretation[aria-pressed="true"] {
+      border-color: var(--focus, #315fbd);
+      background: color-mix(in srgb, var(--focus, #315fbd) 10%, var(--paper, #fff));
+    }
+
+    .investigation-candidates {
+      display: grid;
+      min-block-size: 0;
+      max-block-size: min(12rem, 30dvh);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+
+    .investigation-candidate {
+      appearance: none;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 0.5rem;
+      align-items: center;
+      min-block-size: 44px;
+      padding: 0.42rem 0.55rem;
+      border: 0;
+      border-block-end: 1px solid var(--line, #d1ccc4);
+      background: transparent;
+      color: inherit;
+      text-align: start;
+      cursor: pointer;
+    }
+
+    .investigation-candidate:last-child {
+      border-block-end: 0;
+    }
+
+    .investigation-candidate[aria-pressed="true"],
+    .investigation-candidate:is(:hover, :focus-visible) {
+      background: color-mix(in srgb, var(--panel, #f5f3ef) 88%, transparent);
+      outline: none;
+    }
+
+    .investigation-candidate-copy {
+      min-inline-size: 0;
+    }
+
+    .investigation-candidate-label,
+    .investigation-candidate-reason {
+      display: block;
+    }
+
+    .investigation-candidate-label {
+      font-size: 0.74rem;
+      font-weight: 720;
+    }
+
+    .investigation-candidate-reason {
+      margin-block-start: 0.14rem;
+      overflow: hidden;
+      color: var(--muted, #615d56);
+      font-size: 0.66rem;
+      line-height: 1.35;
+      text-overflow: ellipsis;
+    }
+
+    .investigation-assessment {
+      border-radius: 999px;
+      padding: 0.22rem 0.42rem;
+      background: var(--panel, #f5f3ef);
+      color: var(--muted, #615d56);
+      font-size: 0.62rem;
+      font-weight: 760;
+      text-transform: lowercase;
+      white-space: nowrap;
+    }
+
     .listbox {
       display: grid;
       min-block-size: 0;
@@ -443,6 +617,10 @@ export class LuumOccurrenceComposerElement extends LitElement {
   private hasPendingSelectionContext = false;
   private selectionSeeded = false;
   private sessionKey = "";
+  private activeQualifierId: string | null = null;
+  private activeInterpretationId: string | null = null;
+  private activeCandidateEntityId: string | null = null;
+  private proposedMethodAction: OccurrenceInvestigationAction | null = null;
 
   constructor() {
     super();
@@ -468,6 +646,23 @@ export class LuumOccurrenceComposerElement extends LitElement {
       selectionEnd,
       activeSuggestion: this.activeSuggestion,
       activeSection,
+      investigation: Object.freeze({
+        qualifiers: Object.freeze(
+          this.parsed().investigation.qualifiers.map((qualifier) =>
+            Object.freeze({
+              id: qualifier.id,
+              section: qualifier.section,
+              start: qualifier.start,
+              end: qualifier.end,
+              rawText: qualifier.rawText,
+              normalizedText: qualifier.normalizedText,
+            }),
+          ),
+        ),
+        activeQualifierId: this.activeQualifierId,
+        activeInterpretationId: this.activeInterpretationId,
+        proposedMethodAction: this.proposedMethodAction,
+      }),
     });
   }
 
@@ -508,7 +703,16 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
   setData(data: OccurrenceComposerData): void {
     this.data = Object.freeze({
-      entities: Object.freeze([...data.entities]),
+      entities: Object.freeze(
+        data.entities.map((entity) =>
+          Object.freeze({
+            ...entity,
+            ...(entity.attributes
+              ? { attributes: Object.freeze({ ...entity.attributes }) }
+              : {}),
+          }),
+        ),
+      ),
       places: Object.freeze([...data.places]),
       categories: Object.freeze([...data.categories]),
       tags: Object.freeze([...(data.tags ?? [])]),
@@ -637,6 +841,10 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.explicitPlaceContext = null;
     this.externalError = "";
     this.activeSuggestion = 0;
+    this.activeQualifierId = null;
+    this.activeInterpretationId = null;
+    this.activeCandidateEntityId = null;
+    this.proposedMethodAction = null;
   }
 
   private currentContextKey(): string {
@@ -725,6 +933,132 @@ export class LuumOccurrenceComposerElement extends LitElement {
     return parseOccurrenceSentence(this.value);
   }
 
+  private activeInvestigationQualifier(
+    parsed: OccurrenceSentenceDraft,
+  ): OccurrenceInvestigativeQualifier | null {
+    const qualifiers = parsed.investigation.qualifiers;
+    if (!qualifiers.length) return null;
+    const cursorQualifier = qualifiers.find(
+      (qualifier) =>
+        this.cursorOffset >= qualifier.start && this.cursorOffset <= qualifier.end,
+    );
+    if (cursorQualifier) return cursorQualifier;
+    return (
+      qualifiers.find((qualifier) => qualifier.id === this.activeQualifierId) ??
+      qualifiers[0] ??
+      null
+    );
+  }
+
+  private investigativeInterpretations(
+    qualifier: OccurrenceInvestigativeQualifier | null,
+  ): readonly InvestigativeInterpretation[] {
+    if (!qualifier || qualifier.section === "sentence") return Object.freeze([]);
+    return interpretInvestigativeQualifier(
+      {
+        id: qualifier.id,
+        section: qualifier.section,
+        text: qualifier.normalizedText,
+      },
+      {
+        entities: this.data.entities.map((entity) => ({
+          id: entity.id,
+          name: entity.name,
+          ...(entity.type ? { type: entity.type } : {}),
+          ...(entity.alternateNames ? { alternateNames: entity.alternateNames } : {}),
+          ...(entity.attributes ? { attributes: entity.attributes } : {}),
+        })),
+      },
+    );
+  }
+
+  private investigativeCandidateMatrix(
+    qualifier: OccurrenceInvestigativeQualifier | null,
+    interpretation: InvestigativeInterpretation | null,
+  ): InvestigativeCandidateMatrix | null {
+    if (!qualifier || !interpretation || qualifier.section === "sentence") return null;
+    return projectInvestigativeCandidateMatrix({
+      entities: this.data.entities.map((entity) => ({
+        id: entity.id,
+        name: entity.name,
+        ...(entity.type ? { type: entity.type } : {}),
+        ...(entity.alternateNames ? { alternateNames: entity.alternateNames } : {}),
+        ...(entity.attributes ? { attributes: entity.attributes } : {}),
+      })),
+      qualifiers: Object.freeze([
+        Object.freeze({ id: qualifier.id, interpretation }),
+      ]),
+      limit: 16,
+    });
+  }
+
+  private activateInvestigativeQualifier(
+    qualifier: OccurrenceInvestigativeQualifier,
+  ): void {
+    if (this.activeQualifierId !== qualifier.id) {
+      this.activeInterpretationId = null;
+      this.activeCandidateEntityId = null;
+      this.proposedMethodAction = null;
+    }
+    this.activeQualifierId = qualifier.id;
+    this.cursorOffset = qualifier.start;
+    this.activeSuggestion = 0;
+    this.requestUpdate();
+    this.focusInput({ selectionStart: qualifier.start, selectionEnd: qualifier.end });
+    this.emitSessionChange();
+  }
+
+  private selectInvestigativeInterpretation(
+    qualifier: OccurrenceInvestigativeQualifier,
+    interpretation: InvestigativeInterpretation,
+  ): void {
+    this.activeQualifierId = qualifier.id;
+    this.activeInterpretationId = interpretation.id;
+    this.activeCandidateEntityId = null;
+    this.proposedMethodAction = null;
+    this.requestUpdate();
+    this.emitSessionChange();
+  }
+
+  private selectInvestigativeCandidate(entityId: string | null): void {
+    this.activeCandidateEntityId = entityId;
+    this.requestUpdate();
+    this.emitSessionChange();
+  }
+
+  private proposeInvestigationAction(
+    action: OccurrenceInvestigationAction,
+    qualifier: OccurrenceInvestigativeQualifier,
+    interpretation: InvestigativeInterpretation | null,
+    matrix: InvestigativeCandidateMatrix | null,
+  ): void {
+    this.proposedMethodAction = action;
+    this.requestUpdate();
+    this.emitSessionChange();
+    this.dispatchEvent(
+      new CustomEvent<OccurrenceInvestigationActionDetail>(
+        "occurrenceinvestigationaction",
+        {
+          bubbles: true,
+          composed: true,
+          detail: Object.freeze({
+            action,
+            occurrenceId: this.selectionContext?.selectedOccurrenceId ?? null,
+            sourceText: this.value,
+            qualifier,
+            interpretation,
+            candidateEntityIds: Object.freeze(
+              (matrix?.candidates ?? [])
+                .map((candidate) => candidate.candidateEntityId)
+                .filter((id): id is string => Boolean(id)),
+            ),
+            selectedCandidateEntityId: this.activeCandidateEntityId,
+          }),
+        },
+      ),
+    );
+  }
+
   private suggestions(): readonly ComposerSuggestion[] {
     const parsed = this.parsed();
     const preferredEntityIds =
@@ -760,6 +1094,9 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
   private setComposerValue(value: string, cursorOffset = value.length): void {
     const previousPlace = this.parsed().place?.name ?? null;
+    const previousQualifierIds = new Set(
+      this.parsed().investigation.qualifiers.map((qualifier) => qualifier.id),
+    );
     this.value = value;
     this.cursorOffset = Math.max(0, Math.min(value.length, cursorOffset));
     this.selectionSeeded = false;
@@ -771,6 +1108,18 @@ export class LuumOccurrenceComposerElement extends LitElement {
     }
     this.externalError = "";
     this.activeSuggestion = 0;
+    const nextQualifiers = this.parsed().investigation.qualifiers;
+    const nextQualifierIds = new Set(nextQualifiers.map((qualifier) => qualifier.id));
+    if (
+      this.activeQualifierId &&
+      (!previousQualifierIds.has(this.activeQualifierId) ||
+        !nextQualifierIds.has(this.activeQualifierId))
+    ) {
+      this.activeQualifierId = null;
+      this.activeInterpretationId = null;
+      this.activeCandidateEntityId = null;
+      this.proposedMethodAction = null;
+    }
     this.requestUpdate();
     this.emitSessionChange();
   }
@@ -824,6 +1173,12 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
   private commit(): void {
     const draft = this.parsed();
+    if (draft.investigation.qualifiers.length) {
+      this.externalError =
+        "Resolve or persist the investigative clue before committing a canonical occurrence.";
+      this.requestUpdate();
+      return;
+    }
     if (!draft.subject || !draft.predicate || !draft.object || draft.diagnostics.length) {
       this.externalError =
         draft.diagnostics[0] ?? "Complete subject, action, and object before committing.";
