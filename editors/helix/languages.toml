@@ -1,0 +1,16 @@
+# Merge this file into ~/.config/helix/languages.toml.
+# The Lūm CLI must be available on PATH.
+
+[language-server.lum]
+command = "lum"
+args = ["lsp"]
+
+[[language]]
+name = "lum"
+scope = "source.json"
+file-types = [{ glob = "*.lum.json" }]
+roots = [".git"]
+language-servers = ["lum"]
+grammar = "json"
+auto-format = false
+formatter = { command = "lum", args = ["fmt", "-"] }
