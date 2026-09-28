@@ -24,6 +24,81 @@ test("View controls are direct persistent toolbar content", async ({ page }) => 
   await expect(view.locator(".world-layout-controls")).toBeVisible();
 });
 
+test("toolbar actions update state, labels, and scoped icons", async ({ page }) => {
+  const edit = page.locator("#editor-toggle");
+  const browse = page.locator("#timeline-browser-toggle");
+  const orientation = page.locator("#timeline-orientation-toggle");
+  const slideshow = page.locator("#timeline-auto-toggle");
+
+  await expect(edit).toHaveAttribute("data-semantic-icon", "edit");
+  await expect(edit).toHaveAttribute("data-semantic-icon-secondary", "timeline");
+  await edit.click();
+  await expect(edit).toHaveAttribute("aria-label", "Done editing");
+  await expect(edit).toHaveAttribute("data-semantic-icon", "check");
+  await expect(edit).toHaveAttribute("data-semantic-icon-secondary", "timeline");
+  await edit.click();
+  await expect(edit).toHaveAttribute("data-semantic-icon", "edit");
+
+  await browse.click();
+  await expect(browse).toHaveAttribute("aria-label", "Close timeline browser");
+  await expect(browse).toHaveAttribute("data-semantic-icon", "close");
+  await expect(browse).toHaveAttribute("data-semantic-icon-secondary", "timeline");
+  await browse.click();
+  await expect(browse).toHaveAttribute("aria-label", "Browse timeline");
+  await expect(browse).toHaveAttribute("data-semantic-icon", "search");
+
+  const beforeOrientation = await page.locator("#timeline-view").getAttribute("data-orientation");
+  await orientation.click();
+  const afterOrientation = beforeOrientation === "portrait" ? "landscape" : "portrait";
+  await expect(page.locator("#timeline-view")).toHaveAttribute("data-orientation", afterOrientation);
+  await expect(orientation).toHaveAttribute(
+    "data-semantic-icon",
+    afterOrientation === "portrait" ? "landscape" : "portrait",
+  );
+
+  await slideshow.click();
+  await expect(slideshow).toHaveAttribute("aria-pressed", "true");
+  await expect(slideshow).toHaveAttribute("aria-label", "Pause slideshow");
+  await expect(slideshow).toHaveAttribute("data-semantic-icon", "pause");
+  await expect(slideshow).toHaveAttribute("data-semantic-icon-secondary", "timeline");
+  await slideshow.click();
+  await expect(slideshow).toHaveAttribute("aria-pressed", "false");
+  await expect(slideshow).toHaveAttribute("data-semantic-icon", "play");
+
+  for (const name of ["Zoom in", "Zoom out", "Fit to content"]) {
+    const button = page.getByRole("button", { name });
+    await expect(button).toBeEnabled();
+    await expect(button.locator(".compound-semantic-icon")).toHaveCount(1);
+    await button.click();
+  }
+  const wholeGlobe = page.getByRole("button", { name: "Show whole globe" });
+  await expect(wholeGlobe).toBeEnabled();
+  await wholeGlobe.click();
+
+  for (const name of ["Reorganize relationship layout", "Relax graph forces"]) {
+    const button = page.getByRole("button", { name });
+    await expect(button).toBeEnabled();
+    await expect(button.locator(".compound-semantic-icon")).toHaveCount(1);
+    await button.click();
+  }
+
+  const project = page.locator("#project-menu-toggle");
+  await project.click();
+  await expect(project).toHaveAttribute("aria-expanded", "true");
+  await expect(project).toHaveAttribute("aria-label", "Close project actions");
+  await project.click();
+  await expect(project).toHaveAttribute("aria-expanded", "false");
+  await expect(project).toHaveAttribute("aria-label", "Project actions");
+
+  const investigation = page.locator("#investigation-workspace-toggle");
+  await investigation.click();
+  await expect(investigation).toHaveAttribute("aria-expanded", "true");
+  await expect(investigation).toHaveAttribute("aria-label", "Close investigation methodology");
+  await investigation.click();
+  await expect(investigation).toHaveAttribute("aria-expanded", "false");
+  await expect(investigation).toHaveAttribute("aria-label", "Investigation methodology");
+});
+
 test("opening Browse disables direct View controls without changing spatial stage geometry", async ({
   page,
 }) => {

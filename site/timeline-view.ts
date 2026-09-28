@@ -9,7 +9,7 @@
 import type { ApplicationSelection } from "../src/application/selection.ts";
 import { projectTimelineSelection } from "../src/application/timeline-selection.ts";
 import { surfacePointerMayStartDirectManipulation } from "../src/interaction/surface-input-policy.ts";
-import { TimelinePresentation } from "./event-presentation.ts";
+import { createCompoundIcon, TimelinePresentation } from "./event-presentation.ts";
 import { TimelineScale } from "./time-scale.ts";
 import {
   geometryMeasurementKey,
@@ -3429,10 +3429,18 @@ export class TimelineViewController {
       this.zoomSlider.setAttribute("aria-orientation", portrait ? "vertical" : "horizontal");
     }
     if (this.orientationToggle) {
-      this.orientationToggle.setAttribute(
-        "aria-label",
-        portrait ? "Switch to landscape timeline" : "Switch to portrait timeline",
-      );
+      const label = portrait ? "Switch to landscape timeline" : "Switch to portrait timeline";
+      const targetOrientationIcon = portrait ? "landscape" : "portrait";
+      this.orientationToggle.setAttribute("aria-label", label);
+      this.orientationToggle.title = label;
+      this.orientationToggle.dataset.semanticIcon = targetOrientationIcon;
+      this.orientationToggle.dataset.semanticIconSecondary = "timeline";
+      const icon = createCompoundIcon(targetOrientationIcon, "timeline", { size: 22 });
+      const currentIcon = this.orientationToggle.querySelector(":scope > .semantic-icon");
+      if (currentIcon) currentIcon.replaceWith(icon);
+      else this.orientationToggle.prepend(icon);
+      const accessibleLabel = this.orientationToggle.querySelector(":scope > .sr-only");
+      if (accessibleLabel) accessibleLabel.textContent = label;
     }
   }
 

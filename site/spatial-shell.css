@@ -465,6 +465,26 @@
   block-size: 20px;
 }
 
+.app-footer-bar .compound-semantic-icon {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 20px;
+}
+
+.app-footer-bar .compound-semantic-icon-primary {
+  inline-size: var(--compound-icon-primary-size, 18px);
+  block-size: var(--compound-icon-primary-size, 18px);
+}
+
+.app-footer-bar .compound-semantic-icon-secondary {
+  position: absolute;
+  inset-inline-end: -2px;
+  inset-block-end: -2px;
+  inline-size: var(--compound-icon-secondary-size, 11px);
+  block-size: var(--compound-icon-secondary-size, 11px);
+}
+
 .app-footer-bar .toolbar-control > .semantic-icon {
   stroke-width: 1.9;
 }
@@ -646,6 +666,11 @@
 
   #app-shell .app-footer-bar .app-footer-timeline {
     padding-inline-end: max(0.18rem, env(safe-area-inset-right));
+  }
+
+  #app-shell .app-tool-dock.app-footer-bar {
+    scroll-padding-inline: max(0.18rem, env(safe-area-inset-left))
+      max(0.18rem, env(safe-area-inset-right));
   }
 
   #app-shell .app-footer-bar .app-footer-zone + .app-footer-zone {

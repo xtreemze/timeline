@@ -4,7 +4,7 @@ import {
   surfaceCursor,
 } from "../../src/interaction/surface-input-policy.ts";
 import type { WorldNodeDragPosition } from "../../src/interaction/world-node-drag-controller.ts";
-import { createIcon } from "../event-presentation.ts";
+import { createCompoundIcon, createIcon } from "../event-presentation.ts";
 import { resolveWorldNodeDragPosition } from "../../src/interaction/world-node-drag-geometry.ts";
 import { worldPointerDragMayStart } from "../../src/interaction/world-pointer-policy.ts";
 import {
@@ -3694,7 +3694,11 @@ export class DeckWorldSurface implements WorldSurface {
       element.dataset.viewControl = "";
       element.setAttribute("aria-label", label);
       element.title = label;
-      element.append(createIcon(icon, { size: 20 }));
+      element.append(
+        icon === "world"
+          ? createIcon("world", { size: 20 })
+          : createCompoundIcon(icon, "world", { size: 20 }),
+      );
       element.addEventListener("click", (event) => {
         event.stopPropagation();
         action();
@@ -3705,7 +3709,7 @@ export class DeckWorldSurface implements WorldSurface {
       button("Zoom in", "zoom-in", () => this.#zoomBy(1)),
       button("Zoom out", "zoom-out", () => this.#zoomBy(-1)),
       button("Fit to content", "fit", () => this.fitToContent()),
-      button("Show whole globe", "view", () => this.showWholeGlobe()),
+      button("Show whole globe", "world", () => this.showWholeGlobe()),
     );
     this.#container.appendChild?.(bar);
     return bar;

@@ -30,11 +30,11 @@ test("footer exposes view controls directly and keeps one primary Edit entry", a
   );
   assert.match(
     index,
-    /id="timeline-related-zoom"[^>]*data-view-control[^>]*data-semantic-icon="zoom-in"/,
+    /id="timeline-related-zoom"[^>]*data-view-control[^>]*data-semantic-icon="zoom-in"[^>]*data-semantic-icon-secondary="relation"/,
   );
   assert.match(
     index,
-    /id="timeline-related-fit"[^>]*data-view-control[^>]*data-semantic-icon="fit"/,
+    /id="timeline-related-fit"[^>]*data-view-control[^>]*data-semantic-icon="fit"[^>]*data-semantic-icon-secondary="relation"/,
   );
 
   const footerStart = index.indexOf('<nav class="app-tool-dock app-footer-bar"');
@@ -46,9 +46,13 @@ test("footer exposes view controls directly and keeps one primary Edit entry", a
 
   assert.match(world, /element\.className = "toolbar-control world-camera-control"/);
   assert.match(world, /element\.dataset\.viewControl = ""/);
-  assert.match(world, /element\.append\(createIcon\(icon, \{ size: 20 \}\)\)/);
+  assert.match(world, /createCompoundIcon\(icon, "world", \{ size: 20 \}\)/);
+  assert.match(world, /button\("Show whole globe", "world"/);
   assert.match(factory, /element\.className = "toolbar-control world-layout-control"/);
   assert.match(factory, /element\.dataset\.viewControl = ""/);
+  assert.match(factory, /createCompoundIcon\(icon, "world", \{ size: 20 \}\)/);
+  assert.match(factory, /"dag",[\s\S]*actions\.reorganizeDag/);
+  assert.match(factory, /"force",[\s\S]*actions\.relaxForce/);
 });
 
 test("all footer buttons and compound controls share the canonical toolbar surface", async () => {
@@ -105,4 +109,55 @@ test("narrow toolbar scrolls horizontally instead of hiding direct controls", as
   );
   assert.doesNotMatch(css, /\.app-view-controls\[popover\]/);
   assert.doesNotMatch(css, /#timeline-view-controls-toggle/);
+  assert.doesNotMatch(css, /\.app-footer-(?:actions|timeline|view)[\s\S]{0,120}order:\s*[123]/);
+  assert.match(css, /scroll-padding-inline:[\s\S]*safe-area-inset-left[\s\S]*safe-area-inset-right/);
+});
+
+
+test("toolbar compound icon contract preserves scoped meaning and proportional outlines", async () => {
+  const [index, presentation, css] = await Promise.all([
+    readFile(indexUrl, "utf8"),
+    readFile(new URL("../site/event-presentation.ts", import.meta.url), "utf8"),
+    readFile(shellUrl, "utf8"),
+  ]);
+
+  assert.match(index, /id="editor-toggle"[^>]*data-semantic-icon="edit"[^>]*data-semantic-icon-secondary="timeline"/);
+  assert.match(index, /id="timeline-browser-toggle"[^>]*data-semantic-icon="search"[^>]*data-semantic-icon-secondary="timeline"/);
+  assert.match(index, /id="timeline-orientation-toggle"[^>]*data-semantic-icon="portrait"[^>]*data-semantic-icon-secondary="timeline"/);
+  assert.match(index, /id="timeline-auto-toggle"[^>]*data-semantic-icon="play"[^>]*data-semantic-icon-secondary="timeline"/);
+  assert.match(presentation, /export function createCompoundIcon/);
+  assert.match(presentation, /const primarySize = Math\.max\(12, Math\.round\(size \* 0\.86\)\)/);
+  assert.match(presentation, /secondary\.setAttribute\("stroke-width",[\s\S]*primarySize[\s\S]*secondarySize/);
+  assert.match(css, /\.compound-semantic-icon-secondary[\s\S]*--compound-icon-secondary-size/);
+});
+
+
+test("every persistent toolbar button family has an executable interaction path", async () => {
+  const [index, app, timeline, world, factory, investigation] = await Promise.all([
+    readFile(indexUrl, "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
+    readFile(worldUrl, "utf8"),
+    readFile(factoryUrl, "utf8"),
+    readFile(new URL("../site/ui/investigation-workspace.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(index, /id="project-menu-toggle"[^>]*popovertarget="project-menu"/);
+  assert.match(app, /editorToggle\?\.addEventListener\("click"[\s\S]*setEditorSurfaceOpen/);
+  assert.match(app, /browserToggle\?\.addEventListener\("click"[\s\S]*setBrowserSurfaceOpen/);
+  assert.match(app, /focusPrev\.addEventListener\("click"[\s\S]*focusAdjacent\(-1/);
+  assert.match(app, /focusNext\.addEventListener\("click"[\s\S]*focusAdjacent\(1/);
+  assert.match(app, /function revealFocusedToolbarNavigation\([\s\S]*max-width: 699px[\s\S]*appToolDock\.scrollLeft/);
+  assert.match(app, /relatedZoom\.addEventListener\("click"[\s\S]*zoomContext/);
+  assert.match(app, /relatedFit\.addEventListener\("click"[\s\S]*fitContext/);
+  assert.match(app, /presentationFullscreenToggle\.addEventListener\("click"[\s\S]*togglePresentationFullscreen/);
+  assert.match(app, /function presentationFullscreenAvailable\([\s\S]*document\.fullscreenEnabled[\s\S]*requestFullscreen/);
+  assert.match(app, /Full-screen presentation unavailable/);
+  assert.match(app, /projectMenu\?\.addEventListener\("toggle"[\s\S]*Close project actions/);
+  assert.match(app, /autoToggle\.addEventListener\("click"[\s\S]*toggle-auto/);
+  assert.match(timeline, /orientationToggle\?\.addEventListener\("click"[\s\S]*setOrientation/);
+  assert.match(world, /world-camera-control[\s\S]*addEventListener\("click"[\s\S]*action\(\)/);
+  assert.match(factory, /world-layout-control[\s\S]*addEventListener\("click"[\s\S]*action\(\)/);
+  assert.match(investigation, /toggle\.addEventListener\("click"[\s\S]*onRequestOpen\(!open\)/);
+  assert.match(investigation, /Close investigation methodology/);
 });

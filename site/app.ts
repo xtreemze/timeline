@@ -697,17 +697,26 @@ function decorateSemanticControls() {
   for (const element of els.semanticIconTargets) {
     if (element.querySelector(":scope > .semantic-icon")) continue;
     const iconName = element.dataset.semanticIcon || "note";
-    element.prepend(presentation.createIcon(iconName, { size: 22 }));
+    const secondaryIconName = element.dataset.semanticIconSecondary || "";
+    element.prepend(
+      secondaryIconName
+        ? presentation.createCompoundIcon(iconName, secondaryIconName, { size: 22 })
+        : presentation.createIcon(iconName, { size: 22 }),
+    );
   }
 }
 
-function setSemanticControlIcon(element, iconName, label) {
+function setSemanticControlIcon(element, iconName, label, secondaryIconName = "") {
   if (!element) return;
-  const icon = presentation.createIcon(iconName, { size: 22 });
+  const icon = secondaryIconName
+    ? presentation.createCompoundIcon(iconName, secondaryIconName, { size: 22 })
+    : presentation.createIcon(iconName, { size: 22 });
   const currentIcon = element.querySelector(":scope > .semantic-icon");
   if (currentIcon) currentIcon.replaceWith(icon);
   else element.prepend(icon);
   element.dataset.semanticIcon = iconName;
+  if (secondaryIconName) element.dataset.semanticIconSecondary = secondaryIconName;
+  else delete element.dataset.semanticIconSecondary;
   element.setAttribute("aria-label", label);
   element.title = label;
   const accessibleLabel = element.querySelector(":scope > .sr-only");
@@ -908,6 +917,14 @@ function presentationIsFullscreen() {
   return document.fullscreenElement === els.presentationStage;
 }
 
+function presentationFullscreenAvailable() {
+  return Boolean(
+    document.fullscreenEnabled &&
+      els.presentationStage &&
+      typeof els.presentationStage.requestFullscreen === "function",
+  );
+}
+
 function presentationModeActive() {
   return ui.mode !== "edit";
 }
@@ -990,16 +1007,19 @@ function syncPresentationFullscreenState() {
       }
     }
     if (els.presentationFullscreenToggle) {
-      const label = active ? "Exit full screen" : "Enter full screen";
+      const available = presentationFullscreenAvailable();
+      const label = !available
+        ? "Full-screen presentation unavailable"
+        : active
+          ? "Exit full screen"
+          : "Enter full screen";
+      els.presentationFullscreenToggle.disabled = !available;
       els.presentationFullscreenToggle.setAttribute("aria-pressed", String(active));
-      els.presentationFullscreenToggle.setAttribute("aria-label", label);
-      els.presentationFullscreenToggle.title = label;
-      const srLabel = els.presentationFullscreenToggle.querySelector(".sr-only");
-      if (srLabel) srLabel.textContent = label;
-      const icon = presentation.createIcon(active ? "minimize" : "fullscreen", { size: 20 });
-      const currentIcon = els.presentationFullscreenToggle.querySelector(":scope > .semantic-icon");
-      if (currentIcon) currentIcon.replaceWith(icon);
-      else els.presentationFullscreenToggle.prepend(icon);
+      setSemanticControlIcon(
+        els.presentationFullscreenToggle,
+        active ? "minimize" : "fullscreen",
+        label,
+      );
     }
     syncContextualPresentationPanels();
     temporalGraphView?.setPresentationMode?.(presentationModeActive());
@@ -1023,10 +1043,7 @@ async function togglePresentationFullscreen() {
     showStatus("No visible timeline items to present.");
     return;
   }
-  if (
-    !document.fullscreenEnabled ||
-    typeof els.presentationStage.requestFullscreen !== "function"
-  ) {
+  if (!presentationFullscreenAvailable()) {
     showStatus("Full-screen presentation is not available in this browser.");
     return;
   }
@@ -1738,6 +1755,12 @@ function syncApplicationSurfaces() {
   if (els.browserToggle) {
     els.browserToggle.disabled = editing || ui.importReviewOpen;
     els.browserToggle.setAttribute("aria-expanded", String(ui.browserOpen));
+    setSemanticControlIcon(
+      els.browserToggle,
+      ui.browserOpen ? "close" : "search",
+      ui.browserOpen ? "Close timeline browser" : "Browse timeline",
+      "timeline",
+    );
   }
 
   temporalGraphView?.setPresentationMode?.(presentationModeActive());
@@ -1759,8 +1782,28 @@ function closeFocusedEventForUtility() {
   if (timelineView?.hasFocusedItem?.()) timelineView.closeFocus();
 }
 
+let toolbarFocusedNavigationActive = false;
+
+function revealFocusedToolbarNavigation() {
+  if (!globalThis.matchMedia?.("(max-width: 699px)").matches) return;
+  const navigation = els.focusPrev.parentElement;
+  if (!(navigation instanceof HTMLElement) || navigation.hidden) return;
+  const dockRect = els.appToolDock.getBoundingClientRect();
+  const navigationRect = navigation.getBoundingClientRect();
+  const inset = 8;
+  let delta = 0;
+  if (navigationRect.right > dockRect.right - inset) {
+    delta = navigationRect.right - (dockRect.right - inset);
+  } else if (navigationRect.left < dockRect.left + inset) {
+    delta = navigationRect.left - (dockRect.left + inset);
+  }
+  if (Math.abs(delta) > 1) els.appToolDock.scrollLeft += delta;
+}
+
 function syncTimelineContextControls() {
   const focused = Boolean(timelineView?.hasFocusedItem?.());
+  const focusBecameActive = focused && !toolbarFocusedNavigationActive;
+  toolbarFocusedNavigationActive = focused;
   const navigation = focused ? timelineView?.focusNavigationState?.() : null;
   els.focusPrev.hidden = !focused;
   els.focusNext.hidden = !focused;
@@ -1779,11 +1822,16 @@ function syncTimelineContextControls() {
         ? "Edit focused event"
         : "Edit timeline";
     els.editorToggle.disabled = ui.importReviewOpen;
-    els.editorToggle.setAttribute("aria-label", label);
-    els.editorToggle.title = label;
+    setSemanticControlIcon(
+      els.editorToggle,
+      ui.editorOpen ? "check" : "edit",
+      label,
+      "timeline",
+    );
     const accessibleLabel = els.editorToggle.querySelector(".app-tool-label");
     if (accessibleLabel) accessibleLabel.textContent = ui.editorOpen ? "Done" : "Edit";
   }
+  if (focusBecameActive) requestAnimationFrame(revealFocusedToolbarNavigation);
 }
 
 function syncOccurrenceComposerSelection(
@@ -4698,6 +4746,7 @@ function renderAutoAdvanceState(autoState: AutoAdvanceState): void {
     els.autoToggle,
     playing ? "pause" : "play",
     playing ? "Pause slideshow" : "Play slideshow",
+    "timeline",
   );
   if (!autoState.running) {
     els.autoStatus.textContent = "Slideshow stopped";
@@ -4918,7 +4967,10 @@ els.projectMenu?.addEventListener("beforetoggle", (event) => {
 });
 els.projectMenu?.addEventListener("toggle", (event) => {
   const open = event.newState === "open";
+  const label = open ? "Close project actions" : "Project actions";
   els.projectMenuToggle?.setAttribute("aria-expanded", String(open));
+  els.projectMenuToggle?.setAttribute("aria-label", label);
+  if (els.projectMenuToggle) els.projectMenuToggle.title = label;
   if (!open) return;
   requestAnimationFrame(positionProjectMenu);
 });
@@ -5305,13 +5357,13 @@ els.graphEdgeList.addEventListener("click", (event) => {
 });
 
 if (els.presentationFullscreenToggle) {
-  if (
-    !document.fullscreenEnabled ||
-    typeof els.presentationStage?.requestFullscreen !== "function"
-  ) {
+  if (!presentationFullscreenAvailable()) {
     els.presentationFullscreenToggle.disabled = true;
-    els.presentationFullscreenToggle.title =
-      "Full-screen presentation is unavailable in this browser.";
+    setSemanticControlIcon(
+      els.presentationFullscreenToggle,
+      "fullscreen",
+      "Full-screen presentation unavailable",
+    );
   } else {
     els.presentationFullscreenToggle.addEventListener("click", () => {
       togglePresentationFullscreen();

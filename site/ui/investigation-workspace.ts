@@ -241,7 +241,7 @@ export function createInvestigationWorkspace(
   toggle.setAttribute("aria-controls", "investigation-workspace-sheet");
   toggle.setAttribute("aria-label", "Investigation methodology");
   toggle.title = "Investigation methodology";
-  if (createIcon) toggle.append(createIcon("relation", { size: 22 }));
+  if (createIcon) toggle.append(createIcon("evidence", { size: 22 }));
   toggle.append(createElement("span", "app-tool-label sr-only", "Investigate"));
   footerActions.append(toggle);
 
@@ -1180,7 +1180,10 @@ export function createInvestigationWorkspace(
     open = Boolean(next);
     sheet.hidden = !open;
     sheet.setAttribute("aria-hidden", String(!open));
+    const toggleLabel = open ? "Close investigation methodology" : "Investigation methodology";
     toggle.setAttribute("aria-expanded", String(open));
+    toggle.setAttribute("aria-label", toggleLabel);
+    toggle.title = toggleLabel;
     shell.dataset.investigationOpen = String(open);
     if (open) {
       render();
