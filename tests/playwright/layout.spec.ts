@@ -362,7 +362,8 @@ test.describe("Mobile-first Timeline layout contracts", () => {
     await expect(forceButton).toHaveAttribute("aria-expanded", "true");
     await expect(forcePanel.getByText("Collision strength")).toBeVisible();
     await expect(forcePanel.getByText("Connectivity clearance")).toBeVisible();
-    await expect(forcePanel).toContainText("Collision radius is fixed to the rendered node + border");
+    await expect(forcePanel).toContainText("Collision radius");
+    await expect(forcePanel).toContainText("Rendered node + border · fixed");
     await page.keyboard.press("Escape");
     await expect(forceButton).toHaveAttribute("aria-expanded", "false");
   });
