@@ -101,7 +101,9 @@ test("footer exposes view controls directly and keeps one primary Edit entry", a
 });
 
 
-test("graph layout buttons expose advanced options with input-modality parity and place scope", async () => {
+test(
+  "graph layout buttons expose advanced options with input-modality parity and place scope",
+  async () => {
   const [inspector, css] = await Promise.all([
     readFile(layoutInspectorUrl, "utf8"),
     readFile(shellUrl, "utf8"),
@@ -112,7 +114,10 @@ test("graph layout buttons expose advanced options with input-modality parity an
   assert.match(inspector, /addEventListener\("contextmenu"[\s\S]*open\(\)/);
   assert.match(inspector, /event\.key === "ArrowDown"[\s\S]*event\.key === "F10" && event\.shiftKey/);
   assert.match(inspector, /aria-haspopup", "dialog"/);
-  assert.match(inspector, /getSelectedPlaceId\(\)[\s\S]*state\.scope\.value = placeId === null \? "global" : "place"/);
+    assert.match(
+      inspector,
+      /getSelectedPlaceId\(\)[\s\S]*state\.scope\.value = placeId === null \? "global" : "place"/,
+    );
 
   assert.match(inspector, /"longest-opt-greedy", "Longest path \+ optimal decross"/);
   assert.match(inspector, /"longest-two-layer-greedy", "Longest path \+ two-layer"/);
@@ -137,8 +142,12 @@ test("graph layout buttons expose advanced options with input-modality parity an
     inspector,
     /addEventListener\("pointermove"[\s\S]*Math\.hypot[\s\S]*> 8[\s\S]*clearTimer\(\)/,
   );
-  assert.match(css, /\.world-layout-inspector\s*\{[\s\S]*position:\s*fixed[\s\S]*z-index:\s*2200/);
-});
+    assert.match(
+      css,
+      /\.world-layout-inspector\s*\{[\s\S]*position:\s*fixed[\s\S]*z-index:\s*2200/,
+    );
+  },
+);
 
 test("footer zoom controls neutralize legacy timeline grid geometry", async () => {
   const [shellCss, timelineCss] = await Promise.all([
