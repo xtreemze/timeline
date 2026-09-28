@@ -657,20 +657,14 @@
   }
 
   #app-shell .app-footer-bar .app-footer-actions {
-    order: 1;
     padding-inline-start: max(0.18rem, env(safe-area-inset-left));
   }
 
-  /* Contextual chronology navigation must remain within the first mobile
-     viewport instead of appearing after every World/timeline utility. */
-  #app-shell .app-footer-bar .app-footer-timeline {
-    order: 2;
-    padding-inline-end: 0;
+  #app-shell .app-footer-bar .app-footer-view {
+    overflow: visible;
   }
 
-  #app-shell .app-footer-bar .app-footer-view {
-    order: 3;
-    overflow: visible;
+  #app-shell .app-footer-bar .app-footer-timeline {
     padding-inline-end: max(0.18rem, env(safe-area-inset-right));
   }
 
