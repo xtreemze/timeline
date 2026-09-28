@@ -30,37 +30,40 @@ test("toolbar actions update state, labels, and scoped icons", async ({ page }) 
   const orientation = page.locator("#timeline-orientation-toggle");
   const slideshow = page.locator("#timeline-auto-toggle");
 
-  await expect(edit).toHaveAttribute("data-semantic-icon", "timeline");
-  await expect(edit).toHaveAttribute("data-semantic-icon-secondary", "edit");
+  await expect(edit).toHaveAttribute("data-semantic-icon", "edit");
+  await expect(edit).toHaveAttribute("data-semantic-icon-secondary", "timeline");
   await edit.click();
   await expect(edit).toHaveAttribute("aria-label", "Done editing");
-  await expect(edit).toHaveAttribute("data-semantic-icon-secondary", "check");
+  await expect(edit).toHaveAttribute("data-semantic-icon", "check");
+  await expect(edit).toHaveAttribute("data-semantic-icon-secondary", "timeline");
   await edit.click();
-  await expect(edit).toHaveAttribute("data-semantic-icon-secondary", "edit");
+  await expect(edit).toHaveAttribute("data-semantic-icon", "edit");
 
   await browse.click();
   await expect(browse).toHaveAttribute("aria-label", "Close timeline browser");
-  await expect(browse).toHaveAttribute("data-semantic-icon-secondary", "close");
+  await expect(browse).toHaveAttribute("data-semantic-icon", "close");
+  await expect(browse).toHaveAttribute("data-semantic-icon-secondary", "timeline");
   await browse.click();
   await expect(browse).toHaveAttribute("aria-label", "Browse timeline");
-  await expect(browse).toHaveAttribute("data-semantic-icon-secondary", "search");
+  await expect(browse).toHaveAttribute("data-semantic-icon", "search");
 
   const beforeOrientation = await page.locator("#timeline-view").getAttribute("data-orientation");
   await orientation.click();
   const afterOrientation = beforeOrientation === "portrait" ? "landscape" : "portrait";
   await expect(page.locator("#timeline-view")).toHaveAttribute("data-orientation", afterOrientation);
   await expect(orientation).toHaveAttribute(
-    "data-semantic-icon-secondary",
+    "data-semantic-icon",
     afterOrientation === "portrait" ? "landscape" : "portrait",
   );
 
   await slideshow.click();
   await expect(slideshow).toHaveAttribute("aria-pressed", "true");
   await expect(slideshow).toHaveAttribute("aria-label", "Pause slideshow");
-  await expect(slideshow).toHaveAttribute("data-semantic-icon-secondary", "pause");
+  await expect(slideshow).toHaveAttribute("data-semantic-icon", "pause");
+  await expect(slideshow).toHaveAttribute("data-semantic-icon-secondary", "timeline");
   await slideshow.click();
   await expect(slideshow).toHaveAttribute("aria-pressed", "false");
-  await expect(slideshow).toHaveAttribute("data-semantic-icon-secondary", "play");
+  await expect(slideshow).toHaveAttribute("data-semantic-icon", "play");
 
   for (const name of ["Zoom in", "Zoom out", "Fit to content"]) {
     const button = page.getByRole("button", { name });
