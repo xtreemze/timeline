@@ -136,6 +136,63 @@ test("narrow mobile detail zoom releases modest clusters even when the readabili
   );
 });
 
+test("maximum zoom cannot strand a modest component in a permanent cluster", () => {
+  const instances = Array.from({ length: 5 }, (_, index) =>
+    createProjectedWorldInstance({
+      id: worldInstanceId(`terminal-${index}`, `occ-terminal-${index}`),
+      canonicalId: `terminal-${index}`,
+      occurrenceId: `occ-terminal-${index}`,
+      geographicAnchors: [
+        {
+          placeId: "terminal-place",
+          longitude: 18.0686,
+          latitude: 59.3293,
+          sourceAltitude: 0,
+          influence: 1,
+        },
+      ],
+      temporalWeight: 1,
+      visualWeight: 1,
+      retained: false,
+    }),
+  );
+  const edges = Array.from({ length: 20 }, (_, index) =>
+    createProjectedWorldEdge({
+      id: `terminal-edge-${index}`,
+      sourceInstanceId: instances[index % instances.length].id,
+      targetInstanceId: instances[(index + 1) % instances.length].id,
+      temporalWeight: 1,
+      visible: true,
+      retained: false,
+    }),
+  );
+
+  assert.deepEqual(
+    clusterTargetPlaceIds(
+      instances,
+      edges,
+      WORLD_CAMERA_MAX_ZOOM - 0.1,
+      80,
+      120,
+      "collapsed",
+    ),
+    ["terminal-place"],
+    "the readability contract may still keep the component collapsed before the camera ceiling",
+  );
+  assert.deepEqual(
+    clusterTargetPlaceIds(
+      instances,
+      edges,
+      WORLD_CAMERA_MAX_ZOOM,
+      80,
+      120,
+      "collapsed",
+    ),
+    [],
+    "at the camera ceiling a bounded component must open instead of trapping the user",
+  );
+});
+
 test("cluster target decisions preserve collapse/expand hysteresis at one zoom", () => {
   const instances = Array.from({ length: 3 }, (_, index) =>
     createProjectedWorldInstance({
@@ -284,6 +341,18 @@ test("deep zoom cannot force an intrinsically unreadable local graph open", () =
     clusterTargetPlaceIds(instances, edges, 14, nodeRadiusPx, 320, "expanded"),
     ["dense-place"],
     "zoom is not permission to expand a graph whose projected semantic load cannot fit",
+  );
+  assert.deepEqual(
+    clusterTargetPlaceIds(
+      instances,
+      edges,
+      WORLD_CAMERA_MAX_ZOOM,
+      nodeRadiusPx,
+      320,
+      "expanded",
+    ),
+    ["dense-place"],
+    "maximum zoom still protects intrinsically oversized topology from exploding",
   );
 });
 
