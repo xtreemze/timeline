@@ -2005,6 +2005,7 @@ function syncOccurrenceComposerData(): void {
       name: entity.name,
       type: entity.type,
       alternateNames: entity.alternateNames ?? [],
+      attributes: entity.attributes ?? {},
       icon: semanticIconStateForEntity(entity).icon ?? undefined,
     })),
     places: state.places.map((place) => ({
@@ -6215,6 +6216,65 @@ els.timelineViewRoot.addEventListener("timelineoccurrencecomposerrequest", (even
     }
     els.occurrenceComposer.editSection(detail.sectionKind, detail.sectionIndex ?? 0);
   });
+});
+
+els.occurrenceComposer.addEventListener("occurrenceinvestigationaction", (event) => {
+  if (!(event instanceof CustomEvent)) return;
+  const detail = event.detail as {
+    action?: string;
+    collection?: string | null;
+    records?: readonly Record<string, unknown>[];
+  };
+  const allowedCollections = new Set([
+    "questions",
+    "assumptions",
+    "linesOfEnquiry",
+    "informationReviews",
+  ]);
+  const collection = String(detail.collection || "");
+  const records = Array.isArray(detail.records) ? detail.records : [];
+
+  if (!allowedCollections.has(collection) || !records.length) {
+    setInvestigationSurfaceOpen(true);
+    investigationWorkspace?.render();
+    showStatus(
+      detail.action === "compare-candidates"
+        ? "Candidate hypotheses are prepared for review. Choose or create an unknown identity in the investigation workspace before persisting them."
+        : "Opened the investigation methodology workspace.",
+    );
+    return;
+  }
+
+  const reasoning = caseReasoning.normalizeReasoning(state.reasoning);
+  const existing = Array.isArray(reasoning[collection])
+    ? (reasoning[collection] as Record<string, unknown>[])
+    : [];
+  const byId = new Map(
+    existing.map((record) => [String(record.id || ""), record] as const),
+  );
+  for (const record of records) {
+    const id = String(record.id || "");
+    if (id) byId.set(id, record);
+  }
+  const next = caseReasoning.normalizeReasoning({
+    ...reasoning,
+    [collection]: [...byId.values()],
+  });
+  const errors = caseReasoning
+    .validateReasoning(next, {
+      entityIds: state.entities.map((record) => record.id),
+      externalIds: investigationExternalIds(),
+    })
+    .filter((finding) => finding.severity === "error");
+  if (errors.length) {
+    const message = errors
+      .slice(0, 3)
+      .map((finding) => finding.message)
+      .join(" ");
+    els.occurrenceComposer.setError(message || "The investigative record is not valid.");
+    return;
+  }
+  applyInvestigationReasoning(next, "Investigation record saved from the occurrence composer.");
 });
 
 els.occurrenceComposer.addEventListener("occurrencecomposeropenrequest", () => {
