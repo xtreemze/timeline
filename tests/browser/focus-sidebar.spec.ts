@@ -90,9 +90,7 @@ test("landscape matches portrait timeline spacing at the physical edge", async (
   expect(Math.abs(landscapeEdgePixels - portraitEdgePixels)).toBeLessThanOrEqual(2);
 });
 
-test("focused detail is shell-owned while contextual actions stay in the footer", async ({
-  page,
-}) => {
+test("focused detail owns contextual actions without mutating the footer", async ({ page }) => {
   const focus = await focusOccurrence(page);
   await expect(focus).toHaveAttribute("data-presentation-surface", "sidebar");
   await expect(focus).not.toHaveAttribute("popover", /.+/);
@@ -107,12 +105,32 @@ test("focused detail is shell-owned while contextual actions stay in the footer"
   await expect(focus.getByRole("region", { name: "Place" })).toHaveCount(0);
   await expect(focus.locator(".timeline-focus-edit")).toHaveCount(0);
 
-  await expect(page.locator("#timeline-focus-prev")).toBeVisible();
-  await expect(page.locator("#timeline-focus-next")).toBeVisible();
+  const headerActions = focus.locator(".timeline-focus-context-actions");
+  await expect(headerActions).toBeVisible();
+  for (const selector of [
+    "#timeline-focus-prev",
+    "#timeline-focus-next",
+    "#timeline-related-zoom",
+    "#timeline-related-fit",
+  ]) {
+    const action = headerActions.locator(selector);
+    await expect(action).toBeVisible();
+    const [buttonBox, iconBox] = await Promise.all([
+      action.boundingBox(),
+      action.locator(":scope > .semantic-icon").boundingBox(),
+    ]);
+    expect(buttonBox).not.toBeNull();
+    expect(iconBox).not.toBeNull();
+    if (!buttonBox || !iconBox) continue;
+    expect(Math.abs(buttonBox.width - 44)).toBeLessThanOrEqual(1);
+    expect(Math.abs(buttonBox.height - 44)).toBeLessThanOrEqual(1);
+    expect(Math.abs(iconBox.width - 20)).toBeLessThanOrEqual(1);
+    expect(Math.abs(iconBox.height - 20)).toBeLessThanOrEqual(1);
+  }
+  await expect(page.locator(".app-footer-bar #timeline-focus-prev")).toHaveCount(0);
+  await expect(page.locator(".app-footer-bar #timeline-related-zoom")).toHaveCount(0);
   await expect(page.locator("#timeline-focus-edit")).toHaveCount(0);
   await expect(page.locator("#editor-toggle")).toHaveAttribute("aria-label", "Edit focused event");
-  await expect(page.locator("#timeline-related-zoom")).toBeVisible();
-  await expect(page.locator("#timeline-related-fit")).toBeVisible();
   await expect(page.locator("#timeline-view-toolbar")).toBeVisible();
 
   await focus.locator(".timeline-focus-close").click();
