@@ -443,6 +443,96 @@ test.describe("contextual world authoring certification", () => {
     );
   });
 
+  test("semantic chips select exact sentence spans and support out-of-order edits", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const composer = await openPersistentComposer(page);
+    const input = composer.locator("input");
+    const sentence =
+      'Alice meets Bob at Stockholm on 2026-09-28 [category: Observation, tags: work|urgent]';
+    await input.fill(sentence);
+
+    const actionChip = composer.locator('button.context-chip[data-context-kind="predicate"]');
+    await expect(actionChip).toBeVisible();
+    await actionChip.click();
+    await expect(input).toBeFocused();
+    await expect
+      .poll(() =>
+        input.evaluate((field: HTMLInputElement) =>
+          field.value.slice(field.selectionStart ?? 0, field.selectionEnd ?? 0),
+        ),
+      )
+      .toBe("meets");
+
+    const calls = composer.getByRole("option").filter({ hasText: /^calls/ }).first();
+    await expect(calls).toBeVisible();
+    await calls.click();
+    await expect(input).toHaveValue(
+      'Alice calls Bob at Stockholm on 2026-09-28 [category: Observation, tags: work|urgent]',
+    );
+
+    const secondTag = composer.locator('button.context-chip[data-context-kind="tag"]').nth(1);
+    await expect(secondTag).toBeVisible();
+    await secondTag.click();
+    await expect(input).toBeFocused();
+    await expect
+      .poll(() =>
+        input.evaluate((field: HTMLInputElement) =>
+          field.value.slice(field.selectionStart ?? 0, field.selectionEnd ?? 0),
+        ),
+      )
+      .toBe("urgent");
+    await page.keyboard.type("travel");
+    await expect(input).toHaveValue(
+      'Alice calls Bob at Stockholm on 2026-09-28 [category: Observation, tags: work|travel]',
+    );
+
+    const categoryChip = composer.locator('button.context-chip[data-context-kind="category"]');
+    await categoryChip.click();
+    await expect
+      .poll(() =>
+        input.evaluate((field: HTMLInputElement) =>
+          field.value.slice(field.selectionStart ?? 0, field.selectionEnd ?? 0),
+        ),
+      )
+      .toBe("Observation");
+    await page.keyboard.type("Incident");
+    await expect(input).toHaveValue(
+      'Alice calls Bob at Stockholm on 2026-09-28 [category: Incident, tags: work|travel]',
+    );
+
+    const geometry = await composer.evaluate((host) => {
+      const root = (host as HTMLElement & { shadowRoot: ShadowRoot }).shadowRoot;
+      const panel = root?.querySelector<HTMLElement>(".completion-panel");
+      const row = root?.querySelector<HTMLElement>(".context-row");
+      const option = root?.querySelector<HTMLElement>(".option");
+      if (!panel || !row) return null;
+      const box = panel.getBoundingClientRect();
+      return {
+        left: box.left,
+        right: box.right,
+        top: box.top,
+        bottom: box.bottom,
+        rowClientWidth: row.clientWidth,
+        rowScrollWidth: row.scrollWidth,
+        optionHeight: option?.getBoundingClientRect().height ?? 44,
+        documentWidth: document.documentElement.scrollWidth,
+        documentHeight: document.documentElement.scrollHeight,
+      };
+    });
+    expect(geometry).not.toBeNull();
+    const viewport = page.viewportSize();
+    if (!viewport || !geometry) throw new Error("Composer responsive geometry is unavailable.");
+    expect(geometry.left).toBeGreaterThanOrEqual(-1);
+    expect(geometry.right).toBeLessThanOrEqual(viewport.width + 1);
+    expect(geometry.top).toBeGreaterThanOrEqual(-1);
+    expect(geometry.bottom).toBeLessThanOrEqual(viewport.height + 1);
+    expect(geometry.rowScrollWidth).toBeGreaterThanOrEqual(geometry.rowClientWidth);
+    expect(geometry.optionHeight).toBeGreaterThanOrEqual(43);
+    expect(geometry.documentWidth).toBeLessThanOrEqual(viewport.width + 2);
+    expect(geometry.documentHeight).toBeLessThanOrEqual(viewport.height + 2);
+  });
   test("strict project validation rejects divergent canonical and linked occurrence time", async ({
     page,
   }) => {
