@@ -384,7 +384,7 @@
 
 .app-footer-view {
   grid-column: 2;
-  justify-content: center;
+  justify-content: safe center;
   overflow-x: auto;
   overflow-y: hidden;
   overscroll-behavior-inline: contain;
