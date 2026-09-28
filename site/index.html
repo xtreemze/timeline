@@ -28,7 +28,6 @@
   <main id="workspace">
     <section id="app-shell" class="app-shell" aria-label="Lūm application" data-mode="view" data-editor-open="false" data-browser-open="false" data-graph-open="true">
       <nav class="app-tool-dock app-footer-bar" aria-label="Workspace controls">
-        <luum-occurrence-composer id="occurrence-composer"></luum-occurrence-composer>
         <div class="app-footer-zone app-footer-actions" role="group" aria-label="Primary workspace actions">
           <button id="project-menu-toggle" class="toolbar-control app-tool app-project-tool project-menu-toggle" type="button" data-semantic-icon="folder" popovertarget="project-menu" aria-haspopup="menu" aria-controls="project-menu" aria-expanded="false" aria-label="Project actions" title="Project actions">
             <span class="app-tool-label sr-only">Project</span>
@@ -40,6 +39,7 @@
             <span class="app-tool-label sr-only">Browse</span>
           </button>
         </div>
+        <luum-occurrence-composer id="occurrence-composer"></luum-occurrence-composer>
         <div id="timeline-view-controls" class="app-footer-zone app-footer-view" role="group" aria-label="View controls">
           <div class="view-control-group world-view-control-group" data-world-controls-slot role="group" aria-label="World view controls"></div>
           <div id="timeline-view-toolbar" class="view-control-group timeline-local-toolbar" role="group" aria-label="Timeline view controls">
@@ -49,12 +49,11 @@
             <button id="presentation-fullscreen-toggle" class="toolbar-control" type="button" data-view-control data-semantic-icon="fullscreen" aria-pressed="false" aria-keyshortcuts="F" aria-label="Enter full screen" title="Enter full screen">
               <span class="sr-only">Enter full screen</span>
             </button>
-            <label class="toolbar-compound-control toolbar-control-wide toolbar-range-control" title="Timeline zoom">
-              <span class="sr-only">Timeline zoom level</span>
-              <span class="timeline-zoom-endpoint" data-semantic-icon="zoom-out" aria-hidden="true"></span>
-              <input id="timeline-zoom-level" data-view-control type="range" min="0" max="100" step="1" value="100" aria-describedby="timeline-zoom-level-hint" aria-valuetext="Focused time window">
-              <span class="timeline-zoom-endpoint" data-semantic-icon="zoom-in" aria-hidden="true"></span>
-            </label>
+            <div class="toolbar-compound-control toolbar-zoom-control timeline-zoom-control" role="group" aria-label="Timeline zoom">
+              <button id="timeline-zoom-out" class="toolbar-control toolbar-zoom-endpoint-button timeline-zoom-endpoint-button" type="button" data-view-control data-semantic-icon="zoom-out" aria-label="Zoom timeline out" title="Zoom timeline out"></button>
+              <input id="timeline-zoom-level" class="toolbar-zoom-slider timeline-zoom-slider" data-view-control type="range" min="0" max="100" step="1" value="100" aria-label="Timeline zoom level" aria-describedby="timeline-zoom-level-hint" aria-valuetext="Focused time window" title="Focused time window">
+              <button id="timeline-zoom-in" class="toolbar-control toolbar-zoom-endpoint-button timeline-zoom-endpoint-button" type="button" data-view-control data-semantic-icon="zoom-in" aria-label="Zoom timeline in" title="Zoom timeline in"></button>
+            </div>
             <span id="timeline-zoom-level-hint" class="sr-only">Farthest shows the whole timeline context. The middle centers the focused event with two neighboring events. Closest isolates the focused time window while keeping every event or range that intersects it visible.</span>
             <button id="timeline-auto-toggle" class="toolbar-control" type="button" data-view-control data-semantic-icon="play" aria-pressed="false" aria-keyshortcuts="Space" aria-label="Play slideshow" title="Play slideshow">
               <span class="sr-only">Play slideshow</span>
