@@ -41,6 +41,12 @@ import {
   visibleIntervalAnchor,
 } from "../src/projection/temporal-scene.ts";
 import { LuumEventCardElement } from "./components/timeline-event-card.ts";
+import {
+  createOccurrenceInteractionSession,
+  resolveOccurrencePresentation,
+  setPresentation,
+  switchOccurrenceSelection,
+} from "./occurrence-interaction-session.ts";
 import { TimelineClustering as clustering } from "./timeline-clustering.ts";
 import { TimelineMotion as motion } from "./timeline-motion.ts";
 
@@ -516,6 +522,9 @@ export class TimelineViewController {
   renderWindow: TemporalWindow = { start: 0, end: DEFAULT_SPAN_MS };
   retention: TemporalRetentionState = commitRetention(this.renderWindow);
   focusedId: string | null = null;
+  interactionSession = createOccurrenceInteractionSession();
+  explicitDetailOpen = false;
+  lastFocusPresentation: "resting" | "selected" | "focused" | "expanded" = "resting";
   applicationSelection: ApplicationSelection | null = null;
   selectedItemIds = new Set<string>();
   selectedRelationshipId: string | null = null;
@@ -2951,7 +2960,7 @@ export class TimelineViewController {
     const started = performance.now();
     const inputStartedAt = this.pendingInputStartedAt;
     this.renderScene();
-    this.syncFocusAttachment();
+    this.syncFocusedPresentation();
     const finished = performance.now();
     this.pendingInputStartedAt = null;
     this.performanceMetrics.recordFrame({
