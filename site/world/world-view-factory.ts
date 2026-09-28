@@ -1,4 +1,5 @@
 import type { ApplicationSelection } from "../../src/application/selection.ts";
+import { entityId, placeId, relationshipId } from "../../src/domain/ids.ts";
 import type { WorldDagLayoutOrientation } from "../../src/layout/world-dag-layout.ts";
 import { D3WorldForceSimulation } from "../../src/layout/d3-world-force-simulation.ts";
 import type { WorldForceLayoutSample } from "../../src/layout/world-force-layout.ts";
@@ -196,10 +197,10 @@ class ScheduledWorldProjectionView implements WorldApplicationView {
       selection === null
         ? null
         : selection.kind === "entity"
-          ? { kind: "entity", id: selection.id as never }
+          ? { kind: "entity", id: entityId(selection.id) }
           : selection.kind === "relationship"
-            ? { kind: "relationship", id: selection.id as never }
-            : { kind: "place", id: selection.id as never },
+            ? { kind: "relationship", id: relationshipId(selection.id) }
+            : { kind: "place", id: placeId(selection.id) },
     );
   }
 
