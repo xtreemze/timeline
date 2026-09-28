@@ -6,10 +6,12 @@ import {
   defaultSemanticIconForEntityType,
   normalizeEntityPresentationAttributes,
   normalizeSemanticIconName,
+  semanticIconLabel,
 } from "../src/presentation/semantic-icons.ts";
 import {
   auditSemanticIconQuality,
   suggestSemanticIcon,
+  suggestSemanticIconForPlace,
 } from "../src/presentation/semantic-icon-inference.ts";
 import { TimelinePresentation, iconPathData } from "../site/event-presentation.ts";
 import { TimelineGraph } from "../site/timeline-graph.ts";
@@ -20,6 +22,36 @@ test("semantic icon registry is the single rendered vocabulary", () => {
   for (const icon of SEMANTIC_ICON_NAMES) {
     assert.ok(iconPathData(icon).length > 0, `${icon}: rendered glyph path`);
   }
+});
+
+test("canonical place type icons are rendered and human-labeled", () => {
+  const placeTypes = [
+    "forest", "road", "meadow", "garden", "field", "tower",
+    "well", "room", "kitchen", "gate", "market", "castle",
+  ];
+  for (const icon of placeTypes) {
+    assert.ok(SEMANTIC_ICON_NAMES.includes(icon), `${icon}: shared registry`);
+    assert.ok(iconPathData(icon).length > 0, `${icon}: rendered glyph`);
+    assert.ok(semanticIconLabel(icon).length > 0, `${icon}: accessible label`);
+  }
+  assert.equal(semanticIconLabel("castle"), "Castle");
+});
+
+test("place icon inference is deterministic and conservative", () => {
+  assert.deepEqual(suggestSemanticIconForPlace({ name: "Deep Forest" }), {
+    icon: "forest", confidence: "high", reason: "place:forest",
+  });
+  assert.deepEqual(suggestSemanticIconForPlace({ name: "Merecourt Old Well" }), {
+    icon: "well", confidence: "high", reason: "place:well",
+  });
+  assert.deepEqual(suggestSemanticIconForPlace({ name: "Queen's Mirror Chamber" }), {
+    icon: "room", confidence: "high", reason: "place:room",
+  });
+  assert.deepEqual(suggestSemanticIconForPlace({ name: "Village Market" }), {
+    icon: "market", confidence: "high", reason: "place:market",
+  });
+  assert.equal(suggestSemanticIconForPlace({ name: "Mystery Clearing" }), null);
+  assert.equal(suggestSemanticIconForPlace({ name: "North Ridge" }), null);
 });
 
 test("legacy and type aliases resolve to canonical semantic icons", () => {
