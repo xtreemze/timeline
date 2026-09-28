@@ -265,3 +265,22 @@ The generated queries return `recordJson`, allowing exact reconstruction of Time
 - `site/memgraph-interchange.ts` — Memgraph record/Cypher round trip.
 - `site/app.ts` — live state adapter, validation, persistence, rerendering.
 - `tests/webmcp.test.mjs` — tool registration, transaction cleanup, Memgraph round trip, runtime wiring.
+
+## Canonical public MCP authoring format
+
+The public source-to-story MCP uses the same portable Lūm contracts as browser import/export and the CLI.
+
+Machine-authoritative targets:
+
+- whole project: `format: "lum-project"`, schema `lum-project-v1.schema.json`;
+- bounded fragment: `format: "lum-project-module"`, schema `lum-project-module-v1.schema.json`.
+
+The public tools are:
+
+1. `lum.get_story_authoring_guide` — returns current format/schema identifiers, strict templates, limits, and the source-first verification workflow;
+2. `lum.validate_project_fragment` — runs the exact module validator and returns stable diagnostic codes + JSON Pointer paths;
+3. `lum.stage_story_project` — runs the exact whole-project interchange validator before a proposal can become `ready-for-user-verification`.
+
+Fragment validation proves only the structural validity of the changed module. Cross-module references require assembly/whole-project validation. Whole-project validation proves canonical syntax and semantic invariants; it does **not** verify that extracted claims are factually true.
+
+The endpoint does not auto-repair input. Source manifests, unresolved facts, and generation notes remain review metadata around the canonical project rather than a second project schema. User verification remains mandatory before canonical acceptance.
