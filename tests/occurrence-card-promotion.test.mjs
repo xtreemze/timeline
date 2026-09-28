@@ -40,6 +40,12 @@ test("timeline focus routes occurrence detail to the composer instead of expandi
   assert.match(resolver, /viewport\.focused \? "focused" : "selected"/);
   assert.doesNotMatch(resolver, /return setPresentation\([^\n]*"expanded"/);
   assert.doesNotMatch(resolver, /selectedIsVisible|logicalHasOther|hasDemotionBlocker/);
+
+  const syncStart = view.indexOf("  syncFocusedPresentation(): void");
+  const syncEnd = view.indexOf("\n  syncFocusAttachment(): void", syncStart);
+  const sync = view.slice(syncStart, syncEnd);
+  assert.match(sync, /candidate\.node\.setExpanded\(false\)/);
+  assert.doesNotMatch(sync, /renderFocus\(|syncExpandedDetailGeometry|detailHost/);
 });
 
 test("rendered timeline occurrence carries the canonical relationship identity used by its sentence", async () => {
