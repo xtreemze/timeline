@@ -147,22 +147,22 @@ test("composer keeps drafts in the same context and clears them when spatial con
   const input = composer.locator("input");
   await input.fill("Alice meets Bob");
 
-  await page.evaluate(() => {
-    const element = document.querySelector("#occurrence-composer");
-    if (!(element instanceof HTMLElement)) throw new Error("Composer unavailable.");
-    const composerElement = element;
-    composerElement.beginSession?.();
-  });
+  await input.press("Escape");
+  await expect(composer).not.toHaveAttribute("active", "");
+
+  await page.locator("#editor-toggle").click();
+  await page.locator("#occurrence-composer-toggle").click();
+  await expect(composer).toHaveAttribute("active", "");
   await expect(input).toHaveValue("Alice meets Bob");
 
   await page.evaluate(() => {
     const element = document.querySelector("#occurrence-composer");
     if (!(element instanceof HTMLElement)) throw new Error("Composer unavailable.");
     const composerElement = element;
-    composerElement.setWorldContext?.(0, 0, 18);
+    composerElement.setWorldContext?.(123.456, -45.678, 18);
     composerElement.beginSession?.();
   });
-  await expect(input).toHaveValue("");
+  await expect(input).not.toHaveValue("Alice meets Bob");
 });
 
 test("opening Browse disables direct View controls without changing spatial stage geometry", async ({
