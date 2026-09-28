@@ -236,6 +236,22 @@ function axisCrossFromCss(
   return fallback;
 }
 
+function axisCrossFromRects(
+  surfaceRect: Pick<DOMRectReadOnly, "left" | "top" | "width" | "height">,
+  axisRect: Pick<DOMRectReadOnly, "left" | "top">,
+  orientation: Orientation,
+): number | null {
+  const extent =
+    orientation === "horizontal" ? Number(surfaceRect.height) : Number(surfaceRect.width);
+  const surfaceStart =
+    orientation === "horizontal" ? Number(surfaceRect.top) : Number(surfaceRect.left);
+  const axisStart = orientation === "horizontal" ? Number(axisRect.top) : Number(axisRect.left);
+  const cross = axisStart - surfaceStart;
+  if (!Number.isFinite(extent) || extent <= 0 || !Number.isFinite(cross)) return null;
+  if (cross < -GEOMETRY_EPSILON_PX || cross > extent + GEOMETRY_EPSILON_PX) return null;
+  return clamp(cross, 0, extent);
+}
+
 function committedLaneLimit(
   orientation: Orientation,
   crossExtent: number,
@@ -2289,7 +2305,7 @@ export class TimelineViewController {
     this.layoutCorrectionAnimations.clear();
   }
 
-  resolvedAxisCross(crossExtent: number): number {
+  resolvedAxisCross(crossExtent: number, surfaceRect?: DOMRectReadOnly): number {
     if (
       this.retention.active &&
       this.lastRenderedAxisCross !== null &&
@@ -2297,6 +2313,18 @@ export class TimelineViewController {
     ) {
       return this.lastRenderedAxisCross;
     }
+
+    // The rendered axis is authoritative. Desktop edge rails use calc()/var()
+    // expressions that the lightweight CSS parser below cannot resolve, so
+    // derive the cross coordinate from the actual laid-out axis before falling
+    // back to simple percentage/pixel custom-property values.
+    const surfaceGeometry = surfaceRect ?? this.surface.getBoundingClientRect();
+    const renderedCross = axisCrossFromRects(
+      surfaceGeometry,
+      this.axis.getBoundingClientRect(),
+      this.orientation,
+    );
+    if (renderedCross !== null) return renderedCross;
 
     const fallbackRatio = this.orientation === "horizontal" ? 0.5 : 0.58;
     const cssValue = getComputedStyle(this.surface).getPropertyValue("--timeline-axis-cross");
@@ -2980,7 +3008,7 @@ export class TimelineViewController {
     const height = Math.max(1, rect.height || this.surface.clientHeight || 480);
     const primaryLength = this.orientation === "horizontal" ? width : height;
     const crossExtent = this.orientation === "horizontal" ? height : width;
-    const axisCross = this.resolvedAxisCross(crossExtent);
+    const axisCross = this.resolvedAxisCross(crossExtent, rect);
     const padding = this.axisPadding(primaryLength);
     const usable = Math.max(1, primaryLength - padding * 2);
     this.stabilizeStructuralAxisCross(axisCross);
@@ -4023,6 +4051,7 @@ export const TimelineView = Object.freeze({
     wheelZoomFactor,
     selectEdgeAccents,
     axisCrossFromCss,
+    axisCrossFromRects,
     committedLaneLimit,
     fallbackLaneIndex,
     timelineViewportCenter,

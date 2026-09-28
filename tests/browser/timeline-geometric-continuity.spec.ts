@@ -165,6 +165,52 @@ test.beforeEach(async ({ page }) => {
   await installContinuityFixture(page);
 });
 
+test("calc edge rail keeps event cards and connectors attached to the rendered axis", async ({
+  page,
+}) => {
+  const surface = page.locator("#timeline-continuity-host .timeline-surface");
+  await surface.evaluate((element) => {
+    (element as HTMLElement).style.setProperty(
+      "--timeline-axis-cross",
+      "calc(100% - 72px)",
+    );
+  });
+  await page.evaluate(() => {
+    const controller = Reflect.get(globalThis, "__timelineContinuityController") as
+      | { refreshLayout(): void }
+      | undefined;
+    controller?.refreshLayout();
+  });
+  await twoFrames(page);
+
+  const geometry = await page.evaluate(() => {
+    const host = document.querySelector("#timeline-continuity-host");
+    const axis = host?.querySelector<HTMLElement>(".timeline-axis");
+    const terminal = host?.querySelector<HTMLElement>(
+      '.timeline-event[data-id="continuity-probe"] .timeline-event-terminal',
+    );
+    const connector = host?.querySelector<HTMLElement>(
+      '.timeline-event[data-id="continuity-probe"] .timeline-event-connector',
+    );
+    if (!axis || !terminal || !connector) {
+      throw new Error("Missing timeline rail geometry.");
+    }
+
+    const axisRect = axis.getBoundingClientRect();
+    const terminalRect = terminal.getBoundingClientRect();
+    const connectorRect = connector.getBoundingClientRect();
+    return {
+      connectorGap: Math.abs(connectorRect.bottom - axisRect.top),
+      cardGap: axisRect.top - terminalRect.bottom,
+    };
+  });
+
+  expect(geometry.connectorGap).toBeLessThanOrEqual(1.5);
+  expect(geometry.cardGap).toBeGreaterThanOrEqual(8);
+  expect(geometry.cardGap).toBeLessThanOrEqual(24);
+});
+
+
 for (const orientation of ["horizontal", "vertical"] as const) {
   test(`retained timeline preserves geometric continuity during ${orientation} drag`, async ({
     page,
