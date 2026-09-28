@@ -75,6 +75,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
       min-inline-size: 0;
       color: var(--ink, #191714);
       font-family: inherit;
+      container-type: inline-size;
     }
 
     .compact {
@@ -117,6 +118,25 @@ export class LuumOccurrenceComposerElement extends LitElement {
       font-weight: 520;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+
+    @container (max-width: 72px) {
+      .compact {
+        grid-template-columns: 1fr;
+        place-items: center;
+        gap: 0;
+        padding: 0;
+        cursor: pointer;
+        text-align: center;
+      }
+
+      .compact-prompt {
+        font-size: 1rem;
+      }
+
+      .compact-hint {
+        display: none;
+      }
     }
 
     .composer {
