@@ -375,4 +375,5 @@ test.describe("Narrow mobile screen contracts", () => {
 
       await expectNoPageScroll(page, viewport);
     });
-  }});
+  }
+});
