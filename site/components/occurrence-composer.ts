@@ -5,6 +5,12 @@ import {
 } from "../../src/application/investigative-query.ts";
 import { iconPathData } from "../event-presentation.ts";
 import {
+  WORLD_DARK_PALETTE,
+  WORLD_LIGHT_PALETTE,
+  type WorldGraphPalette,
+} from "../../src/layout/world-graph-style.ts";
+import {
+  composerWorldNodeMarker,
   projectComposerPreview,
   projectInvestigativeQualifiers,
 } from "../occurrence-composer-preview.ts";
@@ -265,7 +271,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
       inset-block-end: calc(100% + 0.38rem);
       display: grid;
       max-block-size: min(32rem, var(--composer-completion-max-height, 65dvh));
-      overflow: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
       border: 1px solid var(--line-strong, #b8b1a5);
       border-radius: 0.72rem;
       background: color-mix(in srgb, var(--paper, #fff) 98%, transparent);
@@ -286,37 +293,39 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
     .composer-occurrence-card {
       display: grid;
-      gap: 0.42rem;
+      gap: 0.5rem;
       min-inline-size: 0;
-      padding: 0.55rem 0.65rem;
+      padding: 0.65rem;
       border-block-end: 1px solid var(--line, #d1ccc4);
       background: var(--panel, #f5f3ef);
     }
 
     .composer-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; font-size: 0.8rem; }
     .composer-card-heading strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .composer-card-context { margin: 0; font-size: 0.73rem; line-height: 1.35; color: var(--muted, #615d56); }
-    .composer-card-media { max-inline-size: 100%; max-block-size: 4rem; object-fit: contain; border-radius: 0.4rem; }
+    .composer-card-context { display: -webkit-box; min-inline-size: 0; margin: 0; overflow: hidden; color: var(--muted, #615d56); font-size: 0.73rem; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+    .composer-card-media { inline-size: 3.25rem; block-size: 3.25rem; object-fit: cover; border-radius: 0.4rem; }
+    .composer-card-details { display: flex; align-items: start; gap: 0.5rem; min-inline-size: 0; }
     .composer-world-preview {
       position: relative;
-      display: flex;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(4.5rem, 0.7fr) minmax(0, 1fr);
       align-items: center;
-      justify-content: center;
-      gap: 0.45rem;
-      min-block-size: 5.5rem;
-      padding: 0.35rem;
+      gap: 0.2rem;
+      min-block-size: 8rem;
+      padding: 0.65rem 0.5rem 1.2rem;
+      overflow: hidden;
       border: 1px solid var(--preview-accent, var(--line, #d1ccc4));
       border-radius: 0.65rem;
-      background: repeating-linear-gradient(90deg, transparent 0 24%, #446e8e1b 24.2% 24.5%),
-        repeating-linear-gradient(0deg, transparent 0 24%, #446e8e1b 24.2% 24.5%),
-        radial-gradient(ellipse at 50% 50%, #7494a033 0 37%, transparent 38%),
-        var(--paper, #fff);
+      background: radial-gradient(ellipse at 50% 100%, #4b5f8640, transparent 65%), #171716;
+      color: #f1ede7;
     }
-    .mini-world-pin { position: absolute; z-index: 0; inline-size: 0.6rem; block-size: 0.6rem; border-radius: 50%; background: var(--preview-accent, var(--accent)); box-shadow: 0 0 0 3px var(--paper, #fff); transform: translate(-50%, -50%); }
-    .mini-world-place { position: absolute; inset-inline-start: 0.45rem; inset-block-start: 0.3rem; max-inline-size: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.64rem; }
-    .preview-node { position: relative; z-index: 1; display: grid; justify-items: center; gap: 0.15rem; min-inline-size: 3.8rem; max-inline-size: 35%; font-size: 0.7rem; font-weight: 650; text-align: center; overflow-wrap: anywhere; }
-    .preview-node svg { inline-size: 32px; block-size: 32px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-    .preview-edge { position: relative; z-index: 1; min-inline-size: 2rem; max-inline-size: 30%; color: var(--preview-accent, var(--accent, #315fbd)); font-size: 0.72rem; text-align: center; overflow-wrap: anywhere; }
+    .mini-world-pin { position: absolute; inset-inline-start: 50%; inset-block-end: 0.45rem; inline-size: 0.4rem; block-size: 0.4rem; border-radius: 50%; background: #3e6d5b; box-shadow: 0 0 0 2px #f1ede7; transform: translateX(-50%); }
+    .mini-world-place { position: absolute; inset-inline-start: 0.5rem; inset-block-start: 0.3rem; max-inline-size: calc(100% - 1rem); overflow: hidden; color: #9bbbaa; text-overflow: ellipsis; white-space: nowrap; font-size: 0.66rem; }
+    .preview-node { position: relative; z-index: 1; display: grid; justify-items: center; gap: 0.3rem; min-inline-size: 0; font-size: 0.72rem; font-weight: 650; text-align: center; }
+    .preview-node img { inline-size: 44px; block-size: 44px; object-fit: contain; }
+    .preview-node span { max-inline-size: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .preview-edge { position: relative; z-index: 1; display: grid; gap: 0.3rem; min-inline-size: 0; color: var(--preview-accent, #a79bf4); font-size: 0.72rem; text-align: center; overflow-wrap: anywhere; }
+    .preview-edge svg { inline-size: 100%; block-size: 14px; overflow: visible; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
     .preview-pending { opacity: 0.4; }
     .composer-grammar, .composer-qualifiers { display: flex; gap: 0.3rem; overflow-x: auto; scrollbar-width: thin; }
     .grammar-chip, .qualifier-chip, .interpretation-chip { flex: 0 0 auto; min-block-size: 44px; padding: 0.2rem 0.5rem; border: 1px solid var(--line, #d1ccc4); border-radius: 0.5rem; background: var(--paper, #fff); color: inherit; font: inherit; cursor: pointer; }
@@ -414,8 +423,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     .listbox {
       display: grid;
       min-block-size: 0;
-      overflow-y: auto;
-      overscroll-behavior: contain;
+      overflow: visible;
     }
 
     .option {
@@ -1121,11 +1129,25 @@ export class LuumOccurrenceComposerElement extends LitElement {
     return parsed.stage;
   }
 
-  private previewNode(node: { label: string; icon: string } | null, label: string) {
+  private previewPalette(): WorldGraphPalette {
+    const dark = window.matchMedia?.("(prefers-color-scheme: dark)").matches;
+    const fallback = dark ? WORLD_DARK_PALETTE : WORLD_LIGHT_PALETTE;
+    const computed = getComputedStyle(this);
+    const token = (name: string, value: string) => {
+      const raw = computed.getPropertyValue(`--${name}`).trim();
+      return /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(raw) ? raw : value;
+    };
+    return {
+      ink: token("ink", fallback.ink), muted: token("muted", fallback.muted),
+      paper: token("paper", fallback.paper), focus: token("focus", fallback.focus),
+      story: token("story", fallback.story), line: token("line", fallback.line),
+    };
+  }
+
+  private previewNode(node: { label: string; icon: string; entityId?: string } | null, label: string, palette: WorldGraphPalette) {
     return node
-      ? html`<span class="preview-node"><svg viewBox="0 0 24 24" aria-hidden="true">
-          ${iconPathData(node.icon).map((path) => html`<path d=${path}></path>`)}
-        </svg><span>${node.label}</span></span>`
+      ? html`<span class="preview-node"><img alt="" src=${composerWorldNodeMarker(node, this.data.entities, palette).url}>
+        <span title=${node.label}>${node.label}</span></span>`
       : html`<span class="preview-node preview-pending">${label}</span>`;
   }
   override render() {
@@ -1171,10 +1193,6 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const subjectLabel = this.selectedSubjectLabel();
     const placePinned = Boolean(parsed.place || this.selectionContext?.place);
     const timePinned = Boolean(parsed.time);
-    const categoryLabel = parsed.options.category ?? null;
-    const previewCategory = this.data.categories.find(
-      (category) => category.name === categoryLabel,
-    );
     const tagLabels = parsed.options.tags;
     const sections = composerEditableSections(this.value);
     const preview = projectComposerPreview(
@@ -1183,6 +1201,10 @@ export class LuumOccurrenceComposerElement extends LitElement {
       this.previewSuggestion,
       this.data.places,
     );
+    const previewCategory = this.data.categories.find(
+      (category) => category.name === preview.category,
+    );
+    const previewPalette = this.previewPalette();
 
     return html`
       <section class="composer" aria-label="Occurrence composer">
@@ -1246,12 +1268,12 @@ export class LuumOccurrenceComposerElement extends LitElement {
           <section class="composer-occurrence-card" aria-label="Occurrence card in composer">
             <div class="composer-card-heading"><strong>${this.selectionContext?.title || "New occurrence"}</strong>
               <span>${qualifiers.length ? "Investigating" : preview.category || "Draft"}</span></div>
-            ${
-              this.selectionContext?.media
-                ? html`<img class="composer-card-media"
-              src=${this.selectionContext.media.src} alt=${this.selectionContext.media.alt}>`
-                : nothing
-            }
+            ${this.selectionContext?.media || this.selectionContext?.description
+              ? html`<div class="composer-card-details">
+                ${this.selectionContext?.media ? html`<img class="composer-card-media"
+                  src=${this.selectionContext.media.src} alt=${this.selectionContext.media.alt}>` : nothing}
+                ${this.selectionContext?.description ? html`<p class="composer-card-context">${this.selectionContext.description}</p>` : nothing}
+              </div>` : nothing}
             <div class="composer-world-preview" role="img"
               style=${`--preview-accent: ${previewCategory?.color ?? "var(--accent, #315fbd)"}`}
               aria-label=${`World preview: ${preview.subject?.label ?? "subject pending"}, ${preview.edge?.label ?? "action pending"}, ${preview.object?.label ?? "target pending"}${preview.place ? ` at ${preview.place.label}${preview.place.longitude === null ? " (coordinates unknown)" : ""}` : ""}`}>
@@ -1260,15 +1282,16 @@ export class LuumOccurrenceComposerElement extends LitElement {
                 preview.place?.longitude !== null &&
                 preview.place?.longitude !== undefined &&
                 preview.place.latitude !== null
-                  ? html`<span class="mini-world-pin" aria-hidden="true"
-                    style=${`left: ${(preview.place.longitude + 180) / 3.6}%; top: ${(90 - preview.place.latitude) / 1.8}%`}></span>`
+                  ? html`<span class="mini-world-pin" aria-hidden="true"></span>`
                   : nothing
               }
-              ${this.previewNode(preview.subject, "Subject")}
-              <span class="preview-edge ${preview.edge ? "" : "preview-pending"}">${preview.edge?.label ?? "Action"} →</span>
-              ${this.previewNode(preview.object, "Target")}
+              ${this.previewNode(preview.subject, "Subject", previewPalette)}
+              <span class="preview-edge ${preview.edge ? "" : "preview-pending"}">
+                <span>${preview.edge?.label ?? "Action"}</span>
+                <svg viewBox="0 0 100 14" preserveAspectRatio="none" aria-hidden="true"><path d="M1 7H96M89 1L97 7L89 13"></path></svg>
+              </span>
+              ${this.previewNode(preview.object, "Target", previewPalette)}
             </div>
-            ${this.selectionContext?.description ? html`<p class="composer-card-context">${this.selectionContext.description}</p>` : nothing}
             <div class="composer-grammar" aria-label="Editable sentence sections">
               ${sections.map(
                 (section) => html`<button class="grammar-chip" type="button"
@@ -1276,7 +1299,14 @@ export class LuumOccurrenceComposerElement extends LitElement {
                 @pointerdown=${(event: PointerEvent) => event.preventDefault()}
                 @click=${() => this.selectSection(section.start, section.end)}>${section.text}</button>`,
               )}
-              ${preview.tags.map((tag) => html`<span class="context-chip">#${tag}</span>`)}
+              ${preview.tags.map((tag) => {
+                const section = sections.find((entry) => entry.kind === "tag" && entry.text === tag);
+                return section
+                  ? html`<button class="context-chip" type="button" aria-label=${`Edit tag: ${tag}`}
+                      @pointerdown=${(event: PointerEvent) => event.preventDefault()}
+                      @click=${() => this.selectSection(section.start, section.end)}>#${tag}</button>`
+                  : nothing;
+              })}
             </div>
           </section>
           ${

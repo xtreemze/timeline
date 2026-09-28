@@ -1,17 +1,55 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import * as previewModule from "../site/occurrence-composer-preview.ts";
 import {
   projectComposerPreview,
   projectInvestigativeQualifiers,
   proposeInvestigationQuestion,
   proposeInvestigationAction,
 } from "../site/occurrence-composer-preview.ts";
+import { WORLD_DARK_PALETTE, worldNodeStyle } from "../src/layout/world-graph-style.ts";
+import { worldNodeMarker } from "../site/world/world-node-marker.ts";
 import { occurrenceComposerSuggestions } from "../site/occurrence-composer-model.ts";
 
 const entities = [
   { id: "alice", name: "Alice", icon: "person" },
   { id: "bob", name: "Bob", icon: "child" },
 ];
+
+test("composer preview uses the World marker for an entity and live icon choice", () => {
+  const styled = {
+    id: "alice", name: "Alice", type: "person", icon: "person",
+    attributes: { style: { fill: "#42658a", border: "#ffffff", shape: "hexagon" } },
+  };
+  const expected = worldNodeMarker(worldNodeStyle({ type: styled.type,
+    attributes: { style: { ...styled.attributes.style, icon: "pig" } } }, WORLD_DARK_PALETTE));
+  assert.equal(typeof previewModule.composerWorldNodeMarker, "function");
+  assert.deepEqual(previewModule.composerWorldNodeMarker({ label: "Alice", icon: "pig" }, [styled], WORLD_DARK_PALETTE), expected);
+});
+
+test("inline node style edits change the World marker before approval", () => {
+  const preview = projectComposerPreview("Alice(icon: pig, shape: diamond, color: #876543) meets @bob", entities);
+  const marker = previewModule.composerWorldNodeMarker(preview.subject, entities, WORLD_DARK_PALETTE);
+  const expected = worldNodeMarker(worldNodeStyle({ type: "person", attributes: {
+    style: { icon: "pig", shape: "diamond", color: "#876543" },
+  } }, WORLD_DARK_PALETTE));
+  assert.deepEqual(marker, expected);
+  const svg = decodeURIComponent(marker.url.split(",")[1]);
+  assert.match(svg, /fill="#876543"/);
+});
+
+test("hovered category and tag suggestions appear in the preview before acceptance", () => {
+  const draft = "@alice meets @bob [category: Fam";
+  const category = projectComposerPreview(draft, entities, {
+    kind: "category", label: "Family", insertText: "Family", icon: "tag",
+  });
+  assert.equal(category.category, "Family");
+  assert.equal(projectComposerPreview(draft, entities).category, "Fam");
+  const tagged = projectComposerPreview("@alice meets @bob [tags: imp", entities, {
+    kind: "tag", label: "important", insertText: "important", icon: "tag",
+  });
+  assert.deepEqual(tagged.tags, ["important"]);
+});
 
 test("composer preview builds the world incrementally and previews icon suggestions without committing", () => {
   const subject = projectComposerPreview("@alice", entities);
@@ -54,14 +92,14 @@ test("composer preview builds the world incrementally and previews icon suggesti
     insertText: "icon: pig",
     icon: "pig",
   });
-  assert.deepEqual(unfinishedSubject.subject, { label: "Alice", icon: "pig" });
+  assert.deepEqual(unfinishedSubject.subject, { label: "Alice", icon: "pig", entityId: "alice" });
   const unfinishedTarget = projectComposerPreview("@alice meets Bob(icon: pi", entities, {
     kind: "property",
     label: "icon: pig",
     insertText: "icon: pig",
     icon: "pig",
   });
-  assert.deepEqual(unfinishedTarget.object, { label: "Bob", icon: "pig" });
+  assert.deepEqual(unfinishedTarget.object, { label: "Bob", icon: "pig", entityId: "bob" });
 });
 
 test("method actions stay in reasoning collections and retain falsification intent", () => {
