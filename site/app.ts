@@ -1717,9 +1717,7 @@ function syncApplicationSurfaces() {
       ui.browserOpen || ui.investigationOpen || ui.editorOpen || ui.importReviewOpen,
     );
   }
-  els.occurrenceComposer.hidden = Boolean(
-    ui.browserOpen || ui.investigationOpen || ui.editorOpen || ui.importReviewOpen,
-  );
+  els.occurrenceComposer.hidden = ui.importReviewOpen;
 els.occurrenceComposer.setEditing(editing);
   els.occurrenceComposerToggle.setAttribute("aria-expanded", String(els.occurrenceComposer.active));
   els.occurrenceComposerToggle.setAttribute(
@@ -1780,37 +1778,27 @@ function closeFocusedEventForUtility() {
   if (timelineView?.hasFocusedItem?.()) timelineView.closeFocus();
 }
 
-let toolbarFocusedNavigationActive = false;
-
-function revealFocusedToolbarNavigation() {
-  if (!globalThis.matchMedia?.("(max-width: 699px)").matches) return;
-  const navigation = els.focusPrev.parentElement;
-  if (!(navigation instanceof HTMLElement) || navigation.hidden) return;
-  const dockRect = els.appToolDock.getBoundingClientRect();
-  const navigationRect = navigation.getBoundingClientRect();
-  const inset = 8;
-  let delta = 0;
-  if (navigationRect.right > dockRect.right - inset) {
-    delta = navigationRect.right - (dockRect.right - inset);
-  } else if (navigationRect.left < dockRect.left + inset) {
-    delta = navigationRect.left - (dockRect.left + inset);
-  }
-  if (Math.abs(delta) > 1) els.appToolDock.scrollLeft += delta;
-}
-
 function syncTimelineContextControls() {
   const focused = Boolean(timelineView?.hasFocusedItem?.());
-  const focusBecameActive = focused && !toolbarFocusedNavigationActive;
-  toolbarFocusedNavigationActive = focused;
   const navigation = focused ? timelineView?.focusNavigationState?.() : null;
+  const slot = els.timelineViewRoot.querySelector<HTMLElement>("[data-focus-context-actions]");
+  const source = document.querySelector<HTMLElement>("#timeline-focus-context-controls");
+  const controls = [els.focusPrev, els.focusNext, els.relatedZoom, els.relatedFit];
+
+  if (focused && slot) {
+    slot.prepend(...controls);
+  } else if (source) {
+    source.append(...controls);
+  }
+
   els.focusPrev.hidden = !focused;
   els.focusNext.hidden = !focused;
-  els.focusPrev.disabled = !focused;
-  els.focusNext.disabled = !focused;
+  els.focusPrev.disabled = !focused || navigation?.previous !== true;
+  els.focusNext.disabled = !focused || navigation?.next !== true;
   els.relatedZoom.hidden = !focused;
   els.relatedFit.hidden = !focused;
-  els.relatedZoom.disabled = !focusedGraphContextAvailable;
-  els.relatedFit.disabled = !focusedGraphContextAvailable;
+  els.relatedZoom.disabled = !focused || !focusedGraphContextAvailable;
+  els.relatedFit.disabled = !focused || !focusedGraphContextAvailable;
 
   if (els.editorToggle) {
     const editableFocus = focused && navigation?.editable === true;
@@ -1829,7 +1817,6 @@ function syncTimelineContextControls() {
       accessibleLabel.textContent = ui.editorOpen ? "Done" : composerActive ? "Editor" : "Edit";
     }
   }
-  if (focusBecameActive) requestAnimationFrame(revealFocusedToolbarNavigation);
 }
 
 function syncOccurrenceComposerSelection(selection = applicationSelection.current): void {
@@ -5965,6 +5952,9 @@ els.occurrenceComposer.setWorldContext(
 
 els.occurrenceComposerToggle.addEventListener("click", () => {
   setOccurrenceComposerOpen(!els.occurrenceComposer.active);
+});
+els.occurrenceComposer.addEventListener("occurrencecomposeropenrequest", () => {
+  setOccurrenceComposerOpen(true);
 });
 els.occurrenceComposer.addEventListener("occurrencecomposercloserequest", () => {
   setOccurrenceComposerOpen(false);
