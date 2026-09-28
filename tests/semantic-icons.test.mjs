@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
@@ -182,4 +183,29 @@ test("semantic icon quality audit separates data validity from presentation qual
   assert.deepEqual(audit.genericFallbackIds, ["fallback"]);
   assert.deepEqual(audit.missingIconIds, ["missing"]);
   assert.equal(audit.explicitCount, 1);
+});
+
+
+test("shared semantic icons follow one Lucide-compatible monochrome stroke contract", async () => {
+  const presentation = await readFile(
+    new URL("../site/event-presentation.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(presentation, /svg\.setAttribute\("fill", "none"\)/);
+  assert.match(presentation, /svg\.setAttribute\("stroke", "currentColor"\)/);
+  assert.match(presentation, /svg\.setAttribute\("stroke-width", "2"\)/);
+  assert.match(presentation, /svg\.setAttribute\("stroke-linecap", "round"\)/);
+  assert.match(presentation, /svg\.setAttribute\("stroke-linejoin", "round"\)/);
+  assert.doesNotMatch(presentation, /stroke-width", "1\.8"/);
+
+  assert.deepEqual(iconPathData("edit"), [
+    "M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z",
+    "m15 5 4 4",
+  ]);
+
+  for (const stylesheet of ["styles.css", "timeline-view.css", "spatial-shell.css"]) {
+    const css = await readFile(new URL(`../site/${stylesheet}`, import.meta.url), "utf8");
+    const overrides = css.match(/\.semantic-icon[^{}]*\{[^}]*stroke-width\s*:/gs) ?? [];
+    assert.deepEqual(overrides, [], `${stylesheet}: semantic icons must inherit the shared 2px stroke`);
+  }
 });
