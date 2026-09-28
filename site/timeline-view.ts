@@ -4124,12 +4124,16 @@ export class TimelineViewController {
     if (!item || media.length < 2) return false;
 
     const direction = delta < 0 ? -1 : 1;
-    this.focusMediaIndex = (this.focusMediaIndex + direction + media.length) % media.length;
-    this.renderFocus(item);
     const record = this.scene.get(occurrenceSceneKey(item.id));
-    if (record?.node.detailHost && !record.node.detailHost.hidden) {
-      this.syncExpandedDetailGeometry(record, record.node.detailHost);
+    const deck = record?.node.detailHost?.querySelector<LuumOccurrenceDeckElement>(
+      "luum-occurrence-deck",
+    );
+    if (deck?.stepBy(direction)) {
+      this.focusMediaIndex = deck.activeIndex;
+      return true;
     }
+
+    this.focusMediaIndex = (this.focusMediaIndex + direction + media.length) % media.length;
     return true;
   }
 
