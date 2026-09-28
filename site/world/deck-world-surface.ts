@@ -2698,6 +2698,7 @@ function labelDatums(input: {
     queueInteractionLabel(datum, input.placeMarkerRadiusPx(place.placeId));
   }
 
+  const requiredInteractionLabelKeys = new Set<string>();
   const interactionEntityIds = new Set<EntityId>(input.contextEntityIds);
   if (input.selection?.kind === "entity") interactionEntityIds.add(input.selection.id);
   if (input.hoverSelection?.kind === "entity") interactionEntityIds.add(input.hoverSelection.id);
@@ -2717,6 +2718,12 @@ function labelDatums(input: {
       if (!entity.label || !interactionEntityIds.has(entity.entityId)) continue;
       const key = `entity:${entity.worldInstanceId}`;
       if (placedByKey.has(key)) continue;
+      if (
+        (input.selection?.kind === "entity" && input.selection.id === entity.entityId) ||
+        (input.hoverSelection?.kind === "entity" && input.hoverSelection.id === entity.entityId)
+      ) {
+        requiredInteractionLabelKeys.add(key);
+      }
 
       const text = entity.label;
       const emphasized = focused("entity", entity.entityId);
@@ -2737,7 +2744,6 @@ function labelDatums(input: {
     }
   }
 
-  const requiredRelationshipLabelKeys = new Set<string>();
   const interactionRelationshipIds = new Set<RelationshipId>(input.contextRelationshipIds);
   if (input.selection?.kind === "entity") {
     for (const relationship of input.relationships) {
@@ -2748,7 +2754,7 @@ function labelDatums(input: {
         continue;
       }
       interactionRelationshipIds.add(relationship.relationshipId);
-      requiredRelationshipLabelKeys.add(`relationship:${relationship.relationshipId}`);
+      requiredInteractionLabelKeys.add(`relationship:${relationship.relationshipId}`);
     }
   }
   if (input.selection?.kind === "relationship") interactionRelationshipIds.add(input.selection.id);
@@ -2793,7 +2799,7 @@ function labelDatums(input: {
           input.zoom,
           (datum) => markerRadiusByKey.get(datum.key) ?? 0,
           input.relationships,
-          requiredRelationshipLabelKeys,
+          requiredInteractionLabelKeys,
         );
   const finalByKey = new Map(datums.map((datum) => [datum.key, datum] as const));
   for (const key of [...byKey.keys()]) {
@@ -5289,7 +5295,10 @@ export class DeckWorldSurface implements WorldSurface {
           key: (entity) => entity.worldInstanceId,
         })
       : null;
-    const labelEntities = iconSource;
+    // Labels need access to canonical member datums even while clustered geometry is
+    // suppressed. Ordinary cluster LOD is still enforced inside labelDatums; this only
+    // lets direct selection/hover identify the interacted node at every zoom level.
+    const labelEntities = entityResult.datums;
     const labelClusters = entities.filter(
       (datum): datum is DeckWorldClusterDatum => datum.kind === "cluster",
     );
