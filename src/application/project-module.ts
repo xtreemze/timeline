@@ -4,7 +4,9 @@ import {
   type ProjectSnapshot,
 } from "./project-repository.ts";
 import {
+  formatProjectInterchange,
   LUM_PROJECT_SCHEMA_ID,
+  projectCollectionShapeDiagnostics,
   serializeProjectInterchange,
   validateProjectInterchange,
   type ProjectInterchangeDiagnostic,
@@ -189,6 +191,19 @@ export function validateProjectModule(serialized: string): ProjectModuleValidati
         );
       }
     });
+    if (
+      typeof envelope["collection"] === "string" &&
+      LUM_PROJECT_MODULE_COLLECTIONS.includes(
+        envelope["collection"] as ProjectModuleCollection,
+      )
+    ) {
+      diagnostics.push(
+        ...projectCollectionShapeDiagnostics(
+          envelope["collection"] as ProjectModuleCollection,
+          envelope["records"],
+        ),
+      );
+    }
   }
 
   if (diagnostics.length > 0) return { valid: false, diagnostics };
@@ -210,6 +225,57 @@ export function validateProjectModule(serialized: string): ProjectModuleValidati
   };
 }
 
+export function formatProjectModule(serialized: string): string {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(serialized) as unknown;
+  } catch (error) {
+    throw new Error("Lūm project module is not valid JSON.", { cause: error });
+  }
+  return formatProjectInterchange(JSON.stringify(parsed));
+}
+
+export function lintProjectModule(
+  serialized: string,
+  options: { readonly fileName?: string } = {},
+): { readonly valid: boolean; readonly diagnostics: readonly ProjectInterchangeDiagnostic[] } {
+  const validation = validateProjectModule(serialized);
+  const diagnostics = [...validation.diagnostics];
+
+  if (
+    options.fileName &&
+    options.fileName !== "-" &&
+    !options.fileName.endsWith(LUM_PROJECT_MODULE_FILE_EXTENSION)
+  ) {
+    diagnostics.push(
+      diagnostic(
+        "non-canonical-extension",
+        "",
+        `Lūm project modules must use the ${LUM_PROJECT_MODULE_FILE_EXTENSION} suffix.`,
+      ),
+    );
+  }
+
+  try {
+    if (formatProjectModule(serialized) !== serialized) {
+      diagnostics.push(
+        diagnostic(
+          "non-canonical-format",
+          "",
+          "Module text is not in canonical Lūm formatting. Run `lum fmt`.",
+        ),
+      );
+    }
+  } catch {
+    // Invalid JSON is already diagnosed by validateProjectModule.
+  }
+
+  return Object.freeze({
+    valid: !diagnostics.some((finding) => finding.severity === "error"),
+    diagnostics: Object.freeze(diagnostics),
+  });
+}
+
 export function createProjectModule(options: {
   readonly projectKey: string;
   readonly storyId: string;
@@ -227,7 +293,7 @@ export function createProjectModule(options: {
     collection: options.collection,
     records: structuredClone(options.records),
   };
-  const serialized = `${JSON.stringify(envelope, null, 2)}\n`;
+  const serialized = formatProjectModule(JSON.stringify(envelope));
   const validation = validateProjectModule(serialized);
   if (!validation.valid) {
     throw new Error(
