@@ -87,3 +87,72 @@ test("unresolved clue remains editable and cannot be approved as a fact", async 
   await input.press("Escape");
   await expect(composer.locator(".compact")).toBeVisible();
 });
+
+
+test("multiple investigative qualifiers retain exact ranges and exit without damaging the sentence", async ({
+  page,
+}) => {
+  const composer = page.locator("#occurrence-composer");
+  await composer.locator(".compact").click();
+  const input = composer.locator('input[role="combobox"]');
+  const sentence = 'man? observes "red jacket"? at "Central Station"? on 2026-09-14';
+  await input.fill(sentence);
+
+  const clues = composer.locator(".qualifier-chip");
+  await expect(clues).toHaveCount(3);
+  for (const expected of ["man?", '"red jacket"?', '"Central Station"?']) {
+    const clue = clues.filter({ hasText: expected });
+    await clue.click();
+    await expect
+      .poll(() =>
+        input.evaluate((element: HTMLInputElement) =>
+          element.value.slice(element.selectionStart ?? 0, element.selectionEnd ?? 0),
+        ),
+      )
+      .toBe(expected);
+    await expect(input).toHaveValue(sentence);
+  }
+
+  await input.fill('man observes "red jacket" at "Central Station" on 2026-09-14');
+  await expect(composer.locator("#occurrence-investigation-panel")).toHaveCount(0);
+  await expect(input).not.toHaveAttribute("aria-controls", "occurrence-investigation-panel");
+});
+
+test("investigation stays inside the visual viewport and announces active state", async ({ page }) => {
+  const composer = page.locator("#occurrence-composer");
+  await composer.locator(".compact").click();
+  const input = composer.locator('input[role="combobox"]');
+  await input.fill("man? calls @alice");
+
+  await expect(input).toHaveAttribute("aria-controls", "occurrence-investigation-panel");
+  await expect(input).toHaveAttribute("aria-expanded", "true");
+  const status = composer.locator("#occurrence-investigation-status");
+  await expect(status).toContainText("Investigation");
+  await expect(status).toContainText("Candidate");
+
+  const containment = await page.evaluate(() => {
+    const panel = document.querySelector("#occurrence-composer .completion-panel");
+    const rect = panel?.getBoundingClientRect();
+    const visual = window.visualViewport;
+    const top = visual?.offsetTop ?? 0;
+    const height = visual?.height ?? window.innerHeight;
+    return {
+      panelTop: rect?.top ?? Number.NaN,
+      panelBottom: rect?.bottom ?? Number.NaN,
+      visualTop: top,
+      visualBottom: top + height,
+      scrollWidth: document.documentElement.scrollWidth,
+      scrollHeight: document.documentElement.scrollHeight,
+      innerWidth: window.innerWidth,
+      innerHeight: window.innerHeight,
+    };
+  });
+  expect(containment.panelTop).toBeGreaterThanOrEqual(containment.visualTop - 2);
+  expect(containment.panelBottom).toBeLessThanOrEqual(containment.visualBottom + 2);
+  expect(containment.scrollWidth).toBeLessThanOrEqual(containment.innerWidth + 2);
+  expect(containment.scrollHeight).toBeLessThanOrEqual(containment.innerHeight + 2);
+
+  await input.press("ArrowDown");
+  await expect(status).toContainText("Candidate 2");
+  await expect(input).toHaveValue("man? calls @alice");
+});
