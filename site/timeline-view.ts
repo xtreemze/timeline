@@ -3433,9 +3433,9 @@ export class TimelineViewController {
       const targetOrientationIcon = portrait ? "landscape" : "portrait";
       this.orientationToggle.setAttribute("aria-label", label);
       this.orientationToggle.title = label;
-      this.orientationToggle.dataset.semanticIcon = "timeline";
-      this.orientationToggle.dataset.semanticIconSecondary = targetOrientationIcon;
-      const icon = createCompoundIcon("timeline", targetOrientationIcon, { size: 22 });
+      this.orientationToggle.dataset.semanticIcon = targetOrientationIcon;
+      this.orientationToggle.dataset.semanticIconSecondary = "timeline";
+      const icon = createCompoundIcon(targetOrientationIcon, "timeline", { size: 22 });
       const currentIcon = this.orientationToggle.querySelector(":scope > .semantic-icon");
       if (currentIcon) currentIcon.replaceWith(icon);
       else this.orientationToggle.prepend(icon);
