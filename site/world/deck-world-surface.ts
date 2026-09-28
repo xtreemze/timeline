@@ -716,7 +716,20 @@ export function clusterTargetPlaceIds(
       available > 0 &&
       zoom >= densityReleaseZoom &&
       requiredWithHysteresis <= available * WORLD_CLUSTER_PANNABLE_OVERFLOW_RATIO;
-    if (!overviewClustering && (requiredWithHysteresis <= available || pannableDetailRelease)) {
+    // The camera ceiling is also the semantic drill-in ceiling. A modest
+    // component must not become a permanent cluster merely because its ideal
+    // packing radius exceeds the viewport budget: at maximum zoom the user
+    // has no further camera action available, and the pannable local surface
+    // can carry the overflow. Keep genuinely large components protected by
+    // the same bounded-member safeguard used for ordinary detail overflow.
+    const terminalDetailRelease =
+      zoom >= WORLD_CAMERA_MAX_ZOOM &&
+      memberCount <= WORLD_CLUSTER_PANNABLE_MAX_MEMBERS &&
+      available > 0;
+    if (
+      !overviewClustering &&
+      (requiredWithHysteresis <= available || pannableDetailRelease || terminalDetailRelease)
+    ) {
       continue;
     }
 
@@ -5437,7 +5450,7 @@ export class DeckWorldSurface implements WorldSurface {
       : Object.freeze([] as DeckWorldRelationshipDatum[]);
     const releasingSegments = releasingRelationshipSegments(releasingRelationships);
     const placeMarkerClusters =
-      clusterPhase !== "collapsed"
+      clusterPhase !== "collapsed" && this.#camera.zoom < WORLD_CAMERA_MAX_ZOOM
         ? Object.freeze(
             clusterEntityDatumsByPlace(
               entityResult.datums,
