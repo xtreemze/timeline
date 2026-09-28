@@ -335,6 +335,10 @@ test.describe("Narrow mobile screen contracts", () => {
       [...element.children].map((child) => child.id || child.className),
     );
     const beforeWidth = await dock.evaluate((element) => element.scrollWidth);
+    const viewToolbar = dock.locator("#timeline-view-controls");
+    const composer = dock.locator("#occurrence-composer");
+    const beforeViewScroll = await viewToolbar.evaluate((element) => element.scrollLeft);
+    await expect(composer.locator(".compact")).toBeVisible();
 
     const terminal = page
       .locator(
@@ -356,8 +360,11 @@ test.describe("Narrow mobile screen contracts", () => {
       [...element.children].map((child) => child.id || child.className),
     );
     const afterWidth = await dock.evaluate((element) => element.scrollWidth);
+    const afterViewScroll = await viewToolbar.evaluate((element) => element.scrollLeft);
     expect(afterChildren).toEqual(beforeChildren);
     expect(Math.abs(afterWidth - beforeWidth)).toBeLessThanOrEqual(2);
+    expect(Math.abs(afterViewScroll - beforeViewScroll)).toBeLessThanOrEqual(1);
+    await expect(composer.locator(".compact")).toBeVisible();
 
     for (const selector of ["#timeline-focus-prev", "#timeline-focus-next"]) {
       const action = actions.locator(selector);
@@ -410,14 +417,16 @@ test.describe("Narrow mobile screen contracts", () => {
         };
       });
 
+      expect(metrics.display).toBe("grid");
+      expect(metrics.viewOverflowX).toBe("auto");
+      expect(metrics.viewScrollWidth).toBeGreaterThanOrEqual(metrics.viewClientWidth);
       if (viewport.width < 700) {
-        expect(metrics.display).toBe("flex");
-        expect(metrics.overflowX).toBe("auto");
-        expect(metrics.scrollWidth).toBeGreaterThan(metrics.clientWidth);
-      } else {
-        expect(metrics.display).toBe("grid");
-        expect(metrics.viewOverflowX).toBe("auto");
-        expect(metrics.viewScrollWidth).toBeGreaterThanOrEqual(metrics.viewClientWidth);
+        expect(metrics.overflowX).not.toBe("auto");
+        const composer = dock.locator("#occurrence-composer");
+        await expect(composer.locator(".compact")).toBeVisible();
+        const composerBox = await composer.boundingBox();
+        expect(composerBox).not.toBeNull();
+        if (composerBox) expect(composerBox.width).toBeGreaterThanOrEqual(170);
       }
 
       const buttons = dock.locator(
@@ -481,18 +490,43 @@ test.describe("Narrow mobile screen contracts", () => {
         if (!box) continue;
         expect(Math.abs(box.width - 20)).toBeLessThanOrEqual(1);
         expect(Math.abs(box.height - 20)).toBeLessThanOrEqual(1);
+        const buttonBox = await semanticIcons.nth(index).locator("xpath=..").boundingBox();
+        expect(buttonBox).not.toBeNull();
+        if (buttonBox) {
+          expect(
+            Math.abs(box.x + box.width / 2 - (buttonBox.x + buttonBox.width / 2)),
+          ).toBeLessThanOrEqual(0.75);
+          expect(
+            Math.abs(box.y + box.height / 2 - (buttonBox.y + buttonBox.height / 2)),
+          ).toBeLessThanOrEqual(0.75);
+        }
+      }
+
+      const timelineZoom = dock.locator(".timeline-zoom-control");
+      const timelineZoomSlider = timelineZoom.locator(".timeline-zoom-slider");
+      const [timelineZoomBox, timelineZoomSliderBox] = await Promise.all([
+        timelineZoom.boundingBox(),
+        timelineZoomSlider.boundingBox(),
+      ]);
+      expect(timelineZoomBox).not.toBeNull();
+      expect(timelineZoomSliderBox).not.toBeNull();
+      if (worldZoomBox && timelineZoomBox) {
+        expect(Math.abs(worldZoomBox.width - timelineZoomBox.width)).toBeLessThanOrEqual(1);
+        expect(Math.abs(worldZoomBox.height - timelineZoomBox.height)).toBeLessThanOrEqual(1);
+      }
+      if (worldZoomSliderBox && timelineZoomSliderBox) {
+        expect(Math.abs(worldZoomSliderBox.width - timelineZoomSliderBox.width)).toBeLessThanOrEqual(
+          1,
+        );
+        expect(
+          Math.abs(worldZoomSliderBox.height - timelineZoomSliderBox.height),
+        ).toBeLessThanOrEqual(1);
       }
 
       const lastControl = viewToolbar.locator(".toolbar-control").last();
-      if (viewport.width < 700) {
-        await dock.evaluate((element) => {
-          element.scrollLeft = element.scrollWidth;
-        });
-      } else {
-        await viewToolbar.evaluate((element) => {
-          element.scrollLeft = element.scrollWidth;
-        });
-      }
+      await viewToolbar.evaluate((element) => {
+        element.scrollLeft = element.scrollWidth;
+      });
       await expect
         .poll(async () => {
           const [dockBox, controlBox] = await Promise.all([
