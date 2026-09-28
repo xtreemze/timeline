@@ -33,6 +33,23 @@ export interface ComposerOccurrenceOptions {
   readonly tags: readonly string[];
 }
 
+export interface OccurrenceInvestigativeQualifier {
+  readonly id: string;
+  readonly section: ComposerEditableSectionKind | "sentence";
+  readonly start: number;
+  readonly end: number;
+  readonly operatorIndex: number;
+  readonly rawText: string;
+  readonly normalizedText: string;
+  readonly scope: "section" | "sentence" | "ambiguous";
+}
+
+export interface OccurrenceInvestigationProjection {
+  readonly qualifiers: readonly OccurrenceInvestigativeQualifier[];
+  readonly sentenceQuestion: boolean;
+  readonly hasAmbiguity: boolean;
+}
+
 export interface OccurrenceSentenceDraft {
   readonly subject: ComposerEntityReference | null;
   readonly predicate: string | null;
@@ -42,6 +59,7 @@ export interface OccurrenceSentenceDraft {
   readonly options: ComposerOccurrenceOptions;
   readonly stage: OccurrenceComposerStage;
   readonly diagnostics: readonly string[];
+  readonly investigation: OccurrenceInvestigationProjection;
 }
 
 export interface ComposerEntityOption {
@@ -375,7 +393,9 @@ function stripPlace(input: string): {
 
 export function parseOccurrenceSentence(input: string): OccurrenceSentenceDraft {
   const diagnostics: string[] = [];
-  const optionPass = stripOptions(input);
+  const investigation = projectOccurrenceInvestigation(input);
+  const sourceInput = stripInvestigativeOperators(input, investigation.qualifiers);
+  const optionPass = stripOptions(sourceInput);
   if (optionPass.malformed) diagnostics.push("Close the occurrence options with ].");
   const timePass = stripTime(optionPass.source);
   const placePass = stripPlace(timePass.source);
@@ -391,6 +411,7 @@ export function parseOccurrenceSentence(input: string): OccurrenceSentenceDraft 
       options: optionPass.options,
       stage: "subject",
       diagnostics: Object.freeze(diagnostics),
+      investigation,
     });
   }
 
@@ -405,6 +426,7 @@ export function parseOccurrenceSentence(input: string): OccurrenceSentenceDraft 
       options: optionPass.options,
       stage: "predicate",
       diagnostics: Object.freeze(diagnostics),
+      investigation,
     });
   }
 
@@ -421,6 +443,7 @@ export function parseOccurrenceSentence(input: string): OccurrenceSentenceDraft 
       options: optionPass.options,
       stage: "object",
       diagnostics: Object.freeze(diagnostics),
+      investigation,
     });
   }
 
@@ -439,6 +462,7 @@ export function parseOccurrenceSentence(input: string): OccurrenceSentenceDraft 
     options: optionPass.options,
     stage: diagnostics.length ? "object" : "complete",
     diagnostics: Object.freeze(diagnostics),
+    investigation,
   });
 }
 
@@ -540,20 +564,44 @@ export function composerCursorSection(input: string, cursorOffset: number): Comp
   const subject = readEntitySpan(input, 0);
   if (!subject) return Object.freeze({ kind: "tail", start: offset, end: offset, text: "" });
 
-  if (cursorWithinSpan(offset, subject.start, subject.end, input.length)) {
-    return Object.freeze({ kind: "subject", ...subject });
+  if (
+    cursorWithinSpan(offset, subject.start, subject.end, input.length) ||
+    (offset === semanticEnd(input, subject.start, subject.end) && input[offset] === "?" && !questionMarkIsEscaped(input, offset))
+  ) {
+    return Object.freeze({
+      kind: "subject",
+      start: subject.start,
+      end: semanticEnd(input, subject.start, subject.end),
+      text: subject.text.replace(/\?$/, ""),
+    });
   }
 
   const predicate = readTokenSpan(input, subject.end);
   if (!predicate) return Object.freeze({ kind: "tail", start: offset, end: offset, text: "" });
-  if (cursorWithinSpan(offset, predicate.start, predicate.end, input.length)) {
-    return Object.freeze({ kind: "predicate", ...predicate });
+  if (
+    cursorWithinSpan(offset, predicate.start, predicate.end, input.length) ||
+    (offset === semanticEnd(input, predicate.start, predicate.end) && input[offset] === "?" && !questionMarkIsEscaped(input, offset))
+  ) {
+    return Object.freeze({
+      kind: "predicate",
+      start: predicate.start,
+      end: semanticEnd(input, predicate.start, predicate.end),
+      text: sectionText(input, predicate.start, predicate.end),
+    });
   }
 
   const object = readEntitySpan(input, predicate.end);
   if (!object) return Object.freeze({ kind: "tail", start: offset, end: offset, text: "" });
-  if (cursorWithinSpan(offset, object.start, object.end, input.length)) {
-    return Object.freeze({ kind: "object", ...object });
+  if (
+    cursorWithinSpan(offset, object.start, object.end, input.length) ||
+    (offset === semanticEnd(input, object.start, object.end) && input[offset] === "?" && !questionMarkIsEscaped(input, offset))
+  ) {
+    return Object.freeze({
+      kind: "object",
+      start: object.start,
+      end: semanticEnd(input, object.start, object.end),
+      text: object.text.replace(/\?$/, ""),
+    });
   }
 
   const lower = input.toLocaleLowerCase();
@@ -617,19 +665,60 @@ function trimmedValueRange(
   return Object.freeze({ start: valueStart, end: valueEnd });
 }
 
+function questionMarkIsEscaped(input: string, index: number): boolean {
+  if (index <= 0 || input[index] !== "?") return false;
+  let slashCount = 0;
+  for (let cursor = index - 1; cursor >= 0 && input[cursor] === "\\"; cursor -= 1) slashCount += 1;
+  return slashCount > 0;
+}
+
+function semanticEnd(input: string, start: number, end: number): number {
+  if (end <= start) return end;
+  const operatorIndex = end - 1;
+  return input[operatorIndex] === "?" && !questionMarkIsEscaped(input, operatorIndex)
+    ? operatorIndex
+    : end;
+}
+
+function sectionText(input: string, start: number, end: number, unquoteValue = false): string {
+  const value = input.slice(start, semanticEnd(input, start, end)).trim();
+  return unquoteValue ? unquote(value) : value;
+}
+
 export function composerEditableSections(input: string): readonly ComposerEditableSection[] {
   const sections: ComposerEditableSection[] = [];
   const subject = readEntitySpan(input, 0);
   if (!subject) return Object.freeze(sections);
-  sections.push(Object.freeze({ kind: "subject", ...subject }));
+  sections.push(
+    Object.freeze({
+      kind: "subject",
+      start: subject.start,
+      end: semanticEnd(input, subject.start, subject.end),
+      text: subject.text.replace(/\?$/, ""),
+    }),
+  );
 
   const predicate = readTokenSpan(input, subject.end);
   if (!predicate) return Object.freeze(sections);
-  sections.push(Object.freeze({ kind: "predicate", ...predicate }));
+  sections.push(
+    Object.freeze({
+      kind: "predicate",
+      start: predicate.start,
+      end: semanticEnd(input, predicate.start, predicate.end),
+      text: sectionText(input, predicate.start, predicate.end),
+    }),
+  );
 
   const object = readEntitySpan(input, predicate.end);
   if (!object) return Object.freeze(sections);
-  sections.push(Object.freeze({ kind: "object", ...object }));
+  sections.push(
+    Object.freeze({
+      kind: "object",
+      start: object.start,
+      end: semanticEnd(input, object.start, object.end),
+      text: object.text.replace(/\?$/, ""),
+    }),
+  );
 
   const lower = input.toLocaleLowerCase();
   const optionsStart = lower.indexOf("[", object.end);
@@ -650,8 +739,8 @@ export function composerEditableSections(input: string): readonly ComposerEditab
         Object.freeze({
           kind: "place",
           start: valueStart,
-          end: valueEnd,
-          text: unquote(input.slice(valueStart, valueEnd)),
+          end: semanticEnd(input, valueStart, valueEnd),
+          text: sectionText(input, valueStart, valueEnd, true),
         }),
       );
     }
@@ -669,8 +758,8 @@ export function composerEditableSections(input: string): readonly ComposerEditab
         Object.freeze({
           kind: "time",
           start: clauseStart,
-          end: clauseEnd,
-          text: input.slice(clauseStart, clauseEnd).trim(),
+          end: semanticEnd(input, clauseStart, clauseEnd),
+          text: sectionText(input, clauseStart, clauseEnd),
         }),
       );
     }
@@ -691,8 +780,8 @@ export function composerEditableSections(input: string): readonly ComposerEditab
           Object.freeze({
             kind: "category",
             start: range.start,
-            end: range.end,
-            text: unquote(input.slice(range.start, range.end)),
+            end: semanticEnd(input, range.start, range.end),
+            text: sectionText(input, range.start, range.end, true),
           }),
         );
       }
@@ -715,8 +804,8 @@ export function composerEditableSections(input: string): readonly ComposerEditab
             Object.freeze({
               kind: "tag",
               start: range.start,
-              end: range.end,
-              text: unquote(input.slice(range.start, range.end)),
+              end: semanticEnd(input, range.start, range.end),
+              text: sectionText(input, range.start, range.end, true),
               index: tagIndex,
             }),
           );
@@ -728,6 +817,79 @@ export function composerEditableSections(input: string): readonly ComposerEditab
   }
 
   return Object.freeze(sections);
+}
+
+export function projectOccurrenceInvestigation(input: string): OccurrenceInvestigationProjection {
+  const qualifiers: OccurrenceInvestigativeQualifier[] = [];
+  const sections = composerEditableSections(input);
+  const claimedOperators = new Set<number>();
+
+  for (const section of sections) {
+    const operatorIndex = section.end;
+    if (
+      input[operatorIndex] !== "?" ||
+      questionMarkIsEscaped(input, operatorIndex)
+    ) {
+      continue;
+    }
+    const end = operatorIndex + 1;
+    const rawText = input.slice(section.start, end);
+    const trimmedEnd = input.trimEnd().length;
+    const scope =
+      operatorIndex === trimmedEnd - 1 && ["place", "time"].includes(section.kind)
+        ? "ambiguous"
+        : "section";
+    qualifiers.push(
+      Object.freeze({
+        id: `${section.kind}:${section.start}:${end}`,
+        section: section.kind,
+        start: section.start,
+        end,
+        operatorIndex,
+        rawText,
+        normalizedText: section.text,
+        scope,
+      }),
+    );
+    claimedOperators.add(operatorIndex);
+  }
+
+  const trimmedEnd = input.trimEnd().length;
+  const finalOperator = trimmedEnd - 1;
+  const detachedSentenceQuestion =
+    finalOperator >= 0 &&
+    input[finalOperator] === "?" &&
+    !questionMarkIsEscaped(input, finalOperator) &&
+    !claimedOperators.has(finalOperator) &&
+    /\s/.test(input[finalOperator - 1] ?? "");
+  if (detachedSentenceQuestion) {
+    qualifiers.push(
+      Object.freeze({
+        id: `sentence:0:${input.length}`,
+        section: "sentence",
+        start: 0,
+        end: input.length,
+        operatorIndex: finalOperator,
+        rawText: input,
+        normalizedText: input.slice(0, finalOperator).trimEnd(),
+        scope: "sentence",
+      }),
+    );
+  }
+
+  return Object.freeze({
+    qualifiers: Object.freeze(qualifiers),
+    sentenceQuestion: detachedSentenceQuestion,
+    hasAmbiguity: qualifiers.some((qualifier) => qualifier.scope === "ambiguous"),
+  });
+}
+
+function stripInvestigativeOperators(
+  input: string,
+  qualifiers: readonly OccurrenceInvestigativeQualifier[],
+): string {
+  const operators = new Set(qualifiers.map((qualifier) => qualifier.operatorIndex));
+  return [...input].filter((_, index) => !operators.has(index)).join("");
 }
 
 function normalizedMatchText(value: string): string {

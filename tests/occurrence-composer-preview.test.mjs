@@ -127,7 +127,11 @@ test("unresolved clues retain exact spans and ambiguous interpretations without 
   ]);
   assert.equal(
     projectInvestigativeQualifiers("@alice meets @bob on 2026-09-14?").at(-1)?.kind,
-    "question",
+    "time",
+  );
+  assert.equal(
+    projectInvestigativeQualifiers("@alice meets @bob on 2026-09-14?").at(-1)?.scope,
+    "ambiguous",
   );
   assert.deepEqual(projectInvestigativeQualifiers('"what?" meets @bob'), []);
   assert.deepEqual(projectInvestigativeQualifiers('"what\\?" meets @bob'), []);

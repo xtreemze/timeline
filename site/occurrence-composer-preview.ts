@@ -100,6 +100,7 @@ export interface InvestigativeQualifier {
   readonly start: number;
   readonly end: number;
   readonly text: string;
+  readonly scope: "section" | "sentence" | "ambiguous";
   readonly interpretations: readonly string[];
 }
 
@@ -167,41 +168,24 @@ export function proposeInvestigationAction(
 
 /** This projection is ephemeral. It never writes an entity or a reasoning record. */
 export function projectInvestigativeQualifiers(input: string): readonly InvestigativeQualifier[] {
-  const result: InvestigativeQualifier[] = [];
-  const sections = composerEditableSections(input);
-  const sentenceQuestion =
-    input.endsWith("?") &&
-    !input.endsWith("\\?") &&
-    Boolean(parseOccurrenceSentence(input.slice(0, -1)).object) &&
-    sections.at(-1)?.kind === "time";
-  for (const section of sections) {
-    const source = input.slice(section.start, section.end);
-    if (!source.endsWith("?") || source.endsWith("\\?")) continue;
-    if (source.startsWith('"') && source.endsWith('"')) continue;
-    if (sentenceQuestion && section.end === input.length) continue;
-    result.push(
-      Object.freeze({
-        kind: section.kind,
-        start: section.start,
-        end: section.end,
-        text: source,
+  const investigation = parseOccurrenceSentence(input).investigation;
+  return Object.freeze(
+    investigation.qualifiers.map((qualifier) => {
+      const kind = qualifier.section === "sentence" ? "question" : qualifier.section;
+      return Object.freeze({
+        kind,
+        start: qualifier.start,
+        end: qualifier.end,
+        text: qualifier.rawText,
+        scope: qualifier.scope,
         interpretations: Object.freeze(
-          section.kind === "subject" || section.kind === "object"
+          qualifier.section === "subject" || qualifier.section === "object"
             ? ["entity type", "property", "identity", "descriptor"]
-            : ["candidate value", "unresolved constraint"],
+            : qualifier.section === "sentence"
+              ? ["open question"]
+              : ["candidate value", "unresolved constraint"],
         ),
-      }),
-    );
-  }
-  if (sentenceQuestion)
-    result.push(
-      Object.freeze({
-        kind: "question",
-        start: 0,
-        end: input.length,
-        text: input,
-        interpretations: Object.freeze(["open question"]),
-      }),
-    );
-  return Object.freeze(result);
+      });
+    }),
+  );
 }

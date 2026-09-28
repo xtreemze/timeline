@@ -18,6 +18,7 @@ test("composer owns the card and incremental world preview with interactive gram
   assert.match(source, /input\.setSelectionRange\(start, end\)/);
   assert.match(source, /aria-label="Approve occurrence"/);
   assert.match(source, /projectInvestigativeQualifiers\(this\.value\)/);
+  assert.match(source, /draft\.investigation\.qualifiers\.length/);
   assert.match(source, /interpretInvestigativeQualifier/);
   assert.match(source, /projectInvestigativeCandidateMatrix/);
   assert.match(source, /evidenceAssessments: explicitEvidenceAssessments/);
