@@ -504,8 +504,7 @@ const WORLD_CLUSTER_PANNABLE_MAX_MEMBERS = 32;
  * graph is in inspection mode: all canonical members must be directly
  * represented and force/pan own readability from this point onward.
  */
-export const WORLD_CLUSTER_DETAIL_ZOOM_CEILING =
-  DEFAULT_WORLD_SPATIAL_MODE_POLICY.enterLocalAtZoom;
+export const WORLD_CLUSTER_DETAIL_ZOOM_CEILING = DEFAULT_WORLD_SPATIAL_MODE_POLICY.enterLocalAtZoom;
 
 export function clusterRequiredLocalRadiusPx(
   nodeRadiusPx: number,

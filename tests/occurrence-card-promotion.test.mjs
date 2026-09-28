@@ -50,10 +50,7 @@ test("card focus does not engage the old workspace-resizing focus layout", async
 
   assert.match(app, /presentationSurface === "card"/);
   assert.match(app, /classList\.toggle\("is-event-card-focused"/);
-  assert.match(
-    app,
-    /classList\.toggle\("is-event-focused", focused && !cardFocused\)/,
-  );
+  assert.match(app, /classList\.toggle\("is-event-focused", focused && !cardFocused\)/);
   assert.match(app, /recenterGraph: !cardFocused/);
 });
 

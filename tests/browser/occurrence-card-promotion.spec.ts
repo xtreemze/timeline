@@ -2,7 +2,9 @@ import { expect, type Page, test } from "@playwright/test";
 
 async function ensureSample(page: Page) {
   const terminal = page
-    .locator("#timeline-view .timeline-event:not(.timeline-cluster) .timeline-event-terminal:visible")
+    .locator(
+      "#timeline-view .timeline-event:not(.timeline-cluster) .timeline-event-terminal:visible",
+    )
     .first();
   if (!(await terminal.count())) {
     await page.locator("#load-sample").evaluate((button: HTMLButtonElement) => button.click());

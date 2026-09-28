@@ -1023,7 +1023,6 @@ export class LuumOccurrenceComposerElement extends LitElement {
     return {
       qualifiers,
       activeQualifier,
-      activeQualifier,
       activeInterpretations,
       chosenInterpretation,
       candidateMatrix,
@@ -1155,6 +1154,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const investigation = this.investigationProjection();
     const {
       qualifiers,
+      activeQualifier,
       activeInterpretations,
       chosenInterpretation,
       candidateMatrix,

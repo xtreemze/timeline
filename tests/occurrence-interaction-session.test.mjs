@@ -103,16 +103,13 @@ test("coincident occurrences never qualify as density-isolated", () => {
 });
 
 test("dirty draft blocks cross-occurrence selection unless caller chooses an explicit policy", () => {
-  const dirty = setComposerDraft(
-    createOccurrenceInteractionSession({ occurrenceId: "occ-1" }),
-    {
-      ownerId: "occ-1",
-      text: "@alice calls @bob",
-      dirty: true,
-      selectionStart: 0,
-      selectionEnd: 0,
-    },
-  );
+  const dirty = setComposerDraft(createOccurrenceInteractionSession({ occurrenceId: "occ-1" }), {
+    ownerId: "occ-1",
+    text: "@alice calls @bob",
+    dirty: true,
+    selectionStart: 0,
+    selectionEnd: 0,
+  });
 
   const blocked = switchOccurrenceSelection(dirty, "occ-2");
   assert.equal(blocked.blocked, true);
@@ -139,16 +136,13 @@ test("dirty draft blocks cross-occurrence selection unless caller chooses an exp
 });
 
 test("selecting the same occurrence is idempotent even with a dirty draft", () => {
-  const dirty = setComposerDraft(
-    createOccurrenceInteractionSession({ occurrenceId: "occ-1" }),
-    {
-      ownerId: "occ-1",
-      text: "@alice calls @bob",
-      dirty: true,
-      selectionStart: 4,
-      selectionEnd: 4,
-    },
-  );
+  const dirty = setComposerDraft(createOccurrenceInteractionSession({ occurrenceId: "occ-1" }), {
+    ownerId: "occ-1",
+    text: "@alice calls @bob",
+    dirty: true,
+    selectionStart: 4,
+    selectionEnd: 4,
+  });
 
   const result = switchOccurrenceSelection(dirty, "occ-1");
   assert.equal(result.blocked, false);
@@ -156,17 +150,14 @@ test("selecting the same occurrence is idempotent even with a dirty draft", () =
 });
 
 test("moving the active composer host preserves one authoritative draft and native selection", () => {
-  let session = setComposerDraft(
-    createOccurrenceInteractionSession({ occurrenceId: "occ-1" }),
-    {
-      ownerId: "occ-1",
-      text: '@alice calls "Bob Smith"',
-      dirty: true,
-      selectionStart: 7,
-      selectionEnd: 12,
-      activeSuggestion: 2,
-    },
-  );
+  let session = setComposerDraft(createOccurrenceInteractionSession({ occurrenceId: "occ-1" }), {
+    ownerId: "occ-1",
+    text: '@alice calls "Bob Smith"',
+    dirty: true,
+    selectionStart: 7,
+    selectionEnd: 12,
+    activeSuggestion: 2,
+  });
   session = activateComposerHost(session, "footer");
   const card = activateComposerHost(session, "card");
 
@@ -184,16 +175,13 @@ test("moving the active composer host preserves one authoritative draft and nati
 });
 
 test("investigative qualifiers live in the same composer session and survive unrelated view changes", () => {
-  let session = setComposerDraft(
-    createOccurrenceInteractionSession({ occurrenceId: "occ-1" }),
-    {
-      ownerId: "occ-1",
-      text: 'man? calls @alice at "Central Station"?',
-      dirty: true,
-      selectionStart: 0,
-      selectionEnd: 4,
-    },
-  );
+  let session = setComposerDraft(createOccurrenceInteractionSession({ occurrenceId: "occ-1" }), {
+    ownerId: "occ-1",
+    text: 'man? calls @alice at "Central Station"?',
+    dirty: true,
+    selectionStart: 0,
+    selectionEnd: 4,
+  });
 
   session = setInvestigationQualifiers(session, {
     qualifiers: [
@@ -234,16 +222,13 @@ test("investigative qualifiers live in the same composer session and survive unr
 });
 
 test("clearing investigative qualifiers returns the same draft to ordinary authoring mode", () => {
-  let session = setComposerDraft(
-    createOccurrenceInteractionSession({ occurrenceId: "occ-1" }),
-    {
-      ownerId: "occ-1",
-      text: "man? calls @alice",
-      dirty: true,
-      selectionStart: 0,
-      selectionEnd: 4,
-    },
-  );
+  let session = setComposerDraft(createOccurrenceInteractionSession({ occurrenceId: "occ-1" }), {
+    ownerId: "occ-1",
+    text: "man? calls @alice",
+    dirty: true,
+    selectionStart: 0,
+    selectionEnd: 4,
+  });
   session = setInvestigationQualifiers(session, {
     qualifiers: [
       {
@@ -266,16 +251,13 @@ test("clearing investigative qualifiers returns the same draft to ordinary autho
 });
 
 test("failed commit preserves the draft while successful commit clears dirty state", () => {
-  const session = setComposerDraft(
-    createOccurrenceInteractionSession({ occurrenceId: "occ-1" }),
-    {
-      ownerId: "occ-1",
-      text: "@alice calls @bob",
-      dirty: true,
-      selectionStart: 17,
-      selectionEnd: 17,
-    },
-  );
+  const session = setComposerDraft(createOccurrenceInteractionSession({ occurrenceId: "occ-1" }), {
+    ownerId: "occ-1",
+    text: "@alice calls @bob",
+    dirty: true,
+    selectionStart: 17,
+    selectionEnd: 17,
+  });
 
   const failed = completeComposerCommit(session, { success: false });
   assert.strictEqual(failed, session);

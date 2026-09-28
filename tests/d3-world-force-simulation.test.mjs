@@ -168,10 +168,7 @@ test("cross-place D3 spacing honors hub connectivity clearance", () => {
   const hub = '["hub","place-a"]';
   const peer = '["peer","place-b"]';
   simulation.setScene({
-    nodes: [
-      node(hub, -10, 180, { connectivityClearanceMeters: 720 }),
-      node(peer, 10, 180),
-    ],
+    nodes: [node(hub, -10, 180, { connectivityClearanceMeters: 720 }), node(peer, 10, 180)],
     edges: [],
     anchors: [
       anchor(hub, "place-a", 0, { longitude: 18, latitude: 59 }),
@@ -494,11 +491,7 @@ test("D3 topology cross-place collision cools to a settled state", () => {
   });
 
   simulation.apply(topologyRequest());
-  for (
-    let index = 0;
-    index < 480 && !simulation.getDiagnostics().settled;
-    index += 1
-  ) {
+  for (let index = 0; index < 480 && !simulation.getDiagnostics().settled; index += 1) {
     simulation.step(1000 / 60);
   }
 

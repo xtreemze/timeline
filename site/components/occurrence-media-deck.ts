@@ -135,9 +135,11 @@ export class LuumOccurrenceDeckElement extends LitElement {
       return html`
         <div class="timeline-focus-hero-fallback timeline-occurrence-deck-context">
           <p class="timeline-occurrence-deck-context-label">${frame.label}</p>
-          ${frame.body
-            ? html`<p class="timeline-occurrence-deck-context-body">${frame.body}</p>`
-            : nothing}
+          ${
+            frame.body
+              ? html`<p class="timeline-occurrence-deck-context-body">${frame.body}</p>`
+              : nothing
+          }
         </div>
       `;
     }
@@ -161,9 +163,11 @@ export class LuumOccurrenceDeckElement extends LitElement {
         draggable="false"
         @error=${() => this.onImageError(this.activeIndex)}
       />
-      ${frame.caption
-        ? html`<p class="timeline-occurrence-deck-caption">${frame.caption}</p>`
-        : nothing}
+      ${
+        frame.caption
+          ? html`<p class="timeline-occurrence-deck-caption">${frame.caption}</p>`
+          : nothing
+      }
     `;
   }
 
@@ -190,25 +194,26 @@ export class LuumOccurrenceDeckElement extends LitElement {
         >
           ${this.renderControlIcon("chevron-left")}
         </button>
-        ${mode === "dots"
-          ? this.frames.map(
-              (_, index) => html`
+        ${
+          mode === "dots"
+            ? this.frames.map(
+                (_, index) => html`
                 <button
                   type="button"
                   class="timeline-focus-slide-dot ${index === this.activeIndex ? "is-active" : ""}"
                   data-slide-index=${index}
                   aria-label=${`Show frame ${index + 1} of ${this.frames.length}`}
                   aria-current=${index === this.activeIndex ? "true" : "false"}
-                  @click=${() =>
-                    this.selectIndex(index, `[data-slide-index="${index}"]`)}
+                  @click=${() => this.selectIndex(index, `[data-slide-index="${index}"]`)}
                 ></button>
               `,
-            )
-          : html`
+              )
+            : html`
               <span class="timeline-focus-slide-count" aria-live="polite">
                 ${this.activeIndex + 1} / ${this.frames.length}
               </span>
-            `}
+            `
+        }
         <button
           type="button"
           class="timeline-focus-media-control is-next"
@@ -235,9 +240,6 @@ export class LuumOccurrenceDeckElement extends LitElement {
   }
 }
 
-if (
-  typeof customElements !== "undefined" &&
-  !customElements.get("luum-occurrence-deck")
-) {
+if (typeof customElements !== "undefined" && !customElements.get("luum-occurrence-deck")) {
   customElements.define("luum-occurrence-deck", LuumOccurrenceDeckElement);
 }

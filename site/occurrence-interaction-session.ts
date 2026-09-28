@@ -124,9 +124,7 @@ function freezeQualifier(qualifier: InvestigativeQualifierState): InvestigativeQ
   });
 }
 
-function freezeInvestigation(
-  state: ComposerInvestigationState,
-): ComposerInvestigationState {
+function freezeInvestigation(state: ComposerInvestigationState): ComposerInvestigationState {
   return Object.freeze({
     qualifiers: Object.freeze(state.qualifiers.map(freezeQualifier)),
     activeQualifierId: state.activeQualifierId,
@@ -231,10 +229,7 @@ export function resolveOccurrencePresentation(
     return setPresentation(session, hasDemotionBlocker ? fallback : "expanded");
   }
 
-  return setPresentation(
-    session,
-    selectedIsVisible && !logicalHasOther ? "expanded" : fallback,
-  );
+  return setPresentation(session, selectedIsVisible && !logicalHasOther ? "expanded" : fallback);
 }
 
 export function setComposerDraft(
@@ -360,9 +355,7 @@ export function switchOccurrenceSelection(
   }
 
   const composer =
-    session.composer.dirty && policy === "preserve"
-      ? session.composer
-      : emptyComposer();
+    session.composer.dirty && policy === "preserve" ? session.composer : emptyComposer();
 
   return Object.freeze({
     session: freezeSession({

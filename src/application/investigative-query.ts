@@ -226,8 +226,9 @@ export function interpretInvestigativeQualifier(
       }),
     );
   } else {
-    const typeMatch = [...new Set(context.entities.map((entity) => text(entity.type)).filter(Boolean))]
-      .find((type) => normalized(type) === normalized(clue));
+    const typeMatch = [
+      ...new Set(context.entities.map((entity) => text(entity.type)).filter(Boolean)),
+    ].find((type) => normalized(type) === normalized(clue));
     if (typeMatch) {
       interpretations.push(
         Object.freeze({
@@ -285,8 +286,7 @@ function inferredCell(
   if (interpretation.kind === "entity") {
     return Object.freeze({
       qualifierId: qualifier.id,
-      assessment:
-        stableEntityId(entity) === interpretation.entityId ? "consistent" : "unknown",
+      assessment: stableEntityId(entity) === interpretation.entityId ? "consistent" : "unknown",
       reason:
         stableEntityId(entity) === interpretation.entityId
           ? `Candidate identity matches ${interpretation.label}.`
@@ -370,7 +370,10 @@ function explicitCell(
   return Object.freeze({
     qualifierId,
     assessment: chosen.assessment,
-    reason: relevant.map((assessment) => assessment.reason).filter(Boolean).join(" "),
+    reason: relevant
+      .map((assessment) => assessment.reason)
+      .filter(Boolean)
+      .join(" "),
     recordIds: Object.freeze(recordIds),
   });
 }

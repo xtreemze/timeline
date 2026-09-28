@@ -819,10 +819,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
               target: edge.targetId,
             }));
 
-      const maximumRadius = Math.max(
-        1,
-        ...nodes.map((node) => node.node.collisionRadiusMeters),
-      );
+      const maximumRadius = Math.max(1, ...nodes.map((node) => node.node.collisionRadiusMeters));
       const simulation = forceSimulation<D3WorldNodeState>(nodes as D3WorldNodeState[])
         .stop()
         .alphaMin(ALPHA_MIN)
@@ -1005,10 +1002,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       forceManyBody<D3CrossPlaceInteractionProbe>()
         .strength((probe) => probe.tuning.manyBodyStrength)
         .distanceMin(
-          Math.max(
-            1,
-            Math.min(left.node.collisionRadiusMeters, right.node.collisionRadiusMeters),
-          ),
+          Math.max(1, Math.min(left.node.collisionRadiusMeters, right.node.collisionRadiusMeters)),
         )
         .distanceMax(interactionDistance),
     );
@@ -1150,9 +1144,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
         .strength(Math.max(...probes.map((probe) => probe.tuning.collisionStrength)))
         .iterations(Math.max(...probes.map((probe) => probe.tuning.collisionIterations))),
     );
-    if (
-      probes.some((probe) => probe.preferredRadiusMeters > probe.collisionRadiusMeters)
-    ) {
+    if (probes.some((probe) => probe.preferredRadiusMeters > probe.collisionRadiusMeters)) {
       interactionSimulation.force(
         "connectivity-spacing",
         forceCollide<D3CrossPlaceInteractionProbe>()

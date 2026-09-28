@@ -620,17 +620,16 @@
 .timeline-event-detail {
   position: absolute;
   z-index: 20;
-  left: 0;
+  inset-inline-start: 0;
   top: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   grid-auto-rows: auto;
   align-content: start;
-  width: min(32rem, calc(100vw - 1rem));
-  min-width: min(18rem, calc(100vw - 1rem));
-  max-width: calc(100vw - 1rem);
+  width: min(32rem, calc(100cqi - 1rem));
+  min-width: min(18rem, calc(100cqi - 1rem));
+  max-width: calc(100cqi - 1rem);
   max-height: min(28rem, calc(100dvh - 1rem));
-  overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 0.42rem;
@@ -801,9 +800,9 @@
   border-radius: 0.58rem;
 }
 
-@container (max-width: 420px) {
+@container (inline-size <= 420px) {
   .timeline-event-detail {
-    min-width: min(15rem, calc(100vw - 1rem));
+    min-width: min(15rem, calc(100cqi - 1rem));
   }
 
   .timeline-event-detail .timeline-focus-hero {

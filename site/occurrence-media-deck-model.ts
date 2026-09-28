@@ -85,12 +85,10 @@ export function stepOccurrenceDeckIndex(
   if (count <= 0) return 0;
   const current = clampedIndex(currentIndex, count);
   const step = normalizedWholeNumber(delta);
-  return ((current + step) % count + count) % count;
+  return (((current + step) % count) + count) % count;
 }
 
-export function resolveOccurrenceDeckIndex(
-  input: ResolveOccurrenceDeckIndexInput,
-): number {
+export function resolveOccurrenceDeckIndex(input: ResolveOccurrenceDeckIndexInput): number {
   if (input.frameCount <= 0) return 0;
   if (input.previousOccurrenceId === input.nextOccurrenceId) {
     return clampedIndex(input.previousIndex, input.frameCount);

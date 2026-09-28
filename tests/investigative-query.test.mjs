@@ -13,10 +13,7 @@ import {
   interpretInvestigativeQualifier,
   projectInvestigativeCandidateMatrix,
 } from "../src/application/investigative-query.ts";
-import {
-  normalizeReasoning,
-  validateReasoning,
-} from "../site/case-reasoning.ts";
+import { normalizeReasoning, validateReasoning } from "../site/case-reasoning.ts";
 
 const entities = [
   {
@@ -80,7 +77,9 @@ test("canonical ids, names and aliases produce identity interpretations without 
     { entities },
   );
   assert.deepEqual(
-    byId.filter((interpretation) => interpretation.kind === "entity").map((entry) => entry.entityId),
+    byId
+      .filter((interpretation) => interpretation.kind === "entity")
+      .map((entry) => entry.entityId),
     ["alice"],
   );
 
@@ -126,14 +125,9 @@ test("candidate matrix uses categorical clue cells and keeps missing information
   });
 
   const bob = matrix.candidates.find((candidate) => candidate.candidateEntityId === "bob");
-  const charlie = matrix.candidates.find(
-    (candidate) => candidate.candidateEntityId === "charlie",
-  );
+  const charlie = matrix.candidates.find((candidate) => candidate.candidateEntityId === "charlie");
 
-  assert.equal(
-    bob.cells.find((cell) => cell.qualifierId === "q-sex")?.assessment,
-    "consistent",
-  );
+  assert.equal(bob.cells.find((cell) => cell.qualifierId === "q-sex")?.assessment, "consistent");
   assert.equal(
     bob.cells.find((cell) => cell.qualifierId === "q-jacket")?.assessment,
     "contradicts",
@@ -205,7 +199,10 @@ test("identity exploration always retains a none-known open-world candidate", ()
   });
 
   assert.equal(matrix.totalKnownCandidates, 3);
-  assert.equal(matrix.candidates.filter((candidate) => candidate.candidateScope === "entity").length, 2);
+  assert.equal(
+    matrix.candidates.filter((candidate) => candidate.candidateScope === "entity").length,
+    2,
+  );
   const noneKnown = matrix.candidates.at(-1);
   assert.equal(noneKnown.candidateScope, "none-known");
   assert.equal(noneKnown.candidateEntityId, null);

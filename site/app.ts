@@ -2155,8 +2155,9 @@ function relationshipMetadataIdentity(relationship: RelationshipRecord): string 
 function commitOccurrenceComposer(detail: OccurrenceCommitDetail): void {
   try {
     if (detail.editTarget) {
+      const { relationshipId } = detail.editTarget;
       const existingRelationship = state.relationships.find(
-        (relationship) => String(relationship.id) === detail.editTarget!.relationshipId,
+        (relationship) => String(relationship.id) === relationshipId,
       );
       const sentenceUnchanged = detail.text.trim() === detail.editTarget.initialText.trim();
       const metadataUnchanged =

@@ -331,12 +331,10 @@ test("connectivity clearance grows sublinearly with graph degree", () => {
   assert.ok(degreeTwo && degreeFour && degreeNine);
   assert.equal(degreeTwo.connectivityClearanceMeters ?? 0, 0);
   assert.ok(
-    (degreeFour.connectivityClearanceMeters ?? 0) >
-      (degreeTwo.connectivityClearanceMeters ?? 0),
+    (degreeFour.connectivityClearanceMeters ?? 0) > (degreeTwo.connectivityClearanceMeters ?? 0),
   );
   assert.ok(
-    (degreeNine.connectivityClearanceMeters ?? 0) >
-      (degreeFour.connectivityClearanceMeters ?? 0),
+    (degreeNine.connectivityClearanceMeters ?? 0) > (degreeFour.connectivityClearanceMeters ?? 0),
   );
   assert.ok(
     (degreeNine.connectivityClearanceMeters ?? 0) <

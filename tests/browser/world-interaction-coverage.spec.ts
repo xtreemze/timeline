@@ -96,19 +96,22 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
     const viewport = page.viewportSize();
     if (!viewport) throw new Error("WorldSurface wheel handoff certification requires a viewport.");
 
-    await page.evaluate(async ({ enterLocalAtZoom }) => {
-      const surface = window.__worldPerfHarness.surface;
-      surface.setCamera({
-        longitude: 18.0686,
-        latitude: 59.3293,
-        zoom: enterLocalAtZoom - 0.25,
-        bearing: 0,
-        pitch: 0,
-      });
-      await new Promise<void>((resolve) =>
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
-      );
-    }, { enterLocalAtZoom: DEFAULT_WORLD_SPATIAL_MODE_POLICY.enterLocalAtZoom });
+    await page.evaluate(
+      async ({ enterLocalAtZoom }) => {
+        const surface = window.__worldPerfHarness.surface;
+        surface.setCamera({
+          longitude: 18.0686,
+          latitude: 59.3293,
+          zoom: enterLocalAtZoom - 0.25,
+          bearing: 0,
+          pitch: 0,
+        });
+        await new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        );
+      },
+      { enterLocalAtZoom: DEFAULT_WORLD_SPATIAL_MODE_POLICY.enterLocalAtZoom },
+    );
 
     const point = {
       x: Math.round(viewport.width * 0.62),
@@ -121,7 +124,9 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
     // handoff can complete, then continue with wheel input only.
     await page.mouse.wheel(0, -600);
     await page.waitForTimeout(450);
-    const afterCrossing = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera().zoom);
+    const afterCrossing = await page.evaluate(
+      () => window.__worldPerfHarness.surface.getCamera().zoom,
+    );
     expect(afterCrossing).toBeGreaterThanOrEqual(
       DEFAULT_WORLD_SPATIAL_MODE_POLICY.enterLocalAtZoom,
     );
@@ -277,22 +282,25 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
     const viewport = page.viewportSize();
     if (!viewport) throw new Error("WorldSurface pinch certification requires a viewport.");
 
-    await page.evaluate(async ({ enterLocalAtZoom }) => {
-      const helpersModulePath = "/world-test-helpers.mjs";
-      const { createWorldProjection } = await import(helpersModulePath);
-      const harness = window.__worldPerfHarness;
-      harness.surface.setProjection(createWorldProjection({ instances: [], edges: [] }));
-      harness.surface.setCamera({
-        longitude: 12,
-        latitude: 30,
-        zoom: enterLocalAtZoom - 0.25,
-        bearing: 0,
-        pitch: 0,
-      });
-      await new Promise<void>((resolve) =>
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
-      );
-    }, { enterLocalAtZoom: DEFAULT_WORLD_SPATIAL_MODE_POLICY.enterLocalAtZoom });
+    await page.evaluate(
+      async ({ enterLocalAtZoom }) => {
+        const helpersModulePath = "/world-test-helpers.mjs";
+        const { createWorldProjection } = await import(helpersModulePath);
+        const harness = window.__worldPerfHarness;
+        harness.surface.setProjection(createWorldProjection({ instances: [], edges: [] }));
+        harness.surface.setCamera({
+          longitude: 12,
+          latitude: 30,
+          zoom: enterLocalAtZoom - 0.25,
+          bearing: 0,
+          pitch: 0,
+        });
+        await new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        );
+      },
+      { enterLocalAtZoom: DEFAULT_WORLD_SPATIAL_MODE_POLICY.enterLocalAtZoom },
+    );
 
     await pinch(page, { x: viewport.width / 2, y: viewport.height / 2 }, 2);
 
