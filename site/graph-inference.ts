@@ -1,3 +1,5 @@
+import { suggestSemanticIcon } from "../src/presentation/semantic-icon-inference.ts";
+
 const SCHEMA_VERSION = "timeline-graph-inference-v1";
 const MAX_FRAGMENT_LENGTH = 5000;
 const MAX_CONTEXT_CHARS = 24000;
@@ -186,6 +188,12 @@ interface ReconciledEntityCandidate {
   status: "existing" | "new";
   entityId: string;
   existingEntityId: string;
+  semanticIconSuggestion: {
+    icon: string;
+    confidence: "high";
+    reason: string;
+    origin: "inferred";
+  } | null;
   record: Record<string, unknown> | null;
 }
 
@@ -487,6 +495,7 @@ export function reconcileProposal(
           sourceIds: [],
           attributes: storyIds.length === 1 ? { storyId: storyIds[0] } : {},
         };
+    const iconSuggestion = existing ? null : suggestSemanticIcon({ name, type });
     const normalized: ReconciledEntityCandidate = {
       key,
       name,
@@ -500,6 +509,12 @@ export function reconcileProposal(
       status: existing ? "existing" : "new",
       entityId: String(existing?.id ?? record?.id ?? ""),
       existingEntityId: String(existing?.id ?? ""),
+      semanticIconSuggestion: iconSuggestion
+        ? {
+            ...iconSuggestion,
+            origin: "inferred",
+          }
+        : null,
       record,
     };
     entities.push(normalized);
