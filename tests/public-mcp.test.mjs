@@ -161,6 +161,19 @@ test("document story preflight accepts a complete source-grounded project", () =
   });
 });
 
+test("document story preflight enforces canonical semantic icons", () => {
+  const project = validProject();
+  project.entities[0].attributes = {
+    storyId: "story-a",
+    style: { icon: "not-a-real-icon" },
+  };
+
+  const result = preflightStoryProject(project, [{ id: "src-a" }]);
+
+  assert.equal(result.valid, false);
+  assert.match(result.errors.join("\n"), /unsupported semantic icon/i);
+});
+
 test("document story staging preserves unresolved facts and requires verification", () => {
   const result = stageStoryProject({
     project: validProject(),
