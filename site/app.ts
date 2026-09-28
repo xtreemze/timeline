@@ -36,6 +36,7 @@ import {
   parseOccurrenceSentence,
   type ComposerTimeReference,
 } from "./occurrence-composer-model.ts";
+import { proposeInvestigationAction } from "./occurrence-composer-preview.ts";
 import { TimelineEvidence } from "./evidence-store.ts";
 import { TimelineGraphInference } from "./graph-inference.ts";
 import { TimelineInterchangeAdapter } from "./interchange-adapter.ts";
@@ -1893,9 +1894,18 @@ function syncOccurrenceComposerSelection(selection = applicationSelection.curren
     ? state.places.find((candidate) => String(candidate.id) === String(relationship.placeId))
     : null;
   const selectedItemId = composerItemIdForRelationship(relationship, selection.itemId);
+  const selectedItem = selectedItemId
+    ? state.items.find((item) => String(item.id) === selectedItemId)
+    : null;
   els.occurrenceComposer.setSelectionContext({
     selectedOccurrenceId: String(relationship.id),
     ...(selectedItemId ? { selectedItemId } : {}),
+    title: selectedItem?.title ?? null,
+    description: selectedItem?.description ?? relationship.role ?? null,
+    media: (() => {
+      const image = selectedItem?.media?.find((entry) => Boolean(entry.src));
+      return image?.src ? { src: image.src, alt: image.alt ?? "" } : null;
+    })(),
     composition: occurrenceCompositionForRelationship(relationship, selectedItemId),
     relationship: {
       subjectId: String(relationship.subjectId),
@@ -1949,7 +1959,7 @@ function syncComposerVisualViewport(): void {
   els.occurrenceComposer.style.setProperty("--composer-visual-viewport-height", heightPx);
   els.occurrenceComposer.style.setProperty(
     "--composer-completion-max-height",
-    `${Math.max(112, Math.round(height * 0.42))}px`,
+    `${Math.max(112, Math.round(height * 0.65))}px`,
   );
 }
 
@@ -1973,6 +1983,7 @@ function syncOccurrenceComposerData(): void {
     categories: state.categories.map((category) => ({
       id: category.id,
       name: category.name,
+      color: category.color,
     })),
     tags: [
       ...new Set(
@@ -6156,6 +6167,31 @@ els.occurrenceComposer.addEventListener("occurrencecomposeropenrequest", () => {
 });
 els.occurrenceComposer.addEventListener("occurrencecomposercloserequest", () => {
   setOccurrenceComposerOpen(false);
+});
+els.occurrenceComposer.addEventListener("occurrenceinvestigationactionrequest", (event) => {
+  const { text = "", action = "" } =
+    (event as CustomEvent<{ text?: string; action?: string }>).detail ?? {};
+  const proposal = proposeInvestigationAction(text, action);
+  if (!proposal) return;
+  const current = caseReasoning.normalizeReasoning(state.reasoning);
+  const next = caseReasoning.normalizeReasoning({
+    ...current,
+    [proposal.collection]: [
+      ...current[proposal.collection],
+      { id: `${action}-${crypto.randomUUID()}`, ...proposal.record },
+    ],
+  });
+  const errors = caseReasoning
+    .validateReasoning(next, {
+      entityIds: state.entities.map((entity) => entity.id),
+      externalIds: investigationExternalIds(),
+    })
+    .filter((finding) => finding.severity === "error");
+  if (errors.length) {
+    els.occurrenceComposer.setError(errors[0]?.message ?? "Cannot create the question.");
+    return;
+  }
+  applyInvestigationReasoning(next, `${action} recorded in case reasoning.`);
 });
 els.occurrenceComposer.addEventListener("occurrencecomposeradvancededitrequest", (event) => {
   const relationshipId = (event as CustomEvent<{ relationshipId?: string }>).detail?.relationshipId;

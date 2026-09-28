@@ -1,6 +1,10 @@
 import { LitElement, css, html, nothing } from "lit";
 import { iconPathData } from "../event-presentation.ts";
 import {
+  projectComposerPreview,
+  projectInvestigativeQualifiers,
+} from "../occurrence-composer-preview.ts";
+import {
   timelineContextFromViewport,
   worldContextFromCamera,
   type ComposerTimelineContext,
@@ -33,6 +37,9 @@ export interface OccurrenceComposerSelectionContext {
   readonly selectedOccurrenceId?: string | null;
   readonly selectedItemId?: string | null;
   readonly composition?: string | null;
+  readonly title?: string | null;
+  readonly description?: string | null;
+  readonly media?: { readonly src: string; readonly alt: string } | null;
   readonly relationship?: {
     readonly subjectId: string;
     readonly objectId: string;
@@ -130,7 +137,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
     .input-row {
       display: grid;
-      grid-template-columns: auto minmax(0, 1fr) auto;
+      grid-template-columns: auto minmax(0, 1fr) auto auto;
       gap: 0.35rem;
       align-items: center;
       min-inline-size: 0;
@@ -225,7 +232,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
       inset-inline: 0;
       inset-block-end: calc(100% + 0.38rem);
       display: grid;
-      max-block-size: min(18rem, var(--composer-completion-max-height, 42dvh));
+      max-block-size: min(32rem, var(--composer-completion-max-height, 65dvh));
       overflow: hidden;
       border: 1px solid var(--line-strong, #b8b1a5);
       border-radius: 0.72rem;
@@ -244,6 +251,45 @@ export class LuumOccurrenceComposerElement extends LitElement {
       border-block-end: 1px solid var(--line, #d1ccc4);
       scrollbar-width: none;
     }
+
+    .composer-occurrence-card {
+      display: grid;
+      gap: 0.42rem;
+      min-inline-size: 0;
+      padding: 0.55rem 0.65rem;
+      border-block-end: 1px solid var(--line, #d1ccc4);
+      background: var(--panel, #f5f3ef);
+    }
+
+    .composer-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; font-size: 0.8rem; }
+    .composer-card-heading strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .composer-card-context { margin: 0; font-size: 0.73rem; line-height: 1.35; color: var(--muted, #615d56); }
+    .composer-card-media { max-inline-size: 100%; max-block-size: 4rem; object-fit: contain; border-radius: 0.4rem; }
+    .composer-world-preview {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
+      min-block-size: 5.5rem;
+      padding: 0.35rem;
+      border: 1px solid var(--preview-accent, var(--line, #d1ccc4));
+      border-radius: 0.65rem;
+      background: radial-gradient(circle at 50% 55%, #7494a044 0 28%, transparent 29%),
+        radial-gradient(circle at 50% 55%, #446e8e44 0 34%, transparent 35%),
+        var(--paper, #fff);
+    }
+    .preview-node { display: grid; justify-items: center; gap: 0.15rem; min-inline-size: 3.8rem; max-inline-size: 35%; font-size: 0.7rem; font-weight: 650; text-align: center; overflow-wrap: anywhere; }
+    .preview-node svg { inline-size: 32px; block-size: 32px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+    .preview-edge { min-inline-size: 2rem; max-inline-size: 30%; color: var(--preview-accent, var(--accent, #315fbd)); font-size: 0.72rem; text-align: center; overflow-wrap: anywhere; }
+    .preview-pending { opacity: 0.4; }
+    .composer-grammar, .composer-qualifiers { display: flex; gap: 0.3rem; overflow-x: auto; scrollbar-width: thin; }
+    .grammar-chip, .qualifier-chip, .interpretation-chip { flex: 0 0 auto; min-block-size: 44px; padding: 0.2rem 0.5rem; border: 1px solid var(--line, #d1ccc4); border-radius: 0.5rem; background: var(--paper, #fff); color: inherit; font: inherit; cursor: pointer; }
+    .qualifier-chip { border-color: var(--accent, #315fbd); }
+    .grammar-chip:focus-visible, .qualifier-chip:focus-visible, .interpretation-chip:focus-visible { outline: 2px solid var(--accent, #315fbd); outline-offset: -2px; }
+    .investigation-panel { display: grid; gap: 0.3rem; padding: 0.45rem 0.65rem; border-block-end: 1px solid var(--line, #d1ccc4); font-size: 0.75rem; }
+    .interpretation-row { display: flex; gap: 0.25rem; overflow-x: auto; }
+    .approval { min-inline-size: 44px; min-block-size: 44px; border: 1px solid var(--line, #d1ccc4); border-radius: 0.58rem; background: var(--paper, #fff); color: var(--ink, #191714); cursor: pointer; }
+    .approval svg { inline-size: 20px; block-size: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
     .context-row::-webkit-scrollbar {
       display: none;
@@ -299,7 +345,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
     @media (max-width: 480px) {
       .input-row {
-        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-columns: minmax(0, 1fr) auto auto;
       }
 
       .stage {
@@ -416,6 +462,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
   private timelineContext: ComposerTimelineContext | null = null;
   private worldContext: ComposerWorldContext | null = null;
   private activeSuggestion = 0;
+  private previewSuggestion: ComposerSuggestion | null = null;
+  private activeInterpretation = "";
   private cursorOffset = 0;
   private externalError = "";
   private explicitPlaceContext: ComposerWorldContext | null = null;
@@ -462,6 +510,9 @@ export class LuumOccurrenceComposerElement extends LitElement {
             : {}),
           ...(context.selectedItemId ? { selectedItemId: context.selectedItemId } : {}),
           ...(context.composition ? { composition: context.composition } : {}),
+          ...(context.title ? { title: context.title } : {}),
+          ...(context.description ? { description: context.description } : {}),
+          ...(context.media ? { media: Object.freeze({ ...context.media }) } : {}),
           ...(context.relationship
             ? {
                 relationship: Object.freeze({
@@ -606,6 +657,18 @@ export class LuumOccurrenceComposerElement extends LitElement {
     });
   }
 
+  private selectSection(start: number, end: number): void {
+    this.cursorOffset = start;
+    this.activeSuggestion = 0;
+    this.requestUpdate();
+    void this.updateComplete.then(() => {
+      const input = this.renderRoot.querySelector<HTMLInputElement>("input");
+      if (!input) return;
+      input.focus({ preventScroll: true });
+      input.setSelectionRange(start, end);
+    });
+  }
+
   private applySelectionSeed(): void {
     const composition = this.selectionContext?.composition?.trim() ?? "";
     if (composition) {
@@ -715,6 +778,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
     }
     this.externalError = "";
     this.activeSuggestion = 0;
+    this.previewSuggestion = null;
+    this.activeInterpretation = "";
     this.requestUpdate();
   }
 
@@ -753,7 +818,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
   private commit(): void {
     const draft = this.parsed();
-    if (draft.investigation.qualifiers.length) {
+    if (projectInvestigativeQualifiers(this.value).length) {
       this.externalError =
         "Resolve or persist the investigative clue before committing a canonical occurrence.";
       this.requestUpdate();
@@ -820,12 +885,14 @@ export class LuumOccurrenceComposerElement extends LitElement {
     if (event.key === "ArrowDown" && suggestions.length) {
       event.preventDefault();
       this.activeSuggestion = (this.activeSuggestion + 1) % suggestions.length;
+      this.previewSuggestion = suggestions[this.activeSuggestion] ?? null;
       this.requestUpdate();
       return;
     }
     if (event.key === "ArrowUp" && suggestions.length) {
       event.preventDefault();
       this.activeSuggestion = (this.activeSuggestion - 1 + suggestions.length) % suggestions.length;
+      this.previewSuggestion = suggestions[this.activeSuggestion] ?? null;
       this.requestUpdate();
       return;
     }
@@ -857,6 +924,14 @@ export class LuumOccurrenceComposerElement extends LitElement {
     }
     if (parsed.stage === "complete") return "ready";
     return parsed.stage;
+  }
+
+  private previewNode(node: { label: string; icon: string } | null, label: string) {
+    return node
+      ? html`<span class="preview-node"><svg viewBox="0 0 24 24" aria-hidden="true">
+          ${iconPathData(node.icon).map((path) => html`<path d=${path}></path>`)}
+        </svg><span>${node.label}</span></span>`
+      : html`<span class="preview-node preview-pending">${label}</span>`;
   }
   override render() {
     if (!this.active) {
@@ -893,7 +968,13 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const placePinned = Boolean(parsed.place || this.selectionContext?.place);
     const timePinned = Boolean(parsed.time);
     const categoryLabel = parsed.options.category ?? null;
+    const previewCategory = this.data.categories.find(
+      (category) => category.name === categoryLabel,
+    );
     const tagLabels = parsed.options.tags;
+    const sections = composerEditableSections(this.value);
+    const qualifiers = projectInvestigativeQualifiers(this.value);
+    const preview = projectComposerPreview(this.value, this.data.entities, this.previewSuggestion);
 
     return html`
       <section class="composer" aria-label="Occurrence composer">
@@ -933,9 +1014,90 @@ export class LuumOccurrenceComposerElement extends LitElement {
             title="Close occurrence composer"
             @click=${() => this.requestClose()}
           >×</button>
+          <button class="approval" type="button" aria-label="Approve occurrence" title="Approve occurrence"
+            @click=${() => this.commit()}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 12 5 5L20 6"></path></svg>
+          </button>
         </div>
 
         <div class="completion-panel">
+          <section class="composer-occurrence-card" aria-label="Occurrence card in composer">
+            <div class="composer-card-heading"><strong>${this.selectionContext?.title || "New occurrence"}</strong>
+              <span>${qualifiers.length ? "Investigating" : preview.category || "Draft"}</span></div>
+            ${
+              this.selectionContext?.media
+                ? html`<img class="composer-card-media"
+              src=${this.selectionContext.media.src} alt=${this.selectionContext.media.alt}>`
+                : nothing
+            }
+            <div class="composer-world-preview" role="img"
+              style=${`--preview-accent: ${previewCategory?.color ?? "var(--accent, #315fbd)"}`}
+              aria-label=${`World preview: ${preview.subject?.label ?? "subject pending"}, ${preview.edge?.label ?? "action pending"}, ${preview.object?.label ?? "target pending"}`}>
+              ${this.previewNode(preview.subject, "Subject")}
+              <span class="preview-edge ${preview.edge ? "" : "preview-pending"}">${preview.edge?.label ?? "Action"} →</span>
+              ${this.previewNode(preview.object, "Target")}
+            </div>
+            ${this.selectionContext?.description ? html`<p class="composer-card-context">${this.selectionContext.description}</p>` : nothing}
+            <div class="composer-grammar" aria-label="Editable sentence sections">
+              ${sections.map(
+                (section) => html`<button class="grammar-chip" type="button"
+                aria-label=${`Edit ${section.kind}: ${section.text}`}
+                @pointerdown=${(event: PointerEvent) => event.preventDefault()}
+                @click=${() => this.selectSection(section.start, section.end)}>${section.text}</button>`,
+              )}
+              ${preview.tags.map((tag) => html`<span class="context-chip">#${tag}</span>`)}
+            </div>
+          </section>
+          ${
+            qualifiers.length
+              ? html`<section class="investigation-panel" aria-label="Investigative clues">
+            <strong>Unresolved · no fact will be created</strong>
+            <div class="composer-qualifiers">${qualifiers.map(
+              (qualifier) => html`<button
+              class="qualifier-chip" type="button" aria-label=${`Investigate ${qualifier.kind}: ${qualifier.text}`}
+              @pointerdown=${(event: PointerEvent) => event.preventDefault()}
+              @click=${() => this.selectSection(qualifier.start, qualifier.end)}>${qualifier.text}</button>`,
+            )}</div>
+            <div class="interpretation-row" aria-label="Possible interpretations">
+              ${(
+                qualifiers.find(
+                  (qualifier) =>
+                    this.cursorOffset >= qualifier.start && this.cursorOffset <= qualifier.end,
+                ) ?? qualifiers[0]
+              )?.interpretations.map(
+                (meaning) => html`<button
+                class="interpretation-chip" type="button" aria-pressed=${String(this.activeInterpretation === meaning)}
+                @click=${() => {
+                  this.activeInterpretation = meaning;
+                  this.requestUpdate();
+                }}>${meaning}</button>`,
+              )}
+            </div>
+            <span>Candidate evidence has not been evaluated. None known remains possible.</span>
+            <div class="interpretation-row" aria-label="Investigation methods">
+              ${(
+                [
+                  ["question", "Ask this question"],
+                  ["assumption", "Add assumption"],
+                  ["enquiry", "Create enquiry"],
+                  ["falsify", "What would disconfirm this?"],
+                  ["information-review", "Review information quality"],
+                ] as const
+              ).map(
+                ([action, label]) => html`<button class="interpretation-chip"
+                type="button" @click=${() =>
+                  this.dispatchEvent(
+                    new CustomEvent("occurrenceinvestigationactionrequest", {
+                      bubbles: true,
+                      composed: true,
+                      detail: { text: this.value, action },
+                    }),
+                  )}>${label}</button>`,
+              )}
+            </div>
+          </section>`
+              : nothing
+          }
           <div class="context-row" aria-label="Occurrence context">
             ${
               this.hasPendingSelectionContext
@@ -953,38 +1115,45 @@ export class LuumOccurrenceComposerElement extends LitElement {
             }
             ${
               subjectLabel
-                ? html`<span class="context-chip" data-context-kind="subject" data-context-state="pinned">
+                ? html`<button class="context-chip" type="button" data-context-kind="subject" data-context-state="pinned"
+                  @click=${() => this.focusSection("subject")}>
                   <span>Subject</span><strong>${subjectLabel}</strong><span class="context-state">pinned</span>
-                </span>`
+                </button>`
                 : nothing
             }
-            <span
+            <button type="button" @click=${() => this.focusSection("place")}
               class="context-chip"
               data-context-kind="place"
               data-context-state=${placePinned ? "pinned" : "live"}
             >
               <span>Place</span><strong>${placeLabel}</strong><span class="context-state">${placePinned ? "pinned" : "live"}</span>
-            </span>
-            <span
+            </button>
+            <button type="button" @click=${() => this.focusSection("time")}
               class="context-chip"
               data-context-kind="time"
               data-context-state=${timePinned ? "pinned" : "live"}
             >
               <span>Time</span><strong>${timeLabel ?? "timeline center"}</strong><span class="context-state">${timePinned ? "pinned" : "live"}</span>
-            </span>
+            </button>
             ${
               categoryLabel
-                ? html`<span class="context-chip" data-context-kind="category" data-context-state="pinned">
+                ? html`<button class="context-chip" type="button" data-context-kind="category" data-context-state="pinned"
+                  @click=${() => this.focusSection("category")}>
                   <span>Category</span><strong>${categoryLabel}</strong>
-                </span>`
+                </button>`
                 : nothing
             }
             ${tagLabels.map(
               (
                 tag,
-              ) => html`<span class="context-chip" data-context-kind="tag" data-context-state="pinned">
+                index,
+              ) => html`<button class="context-chip" type="button" data-context-kind="tag" data-context-state="pinned"
+                @click=${() => {
+                  const section = sections.filter((candidate) => candidate.kind === "tag")[index];
+                  if (section) this.selectSection(section.start, section.end);
+                }}>
                 <span>Tag</span><strong>${tag}</strong>
-              </span>`,
+              </button>`,
             )}
           </div>
           ${
@@ -1005,6 +1174,18 @@ export class LuumOccurrenceComposerElement extends LitElement {
                         role="option"
                         aria-selected=${String(index === selectedIndex)}
                         @pointerdown=${(event: PointerEvent) => event.preventDefault()}
+                        @pointerenter=${() => {
+                          this.previewSuggestion = suggestion;
+                          this.requestUpdate();
+                        }}
+                        @pointerleave=${() => {
+                          this.previewSuggestion = null;
+                          this.requestUpdate();
+                        }}
+                        @focus=${() => {
+                          this.previewSuggestion = suggestion;
+                          this.requestUpdate();
+                        }}
                         @click=${() => this.applySuggestion(suggestion)}
                       >
                         <span class="option-main">

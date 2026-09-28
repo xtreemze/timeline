@@ -1,0 +1,185 @@
+import { normalizeSemanticIconName } from "../src/presentation/semantic-icons.ts";
+import {
+  composerEditableSections,
+  parseOccurrenceSentence,
+  type ComposerEntityOption,
+  type ComposerSuggestion,
+} from "./occurrence-composer-model.ts";
+
+export interface ComposerPreviewNode {
+  readonly label: string;
+  readonly icon: string;
+}
+
+export interface ComposerPreview {
+  readonly subject: ComposerPreviewNode | null;
+  readonly edge: { readonly label: string } | null;
+  readonly object: ComposerPreviewNode | null;
+  readonly category: string | null;
+  readonly tags: readonly string[];
+}
+
+function previewNode(
+  name: string | undefined,
+  properties: Readonly<Record<string, string>> | undefined,
+  entities: readonly ComposerEntityOption[],
+  suggestedIcon: string | null,
+): ComposerPreviewNode | null {
+  if (!name) return null;
+  const matched = entities.find(
+    (entity) =>
+      name === `@${entity.id}` || name.toLocaleLowerCase() === entity.name.toLocaleLowerCase(),
+  );
+  const icon =
+    (suggestedIcon && normalizeSemanticIconName(suggestedIcon)) ||
+    normalizeSemanticIconName(properties?.icon) ||
+    normalizeSemanticIconName(matched?.icon) ||
+    "person";
+  return Object.freeze({ label: matched?.name ?? name.replace(/^@/, ""), icon });
+}
+
+export function projectComposerPreview(
+  input: string,
+  entities: readonly ComposerEntityOption[],
+  suggestion?: ComposerSuggestion | null,
+): ComposerPreview {
+  const parsed = parseOccurrenceSentence(input);
+  const iconSuggestion =
+    suggestion?.kind === "property" && /^icon:\s*/i.test(suggestion.insertText)
+      ? suggestion.insertText.replace(/^icon:\s*/i, "").trim()
+      : null;
+  const iconOffset = input.lastIndexOf("icon:");
+  const iconSection = composerEditableSections(input).find(
+    (section) => iconOffset >= section.start && iconOffset < section.end,
+  );
+  const previewSubjectIcon = iconSection?.kind === "subject" ? iconSuggestion : null;
+  const previewObjectIcon = iconSection?.kind === "object" ? iconSuggestion : null;
+  return Object.freeze({
+    subject: previewNode(
+      parsed.subject?.name,
+      parsed.subject?.properties,
+      entities,
+      previewSubjectIcon,
+    ),
+    edge: parsed.predicate ? Object.freeze({ label: parsed.predicate }) : null,
+    object: previewNode(
+      parsed.object?.name,
+      parsed.object?.properties,
+      entities,
+      previewObjectIcon,
+    ),
+    category: parsed.options.category ?? null,
+    tags: parsed.options.tags,
+  });
+}
+
+export interface InvestigativeQualifier {
+  readonly kind: string;
+  readonly start: number;
+  readonly end: number;
+  readonly text: string;
+  readonly interpretations: readonly string[];
+}
+
+export function proposeInvestigationQuestion(input: string): {
+  readonly collection: "questions";
+  readonly record: { readonly text: string; readonly status: "open" };
+} | null {
+  if (!projectInvestigativeQualifiers(input).length) return null;
+  return Object.freeze({
+    collection: "questions",
+    record: Object.freeze({
+      text: `What is unresolved in “${input.trim()}”?`,
+      status: "open",
+    }),
+  });
+}
+
+export function proposeInvestigationAction(
+  input: string,
+  action: string,
+): {
+  readonly collection: "questions" | "assumptions" | "linesOfEnquiry" | "informationReviews";
+  readonly record: Readonly<Record<string, string>>;
+} | null {
+  const question = proposeInvestigationQuestion(input);
+  if (!question) return null;
+  const context = input.trim();
+  switch (action) {
+    case "question":
+      return question;
+    case "assumption":
+      return Object.freeze({
+        collection: "assumptions",
+        record: Object.freeze({
+          text: `Assumption to examine: ${context}`,
+          status: "open",
+        }),
+      });
+    case "enquiry":
+    case "falsify":
+      return Object.freeze({
+        collection: "linesOfEnquiry",
+        record: Object.freeze({
+          text:
+            action === "falsify"
+              ? `Seek evidence that would disconfirm: ${context}`
+              : `Investigate: ${context}`,
+          status: "proposed",
+          testType: action === "falsify" ? "falsify" : "discover",
+        }),
+      });
+    case "information-review":
+      return Object.freeze({
+        collection: "informationReviews",
+        record: Object.freeze({
+          text: `Review the information quality for: ${context}`,
+          finding: "unknown",
+          methodId: "quality-of-information-check",
+        }),
+      });
+    default:
+      return null;
+  }
+}
+
+/** This projection is ephemeral. It never writes an entity or a reasoning record. */
+export function projectInvestigativeQualifiers(input: string): readonly InvestigativeQualifier[] {
+  const result: InvestigativeQualifier[] = [];
+  const sections = composerEditableSections(input);
+  const sentenceQuestion =
+    input.endsWith("?") &&
+    !input.endsWith("\\?") &&
+    Boolean(parseOccurrenceSentence(input.slice(0, -1)).object) &&
+    sections.at(-1)?.kind === "time";
+  for (const section of sections) {
+    const source = input.slice(section.start, section.end);
+    if (!source.endsWith("?") || source.endsWith("\\?")) continue;
+    if (source.startsWith('"') && source.endsWith('"')) continue;
+    if (sentenceQuestion && section.end === input.length) continue;
+    result.push(
+      Object.freeze({
+        kind: section.kind,
+        start: section.start,
+        end: section.end,
+        text: source,
+        interpretations: Object.freeze(
+          section.kind === "subject" || section.kind === "object"
+            ? ["entity type", "property", "identity", "descriptor"]
+            : ["candidate value", "unresolved constraint"],
+        ),
+      }),
+    );
+  }
+  if (sentenceQuestion)
+    result.push(
+      Object.freeze({
+        kind: "question",
+        start: 0,
+        end: input.length,
+        text: input,
+        interpretations: Object.freeze(["open question"]),
+      }),
+    );
+  return Object.freeze(result);
+}

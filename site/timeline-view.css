@@ -650,6 +650,11 @@
   display: none;
 }
 
+/* The composer owns the expanded occurrence while editing; the timeline anchor stays retained. */
+.app-shell:has(#occurrence-composer[active]) .timeline-event-detail {
+  display: none;
+}
+
 .timeline-event.is-expanded .timeline-event-terminal {
   z-index: 22;
   border-color: var(--event-color);

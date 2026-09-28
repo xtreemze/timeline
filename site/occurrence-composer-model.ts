@@ -61,6 +61,7 @@ export interface ComposerPlaceOption {
 export interface ComposerCategoryOption {
   readonly id: string;
   readonly name: string;
+  readonly color?: string;
 }
 
 export interface ComposerSuggestion {
@@ -950,6 +951,7 @@ export function occurrenceComposerSuggestions(
           kind: "property" as const,
           label: property,
           detail: iconValueActive ? "semantic icon" : "entity property",
+          ...(iconValueActive ? { icon: property.replace(/^icon:\s*/, "") } : {}),
           insertText: property,
         })),
     );
