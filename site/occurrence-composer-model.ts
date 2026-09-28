@@ -1051,8 +1051,12 @@ export function occurrenceComposerSuggestions(
     (section) => cursorOffset >= section.start && cursorOffset <= section.end,
   );
 
-  if (/\([^)]*$/.test(prefix)) {
-    const iconValueActive = /(?:^|[,(])\s*icon\s*:\s*[^,)]*$/i.test(prefix);
+  const openEntityProperties = findLastMarkerOutsideQuotes(prefix, "(");
+  const closeEntityProperties = findLastMarkerOutsideQuotes(prefix, ")");
+  if (openEntityProperties > closeEntityProperties) {
+    const propertyText = prefix.slice(openEntityProperties + 1);
+    const activeProperty = parsePropertyEntries(propertyText).at(-1);
+    const iconValueActive = activeProperty?.key.toLocaleLowerCase() === "icon";
     const properties = iconValueActive
       ? ENTITY_ICON_PROPERTY_SUGGESTIONS
       : ENTITY_PROPERTY_SUGGESTIONS;
