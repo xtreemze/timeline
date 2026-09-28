@@ -142,6 +142,14 @@ function asyncPickingSurfaceHarness() {
         y: 259,
       };
     },
+    setAsyncPickNonEntity() {
+      asyncPickResult = {
+        object: { kind: "place", placeId: "stockholm" },
+        layer: { id: DECK_WORLD_LAYER_IDS.places },
+        x: 118,
+        y: 259,
+      };
+    },
     touch(type, pointerId, x, y, timeStamp = Date.now()) {
       listeners.get(type)?.({
         pointerType: "touch",
@@ -176,4 +184,25 @@ test("WebGPU async picking preserves long-press entity drag semantics", async (t
     kind: "entity",
     id: "alice",
   });
+});
+
+
+test("WebGPU async non-entity picks do not retain the touch hold", async (t) => {
+  t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: 10_000 });
+  const harness = asyncPickingSurfaceHarness();
+  harness.setAsyncPickNonEntity();
+
+  harness.touch("pointerdown", 4, 118, 259, 1_000);
+  assert.equal(harness.dataset.worldTouchDrag, "holding");
+
+  await Promise.resolve();
+  await Promise.resolve();
+
+  assert.equal(
+    harness.dataset.worldTouchDrag,
+    undefined,
+    "an edge/place hit must yield before the long-press threshold just as WebGL2 does",
+  );
+  t.mock.timers.tick(WORLD_TOUCH_HOLD_MS + 1);
+  assert.deepEqual(harness.begins, []);
 });
