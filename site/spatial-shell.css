@@ -539,7 +539,6 @@
   block-size: 20px;
 }
 
-.app-footer-bar .toolbar-control > .semantic-icon {}
 
 @media (hover: hover) and (pointer: fine) {
   .app-footer-bar
