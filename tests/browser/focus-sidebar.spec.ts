@@ -130,7 +130,9 @@ test("focused detail owns contextual actions without mutating the footer", async
   await expect(page.locator(".app-footer-bar #timeline-focus-prev")).toHaveCount(0);
   await expect(page.locator(".app-footer-bar #timeline-related-zoom")).toHaveCount(0);
   await expect(page.locator("#timeline-focus-edit")).toHaveCount(0);
-  await expect(page.locator("#editor-toggle")).toHaveAttribute("aria-label", "Edit focused event");
+  await expect(page.locator("#editor-toggle")).toHaveAttribute("aria-label", "Edit timeline");
+  await expect(page.locator("#editor-toggle")).toHaveAttribute("data-semantic-icon", "edit");
+  await expect(page.locator("#editor-toggle")).toHaveAttribute("aria-pressed", "false");
   await expect(page.locator("#timeline-view-toolbar")).toBeVisible();
 
   await focus.locator(".timeline-focus-close").click();
