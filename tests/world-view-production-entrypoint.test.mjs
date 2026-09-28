@@ -78,7 +78,9 @@ test("cluster lifecycle contains no renderer position interpolation contract", a
   assert.match(source, /#clusterPhase = "expanding"/);
 });
 
-test("production footer exposes contextual DAG and force controls without changing primary click actions", async () => {
+test(
+  "production footer exposes contextual DAG and force controls without changing primary click actions",
+  async () => {
   const [factory, inspector] = await Promise.all([
     readFile(new URL("../site/world/world-view-factory.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/world/world-layout-inspector.ts", import.meta.url), "utf8"),
@@ -94,5 +96,6 @@ test("production footer exposes contextual DAG and force controls without changi
   assert.match(inspector, /event\.key === "ArrowDown"/);
   assert.match(factory, /scheduledView\.reorganizeDag\(settings\)/);
   assert.match(factory, /scheduledView\.setForceTuning\(tuning, selectedPlaceId\)/);
-  assert.match(factory, /scheduledView\.relaxForce\(\)/);
-});
+    assert.match(factory, /scheduledView\.relaxForce\(\)/);
+  },
+);
