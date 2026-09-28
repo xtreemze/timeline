@@ -85,55 +85,54 @@ test("D3 gives high-connectivity nodes additional soft spacing beyond hard colli
 test(
   "place-scoped force tuning changes connected-node clearance without changing hard collision radius",
   () => {
-  const simulation = new D3WorldForceSimulation();
-  const stockholmHub = '["stockholm-hub",null]';
-  const stockholmPeer = '["stockholm-peer",null]';
-  const copenhagenHub = '["copenhagen-hub",null]';
-  const copenhagenPeer = '["copenhagen-peer",null]';
-  simulation.setScene({
-    nodes: [
-      node(stockholmHub, -20, 180, { connectivityClearanceMeters: 720 }),
-      node(stockholmPeer, 20, 180),
-      node(copenhagenHub, -20, 180, { connectivityClearanceMeters: 720 }),
-      node(copenhagenPeer, 20, 180),
-    ],
-    edges: [],
-    anchors: [
-      anchor(stockholmHub, "stockholm", 0),
-      anchor(stockholmPeer, "stockholm", 0),
-      anchor(copenhagenHub, "copenhagen", 0),
-      anchor(copenhagenPeer, "copenhagen", 0),
-    ],
-  });
-  simulation.setTuning(
-    {
-      collisionStrength: 0.82,
-      collisionIterations: 3,
-      connectivityClearanceScale: 0,
-      manyBodyStrength: -2600,
-      linkStrengthScale: 1,
-      anchorStrengthScale: 1,
-      dagStrengthScale: 1,
-    },
-    { placeId: "stockholm" },
-  );
-  simulation.apply(topologyRequest());
-  for (let index = 0; index < 240; index += 1) simulation.step(1000 / 60);
+    const simulation = new D3WorldForceSimulation();
+    const stockholmHub = '["stockholm-hub",null]';
+    const stockholmPeer = '["stockholm-peer",null]';
+    const copenhagenHub = '["copenhagen-hub",null]';
+    const copenhagenPeer = '["copenhagen-peer",null]';
+    simulation.setScene({
+      nodes: [
+        node(stockholmHub, -20, 180, { connectivityClearanceMeters: 720 }),
+        node(stockholmPeer, 20, 180),
+        node(copenhagenHub, -20, 180, { connectivityClearanceMeters: 720 }),
+        node(copenhagenPeer, 20, 180),
+      ],
+      edges: [],
+      anchors: [
+        anchor(stockholmHub, "stockholm", 0),
+        anchor(stockholmPeer, "stockholm", 0),
+        anchor(copenhagenHub, "copenhagen", 0),
+        anchor(copenhagenPeer, "copenhagen", 0),
+      ],
+    });
+    simulation.setTuning(
+      {
+        collisionStrength: 0.82,
+        collisionIterations: 3,
+        connectivityClearanceScale: 0,
+        manyBodyStrength: -2600,
+        linkStrengthScale: 1,
+        anchorStrengthScale: 1,
+        dagStrengthScale: 1,
+      },
+      { placeId: "stockholm" },
+    );
+    simulation.apply(topologyRequest());
+    for (let index = 0; index < 240; index += 1) simulation.step(1000 / 60);
 
-  const snapshot = simulation.getSnapshot();
-  const stockholmDistance = distance(snapshot, stockholmHub, stockholmPeer);
-  const copenhagenDistance = distance(snapshot, copenhagenHub, copenhagenPeer);
-  assert.ok(
-    stockholmDistance >= 350,
-    "turning off soft hub clearance must still preserve the 360m combined rendered collision body",
-  );
+    const snapshot = simulation.getSnapshot();
+    const stockholmDistance = distance(snapshot, stockholmHub, stockholmPeer);
+    const copenhagenDistance = distance(snapshot, copenhagenHub, copenhagenPeer);
+    assert.ok(
+      stockholmDistance >= 350,
+      "turning off soft hub clearance must still preserve the 360m combined rendered collision body",
+    );
     assert.ok(
       copenhagenDistance > stockholmDistance + 150,
       "place-scoped tuning must not erase the default connectivity clearance at other places",
     );
   },
 );
-
 test("force tuning rejects collision settings that would violate the solver contract", () => {
   const simulation = new D3WorldForceSimulation();
   assert.throws(
