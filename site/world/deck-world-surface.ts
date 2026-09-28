@@ -3060,6 +3060,7 @@ export class DeckWorldSurface implements WorldSurface {
   #clusterEdgeReleaseTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
   #clusterSettleTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
   #activeDragPointerId: number | null = null;
+  #authoringContextPointerId: number | null = null;
   #activeDragInstanceId: WorldInstanceId | null = null;
   #dragFlashInstanceId: WorldInstanceId | null = null;
   #dragFlashTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
@@ -3134,8 +3135,10 @@ export class DeckWorldSurface implements WorldSurface {
     // release. A later finger must not hand the already-claimed gesture back
     // to deck's pinch/pan controller.
     if (
-      this.#activeDragPointerId !== null &&
-      this.#activeDragPointerId !== touch.pointerId
+      (this.#activeDragPointerId !== null &&
+        this.#activeDragPointerId !== touch.pointerId) ||
+      (this.#authoringContextPointerId !== null &&
+        this.#authoringContextPointerId !== touch.pointerId)
     ) {
       event.preventDefault?.();
       event.stopPropagation?.();
@@ -3158,7 +3161,9 @@ export class DeckWorldSurface implements WorldSurface {
     // skipping its extra depth pass keeps touch-down fast so a quick swipe's
     // move events are not delayed past the hold threshold.
     const hit = this.pick(touch.point, { depth: false });
-    if (hit?.kind !== "entity" || !this.#nodeDragSink) return;
+    const entityHit = hit?.kind === "entity" && this.#nodeDragSink ? hit : null;
+    if (hit && !entityHit) return;
+
     this.#setTouchDragState("holding");
     this.#touchHoldTimer = globalThis.setTimeout(() => {
       this.#touchHoldTimer = null;
@@ -3172,8 +3177,20 @@ export class DeckWorldSurface implements WorldSurface {
         this.#touchHoldCommitTimer = null;
         if (this.#destroyed || !this.#touchDrag.claim(touch.pointerId, Date.now())) return;
 
+        if (!entityHit) {
+          const handled = this.#dispatchAuthoringContext(touch.point, touch.point);
+          if (!handled) {
+            this.#touchDrag.cancel(touch.pointerId);
+            this.#setTouchDragState(null);
+            return;
+          }
+          this.#authoringContextPointerId = touch.pointerId;
+          this.#setTouchDragState("active");
+          return;
+        }
+
         if (
-          !this.#beginTouchEntityDrag(touch.pointerId, hit.worldInstanceId, touch.point)
+          !this.#beginTouchEntityDrag(touch.pointerId, entityHit.worldInstanceId, touch.point)
         ) {
           this.#touchDrag.cancel(touch.pointerId);
           this.#setTouchDragState(null);
@@ -3181,8 +3198,8 @@ export class DeckWorldSurface implements WorldSurface {
         }
 
         this.#setTouchDragState("active");
-        this.#flashDragPickup(hit.worldInstanceId);
-        this.setSelection(Object.freeze({ kind: "entity" as const, id: hit.entityId }));
+        this.#flashDragPickup(entityHit.worldInstanceId);
+        this.setSelection(Object.freeze({ kind: "entity" as const, id: entityHit.entityId }));
         void pulseHaptic("drag");
       }, 1);
     }, WORLD_TOUCH_HOLD_MS);
@@ -3198,10 +3215,37 @@ export class DeckWorldSurface implements WorldSurface {
       eventTimeStamp: touchEventTimeStamp(event),
     });
 
+    if (this.#authoringContextPointerId === touch.pointerId) {
+      event.preventDefault?.();
+      this.#touchDrag.release(touch.pointerId);
+      this.#clearTouchHoldTimer();
+      this.#authoringContextPointerId = null;
+      this.#setTouchDragState(null);
+      // As with node dragging, deck saw the initial pointerdown and must see
+      // the terminal pointerup so it cannot retain a phantom touch contact.
+      return;
+    }
+
+    if (
+      this.#authoringContextPointerId !== null &&
+      touch.pointerId !== this.#authoringContextPointerId
+    ) {
+      event.preventDefault?.();
+      event.stopPropagation?.();
+      this.#touchDrag.release(touch.pointerId);
+      return;
+    }
+
     if (this.#activeDragPointerId === touch.pointerId) {
       event.preventDefault?.();
       event.stopPropagation?.();
       this.#updateTouchEntityDrag(touch.pointerId, touch.point);
+      return;
+    }
+
+    if (this.#authoringContextPointerId === touch.pointerId) {
+      event.preventDefault?.();
+      event.stopPropagation?.();
       return;
     }
 
@@ -3220,6 +3264,25 @@ export class DeckWorldSurface implements WorldSurface {
   readonly #handleTouchPointerUp = (event: TouchPointerEvent): void => {
     const touch = touchPointer(event);
     if (!touch) return;
+
+    if (this.#authoringContextPointerId === touch.pointerId) {
+      event.preventDefault?.();
+      this.#touchDrag.release(touch.pointerId);
+      this.#clearTouchHoldTimer();
+      this.#authoringContextPointerId = null;
+      this.#setTouchDragState(null);
+      return;
+    }
+
+    if (
+      this.#authoringContextPointerId !== null &&
+      touch.pointerId !== this.#authoringContextPointerId
+    ) {
+      event.preventDefault?.();
+      event.stopPropagation?.();
+      this.#touchDrag.release(touch.pointerId);
+      return;
+    }
 
     if (this.#activeDragPointerId === touch.pointerId) {
       event.preventDefault?.();
@@ -3295,7 +3358,14 @@ export class DeckWorldSurface implements WorldSurface {
 
   readonly #handlePointerCancel = (event: PointerEvent): void => {
     if (event.pointerType === "touch") {
+      const authoringOwned = this.#authoringContextPointerId === event.pointerId;
       this.#touchDrag.cancel(event.pointerId);
+      if (authoringOwned) {
+        this.#authoringContextPointerId = null;
+        this.#clearTouchHoldTimer();
+        this.#setTouchDragState(null);
+        return;
+      }
       if (
         this.#activeDragPointerId !== null &&
         event.pointerId !== this.#activeDragPointerId
@@ -3316,6 +3386,13 @@ export class DeckWorldSurface implements WorldSurface {
   };
 
   readonly #handleLostPointerCapture = (event: PointerEvent): void => {
+    if (this.#authoringContextPointerId === event.pointerId) {
+      this.#touchDrag.cancel(event.pointerId);
+      this.#authoringContextPointerId = null;
+      this.#clearTouchHoldTimer();
+      this.#setTouchDragState(null);
+      return;
+    }
     if (this.#activeDragPointerId === null || event.pointerId !== this.#activeDragPointerId) {
       return;
     }
@@ -4478,6 +4555,7 @@ export class DeckWorldSurface implements WorldSurface {
       true,
     );
     this.#clearTouchHoldTimer();
+    this.#authoringContextPointerId = null;
     this.#touchDrag.clear();
     this.#clearClusterTimers();
     this.#clearDragFlash({ render: false });
