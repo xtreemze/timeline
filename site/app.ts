@@ -4890,7 +4890,6 @@ els.viewControlsToggle?.addEventListener("click", () => {
   if (ui.editorOpen) setEditorSurfaceOpen(false);
   if (ui.browserOpen) setBrowserSurfaceOpen(false);
   if (ui.investigationOpen) setInvestigationSurfaceOpen(false);
-  if (els.occurrenceComposer.active) setOccurrenceComposerOpen(false);
   closeProjectMenu();
 });
 
