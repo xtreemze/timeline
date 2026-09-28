@@ -73,6 +73,7 @@ export interface ComposerEntityOption {
   readonly type?: string;
   readonly icon?: string;
   readonly alternateNames?: readonly string[];
+  readonly attributes?: Readonly<Record<string, unknown>>;
 }
 
 export interface ComposerPlaceOption {
