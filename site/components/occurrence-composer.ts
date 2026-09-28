@@ -1004,6 +1004,17 @@ export class LuumOccurrenceComposerElement extends LitElement {
   }
 
   private onContextRowKeyDown(event: KeyboardEvent): void {
+    if (event.isComposing) return;
+    if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+      event.preventDefault();
+      this.commit();
+      return;
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      this.requestClose();
+      return;
+    }
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
     const target = event.target;
     if (!(target instanceof HTMLButtonElement) || !target.classList.contains("context-chip")) {
