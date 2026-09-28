@@ -1,4 +1,11 @@
-import { SEMANTIC_ICON_NAMES } from "../src/presentation/semantic-icons.ts";
+import {
+  SEMANTIC_ICON_NAMES,
+  type SemanticIconName,
+} from "../src/presentation/semantic-icons.ts";
+import {
+  suggestSemanticIcon,
+  suggestSemanticIconForPlace,
+} from "../src/presentation/semantic-icon-inference.ts";
 
 export type OccurrenceComposerStage =
   | "subject"
@@ -51,6 +58,7 @@ export interface ComposerEntityOption {
 export interface ComposerPlaceOption {
   readonly id: string;
   readonly name: string;
+  readonly icon?: string;
 }
 
 export interface ComposerCategoryOption {
@@ -59,11 +67,35 @@ export interface ComposerCategoryOption {
 }
 
 export interface ComposerSuggestion {
-  readonly kind: "entity" | "predicate" | "place" | "time" | "property" | "category" | "tag";
+  readonly kind:
+    | "entity"
+    | "predicate"
+    | "place"
+    | "time"
+    | "property"
+    | "category"
+    | "tag";
   readonly label: string;
   readonly detail?: string;
   readonly icon?: string;
   readonly insertText: string;
+  readonly replaceRange?: Readonly<{ start: number; end: number }>;
+}
+
+export type ComposerCursorSectionKind =
+  | "subject"
+  | "predicate"
+  | "object"
+  | "place"
+  | "time"
+  | "options"
+  | "tail";
+
+export interface ComposerCursorSection {
+  readonly kind: ComposerCursorSectionKind;
+  readonly start: number;
+  readonly end: number;
+  readonly text: string;
 }
 
 const ACTION_SUGGESTIONS = Object.freeze([
@@ -86,6 +118,47 @@ const ACTION_SUGGESTIONS = Object.freeze([
   "reports",
   "transfers",
 ]);
+
+const ACTION_ICON_HINTS = Object.freeze({
+  meets: "relation",
+  calls: "relation",
+  visits: "relation",
+  sends: "relation",
+  receives: "relation",
+  finds: "search",
+  observes: "view",
+  creates: "milestone",
+  moves: "relation",
+  joins: "relation",
+  leaves: "relation",
+  helps: "relation",
+  attacks: "danger",
+  warns: "danger",
+  asks: "relation",
+  answers: "relation",
+  reports: "evidence",
+  transfers: "relation",
+} satisfies Partial<Record<string, SemanticIconName>>);
+
+function actionIconHint(action: string): SemanticIconName {
+  const direct = Reflect.get(ACTION_ICON_HINTS, action) as SemanticIconName | undefined;
+  if (direct) return direct;
+  const normalized = action.trim().toLocaleLowerCase();
+  if (/attack|harm|threat|confront|fight|seize|rob|chase/.test(normalized)) return "danger";
+  if (/find|discover|identify|search|question/.test(normalized)) return "search";
+  if (/observe|watch|see|hear/.test(normalized)) return "view";
+  if (/create|build|make|prepare/.test(normalized)) return "milestone";
+  if (/decide|choose|order|instruct/.test(normalized)) return "decision";
+  if (/report|record|document/.test(normalized)) return "evidence";
+  return "relation";
+}
+
+function availableActions(projectPredicates: readonly string[] = []): readonly string[] {
+  return Object.freeze(
+    [...new Set([...ACTION_SUGGESTIONS, ...projectPredicates.map((predicate) => predicate.trim())])]
+      .filter(Boolean),
+  );
+}
 
 const PRIMARY_ENTITY_ICONS = Object.freeze(["person", "group", "object", "evidence"] as const);
 const ENTITY_ICON_PROPERTY_SUGGESTIONS = Object.freeze(
@@ -329,6 +402,323 @@ function uniqueSuggestions(suggestions: readonly ComposerSuggestion[]): readonly
   return Object.freeze(result);
 }
 
+function skipSpaces(input: string, offset: number): number {
+  let cursor = Math.max(0, Math.min(input.length, offset));
+  while (cursor < input.length && /\s/.test(input[cursor]!)) cursor += 1;
+  return cursor;
+}
+
+function readEntitySpan(
+  input: string,
+  offset: number,
+): { start: number; end: number; text: string } | null {
+  const start = skipSpaces(input, offset);
+  if (start >= input.length) return null;
+
+  let nameEnd = start;
+  if (input[start] === '"') {
+    let escaped = false;
+    nameEnd = start + 1;
+    while (nameEnd < input.length) {
+      const character = input[nameEnd]!;
+      if (escaped) {
+        escaped = false;
+      } else if (character === "\\") {
+        escaped = true;
+      } else if (character === '"') {
+        nameEnd += 1;
+        break;
+      }
+      nameEnd += 1;
+    }
+  } else {
+    while (nameEnd < input.length && !/[\s()[\]]/.test(input[nameEnd]!)) nameEnd += 1;
+  }
+  if (nameEnd <= start) return null;
+
+  let end = nameEnd;
+  const propertyStart = skipSpaces(input, nameEnd);
+  if (input[propertyStart] === "(") {
+    const close = input.indexOf(")", propertyStart + 1);
+    end = close >= 0 ? close + 1 : input.length;
+  }
+
+  return {
+    start,
+    end,
+    text: unquote(input.slice(start, nameEnd)),
+  };
+}
+
+function readTokenSpan(
+  input: string,
+  offset: number,
+): { start: number; end: number; text: string } | null {
+  const start = skipSpaces(input, offset);
+  if (start >= input.length) return null;
+  let end = start;
+  while (end < input.length && !/[\s()[\]]/.test(input[end]!)) end += 1;
+  return end > start ? { start, end, text: input.slice(start, end) } : null;
+}
+
+function trimRangeEnd(input: string, start: number, end: number): number {
+  let cursor = Math.max(start, Math.min(input.length, end));
+  while (cursor > start && /\s/.test(input[cursor - 1]!)) cursor -= 1;
+  return cursor;
+}
+
+function cursorWithinSpan(offset: number, start: number, end: number, inputLength: number): boolean {
+  return offset >= start && (offset < end || (offset === end && offset === inputLength));
+}
+
+export function composerCursorSection(input: string, cursorOffset: number): ComposerCursorSection {
+  const offset = Math.max(0, Math.min(input.length, cursorOffset));
+  const subject = readEntitySpan(input, 0);
+  if (!subject) return Object.freeze({ kind: "tail", start: offset, end: offset, text: "" });
+
+  if (cursorWithinSpan(offset, subject.start, subject.end, input.length)) {
+    return Object.freeze({ kind: "subject", ...subject });
+  }
+
+  const predicate = readTokenSpan(input, subject.end);
+  if (!predicate) return Object.freeze({ kind: "tail", start: offset, end: offset, text: "" });
+  if (cursorWithinSpan(offset, predicate.start, predicate.end, input.length)) {
+    return Object.freeze({ kind: "predicate", ...predicate });
+  }
+
+  const object = readEntitySpan(input, predicate.end);
+  if (!object) return Object.freeze({ kind: "tail", start: offset, end: offset, text: "" });
+  if (cursorWithinSpan(offset, object.start, object.end, input.length)) {
+    return Object.freeze({ kind: "object", ...object });
+  }
+
+  const lower = input.toLocaleLowerCase();
+  const optionsStart = lower.indexOf("[", object.end);
+  const onMarker = lower.indexOf(" on ", object.end);
+  const fromMarker = lower.indexOf(" from ", object.end);
+  const timeMarker =
+    onMarker < 0 ? fromMarker : fromMarker < 0 ? onMarker : Math.min(onMarker, fromMarker);
+  const placeMarker = lower.indexOf(" at ", object.end);
+
+  if (placeMarker >= 0 && (timeMarker < 0 || placeMarker < timeMarker)) {
+    const start = placeMarker + 4;
+    const boundaryCandidates = [timeMarker, optionsStart, input.length].filter(
+      (candidate) => candidate >= start,
+    );
+    const end = trimRangeEnd(input, start, Math.min(...boundaryCandidates));
+    if (
+      offset >= placeMarker &&
+      cursorWithinSpan(offset, start, end, input.length)
+    ) {
+      return Object.freeze({
+        kind: "place",
+        start,
+        end,
+        text: unquote(input.slice(start, end)),
+      });
+    }
+  }
+
+  if (timeMarker >= 0) {
+    const markerLength = timeMarker === onMarker ? 4 : 6;
+    const start = timeMarker + markerLength;
+    const end = trimRangeEnd(
+      input,
+      start,
+      optionsStart >= start ? optionsStart : input.length,
+    );
+    if (
+      offset >= timeMarker &&
+      cursorWithinSpan(offset, start, end, input.length)
+    ) {
+      return Object.freeze({ kind: "time", start, end, text: input.slice(start, end).trim() });
+    }
+  }
+
+  if (optionsStart >= 0) {
+    const optionsEnd = input.indexOf("]", optionsStart + 1);
+    const end = optionsEnd >= 0 ? optionsEnd + 1 : input.length;
+    if (offset >= optionsStart && offset < end) {
+      return Object.freeze({
+        kind: "options",
+        start: optionsStart,
+        end,
+        text: input.slice(optionsStart, end),
+      });
+    }
+  }
+
+  return Object.freeze({ kind: "tail", start: offset, end: offset, text: "" });
+}
+
+function normalizedMatchText(value: string): string {
+  return value
+    .trim()
+    .toLocaleLowerCase()
+    .replace(/[^\p{L}\p{N}@]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function editDistance(left: string, right: string): number {
+  if (left === right) return 0;
+  if (!left) return right.length;
+  if (!right) return left.length;
+  const previous = Array.from({ length: right.length + 1 }, (_, index) => index);
+  for (let row = 1; row <= left.length; row += 1) {
+    const current = [row];
+    for (let column = 1; column <= right.length; column += 1) {
+      current[column] = Math.min(
+        current[column - 1]! + 1,
+        previous[column]! + 1,
+        previous[column - 1]! + (left[row - 1] === right[column - 1] ? 0 : 1),
+      );
+    }
+    previous.splice(0, previous.length, ...current);
+  }
+  return previous[right.length]!;
+}
+
+function nearestMatchScore(query: string, candidates: readonly string[]): number {
+  const needle = normalizedMatchText(query);
+  if (!needle) return 0;
+  let best = Number.POSITIVE_INFINITY;
+  for (const candidate of candidates) {
+    const value = normalizedMatchText(candidate);
+    if (!value) continue;
+    if (value === needle) return 0;
+    if (value.startsWith(needle) || needle.startsWith(value)) best = Math.min(best, 0.5);
+    else if (value.includes(needle) || needle.includes(value)) best = Math.min(best, 1);
+    const distance = editDistance(needle, value) / Math.max(needle.length, value.length, 1);
+    best = Math.min(best, 2 + distance);
+  }
+  return best;
+}
+
+function cursorEntitySuggestions(
+  section: ComposerCursorSection,
+  entities: readonly ComposerEntityOption[],
+): readonly ComposerSuggestion[] {
+  const ranked = entities
+    .map((entity) => ({
+      entity,
+      score: nearestMatchScore(section.text, [
+        entity.name,
+        `@${entity.id}`,
+        ...(entity.alternateNames ?? []),
+      ]),
+    }))
+    .sort((left, right) => left.score - right.score || left.entity.name.localeCompare(right.entity.name))
+    .slice(0, 8)
+    .map(({ entity }) => {
+      const sameNameCount = entities.filter(
+        (candidate) =>
+          normalizedMatchText(candidate.name) === normalizedMatchText(entity.name),
+      ).length;
+      return {
+        kind: "entity" as const,
+        label: entity.name,
+        detail:
+          sameNameCount > 1
+            ? `nearest ${section.kind} · ${entity.type || "entity"} · ${entity.id}`
+            : `nearest ${section.kind} · ${entity.type || "entity"}`,
+        ...(entity.icon ? { icon: entity.icon } : {}),
+        insertText: sameNameCount > 1 ? `@${entity.id}` : quoteComposerName(entity.name),
+        replaceRange: Object.freeze({ start: section.start, end: section.end }),
+      };
+    });
+
+  if (section.text.startsWith("@")) return uniqueSuggestions(ranked);
+  const inferred = suggestSemanticIcon({ name: section.text, type: "object" });
+  const exact = entities.some((entity) =>
+    [entity.name, ...(entity.alternateNames ?? [])].some(
+      (name) => normalizedMatchText(name) === normalizedMatchText(section.text),
+    ),
+  );
+  if (!inferred || exact || !section.text.trim()) return uniqueSuggestions(ranked);
+
+  return uniqueSuggestions([
+    {
+      kind: "entity",
+      label: `Use “${section.text.trim()}”`,
+      detail: `new entity · suggested ${inferred.icon} icon`,
+      icon: inferred.icon,
+      insertText: `${quoteComposerName(section.text.trim())}(icon: ${inferred.icon})`,
+      replaceRange: Object.freeze({ start: section.start, end: section.end }),
+    },
+    ...ranked,
+  ]);
+}
+
+function cursorPredicateSuggestions(
+  section: ComposerCursorSection,
+  projectPredicates: readonly string[] = [],
+): readonly ComposerSuggestion[] {
+  return Object.freeze(
+    [...availableActions(projectPredicates)]
+      .sort(
+        (left, right) =>
+          nearestMatchScore(section.text, [left]) - nearestMatchScore(section.text, [right]) ||
+          left.localeCompare(right),
+      )
+      .slice(0, 8)
+      .map((action) => ({
+        kind: "predicate" as const,
+        label: action,
+        detail: "nearest action",
+        icon: actionIconHint(action),
+        insertText: action,
+        replaceRange: Object.freeze({ start: section.start, end: section.end }),
+      })),
+  );
+}
+
+function cursorPlaceSuggestions(
+  section: ComposerCursorSection,
+  places: readonly ComposerPlaceOption[],
+): readonly ComposerSuggestion[] {
+  const ranked = places
+    .map((place) => ({
+      place,
+      score: nearestMatchScore(section.text, [place.name, `@${place.id}`]),
+    }))
+    .sort((left, right) => left.score - right.score || left.place.name.localeCompare(right.place.name))
+    .slice(0, 8)
+    .map(({ place }) => {
+      const sameNameCount = places.filter(
+        (candidate) =>
+          normalizedMatchText(candidate.name) === normalizedMatchText(place.name),
+      ).length;
+      return {
+        kind: "place" as const,
+        label: place.name,
+        detail: sameNameCount > 1 ? `nearest place · ${place.id}` : "nearest place",
+        ...(place.icon ? { icon: place.icon } : {}),
+        insertText: sameNameCount > 1 ? `@${place.id}` : quoteComposerName(place.name),
+        replaceRange: Object.freeze({ start: section.start, end: section.end }),
+      };
+    });
+
+  if (section.text.startsWith("@")) return uniqueSuggestions(ranked);
+  const inferred = suggestSemanticIconForPlace({ name: section.text });
+  const exact = places.some(
+    (place) => normalizedMatchText(place.name) === normalizedMatchText(section.text),
+  );
+  if (!inferred || exact || !section.text.trim()) return uniqueSuggestions(ranked);
+
+  return uniqueSuggestions([
+    {
+      kind: "place",
+      label: `Use “${section.text.trim()}”`,
+      detail: `new place · suggested ${inferred.icon} icon`,
+      icon: inferred.icon,
+      insertText: quoteComposerName(section.text.trim()),
+      replaceRange: Object.freeze({ start: section.start, end: section.end }),
+    },
+    ...ranked,
+  ]);
+}
+
 export function occurrenceComposerSuggestions(
   input: string,
   options: {
@@ -338,13 +728,20 @@ export function occurrenceComposerSuggestions(
     readonly timelineDefault?: string | null;
     readonly locationDefault?: string | null;
     readonly preferredEntityIds?: readonly string[];
+    readonly predicates?: readonly string[];
+    readonly cursorOffset?: number | null;
   },
 ): readonly ComposerSuggestion[] {
   const parsed = parseOccurrenceSentence(input);
-  const token = currentToken(input);
+  const cursorOffset =
+    options.cursorOffset === null || options.cursorOffset === undefined
+      ? input.length
+      : Math.max(0, Math.min(input.length, options.cursorOffset));
+  const prefix = input.slice(0, cursorOffset);
+  const token = currentToken(prefix);
 
-  if (/\([^)]*$/.test(input)) {
-    const iconValueActive = /(?:^|[,(])\s*icon\s*:\s*[^,)]*$/i.test(input);
+  if (/\([^)]*$/.test(prefix)) {
+    const iconValueActive = /(?:^|[,(])\s*icon\s*:\s*[^,)]*$/i.test(prefix);
     const properties = iconValueActive
       ? ENTITY_ICON_PROPERTY_SUGGESTIONS
       : ENTITY_PROPERTY_SUGGESTIONS;
@@ -360,7 +757,7 @@ export function occurrenceComposerSuggestions(
     );
   }
 
-  if (/\[[^\]]*$/.test(input)) {
+  if (/\[[^\]]*$/.test(prefix)) {
     const categorySuggestions = options.categories.slice(0, 10).map((category) => ({
       kind: "category" as const,
       label: category.name,
@@ -370,6 +767,29 @@ export function occurrenceComposerSuggestions(
     return uniqueSuggestions([
       ...categorySuggestions,
       { kind: "tag", label: "tags", detail: "separate tags with |", insertText: "tags: " },
+    ]);
+  }
+
+  const cursorSection = composerCursorSection(input, cursorOffset);
+  if (cursorSection.kind === "subject" || cursorSection.kind === "object") {
+    return cursorEntitySuggestions(cursorSection, options.entities);
+  }
+  if (cursorSection.kind === "predicate") {
+    return cursorPredicateSuggestions(cursorSection, options.predicates);
+  }
+  if (cursorSection.kind === "place") {
+    return cursorPlaceSuggestions(cursorSection, options.places);
+  }
+  if (cursorSection.kind === "time" && options.timelineDefault) {
+    return Object.freeze([
+      {
+        kind: "time" as const,
+        label: options.timelineDefault,
+        detail: "current timeline center",
+        icon: "milestone",
+        insertText: options.timelineDefault,
+        replaceRange: Object.freeze({ start: cursorSection.start, end: cursorSection.end }),
+      },
     ]);
   }
 
@@ -411,12 +831,14 @@ export function occurrenceComposerSuggestions(
 
   if (parsed.stage === "predicate") {
     return Object.freeze(
-      ACTION_SUGGESTIONS.filter((action) => !token || action.includes(token))
+      availableActions(options.predicates)
+        .filter((action) => !token || action.toLocaleLowerCase().includes(token))
         .slice(0, 12)
         .map((action) => ({
           kind: "predicate" as const,
           label: action,
           detail: "action",
+          icon: actionIconHint(action),
           insertText: action,
         })),
     );
