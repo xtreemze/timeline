@@ -25,9 +25,6 @@ function ids(value) {
   return list(value).filter((entry) => typeof entry === "string" && entry);
 }
 
-function recordId(value) {
-  return value && typeof value === "object" && typeof value.id === "string" ? value.id : null;
-}
 
 function optionValues(args, name) {
   const values = [];
@@ -384,10 +381,31 @@ export function buildLumAgentContext(source, selectors = {}) {
     }),
     project: Object.freeze(compactProject),
     unresolvedReferences: Object.freeze(unresolved),
+    composer: Object.freeze({
+      syntax:
+        "SUBJECT ACTION OBJECT [at PLACE] [on INSTANT | from START to END] [[category: CATEGORY, tags: A|B]]",
+      command: 'lum compose "<sentence>" --json',
+      rule:
+        "Composer output is a proposal. It must pass canonical validation before any project mutation.",
+    }),
+    proposalWorkflow: Object.freeze({
+      schema: LUM_CHANGE_PROPOSAL_SCHEMA_ID,
+      scaffold:
+        "lum agent scaffold-proposal --project <project.lum.json> --output change.lum-proposal.json",
+      validate:
+        "lum agent validate-proposal change.lum-proposal.json --project <project.lum.json> --json",
+      apply:
+        "lum agent apply change.lum-proposal.json --project <project.lum.json> --output candidate.lum.json --json",
+      rule:
+        "Provider output is untrusted. Apply writes a separate candidate and never authorizes canonical replacement.",
+    }),
     workflow: Object.freeze([
+      "lum agent context <project.lum.json> --json",
+      'lum compose "<occurrence sentence>" --json',
       "author a strict lum-change-proposal-v1 document against projectKey + revision",
-      "validate the proposal before any candidate is created",
-      "apply only to a separate candidate project",
+      "lum agent validate-proposal <proposal.json> --project <project.lum.json> --json",
+      "lum agent apply <proposal.json> --project <project.lum.json> --json",
+      "lum lint <candidate.lum.json> --json",
       "require user verification before canonical replacement",
     ]),
   });
