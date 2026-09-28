@@ -255,6 +255,27 @@ test("cursor-local replacement changes only the selected component and preserves
   );
 });
 
+test("canonical @id subjects retain live partial action suggestions", () => {
+  const input = "@snow-queen rece";
+  const suggestions = occurrenceComposerSuggestions(input, {
+    entities: [
+      { id: "snow-queen", name: "Queen", type: "person" },
+      { id: "snow-huntsman", name: "Huntsman", type: "person" },
+    ],
+    places: [],
+    categories: [],
+    predicates: ["commands", "receives"],
+    cursorOffset: input.length,
+  });
+
+  assert.equal(
+    suggestions.some(
+      (suggestion) => suggestion.kind === "predicate" && suggestion.insertText === "receives",
+    ),
+    true,
+  );
+});
+
 test("accepted terminal action advances from predicate to object suggestions", () => {
   const input = "Alice receives";
   const predicateSuggestions = occurrenceComposerSuggestions(input, {
