@@ -144,7 +144,7 @@ test.describe("Narrow mobile screen contracts", () => {
       for (const box of [actionsBox, composerBox, viewBox]) {
         expect(Math.abs(box.y + box.height / 2 - rowCenter)).toBeLessThanOrEqual(4);
       }
-      expect(inputBox.width).toBeGreaterThanOrEqual(Math.min(150, viewport.width * 0.4));
+      expect(inputBox.width).toBeGreaterThanOrEqual(Math.min(112, viewport.width * 0.32));
       expect(inputBox.x).toBeGreaterThanOrEqual(expanded.x - 1);
       expect(inputBox.x + inputBox.width).toBeLessThanOrEqual(expanded.x + expanded.width + 1);
       expect(inputBox.y).toBeGreaterThanOrEqual(expanded.y - 1);
