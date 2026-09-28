@@ -443,6 +443,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
   }
 
   hide(): void {
+    this.sessionKey = this.currentContextKey();
     this.active = false;
     this.externalError = "";
   }
