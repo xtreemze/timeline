@@ -98,7 +98,8 @@
     "mcp:public:deploy": "npx -y wrangler@4.141.0 deploy --config mcp/wrangler.jsonc",
     "test:local-llm-agent": "node --test tests/local-llm-agent.test.mjs",
     "test:mcp-relay": "node --test tests/mcp-relay.test.mjs tests/mcp-plugin-config.test.mjs",
-    "mcp:relay": "npx -y @mcp-b/webmcp-local-relay@5.1.0 --widget-origin http://localhost:5173,http://localhost:4173,https://xtreemze.github.io"
+    "mcp:relay": "npx -y @mcp-b/webmcp-local-relay@5.1.0 --widget-origin http://localhost:5173,http://localhost:4173,https://xtreemze.github.io",
+    "test:project-persistence-browser": "playwright test --config=playwright.config.ts tests/browser/project-repository-indexeddb.spec.ts --project=\"Desktop Chrome\""
   },
   "packageManager": "pnpm@12.5.1+sha512.e3f305bc784a2bc89f5ad3b6138889470fae8d2af5f36b61216ec91c2c3d64089775f9de38aac331044ea40f245cb0d5666392dfdf65824e1907ef6a2c62de5f",
   "devDependencies": {

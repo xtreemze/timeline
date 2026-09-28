@@ -92,6 +92,7 @@ on:
       - 'tests/browser/world-app-visibility.spec.ts'
       - 'tests/browser/world-webgpu.spec.ts'
       - 'tests/browser/world-performance-certification.spec.ts'
+      - 'tests/browser/project-repository-indexeddb.spec.ts'
       - 'tests/browser/fixtures/world-performance-baseline.json'
       - 'site/world-perf-harness.html'
       - 'site/world-fixture-generator.mjs'
@@ -456,6 +457,20 @@ jobs:
           grep -F 'retained-performance.spec.ts' /tmp/retained-performance-list.txt
       - continue-on-error: true
         run: pnpm test:retained-performance-browser
+
+  project-persistence-browser:
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Run IndexedDB project persistence certification
+        run: pnpm test:project-persistence-browser
 
   timeline-continuity-browser:
     continue-on-error: true
