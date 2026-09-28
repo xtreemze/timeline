@@ -272,6 +272,10 @@ test("operator can switch relationship edge routing without changing canonical t
     reorganize: true,
     edgeStyle: "straight",
   });
+  const curved = createWorldDagLayout(projection, {
+    reorganize: true,
+    edgeStyle: "curved",
+  });
   const orthogonal = createWorldDagLayout(projection, {
     reorganize: true,
     edgeStyle: "orthogonal",
@@ -279,11 +283,29 @@ test("operator can switch relationship edge routing without changing canonical t
 
   assert.equal(straight.routes.length, 1);
   assert.equal(straight.routes[0].points.length, 2);
+  assert.equal(curved.routes.length, 1);
+  assert.ok(curved.routes[0].points.length >= 5, "curved routing should provide a smooth sampled path");
+  const curvedSource = curved.routes[0].points[0];
+  const curvedTarget = curved.routes[0].points.at(-1);
+  assert.ok(curvedSource && curvedTarget);
+  assert.ok(
+    curved.routes[0].points.slice(1, -1).some((point) => {
+      const chordEast = curvedTarget.eastMeters - curvedSource.eastMeters;
+      const chordNorth = curvedTarget.northMeters - curvedSource.northMeters;
+      const pointEast = point.eastMeters - curvedSource.eastMeters;
+      const pointNorth = point.northMeters - curvedSource.northMeters;
+      return Math.abs(chordEast * pointNorth - chordNorth * pointEast) > 1;
+    }),
+    "curved routing should bow away from the endpoint chord",
+  );
   assert.equal(orthogonal.routes.length, 1);
   assert.ok(
     orthogonal.routes[0].points.length >= 3,
     "orthogonal routing should expose at least one bend between live endpoints",
   );
+  assert.equal(straight.routes[0].relationshipId, curved.routes[0].relationshipId);
+  assert.equal(straight.routes[0].sourceId, curved.routes[0].sourceId);
+  assert.equal(straight.routes[0].targetId, curved.routes[0].targetId);
   assert.equal(straight.routes[0].relationshipId, orthogonal.routes[0].relationshipId);
   assert.equal(straight.routes[0].sourceId, orthogonal.routes[0].sourceId);
   assert.equal(straight.routes[0].targetId, orthogonal.routes[0].targetId);

@@ -351,6 +351,7 @@ test.describe("Mobile-first Timeline layout contracts", () => {
     await expect(dagPanel).toContainText("Zherebko · linear");
     await expect(dagPanel).toContainText("Grid · topological");
     await expect(dagPanel).toContainText("Quadratic");
+    await expect(dagPanel).toContainText("Curved");
     await expect(dagPanel).toContainText("Orthogonal");
     await page.keyboard.press("Escape");
     await expect(dagButton).toHaveAttribute("aria-expanded", "false");

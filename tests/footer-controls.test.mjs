@@ -135,6 +135,7 @@ test(
     assert.match(inspector, /"quad", "Quadratic"/);
     assert.match(inspector, /"center", "Centered"/);
     assert.match(inspector, /"routed", "D3 routed"/);
+    assert.match(inspector, /"curved", "Curved"/);
     assert.match(inspector, /"straight", "Straight"/);
     assert.match(inspector, /"orthogonal", "Orthogonal"/);
     assert.match(inspector, /"top-to-bottom", "Top → bottom"/);

@@ -350,6 +350,7 @@ export function createWorldLayoutControls(
   ]);
   const edgeStyle = selectRow(doc, "Edge routing", [
     ["routed", "D3 routed"],
+    ["curved", "Curved"],
     ["straight", "Straight"],
     ["orthogonal", "Orthogonal"],
   ]);
