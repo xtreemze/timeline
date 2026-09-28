@@ -135,8 +135,10 @@ test("selected events use a shell-owned six-column detail surface with footer-ow
     html,
     /id="timeline-view-toolbar" class="view-control-group timeline-local-toolbar"/,
   );
-  assert.match(html, /id="timeline-view-controls-toggle"/);
-  assert.match(html, /id="timeline-view-controls" class="app-view-controls" popover="auto"/);
+  assert.match(
+    html,
+    /id="timeline-view-controls" class="app-footer-zone app-footer-view" role="group"/,
+  );
   assert.match(html, /id="timeline-focus-prev"/);
   assert.match(html, /id="timeline-focus-next"/);
   assert.match(html, /id="timeline-related-zoom"/);
@@ -155,7 +157,7 @@ test("selected events use a shell-owned six-column detail surface with footer-ow
   assert.match(css, /Persistent primary command plane/);
   assert.match(
     css,
-    /\.app-view-controls \.world-camera-controls[\s\S]*flex-direction:\s*row/,
+    /\.app-footer-view \.world-camera-controls[\s\S]*flex-direction:\s*row[\s\S]*flex-wrap:\s*nowrap/,
   );
   assert.match(
     css,
