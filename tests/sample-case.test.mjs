@@ -508,12 +508,133 @@ test("every storybook graph entity has a representative supported icon", () => {
   }
 });
 
+
+test("storybook scene tags describe the scene instead of repeating story membership", () => {
+  const storyById = new Map(sample.stories.map((story) => [story.id, story]));
+  const genericLabels = new Set([
+    "Character",
+    "Background",
+    "Material choice",
+    "Place",
+    "Conflict",
+    "Choice",
+    "Discovery",
+    "Alliance",
+    "Setback",
+    "Escalation",
+    "Rescue",
+    "Transformation",
+    "Encounter",
+    "Departure",
+    "Regroup",
+    "Climax",
+    "Preparation",
+    "Consequence",
+    "Investigation",
+    "Test",
+    "Decision",
+    "Recognition",
+    "Resolution",
+  ]);
+
+  for (const item of sample.items) {
+    const storyId = item.extensions?.narrative?.storyId;
+    const story = storyById.get(storyId);
+    const tag = item.tags?.[0];
+    assert.ok(tag, `${item.id}: primary semantic tag`);
+    assert.notEqual(tag.label, story?.title, `${item.id}: tag must not repeat story title`);
+    assert.equal(genericLabels.has(tag.label), false, `${item.id}: specific tag label`);
+  }
+});
+
+test("storybook scenes use specific existing icons when the subject matter is known", () => {
+  const expected = new Map([
+    ["pigs-acquire-straw", "straw"],
+    ["pigs-acquire-sticks", "sticks"],
+    ["pigs-acquire-bricks", "bricks"],
+    ["snow-mirror", "mirror"],
+    ["snow-laces", "laces"],
+    ["snow-comb", "comb"],
+    ["snow-apple", "apple"],
+    ["snow-coffin", "coffin"],
+    ["cinderella-slipper", "slipper"],
+    ["jack-bean-trade", "merchant"],
+    ["jack-climbs", "beanstalk"],
+    ["jack-goose", "goose"],
+    ["frog-ball-lost", "ball"],
+    ["rumpel-first-demand", "spindle"],
+    ["rumpel-claim", "baby"],
+  ]);
+
+  const itemById = new Map(sample.items.map((item) => [item.id, item]));
+  for (const [id, icon] of expected) {
+    assert.equal(itemById.get(id)?.tags?.[0]?.icon, icon, `${id}: representative scene icon`);
+  }
+});
+
+test("storybook ending categories remain event semantics while narrative phase carries resolution", () => {
+  const expected = new Map([
+    ["pigs-safe", "state-change"],
+    ["snow-resolution", "relationship"],
+    ["cinderella-resolution", "relationship"],
+    ["red-resolution", "relationship"],
+    ["hg-return-home", "relationship"],
+    ["jack-cuts-beanstalk", "state-change"],
+    ["rapunzel-reunion", "relationship"],
+    ["frog-departure", "movement"],
+    ["rumpel-name-found", "discovery"],
+  ]);
+
+  const itemById = new Map(sample.items.map((item) => [item.id, item]));
+  for (const [id, categoryId] of expected) {
+    const item = itemById.get(id);
+    assert.equal(item?.categoryId, categoryId, `${id}: concrete event category`);
+    assert.equal(item?.extensions?.narrative?.phase, "resolution", `${id}: narrative phase`);
+  }
+
+  assert.equal(
+    sample.items.some((item) => item.categoryId === "resolution"),
+    false,
+    "resolution belongs to narrative phase rather than occurrence taxonomy",
+  );
+  assert.equal(
+    sample.categories.some((category) => category.id === "resolution"),
+    false,
+    "resolution is not duplicated as a category",
+  );
+});
+
+test("canonical place icons describe place identity rather than transient scene state", () => {
+  const expected = new Map([
+    ["pigs-market-place", "merchant"],
+    ["snow-clearing-place", "coffin"],
+    ["place-three-little-pigs-straw-seller-s-field", "straw"],
+    ["place-snow-white-queen-s-mirror-chamber", "mirror"],
+    ["place-three-little-pigs-pigwood-mason-s-yard", "bricks"],
+    ["place-cinderella-garden-and-pumpkin-patch", "pumpkin"],
+    ["place-cinderella-moonlit-carriage-road", "carriage"],
+    ["jack-market-place", "merchant"],
+    ["jack-beanstalk-place", "beanstalk"],
+    ["rumpel-spinning-room-place", "spindle"],
+  ]);
+  const placeById = new Map(sample.places.map((place) => [place.id, place]));
+
+  for (const [id, icon] of expected) {
+    assert.equal(placeById.get(id)?.icon, icon, `${id}: representative place icon`);
+  }
+
+  for (const place of sample.places) {
+    assert.notEqual(place.icon, "danger", `${place.id}: danger belongs to occurrences`);
+    assert.notEqual(place.icon, "search", `${place.id}: search belongs to occurrences`);
+  }
+});
+
 test("categories classify event semantics independently from story membership", () => {
   const categoryIds = new Set(sample.categories.map((category) => category.id));
   const categoryNames = new Set(sample.categories.map((category) => category.name));
   const storyTitles = new Set(sample.stories.map((story) => story.title));
 
-  assert.equal(sample.categories.length, 12);
+  assert.equal(sample.categories.length, 11);
   for (const title of storyTitles) assert.equal(categoryNames.has(title), false, title);
   for (const item of sample.items) assert.ok(categoryIds.has(item.categoryId), item.id);
 
@@ -540,7 +661,6 @@ test("categories classify event semantics independently from story membership", 
       "discovery",
       "relationship",
       "state-change",
-      "resolution",
       "deception",
       "exchange",
       "obligation",

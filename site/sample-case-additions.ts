@@ -8,6 +8,222 @@ const EXTRA_CATEGORIES = [
   { id: "obligation", name: "Promise / Obligation", color: "#0f766e" },
 ];
 
+const ACTION_TAG_LABELS = Object.freeze({
+  instructs: "Instruction",
+  meets: "Encounter",
+  deceives: "Misdirection",
+  attacks: "Attack",
+  visits: "Visit",
+  questions: "Questioning",
+  confronts: "Confrontation",
+  frees: "Rescue",
+  thanks: "Gratitude",
+  pressures: "Coercion",
+  reassures: "Reassurance",
+  leads: "Guided journey",
+  guides: "Navigation",
+  imprisons: "Captivity",
+  orders: "Order",
+  tricks: "Counter-deception",
+  reunitesWith: "Reunion",
+  tradesWith: "Trade",
+  scolds: "Reprimand",
+  climbs: "Ascent",
+  shelters: "Shelter",
+  watches: "Observation",
+  robs: "Theft",
+  seizes: "Seizure",
+  chases: "Pursuit",
+  cuts: "Route severed",
+  takes: "Removal",
+  raises: "Upbringing",
+  confines: "Confinement",
+  obeys: "Obedience",
+  hears: "Auditory discovery",
+  trusts: "Trust",
+  banishes: "Banishment",
+  gives: "Gift",
+  drops: "Lost object",
+  offers: "Offer",
+  promises: "Promise",
+  retrieves: "Recovery",
+  abandons: "Broken promise",
+  follows: "Following",
+  throws: "Physical confrontation",
+  escorts: "Escort",
+  boasts: "False boast",
+  helps: "Magical aid",
+  bargainsWith: "Bargain",
+  marries: "Marriage",
+  claims: "Claim",
+  identifies: "Name discovery",
+});
+
+const ITEM_SEMANTIC_REFINEMENTS =
+  // biome-ignore format: keep each authored semantic refinement reviewable as one fixture record
+  Object.freeze({
+  "snow-birth": { label: "Royal birth", icon: "baby" },
+  "snow-childhood": { label: "Childhood at court", icon: "child" },
+  "cinderella-mother": { label: "Maternal loss", icon: "parent" },
+  "cinderella-stepfamily-arrives": { label: "Stepfamily joins household", icon: "parent" },
+  "cinderella-hardship": { label: "Household servitude" },
+  "pigs-childhood": { label: "Shared upbringing", icon: "pig" },
+  "pigs-leave-home": { label: "Departure from Mother Pig", icon: "pig" },
+  "pigs-acquire-straw": { label: "Straw chosen", icon: "straw" },
+  "snow-mirror": { label: "Mirror verdict", icon: "mirror", phase: "inciting-incident" },
+  "pigs-acquire-sticks": { label: "Sticks chosen", icon: "sticks" },
+  "pigs-acquire-bricks": { label: "Bricks chosen", icon: "bricks" },
+  "pigs-brick-build": { label: "Brick-house construction", icon: "bricks" },
+  "snow-huntsman-order": { label: "Huntsman's kill order", icon: "axe" },
+  "pigs-straw-house": { label: "Straw-house construction", icon: "straw" },
+  "snow-huntsman-spares": { label: "Huntsman's mercy", icon: "axe" },
+  "snow-forest-flight": { label: "Flight into the forest" },
+  "pigs-stick-house": { label: "Stick-house construction", icon: "sticks" },
+  "snow-finds-cottage": { label: "Dwarfs' cottage found", icon: "home" },
+  "snow-dwarfs-shelter": { label: "Dwarfs offer shelter", icon: "pickaxe" },
+  "cinderella-invitation": { label: "Royal-ball invitation" },
+  "snow-queen-discovers": { label: "Mirror reveals survival", icon: "mirror" },
+  "cinderella-denied": { label: "Ball attendance denied", icon: "gown", phase: "setback" },
+  "cinderella-extra-chores": { label: "Impossible chores imposed", phase: "setback" },
+  "snow-disguises": { label: "Queen adopts disguise", icon: "disguise", phase: "escalation" },
+  "snow-laces": { label: "Enchanted laces attack", icon: "laces" },
+  "snow-laces-recovery": { label: "Laces removed", icon: "laces" },
+  "pigs-wolf-straw": { label: "Straw house destroyed", icon: "straw", phase: "escalation" },
+  "pigs-first-flees": { label: "Escape to stick house", icon: "sticks" },
+  "cinderella-transformation": { label: "Fairy transformation" },
+  "cinderella-coach-created": { label: "Pumpkin coach created", icon: "carriage" },
+  "pigs-wolf-sticks": { label: "Stick house destroyed", icon: "sticks", phase: "escalation" },
+  "pigs-two-flee": { label: "Regroup at brick house", icon: "bricks" },
+  "snow-comb": { label: "Poisoned comb attack", icon: "comb" },
+  "snow-comb-recovery": { label: "Comb removed", icon: "comb" },
+  "cinderella-first-ball": { label: "First royal ball", icon: "gown" },
+  "cinderella-prince-dance": { label: "Dance with the prince", icon: "gown" },
+  "cinderella-first-return": { label: "Departure before midnight", icon: "carriage" },
+  "pigs-brick-siege": { label: "Brick-house siege", icon: "bricks", phase: "escalation" },
+  "pigs-wolf-roof": { label: "Roof-entry attempt", icon: "wolf" },
+  "pigs-chimney": { label: "Chimney-entry attempt", icon: "wolf", phase: "climax" },
+  "pigs-safe": {
+    label: "Wolf defeated",
+    icon: "wolf",
+    categoryId: "state-change",
+    phase: "resolution",
+  },
+  "snow-apple-prepared": { label: "Poisoned apple prepared", icon: "apple", phase: "escalation" },
+  "snow-apple": { label: "Poisoned apple bite", icon: "apple", phase: "climax" },
+  "snow-coffin": { label: "Glass-coffin vigil", icon: "coffin", phase: "aftermath" },
+  "cinderella-second-ball": { label: "Second royal ball", icon: "gown", phase: "escalation" },
+  "cinderella-midnight-flight": { label: "Midnight flight", icon: "carriage" },
+  "cinderella-slipper": { label: "Glass slipper lost", icon: "slipper" },
+  "cinderella-search": { label: "Slipper-owner search", icon: "slipper" },
+  "snow-prince-arrives": { label: "Glass coffin discovered", icon: "coffin" },
+  "snow-revival": { label: "Snow White revives", phase: "reversal" },
+  "cinderella-stepsisters-try": { label: "Slipper test", icon: "slipper" },
+  "cinderella-asks-to-try": { label: "Requests slipper test", icon: "slipper" },
+  "cinderella-fit": { label: "Slipper fits", icon: "slipper" },
+  "snow-resolution": {
+    label: "Royal wedding",
+    categoryId: "relationship",
+    phase: "resolution",
+  },
+  "cinderella-resolution": {
+    label: "Royal wedding",
+    categoryId: "relationship",
+    phase: "resolution",
+  },
+
+  "red-wolf-meeting": { label: "Wolf encounter" },
+  "red-woodcutter-confronts": { icon: "axe", categoryId: "conflict" },
+  "red-grandmother-rescued": { label: "Grandmother rescued", icon: "axe" },
+  "red-resolution": { categoryId: "relationship", phase: "resolution" },
+
+  "hg-first-journey": { icon: "child" },
+  "hg-witch-encounter": { label: "Witch encounter", icon: "witch" },
+  "hg-hansel-captive": { icon: "witch" },
+  "hg-gretel-ordered": { icon: "witch" },
+  "hg-gretel-tricks-witch": { icon: "witch" },
+  "hg-hansel-freed": { label: "Hansel freed", icon: "child" },
+  "hg-return-home": { categoryId: "relationship", phase: "resolution" },
+
+  "jack-sale-order": { categoryId: "obligation" },
+  "jack-bean-trade": { label: "Bean trade", icon: "merchant" },
+  "jack-climbs": { icon: "beanstalk" },
+  "jack-sheltered": { icon: "giant" },
+  "jack-observes-giant": { icon: "giant" },
+  "jack-first-theft": { icon: "giant" },
+  "jack-goose": { label: "Golden Goose seized", icon: "goose", categoryId: "conflict" },
+  "jack-cuts-beanstalk": {
+    label: "Beanstalk severed",
+    icon: "beanstalk",
+    categoryId: "state-change",
+    phase: "resolution",
+  },
+
+  "rapunzel-taken": { icon: "hair" },
+  "rapunzel-raised": { icon: "hair" },
+  "rapunzel-confined": { icon: "hair" },
+  "rapunzel-obeys": { icon: "hair" },
+  "rapunzel-prince-hears": { icon: "hair" },
+  "rapunzel-trusts-prince": { icon: "hair" },
+  "rapunzel-banished": { icon: "witch" },
+  "rapunzel-prince-deceived": { icon: "witch" },
+  "rapunzel-reunion": { icon: "hair", categoryId: "relationship", phase: "resolution" },
+
+  "frog-king-gift": { label: "Golden-ball gift", icon: "ball" },
+  "frog-ball-lost": { label: "Golden ball lost", icon: "ball" },
+  "frog-offers-help": { icon: "frog" },
+  "frog-promise": { label: "Companionship promise", icon: "frog" },
+  "frog-ball-retrieved": {
+    label: "Golden ball recovered",
+    icon: "ball",
+    categoryId: "state-change",
+  },
+  "frog-princess-leaves": { label: "Promise abandoned", icon: "frog" },
+  "frog-follows": { icon: "frog" },
+  "frog-thrown": { icon: "frog" },
+  "frog-departure": { icon: "frog", categoryId: "movement", phase: "resolution" },
+
+  "rumpel-first-demand": { label: "First spinning demand", icon: "spindle" },
+  "rumpel-first-help": { label: "Magical spinning aid", icon: "spindle" },
+  "rumpel-necklace": { label: "Payment for assistance" },
+  "rumpel-second-demand": { label: "Escalated spinning demand", icon: "spindle" },
+  "rumpel-final-bargain": { icon: "magic" },
+  "rumpel-promise": { icon: "magic" },
+  "rumpel-claim": { label: "Royal child claimed", icon: "baby" },
+  "rumpel-name-found": {
+    label: "Hidden name discovered",
+    categoryId: "discovery",
+    phase: "resolution",
+  },
+});
+
+const PLACE_ICON_REFINEMENTS = Object.freeze({
+  "pigs-market-place": "merchant",
+  "snow-clearing-place": "coffin",
+  "place-three-little-pigs-straw-seller-s-field": "straw",
+  "place-snow-white-queen-s-mirror-chamber": "mirror",
+  "place-three-little-pigs-timber-track": "sticks",
+  "place-three-little-pigs-pigwood-mason-s-yard": "bricks",
+  "place-cinderella-garden-and-pumpkin-patch": "pumpkin",
+  "place-cinderella-moonlit-carriage-road": "carriage",
+  "place-snow-white-queen-s-workshop": "magic",
+  "place-cinderella-ashenvale-village-search-route": "place",
+
+  "red-cottage-bedroom-place": "home",
+  "red-woodcutter-clearing-place": "axe",
+  "hg-lost-forest-place": "place",
+  "hg-witch-kitchen-place": "witch",
+  "jack-market-place": "merchant",
+  "jack-bean-field-place": "beanstalk",
+  "jack-beanstalk-place": "beanstalk",
+  "jack-sky-yard-place": "crown",
+  "rapunzel-tower-chamber-place": "place",
+  "rapunzel-thornwood-place": "place",
+  "rapunzel-reunion-valley-place": "place",
+  "frog-princess-chamber-place": "crown",
+  "rumpel-spinning-room-place": "spindle",
+  "rumpel-name-clearing-place": "place",
+});
+
 const STORY_SPECS =
   // biome-ignore format: compact scene tuples keep each authored fixture record reviewable as one unit
   [
@@ -464,7 +680,13 @@ function makeItem(story, scene, sequence) {
     categoryId,
     presentation: { variant },
     evidenceIds: [story.evidence.id],
-    tags: [{ label: story.title, icon, hue: (sequence * 47) % 360 }],
+    tags: [
+      {
+        label: Reflect.get(ACTION_TAG_LABELS, predicate) ?? title,
+        icon,
+        hue: (sequence * 47) % 360,
+      },
+    ],
     extensions: {
       narrative: {
         fictional: true,
@@ -533,7 +755,7 @@ function storyAreaPlace(sample, storyId, id, name) {
       ],
     },
     crs: "OGC:CRS84",
-    icon: "danger",
+    icon: "place",
     markerShape: "diamond",
     attributes: { storyId, fictional: true, lifecycleArea: true },
   });
@@ -542,6 +764,35 @@ function storyAreaPlace(sample, storyId, id, name) {
 function patchRelationship(sample, id, patch) {
   const relationship = sample.relationships.find((candidate) => candidate.id === id);
   if (relationship) Object.assign(relationship, patch);
+}
+
+function refineSampleSemantics(sample) {
+  const resolutionCategoryIndex = sample.categories.findIndex(
+    (category) => category.id === "resolution",
+  );
+  if (resolutionCategoryIndex >= 0) sample.categories.splice(resolutionCategoryIndex, 1);
+
+  for (const item of sample.items) {
+    const refinement = Reflect.get(ITEM_SEMANTIC_REFINEMENTS, item.id);
+    if (!refinement) continue;
+
+    if (refinement.categoryId) item.categoryId = refinement.categoryId;
+
+    const primaryTag = item.tags?.[0];
+    if (primaryTag) {
+      if (refinement.label) primaryTag.label = refinement.label;
+      if (refinement.icon) primaryTag.icon = refinement.icon;
+    }
+
+    if (refinement.phase && item.extensions?.narrative) {
+      item.extensions.narrative.phase = refinement.phase;
+    }
+  }
+
+  for (const place of sample.places) {
+    const icon = Reflect.get(PLACE_ICON_REFINEMENTS, place.id);
+    if (icon) place.icon = icon;
+  }
 }
 
 function refreshStoryPlaces(sample) {
@@ -686,5 +937,6 @@ export function extendSampleCase(sample) {
     }
   }
 
+  refineSampleSemantics(sample);
   refreshStoryPlaces(sample);
 }
