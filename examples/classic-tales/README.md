@@ -69,3 +69,11 @@ pnpm compile:example-corpus
 The command reads `manifest.json` and writes each story only to its declared `targetDirectory`. It refuses to run when the manifest and shipped story IDs drift.
 
 This remains a migration compiler: until the generated per-story modules become the hand-maintained source and runtime loading consumes them directly, `site/sample-case.ts` / `site/sample-case-additions.ts` remain compatibility inputs. CI nevertheless certifies all nine stories through the canonical boundary on every compiler test run.
+
+## Runtime canonical boundary
+
+The built-in “Load example” action no longer assigns the trusted TypeScript sample object directly to application state. The compatibility source is first converted to strict canonical `lum-project` interchange, validated, and then projected into the current legacy runtime shape.
+
+The runtime projection is intentionally fail-closed where the current UI cannot represent canonical semantics without invention—for example an occurrence with no temporal start or an open interval with no displayable end.
+
+This is an intermediate migration boundary. The TypeScript story corpus is still the compatibility authoring source; #926 remains open until the generated modular Lūm fixtures become the maintained source and the legacy sample source/shim can be removed.
