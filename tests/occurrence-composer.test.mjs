@@ -1271,3 +1271,19 @@ test("live composer preserves project tags for option completion", async () => {
   assert.match(source, /composerEditableSections\(this\.value\)/);
   assert.match(source, /editSentenceSection\(section\)/);
 });
+
+
+test("composer-local glyphs preserve the shared Lucide construction contract", async () => {
+  const source = await readFile(
+    new URL("../site/components/occurrence-composer.ts", import.meta.url),
+    "utf8",
+  );
+  assert.doesNotMatch(source, /stroke-width:\s*1\.8/);
+  assert.match(
+    source,
+    /\.preview-node svg\s*\{[^}]*stroke:\s*currentColor;[^}]*stroke-width:\s*2;[^}]*stroke-linecap:\s*round;[^}]*stroke-linejoin:\s*round;/s,
+  );
+  assert.match(source, /iconPathData\("check"\)/);
+  assert.match(source, /iconPathData\("close"\)/);
+  assert.doesNotMatch(source, />×<\/button>/);
+});
