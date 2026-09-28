@@ -676,6 +676,11 @@ test("Lit composer is a touch-safe ARIA combobox with live-context guidance", as
   assert.match(source, /min-block-size:\s*44px/);
   assert.match(source, /Move the timeline or World while this is open/);
   assert.match(source, /class="compact"/);
+  assert.match(source, /container-type:\s*inline-size/);
+  assert.match(
+    source,
+    /@container \(max-width: 72px\)[\s\S]*\.compact[\s\S]*grid-template-columns:\s*1fr[\s\S]*\.compact-hint[\s\S]*display:\s*none/,
+  );
   assert.match(source, /class="ghost-completion"/);
   assert.match(source, /aria-autocomplete="both"/);
   assert.match(source, /suggestions\(\)\.slice\(0, 7\)/);
@@ -814,6 +819,10 @@ test("occurrence composer stays visibly integrated into the stable footer", asyn
   assert.match(
     shellStyles,
     /#occurrence-composer:not\(\[active\]\)[\s\S]*grid-column:\s*2[\s\S]*min-inline-size:\s*160px/,
+  );
+  assert.match(
+    shellStyles,
+    /@media \(max-width: 699px\)[\s\S]*#occurrence-composer:not\(\[active\]\)[\s\S]*inline-size:\s*var\(--toolbar-control-size\)[\s\S]*min-inline-size:\s*var\(--toolbar-control-size\)/,
   );
   assert.match(
     shellStyles,
