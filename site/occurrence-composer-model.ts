@@ -396,7 +396,7 @@ function parseEntityAtStart(input: string): {
   let rest = source.slice(offset).trimStart();
   let properties: Readonly<Record<string, string>> = Object.freeze({});
   if (rest.startsWith("(")) {
-    const close = rest.indexOf(")");
+    const close = findMarkerOutsideQuotes(rest, ")", 1);
     if (close < 0) return { entity: null, rest: source };
     properties = parseProperties(rest.slice(1, close));
     rest = rest.slice(close + 1).trimStart();
@@ -457,19 +457,33 @@ function stripTime(input: string): {
   readonly source: string;
   readonly time: ComposerTimeReference | null;
 } {
-  const range = input.match(/\s+from\s+(\S+)\s+to\s+(\S+)\s*$/i);
-  if (range) {
-    return {
-      source: input.slice(0, range.index).trimEnd(),
-      time: Object.freeze({ kind: "range", start: range[1]!, end: range[2]! }),
-    };
+  const lower = input.toLocaleLowerCase();
+  const fromMarker = findLastMarkerOutsideQuotes(lower, " from ");
+  if (fromMarker >= 0) {
+    const suffix = input.slice(fromMarker + 6);
+    const suffixLower = lower.slice(fromMarker + 6);
+    const toMarker = findLastMarkerOutsideQuotes(suffixLower, " to ");
+    if (toMarker >= 0) {
+      const start = suffix.slice(0, toMarker).trim();
+      const end = suffix.slice(toMarker + 4).trim();
+      if (start && end && !/\s/.test(start) && !/\s/.test(end)) {
+        return {
+          source: input.slice(0, fromMarker).trimEnd(),
+          time: Object.freeze({ kind: "range", start, end }),
+        };
+      }
+    }
   }
-  const instant = input.match(/\s+on\s+(\S+)\s*$/i);
-  if (instant) {
-    return {
-      source: input.slice(0, instant.index).trimEnd(),
-      time: Object.freeze({ kind: "instant", start: instant[1]! }),
-    };
+
+  const onMarker = findLastMarkerOutsideQuotes(lower, " on ");
+  if (onMarker >= 0) {
+    const start = input.slice(onMarker + 4).trim();
+    if (start && !/\s/.test(start)) {
+      return {
+        source: input.slice(0, onMarker).trimEnd(),
+        time: Object.freeze({ kind: "instant", start }),
+      };
+    }
   }
   return { source: input, time: null };
 }
@@ -478,7 +492,7 @@ function stripPlace(input: string): {
   readonly source: string;
   readonly place: ComposerPlaceReference | null;
 } {
-  const marker = input.toLocaleLowerCase().lastIndexOf(" at ");
+  const marker = findLastMarkerOutsideQuotes(input.toLocaleLowerCase(), " at ");
   if (marker < 0) return { source: input, place: null };
   const rawPlace = input.slice(marker + 4).trim();
   if (!rawPlace) return { source: input, place: null };
