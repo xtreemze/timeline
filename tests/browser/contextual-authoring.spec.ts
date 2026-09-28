@@ -443,54 +443,59 @@ test.describe("contextual world authoring certification", () => {
     );
   });
 
-  test("strict project validation rejects divergent canonical and linked occurrence time", async ({
+  test("strict project validation accepts shipped legacy chronology context links", async ({
     page,
   }) => {
     await page.goto("/");
-    const validation = await page.evaluate(() => {
+    const result = await page.evaluate(() => {
       const api = (
         window as typeof window & {
           TimelineAgentAPI?: {
-            getProject?: () => any;
             validateProject?: (project: any) => {
               valid?: boolean;
               errors?: string[];
             };
           };
+          TimelineSampleCase?: any;
         }
       ).TimelineAgentAPI;
-      const project = api?.getProject?.();
-      if (!project || !api?.validateProject) return null;
-
-      const items = Array.isArray(project.items) ? project.items : [];
-      const relationship = (project.relationships ?? []).find((candidate: any) => {
-        const ids = Array.isArray(candidate.itemIds) ? candidate.itemIds.map(String) : [];
-        if (ids.length !== 1 || !candidate.time || candidate.time.end) return false;
-        const item = items.find((entry: any) => String(entry.id) === ids[0]);
-        return item?.kind === "event" && Boolean(item?.time?.start?.value);
-      });
-      if (!relationship) return null;
-      const item = items.find(
-        (entry: any) => String(entry.id) === String(relationship.itemIds[0]),
+      const sample = structuredClone(
+        (window as typeof window & { TimelineSampleCase?: any }).TimelineSampleCase,
       );
-      if (!item) return null;
+      if (!sample || !api?.validateProject) return null;
 
-      item.start = "2099-01-16";
-      item.time = {
-        ...structuredClone(item.time),
-        start: {
-          ...structuredClone(item.time.start),
-          value: "2099-01-16",
-        },
+      const itemsById = new Map(
+        (Array.isArray(sample.items) ? sample.items : []).map((item: any) => [
+          String(item.id),
+          item,
+        ]),
+      );
+      let divergentContextLinks = 0;
+      for (const relationship of Array.isArray(sample.relationships)
+        ? sample.relationships
+        : []) {
+        if (!relationship?.time || !Array.isArray(relationship.itemIds)) continue;
+        for (const itemId of relationship.itemIds) {
+          const item = itemsById.get(String(itemId));
+          if (!item?.time) continue;
+          const relationshipStart = relationship.time?.start?.value ?? null;
+          const relationshipEnd = relationship.time?.end?.value ?? null;
+          const itemStart = item.time?.start?.value ?? null;
+          const itemEnd = item.time?.end?.value ?? null;
+          if (relationshipStart !== itemStart || relationshipEnd !== itemEnd) {
+            divergentContextLinks += 1;
+          }
+        }
+      }
+
+      return {
+        divergentContextLinks,
+        validation: api.validateProject(sample),
       };
-      return api.validateProject(project);
     });
-    test.skip(!validation, "Example project needs an event-backed relationship.");
-
-    expect(validation!.valid).toBe(false);
-    expect(validation!.errors?.join("\n")).toMatch(
-      /Canonical occurrence time and its linked projections must agree/i,
-    );
+    expect(result).not.toBeNull();
+    expect(result!.divergentContextLinks).toBeGreaterThan(0);
+    expect(result!.validation.valid, result!.validation.errors?.join("\n")).toBe(true);
   });
 
   test("material occurrence edits surface semantic-support review and invalidate confidence", async ({
