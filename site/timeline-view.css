@@ -1062,12 +1062,74 @@
   color: white;
   isolation: isolate;
 }
+luum-occurrence-deck {
+  position: absolute;
+  inset: 0;
+  display: block;
+  min-inline-size: 0;
+  min-block-size: 0;
+}
+
 .timeline-focus-hero-image,
 .timeline-focus-hero-fallback {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
+}
+
+.timeline-occurrence-deck-caption {
+  position: absolute;
+  z-index: 3;
+  inset-inline: 0.7rem;
+  inset-block-start: 0.65rem;
+  width: fit-content;
+  max-width: calc(100% - 1.4rem);
+  margin: 0;
+  padding: 0.32rem 0.48rem;
+  border-radius: 0.42rem;
+  background: color-mix(in srgb, black 54%, transparent);
+  color: white;
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.timeline-occurrence-deck-context {
+  z-index: 1;
+  display: grid;
+  align-content: center;
+  gap: 0.5rem;
+  box-sizing: border-box;
+  padding: clamp(1rem, 5cqi, 2.5rem);
+  color: white;
+}
+
+.timeline-occurrence-deck-context-label,
+.timeline-occurrence-deck-context-body {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+}
+
+.timeline-occurrence-deck-context-label {
+  font-size: clamp(1rem, 4cqi, 1.6rem);
+  font-weight: 760;
+}
+
+.timeline-occurrence-deck-context-body {
+  max-width: 44ch;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.timeline-focus-slide-count {
+  display: grid;
+  min-inline-size: 3.6rem;
+  min-block-size: 44px;
+  place-items: center;
+  color: white;
+  font: 700 0.72rem/1 ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
 }
 .timeline-focus-hero-image {
   object-fit: cover;

@@ -14,30 +14,36 @@ test("timeline controller implements every focus command used by app orchestrati
   assert.match(view, /stepFocusMedia\(delta: number\)/);
 });
 
-test("focused ranges recover duration and retained media controls", async () => {
-  const [view, css] = await Promise.all([
+test("focused ranges recover duration and delegate retained media controls to the deck", async () => {
+  const [view, deck, css] = await Promise.all([
     readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/components/occurrence-media-deck.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
   ]);
 
   assert.match(view, /formatElapsedDuration/);
   assert.match(view, /Duration \$\{duration\}/);
-  assert.match(view, /timeline-focus-hero-image/);
-  assert.match(view, /timeline-focus-slideshow-controls/);
-  assert.match(view, /timeline-focus-slide-dot/);
-  assert.match(view, /aria-current/);
+  assert.match(view, /new LuumOccurrenceDeckElement\(\)/);
+  assert.match(deck, /timeline-focus-hero-image/);
+  assert.match(deck, /timeline-focus-slideshow-controls/);
+  assert.match(deck, /timeline-focus-slide-dot/);
+  assert.match(deck, /aria-current/);
   assert.match(css, /\.timeline-focus-hero-image/);
   assert.match(css, /\.timeline-focus-slide-dot/);
 });
 
-test("media stepping updates only focused presentation state", async () => {
+test("media stepping updates only the focused deck instead of rerendering detail", async () => {
   const view = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
 
   assert.match(
     view,
-    /stepFocusMedia\(delta: number\)[\s\S]*this\.focusMediaIndex[\s\S]*this\.renderFocus\(item\)/,
+    /stepFocusMedia\(delta: number\)[\s\S]*querySelector<LuumOccurrenceDeckElement>[\s\S]*deck\?\.stepBy\(direction\)/,
   );
-  assert.doesNotMatch(view, /stepFocusMedia\(delta: number\)[\s\S]{0,600}this\.render\(\)/);
+  assert.doesNotMatch(
+    view,
+    /stepFocusMedia\(delta: number\)[\s\S]{0,900}this\.renderFocus\(item\)/,
+  );
+  assert.doesNotMatch(view, /stepFocusMedia\(delta: number\)[\s\S]{0,900}this\.render\(\)/);
 });
 
 test("retained event terminals preserve semantic media, tag icons, and connector weight", async () => {
