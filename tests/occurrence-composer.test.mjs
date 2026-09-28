@@ -963,22 +963,30 @@ test("Lit composer is a touch-safe ARIA combobox with live-context guidance", as
   assert.match(source, /--composer-completion-max-height/);
 });
 
-test("composer exposes save, live-context chips, metadata, and keyboard parity as real controls", async () => {
+test(
+  "composer exposes save, live-context chips, metadata, and keyboard parity as real controls",
+  async () => {
   const source = await readFile(
     new URL("../site/components/occurrence-composer.ts", import.meta.url),
     "utf8",
   );
 
   assert.match(source, /class="commit"/);
-  assert.match(
-    source,
-    /aria-label=\$\{[\s\S]*this\.selectionContext\?\.selectedOccurrenceId\s*\?\s*"Save occurrence"\s*:\s*"Create occurrence"[\s\S]*\}/,
-  );
+    assert.match(
+      source,
+      /aria-label=\$\{[\s\S]*this\.selectionContext\?\.selectedOccurrenceId\s*\?\s*"Save occurrence"\s*:\s*"Create occurrence"[\s\S]*\}/,
+    );
   assert.match(source, /@click=\$\{\(\) => this\.commit\(\)\}/);
   assert.match(source, /event\.key === "Enter" && \(event\.ctrlKey \|\| event\.metaKey\)/);
   assert.match(source, /event\.isComposing/);
-  assert.match(source, /data-context-kind="place"[\s\S]*@click=\$\{\(\) => this\.activateLivePlaceContext\(\)\}/);
-  assert.match(source, /data-context-kind="time"[\s\S]*@click=\$\{\(\) => this\.activateLiveTimeContext\(\)\}/);
+    assert.match(
+      source,
+      /data-context-kind="place"[\s\S]*@click=\$\{\(\) => this\.activateLivePlaceContext\(\)\}/,
+    );
+    assert.match(
+      source,
+      /data-context-kind="time"[\s\S]*@click=\$\{\(\) => this\.activateLiveTimeContext\(\)\}/,
+    );
   assert.match(source, /onContextRowKeyDown/);
   assert.match(source, /"ArrowLeft", "ArrowRight", "Home", "End"/);
   assert.match(source, /onMetadataKeyDown/);
@@ -991,8 +999,9 @@ test("composer exposes save, live-context chips, metadata, and keyboard parity a
   assert.match(source, /Confidence · 0–1/);
   assert.match(source, /Evidence \/ provenance IDs/);
   assert.match(source, /metadataDirty/);
-  assert.match(source, /metadataIdentity\(this\.metadataSnapshot\(\)\)/);
-});
+    assert.match(source, /metadataIdentity\(this\.metadataSnapshot\(\)\)/);
+  },
+);
 
 test("application passes composer metadata through create and update occurrence transactions", async () => {
   const source = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
