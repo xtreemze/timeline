@@ -51,6 +51,7 @@ import {
   resolveOccurrencePresentation,
   setComposerDraft,
   setComposerTarget,
+  setInvestigationQualifiers,
   setPresentation,
   switchOccurrenceSelection,
   type OccurrenceComposerHost,
@@ -1632,6 +1633,27 @@ export class TimelineViewController {
       end: number;
       index?: number;
     }> | null;
+    investigation: Readonly<{
+      qualifiers: readonly Readonly<{
+        id: string;
+        section:
+          | "subject"
+          | "predicate"
+          | "object"
+          | "place"
+          | "time"
+          | "category"
+          | "tag"
+          | "sentence";
+        start: number;
+        end: number;
+        rawText: string;
+        normalizedText: string;
+      }>[];
+      activeQualifierId: string | null;
+      activeInterpretationId: string | null;
+      proposedMethodAction: string | null;
+    }>;
   }>, host: OccurrenceComposerHost | null = null): void {
     let session = setComposerDraft(this.interactionSession, {
       ownerId: snapshot.ownerId,
@@ -1654,6 +1676,12 @@ export class TimelineViewController {
           }
         : null,
     );
+    session = setInvestigationQualifiers(session, {
+      qualifiers: snapshot.investigation.qualifiers,
+      activeQualifierId: snapshot.investigation.activeQualifierId,
+      activeInterpretationId: snapshot.investigation.activeInterpretationId,
+      proposedMethodAction: snapshot.investigation.proposedMethodAction,
+    });
     this.interactionSession = activateComposerHost(session, host);
   }
 
