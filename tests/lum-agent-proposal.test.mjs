@@ -133,6 +133,27 @@ test("valid relationship create proposal yields a separately valid candidate", (
   assert.equal(applied.summary.created.relationships, 1);
 });
 
+test("agent proposal rejects unresolved investigative composer syntax", () => {
+  const result = validateLumChangeProposal(
+    proposal([
+      {
+        op: "create",
+        collection: "relationships",
+        composerSentence: "Alice? warns Bob on 2026-09-28",
+        record: relationshipRecord(),
+      },
+    ]),
+    baseProject(),
+  );
+
+  assert.equal(result.valid, false);
+  assert.ok(
+    result.diagnostics.some(
+      (finding) => finding.code === "composer-investigative-unresolved",
+    ),
+  );
+});
+
 test("agent proposals cover canonical place/source/category/story composition", () => {
   const result = applyLumChangeProposal(
     proposal([

@@ -1063,6 +1063,12 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
   private commit(): void {
     const draft = this.parsed();
+    if (draft.investigation.qualifiers.length) {
+      this.externalError =
+        "Resolve or persist the investigative clue before committing a canonical occurrence.";
+      this.requestUpdate();
+      return;
+    }
     if (!draft.subject || !draft.predicate || !draft.object || draft.diagnostics.length) {
       this.externalError =
         draft.diagnostics[0] ?? "Complete subject, action, and object before committing.";
