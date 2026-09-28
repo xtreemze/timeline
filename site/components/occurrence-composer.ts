@@ -610,7 +610,6 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
   setEditing(editing: boolean): void {
     this.editing = editing;
-    if (!editing) this.active = false;
   }
 
   show(): void {
