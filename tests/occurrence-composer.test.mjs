@@ -257,11 +257,6 @@ test("application keeps timeline and World live while composer uses their center
 
 
   assert.match(source, /requiredElement<LuumOccurrenceComposerElement>\("#occurrence-composer"\)/);
-  assert.match(source, /requiredElement<HTMLButtonElement>\("#occurrence-composer-toggle"\)/);
-  assert.match(
-    source,
-    /occurrenceComposerToggle\.addEventListener\("click"[\s\S]*setOccurrenceComposerOpen\(!els\.occurrenceComposer\.active\)/,
-  );
   assert.match(
     source,
     /presentationStage\.inert = Boolean\([\s\S]*ui\.browserOpen[\s\S]*ui\.investigationOpen[\s\S]*ui\.editorOpen/,
@@ -325,18 +320,10 @@ test("occurrence composer stays visibly integrated into the stable footer", asyn
     markup,
     /<nav class="app-tool-dock app-footer-bar"[\s\S]*<luum-occurrence-composer id="occurrence-composer"><\/luum-occurrence-composer>/,
   );
-  assert.match(
-    markup,
-    /id="occurrence-composer-toggle"[^>]*aria-controls="occurrence-composer"[^>]*aria-expanded="false"/,
-  );
-
   const footerStart = markup.indexOf('<nav class="app-tool-dock app-footer-bar"');
   const footerEnd = markup.indexOf("</nav>", footerStart);
-  assert.equal(
-    (markup.slice(footerStart, footerEnd).match(/id="occurrence-composer-toggle"/g) ?? []).length,
-    0,
-    "Compose is reached through the editor instead of a second toolbar authoring button",
-  );
+  assert.equal((markup.match(/id="occurrence-composer-toggle"/g) ?? []).length, 0);
+  assert.match(markup.slice(footerStart, footerEnd), /id="occurrence-composer"/);
 
   assert.match(
     shellStyles,
