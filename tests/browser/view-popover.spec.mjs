@@ -24,6 +24,62 @@ test("View controls are direct persistent toolbar content", async ({ page }) => 
   await expect(view.locator(".world-layout-controls")).toBeVisible();
 });
 
+test("toolbar actions update state, labels, and scoped icons", async ({ page }) => {
+  const edit = page.locator("#editor-toggle");
+  const browse = page.locator("#timeline-browser-toggle");
+  const orientation = page.locator("#timeline-orientation-toggle");
+  const slideshow = page.locator("#timeline-auto-toggle");
+
+  await expect(edit).toHaveAttribute("data-semantic-icon", "timeline");
+  await expect(edit).toHaveAttribute("data-semantic-icon-secondary", "edit");
+  await edit.click();
+  await expect(edit).toHaveAttribute("aria-label", "Done editing");
+  await expect(edit).toHaveAttribute("data-semantic-icon-secondary", "check");
+  await edit.click();
+  await expect(edit).toHaveAttribute("data-semantic-icon-secondary", "edit");
+
+  await browse.click();
+  await expect(browse).toHaveAttribute("aria-label", "Close timeline browser");
+  await expect(browse).toHaveAttribute("data-semantic-icon-secondary", "close");
+  await browse.click();
+  await expect(browse).toHaveAttribute("aria-label", "Browse timeline");
+  await expect(browse).toHaveAttribute("data-semantic-icon-secondary", "search");
+
+  const beforeOrientation = await page.locator("#timeline-view").getAttribute("data-orientation");
+  await orientation.click();
+  const afterOrientation = beforeOrientation === "portrait" ? "landscape" : "portrait";
+  await expect(page.locator("#timeline-view")).toHaveAttribute("data-orientation", afterOrientation);
+  await expect(orientation).toHaveAttribute(
+    "data-semantic-icon-secondary",
+    afterOrientation === "portrait" ? "landscape" : "portrait",
+  );
+
+  await slideshow.click();
+  await expect(slideshow).toHaveAttribute("aria-pressed", "true");
+  await expect(slideshow).toHaveAttribute("aria-label", "Pause slideshow");
+  await expect(slideshow).toHaveAttribute("data-semantic-icon-secondary", "pause");
+  await slideshow.click();
+  await expect(slideshow).toHaveAttribute("aria-pressed", "false");
+  await expect(slideshow).toHaveAttribute("data-semantic-icon-secondary", "play");
+
+  for (const name of ["Zoom in", "Zoom out", "Fit to content"]) {
+    const button = page.getByRole("button", { name });
+    await expect(button).toBeEnabled();
+    await expect(button.locator(".compound-semantic-icon")).toHaveCount(1);
+    await button.click();
+  }
+  const wholeGlobe = page.getByRole("button", { name: "Show whole globe" });
+  await expect(wholeGlobe).toBeEnabled();
+  await wholeGlobe.click();
+
+  for (const name of ["Reorganize relationship layout", "Relax graph forces"]) {
+    const button = page.getByRole("button", { name });
+    await expect(button).toBeEnabled();
+    await expect(button.locator(".compound-semantic-icon")).toHaveCount(1);
+    await button.click();
+  }
+});
+
 test("opening Browse disables direct View controls without changing spatial stage geometry", async ({
   page,
 }) => {
