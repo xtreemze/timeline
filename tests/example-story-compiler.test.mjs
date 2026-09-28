@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  compileExampleStoryCorpus,
   compileExampleStoryModules,
   compileExampleStoryProject,
 } from "../src/application/example-story-compiler.ts";
@@ -116,5 +117,53 @@ test("pilot can split into bounded modules and reassemble without semantic drift
   assert.deepEqual(
     assembled.snapshot.project.relationships.map((relationship) => String(relationship.id)),
     compiled.snapshot.project.relationships.map((relationship) => String(relationship.id)),
+  );
+});
+
+
+test("the complete nine-story corpus compiles deterministically through canonical Lūm", () => {
+  const storyIds = sample.stories.map((story) => story.id);
+  assert.equal(storyIds.length, 9);
+
+  const first = compileExampleStoryCorpus(sample, storyIds, { savedAt });
+  const second = compileExampleStoryCorpus(sample, storyIds, { savedAt });
+
+  assert.deepEqual(
+    first.map((entry) => entry.storyId),
+    storyIds,
+  );
+  assert.deepEqual(
+    first.map((entry) => entry.serialized),
+    second.map((entry) => entry.serialized),
+  );
+
+  for (const entry of first) {
+    const validation = validateProjectInterchange(entry.serialized);
+    assert.equal(validation.valid, true, entry.storyId);
+    assert.equal(entry.snapshot.project.stories?.length, 1);
+    assert.equal(entry.snapshot.project.stories?.[0]?.id, entry.storyId);
+    assert.ok((entry.snapshot.project.occurrences ?? []).length > 0, entry.storyId);
+    assert.ok(entry.snapshot.project.relationships.length > 0, entry.storyId);
+    assert.ok(entry.snapshot.project.entities.length > 0, entry.storyId);
+
+    const assembled = assembleProjectModules(entry.modules, { savedAt });
+    assert.deepEqual(assembled.snapshot.project, entry.snapshot.project, entry.storyId);
+  }
+});
+
+test("corpus compiler rejects duplicate/unknown story IDs instead of producing partial fixtures", () => {
+  assert.throws(
+    () =>
+      compileExampleStoryCorpus(sample, [storyId, storyId], {
+        savedAt,
+      }),
+    /duplicate/i,
+  );
+  assert.throws(
+    () =>
+      compileExampleStoryCorpus(sample, ["story-does-not-exist"], {
+        savedAt,
+      }),
+    /does not exist/i,
   );
 });
