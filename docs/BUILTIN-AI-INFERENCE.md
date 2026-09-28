@@ -1,6 +1,6 @@
 # Built-in AI graph inference
 
-Timeline can use the browser's built-in Prompt API to propose canonical graph structure from event context and attached evidence notes without sending the content to an application-owned cloud inference service.
+Lūm can use the browser's built-in Prompt API to propose canonical graph structure from event context and attached evidence notes without sending the content to an application-owned cloud inference service.
 
 ## Provider
 

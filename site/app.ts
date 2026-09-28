@@ -4644,7 +4644,7 @@ function download(content, filename, type) {
 }
 
 function toMarkdown() {
-  const title = state.title.trim() || "Untitled timeline";
+  const title = state.title.trim() || "Untitled project";
   const lines = [`# ${title}`, "", "## Chronology", ""];
   for (const item of sortItems()) {
     const category = getCategory(item.categoryId);
@@ -6021,7 +6021,7 @@ els.timelineViewRoot.addEventListener("timelineevidenceopen", async (event) => {
 els.title.addEventListener("input", () => {
   if (ui.mode !== "edit") return;
   state.title = els.title.value.slice(0, 120);
-  els.heading.textContent = state.title.trim() || "Untitled timeline";
+  els.heading.textContent = state.title.trim() || "Untitled project";
   persist();
 });
 
@@ -6555,7 +6555,7 @@ function canonicalProjectJson(): string {
 }
 
 function canonicalProjectFilename(): string {
-  return `${slug(state.title)}.luum`;
+  return `${slug(state.title)}.lum.json`;
 }
 
 els.exportJson.addEventListener("click", async () => {

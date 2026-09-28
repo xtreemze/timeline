@@ -1,6 +1,6 @@
 # Formal presentation and print direction
 
-Timeline's formal surfaces should remain visually useful decades from now and translate cleanly to paper, PDF, court bundles, investigation reports, academic appendices, and archival records.
+Lūm's formal surfaces should remain visually useful decades from now and translate cleanly to paper, PDF, court bundles, investigation reports, academic appendices, and archival records.
 
 The interface can be contemporary in behavior without looking fashion-driven.
 
@@ -162,7 +162,7 @@ Print and reduced-motion modes remove all transitions and motion. Formal reading
 
 ## Long-term design test
 
-A formal Timeline report should still look appropriate if:
+A formal Lūm report should still look appropriate if:
 - filed in a court bundle;
 - attached to an expert report;
 - printed by a public agency;

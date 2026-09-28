@@ -31,7 +31,7 @@ const PROJECT_FILE_TYPES = [
   {
     description: "Lūm project",
     accept: {
-      "application/json": [".luum", ".json"],
+      "application/json": [".lum.json", ".luum", ".json"],
     },
   },
 ];
@@ -125,7 +125,7 @@ export async function saveNativeProjectFile(
 export function canShareProjectFile(): boolean {
   if (typeof navigator.share !== "function" || typeof navigator.canShare !== "function") return false;
   try {
-    const probe = new File(["{}"], "project.luum", { type: "application/json" });
+    const probe = new File(["{}"], "project.lum.json", { type: "application/json" });
     return navigator.canShare({ files: [probe] });
   } catch {
     return false;

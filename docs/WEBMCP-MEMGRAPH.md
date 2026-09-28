@@ -1,8 +1,8 @@
 # WebMCP and Memgraph MCP interoperability
 
-Timeline exposes its canonical in-browser project model to AI agents through the WebMCP API and provides a deterministic bridge to Memgraph MCP.
+Lūm exposes its canonical in-browser project model to AI agents through the WebMCP API and provides a deterministic bridge to Memgraph MCP.
 
-The integration intentionally reuses Timeline's normal state validation, persistence, and rendering. AI edits do not mutate a second data store and do not bypass the graph invariants.
+The integration intentionally reuses Lūm's normal state validation, persistence, and rendering. AI edits do not mutate a second data store and do not bypass the graph invariants.
 
 ## Standards and implementation status
 
@@ -238,7 +238,7 @@ A client connected to both Timeline WebMCP and Memgraph MCP can synchronize with
 4. Execute each returned `statements[]` query in order through Memgraph MCP.
 5. Leave `replacePrelude` out for non-destructive upsert-only synchronization.
 
-The namespace isolates one Timeline project inside a shared Memgraph database. Stable `timelineKey = namespace:id` values prevent different projects with the same local record IDs from colliding.
+The namespace isolates one Lūm project inside a shared Memgraph database. Stable `timelineKey = namespace:id` values prevent different projects with the same local record IDs from colliding.
 
 ### Memgraph → Timeline
 
@@ -251,8 +251,8 @@ The generated queries return `recordJson`, allowing exact reconstruction of Time
 
 ## Security boundaries
 
-- WebMCP tools operate on the currently open Timeline project and reuse the page's existing local-storage authority.
-- No Memgraph credentials are stored in Timeline.
+- WebMCP tools operate on the currently open Lūm project and reuse the page's existing local-storage authority.
+- No Memgraph credentials are stored in Lūm.
 - Timeline never connects directly to a Memgraph Bolt or MCP endpoint.
 - The AI/MCP client is the orchestration layer between the WebMCP page and Memgraph MCP.
 - Memgraph write access is controlled by Memgraph MCP configuration; Timeline cannot override `MCP_READ_ONLY`.
