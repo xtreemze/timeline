@@ -186,6 +186,49 @@ test("cross-place D3 spacing honors hub connectivity clearance", () => {
   );
 });
 
+
+test("selected-place tuning participates in cross-place collision islands", () => {
+  const settle = (clearanceScale) => {
+    const simulation = new D3WorldForceSimulation();
+    const hub = \`["cross-tuned-hub-\${clearanceScale}","place-a"]\`;
+    const peer = \`["cross-tuned-peer-\${clearanceScale}","place-b"]\`;
+    simulation.setScene({
+      nodes: [
+        node(hub, -10, 180, { connectivityClearanceMeters: 720 }),
+        node(peer, 10, 180),
+      ],
+      edges: [],
+      anchors: [
+        anchor(hub, "place-a", 0, { longitude: 18, latitude: 59 }),
+        anchor(peer, "place-b", 0, { longitude: 18, latitude: 59 }),
+      ],
+    });
+    simulation.setTuning(
+      {
+        collisionStrength: 0.82,
+        collisionIterations: 3,
+        connectivityClearanceScale: clearanceScale,
+        manyBodyStrength: -2600,
+        linkStrengthScale: 1,
+        anchorStrengthScale: 1,
+        dagStrengthScale: 1,
+      },
+      { placeId: "place-a" },
+    );
+    simulation.apply(topologyRequest());
+    for (let index = 0; index < 240; index += 1) simulation.step(1000 / 60);
+    return distance(simulation.getSnapshot(), hub, peer);
+  };
+
+  const hardBodyOnly = settle(0);
+  const hubClearance = settle(1);
+  assert.ok(hardBodyOnly >= 350, "cross-place tuning must retain the rendered hard body");
+  assert.ok(
+    hubClearance > hardBodyOnly + 100,
+    "selected-place connectivity clearance must affect nearby foreign-place rejection",
+  );
+});
+
 test("same-place D3 rejection is not truncated by a fixed kilometre cutoff", () => {
   const simulation = new D3WorldForceSimulation();
   const left = '["wide-left",null]';
