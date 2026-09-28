@@ -249,3 +249,43 @@ test("same-occurrence media and context refresh preserve a dirty investigative d
   await expect(composer.locator(".composer-card-context")).toHaveText("Updated description");
   await expect(composer.locator(".composer-card-media")).toHaveAttribute("alt", "Updated evidence");
 });
+
+
+test("different occurrence selection cannot overwrite a dirty investigative draft", async ({ page }) => {
+  const composer = page.locator("#occurrence-composer");
+  await composer.locator(".compact").click();
+  const input = composer.locator('input[role="combobox"]');
+
+  await composer.evaluate((element) => {
+    const api = element as HTMLElement & { setSelectionContext(context: unknown): void };
+    api.setSelectionContext({
+      selectedOccurrenceId: "occ-a",
+      composition: "@alice calls @bob",
+      title: "Occurrence A",
+      relationship: { subjectId: "alice", objectId: "bob" },
+    });
+  });
+  await input.fill("man? calls @alice");
+  await expect(composer.locator("#occurrence-investigation-panel")).toBeVisible();
+
+  await composer.evaluate((element) => {
+    const api = element as HTMLElement & { setSelectionContext(context: unknown): void };
+    api.setSelectionContext({
+      selectedOccurrenceId: "occ-b",
+      composition: "@bob meets @alice",
+      title: "Occurrence B",
+      relationship: { subjectId: "bob", objectId: "alice" },
+    });
+  });
+
+  await expect(input).toHaveValue("man? calls @alice");
+  await expect(composer.locator("#occurrence-investigation-panel")).toBeVisible();
+  const pending = composer.locator('[data-context-kind="pending-selection"]');
+  await expect(pending).toBeVisible();
+  await expect(pending).toContainText("Use selected context");
+
+  await pending.click();
+  await expect(input).toHaveValue("@bob meets @alice");
+  await expect(composer.locator("#occurrence-investigation-panel")).toHaveCount(0);
+  await expect(composer.locator(".composer-card-heading")).toContainText("Occurrence B");
+});
