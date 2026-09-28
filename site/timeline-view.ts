@@ -4203,7 +4203,6 @@ export class TimelineViewController {
     };
 
     const setFocusTab = (name: "overview" | "evidence"): void => {
-      const evidenceActive = name === "evidence";
       const apply = () => {
         applyFocusTab(name);
       };
