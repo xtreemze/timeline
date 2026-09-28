@@ -40,6 +40,90 @@ test("occurrence sentence maps grammar into canonical authoring slots", () => {
   assert.deepEqual(parsed.diagnostics, []);
 });
 
+test("quoted grammar words remain entity and place text instead of structural clauses", () => {
+  const noContext = parseOccurrenceSentence('Alice reads "Meeting at Dawn"');
+  assert.equal(noContext.stage, "complete");
+  assert.equal(noContext.object?.name, "Meeting at Dawn");
+  assert.equal(noContext.place, null);
+  assert.equal(noContext.time, null);
+
+  const parsed = parseOccurrenceSentence(
+    '"Alice at Home" studies "War on Drugs" at "Museum on Main" on 2026-09-28',
+  );
+  assert.equal(parsed.stage, "complete");
+  assert.equal(parsed.subject?.name, "Alice at Home");
+  assert.equal(parsed.object?.name, "War on Drugs");
+  assert.equal(parsed.place?.name, "Museum on Main");
+  assert.deepEqual(parsed.time, { kind: "instant", start: "2026-09-28" });
+});
+
+test("quoted option delimiters and tags round-trip without semantic loss", () => {
+  const sentence = formatOccurrenceComposition({
+    subjectId: "alice",
+    predicate: "reports",
+    objectId: "case-file",
+    category: "Research, Analysis",
+    tags: ["ops|critical", "red,blue", "plain"],
+  });
+  assert.equal(
+    sentence,
+    '@alice reports @case-file [category: "Research, Analysis", tags: "ops|critical"|"red,blue"|plain]',
+  );
+
+  const parsed = parseOccurrenceSentence(sentence);
+  assert.equal(parsed.stage, "complete");
+  assert.equal(parsed.options.category, "Research, Analysis");
+  assert.deepEqual(parsed.options.tags, ["ops|critical", "red,blue", "plain"]);
+
+  const sections = composerEditableSections(sentence);
+  assert.equal(
+    sentence.slice(
+      sections.find((section) => section.kind === "category")?.start ?? 0,
+      sections.find((section) => section.kind === "category")?.end ?? 0,
+    ),
+    '"Research, Analysis"',
+  );
+  assert.deepEqual(
+    sections
+      .filter((section) => section.kind === "tag")
+      .map((section) => section.text),
+    ["ops|critical", "red,blue", "plain"],
+  );
+});
+
+test("quoted entity property delimiters do not terminate properties or trigger false modes", () => {
+  const sentence = 'Alice(note: "A, B)", icon: person) meets Bob';
+  const parsed = parseOccurrenceSentence(sentence);
+  assert.equal(parsed.stage, "complete");
+  assert.equal(parsed.subject?.properties.note, "A, B)");
+  assert.equal(parsed.subject?.properties.icon, "person");
+
+  const entitySentence = '"Research (Beta)" meets Bob';
+  const suggestions = occurrenceComposerSuggestions(entitySentence, {
+    entities: [{ id: "research-beta", name: "Research (Beta)", type: "group" }],
+    places: [],
+    categories: [],
+    cursorOffset: entitySentence.indexOf("Beta"),
+  });
+  assert.equal(suggestions.some((suggestion) => suggestion.kind === "property"), false);
+  assert.equal(suggestions[0]?.kind, "entity");
+});
+
+test("quoted commas are preserved when accepting later property and option suggestions", () => {
+  assert.equal(
+    replaceComposerTail('Alice(note: "A, B", ic', "icon: person", "complete"),
+    'Alice(note: "A, B", icon: person',
+  );
+  assert.equal(
+    replaceComposerTail(
+      'Alice meets Bob [category: "Research, Analysis", ta',
+      "tags: plain",
+      "complete",
+    ),
+    'Alice meets Bob [category: "Research, Analysis", tags: plain',
+  );
+});
+
 test("selection-only composition preserves every previously accepted grammar component", () => {
   const options = {
     entities: [
