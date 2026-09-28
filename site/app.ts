@@ -18,7 +18,9 @@ import {
   defaultSemanticIconForEntityType,
   normalizeEntityPresentationAttributes,
   normalizeSemanticIconName,
+  semanticIconLabel,
 } from "../src/presentation/semantic-icons.ts";
+import { suggestSemanticIconForPlace } from "../src/presentation/semantic-icon-inference.ts";
 import { projectTimelineOccurrences } from "../src/projection/timeline-projection.ts";
 import "./components/occurrence-composer.ts";
 import type {
@@ -664,6 +666,7 @@ function populateSemanticIconSuggestions() {
     ...presentation.ICON_NAMES.map((icon) => {
       const option = document.createElement("option");
       option.value = icon;
+      option.label = semanticIconLabel(icon);
       return option;
     }),
   );
@@ -5157,6 +5160,13 @@ els.graphNodeList.addEventListener("click", (event) => {
   if (!button || !row) return;
   if (button.dataset.action === "edit-graph-node") beginGraphNodeEdit(row.dataset.id);
   if (button.dataset.action === "delete-graph-node") removeGraphNode(row.dataset.id);
+});
+
+els.graphPlaceName.addEventListener("input", () => {
+  const current = normalizeSemanticIconName(els.graphPlaceIcon.value);
+  if (current && current !== "place") return;
+  const suggestion = suggestSemanticIconForPlace({ name: els.graphPlaceName.value });
+  if (suggestion) els.graphPlaceIcon.value = suggestion.icon;
 });
 
 els.graphPlaceForm.addEventListener("submit", (event) => {
