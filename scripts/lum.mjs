@@ -15,6 +15,16 @@ import {
   lintProjectInterchange,
   validateProjectInterchange,
 } from "../src/application/project-interchange.ts";
+import {
+  assembleProjectModules,
+  createProjectModule,
+  formatProjectModule,
+  lintProjectModule,
+  LUM_PROJECT_MODULE_COLLECTIONS,
+  LUM_PROJECT_MODULE_FILE_EXTENSION,
+  LUM_PROJECT_MODULE_SCHEMA_ID,
+  validateProjectModule,
+} from "../src/application/project-module.ts";
 import { CURRENT_PROJECT_SCHEMA_VERSION } from "../src/application/project-repository.ts";
 import { parseOccurrenceSentence } from "../site/occurrence-composer-model.ts";
 import { runLumLanguageServer } from "./lum-lsp.mjs";
@@ -28,13 +38,16 @@ import {
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SCHEMA_PATH = path.join(ROOT, "schemas", "lum-project-v1.schema.json");
+const MODULE_SCHEMA_PATH = path.join(ROOT, "schemas", "lum-project-module-v1.schema.json");
 
 function usage() {
   return `Lūm developer toolchain
 
 Usage:
   lum init [directory|project.lum.json] [--project-key <key>] [--force]
-  lum check <project.lum.json|-> [--json]
+  lum init-module <name.module.lum.json> --project-key <key> --story-id <id> --collection <collection> [--force]
+  lum check <project.lum.json|module.module.lum.json|-> [--json]
+  lum check-modules <module.module.lum.json...> [--json]
   lum lint <project.lum.json|-> [--json]
   lum fmt <project.lum.json|-> [--check]
   lum compose "<subject> <action> <object> ..." [--json]
@@ -54,7 +67,14 @@ function optionValue(args, name) {
 }
 
 function positional(args) {
-  const withValue = new Set(["--project-key", "--project", "--output", "--instruction"]);
+  const withValue = new Set([
+    "--project-key",
+    "--project",
+    "--output",
+    "--instruction",
+    "--story-id",
+    "--collection",
+  ]);
   const result = [];
   for (let index = 0; index < args.length; index += 1) {
     const value = args[index];
@@ -95,7 +115,7 @@ function outputValidation(valid, diagnostics, json, source = null) {
   if (json) {
     process.stdout.write(`${JSON.stringify({ valid, diagnostics: locatedDiagnostics }, null, 2)}\n`);
   } else if (valid) {
-    process.stdout.write("Lūm project is valid.\n");
+    process.stdout.write("Lūm document is valid.\n");
   } else {
     printDiagnostics(locatedDiagnostics);
   }
@@ -136,11 +156,144 @@ async function commandInit(args) {
   process.stdout.write(`${filePath}\n`);
 }
 
+function documentFormat(source) {
+  try {
+    const parsed = JSON.parse(source);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed.format
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function validateLumDocument(source) {
+  return documentFormat(source) === "lum-project-module"
+    ? validateProjectModule(source)
+    : validateProjectInterchange(source);
+}
+
+function lintLumDocument(source, options = {}) {
+  return documentFormat(source) === "lum-project-module"
+    ? lintProjectModule(source, options)
+    : lintProjectInterchange(source, options);
+}
+
+function formatLumDocument(source) {
+  return documentFormat(source) === "lum-project-module"
+    ? formatProjectModule(source)
+    : formatProjectInterchange(source);
+}
+
+async function commandInitModule(args) {
+  const target = positional(args)[0];
+  if (!target) throw new Error("init-module requires a .module.lum.json path.");
+  const projectKey = optionValue(args, "--project-key");
+  const storyId = optionValue(args, "--story-id");
+  const collection = optionValue(args, "--collection");
+  if (!projectKey || !storyId || !collection) {
+    throw new Error(
+      "init-module requires --project-key <key>, --story-id <id>, and --collection <collection>.",
+    );
+  }
+  if (!LUM_PROJECT_MODULE_COLLECTIONS.includes(collection)) {
+    throw new Error(
+      `--collection must be one of: ${LUM_PROJECT_MODULE_COLLECTIONS.join(", ")}.`,
+    );
+  }
+  if (!target.endsWith(LUM_PROJECT_MODULE_FILE_EXTENSION)) {
+    throw new Error(
+      `Lūm project modules must use the ${LUM_PROJECT_MODULE_FILE_EXTENSION} suffix.`,
+    );
+  }
+  const absolute = path.resolve(target);
+  if (existsSync(absolute) && !args.includes("--force")) {
+    throw new Error(`${absolute} already exists. Pass --force to replace it.`);
+  }
+  await mkdir(path.dirname(absolute), { recursive: true });
+  const serialized = createProjectModule({
+    projectKey,
+    storyId,
+    collection,
+    records: [],
+  });
+  await writeFile(absolute, serialized, "utf8");
+  process.stdout.write(`${absolute}\n`);
+}
+
+async function commandCheckModules(args) {
+  const targets = positional(args);
+  if (targets.length === 0) {
+    throw new Error("check-modules requires one or more .module.lum.json paths.");
+  }
+  const sources = [];
+  const diagnostics = [];
+  for (const target of targets) {
+    const source = await readTarget(target);
+    const validation = validateProjectModule(source);
+    if (!validation.valid) {
+      diagnostics.push(
+        ...validation.diagnostics.map((finding) => ({
+          ...finding,
+          file: target,
+        })),
+      );
+    }
+    sources.push(source);
+  }
+
+  if (diagnostics.length > 0) {
+    if (args.includes("--json")) {
+      process.stdout.write(
+        `${JSON.stringify({ valid: false, moduleCount: targets.length, diagnostics }, null, 2)}\n`,
+      );
+    } else {
+      printDiagnostics(diagnostics);
+    }
+    process.exitCode = 1;
+    return;
+  }
+
+  try {
+    assembleProjectModules(sources, {
+      savedAt: "1970-01-01T00:00:00.000Z",
+    });
+  } catch (error) {
+    const failure = {
+      severity: "error",
+      code: "invalid-module-workspace",
+      path: "",
+      message: error instanceof Error ? error.message : String(error),
+    };
+    if (args.includes("--json")) {
+      process.stdout.write(
+        `${JSON.stringify(
+          { valid: false, moduleCount: targets.length, diagnostics: [failure] },
+          null,
+          2,
+        )}\n`,
+      );
+    } else {
+      printDiagnostics([failure]);
+    }
+    process.exitCode = 1;
+    return;
+  }
+
+  if (args.includes("--json")) {
+    process.stdout.write(
+      `${JSON.stringify({ valid: true, moduleCount: targets.length, diagnostics: [] }, null, 2)}\n`,
+    );
+  } else {
+    process.stdout.write(`Lūm module workspace is valid (${targets.length} modules).\n`);
+  }
+}
+
 async function commandCheck(args) {
   const target = positional(args)[0];
   if (!target) throw new Error("check requires a .lum.json path or - for stdin.");
   const source = await readTarget(target);
-  const result = validateProjectInterchange(source);
+  const result = validateLumDocument(source);
   outputValidation(result.valid, result.diagnostics, args.includes("--json"), source);
   if (!result.valid) process.exitCode = 1;
 }
@@ -149,7 +302,7 @@ async function commandLint(args) {
   const target = positional(args)[0];
   if (!target) throw new Error("lint requires a .lum.json path or - for stdin.");
   const source = await readTarget(target);
-  const result = lintProjectInterchange(source, { fileName: target });
+  const result = lintLumDocument(source, { fileName: target });
   outputValidation(result.valid, result.diagnostics, args.includes("--json"), source);
   if (!result.valid) process.exitCode = 1;
 }
@@ -158,11 +311,11 @@ async function commandFmt(args) {
   const target = positional(args)[0];
   if (!target) throw new Error("fmt requires a .lum.json path or - for stdin.");
   const source = await readTarget(target);
-  const formatted = formatProjectInterchange(source);
+  const formatted = formatLumDocument(source);
 
   if (args.includes("--check")) {
     if (formatted !== source) {
-      process.stderr.write("Lūm project is not canonically formatted.\n");
+      process.stderr.write("Lūm document is not canonically formatted.\n");
       process.exitCode = 1;
     }
     return;
@@ -420,6 +573,11 @@ function commandSchema(args) {
     path: SCHEMA_PATH,
     interchangeVersion: LUM_PROJECT_INTERCHANGE_VERSION,
     canonicalSchemaVersion: CURRENT_PROJECT_SCHEMA_VERSION,
+    module: {
+      id: LUM_PROJECT_MODULE_SCHEMA_ID,
+      path: MODULE_SCHEMA_PATH,
+      extension: LUM_PROJECT_MODULE_FILE_EXTENSION,
+    },
   };
   if (args.includes("--json")) {
     process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
@@ -439,8 +597,14 @@ async function main() {
     case "init":
       await commandInit(args);
       return;
+    case "init-module":
+      await commandInitModule(args);
+      return;
     case "check":
       await commandCheck(args);
+      return;
+    case "check-modules":
+      await commandCheckModules(args);
       return;
     case "lint":
       await commandLint(args);
