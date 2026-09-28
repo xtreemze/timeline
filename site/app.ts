@@ -7,6 +7,7 @@ import { authorOccurrence } from "../src/application/occurrence-authoring.ts";
 import {
   stageProjectImportReview,
   type StagedProjectImport,
+  verifyStagedProjectImport,
 } from "../src/application/project-import-review.ts";
 import { applyProjectTransaction } from "../src/application/project-transaction.ts";
 import {
@@ -426,6 +427,20 @@ const els = {
   browserClose: requiredElement<HTMLButtonElement>("#timeline-browser-close"),
   browserStoryList: requiredElement<HTMLElement>("#browser-story-list"),
   browserStoryCount: requiredElement<HTMLElement>("#browser-story-count"),
+  projectImportReviewSheet: requiredElement<HTMLElement>("#project-import-review-sheet"),
+  projectImportReviewStatus: requiredElement<HTMLElement>("#project-import-review-status"),
+  projectImportReviewSummary: requiredElement<HTMLElement>("#project-import-review-summary"),
+  projectImportReviewFingerprint: requiredElement<HTMLElement>("#project-import-review-fingerprint"),
+  projectImportReviewSources: requiredElement<HTMLUListElement>("#project-import-review-sources"),
+  projectImportReviewUnresolved: requiredElement<HTMLUListElement>("#project-import-review-unresolved"),
+  projectImportReviewFindings: requiredElement<HTMLUListElement>("#project-import-review-findings"),
+  projectImportReviewNotes: requiredElement<HTMLElement>("#project-import-review-notes"),
+  projectImportReviewInstructions: requiredElement<HTMLUListElement>(
+    "#project-import-review-instructions",
+  ),
+  projectImportReviewApprove: requiredElement<HTMLButtonElement>("#project-import-review-approve"),
+  projectImportReviewCancel: requiredElement<HTMLButtonElement>("#project-import-review-cancel"),
+  projectImportReviewClose: requiredElement<HTMLButtonElement>("#project-import-review-close"),
   focusPrev: requiredElement<HTMLButtonElement>("#timeline-focus-prev"),
   focusNext: requiredElement<HTMLButtonElement>("#timeline-focus-next"),
   relatedZoom: requiredElement<HTMLButtonElement>("#timeline-related-zoom"),
@@ -673,6 +688,7 @@ const ui = {
   editorOpen: false,
   browserOpen: false,
   investigationOpen: false,
+  importReviewOpen: false,
   collapsedCategoryIds: new Set(state.categories.map((category) => category.id)),
 };
 let investigationWorkspace: InvestigationWorkspaceController | null = null;
@@ -1665,6 +1681,7 @@ function syncApplicationSurfaces() {
     els.appShell.dataset.editorOpen = String(ui.editorOpen);
     els.appShell.dataset.browserOpen = String(ui.browserOpen);
     els.appShell.dataset.investigationOpen = String(ui.investigationOpen);
+    els.appShell.dataset.importReviewOpen = String(ui.importReviewOpen);
     els.appShell.dataset.graphOpen = "true";
   }
 
@@ -1676,13 +1693,15 @@ function syncApplicationSurfaces() {
     els.browserSheet.hidden = !ui.browserOpen;
     els.browserSheet.setAttribute("aria-hidden", String(!ui.browserOpen));
   }
+  els.projectImportReviewSheet.hidden = !ui.importReviewOpen;
+  els.projectImportReviewSheet.setAttribute("aria-hidden", String(!ui.importReviewOpen));
   if (els.presentationStage) {
     els.presentationStage.inert = Boolean(
-      ui.browserOpen || ui.investigationOpen || ui.editorOpen,
+      ui.browserOpen || ui.investigationOpen || ui.editorOpen || ui.importReviewOpen,
     );
   }
   els.occurrenceComposer.hidden = Boolean(
-    ui.browserOpen || ui.investigationOpen || ui.editorOpen,
+    ui.browserOpen || ui.investigationOpen || ui.editorOpen || ui.importReviewOpen,
   );
   els.occurrenceComposer.setEditing(editing);
   els.occurrenceComposerToggle.setAttribute(
@@ -1696,7 +1715,7 @@ function syncApplicationSurfaces() {
   els.occurrenceComposerToggle.title = els.occurrenceComposer.active
     ? "Close occurrence composer"
     : "Compose occurrence";
-  if (els.appToolDock) els.appToolDock.inert = false;
+  if (els.appToolDock) els.appToolDock.inert = ui.importReviewOpen;
   if (els.title) {
     const titleEditing = ui.editorOpen;
     els.title.readOnly = !titleEditing;
@@ -1706,7 +1725,8 @@ function syncApplicationSurfaces() {
   if (els.editorToggle) {
     els.editorToggle.setAttribute("aria-expanded", String(ui.editorOpen));
   }
-  const viewControlsDisabled = ui.editorOpen || ui.browserOpen || ui.investigationOpen;
+  const viewControlsDisabled =
+    ui.editorOpen || ui.browserOpen || ui.investigationOpen || ui.importReviewOpen;
   for (const control of els.appToolDock.querySelectorAll<HTMLButtonElement | HTMLInputElement>(
     "[data-view-control]",
   )) {
@@ -1716,7 +1736,7 @@ function syncApplicationSurfaces() {
     opener.setAttribute("aria-expanded", String(ui.editorOpen));
   }
   if (els.browserToggle) {
-    els.browserToggle.disabled = editing;
+    els.browserToggle.disabled = editing || ui.importReviewOpen;
     els.browserToggle.setAttribute("aria-expanded", String(ui.browserOpen));
   }
 
@@ -1758,7 +1778,7 @@ function syncTimelineContextControls() {
       : editableFocus
         ? "Edit focused event"
         : "Edit timeline";
-    els.editorToggle.disabled = false;
+    els.editorToggle.disabled = ui.importReviewOpen;
     els.editorToggle.setAttribute("aria-label", label);
     els.editorToggle.title = label;
     const accessibleLabel = els.editorToggle.querySelector(".app-tool-label");
@@ -1861,6 +1881,7 @@ function syncOccurrenceComposerData(): void {
 }
 
 function setOccurrenceComposerOpen(open: boolean): void {
+  if (ui.importReviewOpen) return;
   let focusToRestore: HTMLElement | null = null;
   if (open) {
     if (!els.occurrenceComposer.active) {
@@ -1995,6 +2016,7 @@ function commitOccurrenceComposer(detail: OccurrenceCommitDetail): void {
 }
 
 function setEditorSurfaceOpen(open) {
+  if (ui.importReviewOpen) return;
   const editing = Boolean(open);
   ui.mode = editing ? "edit" : "view";
   ui.editorOpen = editing;
@@ -2008,7 +2030,7 @@ function setEditorSurfaceOpen(open) {
 }
 
 function setBrowserSurfaceOpen(open) {
-  if (ui.mode === "edit") return;
+  if (ui.mode === "edit" || ui.importReviewOpen) return;
   ui.browserOpen = Boolean(open);
   if (ui.browserOpen) {
     closeLargeUtilitySurfaces("browser");
@@ -2025,7 +2047,7 @@ function setBrowserSurfaceOpen(open) {
 }
 
 function setInvestigationSurfaceOpen(open) {
-  if (ui.mode === "edit") return;
+  if (ui.mode === "edit" || ui.importReviewOpen) return;
   ui.investigationOpen = Boolean(open);
   if (ui.investigationOpen) {
     closeLargeUtilitySurfaces("investigation");
@@ -4930,6 +4952,31 @@ els.browserClose?.addEventListener("click", () => setBrowserSurfaceOpen(false));
 els.browserSheet.addEventListener("click", (event) => {
   if (event.target === els.browserSheet) setBrowserSurfaceOpen(false);
 });
+els.projectImportReviewApprove.addEventListener("click", () => {
+  const review = pendingProjectImportReview;
+  if (!review) return;
+  try {
+    const verified = verifyStagedProjectImport(review, projectImportReviewDependencies());
+    ui.importReviewOpen = false;
+    syncApplicationSurfaces();
+    timelineView?.closeFocus();
+    applyImportedTimeline(verified, "Verified import", review.warnings.length);
+  } catch (error) {
+    showStatus(
+      error instanceof Error ? error.message : "The staged project could not be verified.",
+    );
+  }
+});
+els.projectImportReviewCancel.addEventListener("click", () => {
+  pendingProjectImportReview = null;
+  setProjectImportReviewOpen(false);
+  showStatus("Generated project proposal discarded · current project unchanged.");
+});
+els.projectImportReviewClose.addEventListener("click", () => {
+  pendingProjectImportReview = null;
+  setProjectImportReviewOpen(false);
+  showStatus("Generated project proposal discarded · current project unchanged.");
+});
 els.focusPrev.addEventListener("click", () => {
   timelineView?.focusAdjacent(-1, { reference: "viewport" });
   syncTimelineContextControls();
@@ -4951,6 +4998,13 @@ els.relatedFit.addEventListener("click", () => {
 
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
+  if (ui.importReviewOpen) {
+    event.preventDefault();
+    pendingProjectImportReview = null;
+    setProjectImportReviewOpen(false);
+    showStatus("Generated project proposal discarded · current project unchanged.");
+    return;
+  }
   if (ui.editorOpen) {
     event.preventDefault();
     setEditorSurfaceOpen(false);
@@ -5934,14 +5988,94 @@ els.loadSample.addEventListener("click", () => {
   showStatus("Example timeline loaded.");
 });
 
+function projectImportReviewDependencies() {
+  return {
+    normalize: (project: unknown) =>
+      normalizeTimeline(project as TimelineInputRecord, { strictGraph: true }),
+    validate: (project: TimelineState) => validateAgentProject(project),
+  };
+}
+
 function stageVerificationRequiredProjectImport(
   input: unknown,
 ): StagedProjectImport<TimelineState> | null {
-  return stageProjectImportReview<TimelineState>(input, {
-    normalize: (project) =>
-      normalizeTimeline(project as TimelineInputRecord, { strictGraph: true }),
-    validate: (project) => validateAgentProject(project),
+  return stageProjectImportReview<TimelineState>(input, projectImportReviewDependencies());
+}
+
+function reviewListItem(text: string, className = ""): HTMLLIElement {
+  const item = document.createElement("li");
+  item.textContent = text;
+  if (className) item.className = className;
+  return item;
+}
+
+function renderProjectImportReview(review: StagedProjectImport<TimelineState>): void {
+  const summary = review.summary;
+  els.projectImportReviewStatus.textContent =
+    review.status === "ready-for-user-verification"
+      ? "This generated project has passed structural checks but still requires your verification."
+      : "This generated project cannot be approved until the reported errors are repaired.";
+  els.projectImportReviewSummary.textContent =
+    `${summary.items} items · ${summary.stories} stories · ${summary.entities} entities · ${summary.relationships} relationships · ${summary.places} places · ${summary.evidence} evidence records · ${summary.sources} sources`;
+  els.projectImportReviewFingerprint.textContent = review.fingerprint;
+
+  const sourceItems = review.sources.map((source) => {
+    const id = String(source["id"] ?? "source");
+    const title = String(source["title"] ?? id);
+    const locator = String(source["locator"] ?? "").trim();
+    return reviewListItem(locator ? `${title} · ${locator}` : title);
   });
+  els.projectImportReviewSources.replaceChildren(
+    ...(sourceItems.length ? sourceItems : [reviewListItem("No source manifest supplied.")]),
+  );
+
+  els.projectImportReviewUnresolved.replaceChildren(
+    ...(review.unresolved.length
+      ? review.unresolved.map((entry) => reviewListItem(entry))
+      : [reviewListItem("No unresolved facts were reported.")]),
+  );
+
+  const findings = [
+    ...review.errors.map((entry) =>
+      reviewListItem(`Error: ${entry}`, "project-import-review-findings-error"),
+    ),
+    ...review.warnings.map((entry) => reviewListItem(`Warning: ${entry}`)),
+  ];
+  els.projectImportReviewFindings.replaceChildren(
+    ...(findings.length ? findings : [reviewListItem("No validation findings.")]),
+  );
+
+  els.projectImportReviewNotes.textContent =
+    review.generationNotes || "No generation notes were supplied.";
+  els.projectImportReviewInstructions.replaceChildren(
+    ...(review.verificationInstructions.length
+      ? review.verificationInstructions.map((entry) => reviewListItem(entry))
+      : [
+          reviewListItem(
+            "Inspect the sources, evidence, chronology, entities, relationships, dates, and places before approval.",
+          ),
+        ]),
+  );
+
+  els.projectImportReviewApprove.disabled =
+    review.status !== "ready-for-user-verification" || review.errors.length > 0;
+}
+
+function setProjectImportReviewOpen(open: boolean): void {
+  ui.importReviewOpen = Boolean(open);
+  if (ui.importReviewOpen) {
+    ui.mode = "view";
+    ui.editorOpen = false;
+    ui.browserOpen = false;
+    ui.investigationOpen = false;
+    investigationWorkspace?.setOpen(false);
+    els.occurrenceComposer.hide();
+    closeProjectMenu();
+  }
+  syncApplicationSurfaces();
+  if (ui.importReviewOpen) {
+    requestAnimationFrame(() => els.projectImportReviewClose.focus({ preventScroll: true }));
+  }
 }
 
 function applyImportedTimeline(imported, statusPrefix = "Imported", warningCount = 0) {
@@ -6279,6 +6413,8 @@ async function importProjectFile(file: File, statusPrefix = "Imported"): Promise
     if (staged) {
       pendingProjectImportReview = staged;
       const review = pendingProjectImportReview;
+      renderProjectImportReview(review);
+      setProjectImportReviewOpen(true);
       const issueCount = review.errors.length + review.warnings.length + review.unresolved.length;
       showStatus(
         review.status === "ready-for-user-verification"
