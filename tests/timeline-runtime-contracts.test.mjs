@@ -143,5 +143,9 @@ test("timeline occurrence points and ranges share selection and zoom gesture sem
     view,
     /addEventListener\("dblclick"[\s\S]*zoomTimelineAtClientPoint\(event\.clientX, event\.clientY\)/,
   );
+  assert.match(
+    view,
+    /const selectOccurrence[\s\S]*focusItem\(item\.id, \{ moveViewport: false \}\)[\s\S]*terminal\.addEventListener\("click", selectOccurrence\)[\s\S]*range\.addEventListener\("click", selectOccurrence\)/,
+  );
   assert.match(view, /borderBoxSize[\s\S]*contentRect\.width[\s\S]*contentRect\.height/);
 });
