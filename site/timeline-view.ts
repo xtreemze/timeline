@@ -46,6 +46,7 @@ import {
   LuumOccurrenceDeckElement,
   type OccurrenceDeckChangeDetail,
 } from "./components/occurrence-media-deck.ts";
+import { occurrenceContextDeckFrames } from "./occurrence-context-deck.ts";
 import {
   createOccurrenceInteractionSession,
   resolveOccurrencePresentation,
@@ -3774,19 +3775,7 @@ export class TimelineViewController {
   createFocusHero(item: TimelineItem): HTMLElement {
     const hero = document.createElement("section");
     hero.className = "timeline-focus-hero";
-    const media = Array.isArray(item.media) ? item.media : [];
-    const frames: Array<
-      | { kind: "image"; src?: string; alt?: string; caption?: string }
-      | { kind: "context"; label: string; body: string }
-    > = media.map((entry) => ({
-      kind: "image" as const,
-      src: entry?.src,
-      alt: entry?.alt,
-      caption: entry?.caption,
-    }));
-
-    if (item.description?.trim())
-      frames.push({ kind: "context", label: "Context", body: item.description.trim() });
+    const frames = occurrenceContextDeckFrames(item.media, item.description);
 
     const deck = new LuumOccurrenceDeckElement();
     deck.setDeck({
