@@ -271,14 +271,14 @@ test.describe("Narrow mobile screen contracts", () => {
     });
 
     const terminal = page
-      .locator(".timeline-event:not(.timeline-cluster):not(.is-buffered) .timeline-event-terminal:visible")
+      .locator(
+        ".timeline-event:not(.timeline-cluster):not(.is-buffered) .timeline-event-terminal:visible",
+      )
       .first();
     await expect(terminal).toBeVisible();
     await terminal.click();
 
-    const actions = dock.locator(".app-footer-actions");
     const navigation = dock.locator(".app-footer-timeline");
-    const view = dock.locator(".app-footer-view");
     await expect(navigation).toBeVisible();
     await expect(navigation.locator("#timeline-focus-prev")).toBeVisible();
     await expect(navigation.locator("#timeline-focus-next")).toBeVisible();
