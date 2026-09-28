@@ -7,6 +7,7 @@ const shellUrl = new URL("../site/spatial-shell.css", import.meta.url);
 const worldUrl = new URL("../site/world/deck-world-surface.ts", import.meta.url);
 const factoryUrl = new URL("../site/world/world-view-factory.ts", import.meta.url);
 const layoutInspectorUrl = new URL("../site/world/world-layout-inspector.ts", import.meta.url);
+const composerUrl = new URL("../site/components/occurrence-composer.ts", import.meta.url);
 
 test("footer exposes view controls directly and keeps one primary Edit entry", async () => {
   const [index, world, factory, layoutInspector] = await Promise.all([
@@ -341,6 +342,45 @@ test("toolbar actions use one direct semantic icon with explicit tooltips", asyn
   assert.match(
     layoutInspector,
     /element\.setAttribute\("aria-label", options\.label\)[\s\S]*long press for options/,
+  );
+});
+
+test("semantic icon buttons keep visible glyphs, accessible names, and tooltips", async () => {
+  const [index, composer] = await Promise.all([
+    readFile(indexUrl, "utf8"),
+    readFile(composerUrl, "utf8"),
+  ]);
+
+  const semanticButtons = [...index.matchAll(/<button\\b[^>]*data-semantic-icon="[^"]+"[^>]*>/g)];
+  assert.ok(semanticButtons.length > 0);
+  for (const match of semanticButtons) {
+    const tag = match[0];
+    const id = tag.match(/id="([^"]+)"/)?.[1] ?? "semantic icon button";
+    assert.match(tag, /aria-label="[^"]+"/, `${id}: accessible name`);
+    assert.match(tag, /title="[^"]+"/, `${id}: tooltip`);
+  }
+
+  for (const [id, icon, label] of [
+    ["item-calendar-prev", "chevron-left", "Previous month"],
+    ["item-calendar-next", "chevron-right", "Next month"],
+    ["graph-edge-calendar-prev", "chevron-left", "Previous month"],
+    ["graph-edge-calendar-next", "chevron-right", "Next month"],
+  ]) {
+    assert.match(
+      index,
+      new RegExp(
+        `id="${id}"[^>]*data-semantic-icon="${icon}"[^>]*aria-label="${label}"[^>]*title="${label}"`,
+      ),
+    );
+  }
+
+  assert.match(
+    composer,
+    /class="semantic-icon"[\\s\\S]*stroke="currentColor"[\\s\\S]*iconPathData\\("close"\\)/,
+  );
+  assert.match(
+    composer,
+    /aria-label="Approve occurrence" title="Approve occurrence"[\\s\\S]*class="semantic-icon"[\\s\\S]*iconPathData\\("check"\\)/,
   );
 });
 

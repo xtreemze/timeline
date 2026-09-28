@@ -318,6 +318,19 @@ test("composer exposes live context, pins explicit context, and leaves Tab for f
   await expect(compose).toBeVisible();
   await compose.click();
 
+  const close = composer.getByRole("button", { name: "Close occurrence composer" });
+  const approve = composer.getByRole("button", { name: "Approve occurrence" });
+  for (const [button, title] of [
+    [close, "Close occurrence composer"],
+    [approve, "Approve occurrence"],
+  ]) {
+    await expect(button).toBeVisible();
+    await expect(button).toHaveAttribute("title", title);
+    const icon = button.locator(":scope > svg.semantic-icon");
+    await expect(icon).toBeVisible();
+    expect(await icon.locator("path").count()).toBeGreaterThan(0);
+  }
+
   const input = composer.locator("input");
   await expect(composer).toHaveAttribute("active", "");
   await expect(page.locator("#app-shell")).toHaveAttribute("data-composer-open", "true");
@@ -342,7 +355,6 @@ test("composer exposes live context, pins explicit context, and leaves Tab for f
   );
 
   await input.press("Tab");
-  const close = composer.locator("button.close");
   await expect(close).toBeFocused();
   await expect(composer).toHaveAttribute("active", "");
   await close.click();

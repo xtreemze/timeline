@@ -1424,13 +1424,37 @@ export class LuumOccurrenceComposerElement extends LitElement {
             title="Close occurrence composer"
             @click=${() => this.requestClose()}
           >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
+            <svg
+              class="semantic-icon"
+              viewBox="0 0 24 24"
+              width="20"
+              height="20"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+              focusable="false"
+            >
               ${iconPathData("close").map((path) => html`<path d=${path}></path>`)}
             </svg>
           </button>
           <button class="approval" type="button" aria-label="Approve occurrence" title="Approve occurrence"
             @click=${() => this.commit()}>
-            <svg viewBox="0 0 24 24" aria-hidden="true">
+            <svg
+              class="semantic-icon"
+              viewBox="0 0 24 24"
+              width="20"
+              height="20"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+              focusable="false"
+            >
               ${iconPathData("check").map((path) => html`<path d=${path}></path>`)}
             </svg>
           </button>
