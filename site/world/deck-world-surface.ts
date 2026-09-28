@@ -528,11 +528,11 @@ export function clusterRequiredLocalRadiusPx(
 }
 
 /**
- * Keeps authored places clustered until the *resulting expanded presentation*
- * has enough screen-space room. Zoom is only a conversion input: a group may
- * remain clustered at deep zoom when its node/edge load still exceeds the
- * available local-graph radius, and nearby groups remain collapsed while
- * their required radii would overlap.
+ * Keeps authored places clustered while the *resulting expanded presentation*
+ * still lacks screen-space room. Below the hard detail ceiling, zoom is only
+ * a conversion input and nearby groups may remain collapsed while their
+ * required radii would overlap. At the local-precision handoff, clustering
+ * ends unconditionally and force/panning own detail readability.
  */
 export function clusterTargetPlaceIds(
   instances: readonly ProjectedWorldInstance[],
