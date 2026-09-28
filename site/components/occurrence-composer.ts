@@ -1230,11 +1230,55 @@ export class LuumOccurrenceComposerElement extends LitElement {
     );
   }
 
+  private focusInvestigationControl(position: "first" | "last" = "first"): void {
+    void this.updateComplete.then(() => {
+      const controls = Array.from(
+        this.renderRoot.querySelectorAll<HTMLButtonElement>("[data-investigation-navigable]"),
+      );
+      const target = position === "last" ? controls.at(-1) : controls[0];
+      target?.focus({ preventScroll: true });
+    });
+  }
+
+  private onInvestigationKeyDown(event: KeyboardEvent): void {
+    if (!["ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
+      return;
+    }
+    const controls = Array.from(
+      this.renderRoot.querySelectorAll<HTMLButtonElement>("[data-investigation-navigable]"),
+    );
+    if (!controls.length) return;
+    event.preventDefault();
+    const current = this.renderRoot.activeElement;
+    const index = controls.findIndex((control) => control === current);
+    let nextIndex = index < 0 ? 0 : index;
+    if (event.key === "Home") nextIndex = 0;
+    else if (event.key === "End") nextIndex = controls.length - 1;
+    else if (event.key === "ArrowDown" || event.key === "ArrowRight") {
+      nextIndex = (Math.max(0, index) + 1) % controls.length;
+    } else {
+      nextIndex = (index <= 0 ? controls.length : index) - 1;
+    }
+    controls[nextIndex]?.focus({ preventScroll: true });
+  }
+
   private onKeyDown(event: KeyboardEvent): void {
-    const suggestions = this.suggestions().slice(0, 7);
+    const parsed = this.parsed();
+    const investigationActive = parsed.investigation.qualifiers.length > 0;
+    const suggestions = investigationActive ? [] : this.suggestions().slice(0, 7);
     if (event.key === "Escape") {
       event.preventDefault();
       this.requestClose();
+      return;
+    }
+    if (investigationActive && event.key === "ArrowDown") {
+      event.preventDefault();
+      this.focusInvestigationControl("first");
+      return;
+    }
+    if (investigationActive && event.key === "End") {
+      event.preventDefault();
+      this.focusInvestigationControl("last");
       return;
     }
     if (event.key === "ArrowDown" && suggestions.length) {
@@ -1251,7 +1295,11 @@ export class LuumOccurrenceComposerElement extends LitElement {
     }
     if (event.key !== "Enter") return;
     event.preventDefault();
-    const draft = this.parsed();
+    const draft = parsed;
+    if (investigationActive) {
+      this.commit();
+      return;
+    }
     const cursorSection = composerCursorSection(this.value, this.cursorOffset);
     const cursorLocal = cursorSection.kind !== "tail";
     if ((draft.stage !== "complete" || cursorLocal) && suggestions.length) {
@@ -1263,6 +1311,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
   }
 
   private stageLabel(parsed: OccurrenceSentenceDraft): string {
+    if (parsed.investigation.qualifiers.length) return "investigate";
     const cursor = composerCursorSection(this.value, this.cursorOffset);
     if (cursor.kind !== "tail") {
       if (cursor.kind === "predicate") return "action";
@@ -1317,14 +1366,25 @@ export class LuumOccurrenceComposerElement extends LitElement {
       this.selectionContext?.place?.name ??
       this.worldContext?.label ??
       "World center";
-    const suggestions = this.suggestions().slice(0, 7);
+    const activeQualifier = this.activeInvestigationQualifier(parsed);
+    const investigationActive = parsed.investigation.qualifiers.length > 0;
+    const interpretations = this.investigativeInterpretations(activeQualifier);
+    const activeInterpretation =
+      interpretations.find(
+        (interpretation) => interpretation.id === this.activeInterpretationId,
+      ) ?? null;
+    const candidateMatrix = this.investigativeCandidateMatrix(
+      activeQualifier,
+      activeInterpretation,
+    );
+    const suggestions = investigationActive ? [] : this.suggestions().slice(0, 7);
     const selectedIndex = Math.min(
       this.activeSuggestion,
       Math.max(0, suggestions.length - 1),
     );
     const activeSuggestion = suggestions[selectedIndex];
     const ghostSuffix =
-      this.cursorOffset === this.value.length
+      !investigationActive && this.cursorOffset === this.value.length
         ? composerCompletionSuffix(this.value, activeSuggestion)
         : "";
     const diagnostic = this.externalError || parsed.diagnostics[0] || "";
@@ -1380,8 +1440,14 @@ export class LuumOccurrenceComposerElement extends LitElement {
               spellcheck="false"
               role="combobox"
               aria-autocomplete="both"
-              aria-expanded=${String(suggestions.length > 0)}
-              aria-controls=${suggestions.length ? "occurrence-composer-listbox" : nothing}
+              aria-expanded=${String(suggestions.length > 0 || investigationActive)}
+              aria-controls=${
+                investigationActive
+                  ? "occurrence-composer-investigation"
+                  : suggestions.length
+                    ? "occurrence-composer-listbox"
+                    : nothing
+              }
               aria-activedescendant=${
                 suggestions.length ? `occurrence-composer-option-${selectedIndex}` : nothing
               }
@@ -1452,6 +1518,146 @@ export class LuumOccurrenceComposerElement extends LitElement {
             diagnostic
               ? html`<p id="occurrence-composer-diagnostic" class="diagnostic" role="alert">${diagnostic}</p>`
               : html`<span id="occurrence-composer-diagnostic" hidden></span>`
+          }
+          ${
+            investigationActive && activeQualifier
+              ? html`
+                <div
+                  id="occurrence-composer-investigation"
+                  class="investigation-panel"
+                  data-investigation-mode
+                  aria-label="Investigative ambiguity"
+                  @keydown=${(event: KeyboardEvent) => this.onInvestigationKeyDown(event)}
+                >
+                  <section class="investigation-section">
+                    <p class="investigation-heading">Unresolved clues</p>
+                    <div class="investigation-qualifiers">
+                      ${parsed.investigation.qualifiers.map(
+                        (qualifier) => html`
+                          <button
+                            class="investigation-qualifier"
+                            type="button"
+                            data-investigation-navigable
+                            aria-pressed=${String(qualifier.id === activeQualifier.id)}
+                            @click=${() => this.activateInvestigativeQualifier(qualifier)}
+                          >
+                            ${qualifier.rawText}
+                          </button>
+                        `,
+                      )}
+                    </div>
+                  </section>
+                  ${activeQualifier.section === "sentence"
+                    ? html`
+                        <section class="investigation-section">
+                          <p class="investigation-heading">Open question</p>
+                          <p class="investigation-candidate-reason">
+                            Treat this sentence as an unresolved proposition. Persist it as a
+                            question before recording any factual assertion.
+                          </p>
+                        </section>
+                      `
+                    : html`
+                        <section class="investigation-section">
+                          <p class="investigation-heading">Interpret clue</p>
+                          <div class="investigation-interpretations">
+                            ${interpretations.map(
+                              (interpretation) => html`
+                                <button
+                                  class="investigation-interpretation"
+                                  type="button"
+                                  data-investigation-navigable
+                                  aria-pressed=${String(
+                                    interpretation.id === activeInterpretation?.id,
+                                  )}
+                                  @click=${() =>
+                                    this.selectInvestigativeInterpretation(
+                                      activeQualifier,
+                                      interpretation,
+                                    )}
+                                >
+                                  ${interpretation.label}
+                                </button>
+                              `,
+                            )}
+                          </div>
+                        </section>
+                        ${candidateMatrix
+                          ? html`
+                              <section class="investigation-section">
+                                <p class="investigation-heading">
+                                  Candidates · evidence state, not ranking
+                                </p>
+                                <div class="investigation-candidates">
+                                  ${candidateMatrix.candidates.map((candidate) => {
+                                    const cell = candidate.cells[0];
+                                    return html`
+                                      <button
+                                        class="investigation-candidate"
+                                        type="button"
+                                        data-investigation-navigable
+                                        aria-pressed=${String(
+                                          candidate.candidateEntityId ===
+                                            this.activeCandidateEntityId,
+                                        )}
+                                        @click=${() =>
+                                          this.selectInvestigativeCandidate(
+                                            candidate.candidateEntityId,
+                                          )}
+                                      >
+                                        <span class="investigation-candidate-copy">
+                                          <span class="investigation-candidate-label">
+                                            ${candidate.label}
+                                          </span>
+                                          <span class="investigation-candidate-reason">
+                                            ${cell?.reason ?? "No relevant information."}
+                                          </span>
+                                        </span>
+                                        <span class="investigation-assessment">
+                                          ${cell?.assessment ?? "unknown"}
+                                        </span>
+                                      </button>
+                                    `;
+                                  })}
+                                </div>
+                              </section>
+                            `
+                          : nothing}
+                      `}
+                  <section class="investigation-section">
+                    <p class="investigation-heading">Investigative method</p>
+                    <div class="investigation-method-actions">
+                      ${[
+                        ["ask-question", "Ask this question"],
+                        ["compare-candidates", "Compare candidates"],
+                        ["add-assumption", "Add assumption"],
+                        ["create-enquiry", "Create enquiry"],
+                        ["disconfirm", "What would disconfirm this?"],
+                        ["review-information-quality", "Review information quality"],
+                      ].map(
+                        ([action, label]) => html`
+                          <button
+                            class="investigation-method-action"
+                            type="button"
+                            data-investigation-navigable
+                            aria-label=${label}
+                            @click=${() =>
+                              this.proposeInvestigationAction(
+                                action as OccurrenceInvestigationAction,
+                                activeQualifier,
+                                activeInterpretation,
+                                candidateMatrix,
+                              )}
+                          >
+                            ${label}
+                          </button>
+                        `,
+                      )}
+                    </div>
+                  </section>
+                </div>
+              `
+              : nothing
           }
           ${
             suggestions.length
