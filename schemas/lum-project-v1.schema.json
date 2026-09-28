@@ -42,7 +42,11 @@
     "project": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["schemaVersion", "entities", "relationships"],
+      "required": [
+        "schemaVersion",
+        "entities",
+        "relationships"
+      ],
       "properties": {
         "schemaVersion": {
           "const": 3
@@ -92,7 +96,11 @@
     "semanticMapping": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["scheme", "identifier", "relation"],
+      "required": [
+        "scheme",
+        "identifier",
+        "relation"
+      ],
       "properties": {
         "scheme": {
           "$ref": "#/$defs/nonEmptyString"
@@ -104,14 +112,22 @@
           "$ref": "#/$defs/nonEmptyString"
         },
         "relation": {
-          "enum": ["exact", "broader", "narrower", "related"]
+          "enum": [
+            "exact",
+            "broader",
+            "narrower",
+            "related"
+          ]
         }
       }
     },
     "identifier": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["scheme", "value"],
+      "required": [
+        "scheme",
+        "value"
+      ],
       "properties": {
         "scheme": {
           "$ref": "#/$defs/nonEmptyString"
@@ -130,13 +146,21 @@
     "appellation": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["value"],
+      "required": [
+        "value"
+      ],
       "properties": {
         "value": {
           "$ref": "#/$defs/nonEmptyString"
         },
         "kind": {
-          "enum": ["preferred", "alias", "legal", "historical", "other"]
+          "enum": [
+            "preferred",
+            "alias",
+            "legal",
+            "historical",
+            "other"
+          ]
         },
         "languageTag": {
           "$ref": "#/$defs/nonEmptyString"
@@ -146,48 +170,35 @@
         }
       }
     },
-    "participantContext": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["entityId"],
-      "properties": {
-        "entityId": {
-          "$ref": "#/$defs/nonEmptyString"
-        },
-        "roleType": {
-          "$ref": "#/$defs/nonEmptyString"
-        },
-        "representedEntityId": {
-          "$ref": "#/$defs/nonEmptyString"
-        },
-        "organizationId": {
-          "$ref": "#/$defs/nonEmptyString"
-        },
-        "authoritySourceIds": {
-          "$ref": "#/$defs/stringArray"
-        },
-        "externalMappings": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/semanticMapping"
-          }
-        }
-      }
-    },
     "temporalExtent": {
-      "type": ["object", "null"],
+      "type": [
+        "object",
+        "null"
+      ],
       "additionalProperties": false,
-      "required": ["type", "start"],
+      "required": [
+        "type",
+        "start"
+      ],
       "properties": {
         "type": {
-          "enum": ["instant", "interval"]
+          "enum": [
+            "instant",
+            "interval"
+          ]
         },
         "start": {
-          "type": ["object", "null"],
+          "type": [
+            "object",
+            "null"
+          ],
           "additionalProperties": true
         },
         "end": {
-          "type": ["object", "null"],
+          "type": [
+            "object",
+            "null"
+          ],
           "additionalProperties": true
         },
         "openStart": {
@@ -201,7 +212,14 @@
     "entity": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "type", "name", "alternateNames", "sourceIds", "attributes"],
+      "required": [
+        "id",
+        "type",
+        "name",
+        "alternateNames",
+        "sourceIds",
+        "attributes"
+      ],
       "properties": {
         "id": {
           "$ref": "#/$defs/nonEmptyString"
@@ -219,7 +237,11 @@
           }
         },
         "identityResolution": {
-          "enum": ["identified", "unresolved", "disputed"]
+          "enum": [
+            "identified",
+            "unresolved",
+            "disputed"
+          ]
         },
         "identifiers": {
           "type": "array",
@@ -281,10 +303,10 @@
           "$ref": "#/$defs/nonEmptyString"
         },
         "subjectContext": {
-          "$ref": "#/$defs/participantContext"
+          "$ref": "#/$defs/actorContext"
         },
         "objectContext": {
-          "$ref": "#/$defs/participantContext"
+          "$ref": "#/$defs/actorContext"
         },
         "semanticMappings": {
           "type": "array",
@@ -302,7 +324,10 @@
           "$ref": "#/$defs/stringArray"
         },
         "confidence": {
-          "type": ["number", "null"],
+          "type": [
+            "number",
+            "null"
+          ],
           "minimum": 0,
           "maximum": 1
         },
@@ -345,7 +370,7 @@
         "participantContexts": {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/participantContext"
+            "$ref": "#/$defs/occurrenceParticipant"
           }
         },
         "relationshipIds": {
@@ -358,7 +383,10 @@
           "$ref": "#/$defs/stringArray"
         },
         "confidence": {
-          "type": ["number", "null"],
+          "type": [
+            "number",
+            "null"
+          ],
           "minimum": 0,
           "maximum": 1
         },
@@ -374,9 +402,17 @@
       }
     },
     "trajectoryBounds": {
-      "type": ["object", "null"],
+      "type": [
+        "object",
+        "null"
+      ],
       "additionalProperties": false,
-      "required": ["minLongitude", "minLatitude", "maxLongitude", "maxLatitude"],
+      "required": [
+        "minLongitude",
+        "minLatitude",
+        "maxLongitude",
+        "maxLatitude"
+      ],
       "properties": {
         "minLongitude": {
           "type": "number",
@@ -409,7 +445,9 @@
     "trajectoryChannel": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id"],
+      "required": [
+        "id"
+      ],
       "properties": {
         "id": {
           "$ref": "#/$defs/nonEmptyString"
@@ -425,7 +463,10 @@
     "trajectoryLevel": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "pointCount"],
+      "required": [
+        "id",
+        "pointCount"
+      ],
       "properties": {
         "id": {
           "$ref": "#/$defs/nonEmptyString"
@@ -446,10 +487,18 @@
     "trajectoryStorage": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind", "ref"],
+      "required": [
+        "kind",
+        "ref"
+      ],
       "properties": {
         "kind": {
-          "enum": ["source-artifact", "project-blob", "indexeddb", "external"]
+          "enum": [
+            "source-artifact",
+            "project-blob",
+            "indexeddb",
+            "external"
+          ]
         },
         "ref": {
           "$ref": "#/$defs/nonEmptyString"
@@ -522,6 +571,60 @@
         },
         "attributes": {
           "$ref": "#/$defs/attributes"
+        }
+      }
+    },
+    "actorContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "roleType": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "representedEntityId": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "organizationId": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "authoritySourceIds": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "externalMappings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/semanticMapping"
+          }
+        }
+      }
+    },
+    "occurrenceParticipant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entityId"
+      ],
+      "properties": {
+        "entityId": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "roleType": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "representedEntityId": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "organizationId": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "authoritySourceIds": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "externalMappings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/semanticMapping"
+          }
         }
       }
     }
