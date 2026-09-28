@@ -8,7 +8,7 @@ const shellUrl = new URL("../site/spatial-shell.css", import.meta.url);
 const worldUrl = new URL("../site/world/deck-world-surface.ts", import.meta.url);
 const factoryUrl = new URL("../site/world/world-view-factory.ts", import.meta.url);
 
-test("footer owns one persistent View group and one Edit action", async () => {
+test("footer keeps primary workspace commands direct and moves dense View controls into one utility surface", async () => {
   const [index, app, world, factory] = await Promise.all([
     readFile(indexUrl, "utf8"),
     readFile(appUrl, "utf8"),
@@ -18,15 +18,19 @@ test("footer owns one persistent View group and one Edit action", async () => {
 
   assert.match(
     index,
-    /app-footer-timeline timeline-local-toolbar" role="group" aria-label="Timeline and view controls"/,
+    /id="timeline-view-controls-toggle"[^>]*popovertarget="timeline-view-controls"[^>]*aria-label="View options"/,
   );
   assert.match(
     index,
-    /id="timeline-view-toolbar" class="app-footer-zone app-footer-timeline timeline-local-toolbar" role="group"/,
+    /id="timeline-view-controls" class="app-view-controls" popover="auto"/,
   );
   assert.match(
     index,
-    /app-footer-world" data-world-controls-slot role="group" aria-label="World view controls"/,
+    /id="timeline-view-toolbar" class="view-control-group timeline-local-toolbar" role="group" aria-label="Timeline view controls"/,
+  );
+  assert.match(
+    index,
+    /data-world-controls-slot role="group" aria-label="World view controls"/,
   );
   assert.match(
     index,
@@ -36,28 +40,19 @@ test("footer owns one persistent View group and one Edit action", async () => {
     index,
     /id="timeline-related-fit"[^>]*data-semantic-icon="fit"[^>]*aria-controls="temporal-graph-view"/,
   );
-  assert.doesNotMatch(index, /app-view-controls|app-footer-view-controls|view-display-controls/);
-  assert.doesNotMatch(index, /id="timeline-view-toolbar"[^>]*popover=/);
-  assert.doesNotMatch(index, /timeline-view-controls-toggle/);
+  assert.doesNotMatch(index, /app-footer-world" data-world-controls-slot/);
+  assert.doesNotMatch(index, /id="timeline-view-toolbar" class="app-footer-zone/);
   assert.doesNotMatch(index, /timeline-focus-edit/);
-  assert.doesNotMatch(index, /id="timeline-focus-prev"[^>]*\shidden(?:\s|>)/);
-  assert.doesNotMatch(index, /id="timeline-focus-next"[^>]*\shidden(?:\s|>)/);
-  assert.match(app, /els\.focusPrev\.hidden = false/);
-  assert.match(app, /els\.focusNext\.hidden = false/);
-  assert.match(app, /els\.focusPrev\.disabled = false/);
-  assert.match(app, /els\.focusNext\.disabled = false/);
+  assert.match(app, /els\.focusPrev\.hidden = !focused/);
+  assert.match(app, /els\.focusNext\.hidden = !focused/);
   assert.match(app, /focusAdjacent\(-1, \{ reference: "viewport" \}\)/);
   assert.match(app, /focusAdjacent\(1, \{ reference: "viewport" \}\)/);
   assert.equal((index.match(/id="editor-toggle"/g) ?? []).length, 1);
-  assert.doesNotMatch(index, /id="editor-toggle"[^>]*aria-pressed=/);
-  assert.doesNotMatch(app, /timelinefocusedit|createFocusEditButton/);
-  assert.doesNotMatch(app, /editorToggle\.setAttribute\("aria-pressed"/);
-  assert.match(app, /const focusedId = timelineView\?\.focusedItemId\?\.\(\) \|\| null/);
   assert.match(world, /element\.className = "toolbar-control world-camera-control"/);
   assert.match(factory, /element\.className = "toolbar-control world-layout-control"/);
 });
 
-test("every footer button shares the canonical 44px toolbar-control contract", async () => {
+test("the dock preserves 44px direct commands while View owns secondary controls", async () => {
   const [index, css] = await Promise.all([
     readFile(indexUrl, "utf8"),
     readFile(shellUrl, "utf8"),
@@ -70,14 +65,6 @@ test("every footer button shares the canonical 44px toolbar-control contract", a
   );
   assert.match(
     css,
-    /\.app-footer-bar \.toolbar-control:focus-visible,[\s\S]*outline:\s*2px solid var\(--focus\)[\s\S]*outline-offset:\s*-3px/,
-  );
-  assert.doesNotMatch(css, /\.app-footer-view-controls\.timeline-view-toolbar/);
-  assert.doesNotMatch(css, /\.timeline-local-button/);
-  assert.match(css, /\.app-footer-bar \.toolbar-control-wide/);
-  assert.match(css, /\.app-footer-bar \.toolbar-control-value/);
-  assert.match(
-    css,
     /\.app-footer-bar \.toolbar-control:is\(:focus-visible, :focus-within\)/,
   );
 
@@ -85,6 +72,8 @@ test("every footer button shares the canonical 44px toolbar-control contract", a
     "project-menu-toggle",
     "editor-toggle",
     "timeline-browser-toggle",
+    "occurrence-composer-toggle",
+    "timeline-view-controls-toggle",
     "timeline-focus-prev",
     "timeline-focus-next",
     "timeline-related-zoom",
@@ -96,49 +85,46 @@ test("every footer button shares the canonical 44px toolbar-control contract", a
     assert.match(index, new RegExp(`id="${id}" class="[^"]*toolbar-control`));
   }
 
-  assert.match(
-    index,
-    /class="toolbar-control toolbar-control-wide toolbar-range-control"[\s\S]*id="timeline-zoom-level" data-view-control/,
-  );
-  assert.match(
-    index,
-    /class="toolbar-control toolbar-control-value toolbar-number-control"[\s\S]*id="timeline-auto-seconds" data-view-control/,
-  );
-  const toolbarStart = index.indexOf('id="timeline-view-toolbar"');
-  const toolbarEnd = index.indexOf("</nav>", toolbarStart);
-  const toolbarMarkup = index.slice(toolbarStart, toolbarEnd);
-  assert.ok(toolbarStart >= 0 && toolbarEnd > toolbarStart);
+  const footerStart = index.indexOf('<nav class="app-tool-dock app-footer-bar"');
+  const viewStart = index.indexOf('id="timeline-view-controls"');
+  assert.ok(footerStart >= 0 && viewStart > footerStart);
+  const directDockMarkup = index.slice(footerStart, viewStart);
+  assert.doesNotMatch(directDockMarkup, /id="timeline-orientation-toggle"/);
+  assert.doesNotMatch(directDockMarkup, /id="timeline-zoom-level"/);
+  assert.doesNotMatch(directDockMarkup, /data-world-controls-slot/);
+
+  const viewEnd = index.indexOf("</nav>", viewStart);
+  const viewMarkup = index.slice(viewStart, viewEnd);
   assert.equal(
-    (toolbarMarkup.match(/data-view-control/g) ?? []).length,
+    (viewMarkup.match(/data-view-control/g) ?? []).length,
     (index.match(/data-view-control/g) ?? []).length,
-    "every View control must live directly in the persistent toolbar",
+    "secondary View controls belong to the View utility surface",
   );
-  assert.doesNotMatch(index, /timeline-focus-view[\s\S]{0,4000}data-view-control/);
+  assert.match(css, /\.app-view-controls\[popover\]/);
   assert.equal((index.match(/id="editor-toggle"/g) ?? []).length, 1);
 });
 
-
-test("narrow footer has one scroll owner and uniform in-flow controls", async () => {
+test("narrow dock is fixed-width content rather than a horizontally scrolling command shelf", async () => {
   const css = await readFile(shellUrl, "utf8");
 
   assert.match(
     css,
-    /@media \(max-width: 699px\)[\s\S]*\.app-tool-dock\.app-footer-bar[\s\S]*display:\s*flex[\s\S]*overflow-x:\s*auto/,
+    /@media \(max-width: 699px\)[\s\S]*\.app-tool-dock\.app-footer-bar[\s\S]*overflow-x:\s*clip/,
+  );
+  assert.doesNotMatch(
+    css,
+    /@media \(max-width: 699px\)[\s\S]{0,2200}\.app-tool-dock\.app-footer-bar[\s\S]{0,500}overflow-x:\s*auto/,
   );
   assert.match(
     css,
-    /#app-shell \.app-footer-bar \.app-footer-zone\s*\{[\s\S]*overflow:\s*visible/,
+    /\.app-footer-actions\s*\{[\s\S]*justify-content:\s*center/,
   );
   assert.match(
     css,
-    /\.app-footer-bar[\s\S]*\.toolbar-control[\s\S]*position:\s*static[\s\S]*block-size:\s*var\(--toolbar-control-size\)/,
+    /\.app-footer-timeline\.timeline-local-toolbar\s*\{[\s\S]*overflow:\s*visible/,
   );
   assert.match(
     css,
-    /\.toolbar-control:not\(\.toolbar-control-wide\):not\(\.toolbar-control-value\)[\s\S]*inline-size:\s*var\(--toolbar-control-size\)/,
-  );
-  assert.match(
-    css,
-    /\.app-footer-world \.world-camera-controls\s*\{[\s\S]*position:\s*static[\s\S]*inset:\s*auto[\s\S]*flex-direction:\s*row[\s\S]*background:\s*transparent[\s\S]*box-shadow:\s*none/,
+    /\.app-view-controls \.world-camera-controls[\s\S]*flex-direction:\s*row/,
   );
 });
