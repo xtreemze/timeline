@@ -79,6 +79,17 @@ assert.match(css, /--toolbar-control-size:\s*44px/);
     css,
     /\.toolbar-control:is\(\[aria-expanded="true"\], \[aria-pressed="true"\]\)/,
   );
+  const activeControlRule =
+    css.match(
+      /\.app-footer-bar \.toolbar-control:is\(\[aria-expanded="true"\], \[aria-pressed="true"\]\)\s*\{([\s\S]*?)\}/,
+    )?.[1] ?? "";
+  assert.doesNotMatch(
+    activeControlRule,
+    /var\(--focus\)/,
+    "pressed/expanded is application state, not keyboard focus",
+  );
+  assert.match(activeControlRule, /var\(--ink\)/);
+  assert.match(css, /\.app-footer-bar \.toolbar-control:disabled[\s\S]*opacity:\s*0\.42/);
   assert.match(css, /\.app-footer-bar \.toolbar-control-wide/);
   assert.match(css, /\.app-footer-bar \.toolbar-control-value/);
   assert.match(

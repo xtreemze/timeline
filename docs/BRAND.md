@@ -63,7 +63,7 @@ The application tokens in `site/styles.css` are the canonical implementation ref
 | Focus | `#1d64d8` | Keyboard/focus semantics, not general branding |
 | Story | `#5b4ab8` | Story/narrative semantic state |
 
-Semantic colors retain their meaning. The brand accent must not replace focus, danger, category, evidence, confidence, or other domain colors.
+Semantic colors retain their meaning. The brand accent must not replace focus, danger, category, evidence, confidence, or other domain colors. Selection, hover, active occurrence context, and other emphasis states must preserve the object's semantic category/tag color; emphasis may change visibility, opacity, border weight, or contrast, but must not substitute the Focus blue. Controls without a semantic domain color use neutral ink for active/pressed state.
 
 ## Typography
 

@@ -1,4 +1,4 @@
-import type { PlaceId } from "../../src/domain/ids.ts";
+import type { PlaceId, RelationshipId } from "../../src/domain/ids.ts";
 import {
   createInteractionCoordinator,
   type InteractionCompletionReason,
@@ -261,6 +261,11 @@ export class WorldViewRuntimeController {
   setSelection(selection: WorldSelection | null): void {
     this.#assertAlive();
     this.#surface.setSelection(selection);
+  }
+
+  setContextRelationships(ids: readonly RelationshipId[]): void {
+    this.#assertAlive();
+    this.#surface.setContextRelationships?.(ids);
   }
 
   focusEntity(id: Parameters<WorldSurface["focusEntity"]>[0]): void {

@@ -14,6 +14,9 @@ function harness() {
     setTemporalWindow(value) {
       calls.push(["window", value]);
     },
+    setContextRelationships(ids) {
+      calls.push(["context:relationships", [...ids]]);
+    },
     focusEntity(id) {
       calls.push(["focus:entity", id]);
     },
@@ -270,6 +273,11 @@ test("timeline occurrence focus scopes and frames its related world nodes", () =
     getProjection().edges.map((edge) => edge.id),
     ["meeting"],
   );
+  assert.deepEqual(
+    calls.filter(([name]) => name === "context:relationships").at(-1),
+    ["context:relationships", ["meeting"]],
+    "focused timeline event publishes its related edge as presentation context",
+  );
   assert.equal(view.zoomContext(), true);
   assert.equal(view.fitContext(), true);
   assert.deepEqual(calls.slice(-2), [["zoom:content"], ["fit:content"]]);
@@ -278,6 +286,35 @@ test("timeline occurrence focus scopes and frames its related world nodes", () =
   assert.deepEqual(
     getProjection().edges.map((edge) => edge.id),
     ["meeting", "timeless"],
+  );
+  assert.deepEqual(
+    calls.filter(([name]) => name === "context:relationships").at(-1),
+    ["context:relationships", []],
+    "closing event focus clears active relationship presentation context",
+  );
+});
+
+test("one active timeline event can emphasize every related relationship without inventing selection", () => {
+  const { calls, view, getProjection } = harness();
+  view.setModel({
+    ...model,
+    items: [{ id: "shared-event" }],
+    relationships: model.relationships.map((relationship) => ({
+      ...relationship,
+      itemIds: ["shared-event"],
+    })),
+  });
+
+  view.setFocus("shared-event");
+
+  assert.deepEqual(
+    getProjection().edges.map((edge) => edge.id),
+    ["meeting", "timeless"],
+  );
+  assert.deepEqual(
+    calls.filter(([name]) => name === "context:relationships").at(-1),
+    ["context:relationships", ["meeting", "timeless"]],
+    "multi-edge events publish the full related edge set as presentation context",
   );
 });
 

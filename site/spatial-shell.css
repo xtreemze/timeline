@@ -546,8 +546,10 @@
 }
 
 .app-footer-bar .toolbar-control:is([aria-expanded="true"], [aria-pressed="true"]) {
-  border-color: color-mix(in srgb, var(--focus) 56%, var(--line-strong));
-  background: color-mix(in srgb, var(--focus) 9%, var(--paper-2));
+  /* Generic control state is neutral. --focus is reserved for keyboard focus;
+     semantic surfaces supply their own category/tag colour instead. */
+  border-color: color-mix(in srgb, var(--ink) 52%, var(--line-strong));
+  background: color-mix(in srgb, var(--ink) 7%, var(--paper-2));
   color: var(--ink);
 }
 

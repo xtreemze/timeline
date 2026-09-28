@@ -81,6 +81,11 @@ export interface WorldSurface {
   setRelationshipRoutes?(routes: readonly WorldRelationshipRouteHint[]): void;
   setTemporalWindow(range: WorldTemporalWindow): void;
   setSelection(selection: WorldSelection | null): void;
+  /**
+   * Presentation-only relationship context supplied by the active timeline event.
+   * This must not mutate or impersonate canonical selection.
+   */
+  setContextRelationships?(ids: readonly RelationshipId[]): void;
 
   /**
    * Optional presentation snapshot for committed projection handoffs.

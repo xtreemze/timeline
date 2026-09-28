@@ -29,6 +29,7 @@ import { TimelineTemporal } from "../temporal-standards.ts";
 export interface WorldProjectionRuntime {
   setProjection(projection: WorldProjection): void;
   setTemporalWindow(window: WorldViewViewport): void;
+  setContextRelationships?(ids: readonly RelationshipId[]): void;
   focusEntity(id: EntityId): void;
   focusOccurrence(id: RelationshipId): void;
   focusPlace(id: PlaceId): void;
@@ -536,6 +537,7 @@ export class WorldProjectionView {
     );
 
     this.#runtime.setProjection(projection);
+    this.#runtime.setContextRelationships?.(contextualIds ?? Object.freeze([]));
     if (this.#viewport) this.#runtime.setTemporalWindow(this.#viewport);
     this.#focusCurrent();
   }

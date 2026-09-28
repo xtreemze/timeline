@@ -329,6 +329,41 @@ test("place marker rendering uses the authored icon, fill, border, width, and sh
   );
 });
 
+test("selected place labels preserve the authored semantic marker color", () => {
+  const h = harness();
+  const styled = instance(0, {
+    geographicAnchors: [
+      {
+        placeId: "semantic-place",
+        label: "Semantic place",
+        longitude: 12,
+        latitude: 41,
+        influence: 1,
+        style: {
+          marker: {
+            fillColor: "#123456",
+            color: "#abcdef",
+          },
+        },
+      },
+    ],
+  });
+  const surface = new DeckWorldSurface({}, h.runtime, WORKING_CAMERA);
+  surface.setProjection(createWorldProjection({ instances: [styled], edges: [] }));
+  surface.setSelection({ kind: "place", id: "semantic-place" });
+
+  const labels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
+  const datum = labels.props.data.find(
+    (candidate) => candidate.kind === "place-label" && candidate.placeId === "semantic-place",
+  );
+  assert.ok(datum, "selected place label must remain visible");
+  assert.deepEqual(
+    labels.props.getColor(datum).slice(0, 3),
+    [0x12, 0x34, 0x56],
+    "selection must use the place's authored semantic color rather than focus blue",
+  );
+});
+
 
 test("place acquisition radius follows the same shape-aware marker footprint", () => {
   const h = harness();
@@ -2100,6 +2135,44 @@ test("hovered relationship labels survive saturated collision placement", () => 
   );
 });
 
+test("active timeline event relationships expose their label and authored edge color", () => {
+  const h = harness();
+  const projection = crowdedIncidentProjection();
+  const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 9 });
+  surface.setProjection(projection);
+
+  const beforeLabels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
+  const visibleRelationshipIds = new Set(
+    beforeLabels
+      .filter((datum) => datum.kind === "relationship-label")
+      .map((datum) => datum.relationshipId),
+  );
+  const hidden = projection.edges.find((edge) => !visibleRelationshipIds.has(edge.id));
+  assert.ok(hidden, "crowded relationship fixture suppresses at least one predicate label");
+
+  surface.setContextRelationships([hidden.id]);
+
+  const layers = h.lastLayers();
+  const labels = layer(layers, DECK_WORLD_LAYER_IDS.labels);
+  const labelDatum = labels.props.data.find(
+    (datum) => datum.kind === "relationship-label" && datum.relationshipId === hidden.id,
+  );
+  assert.ok(labelDatum, "active event relationship forces its predicate label through LOD/declutter");
+
+  const relationships = layer(layers, DECK_WORLD_LAYER_IDS.relationships);
+  const edgeDatum = relationships.props.data.find(
+    (datum) => datum.relationshipId === hidden.id,
+  );
+  assert.ok(edgeDatum, "active event relationship remains in the rendered edge layer");
+  const edgeColor = relationships.props.getColor(edgeDatum);
+  assert.equal(edgeColor[3], 242, "active event relationship uses emphasized edge opacity");
+  assert.deepEqual(
+    labels.props.getColor(labelDatum).slice(0, 3),
+    edgeColor.slice(0, 3),
+    "active event predicate label uses the same resolved relationship color",
+  );
+});
+
 test("selected relationship labels remain visible inside collapsed clusters", () => {
   const h = harness();
   const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 0.2 });
@@ -2167,6 +2240,64 @@ test("hovered relationship labels remain visible inside collapsed clusters", () 
   );
 });
 
+test("active timeline event relationship remains enabled inside a collapsed cluster", () => {
+  const h = harness();
+  const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 0.2 });
+  surface.setProjection(clusteredRelationshipProjection());
+
+  let layers = h.lastLayers();
+  assert.equal(
+    layer(layers, DECK_WORLD_LAYER_IDS.labels).props.data.some(
+      (datum) =>
+        datum.kind === "relationship-label" &&
+        datum.relationshipId === "clustered-selected-edge",
+    ),
+    false,
+    "ordinary clustered relationship labels remain suppressed",
+  );
+
+  surface.setContextRelationships(["clustered-selected-edge"]);
+  layers = h.lastLayers();
+
+  const labels = layer(layers, DECK_WORLD_LAYER_IDS.labels);
+  assert.ok(
+    labels.props.data.some(
+      (datum) =>
+        datum.kind === "relationship-label" &&
+        datum.relationshipId === "clustered-selected-edge",
+    ),
+    "active event context overrides cluster label suppression",
+  );
+
+  const relationships = layer(layers, DECK_WORLD_LAYER_IDS.relationships);
+  const edgeDatum = relationships.props.data.find(
+    (datum) => datum.relationshipId === "clustered-selected-edge",
+  );
+  assert.ok(edgeDatum, "active event context keeps clustered edge geometry enabled");
+  assert.ok(relationships.props.getWidth(edgeDatum) > 0);
+  assert.equal(relationships.props.getColor(edgeDatum)[3], 242);
+
+  const directions = layer(layers, DECK_WORLD_LAYER_IDS.relationshipDirections);
+  assert.ok(
+    directions?.props.data.some(
+      (datum) => datum.relationshipId === "clustered-selected-edge",
+    ),
+    "active event context keeps the edge direction marker enabled",
+  );
+
+  surface.setContextRelationships([]);
+  layers = h.lastLayers();
+  assert.equal(
+    layer(layers, DECK_WORLD_LAYER_IDS.labels).props.data.some(
+      (datum) =>
+        datum.kind === "relationship-label" &&
+        datum.relationshipId === "clustered-selected-edge",
+    ),
+    false,
+    "clearing event context restores ordinary cluster suppression",
+  );
+});
+
 test("selecting a node makes every incident edge predicate visibly labeled", () => {
   const h = harness();
   const projection = crowdedIncidentProjection();
@@ -2228,10 +2359,22 @@ test("selecting a node makes every incident edge predicate visibly labeled", () 
   }
 });
 
-test("selection changes label color without changing label membership or placement", () => {
+test("selection reveals semantic label color without changing membership or placement", () => {
   const h = harness();
   const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 1 });
-  surface.setProjection(chainProjection(2_000));
+  const baseProjection = chainProjection(2_000);
+  const projection = createWorldProjection({
+    instances: baseProjection.instances.map((datum, index) =>
+      index === 0
+        ? createProjectedWorldInstance({
+            ...datum,
+            style: { ...(datum.style ?? {}), fillColor: "#7a3456" },
+          })
+        : datum,
+    ),
+    edges: baseProjection.edges,
+  });
+  surface.setProjection(projection);
 
   const beforeLayer = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
   const before = beforeLayer.props.data;
@@ -2275,6 +2418,22 @@ test("selection changes label color without changing label membership or placeme
   assert.equal(incidentAfter, incidentBefore, "selection reuses the same incident label datum");
   assert.notDeepEqual(afterLayer.props.getColor(selectedAfter), selectedColorBefore);
   assert.notDeepEqual(afterLayer.props.getColor(incidentAfter), incidentColorBefore);
+  assert.deepEqual(
+    afterLayer.props.getColor(selectedAfter).slice(0, 3),
+    [0x7a, 0x34, 0x56],
+    "selected entity label keeps the entity's authored semantic color",
+  );
+
+  const relationshipLayer = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.relationships);
+  const incidentEdge = relationshipLayer.props.data.find(
+    (datum) => datum.relationshipId === "edge-1",
+  );
+  assert.ok(incidentEdge);
+  assert.deepEqual(
+    afterLayer.props.getColor(incidentAfter).slice(0, 3),
+    relationshipLayer.props.getColor(incidentEdge).slice(0, 3),
+    "incident relationship label keeps the relationship's resolved semantic color",
+  );
 });
 
 test("dense direction-marker LOD is selection-stable while explicit focus may pin an edge", () => {

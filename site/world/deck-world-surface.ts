@@ -251,7 +251,7 @@ interface DeckWorldRelationshipDatum {
   readonly targetEntityId: EntityId;
   readonly path: readonly WorldRenderPosition[];
   readonly selected: boolean;
-  /** Incident to the selected/hovered node, or endpoint of the selected edge. */
+  /** Incident to interaction context, or explicitly active from timeline event context. */
   readonly emphasized: boolean;
   readonly temporalWeight: number;
   readonly style?: WorldPresentationStyle;
@@ -1196,7 +1196,6 @@ interface WorldThemeColors {
   readonly labelText: Rgba;
   readonly labelPlace: Rgba;
   readonly labelRelationship: Rgba;
-  readonly labelEmphasis: Rgba;
   readonly labelHalo: Rgba;
 }
 
@@ -1218,7 +1217,6 @@ function worldThemeColors(palette: WorldGraphPalette): WorldThemeColors {
     labelText: worldColorBytes(palette.ink),
     labelPlace: worldColorBytes(palette.muted),
     labelRelationship: worldColorBytes(palette.muted),
-    labelEmphasis: worldColorBytes(palette.focus),
     labelHalo: worldColorBytes(palette.paper, 230),
   });
 }
@@ -2444,6 +2442,7 @@ function labelDatums(input: {
   readonly hoveredClusterId: string | null;
   readonly contextEntityIds: ReadonlySet<EntityId>;
   readonly contextRelationshipIds: ReadonlySet<RelationshipId>;
+  readonly activeRelationshipIds: ReadonlySet<RelationshipId>;
   readonly previous: ReadonlyMap<string, DeckWorldLabelDatum>;
   readonly entityMarkerRadiusPx: (instanceId: WorldInstanceId) => number;
   readonly placeMarkerRadiusPx: (placeId: PlaceId) => number;
@@ -2807,6 +2806,10 @@ function labelDatums(input: {
   }
 
   const interactionRelationshipIds = new Set<RelationshipId>(input.contextRelationshipIds);
+  for (const relationshipId of input.activeRelationshipIds) {
+    interactionRelationshipIds.add(relationshipId);
+    requiredInteractionLabelKeys.add(`relationship:${relationshipId}`);
+  }
   if (input.selection?.kind === "entity") {
     for (const relationship of input.relationships) {
       if (
@@ -3029,6 +3032,7 @@ export class DeckWorldSurface implements WorldSurface {
   #relationshipRouteHints: ReadonlyMap<RelationshipId, WorldRelationshipRouteHint> = new Map();
   #selection: WorldSelection | null = null;
   #hoverSelection: WorldSelection | null = null;
+  #contextRelationshipIds: ReadonlySet<RelationshipId> = new Set();
   #hoverClusterId: string | null = null;
   #camera: WorldCameraState;
   // True once the camera was chosen explicitly (constructor, setCamera,
@@ -4253,6 +4257,19 @@ export class DeckWorldSurface implements WorldSurface {
     this.#render();
   }
 
+  setContextRelationships(ids: readonly RelationshipId[]): void {
+    this.#assertAlive();
+    const next = new Set(ids);
+    if (
+      next.size === this.#contextRelationshipIds.size &&
+      [...next].every((id) => this.#contextRelationshipIds.has(id))
+    ) {
+      return;
+    }
+    this.#contextRelationshipIds = next;
+    this.#render();
+  }
+
   getRenderedInstanceContinuity(): ReadonlyMap<
     WorldInstanceId,
     WorldRenderContinuitySample
@@ -5302,6 +5319,9 @@ export class DeckWorldSurface implements WorldSurface {
     const neighborhood = this.#topologyIndex.interactionNeighborhood([
       this.#selection,
       this.#hoverSelection,
+      ...[...this.#contextRelationshipIds].map(
+        (id) => ({ kind: "relationship", id }) as const,
+      ),
     ]);
     const placeResult = placeDatums(
       this.#projection.instances,
@@ -5392,14 +5412,16 @@ export class DeckWorldSurface implements WorldSurface {
       return (
         !edgeIsClusterAffected(edge) ||
         showActiveClusterEdges ||
-        placeReveal.relationshipIds.has(edge.relationshipId)
+        placeReveal.relationshipIds.has(edge.relationshipId) ||
+        this.#contextRelationshipIds.has(edge.relationshipId)
       );
     });
     const releasingRelationships = showReleasingClusterEdges
       ? relationships.filter(
           (relationship) =>
             edgeIsClusterAffected(relationship) &&
-            !placeReveal.relationshipIds.has(relationship.relationshipId),
+            !placeReveal.relationshipIds.has(relationship.relationshipId) &&
+            !this.#contextRelationshipIds.has(relationship.relationshipId),
         )
       : Object.freeze([] as DeckWorldRelationshipDatum[]);
     const releasingSegments = releasingRelationshipSegments(releasingRelationships);
@@ -5478,7 +5500,8 @@ export class DeckWorldSurface implements WorldSurface {
       (relationship) =>
         !edgeIsClusterAffected(relationship) ||
         showActiveClusterEdges ||
-        placeReveal.relationshipIds.has(relationship.relationshipId),
+        placeReveal.relationshipIds.has(relationship.relationshipId) ||
+        this.#contextRelationshipIds.has(relationship.relationshipId),
     );
     const directionResult = directionDatums(
       visibleDirectionRelationships,
@@ -5511,7 +5534,8 @@ export class DeckWorldSurface implements WorldSurface {
     ): number =>
       !edgeIsClusterAffected(edge) ||
       showActiveClusterEdges ||
-      placeReveal.relationshipIds.has(edge.relationshipId)
+      placeReveal.relationshipIds.has(edge.relationshipId) ||
+      this.#contextRelationshipIds.has(edge.relationshipId)
         ? 1
         : 0;
     const entityExpansion = (entity: DeckWorldEntityDatum): number =>
@@ -5534,6 +5558,7 @@ export class DeckWorldSurface implements WorldSurface {
       this.#hoverClusterId ?? "",
       this.#focus?.kind ?? "",
       this.#focus?.id ?? "",
+      [...this.#contextRelationshipIds].sort().join(","),
     ].join(":");
     const labelInteractionEmphasized = (datum: DeckWorldLabelDatum): boolean => {
       if (datum.kind === "cluster-label") return datum.emphasized;
@@ -5581,7 +5606,8 @@ export class DeckWorldSurface implements WorldSurface {
         (this.#selection?.kind === "relationship" &&
           this.#selection.id === relationship.relationshipId) ||
         (this.#hoverSelection?.kind === "relationship" &&
-          this.#hoverSelection.id === relationship.relationshipId),
+          this.#hoverSelection.id === relationship.relationshipId) ||
+        this.#contextRelationshipIds.has(relationship.relationshipId),
     );
     const labelResult = this.#runtime.createTextLayer
       ? labelDatums({
@@ -5602,6 +5628,7 @@ export class DeckWorldSurface implements WorldSurface {
               .filter((entityId): entityId is EntityId => entityId !== undefined),
           ),
           contextRelationshipIds: placeReveal.relationshipIds,
+          activeRelationshipIds: this.#contextRelationshipIds,
           previous: this.#labelDatumCache,
           entityMarkerRadiusPx: visibleEntityRadiusPx,
           placeMarkerRadiusPx: (placeId) => {
@@ -6038,6 +6065,7 @@ export class DeckWorldSurface implements WorldSurface {
               getSize: worldGraphLabelSize,
               getColor: (datum: DeckWorldLabelDatum) => {
                 const facing = this.#cameraFacingOpacity(datum.position);
+                const emphasized = labelInteractionEmphasized(datum);
                 if (datum.kind === "relationship-label") {
                   const edge = relationshipResult.byId.get(datum.relationshipId);
                   const edgeColor = edge
@@ -6045,26 +6073,37 @@ export class DeckWorldSurface implements WorldSurface {
                     : this.#theme.labelRelationship;
                   return scaleAlpha(edgeColor, facing * (edge ? edgeExpansion(edge) : 0));
                 }
-                const base = labelInteractionEmphasized(datum)
-                  ? this.#theme.labelEmphasis
-                  : datum.kind === "place-label" || datum.kind === "cluster-label"
-                    ? this.#theme.labelPlace
-                    : this.#theme.labelText;
-                if (datum.kind === "place-label") return scaleAlpha(base, facing);
+                if (datum.kind === "place-label") {
+                  const place = placeResult.byId.get(datum.placeId);
+                  const base =
+                    emphasized && place
+                      ? worldColorBytes(this.#placeStyle(place).fill)
+                      : this.#theme.labelPlace;
+                  return scaleAlpha(base, facing);
+                }
                 if (datum.kind === "cluster-label") {
+                  // Clusters may contain several semantic colours, so they stay
+                  // neutral rather than inventing a generic active/focus colour.
+                  const base = emphasized ? this.#theme.labelText : this.#theme.labelPlace;
                   return scaleAlpha(base, facing * clusterVisibility);
                 }
                 const entity = entityResult.byId.get(datum.worldInstanceId);
-                const entityBase =
-                  muteMembers && memberIds.has(datum.worldInstanceId)
-                    ? this.#theme.labelPlace
-                    : base;
                 const directlyInteracted =
                   (this.#selection?.kind === "entity" &&
                     this.#selection.id === datum.entityId) ||
                   (this.#hoverSelection?.kind === "entity" &&
                     this.#hoverSelection.id === datum.entityId) ||
                   (this.#focus?.kind === "entity" && this.#focus.id === datum.entityId);
+                const semanticBase =
+                  emphasized && entity
+                    ? worldColorBytes(this.#entityStyle(entity).fill)
+                    : this.#theme.labelText;
+                const entityBase =
+                  muteMembers &&
+                  memberIds.has(datum.worldInstanceId) &&
+                  !directlyInteracted
+                    ? this.#theme.labelPlace
+                    : semanticBase;
                 const visibility = directlyInteracted
                   ? 1
                   : entity
