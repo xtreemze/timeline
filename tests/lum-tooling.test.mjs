@@ -228,3 +228,26 @@ test("trajectory external semantic mappings survive strict interchange validatio
     },
   ]);
 });
+
+test("lum agent context emits bounded canonical context for limited-context agents", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "lum-agent-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const projectPath = path.join(directory, `project${LUM_PROJECT_FILE_EXTENSION}`);
+  await writeFile(
+    projectPath,
+    createEmptyProjectInterchange({
+      projectKey: "agent-case",
+      savedAt: "2026-09-28T08:00:00.000Z",
+    }),
+    "utf8",
+  );
+
+  const result = runLum(["agent", "context", projectPath, "--json"]);
+  assert.equal(result.status, 0, result.stderr);
+  const context = JSON.parse(result.stdout);
+  assert.equal(context.protocol, "lum-agent-context-v1");
+  assert.equal(context.project.projectKey, "agent-case");
+  assert.equal(context.schema.id, LUM_PROJECT_SCHEMA_ID);
+  assert.match(context.composer.syntax, /SUBJECT/);
+  assert.ok(context.workflow.includes("lum lint <project.lum.json> --json"));
+});
