@@ -160,6 +160,10 @@ test("completion target follows the token being edited rather than the next miss
   assert.equal(occurrenceComposerCompletionStage("Alice reports Big"), "object");
   assert.equal(occurrenceComposerCompletionStage("Alice reports Bob "), "complete");
   assert.equal(occurrenceComposerCompletionStage("Alice reports Bob at Sto"), "place");
+  assert.equal(
+    occurrenceComposerCompletionStage("Alice reports Bob at @stockholm "),
+    "complete",
+  );
 });
 
 test("partial multi-word entities and places resolve through canonical IDs", () => {
@@ -208,6 +212,24 @@ test("composer reuses existing tags, categories, and project predicates as conte
     optionSuggestions.some(
       (suggestion) => suggestion.kind === "tag" && suggestion.insertText === "tags: friend",
     ),
+  );
+
+  const secondTagSuggestions = occurrenceComposerSuggestions(
+    "Alice meets Bob [tags: friend|wo",
+    {
+      entities: [],
+      places: [],
+      categories: [],
+      tags: ["friend", "work"],
+      predicates: [],
+    },
+  );
+  assert.equal(
+    secondTagSuggestions.some((suggestion) => suggestion.insertText.includes("friend|friend")),
+    false,
+  );
+  assert.ok(
+    secondTagSuggestions.some((suggestion) => suggestion.insertText === "tags: friend|work"),
   );
 
   const categorySuggestions = occurrenceComposerSuggestions("Alice meets Bob [category: obs", {
