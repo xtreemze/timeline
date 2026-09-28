@@ -525,6 +525,7 @@ function readEntitySpan(
     const close = input.indexOf(")", propertyStart + 1);
     end = close >= 0 ? close + 1 : input.length;
   }
+  if (input[end] === "?" && !questionMarkIsEscaped(input, end)) end += 1;
 
   return {
     start,
