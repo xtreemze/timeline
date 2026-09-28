@@ -666,16 +666,19 @@
   }
 
   #app-shell .app-footer-bar .app-footer-actions {
+    order: 1;
     padding-inline-start: max(0.18rem, env(safe-area-inset-left));
   }
 
   #app-shell .app-footer-bar > #occurrence-composer:not([active]) {
+    order: 2;
     flex: 0 0 clamp(170px, 46vw, 260px);
     inline-size: clamp(170px, 46vw, 260px);
     min-inline-size: 170px;
   }
 
   #app-shell .app-footer-bar .app-footer-view {
+    order: 3;
     overflow: visible;
   }
 
