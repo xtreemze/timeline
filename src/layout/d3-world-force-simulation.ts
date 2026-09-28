@@ -822,10 +822,14 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
   #stepCrossPlaceTopologyForces(): boolean {
     let moved = false;
     for (const [leftGroup, rightGroup] of crossPlaceGroupPairs([...this.#groups.values()])) {
+      const alpha = Math.max(leftGroup.simulation.alpha(), rightGroup.simulation.alpha());
+      const alphaMin = Math.max(leftGroup.simulation.alphaMin(), rightGroup.simulation.alphaMin());
+      if (alpha <= alphaMin) continue;
+
       for (const left of leftGroup.nodes) {
         if (!left.anchor) continue;
         for (const right of rightGroup.nodes) {
-          if (!right.anchor || this.#stepCrossPlacePairForces(left, right) === false) continue;
+          if (!right.anchor || this.#stepCrossPlacePairForces(left, right, alpha) === false) continue;
           moved = true;
         }
       }
@@ -833,7 +837,11 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     return moved;
   }
 
-  #stepCrossPlacePairForces(left: D3WorldNodeState, right: D3WorldNodeState): boolean {
+  #stepCrossPlacePairForces(
+    left: D3WorldNodeState,
+    right: D3WorldNodeState,
+    alpha: number,
+  ): boolean {
     const leftPosition = geographicPosition(left);
     const rightPosition = geographicPosition(right);
     if (!leftPosition || !rightPosition) return false;
@@ -872,7 +880,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
 
     const pairSimulation = forceSimulation<D3CrossPlaceInteractionProbe>(probes)
       .stop()
-      .alpha(DEFAULT_ALPHA)
+      .alpha(alpha)
       .alphaMin(ALPHA_MIN)
       .alphaDecay(ALPHA_DECAY)
       .alphaTarget(0);
@@ -924,10 +932,6 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       probe.state.vy = 0;
       this.#dirtyStateIds.add(probe.state.id);
 
-      const group = this.#groups.get(probe.state.group);
-      if (group) {
-        group.simulation.alpha(Math.max(group.simulation.alpha(), DRAG_MOVE_ALPHA_FLOOR));
-      }
       moved = true;
     }
 
