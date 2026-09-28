@@ -408,13 +408,13 @@ export function createWorldLayoutControls(
     step: 0.05,
     value: DEFAULT_D3_WORLD_FORCE_TUNING.centerStrength ?? 0,
   });
-  const centerEast = rangeRow(doc, "Center east", {
+  const centerEast = rangeRow(doc, "Center east (m)", {
     min: -5_000,
     max: 5_000,
     step: 100,
     value: DEFAULT_D3_WORLD_FORCE_TUNING.centerEastMeters ?? 0,
   });
-  const centerNorth = rangeRow(doc, "Center north", {
+  const centerNorth = rangeRow(doc, "Center north (m)", {
     min: -5_000,
     max: 5_000,
     step: 100,
