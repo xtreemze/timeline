@@ -188,3 +188,43 @@ test("LSP uses strict diagnostics and canonical formatter from the same toolchai
   assert.equal(formatting.result.length, 1);
   assert.ok(formatting.result[0].newText.endsWith("\n"));
 });
+
+test("trajectory external semantic mappings survive strict interchange validation", () => {
+  const parsed = JSON.parse(
+    createEmptyProjectInterchange({
+      projectKey: "trajectory-mapping",
+      savedAt: "2026-09-28T08:00:00.000Z",
+    }),
+  );
+  parsed.project.trajectories = [
+    {
+      id: "track-1",
+      sourceIds: [],
+      sampleCount: 0,
+      time: null,
+      bounds: null,
+      channels: [],
+      levels: [],
+      storage: { kind: "external", ref: "urn:track:1" },
+      externalMappings: [
+        {
+          scheme: "example",
+          identifier: "track-1",
+          relation: "exact",
+        },
+      ],
+      attributes: {},
+    },
+  ];
+
+  const validation = validateProjectInterchange(formatProjectInterchange(JSON.stringify(parsed)));
+  assert.equal(validation.valid, true);
+  if (!validation.valid) return;
+  assert.deepEqual(validation.snapshot.project.trajectories?.[0]?.externalMappings, [
+    {
+      scheme: "example",
+      identifier: "track-1",
+      relation: "exact",
+    },
+  ]);
+});
