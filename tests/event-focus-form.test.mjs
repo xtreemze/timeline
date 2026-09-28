@@ -495,3 +495,19 @@ test("coarse-pointer phone controls preserve a 44 CSS px interaction target", as
     /@media \(pointer: coarse\) and \(max-width: 699px\)[\s\S]*data-orientation="portrait"[\s\S]*max-width:\s*52px/,
   );
 });
+
+test("event semantic tag editors use the shared semantic icon vocabulary", async () => {
+  const [html, app] = await Promise.all([
+    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
+  ]);
+
+  for (let slot = 1; slot <= 4; slot += 1) {
+    assert.match(
+      html,
+      new RegExp(`id="item-tag-${slot}-icon"[\\s\\S]*?list="semantic-icon-suggestions"`),
+    );
+  }
+  assert.match(app, /input\[id\$="-icon"\]/);
+  assert.doesNotMatch(app, /row\.querySelector\("select"\)/);
+});
