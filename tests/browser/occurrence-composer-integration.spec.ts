@@ -78,6 +78,9 @@ test("one composer card previews incomplete icons and chips select exact grammar
   await expect.poll(() => input.evaluate((element: HTMLInputElement) =>
     element.value.slice(element.selectionStart ?? 0, element.selectionEnd ?? 0),
   )).toBe("important");
+  await expect(composer.locator(".context-row")).toHaveCount(1);
+  await expect(composer.locator(".composer-occurrence-card > .context-row")).toHaveCount(1);
+  await expect(composer.locator(".completion-panel > .context-row")).toHaveCount(0);
 });
 
 test("unresolved clue remains editable and cannot be approved as a fact", async ({ page }) => {
@@ -298,12 +301,34 @@ test("same-occurrence media and context refresh preserve a dirty investigative d
   await expect(composer.locator("#occurrence-investigation-panel")).toBeVisible();
   await expect(composer.locator(".composer-card-heading")).toContainText("Updated context");
   const deck = composer.locator("luum-occurrence-deck.composer-context-deck");
-  await expect(deck).toHaveAttribute("data-frame-count", "3");
+  await expect(deck).toHaveAttribute("data-frame-count", "2");
   await expect(deck.locator(".timeline-focus-hero-image")).toHaveAttribute("alt", "Updated evidence A");
+  const context = composer.locator(".composer-card-context");
+  await expect(context).toContainText("Updated description");
+  const layout = await composer.locator(".composer-card-details").evaluate((details) => {
+    const media = details.querySelector(".composer-card-media")?.getBoundingClientRect();
+    const contextPane = details.querySelector(".composer-card-context")?.getBoundingClientRect();
+    return {
+      width: window.innerWidth,
+      media: media ? { x: media.x, y: media.y, right: media.right, bottom: media.bottom } : null,
+      context: contextPane
+        ? { x: contextPane.x, y: contextPane.y, right: contextPane.right, bottom: contextPane.bottom }
+        : null,
+    };
+  });
+  expect(layout.media).not.toBeNull();
+  expect(layout.context).not.toBeNull();
+  if (layout.width >= 721) {
+    expect(layout.context!.x).toBeGreaterThanOrEqual(layout.media!.right - 2);
+    expect(Math.abs(layout.context!.y - layout.media!.y)).toBeLessThanOrEqual(2);
+  } else {
+    expect(layout.context!.y).toBeGreaterThanOrEqual(layout.media!.bottom - 2);
+  }
   await deck.getByRole("button", { name: "Next frame" }).click();
   await expect(deck.locator(".timeline-focus-hero-image")).toHaveAttribute("alt", "Updated evidence B");
   await deck.getByRole("button", { name: "Next frame" }).click();
-  await expect(deck.locator(".timeline-occurrence-deck-context-body")).toHaveText("Updated description");
+  await expect(deck.locator(".timeline-focus-hero-image")).toHaveAttribute("alt", "Updated evidence A");
+  await expect(context).toContainText("Updated description");
 });
 
 
