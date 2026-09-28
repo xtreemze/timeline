@@ -808,8 +808,135 @@
   }
 }
 
-/* Focus detail is a card extension: keep it adjacent to the timeline rail and bridge it to
-   the selected retained card. Orientation changes the attachment edge, not the semantics. */
+/* Focus detail is a compact card extension. It follows the retained occurrence card
+   instead of becoming a competing page-sized surface. The world and chronology remain
+   visible and interactive around it, while the semantic event colour visually ties the
+   extension back to its selected parent card. */
+#app-shell.is-event-focused #presentation-stage > .timeline-focus-sidebar:not([hidden]) {
+  inset: auto;
+  inset-block-start: var(--timeline-focus-block-start, 0.5rem);
+  inset-inline-start: var(--timeline-focus-inline-start, 0.5rem);
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-rows: auto auto auto;
+  align-content: start;
+  gap: 0.42rem;
+  inline-size: min(32rem, calc(100% - 1rem));
+  block-size: auto;
+  max-inline-size: calc(100% - 1rem);
+  max-block-size: min(28rem, calc(100% - 1rem));
+  margin: 0;
+  padding: 0.42rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid color-mix(in srgb, var(--event-color, var(--accent)) 46%, var(--line-strong));
+  border-radius: 0.82rem;
+  background: color-mix(in srgb, var(--paper) 96%, transparent);
+  box-shadow:
+    inset 0 3px 0 color-mix(in srgb, var(--event-color, var(--accent)) 72%, transparent),
+    0 10px 30px color-mix(in srgb, var(--ink) 14%, transparent);
+  backdrop-filter: blur(18px);
+  transform: none;
+  container-type: inline-size;
+}
+
+#app-shell.is-event-focused
+  #presentation-stage:is(
+    [data-timeline-orientation="horizontal"],
+    [data-timeline-orientation="vertical"]
+  )
+  > .timeline-focus-sidebar:not([hidden]) {
+  inset-block-end: auto;
+  inset-inline-end: auto;
+  transform: none;
+}
+
+#app-shell.is-event-focused #presentation-stage > .timeline-focus-sidebar .timeline-focus-header {
+  position: sticky;
+  z-index: 12;
+  inset-block-start: -0.42rem;
+  inset-inline: auto;
+  grid-column: 1 / -1;
+  grid-row: 1;
+  inline-size: calc(100% + 0.84rem);
+  max-inline-size: none;
+  min-block-size: 52px;
+  margin: -0.42rem -0.42rem 0;
+  padding: 0.28rem 0.36rem;
+  border: 0;
+  border-block-end: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+  border-radius: 0.78rem 0.78rem 0 0;
+  background: color-mix(in srgb, var(--paper) 96%, transparent);
+  backdrop-filter: blur(16px);
+}
+
+#app-shell.is-event-focused #presentation-stage > .timeline-focus-sidebar .timeline-focus-tabs {
+  gap: 0.14rem;
+}
+
+#app-shell.is-event-focused #presentation-stage > .timeline-focus-sidebar .timeline-focus-tab {
+  min-block-size: 30px;
+  padding: 0.34rem 0.5rem;
+  border-radius: 0.46rem;
+  font-size: 0.66rem;
+}
+
+#app-shell.is-event-focused
+  #presentation-stage
+  > .timeline-focus-sidebar[data-layout]
+  > .timeline-focus-hero {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  min-block-size: clamp(138px, 21dvh, 182px);
+  max-block-size: 182px;
+  aspect-ratio: auto;
+  border-radius: 0.64rem;
+}
+
+#app-shell.is-event-focused
+  #presentation-stage
+  > .timeline-focus-sidebar
+  .timeline-focus-hero-veil {
+  gap: 0.28rem;
+  padding: 0.78rem 0.9rem;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.82) 0%,
+    rgba(0, 0, 0, 0.26) 58%,
+    rgba(0, 0, 0, 0.04) 84%
+  );
+}
+
+#app-shell.is-event-focused
+  #presentation-stage
+  > .timeline-focus-sidebar
+  .timeline-focus-kicker {
+  font-size: 0.62rem;
+  letter-spacing: 0.11em;
+}
+
+#app-shell.is-event-focused
+  #presentation-stage
+  > .timeline-focus-sidebar
+  .timeline-focus-title {
+  max-inline-size: min(22ch, 100%);
+  padding: 0;
+  font-size: clamp(1.28rem, 6.2cqi, 2.05rem);
+  line-height: 0.98;
+  letter-spacing: -0.045em;
+  text-wrap: balance;
+}
+
+#app-shell.is-event-focused
+  #presentation-stage
+  > .timeline-focus-sidebar
+  .timeline-focus-time {
+  margin-block-start: 0.08rem;
+  font-size: clamp(0.66rem, 2.5cqi, 0.78rem);
+  line-height: 1.25;
+}
+
 #app-shell.is-event-focused
   #presentation-stage
   > .timeline-focus-sidebar[data-layout]
@@ -817,72 +944,129 @@
   grid-column: 1 / -1;
   grid-row: 3;
   inline-size: 100%;
+  min-block-size: 0;
+  padding: 0.7rem 0.78rem 0.78rem;
+  border: 0;
+  border-block-start: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+  background: transparent;
+}
+
+#app-shell.is-event-focused .timeline-focus-description {
+  max-inline-size: none;
+  font-size: clamp(0.84rem, 2.7cqi, 0.96rem);
+  line-height: 1.48;
 }
 
 #app-shell.is-event-focused
-  #presentation-stage[data-timeline-orientation="horizontal"]
-  > .timeline-focus-sidebar:not([hidden]) {
-  inset-block-start: auto;
-  inset-block-end: var(--focus-timeline-block-size);
-  inset-inline: max(0.35rem, env(safe-area-inset-left)) max(0.35rem, env(safe-area-inset-right));
-  inline-size: auto;
-  max-inline-size: none;
-  transform: none;
+  #presentation-stage
+  > .timeline-focus-sidebar[data-active-tab="evidence"]
+  > .timeline-focus-hero {
+  display: none;
 }
 
 #app-shell.is-event-focused
-  #presentation-stage[data-timeline-orientation="vertical"]
-  > .timeline-focus-sidebar:not([hidden]) {
-  inset-block-start: 50%;
-  inset-inline-start: max(0.35rem, env(safe-area-inset-left));
-  inset-inline-end: var(--focus-timeline-inline-size);
-  inline-size: auto;
-  max-inline-size: none;
-  transform: translateY(-50%);
+  #presentation-stage
+  > .timeline-focus-sidebar[data-active-tab="evidence"]
+  > .timeline-focus-evidence {
+  grid-column: 1 / -1;
+  grid-row: 2 / span 2;
+  min-block-size: 0;
+  max-block-size: calc(min(28rem, 100dvh) - 4.75rem);
+  padding: 0.62rem;
+  overflow: auto;
+  border: 0;
+  background: transparent;
+}
+
+#app-shell.is-event-focused
+  #presentation-stage
+  > .timeline-focus-sidebar
+  .timeline-focus-evidence-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(13rem, 100%), 1fr));
+  gap: 0.5rem;
+}
+
+#app-shell.is-event-focused
+  #presentation-stage
+  > .timeline-focus-sidebar
+  .timeline-focus-evidence-card {
+  padding: 0.68rem;
+  border-radius: 0.58rem;
 }
 
 #app-shell.is-event-focused #presentation-stage > .timeline-focus-sidebar::after {
   content: "";
   position: absolute;
-  z-index: 9;
+  z-index: 13;
   pointer-events: none;
-  background: color-mix(in srgb, var(--event-color, var(--accent)) 82%, var(--line-strong));
+  background: color-mix(in srgb, var(--event-color, var(--accent)) 88%, var(--line-strong));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--paper) 45%, transparent);
 }
 
 #app-shell.is-event-focused
   #presentation-stage
-  > .timeline-focus-sidebar[data-anchor-orientation="landscape"]::after {
-  inset-block-end: 0;
+  > .timeline-focus-sidebar[data-anchor-side="above"]::after {
+  inset-block-start: 100%;
   inset-inline-start: var(--timeline-focus-anchor-local-x, 50%);
-  inline-size: clamp(2.25rem, var(--timeline-focus-anchor-width, 3rem), 5rem);
-  block-size: 3px;
+  inline-size: 2px;
+  block-size: 9px;
   transform: translateX(-50%);
 }
 
 #app-shell.is-event-focused
   #presentation-stage
-  > .timeline-focus-sidebar[data-anchor-orientation="portrait"]::after {
+  > .timeline-focus-sidebar[data-anchor-side="below"]::after {
+  inset-block-end: 100%;
+  inset-inline-start: var(--timeline-focus-anchor-local-x, 50%);
+  inline-size: 2px;
+  block-size: 9px;
+  transform: translateX(-50%);
+}
+
+#app-shell.is-event-focused
+  #presentation-stage
+  > .timeline-focus-sidebar[data-anchor-side="left"]::after {
   inset-block-start: var(--timeline-focus-anchor-local-y, 50%);
-  inset-inline-end: 0;
-  inline-size: 3px;
-  block-size: clamp(2.25rem, var(--timeline-focus-anchor-height, 3rem), 5rem);
+  inset-inline-start: 100%;
+  inline-size: 9px;
+  block-size: 2px;
   transform: translateY(-50%);
 }
 
 #app-shell.is-event-focused
   #presentation-stage
-  > .timeline-focus-sidebar[data-anchor-orientation="landscape"]
-  > .timeline-focus-hero {
-  min-block-size: clamp(170px, 23dvh, 290px);
-  aspect-ratio: 16 / 6;
+  > .timeline-focus-sidebar[data-anchor-side="right"]::after {
+  inset-block-start: var(--timeline-focus-anchor-local-y, 50%);
+  inset-inline-end: 100%;
+  inline-size: 9px;
+  block-size: 2px;
+  transform: translateY(-50%);
 }
 
-#app-shell.is-event-focused
-  #presentation-stage
-  > .timeline-focus-sidebar[data-anchor-orientation="portrait"]
-  > .timeline-focus-hero {
-  min-block-size: clamp(180px, 31dvh, 320px);
-  aspect-ratio: 4 / 3;
+@container (max-width: 420px) {
+  #app-shell.is-event-focused
+    #presentation-stage
+    > .timeline-focus-sidebar[data-layout]
+    > .timeline-focus-hero {
+    min-block-size: 126px;
+    max-block-size: 152px;
+  }
+
+  #app-shell.is-event-focused
+    #presentation-stage
+    > .timeline-focus-sidebar
+    .timeline-focus-title {
+    font-size: clamp(1.12rem, 7cqi, 1.55rem);
+  }
+
+  #app-shell.is-event-focused
+    #presentation-stage
+    > .timeline-focus-sidebar
+    .timeline-focus-header {
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+  }
 }
 
 .timeline-related-world-action[hidden] {
