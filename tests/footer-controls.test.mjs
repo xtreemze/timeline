@@ -48,6 +48,15 @@ test("footer exposes view controls directly and keeps one primary Edit entry", a
   assert.match(world, /element\.dataset\.viewControl = ""/);
   assert.match(world, /createCompoundIcon\(icon, "world", \{ size: 20 \}\)/);
   assert.match(world, /button\("Show whole globe", "world"/);
+  assert.match(world, /className = "world-zoom-control"/);
+  assert.match(world, /className = "world-zoom-slider"/);
+  assert.match(world, /slider\.min = String\(WORLD_CAMERA_MIN_ZOOM\)/);
+  assert.match(world, /slider\.max = String\(WORLD_CAMERA_MAX_ZOOM\)/);
+  assert.match(world, /slider\.step = "0\.1"/);
+  assert.match(world, /button\("Zoom out", "zoom-out"/);
+  assert.match(world, /button\("Zoom in", "zoom-in"/);
+  assert.match(world, /#syncZoomControls\(\)/);
+  assert.match(world, /#publishCameraContext\(\)[\s\S]*#syncZoomControls\(\)/);
   assert.match(factory, /element\.className = "toolbar-control world-layout-control"/);
   assert.match(factory, /element\.dataset\.viewControl = ""/);
   assert.match(factory, /createCompoundIcon\(icon, "world", \{ size: 20 \}\)/);
