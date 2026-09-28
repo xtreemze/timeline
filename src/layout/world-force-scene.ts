@@ -3,6 +3,9 @@ import type { ProjectedWorldInstance, WorldProjection } from "../projection/worl
 import {
   createWorldDagLayout,
   WORLD_DAG_TARGET_STRENGTH,
+  type WorldDagCoordinateStrategy,
+  type WorldDagEdgeStyle,
+  type WorldDagLayoutAlgorithm,
   type WorldDagLayoutNodeSize,
   type WorldDagLayoutOrientation,
   type WorldDagLayoutPlaceOverride,
@@ -41,7 +44,10 @@ export interface WorldForceSceneBuildOptions {
   readonly reorganizeDagPlaceId?: PlaceId;
   /** Structural flow direction selected from the current world viewport shape. */
   readonly dagOrientation?: WorldDagLayoutOrientation;
+  readonly dagAlgorithm?: WorldDagLayoutAlgorithm;
   readonly dagStrategy?: WorldDagLayoutStrategy;
+  readonly dagCoordinate?: WorldDagCoordinateStrategy;
+  readonly dagEdgeStyle?: WorldDagEdgeStyle;
   readonly dagPlaceOverrides?: ReadonlyMap<PlaceId, WorldDagLayoutPlaceOverride>;
   /**
    * Optional continuity-preserving starting pose. Canonical/new projection
@@ -253,7 +259,10 @@ export function createWorldForceScene(
     nodeSizes,
     placeSizes,
     orientation: options.dagOrientation ?? "top-to-bottom",
+    algorithm: options.dagAlgorithm ?? "sugiyama",
     strategy: options.dagStrategy ?? "auto",
+    coordinate: options.dagCoordinate ?? "greedy",
+    edgeStyle: options.dagEdgeStyle ?? "routed",
     placeOverrides: options.dagPlaceOverrides,
     reorganize: options.reorganizeDag === true,
     reorganizePlaceId: options.reorganizeDagPlaceId,

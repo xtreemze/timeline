@@ -605,7 +605,10 @@ test(
       controller.reorganizeDag({
         placeId: "stockholm",
         orientation: "left-to-right",
+        algorithm: "sugiyama",
         strategy: "simplex-two-layer-greedy",
+        coordinate: "quad",
+        edgeStyle: "orthogonal",
       }),
       true,
     );
@@ -618,6 +621,10 @@ test(
       sceneCall[1].anchors,
       initialScene.anchors,
       "place-scoped organization must not rewrite geographic evidence",
+    );
+    assert.ok(
+      sceneCall[1].relationshipRoutes[0].points.length >= 3,
+      "selected-place edge routing should reach the disposable render route",
     );
     assert.equal(applyCall[1].reason, "topology");
     assert.equal(applyCall[1].reheat, true);

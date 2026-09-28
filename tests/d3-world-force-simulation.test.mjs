@@ -161,6 +161,20 @@ test("force tuning rejects collision settings that would violate the solver cont
       }),
     /Collision iterations must be an integer from 1 to 12/,
   );
+  assert.throws(
+    () =>
+      simulation.setTuning({
+        collisionStrength: 0.82,
+        collisionIterations: 3,
+        connectivityClearanceScale: 1,
+        manyBodyStrength: -2600,
+        linkStrengthScale: 1,
+        linkIterations: 0,
+        anchorStrengthScale: 1,
+        dagStrengthScale: 1,
+      }),
+    /Link iterations must be an integer from 1 to 12/,
+  );
 });
 
 test("cross-place D3 spacing honors hub connectivity clearance", () => {
@@ -292,6 +306,87 @@ test("cluster lifecycle detaches links, gathers with D3, then scatters from the 
     distance(simulation.getSnapshot(), alice, bob) > collapsed,
     "restoring links happens only after the free scatter phase",
   );
+});
+
+test("D3 center force translates a local place group without changing relative spacing", () => {
+  const simulation = new D3WorldForceSimulation();
+  const left = '["center-left",null]';
+  const right = '["center-right",null]';
+  simulation.setScene({
+    nodes: [node(left, -100, 100), node(right, 100, 100)],
+    edges: [],
+    anchors: [anchor(left, "stockholm", 0), anchor(right, "stockholm", 0)],
+  });
+  simulation.setTuning({
+    centerStrength: 1,
+    centerEastMeters: 1_200,
+    centerNorthMeters: -600,
+    collisionStrength: 0,
+    collisionIterations: 1,
+    connectivityClearanceScale: 0,
+    manyBodyStrength: 0,
+    linkStrengthScale: 0,
+    linkDistanceScale: 1,
+    anchorStrengthScale: 0,
+    dagStrengthScale: 0,
+  });
+
+  const beforeDistance = distance(simulation.getSnapshot(), left, right);
+  simulation.apply(topologyRequest());
+  for (let index = 0; index < 8; index += 1) simulation.step(1000 / 60);
+  const snapshot = simulation.getSnapshot();
+  const meanEast = snapshot.reduce((sum, entry) => sum + entry.eastMeters, 0) / snapshot.length;
+  const meanNorth = snapshot.reduce((sum, entry) => sum + entry.northMeters, 0) / snapshot.length;
+
+  assert.ok(Math.abs(meanEast - 1_200) < 1);
+  assert.ok(Math.abs(meanNorth + 600) < 1);
+  assert.ok(
+    Math.abs(distance(snapshot, left, right) - beforeDistance) < 1,
+    "forceCenter should translate the group without distorting its relative positions",
+  );
+});
+
+test("D3 link force exposes desired distance independently from link strength", () => {
+  const settle = (linkDistanceScale) => {
+    const simulation = new D3WorldForceSimulation();
+    const left = `["link-left-${linkDistanceScale}",null]`;
+    const right = `["link-right-${linkDistanceScale}",null]`;
+    simulation.setScene({
+      nodes: [node(left, -50, 100), node(right, 50, 100)],
+      edges: [
+        {
+          id: `link-${linkDistanceScale}`,
+          sourceId: left,
+          targetId: right,
+          strength: 1,
+          restLengthMeters: 1_000,
+        },
+      ],
+      anchors: [anchor(left, "stockholm", 0), anchor(right, "stockholm", 0)],
+    });
+    simulation.setTuning({
+      centerStrength: 0,
+      centerEastMeters: 0,
+      centerNorthMeters: 0,
+      collisionStrength: 0.82,
+      collisionIterations: 3,
+      connectivityClearanceScale: 0,
+      manyBodyStrength: 0,
+      linkStrengthScale: 1,
+      linkDistanceScale,
+      anchorStrengthScale: 0,
+      dagStrengthScale: 0,
+    });
+    simulation.apply(topologyRequest());
+    for (let index = 0; index < 240; index += 1) simulation.step(1000 / 60);
+    return distance(simulation.getSnapshot(), left, right);
+  };
+
+  const compact = settle(0.5);
+  const expanded = settle(2);
+  assert.ok(compact > 400 && compact < 700, `expected compact link near 500m, got ${compact}`);
+  assert.ok(expanded > 1_600, `expected expanded link near 2000m, got ${expanded}`);
+  assert.ok(expanded > compact * 2.5);
 });
 
 test("D3 DAG targets remain soft guidance outside collapsed clusters", () => {

@@ -4,6 +4,7 @@ import {
   type ForceLink,
   type ForceX,
   type ForceY,
+  forceCenter,
   forceCollide,
   forceLink,
   forceManyBody,
@@ -38,11 +39,16 @@ const COLLISION_ITERATIONS = 3;
 const CONNECTIVITY_SPACING_STRENGTH = 0.35;
 
 export const DEFAULT_D3_WORLD_FORCE_TUNING: WorldForceTuning = Object.freeze({
+  centerStrength: 0,
+  centerEastMeters: 0,
+  centerNorthMeters: 0,
   collisionStrength: COLLISION_STRENGTH,
   collisionIterations: COLLISION_ITERATIONS,
   connectivityClearanceScale: 1,
   manyBodyStrength: NORMAL_MANY_BODY_STRENGTH,
   linkStrengthScale: 1,
+  linkDistanceScale: 1,
+  linkIterations: 1,
   anchorStrengthScale: 1,
   dagStrengthScale: 1,
 });
@@ -380,6 +386,18 @@ function finiteNonNegative(value: number, label: string): number {
 }
 
 function validatedTuning(tuning: WorldForceTuning): WorldForceTuning {
+  const centerStrength = finiteNonNegative(
+    tuning.centerStrength ?? DEFAULT_D3_WORLD_FORCE_TUNING.centerStrength ?? 0,
+    "Center strength",
+  );
+  if (centerStrength > 1) throw new Error("Center strength must not exceed 1.");
+  const centerEastMeters =
+    tuning.centerEastMeters ?? DEFAULT_D3_WORLD_FORCE_TUNING.centerEastMeters ?? 0;
+  const centerNorthMeters =
+    tuning.centerNorthMeters ?? DEFAULT_D3_WORLD_FORCE_TUNING.centerNorthMeters ?? 0;
+  if (!Number.isFinite(centerEastMeters) || !Number.isFinite(centerNorthMeters)) {
+    throw new Error("Center coordinates must be finite.");
+  }
   const collisionStrength = finiteNonNegative(tuning.collisionStrength, "Collision strength");
   if (collisionStrength > 1) throw new Error("Collision strength must not exceed 1.");
   const collisionIterations = finiteNonNegative(
@@ -394,6 +412,17 @@ function validatedTuning(tuning: WorldForceTuning): WorldForceTuning {
     "Connectivity clearance scale",
   );
   const linkStrengthScale = finiteNonNegative(tuning.linkStrengthScale, "Link strength scale");
+  const linkDistanceScale = finiteNonNegative(
+    tuning.linkDistanceScale ?? DEFAULT_D3_WORLD_FORCE_TUNING.linkDistanceScale ?? 1,
+    "Link distance scale",
+  );
+  const linkIterations = finiteNonNegative(
+    tuning.linkIterations ?? DEFAULT_D3_WORLD_FORCE_TUNING.linkIterations ?? 1,
+    "Link iterations",
+  );
+  if (!Number.isInteger(linkIterations) || linkIterations < 1 || linkIterations > 12) {
+    throw new Error("Link iterations must be an integer from 1 to 12.");
+  }
   const anchorStrengthScale = finiteNonNegative(
     tuning.anchorStrengthScale,
     "Anchor strength scale",
@@ -403,11 +432,16 @@ function validatedTuning(tuning: WorldForceTuning): WorldForceTuning {
     throw new Error("Many-body strength must be finite.");
   }
   return Object.freeze({
+    centerStrength,
+    centerEastMeters,
+    centerNorthMeters,
     collisionStrength,
     collisionIterations,
     connectivityClearanceScale,
     manyBodyStrength: tuning.manyBodyStrength,
     linkStrengthScale,
+    linkDistanceScale,
+    linkIterations,
     anchorStrengthScale,
     dagStrengthScale,
   });
@@ -830,10 +864,23 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
         links.length > 0
           ? forceLink<D3WorldNodeState, D3WorldLink>(links)
               .id((node) => node.id)
-              .distance((link) => Math.max(link.edge.restLengthMeters, maximumRadius * 2))
+              .distance((link) =>
+                Math.max(
+                  link.edge.restLengthMeters * (tuning.linkDistanceScale ?? 1),
+                  maximumRadius * 2,
+                ),
+              )
               .strength((link) => this.#linkStrength(key, maximumRadius, link, tuning))
+              .iterations(tuning.linkIterations ?? 1)
           : null;
       simulation.force("link", linkForce);
+      simulation.force(
+        "center",
+        forceCenter<D3WorldNodeState>(
+          tuning.centerEastMeters ?? 0,
+          tuning.centerNorthMeters ?? 0,
+        ).strength(tuning.centerStrength ?? 0),
+      );
 
       simulation.force(
         "charge",
@@ -1221,7 +1268,10 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     const dx = (target.x ?? 0) - (source.x ?? 0);
     const dy = (target.y ?? 0) - (source.y ?? 0);
     const distance = Math.hypot(dx, dy);
-    const restLength = Math.max(link.edge.restLengthMeters, maximumRadiusMeters * 2);
+    const restLength = Math.max(
+      link.edge.restLengthMeters * (tuning.linkDistanceScale ?? 1),
+      maximumRadiusMeters * 2,
+    );
     const extension = distance - restLength;
     const maximumStretch = Math.max(1, restLength) * INTERACTION_EDGE_MAX_STRETCH_SCALE;
     if (extension <= maximumStretch) return baseStrength;
