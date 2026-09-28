@@ -293,10 +293,12 @@ export function directedEdgePathArrowhead(
   const halfWidth = head * ARROW_HALF_WIDTH_RATIO;
   const baseX = -ux * head;
   const baseY = -uy * head;
-  const baseAltitude = edgePathPointAtFraction(
-    path,
-    Math.max(0, apexFraction - ARROW_LENGTH_FRACTION),
-  )[2];
+  // The chevron can be much shorter than the historical 10% edge-relative
+  // fallback at close zoom. Keep its altitude displacement tied to the actual
+  // rendered head length as well, otherwise a short x/y marker retains a tall
+  // z-span and projects as an oversized V/hourglass on sloped relationships.
+  const baseFraction = Math.max(0, apexFraction - head / chordLength);
+  const baseAltitude = edgePathPointAtFraction(path, baseFraction)[2];
   const apexLongitudeScale = Math.max(MINIMUM_LONGITUDE_SCALE, Math.cos((apex[1] * Math.PI) / 180));
   const point = (x: number, y: number): WorldRenderPosition =>
     Object.freeze([
@@ -524,6 +526,8 @@ export function worldPixelsToDegrees(pixels: number, zoom: number): number {
 export const WORLD_EDGE_ARROW_NODE_RADIUS_RATIO = 0.85;
 /** Arrow stroke width relative to the target-node radius, with edge width as a floor. */
 export const WORLD_EDGE_ARROW_STROKE_NODE_RADIUS_RATIO = 0.14;
+/** Prevent a large endpoint from making its chevron visually detach from a thin edge. */
+export const WORLD_EDGE_ARROW_MAX_EDGE_WIDTH_RATIO = 2;
 
 /**
  * Converts a node-relative screen-pixel arrow length into the local angular
@@ -567,7 +571,10 @@ export function worldArrowStrokeWidthPxForNodeRadius(
 ): number {
   const radiusPx = Number.isFinite(nodeRadiusPx) && nodeRadiusPx > 0 ? nodeRadiusPx : 1;
   const widthPx = Number.isFinite(edgeWidthPx) && edgeWidthPx > 0 ? edgeWidthPx : 1;
-  return Math.max(widthPx, radiusPx * WORLD_EDGE_ARROW_STROKE_NODE_RADIUS_RATIO);
+  return Math.min(
+    widthPx * WORLD_EDGE_ARROW_MAX_EDGE_WIDTH_RATIO,
+    Math.max(widthPx, radiusPx * WORLD_EDGE_ARROW_STROKE_NODE_RADIUS_RATIO),
+  );
 }
 
 /**
