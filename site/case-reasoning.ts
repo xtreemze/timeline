@@ -622,6 +622,48 @@ function hypothesisCell(
   };
 }
 
+export interface IdentityCandidateEvidenceAssessment {
+  readonly unknownEntityId: string;
+  readonly candidateEntityId: string;
+  readonly hypothesisId: string;
+  readonly alternativeGroupId: string;
+  readonly assessment: "consistent" | "contradicts";
+  readonly reason: string;
+  readonly recordIds: readonly string[];
+}
+
+function evidenceReferenceIds(record: Record<string, any> | undefined): readonly string[] {
+  if (!record) return Object.freeze([]);
+  return Object.freeze(
+    [
+      record.id,
+      ...(record.sourceIds ?? []),
+      ...(record.inputIds ?? []),
+      ...(record.evidenceIds ?? []),
+      ...(record.citationIds ?? []),
+      ...(record.assertionId ? [record.assertionId] : []),
+      ...(record.evidenceId ? [record.evidenceId] : []),
+    ]
+      .map((id) => text(id, 160))
+      .filter(Boolean),
+  );
+}
+
+function expandedEvidenceReferenceIds(
+  record: Record<string, any> | undefined,
+  recordsById: ReadonlyMap<string, Record<string, any>>,
+): readonly string[] {
+  const direct = evidenceReferenceIds(record);
+  return Object.freeze(
+    [
+      ...new Set([
+        ...direct,
+        ...direct.flatMap((id) => evidenceReferenceIds(recordsById.get(id))),
+      ]),
+    ].sort(),
+  );
+}
+
 export function competingHypothesisMatrix(reasoning: any, alternativeGroupId: unknown) {
   const normalized = normalizeReasoning(reasoning);
   const groupId = text(alternativeGroupId, 160);
@@ -662,6 +704,86 @@ export function competingHypothesisMatrix(reasoning: any, alternativeGroupId: un
       cells: hypotheses.map((hypothesis: any) => hypothesisCell(record.id, hypothesis, normalized)),
     })),
   };
+}
+
+export function identityCandidateEvidenceAssessments(
+  reasoning: any,
+): readonly IdentityCandidateEvidenceAssessment[] {
+  const normalized = normalizeReasoning(reasoning);
+  const evidenceById = new Map<string, Record<string, any>>(
+    [...normalized.observations, ...normalized.assertions, ...normalized.citations].map(
+      (record: Record<string, any>) => [record.id, record],
+    ),
+  );
+  const groups = new Map<string, ReturnType<typeof competingHypothesisMatrix>>();
+  const assessments: IdentityCandidateEvidenceAssessment[] = [];
+
+  for (const hypothesis of normalized.hypotheses) {
+    if (
+      hypothesis.hypothesisKind !== "identity" ||
+      !hypothesis.unknownEntityId ||
+      !hypothesis.candidateEntityId ||
+      !hypothesis.alternativeGroupId
+    ) {
+      continue;
+    }
+    let matrix = groups.get(hypothesis.alternativeGroupId);
+    if (!matrix) {
+      matrix = competingHypothesisMatrix(normalized, hypothesis.alternativeGroupId);
+      groups.set(hypothesis.alternativeGroupId, matrix);
+    }
+    const evidence = matrix.evidenceRows
+      .map((row: any) => ({
+        row,
+        cell: row.cells.find((cell: any) => cell.hypothesisId === hypothesis.id),
+      }))
+      .filter(
+        ({ cell }: any) =>
+          cell && ["supports", "contradicts", "mixed"].includes(String(cell.assessment)),
+      );
+    if (!evidence.length) continue;
+
+    const contradicting = evidence.filter(({ cell }: any) =>
+      ["contradicts", "mixed"].includes(String(cell.assessment)),
+    );
+    const supporting = evidence.filter(({ cell }: any) =>
+      ["supports", "mixed"].includes(String(cell.assessment)),
+    );
+    const recordIds = [
+      ...new Set(
+        evidence.flatMap(({ row, cell }: any) => [
+          ...expandedEvidenceReferenceIds(evidenceById.get(row.evidenceId), evidenceById),
+          ...(cell.edgeIds ?? []),
+        ]),
+      ),
+    ].sort();
+    const assessment = contradicting.length ? "contradicts" : "consistent";
+    const reason = contradicting.length
+      ? supporting.length
+        ? `Explicit reasoning records both supporting and contradicting evidence for ${hypothesis.text || hypothesis.id}; contradiction is retained in the categorical comparison.`
+        : `Explicit reasoning records contradicting evidence for ${hypothesis.text || hypothesis.id}.`
+      : `Explicit reasoning records supporting evidence for ${hypothesis.text || hypothesis.id}.`;
+    assessments.push(
+      Object.freeze({
+        unknownEntityId: hypothesis.unknownEntityId,
+        candidateEntityId: hypothesis.candidateEntityId,
+        hypothesisId: hypothesis.id,
+        alternativeGroupId: hypothesis.alternativeGroupId,
+        assessment,
+        reason,
+        recordIds: Object.freeze(recordIds),
+      }),
+    );
+  }
+
+  return Object.freeze(
+    assessments.sort(
+      (left, right) =>
+        left.unknownEntityId.localeCompare(right.unknownEntityId) ||
+        left.candidateEntityId.localeCompare(right.candidateEntityId) ||
+        left.hypothesisId.localeCompare(right.hypothesisId),
+    ),
+  );
 }
 
 function incomingEdges(id: string, normalized: Record<string, any>): Record<string, any>[] {
@@ -1292,6 +1414,7 @@ const TimelineCaseReasoningObj = {
   summarizeSupport,
   collectAssertionCitations,
   competingHypothesisMatrix,
+  identityCandidateEvidenceAssessments,
   methodologyReview,
   analyticMethod,
   validateReasoning,

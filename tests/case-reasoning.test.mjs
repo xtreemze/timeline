@@ -360,6 +360,94 @@ test("competing identity hypotheses preserve candidates, contradictions, and ope
   assert.equal("winner" in matrix, false);
 });
 
+test("projects explicit identity reasoning into categorical candidate evidence without ranking", () => {
+  const model = {
+    assertions: [
+      {
+        id: "fact-route-alice",
+        text: "Alice was observed near the route.",
+        citationIds: ["cite-route-alice"],
+      },
+      { id: "fact-alibi-bob", text: "Bob was documented elsewhere." },
+    ],
+    citations: [
+      {
+        id: "cite-route-alice",
+        assertionId: "fact-route-alice",
+        evidenceId: "ev-route-camera",
+        relation: "supports",
+        locator: { type: "time", startMs: 1000 },
+      },
+    ],
+    hypotheses: [
+      {
+        id: "hyp-alice",
+        text: "Unknown was Alice.",
+        hypothesisKind: "identity",
+        unknownEntityId: "unknown-person-a",
+        candidateEntityId: "alice",
+        alternativeGroupId: "unknown-person-a-identity",
+      },
+      {
+        id: "hyp-bob",
+        text: "Unknown was Bob.",
+        hypothesisKind: "identity",
+        unknownEntityId: "unknown-person-a",
+        candidateEntityId: "bob",
+        alternativeGroupId: "unknown-person-a-identity",
+      },
+      {
+        id: "hyp-none",
+        text: "Unknown was none known.",
+        hypothesisKind: "identity",
+        unknownEntityId: "unknown-person-a",
+        candidateScope: "none-known",
+        alternativeGroupId: "unknown-person-a-identity",
+      },
+    ],
+    edges: [
+      {
+        id: "route-supports-alice",
+        fromId: "fact-route-alice",
+        toId: "hyp-alice",
+        predicate: "supports",
+      },
+      {
+        id: "alibi-contradicts-bob",
+        fromId: "fact-alibi-bob",
+        toId: "hyp-bob",
+        predicate: "contradicts",
+      },
+    ],
+  };
+
+  const assessments = reasoning.identityCandidateEvidenceAssessments(model);
+  assert.deepEqual(
+    assessments.map((entry) => [entry.candidateEntityId, entry.assessment]),
+    [
+      ["alice", "consistent"],
+      ["bob", "contradicts"],
+    ],
+  );
+  assert.ok(
+    assessments.find((entry) => entry.candidateEntityId === "alice").recordIds.includes(
+      "cite-route-alice",
+    ),
+  );
+  assert.ok(
+    assessments.find((entry) => entry.candidateEntityId === "alice").recordIds.includes(
+      "ev-route-camera",
+    ),
+  );
+  assert.ok(
+    assessments.find((entry) => entry.candidateEntityId === "bob").recordIds.includes(
+      "alibi-contradicts-bob",
+    ),
+  );
+  assert.equal("score" in assessments[0], false);
+  assert.equal("probability" in assessments[0], false);
+});
+
 test("identity analysis warns when it forces a closed candidate set", () => {
   const findings = reasoning.validateReasoning(
     {

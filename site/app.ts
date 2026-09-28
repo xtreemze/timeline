@@ -36,6 +36,12 @@ import {
   parseOccurrenceSentence,
   type ComposerTimeReference,
 } from "./occurrence-composer-model.ts";
+import {
+  buildAssertionDraft,
+  buildIdentityHypothesisDrafts,
+  buildObservationDraft,
+} from "../src/application/investigative-query.ts";
+import { proposeInvestigationAction } from "./occurrence-composer-preview.ts";
 import { TimelineEvidence } from "./evidence-store.ts";
 import { TimelineGraphInference } from "./graph-inference.ts";
 import { TimelineInterchangeAdapter } from "./interchange-adapter.ts";
@@ -1893,9 +1899,18 @@ function syncOccurrenceComposerSelection(selection = applicationSelection.curren
     ? state.places.find((candidate) => String(candidate.id) === String(relationship.placeId))
     : null;
   const selectedItemId = composerItemIdForRelationship(relationship, selection.itemId);
+  const selectedItem = selectedItemId
+    ? state.items.find((item) => String(item.id) === selectedItemId)
+    : null;
   els.occurrenceComposer.setSelectionContext({
     selectedOccurrenceId: String(relationship.id),
     ...(selectedItemId ? { selectedItemId } : {}),
+    title: selectedItem?.title ?? null,
+    description: selectedItem?.description ?? relationship.role ?? null,
+    media: (() => {
+      const image = selectedItem?.media?.find((entry) => Boolean(entry.src));
+      return image?.src ? { src: image.src, alt: image.alt ?? "" } : null;
+    })(),
     composition: occurrenceCompositionForRelationship(relationship, selectedItemId),
     relationship: {
       subjectId: String(relationship.subjectId),
@@ -1949,7 +1964,7 @@ function syncComposerVisualViewport(): void {
   els.occurrenceComposer.style.setProperty("--composer-visual-viewport-height", heightPx);
   els.occurrenceComposer.style.setProperty(
     "--composer-completion-max-height",
-    `${Math.max(112, Math.round(height * 0.42))}px`,
+    `${Math.max(112, Math.round(height * 0.65))}px`,
   );
 }
 
@@ -1960,11 +1975,19 @@ function syncOccurrenceComposerData(): void {
       name: entity.name,
       type: entity.type,
       alternateNames: entity.alternateNames ?? [],
+      attributes: entity.attributes ?? {},
+      sourceIds: entity.sourceIds ?? [],
       icon: semanticIconStateForEntity(entity).icon ?? undefined,
     })),
     places: state.places.map((place) => ({
       id: place.id,
       name: place.name,
+      ...(place.geometry?.type === "Point"
+        ? {
+            longitude: place.geometry.coordinates[0],
+            latitude: place.geometry.coordinates[1],
+          }
+        : {}),
       icon:
         normalizeSemanticIconName(place.icon) ??
         suggestSemanticIconForPlace({ name: place.name })?.icon ??
@@ -1973,6 +1996,7 @@ function syncOccurrenceComposerData(): void {
     categories: state.categories.map((category) => ({
       id: category.id,
       name: category.name,
+      color: category.color,
     })),
     tags: [
       ...new Set(
@@ -1985,6 +2009,7 @@ function syncOccurrenceComposerData(): void {
       ),
     ],
     predicates: [...new Set(state.relationships.map((relationship) => relationship.predicate))],
+    identityEvidence: caseReasoning.identityCandidateEvidenceAssessments(state.reasoning),
   });
   syncOccurrenceComposerSelection(applicationSelection.current);
 }
@@ -2544,6 +2569,14 @@ function renderTimeline() {
             : timelineView?.getViewport?.();
           return {
             id: item.id,
+            composition: (() => {
+              const relationship = state.relationships.find((candidate) =>
+                (candidate.itemIds || []).some((id) => String(id) === String(item.id)),
+              );
+              return relationship
+                ? occurrenceCompositionForRelationship(relationship, String(item.id))
+                : undefined;
+            })(),
             kind: item.kind,
             title: item.title,
             description: item.description,
@@ -2615,6 +2648,9 @@ function renderTimeline() {
           };
           return {
             id: occurrence.occurrenceId,
+            composition: relationship
+              ? occurrenceCompositionForRelationship(relationship, null)
+              : undefined,
             kind: occurrence.end === null ? "event" : "range",
             title: occurrence.title,
             description: relationship?.role
@@ -6063,6 +6099,20 @@ els.timelineViewRoot.addEventListener("timelinefocuschange", (event) => {
   schedulePresentationGeometryRefresh({ recenterGraph: !cardFocused });
 });
 
+els.timelineViewRoot.addEventListener("timelineoccurrenceeditrequest", (event) => {
+  const { id, field } =
+    (
+      event as CustomEvent<{
+        id?: string;
+        field?: "subject" | "predicate" | "object" | "place" | "time" | "category" | "tag";
+      }>
+    ).detail ?? {};
+  if (!id) return;
+  applicationSelection.select(selectionForTimelineFocus(id, state.relationships), "timeline");
+  setOccurrenceComposerOpen(true);
+  if (field) els.occurrenceComposer.focusSection(field);
+});
+
 els.timelineViewRoot.addEventListener("timelinefocusrender", (event) => {
   const cardFocused = event.detail?.presentationSurface === "card";
   syncContextualPresentationPanels();
@@ -6131,6 +6181,154 @@ els.occurrenceComposer.addEventListener("occurrencecomposeropenrequest", () => {
 });
 els.occurrenceComposer.addEventListener("occurrencecomposercloserequest", () => {
   setOccurrenceComposerOpen(false);
+});
+els.occurrenceComposer.addEventListener("occurrenceinvestigationactionrequest", (event) => {
+  const {
+    text = "",
+    action = "",
+    unknownEntityId = null,
+    candidates = [],
+    qualifier = null,
+    provenance = null,
+  } =
+    (
+      event as CustomEvent<{
+        text?: string;
+        action?: string;
+        unknownEntityId?: string | null;
+        candidates?: readonly { entityId: string; label: string }[];
+        qualifier?: {
+          kind?: string;
+          text?: string;
+          normalizedText?: string;
+          scope?: "section" | "sentence" | "ambiguous";
+        } | null;
+        provenance?: {
+          sourceIds?: readonly string[];
+          relationshipId?: string | null;
+          itemId?: string | null;
+          entityId?: string | null;
+          placeId?: string | null;
+        } | null;
+      }>
+    ).detail ?? {};
+  const current = caseReasoning.normalizeReasoning(state.reasoning);
+  if (action === "promote-observation" || action === "promote-assertion") {
+    const knownEvidenceIds = new Set(state.evidence.map((record) => record.id));
+    const sourceIds = [...new Set((provenance?.sourceIds ?? []).filter((id) => knownEvidenceIds.has(id)))];
+    const relationshipId = provenance?.relationshipId ?? null;
+    const qualifierText = String(qualifier?.normalizedText ?? qualifier?.text ?? "")
+      .replace(/\?$/, "")
+      .trim();
+    const qualifierKind = String(qualifier?.kind ?? "clue").trim() || "clue";
+    if (!relationshipId || !qualifierText || !sourceIds.length) {
+      els.occurrenceComposer.setError(
+        "Source observation/assertion promotion requires a selected source-backed occurrence and an active unresolved clue.",
+      );
+      return;
+    }
+    const observationId = `observation-${crypto.randomUUID()}`;
+    const observation = buildObservationDraft({
+      id: observationId,
+      text: `Source-backed occurrence records ${qualifierKind} clue “${qualifierText}”.`,
+      sourceIds,
+      evidenceIds: sourceIds,
+      itemIds: provenance?.itemId ? [provenance.itemId] : [],
+      relationshipIds: [relationshipId],
+      entityIds: provenance?.entityId ? [provenance.entityId] : [],
+      placeIds: provenance?.placeId ? [provenance.placeId] : [],
+    });
+    const assertion = action === "promote-assertion"
+      ? buildAssertionDraft({
+          id: `assertion-${crypto.randomUUID()}`,
+          text: `The selected source describes the ${qualifierKind} as “${qualifierText}”.`,
+          sourceIds,
+          inputIds: [observationId],
+          itemIds: provenance?.itemId ? [provenance.itemId] : [],
+        })
+      : null;
+    const next = caseReasoning.normalizeReasoning({
+      ...current,
+      observations: [...current.observations, observation],
+      assertions: assertion ? [...current.assertions, assertion] : current.assertions,
+    });
+    const errors = caseReasoning
+      .validateReasoning(next, {
+        entityIds: state.entities.map((entity) => entity.id),
+        externalIds: investigationExternalIds(),
+      })
+      .filter((finding) => finding.severity === "error");
+    if (errors.length) {
+      els.occurrenceComposer.setError(errors[0]?.message ?? "Cannot promote the source-backed clue.");
+      return;
+    }
+    applyInvestigationReasoning(
+      next,
+      assertion ? "Source-backed observation and assertion recorded." : "Source-backed observation recorded.",
+    );
+    return;
+  }
+  if (action === "compare-candidates") {
+    if (!unknownEntityId || !state.entities.some((entity) => entity.id === unknownEntityId)) {
+      els.occurrenceComposer.setError(
+        "Compare candidates requires a canonical unresolved entity in the active clue.",
+      );
+      return;
+    }
+    const candidateIds = new Set(state.entities.map((entity) => entity.id));
+    const boundedCandidates = candidates
+      .filter((candidate) => candidateIds.has(candidate.entityId) && candidate.entityId !== unknownEntityId)
+      .slice(0, 50);
+    if (!boundedCandidates.length) {
+      els.occurrenceComposer.setError("No canonical identity candidates are available to compare.");
+      return;
+    }
+    const drafts = buildIdentityHypothesisDrafts({
+      unknownEntityId,
+      candidates: boundedCandidates,
+      alternativeGroupId: `${unknownEntityId}-identity`,
+    });
+    const draftIds = new Set(drafts.map((draft) => draft.id));
+    const next = caseReasoning.normalizeReasoning({
+      ...current,
+      hypotheses: [
+        ...current.hypotheses.filter((hypothesis) => !draftIds.has(hypothesis.id)),
+        ...drafts,
+      ],
+    });
+    const errors = caseReasoning
+      .validateReasoning(next, {
+        entityIds: state.entities.map((entity) => entity.id),
+        externalIds: investigationExternalIds(),
+      })
+      .filter((finding) => finding.severity === "error");
+    if (errors.length) {
+      els.occurrenceComposer.setError(errors[0]?.message ?? "Cannot create identity hypotheses.");
+      return;
+    }
+    applyInvestigationReasoning(next, "Identity alternatives recorded in case reasoning.");
+    return;
+  }
+  const proposal = proposeInvestigationAction(text, action);
+  if (!proposal) return;
+  const next = caseReasoning.normalizeReasoning({
+    ...current,
+    [proposal.collection]: [
+      ...current[proposal.collection],
+      { id: `${action}-${crypto.randomUUID()}`, ...proposal.record },
+    ],
+  });
+  const errors = caseReasoning
+    .validateReasoning(next, {
+      entityIds: state.entities.map((entity) => entity.id),
+      externalIds: investigationExternalIds(),
+    })
+    .filter((finding) => finding.severity === "error");
+  if (errors.length) {
+    els.occurrenceComposer.setError(errors[0]?.message ?? "Cannot create the question.");
+    return;
+  }
+  applyInvestigationReasoning(next, `${action} recorded in case reasoning.`);
 });
 els.occurrenceComposer.addEventListener("occurrencecomposeradvancededitrequest", (event) => {
   const relationshipId = (event as CustomEvent<{ relationshipId?: string }>).detail?.relationshipId;
