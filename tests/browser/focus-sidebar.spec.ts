@@ -127,6 +127,20 @@ test("focused detail owns contextual actions without mutating the footer", async
     expect(Math.abs(buttonBox.height - 44)).toBeLessThanOrEqual(1);
     expect(Math.abs(iconBox.width - 20)).toBeLessThanOrEqual(1);
     expect(Math.abs(iconBox.height - 20)).toBeLessThanOrEqual(1);
+    expect(Math.abs(iconBox.x + iconBox.width / 2 - (buttonBox.x + buttonBox.width / 2))).toBeLessThanOrEqual(1);
+    expect(Math.abs(iconBox.y + iconBox.height / 2 - (buttonBox.y + buttonBox.height / 2))).toBeLessThanOrEqual(1);
+    const chrome = await action.evaluate((element) => {
+      const style = getComputedStyle(element);
+      const pseudo = getComputedStyle(element, "::before");
+      return {
+        radius: style.borderRadius,
+        borderWidth: style.borderTopWidth,
+        pseudoContent: pseudo.content,
+      };
+    });
+    expect(chrome.radius).not.toBe("999px");
+    expect(chrome.borderWidth).toBe("1px");
+    expect(["none", "normal", '""']).toContain(chrome.pseudoContent);
   }
   await expect(page.locator(".app-footer-bar #timeline-focus-prev")).toHaveCount(0);
   await expect(page.locator(".app-footer-bar #timeline-related-zoom")).toHaveCount(0);
