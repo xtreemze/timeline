@@ -120,6 +120,7 @@
         </section>
       </nav>
       <aside id="control-panel" class="control-panel app-editor-sheet" aria-label="Timeline editors" aria-hidden="true" hidden>
+      <datalist id="semantic-icon-suggestions"></datalist>
         <header class="app-surface-header">
           <div>
             <p class="kicker">Edit</p>
@@ -854,7 +855,6 @@
               <span>Semantic icon <small>optional</small></span>
               <input id="graph-node-icon" type="text" maxlength="48" autocomplete="off" list="semantic-icon-suggestions" placeholder="Automatic from type">
             </label>
-            <datalist id="semantic-icon-suggestions"></datalist>
             <p class="field-hint field-wide">One node = one durable entity. A canonical node must participate in at least one meaningful action edge; stories, categories, navigation containers, roles, events, actions, time, and places stay outside graph topology. A node must not contain a verb, date/time, place/location, coordinates, radius, or geometry. Put the action in the edge predicate, time in edge.time, and spatial context in edge.placeId.</p>
             <details id="graph-node-identity-details" class="optional-editor field-wide">
               <summary>Identity & provenance <small>optional</small></summary>
