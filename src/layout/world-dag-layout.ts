@@ -1406,7 +1406,10 @@ function chooseCandidate(
   sizes: ReadonlyMap<string, readonly [number, number]>,
   previousTargets: ReadonlyMap<string, WorldDagLayoutTarget>,
   orientation: WorldDagLayoutOrientation,
+  algorithm: WorldDagLayoutAlgorithm = "sugiyama",
   strategy: WorldDagLayoutStrategy = "auto",
+  coordinate: WorldDagCoordinateStrategy = "greedy",
+  edgeStyle: WorldDagEdgeStyle = "routed",
   previousAlgorithm?: string,
   placeObstacles: readonly DagPlaceObstacle[] = Object.freeze([]),
   rootSize: readonly [number, number] = Object.freeze([1, 1]),
@@ -1415,6 +1418,27 @@ function chooseCandidate(
   for (const obstacle of placeObstacles) gapSizes.set(obstacle.id, obstacle.size);
   const gap = layoutGap(gapSizes);
   const previousName = stableAlgorithmName(previousAlgorithm);
+  const run = (
+    name: string,
+    layering: "longest" | "simplex",
+    decross: "opt" | "two-layer",
+  ): CandidateLayout =>
+    runLayoutCandidate(
+      name,
+      nodeIds,
+      edges,
+      sizes,
+      gap,
+      previousTargets,
+      orientation,
+      layering,
+      decross,
+      placeObstacles,
+      rootSize,
+      algorithm,
+      coordinate,
+      edgeStyle,
+    );
 
   if (nodeIds.length === 0) {
     return Object.freeze({
@@ -1431,6 +1455,10 @@ function chooseCandidate(
     });
   }
 
+  if (algorithm !== "sugiyama") {
+    return run(algorithm, "longest", "two-layer");
+  }
+
   if (strategy !== "auto") {
     const explicit =
       strategy === "simplex-two-layer-greedy"
@@ -1443,87 +1471,25 @@ function chooseCandidate(
       (nodeIds.length <= EXACT_DECROSS_MAX_NODES && edges.length <= EXACT_DECROSS_MAX_EDGES);
     if (boundedOpt) {
       try {
-        return runLayoutCandidate(
-          strategy,
-          nodeIds,
-          edges,
-          sizes,
-          gap,
-          previousTargets,
-          orientation,
-          explicit.layering,
-          explicit.decross,
-          placeObstacles,
-          rootSize,
-        );
+        return run(strategy, explicit.layering, explicit.decross);
       } catch {
         // Exact decross may reject pathological tiny graphs; fall through to
         // the bounded longest-path/two-layer operator fallback below.
       }
     }
-    return runLayoutCandidate(
-      "longest-two-layer-greedy",
-      nodeIds,
-      edges,
-      sizes,
-      gap,
-      previousTargets,
-      orientation,
-      "longest",
-      "two-layer",
-      placeObstacles,
-      rootSize,
-    );
+    return run("longest-two-layer-greedy", "longest", "two-layer");
   }
 
   if (nodeIds.length <= EXACT_DECROSS_MAX_NODES && edges.length <= EXACT_DECROSS_MAX_EDGES) {
     const candidates: CandidateLayout[] = [];
     try {
-      candidates.push(
-        runLayoutCandidate(
-          "longest-opt-greedy",
-          nodeIds,
-          edges,
-          sizes,
-          gap,
-          previousTargets,
-          orientation,
-          "longest",
-          "opt",
-          placeObstacles,
-          rootSize,
-        ),
-      );
+      candidates.push(run("longest-opt-greedy", "longest", "opt"));
     } catch {
       // Exact decross can reject pathological tiny graphs; bounded heuristics remain available.
     }
     candidates.push(
-      runLayoutCandidate(
-        "longest-two-layer-greedy",
-        nodeIds,
-        edges,
-        sizes,
-        gap,
-        previousTargets,
-        orientation,
-        "longest",
-        "two-layer",
-        placeObstacles,
-        rootSize,
-      ),
-      runLayoutCandidate(
-        "simplex-two-layer-greedy",
-        nodeIds,
-        edges,
-        sizes,
-        gap,
-        previousTargets,
-        orientation,
-        "simplex",
-        "two-layer",
-        placeObstacles,
-        rootSize,
-      ),
+      run("longest-two-layer-greedy", "longest", "two-layer"),
+      run("simplex-two-layer-greedy", "simplex", "two-layer"),
     );
     return preferPreviousCandidate(previousAlgorithm, candidates);
   }
@@ -1536,32 +1502,8 @@ function chooseCandidate(
 
   if (compareLayering) {
     return preferPreviousCandidate(previousAlgorithm, [
-      runLayoutCandidate(
-        "longest-two-layer-greedy",
-        nodeIds,
-        edges,
-        sizes,
-        gap,
-        previousTargets,
-        orientation,
-        "longest",
-        "two-layer",
-        placeObstacles,
-        rootSize,
-      ),
-      runLayoutCandidate(
-        "simplex-two-layer-greedy",
-        nodeIds,
-        edges,
-        sizes,
-        gap,
-        previousTargets,
-        orientation,
-        "simplex",
-        "two-layer",
-        placeObstacles,
-        rootSize,
-      ),
+      run("longest-two-layer-greedy", "longest", "two-layer"),
+      run("simplex-two-layer-greedy", "simplex", "two-layer"),
     ]);
   }
 
@@ -1571,18 +1513,10 @@ function chooseCandidate(
     (previousUsedSimplexLayering &&
       nodeIds.length <= SIMPLEX_LAYER_MAX_NODES + SIMPLEX_LAYER_HYSTERESIS_NODES &&
       edges.length <= SIMPLEX_LAYER_MAX_EDGES + SIMPLEX_LAYER_HYSTERESIS_EDGES);
-  return runLayoutCandidate(
+  return run(
     useSimplexLayering ? "simplex-two-layer-greedy" : "longest-two-layer-greedy",
-    nodeIds,
-    edges,
-    sizes,
-    gap,
-    previousTargets,
-    orientation,
     useSimplexLayering ? "simplex" : "longest",
     "two-layer",
-    placeObstacles,
-    rootSize,
   );
 }
 
