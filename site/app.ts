@@ -1693,6 +1693,7 @@ function setError(element, message = "") {
 function syncApplicationSurfaces() {
   if (ui.mode !== "edit") ui.editorOpen = false;
   const editing = ui.mode === "edit";
+  els.occurrenceComposer.setEditing(editing);
   const composerActive = els.occurrenceComposer.active;
   if (els.appShell) {
     els.appShell.dataset.mode = ui.mode;
@@ -1722,7 +1723,6 @@ function syncApplicationSurfaces() {
   els.occurrenceComposer.hidden = Boolean(
     ui.browserOpen || ui.investigationOpen || ui.editorOpen || ui.importReviewOpen,
   );
-  els.occurrenceComposer.setEditing(editing);
   els.occurrenceComposerToggle.setAttribute(
     "aria-expanded",
     String(els.occurrenceComposer.active),
@@ -1917,7 +1917,7 @@ function restoreComposerFocus(target: HTMLElement | null): void {
 }
 
 function syncComposerVisualViewport(): void {
-  const height = Math.max(1, window.visualViewport?.height ?? window.innerHeight ?? 1);
+  const height = Math.max(1, window.visualViewport?.height || window.innerHeight || 1);
   els.occurrenceComposer.style.setProperty(
     "--composer-visual-viewport-height",
     `${Math.round(height)}px`,
