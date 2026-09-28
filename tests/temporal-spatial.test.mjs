@@ -190,6 +190,33 @@ test("canonical place normalization requires geometry and clamps imported marker
   assert.ok(spatial.PLACE_ICON_NAMES.includes("place"));
 });
 
+test("canonical place marker size preserves the 16–64px authoring contract", () => {
+  const authored = spatial.placeFromForm({
+    id: "large-marker",
+    name: "Large marker",
+    latitude: "59.3293",
+    longitude: "18.0686",
+    markerSize: "64",
+  });
+  assert.equal(authored.style.marker.size, 64);
+
+  const imported = spatial.normalizePlace({
+    id: "imported-large-marker",
+    name: "Imported large marker",
+    geometry: { type: "Point", coordinates: [18.0686, 59.3293] },
+    style: { marker: { size: 64 } },
+  });
+  assert.equal(imported.style.marker.size, 64);
+
+  const tooLarge = spatial.normalizePlace({
+    id: "too-large-marker",
+    name: "Too large marker",
+    geometry: { type: "Point", coordinates: [18.0686, 59.3293] },
+    style: { marker: { size: 65 } },
+  });
+  assert.equal(tooLarge.style.marker?.size, undefined);
+});
+
 test("canonical places deduplicate equivalent location records", () => {
   const places = spatial.normalizePlaces([
     {
