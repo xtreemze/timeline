@@ -318,6 +318,98 @@ function strictShapeDiagnostics(envelope: JsonRecord): ProjectInterchangeDiagnos
   return diagnostics;
 }
 
+const CANONICAL_KEY_ORDER = Object.freeze([
+  "$schema",
+  "format",
+  "interchangeVersion",
+  "schemaVersion",
+  "projectKey",
+  "revision",
+  "savedAt",
+  "project",
+  "entities",
+  "relationships",
+  "occurrences",
+  "trajectories",
+  "id",
+  "type",
+  "name",
+  "title",
+  "identityResolution",
+  "alternateNames",
+  "identifiers",
+  "appellations",
+  "subjectId",
+  "predicate",
+  "objectId",
+  "role",
+  "occurrenceType",
+  "subjectContext",
+  "objectContext",
+  "placeId",
+  "time",
+  "itemIds",
+  "participantContexts",
+  "entityId",
+  "roleType",
+  "representedEntityId",
+  "organizationId",
+  "authoritySourceIds",
+  "relationshipIds",
+  "trajectoryIds",
+  "sourceIds",
+  "sourceArtifactIds",
+  "observedEntityIds",
+  "confidence",
+  "sampleCount",
+  "bounds",
+  "channels",
+  "levels",
+  "storage",
+  "kind",
+  "start",
+  "end",
+  "openStart",
+  "openEnd",
+  "semanticMappings",
+  "externalMappings",
+  "scheme",
+  "version",
+  "identifier",
+  "relation",
+  "value",
+  "issuer",
+  "languageTag",
+  "minLongitude",
+  "minLatitude",
+  "maxLongitude",
+  "maxLatitude",
+  "minElevationMeters",
+  "maxElevationMeters",
+  "unit",
+  "semantic",
+  "pointCount",
+  "toleranceMeters",
+  "storageRef",
+  "ref",
+  "mediaType",
+  "encoding",
+  "attributes",
+] as const);
+
+const CANONICAL_KEY_RANK = new Map(
+  CANONICAL_KEY_ORDER.map((key, index) => [key, index] as const),
+);
+
+function compareCanonicalKeys(left: string, right: string): number {
+  const leftRank = CANONICAL_KEY_RANK.get(left);
+  const rightRank = CANONICAL_KEY_RANK.get(right);
+  if (leftRank !== undefined || rightRank !== undefined) {
+    return (leftRank ?? Number.MAX_SAFE_INTEGER) - (rightRank ?? Number.MAX_SAFE_INTEGER);
+  }
+  return left.localeCompare(right);
+}
+
 function canonicalizeJson(value: unknown): unknown {
   if (Array.isArray(value)) {
     return value.map(canonicalizeJson);
@@ -328,7 +420,7 @@ function canonicalizeJson(value: unknown): unknown {
   return Object.fromEntries(
     Object.keys(object)
       .filter((key) => object[key] !== undefined)
-      .sort()
+      .sort(compareCanonicalKeys)
       .map((key) => [key, canonicalizeJson(object[key])]),
   );
 }
