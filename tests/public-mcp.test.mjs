@@ -5,8 +5,17 @@ import worker from "../mcp/cloudflare-worker.ts";
 import {
   preflightStoryProject,
   stageStoryProject,
+  validateStoryProjectModule,
 } from "../mcp/public/story-authoring.ts";
 import { handlePublicMcpRequest } from "../mcp/public/server.ts";
+import {
+  createEmptyProjectInterchange,
+  LUM_PROJECT_SCHEMA_ID,
+} from "../src/application/project-interchange.ts";
+import {
+  createProjectModule,
+  LUM_PROJECT_MODULE_SCHEMA_ID,
+} from "../src/application/project-module.ts";
 
 const modernHeaders = (method, name = "") => ({
   "Content-Type": "application/json",
@@ -53,130 +62,111 @@ function time(value = "2026-01-02") {
 }
 
 function validProject() {
-  return {
-    version: 2,
-    title: "Fixture source story",
-    categories: [],
-    evidence: [
-      {
-        id: "src-a",
-        type: "document",
-        title: "Exhibit A",
-        sourceName: "Fixture",
-        note: "Alice warned Bob on 2026-01-02.",
-        extensions: {
-          sourceLocator: { kind: "page", value: "4" },
-        },
-      },
-    ],
-    stories: [
-      {
-        id: "story-a",
-        title: "Fixture story",
-        description: "A source-grounded fixture.",
-        itemIds: ["event-a"],
-      },
-    ],
-    items: [
-      {
-        id: "event-a",
-        kind: "event",
-        start: "2026-01-02",
-        end: null,
-        time: time(),
-        title: "Alice warns Bob",
-        description: "Alice warned Bob.",
-        categoryId: "",
-        evidenceIds: ["src-a"],
-        media: [],
-        relationChanges: [],
-        extensions: {
-          narrative: {
-            storyId: "story-a",
-            sequence: 1,
-          },
-        },
-      },
-    ],
-    entities: [
-      {
-        id: "alice",
-        type: "person",
-        name: "Alice",
-        alternateNames: [],
-        identifiers: [],
-        sourceIds: ["src-a"],
-        attributes: { storyId: "story-a" },
-      },
-      {
-        id: "bob",
-        type: "person",
-        name: "Bob",
-        alternateNames: [],
-        identifiers: [],
-        sourceIds: ["src-a"],
-        attributes: { storyId: "story-a" },
-      },
-    ],
-    places: [],
-    relationships: [
-      {
-        id: "rel-alice-warns-bob",
-        subjectId: "alice",
-        objectId: "bob",
-        predicate: "warns",
-        itemIds: ["event-a"],
-        sourceIds: ["src-a"],
-        confidence: 1,
-        time: time(),
-        attributes: {},
-      },
-    ],
-    custodyActions: [],
-    reasoning: {},
-    extensions: {},
-  };
-}
-
-test("document story preflight accepts a complete source-grounded project", () => {
-  const result = preflightStoryProject(validProject(), [
+  const doc = JSON.parse(
+    createEmptyProjectInterchange({
+      projectKey: "fixture-source-story",
+      savedAt: "2026-09-28T09:30:00.000Z",
+    }),
+  );
+  doc.project.entities = [
+    {
+      id: "alice",
+      type: "person",
+      name: "Alice",
+      alternateNames: [],
+      sourceIds: ["src-a"],
+      attributes: {},
+    },
+    {
+      id: "bob",
+      type: "person",
+      name: "Bob",
+      alternateNames: [],
+      sourceIds: ["src-a"],
+      attributes: {},
+    },
+  ];
+  doc.project.relationships = [
+    {
+      id: "rel-alice-warns-bob",
+      subjectId: "alice",
+      objectId: "bob",
+      predicate: "warns",
+      itemIds: ["event-a"],
+      sourceIds: ["src-a"],
+      confidence: 1,
+      time: time(),
+      attributes: {},
+    },
+  ];
+  doc.project.occurrences = [
+    {
+      id: "event-a",
+      title: "Alice warns Bob",
+      time: time(),
+      participantContexts: [{ entityId: "alice" }, { entityId: "bob" }],
+      relationshipIds: ["rel-alice-warns-bob"],
+      sourceIds: ["src-a"],
+      confidence: 1,
+      attributes: {},
+    },
+  ];
+  doc.project.places = [];
+  doc.project.sources = [
     {
       id: "src-a",
+      kind: "document",
       title: "Exhibit A",
-      mediaType: "application/pdf",
-      locator: "page 4",
+      sourceName: "Fixture",
+      note: "Alice warned Bob on 2026-01-02.",
+      attributes: { sourceLocator: { kind: "page", value: "4" } },
     },
-  ]);
+  ];
+  doc.project.categories = [];
+  doc.project.stories = [
+    {
+      id: "story-a",
+      title: "Fixture story",
+      description: "A source-grounded fixture.",
+      occurrenceIds: ["event-a"],
+      placeIds: [],
+      attributes: {},
+    },
+  ];
+  return doc;
+}
+
+test("document story preflight accepts canonical Lūm interchange", () => {
+  const result = preflightStoryProject(validProject());
 
   assert.equal(result.valid, true);
-  assert.deepEqual(result.errors, []);
+  assert.deepEqual(result.diagnostics, []);
   assert.deepEqual(result.summary, {
     stories: 1,
-    items: 1,
+    occurrences: 1,
     entities: 2,
     relationships: 1,
     places: 0,
-    evidence: 1,
     sources: 1,
+    categories: 0,
   });
 });
 
-test("document story preflight enforces canonical semantic icons", () => {
+test("document story preflight returns canonical diagnostic codes and JSON Pointer scope", () => {
   const project = validProject();
-  project.entities[0].attributes = {
-    storyId: "story-a",
-    style: { icon: "not-a-real-icon" },
-  };
+  project.project.relationships[0].objectId = "missing";
 
-  const result = preflightStoryProject(project, [{ id: "src-a" }]);
+  const result = preflightStoryProject(project);
 
   assert.equal(result.valid, false);
-  assert.match(result.errors.join("\n"), /unsupported semantic icon/i);
+  assert.ok(result.diagnostics.some((diagnostic) => diagnostic.code === "invalid-project"));
+  assert.ok(result.diagnostics.every((diagnostic) => typeof diagnostic.path === "string"));
 });
 
 test("document story staging preserves unresolved facts and requires verification", () => {
+  const project = validProject();
   const result = stageStoryProject({
-    project: validProject(),
+    project,
     sources: [{ id: "src-a", title: "Exhibit A", mediaType: "application/pdf" }],
     unresolved: ["The source does not establish the meeting location."],
     generationNotes: "Only Exhibit A was used.",
@@ -184,30 +174,33 @@ test("document story staging preserves unresolved facts and requires verificatio
 
   assert.equal(result.status, "ready-for-user-verification");
   assert.equal(result.verificationRequired, true);
+  assert.equal(result.project.$schema, LUM_PROJECT_SCHEMA_ID);
   assert.match(result.verificationInstructions.join(" "), /audit_graph/);
   assert.deepEqual(result.unresolved, [
     "The source does not establish the meeting location.",
   ]);
 });
 
-test("document story preflight rejects uncovered named entities", () => {
-  const project = validProject();
-  project.entities.push({
-    id: "carol",
-    type: "person",
-    name: "Carol",
-    alternateNames: [],
-    identifiers: [],
-    sourceIds: ["src-a"],
-    attributes: { storyId: "story-a" },
+test("bounded module validation uses shared module diagnostics", () => {
+  const serialized = createProjectModule({
+    projectKey: "fixture-source-story",
+    storyId: "story-a",
+    collection: "entities",
+    records: [],
   });
-  project.items[0].description = "Alice warned Bob while Carol watched.";
+  const valid = validateStoryProjectModule(JSON.parse(serialized));
+  assert.equal(valid.valid, true);
+  assert.equal(valid.validationScope, "module");
 
-  const result = preflightStoryProject(project, [{ id: "src-a" }]);
-
-  assert.equal(result.valid, false);
-  assert.match(result.errors.join("\n"), /Carol/);
-  assert.match(result.errors.join("\n"), /action relationship linked to this item/i);
+  const invalidModule = JSON.parse(serialized);
+  invalidModule.camera = {};
+  const invalid = validateStoryProjectModule(invalidModule);
+  assert.equal(invalid.valid, false);
+  assert.ok(
+    invalid.diagnostics.some(
+      (diagnostic) => diagnostic.code === "unknown-field" && diagnostic.path === "/camera",
+    ),
+  );
 });
 
 test("modern MCP discovery advertises current and legacy compatibility", async () => {
@@ -220,10 +213,10 @@ test("modern MCP discovery advertises current and legacy compatibility", async (
   assert.equal(body.result.resultType, "complete");
   assert.ok(body.result.supportedVersions.includes("2026-07-28"));
   assert.ok(body.result.supportedVersions.includes("2025-11-25"));
-  assert.match(body.result.instructions, /source-grounded/i);
+  assert.match(body.result.instructions, /canonical Lūm interchange/i);
 });
 
-test("modern MCP tool discovery exposes guide and story staging tools", async () => {
+test("modern MCP tool discovery exposes canonical guide, staging and module validation tools", async () => {
   const response = await handlePublicMcpRequest(
     rpcRequest("tools/list", {}, { modern: true }),
   );
@@ -233,12 +226,13 @@ test("modern MCP tool discovery exposes guide and story staging tools", async ()
   assert.deepEqual(names, [
     "lum.get_story_authoring_guide",
     "lum.stage_story_project",
+    "lum.validate_project_module",
   ]);
   assert.equal(body.result.resultType, "complete");
   assert.equal(body.result.cacheScope, "public");
 });
 
-test("modern story guide tool supplies initial from-scratch guidance", async () => {
+test("modern story guide publishes canonical schema capabilities", async () => {
   const response = await handlePublicMcpRequest(
     rpcRequest(
       "tools/call",
@@ -250,23 +244,18 @@ test("modern story guide tool supplies initial from-scratch guidance", async () 
     ),
   );
   const body = await response.json();
-  const guide = body.result.structuredContent.guide;
+  const content = body.result.structuredContent;
 
-  assert.match(guide, /Read the user-provided source material before creating canonical records/);
-  assert.match(guide, /Build a complete project from scratch/);
-  assert.match(guide, /User verification is mandatory/);
-  assert.equal(body.result.structuredContent.publicEndpointBehavior.stateless, true);
-  assert.match(
-    body.result.structuredContent.fieldReference.project.items,
-    /chronology item/i,
-  );
-  assert.equal(
-    body.result.structuredContent.minimalValidExample.stories[0].id,
-    "story-exhibit-a",
-  );
+  assert.match(content.guide, /canonical Lūm interchange/i);
+  assert.equal(content.format.projectSchema, LUM_PROJECT_SCHEMA_ID);
+  assert.equal(content.format.moduleSchema, LUM_PROJECT_MODULE_SCHEMA_ID);
+  assert.equal(content.projectTemplate.format, "lum-project");
+  assert.equal(content.projectTemplate.interchangeVersion, 1);
+  assert.equal(content.publicEndpointBehavior.stateless, true);
+  assert.equal(content.minimalValidExample.project.stories[0].id, "story-exhibit-a");
 });
 
-test("modern staging tool returns a complete proposal for later verification", async () => {
+test("modern staging tool returns canonical proposal for later verification", async () => {
   const response = await handlePublicMcpRequest(
     rpcRequest(
       "tools/call",
@@ -293,7 +282,31 @@ test("modern staging tool returns a complete proposal for later verification", a
 
   assert.equal(body.result.structuredContent.status, "ready-for-user-verification");
   assert.equal(body.result.structuredContent.preflight.valid, true);
-  assert.equal(body.result.structuredContent.project.title, "Fixture source story");
+  assert.equal(body.result.structuredContent.project.format, "lum-project");
+});
+
+test("modern module validation tool returns bounded diagnostics", async () => {
+  const module = JSON.parse(
+    createProjectModule({
+      projectKey: "fixture-source-story",
+      storyId: "story-a",
+      collection: "entities",
+      records: [],
+    }),
+  );
+  const response = await handlePublicMcpRequest(
+    rpcRequest(
+      "tools/call",
+      {
+        name: "lum.validate_project_module",
+        arguments: { module },
+      },
+      { modern: true, name: "lum.validate_project_module" },
+    ),
+  );
+  const body = await response.json();
+  assert.equal(body.result.structuredContent.valid, true);
+  assert.equal(body.result.structuredContent.validationScope, "module");
 });
 
 test("legacy Streamable HTTP initialize and tools/list remain stateless", async () => {
@@ -310,7 +323,7 @@ test("legacy Streamable HTTP initialize and tools/list remain stateless", async 
 
   const list = await handlePublicMcpRequest(rpcRequest("tools/list"));
   const listBody = await list.json();
-  assert.equal(listBody.result.tools.length, 2);
+  assert.equal(listBody.result.tools.length, 3);
 });
 
 test("modern routing headers are enforced", async () => {
