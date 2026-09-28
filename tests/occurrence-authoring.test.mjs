@@ -430,6 +430,82 @@ test("updateOccurrence requires exact chronology context before changing item-le
   );
 });
 
+test("updateOccurrence applies canonical time edits to every linked chronology projection", () => {
+  const state = editableState({ multipleItems: true });
+  const replacementTime = {
+    extent: {
+      type: "interval",
+      start: {
+        value: "2026-10-02T09:00:00+02:00",
+        precision: "minute",
+        sourceText: "09:00 Stockholm time",
+        timeZone: "Europe/Stockholm",
+      },
+      end: {
+        value: "2026-10-02T10:30:00+02:00",
+        precision: "minute",
+        sourceText: "10:30 Stockholm time",
+        timeZone: "Europe/Stockholm",
+      },
+      uncertainty: "exact",
+    },
+    kind: "range",
+    startValue: "2026-10-02T09:00:00+02:00",
+    endValue: "2026-10-02T10:30:00+02:00",
+  };
+
+  const result = updateOccurrence(
+    state,
+    editRequest({
+      itemId: null,
+      time: replacementTime,
+    }),
+    dependencies(),
+  );
+
+  assert.deepEqual(result.state.relationships[0].time, replacementTime.extent);
+  for (const itemId of ["item-a", "item-b"]) {
+    const item = result.state.items.find((candidate) => candidate.id === itemId);
+    assert.equal(item?.kind, "range");
+    assert.equal(item?.start, replacementTime.startValue);
+    assert.equal(item?.end, replacementTime.endValue);
+    assert.deepEqual(item?.time, replacementTime.extent);
+  }
+  assert.deepEqual(result.state.items.find((item) => item.id === "item-a")?.tags, [
+    { label: "work" },
+  ]);
+  assert.deepEqual(result.state.items.find((item) => item.id === "item-b")?.tags, [
+    { label: "secondary" },
+  ]);
+});
+
+test("updateOccurrence refuses canonical time edits when a linked chronology record is missing", () => {
+  const state = editableState({ multipleItems: true });
+  state.items = state.items.filter((item) => item.id !== "item-b");
+
+  assert.throws(
+    () =>
+      updateOccurrence(
+        state,
+        editRequest({
+          itemId: null,
+          time: {
+            extent: {
+              type: "instant",
+              start: { value: "2026-10-03", precision: "day" },
+              end: null,
+            },
+            kind: "event",
+            startValue: "2026-10-03",
+            endValue: null,
+          },
+        }),
+        dependencies(),
+      ),
+    /linked to occurrence .* no longer exists/i,
+  );
+});
+
 test("updateOccurrence preserves timeless relationships without manufacturing timeline time", () => {
   const state = editableState({ timeless: true });
   state.relationships[0].itemIds = [];
