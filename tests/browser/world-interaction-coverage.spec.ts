@@ -135,7 +135,9 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
       afterContinuation,
       "wheel zoom must continue after the globe/local handoff without requiring toolbar controls",
     ).toBeGreaterThan(afterCrossing + 0.1);
-    expect(afterContinuation).toBeGreaterThan(12);
+    expect(afterContinuation).toBeGreaterThan(
+      DEFAULT_WORLD_SPATIAL_MODE_POLICY.enterLocalAtZoom + 0.25,
+    );
   });
 
   test("local precision wheel zoom passes the legacy ceiling and preserves its pointer anchor", async ({
@@ -275,7 +277,7 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
     const viewport = page.viewportSize();
     if (!viewport) throw new Error("WorldSurface pinch certification requires a viewport.");
 
-    await page.evaluate(async () => {
+    await page.evaluate(async ({ enterLocalAtZoom }) => {
       const helpersModulePath = "/world-test-helpers.mjs";
       const { createWorldProjection } = await import(helpersModulePath);
       const harness = window.__worldPerfHarness;
@@ -283,14 +285,14 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
       harness.surface.setCamera({
         longitude: 12,
         latitude: 30,
-        zoom: DEFAULT_WORLD_SPATIAL_MODE_POLICY.enterLocalAtZoom - 0.25,
+        zoom: enterLocalAtZoom - 0.25,
         bearing: 0,
         pitch: 0,
       });
       await new Promise<void>((resolve) =>
         requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
       );
-    });
+    }, { enterLocalAtZoom: DEFAULT_WORLD_SPATIAL_MODE_POLICY.enterLocalAtZoom });
 
     await pinch(page, { x: viewport.width / 2, y: viewport.height / 2 }, 2);
 
