@@ -346,15 +346,28 @@ test.describe("Timeline interaction contracts", () => {
     ];
 
     for (const target of targets) {
+      await surface.focus();
+      await page.keyboard.press("Home");
+      await waitForViewportEvents(page);
+      await settleTimeline(page);
+      await clearViewportEvents(page);
       await expect(target).toBeVisible();
       const id = await target.getAttribute("data-id");
       if (!id) throw new Error("Occurrence target has no data-id.");
 
       await target.click();
       await settleTimeline(page);
-      const selected = page.locator(".timeline-event-terminal").filter({ has: undefined }).locator("xpath=.");
-      const selectedById = page.locator(`.timeline-event-terminal[data-id="${id}"]`);
-      await expect(selectedById).toHaveAttribute("aria-expanded", "true");
+      await expect
+        .poll(() =>
+          page.locator(".timeline-event-terminal").evaluateAll(
+            (nodes, occurrenceId) =>
+              nodes.find((node) => node.getAttribute("data-id") === occurrenceId)?.getAttribute(
+                "aria-expanded",
+              ) ?? null,
+            id,
+          ),
+        )
+        .toBe("true");
 
       const before = (await viewportEvents(page)).at(-1);
       if (!before) throw new Error("Occurrence selection emitted no viewport event.");
@@ -368,8 +381,17 @@ test.describe("Timeline interaction contracts", () => {
           return latest ? span(latest) : Number.POSITIVE_INFINITY;
         })
         .toBeLessThan(span(before));
-      await expect(selectedById).toHaveAttribute("aria-expanded", "true");
-      void selected;
+      await expect
+        .poll(() =>
+          page.locator(".timeline-event-terminal").evaluateAll(
+            (nodes, occurrenceId) =>
+              nodes.find((node) => node.getAttribute("data-id") === occurrenceId)?.getAttribute(
+                "aria-expanded",
+              ) ?? null,
+            id,
+          ),
+        )
+        .toBe("true");
     }
   });
 
@@ -394,6 +416,11 @@ test.describe("Timeline interaction contracts", () => {
     ];
 
     for (const target of targets) {
+      await surface.focus();
+      await page.keyboard.press("Home");
+      await waitForViewportEvents(page);
+      await settleTimeline(page);
+      await clearViewportEvents(page);
       await expect(target).toBeVisible();
       const [id, box] = await Promise.all([target.getAttribute("data-id"), target.boundingBox()]);
       if (!id || !box) throw new Error("Occurrence target is missing identity or geometry.");
@@ -404,8 +431,17 @@ test.describe("Timeline interaction contracts", () => {
       await waitForQuietMainThread(page);
       await doubleTap(page, { x: box.x + box.width / 2, y: box.y + box.height / 2 });
 
-      const selectedById = page.locator(`.timeline-event-terminal[data-id="${id}"]`);
-      await expect(selectedById).toHaveAttribute("aria-expanded", "true");
+      await expect
+        .poll(() =>
+          page.locator(".timeline-event-terminal").evaluateAll(
+            (nodes, occurrenceId) =>
+              nodes.find((node) => node.getAttribute("data-id") === occurrenceId)?.getAttribute(
+                "aria-expanded",
+              ) ?? null,
+            id,
+          ),
+        )
+        .toBe("true");
       await expect
         .poll(async () => {
           const latest = (await viewportEvents(page)).filter((event) => event.committed).at(-1);
