@@ -1717,9 +1717,7 @@ function syncApplicationSurfaces() {
       ui.browserOpen || ui.investigationOpen || ui.editorOpen || ui.importReviewOpen,
     );
   }
-  els.occurrenceComposer.hidden = Boolean(
-    ui.browserOpen || ui.investigationOpen || ui.editorOpen || ui.importReviewOpen,
-  );
+  els.occurrenceComposer.hidden = Boolean(ui.importReviewOpen);
 els.occurrenceComposer.setEditing(editing);
   els.occurrenceComposerToggle.setAttribute("aria-expanded", String(els.occurrenceComposer.active));
   els.occurrenceComposerToggle.setAttribute(
@@ -1933,6 +1931,14 @@ function syncOccurrenceComposerData(): void {
       id: category.id,
       name: category.name,
     })),
+    tags: [...new Set(
+      state.items.flatMap((item) =>
+        (item.tags ?? []).map((tag) => tag.label.trim()).filter(Boolean),
+      ),
+    )].sort((left, right) => left.localeCompare(right)),
+    predicates: [...new Set(
+      state.relationships.map((relationship) => relationship.predicate.trim()).filter(Boolean),
+    )].sort((left, right) => left.localeCompare(right)),
   });
   syncOccurrenceComposerSelection(applicationSelection.current);
 }
@@ -5965,6 +5971,9 @@ els.occurrenceComposer.setWorldContext(
 
 els.occurrenceComposerToggle.addEventListener("click", () => {
   setOccurrenceComposerOpen(!els.occurrenceComposer.active);
+});
+els.occurrenceComposer.addEventListener("occurrencecomposeropenrequest", () => {
+  setOccurrenceComposerOpen(true);
 });
 els.occurrenceComposer.addEventListener("occurrencecomposercloserequest", () => {
   setOccurrenceComposerOpen(false);
