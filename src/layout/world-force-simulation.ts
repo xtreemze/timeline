@@ -15,8 +15,15 @@ export interface WorldForceNode {
   readonly mass: number;
   /** Exact rendered/mobile collision footprint in screen pixels. */
   readonly collisionRadiusPx: number;
-  /** Tangent-space equivalent used by metre-based fallback solvers. */
+  /** Tangent-space equivalent of the exact rendered body + border footprint. */
   readonly collisionRadiusMeters: number;
+  /** Distinct neighboring world instances connected by active relationships. */
+  readonly connectivityDegree?: number;
+  /**
+   * Additional preferred clearance for highly connected nodes. This is layout
+   * space, not part of the node's hard collision body.
+   */
+  readonly connectivityClearanceMeters?: number;
   readonly initialEastMeters: number;
   readonly initialNorthMeters: number;
   /** Optional continuity seed distinct from the projection's target altitude. */
@@ -26,6 +33,10 @@ export interface WorldForceNode {
   readonly layoutTargetNorthMeters?: number;
   readonly layoutTargetStrength?: number;
   readonly targetVisualAltitudeMeters: number;
+}
+
+export function worldForceNodePreferredRadiusMeters(node: WorldForceNode): number {
+  return node.collisionRadiusMeters + Math.max(0, node.connectivityClearanceMeters ?? 0);
 }
 
 export interface WorldForceEdge {
