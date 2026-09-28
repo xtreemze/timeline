@@ -1180,7 +1180,10 @@ export function createInvestigationWorkspace(
     open = Boolean(next);
     sheet.hidden = !open;
     sheet.setAttribute("aria-hidden", String(!open));
+    const toggleLabel = open ? "Close investigation methodology" : "Investigation methodology";
     toggle.setAttribute("aria-expanded", String(open));
+    toggle.setAttribute("aria-label", toggleLabel);
+    toggle.title = toggleLabel;
     shell.dataset.investigationOpen = String(open);
     if (open) {
       render();
