@@ -30,11 +30,11 @@ test("footer exposes view controls directly and keeps one primary Edit entry", a
   );
   assert.match(
     index,
-    /id="timeline-related-zoom"[^>]*data-view-control[^>]*data-semantic-icon="zoom-in"[^>]*data-semantic-icon-secondary="relation"/,
+    /id="timeline-related-zoom"[^>]*data-view-control[^>]*data-semantic-icon="zoom-in"[^>]*aria-label="Zoom to related nodes"[^>]*title="Zoom to related nodes"/,
   );
   assert.match(
     index,
-    /id="timeline-related-fit"[^>]*data-view-control[^>]*data-semantic-icon="fit"[^>]*data-semantic-icon-secondary="relation"/,
+    /id="timeline-related-fit"[^>]*data-view-control[^>]*data-semantic-icon="fit"[^>]*aria-label="Fit related nodes in world view"[^>]*title="Fit related nodes in world view"/,
   );
 
   const footerStart = index.indexOf('<nav class="app-tool-dock app-footer-bar"');
@@ -46,16 +46,16 @@ test("footer exposes view controls directly and keeps one primary Edit entry", a
 
   assert.match(world, /element\.className = "toolbar-control world-camera-control"/);
   assert.match(world, /element\.dataset\.viewControl = ""/);
-  assert.match(world, /createCompoundIcon\(icon, "world", \{ size: 20 \}\)/);
-  assert.match(world, /button\("Show whole globe", "world"/);
+  assert.match(world, /createIcon\(icon, \{ size: 20 \}\)/);
+  assert.match(world, /button\("Show whole world", "home"/);
   assert.match(factory, /element\.className = "toolbar-control world-layout-control"/);
   assert.match(factory, /element\.dataset\.viewControl = ""/);
-  assert.match(factory, /createCompoundIcon\(icon, "world", \{ size: 20 \}\)/);
+  assert.match(factory, /createIcon\(icon, \{ size: 20 \}\)/);
   assert.match(factory, /"dag",[\s\S]*actions\.reorganizeDag/);
   assert.match(factory, /"force",[\s\S]*actions\.relaxForce/);
 });
 
-test("all footer buttons and compound controls share the canonical toolbar surface", async () => {
+test("all footer buttons and controls share the canonical toolbar surface", async () => {
   const [index, css] = await Promise.all([
     readFile(indexUrl, "utf8"),
     readFile(shellUrl, "utf8"),
@@ -114,21 +114,36 @@ test("narrow toolbar scrolls horizontally instead of hiding direct controls", as
 });
 
 
-test("toolbar compound icon contract preserves scoped meaning and proportional outlines", async () => {
-  const [index, presentation, css] = await Promise.all([
+test("toolbar actions use one direct semantic icon with explicit tooltips", async () => {
+  const [index, presentation, css, world, factory, timeline] = await Promise.all([
     readFile(indexUrl, "utf8"),
     readFile(new URL("../site/event-presentation.ts", import.meta.url), "utf8"),
     readFile(shellUrl, "utf8"),
+    readFile(worldUrl, "utf8"),
+    readFile(factoryUrl, "utf8"),
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
   ]);
 
-  assert.match(index, /id="editor-toggle"[^>]*data-semantic-icon="edit"[^>]*data-semantic-icon-secondary="timeline"/);
-  assert.match(index, /id="timeline-browser-toggle"[^>]*data-semantic-icon="search"[^>]*data-semantic-icon-secondary="timeline"/);
-  assert.match(index, /id="timeline-orientation-toggle"[^>]*data-semantic-icon="portrait"[^>]*data-semantic-icon-secondary="timeline"/);
-  assert.match(index, /id="timeline-auto-toggle"[^>]*data-semantic-icon="play"[^>]*data-semantic-icon-secondary="timeline"/);
-  assert.match(presentation, /export function createCompoundIcon/);
-  assert.match(presentation, /const primarySize = Math\.max\(12, Math\.round\(size \* 0\.86\)\)/);
-  assert.match(presentation, /secondary\.setAttribute\("stroke-width",[\s\S]*primarySize[\s\S]*secondarySize/);
-  assert.match(css, /\.compound-semantic-icon-secondary[\s\S]*--compound-icon-secondary-size/);
+  for (const [id, icon, label] of [
+    ["editor-toggle", "edit", "Edit timeline"],
+    ["timeline-browser-toggle", "search", "Browse timeline"],
+    ["timeline-orientation-toggle", "portrait", "Switch to portrait timeline"],
+    ["timeline-auto-toggle", "play", "Play slideshow"],
+  ]) {
+    assert.match(
+      index,
+      new RegExp(`id="${id}"[^>]*data-semantic-icon="${icon}"[^>]*aria-label="${label}"[^>]*title="${label}"`),
+    );
+  }
+
+  assert.doesNotMatch(index, /data-semantic-icon-secondary/);
+  assert.doesNotMatch(presentation, /createCompoundIcon/);
+  assert.doesNotMatch(css, /compound-semantic-icon/);
+  assert.doesNotMatch(world, /createCompoundIcon/);
+  assert.doesNotMatch(factory, /createCompoundIcon/);
+  assert.doesNotMatch(timeline, /createCompoundIcon|semanticIconSecondary/);
+  assert.match(world, /element\.setAttribute\("aria-label", label\)[\s\S]*element\.title = label/);
+  assert.match(factory, /element\.setAttribute\("aria-label", label\)[\s\S]*element\.title = title/);
 });
 
 

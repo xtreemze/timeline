@@ -28,7 +28,7 @@ import type {
 import { TimelineEvidence } from "./evidence-store.ts";
 import { TimelineGraphInference } from "./graph-inference.ts";
 import { TimelineInterchangeAdapter } from "./interchange-adapter.ts";
-import { createCompoundIcon, createIcon, ICON_NAMES } from "./event-presentation.ts";
+import { createIcon, ICON_NAMES } from "./event-presentation.ts";
 import { createLocalLlmAgent } from "./local-llm-agent.ts";
 import { createMcpRelayBridge, type McpRelayConnectOptions } from "./mcp-relay.ts";
 import {
@@ -700,26 +700,17 @@ function decorateSemanticControls() {
   for (const element of els.semanticIconTargets) {
     if (element.querySelector(":scope > .semantic-icon")) continue;
     const iconName = element.dataset.semanticIcon || "note";
-    const secondaryIconName = element.dataset.semanticIconSecondary || "";
-    element.prepend(
-      secondaryIconName
-        ? createCompoundIcon(iconName, secondaryIconName, { size: 22 })
-        : createIcon(iconName, { size: 22 }),
-    );
+    element.prepend(createIcon(iconName, { size: 22 }));
   }
 }
 
-function setSemanticControlIcon(element, iconName, label, secondaryIconName = "") {
+function setSemanticControlIcon(element, iconName, label) {
   if (!element) return;
-  const icon = secondaryIconName
-    ? createCompoundIcon(iconName, secondaryIconName, { size: 22 })
-    : createIcon(iconName, { size: 22 });
+  const icon = createIcon(iconName, { size: 22 });
   const currentIcon = element.querySelector(":scope > .semantic-icon");
   if (currentIcon) currentIcon.replaceWith(icon);
   else element.prepend(icon);
   element.dataset.semanticIcon = iconName;
-  if (secondaryIconName) element.dataset.semanticIconSecondary = secondaryIconName;
-  else delete element.dataset.semanticIconSecondary;
   element.setAttribute("aria-label", label);
   element.title = label;
   const accessibleLabel = element.querySelector(":scope > .sr-only");
@@ -1764,7 +1755,6 @@ els.occurrenceComposer.setEditing(editing);
       els.browserToggle,
       ui.browserOpen ? "close" : "search",
       ui.browserOpen ? "Close timeline browser" : "Browse timeline",
-      "timeline",
     );
   }
 
@@ -1830,7 +1820,7 @@ function syncTimelineContextControls() {
           ? "Edit focused event"
           : "Edit timeline";
     els.editorToggle.disabled = ui.importReviewOpen;
-    setSemanticControlIcon(els.editorToggle, ui.editorOpen ? "check" : "edit", label, "timeline");
+    setSemanticControlIcon(els.editorToggle, ui.editorOpen ? "check" : "edit", label);
     const accessibleLabel = els.editorToggle.querySelector(".app-tool-label");
     if (accessibleLabel) {
       accessibleLabel.textContent = ui.editorOpen ? "Done" : composerActive ? "Editor" : "Edit";
@@ -4759,7 +4749,6 @@ function renderAutoAdvanceState(autoState: AutoAdvanceState): void {
     els.autoToggle,
     playing ? "pause" : "play",
     playing ? "Pause slideshow" : "Play slideshow",
-    "timeline",
   );
   if (!autoState.running) {
     els.autoStatus.textContent = "Slideshow stopped";
