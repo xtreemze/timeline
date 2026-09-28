@@ -899,6 +899,15 @@ test.describe("contextual world authoring certification", () => {
   }) => {
     await page.goto("/");
     const composer = await openPersistentComposer(page);
+    await composer.evaluate((element) => {
+      const live = element as HTMLElement & {
+        setWorldContext?: (longitude: number, latitude: number, zoom: number) => void;
+        setTimelineViewport?: (start: number, end: number) => void;
+      };
+      live.setWorldContext?.(18.0686, 59.3293, 12);
+      const center = Date.UTC(2026, 8, 28, 12, 0, 0);
+      live.setTimelineViewport?.(center - 3_600_000, center + 3_600_000);
+    });
     const place = composer.locator('button.context-chip[data-context-kind="place"]');
     const time = composer.locator('button.context-chip[data-context-kind="time"]');
 
@@ -1002,10 +1011,12 @@ test.describe("contextual world authoring certification", () => {
     await focusRelationship(page, relationship!);
     const composer = await openPersistentComposer(page);
     await composer.locator('button.context-chip[data-context-kind="details"]').click();
-    await composer.getByRole("button", { name: "Open full edge editor" }).click();
+    await composer.getByLabel("Role").fill("bridge-recipient");
+    await composer.getByRole("button", { name: "Save and open full edge editor" }).click();
 
     await expect(page.locator("#graph-edge-id")).toHaveValue(relationship!.relationshipId);
     await expect(page.locator("#graph-edge-predicate")).toHaveValue(relationship!.predicate);
+    await expect(page.locator("#graph-edge-role")).toHaveValue("bridge-recipient");
     await expect(composer).not.toHaveAttribute("active", "");
   });
 
