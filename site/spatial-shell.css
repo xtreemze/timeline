@@ -779,6 +779,12 @@
   }
 }
 
+
+#app-shell:has(#occurrence-composer[active]) #timeline-focus-view,
+#app-shell:has(#occurrence-composer[active]) .timeline-event-detail {
+  display: none !important;
+}
+
 /* Focus detail is a compact card extension. It follows the retained occurrence card
    instead of becoming a competing page-sized surface. The world and chronology remain
    visible and interactive around it, while the semantic event colour visually ties the
