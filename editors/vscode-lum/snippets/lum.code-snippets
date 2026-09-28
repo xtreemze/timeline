@@ -63,5 +63,35 @@
       "  \"attributes\": {}",
       "}"
     ]
+  },
+  "Lūm change proposal": {
+    "prefix": "lum-proposal",
+    "description": "Strict reviewable Lūm change proposal scaffold",
+    "body": [
+      "{",
+      "  \\\"$schema\\\": \\\"https://xtreemze.github.io/timeline/schemas/lum-change-proposal-v1.schema.json\\\",",
+      "  \\\"format\\\": \\\"lum-change-proposal\\\",",
+      "  \\\"version\\\": 1,",
+      "  \\\"projectKey\\\": \\\"${1:project-key}\\\",",
+      "  \\\"expectedRevision\\\": ${2:1},",
+      "  \\\"verificationRequired\\\": true,",
+      "  \\\"instruction\\\": \\\"${3:Describe the intended bounded change}\\\",",
+      "  \\\"unresolvedFacts\\\": [],",
+      "  \\\"operations\\\": [",
+      "    {",
+      "      \\\"op\\\": \\\"create\\\",",
+      "      \\\"collection\\\": \\\"entities\\\",",
+      "      \\\"record\\\": {",
+      "        \\\"id\\\": \\\"${4:new-entity}\\\",",
+      "        \\\"type\\\": \\\"${5:person}\\\",",
+      "        \\\"name\\\": \\\"${6:New entity}\\\",",
+      "        \\\"alternateNames\\\": [],",
+      "        \\\"sourceIds\\\": [],",
+      "        \\\"attributes\\\": {}",
+      "      }",
+      "    }",
+      "  ]",
+      "}"
+    ]
   }
 }
