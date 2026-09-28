@@ -353,13 +353,16 @@ test("lum agent context emits bounded canonical context for limited-context agen
   const result = runLum(["agent", "context", projectPath, "--json"]);
   assert.equal(result.status, 0, result.stderr);
   const context = JSON.parse(result.stdout);
-  assert.equal(context.protocol, "lum-agent-context-v1");
+  assert.equal(context.protocol, "lum-agent-context-v2");
   assert.equal(context.project.projectKey, "agent-case");
   assert.equal(context.schema.id, LUM_PROJECT_SCHEMA_ID);
+  assert.ok(context.manifest.counts.entities >= 0);
+  assert.equal(context.schema.proposalSchemaId, "https://xtreemze.github.io/timeline/schemas/lum-change-proposal-v1.schema.json");
   assert.deepEqual(context.project.places, []);
   assert.deepEqual(context.project.sources, []);
   assert.deepEqual(context.project.categories, []);
   assert.deepEqual(context.project.stories, []);
   assert.match(context.composer.syntax, /SUBJECT/);
-  assert.ok(context.workflow.includes("lum lint <project.lum.json> --json"));
+  assert.ok(context.workflow.includes("lum lint <candidate.lum.json> --json"));
+  assert.equal(context.proposalWorkflow.schema, context.schema.proposalSchemaId);
 });

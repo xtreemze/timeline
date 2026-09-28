@@ -178,3 +178,23 @@ Proposal files remain JSON. Helix can edit them with its ordinary JSON grammar; 
 - apply is non-destructive by default;
 - `verificationRequired` is always true;
 - provider integrations remain adapters outside canonical semantics.
+
+## Bounded context and adapters
+
+Agents do not need the complete project for every task. `lum agent context` supports story, occurrence, entity-neighborhood, and explicit-ID selectors. The emitted `lum-agent-context-v2` document includes only selected records and their deterministic dependency closure, while preserving a compact manifest of the complete project.
+
+Full arbitrary attributes and source-note text are intentionally omitted from this context surface. Missing non-strict references are listed under `unresolvedReferences`; strict canonical reference failures still make the source project invalid before context creation.
+
+`lum agent run` proves provider replaceability with an explicit stdin/stdout adapter protocol. The core CLI supplies context and validates the returned proposal. It does not know how the adapter obtains a model response, does not initiate implicit network access, and does not apply the proposal.
+
+Provider output therefore follows the same boundary as manually authored proposals:
+
+```text
+bounded context → explicit adapter → untrusted proposal
+                                   ↓
+                           strict proposal validation
+                                   ↓
+                             review/apply candidate
+                                   ↓
+                             user verification
+```
