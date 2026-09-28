@@ -6,14 +6,17 @@ type FractionPoint = { readonly x: number; readonly y: number };
 
 async function certifyWebGlWorld(page: Page): Promise<boolean> {
   await page.goto("/");
-  await expect(page.locator(".temporal-graph-canvas canvas").first()).toBeVisible();
-  return page.evaluate(() => {
+  const webgl2 = await page.evaluate(() => {
     try {
       return Boolean(document.createElement("canvas").getContext("webgl2"));
     } catch {
       return false;
     }
   });
+  if (webgl2) {
+    await expect(page.locator(".temporal-graph-canvas canvas").first()).toBeVisible();
+  }
+  return webgl2;
 }
 
 async function canvasPoint(page: Page, fraction: FractionPoint) {
@@ -189,7 +192,8 @@ test.describe("contextual world authoring certification", () => {
     const start = await canvasPoint(page, empty);
     const swipeFinger = await touchscreen(page);
     await swipeFinger.move([start]);
-    await swipeFinger.move([{ x: start.x + 54, y: start.y }]);
+    const inwardDx = empty.x > 0.5 ? -54 : 54;
+    await swipeFinger.move([{ x: start.x + inwardDx, y: start.y }]);
     await page.waitForTimeout(WORLD_TOUCH_HOLD_MS + 120);
     await expect(page.locator("#occurrence-composer")).not.toHaveAttribute("active", "");
     await swipeFinger.end();
