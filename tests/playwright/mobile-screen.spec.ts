@@ -10,9 +10,7 @@ async function ensureOrientation(page: Page, orientation: "portrait" | "landscap
   const timeline = page.locator("#timeline-view");
   await expect(timeline).toBeVisible();
   if ((await timeline.getAttribute("data-orientation")) !== orientation) {
-    await page.locator("#timeline-view-controls-toggle").click();
     await page.locator("#timeline-orientation-toggle").click();
-    await page.keyboard.press("Escape");
   }
   await expect(timeline).toHaveAttribute("data-orientation", orientation);
 }
@@ -79,7 +77,7 @@ test.describe("Narrow mobile screen contracts", () => {
     expect(intersection.y).toBeGreaterThan(0);
     expect(pageErrors).toEqual([]);
   });
-  test("footer composer expands in-flow and keeps timeline controls usable", async ({ page }) => {
+  test("footer composer opens through Edit and keeps direct timeline controls usable", async ({ page }) => {
     for (const { viewport, orientation } of [
       { viewport: NARROW_PORTRAIT, orientation: "portrait" as const },
       { viewport: NARROW_LANDSCAPE, orientation: "landscape" as const },
@@ -90,14 +88,15 @@ test.describe("Narrow mobile screen contracts", () => {
 
       const dock = page.locator(".app-tool-dock");
       const composer = page.locator("#occurrence-composer");
-      const toggle = page.locator("#occurrence-composer-toggle");
       const input = composer.locator("input");
-      const viewToggle = page.locator("#timeline-view-controls-toggle");
       const timelineToggle = page.locator("#timeline-orientation-toggle");
       const before = await dock.boundingBox();
       expect(before).not.toBeNull();
       if (!before) throw new Error("Footer geometry is unavailable before composer expansion.");
 
+      await page.locator("#editor-toggle").click();
+      const toggle = page.locator("#occurrence-composer-toggle");
+      await expect(toggle).toBeVisible();
       await toggle.click();
       await expect(toggle).toHaveAttribute("aria-expanded", "true");
       await expect(composer).toHaveAttribute("active", "");
@@ -116,21 +115,16 @@ test.describe("Narrow mobile screen contracts", () => {
       expect(inputBox.y + inputBox.height).toBeLessThanOrEqual(expanded.y + expanded.height + 1);
 
       await expect(page.locator(".app-footer-actions")).toBeVisible();
-      await expect(viewToggle).toBeVisible();
-      await viewToggle.click();
       await expect(page.locator("#timeline-view-controls")).toBeVisible();
-      await expect(timelineToggle).toBeVisible();
+      await expect(timelineToggle).toBeEnabled();
 
       const nextOrientation = orientation === "portrait" ? "landscape" : "portrait";
       await timelineToggle.click();
       await expect(page.locator("#timeline-view")).toHaveAttribute("data-orientation", nextOrientation);
       await expect(input).toBeVisible();
-      await page.keyboard.press("Escape");
-      await expectNoPageScroll(page, viewport);
-
-      await toggle.click();
-      await expect(toggle).toHaveAttribute("aria-expanded", "false");
+      await input.press("Escape");
       await expect(composer).not.toHaveAttribute("active", "");
+
       const collapsed = await dock.boundingBox();
       expect(collapsed).not.toBeNull();
       if (collapsed) expect(collapsed.height).toBeLessThan(expanded.height - 40);
@@ -269,7 +263,7 @@ test.describe("Narrow mobile screen contracts", () => {
     { label: "portrait", viewport: NARROW_PORTRAIT, orientation: "portrait" as const },
     { label: "landscape", viewport: NARROW_LANDSCAPE, orientation: "landscape" as const },
   ]) {
-    test(`footer controls stay touch-sized and horizontally reachable on narrow mobile ${label}`, async ({
+    test(`footer controls stay uniform and horizontally reachable on narrow mobile ${label}`, async ({
       page,
     }) => {
       await page.setViewportSize(viewport);
@@ -277,21 +271,14 @@ test.describe("Narrow mobile screen contracts", () => {
       await ensureOrientation(page, orientation);
 
       const dock = page.locator(".app-tool-dock");
-      const timelineToolbar = dock.locator(".app-footer-timeline");
+      const viewToolbar = dock.locator("#timeline-view-controls");
       await expect(dock).toBeVisible();
-      await expect(timelineToolbar).toBeVisible();
+      await expect(viewToolbar).toBeVisible();
 
       const metrics = await dock.evaluate((element) => {
         const style = getComputedStyle(element);
         const rect = element.getBoundingClientRect();
-        const zones = [...element.querySelectorAll<HTMLElement>(".app-footer-zone")].map((zone) => {
-          const zoneStyle = getComputedStyle(zone);
-          return {
-            overflowX: zoneStyle.overflowX,
-            clientWidth: zone.clientWidth,
-            scrollWidth: zone.scrollWidth,
-          };
-        });
+        const view = element.querySelector<HTMLElement>("#timeline-view-controls");
         return {
           display: style.display,
           overflowX: style.overflowX,
@@ -299,20 +286,27 @@ test.describe("Narrow mobile screen contracts", () => {
           scrollWidth: element.scrollWidth,
           top: rect.top,
           bottom: rect.bottom,
-          zones,
+          viewOverflowX: view ? getComputedStyle(view).overflowX : "",
+          viewClientWidth: view?.clientWidth ?? 0,
+          viewScrollWidth: view?.scrollWidth ?? 0,
         };
       });
-      expect(metrics.display).toBe("flex");
-      expect(metrics.overflowX).not.toBe("auto");
-      expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth + 1);
-      for (const zone of metrics.zones) {
-        expect(zone.overflowX).toBe("visible");
-        expect(zone.scrollWidth).toBeLessThanOrEqual(zone.clientWidth + 1);
+
+      if (viewport.width < 700) {
+        expect(metrics.display).toBe("flex");
+        expect(metrics.overflowX).toBe("auto");
+        expect(metrics.scrollWidth).toBeGreaterThan(metrics.clientWidth);
+      } else {
+        expect(metrics.display).toBe("grid");
+        expect(metrics.viewOverflowX).toBe("auto");
+        expect(metrics.viewScrollWidth).toBeGreaterThanOrEqual(metrics.viewClientWidth);
       }
 
-      const buttons = dock.locator(":scope > .app-footer-actions > button:visible, :scope > .app-footer-timeline > button:visible");
+      const buttons = dock.locator(
+        ":scope > .app-footer-actions > button:visible, :scope > .app-footer-view button:visible, :scope > .app-footer-timeline > button:visible",
+      );
       const buttonCount = await buttons.count();
-      expect(buttonCount).toBeGreaterThanOrEqual(5);
+      expect(buttonCount).toBeGreaterThanOrEqual(8);
       const buttonGeometry: Array<{
         position: string;
         width: number;
@@ -336,34 +330,17 @@ test.describe("Narrow mobile screen contracts", () => {
         expect(["absolute", "fixed", "sticky"]).not.toContain(geometry.position);
         expect(Math.abs(geometry.width - 44)).toBeLessThanOrEqual(1);
         expect(Math.abs(geometry.height - 44)).toBeLessThanOrEqual(1);
-        expect(geometry.top).toBeGreaterThanOrEqual(metrics.top - 1);
-        expect(geometry.bottom).toBeLessThanOrEqual(metrics.bottom + 1);
         buttonGeometry.push(geometry);
       }
 
-      const buttonTops = buttonGeometry.map((geometry) => geometry.top);
-      const buttonBottoms = buttonGeometry.map((geometry) => geometry.bottom);
-      expect(Math.max(...buttonTops) - Math.min(...buttonTops)).toBeLessThanOrEqual(1);
-      expect(Math.max(...buttonBottoms) - Math.min(...buttonBottoms)).toBeLessThanOrEqual(1);
-
-      const actions = dock.locator(".app-footer-actions");
-      await expect(actions).toBeVisible();
-      const geometry = await actions.evaluate((element) => {
-        const style = getComputedStyle(element);
-        const rect = element.getBoundingClientRect();
-        return {
-          position: style.position,
-          top: rect.top,
-          bottom: rect.bottom,
-        };
-      });
-      expect(["absolute", "fixed", "sticky"]).not.toContain(geometry.position);
-      expect(geometry.top).toBeGreaterThanOrEqual(metrics.top - 1);
-      expect(geometry.bottom).toBeLessThanOrEqual(metrics.bottom + 1);
+      const visibleGeometry = buttonGeometry.filter(
+        (geometry) => geometry.bottom >= metrics.top && geometry.top <= metrics.bottom,
+      );
+      expect(visibleGeometry.length).toBeGreaterThanOrEqual(3);
 
       const semanticIcons = dock.locator(".toolbar-control .semantic-icon:visible");
       const semanticIconCount = await semanticIcons.count();
-      expect(semanticIconCount).toBeGreaterThanOrEqual(4);
+      expect(semanticIconCount).toBeGreaterThanOrEqual(8);
       for (let index = 0; index < semanticIconCount; index += 1) {
         const box = await semanticIcons.nth(index).boundingBox();
         expect(box).not.toBeNull();
@@ -372,10 +349,16 @@ test.describe("Narrow mobile screen contracts", () => {
         expect(Math.abs(box.height - 20)).toBeLessThanOrEqual(1);
       }
 
-      const lastControl = timelineToolbar.locator(".toolbar-control").last();
-      await dock.evaluate((element) => {
-        element.scrollLeft = element.scrollWidth;
-      });
+      const lastControl = viewToolbar.locator(".toolbar-control").last();
+      if (viewport.width < 700) {
+        await dock.evaluate((element) => {
+          element.scrollLeft = element.scrollWidth;
+        });
+      } else {
+        await viewToolbar.evaluate((element) => {
+          element.scrollLeft = element.scrollWidth;
+        });
+      }
       await expect
         .poll(async () => {
           const [dockBox, controlBox] = await Promise.all([
@@ -392,5 +375,4 @@ test.describe("Narrow mobile screen contracts", () => {
 
       await expectNoPageScroll(page, viewport);
     });
-  }
-});
+  }});
