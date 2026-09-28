@@ -179,6 +179,22 @@ test("authorOccurrence stores semantic icon and color in canonical entity style"
   });
 });
 
+test("authorOccurrence infers a semantic icon when a new entity has no explicit icon", () => {
+  const result = authorOccurrence(
+    baseState(),
+    request({
+      object: {
+        name: "The Wolf",
+        properties: { type: "person" },
+      },
+    }),
+    dependencies(),
+  );
+
+  const wolf = result.state.entities.find((entity) => entity.name === "The Wolf");
+  assert.equal(wolf?.attributes?.style?.icon, "wolf");
+});
+
 test("authorOccurrence rejects unsupported semantic icons before mutation", () => {
   const state = baseState();
   assert.throws(

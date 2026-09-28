@@ -1943,6 +1943,16 @@ function syncOccurrenceComposerData(): void {
       id: category.id,
       name: category.name,
     })),
+    tags: [
+      ...new Set(
+        state.items.flatMap((item) =>
+          (item.tags ?? [])
+            .map((tag) => (typeof tag === "string" ? tag : tag.label))
+            .filter((tag): tag is string => Boolean(tag?.trim()))
+            .map((tag) => tag.trim()),
+        ),
+      ),
+    ],
     predicates: [...new Set(state.relationships.map((relationship) => relationship.predicate))],
   });
   syncOccurrenceComposerSelection(applicationSelection.current);
