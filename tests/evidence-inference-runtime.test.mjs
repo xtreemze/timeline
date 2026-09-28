@@ -82,6 +82,16 @@ test("inference remains reviewable and stale proposals cannot mutate canonical s
   assert.doesNotMatch(app, /graphInference\.infer[\s\S]{0,1800}state\.relationships\.push/);
 });
 
+test("inference review exposes semantic icon suggestion provenance without auto-committing it", async () => {
+  const app = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
+
+  assert.match(app, /candidate\.semanticIconSuggestion/);
+  assert.match(app, /Suggested semantic icon/);
+  assert.match(app, /inferred · high confidence/);
+  assert.match(app, /presentation\.createIcon\(candidate\.semanticIconSuggestion\.icon/);
+  assert.doesNotMatch(app, /record\.attributes\.style\.icon\s*=\s*candidate\.semanticIconSuggestion/);
+});
+
 test("app migration preserves the established default category fallback", async () => {
   const app = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
   for (const id of [
