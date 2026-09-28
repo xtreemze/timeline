@@ -49,6 +49,6 @@ test("direct occurrence activation always requests the composer, including an al
   );
   assert.doesNotMatch(
     view,
-    /const selectOccurrence = \(\): void =>[\s\S]*this\.focusedId === item\.id[\s\S]*ensureFocusPopover\(\)/,
+    /if \(this\.focusedId === item\.id\) \{\s*this\.ensureFocusPopover\(\);/,
   );
 });
