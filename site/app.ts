@@ -1939,7 +1939,13 @@ function setOccurrenceComposerOpen(open: boolean): void {
     occurrenceComposerReturnFocus = null;
   }
   syncApplicationSurfaces();
-  if (!open) restoreComposerFocus(focusToRestore);
+  if (
+    !open &&
+    focusToRestore &&
+    !els.occurrenceComposer.contains(focusToRestore)
+  ) {
+    restoreComposerFocus(focusToRestore);
+  }
 }
 
 function composerTime(detail: OccurrenceCommitDetail): {
