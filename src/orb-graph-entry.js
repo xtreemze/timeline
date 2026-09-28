@@ -1308,7 +1308,7 @@ function create(container, handlers = {}) {
       colorSelected: isDragFlash ? palette.paper : color,
       borderColor: palette.paper,
       borderColorHover: palette.paper,
-      borderColorSelected: isDragFlash ? palette.focus : palette.paper,
+      borderColorSelected: isDragFlash ? color : palette.paper,
       borderWidth: exiting ? 1 : 2,
       borderWidthSelected: isDragFlash ? 6 : 4,
       label: data?.label || String(data?.id || ""),
@@ -1352,8 +1352,10 @@ function create(container, handlers = {}) {
           : semantic.color;
     return {
       color,
-      colorHover: palette.focus,
-      colorSelected: palette.focus,
+      // Hover/selection reveals the relationship's semantic colour; temporal
+      // inactivity is represented only by the ordinary muted presentation.
+      colorHover: semantic.color,
+      colorSelected: semantic.color,
       width: releasing
         ? 0.42
         : entering
