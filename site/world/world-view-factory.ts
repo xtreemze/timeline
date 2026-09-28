@@ -110,7 +110,7 @@ function createWorldLayoutControls(
     element.dataset.viewControl = "";
     element.setAttribute("aria-label", label);
     element.title = title;
-    element.append(createCompoundIcon("world", icon, { size: 20 }));
+    element.append(createCompoundIcon(icon, "world", { size: 20 }));
     element.addEventListener("click", (event) => {
       event.stopPropagation();
       action();
