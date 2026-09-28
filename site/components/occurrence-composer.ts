@@ -308,6 +308,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     .candidate-matrix { display: grid; gap: 0.3rem; max-block-size: 12rem; overflow: auto; overscroll-behavior: contain; }
     .candidate-row { display: grid; grid-template-columns: minmax(6rem, 0.8fr) auto minmax(10rem, 1.8fr); gap: 0.4rem; align-items: start; padding: 0.35rem 0.4rem; border: 1px solid var(--line, #d1ccc4); border-radius: 0.45rem; background: color-mix(in srgb, var(--paper, #fff) 92%, transparent); }
     .candidate-row[data-scope="none-known"] { border-style: dashed; }
+    .candidate-row[data-active="true"] { outline: 2px solid var(--focus, #315fbd); outline-offset: -2px; }
     .candidate-assessment { font-weight: 760; text-transform: lowercase; }
     .candidate-assessment[data-assessment="consistent"] { color: var(--success, #18794e); }
     .candidate-assessment[data-assessment="contradicts"] { color: var(--danger, #b42318); }
@@ -490,6 +491,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
   private activeSuggestion = 0;
   private previewSuggestion: ComposerSuggestion | null = null;
   private activeInterpretation = "";
+  private activeCandidate = 0;
   private cursorOffset = 0;
   private externalError = "";
   private explicitPlaceContext: ComposerWorldContext | null = null;
@@ -812,6 +814,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.activeSuggestion = 0;
     this.previewSuggestion = null;
     this.activeInterpretation = "";
+    this.activeCandidate = 0;
     this.requestUpdate();
   }
 
@@ -907,7 +910,118 @@ export class LuumOccurrenceComposerElement extends LitElement {
     );
   }
 
+  private investigationProjection() {
+    const qualifiers = projectInvestigativeQualifiers(this.value);
+    const activeQualifier =
+      qualifiers.find(
+        (qualifier) => this.cursorOffset >= qualifier.start && this.cursorOffset <= qualifier.end,
+      ) ?? qualifiers[0] ?? null;
+    const investigativeEntities = this.data.entities.map((entity) => ({
+      id: entity.id,
+      name: entity.name,
+      type: entity.type,
+      alternateNames: entity.alternateNames,
+      attributes: entity.attributes,
+      sourceIds: entity.sourceIds,
+    }));
+    const activeQualifierId = activeQualifier
+      ? `composer:${activeQualifier.kind}:${activeQualifier.start}:${activeQualifier.end}`
+      : "";
+    const activeInterpretations = activeQualifier
+      ? interpretInvestigativeQualifier(
+          {
+            id: activeQualifierId,
+            section: activeQualifier.kind,
+            text: activeQualifier.text.replace(/\?$/, ""),
+          },
+          { entities: investigativeEntities },
+        )
+      : [];
+    const chosenInterpretation =
+      activeInterpretations.find((interpretation) => interpretation.id === this.activeInterpretation) ??
+      activeInterpretations[0] ??
+      null;
+    const unknownEntityId = (() => {
+      if (!activeQualifier || !["subject", "object"].includes(activeQualifier.kind)) return null;
+      const clueId = activeQualifier.text.replace(/\?$/, "").replace(/^@/, "").trim();
+      if (clueId && this.data.entities.some((entity) => entity.id === clueId)) return clueId;
+      const contextualId =
+        activeQualifier.kind === "subject"
+          ? this.selectedSubjectId()
+          : (this.selectionContext?.relationship?.objectId ?? null);
+      return contextualId && this.data.entities.some((entity) => entity.id === contextualId)
+        ? contextualId
+        : null;
+    })();
+    const explicitEvidenceAssessments = unknownEntityId
+      ? (this.data.identityEvidence ?? [])
+          .filter((entry) => entry.unknownEntityId === unknownEntityId)
+          .map((entry) => ({
+            candidateEntityId: entry.candidateEntityId,
+            qualifierId: activeQualifierId,
+            assessment: entry.assessment,
+            reason: entry.reason,
+            recordIds: entry.recordIds,
+          }))
+      : [];
+    const candidateMatrix = chosenInterpretation
+      ? projectInvestigativeCandidateMatrix({
+          entities: investigativeEntities,
+          qualifiers: [{ id: activeQualifierId, interpretation: chosenInterpretation }],
+          evidenceAssessments: explicitEvidenceAssessments,
+          limit: 12,
+        })
+      : null;
+    return {
+      qualifiers,
+      activeQualifier,
+      activeInterpretations,
+      chosenInterpretation,
+      candidateMatrix,
+      unknownEntityId,
+    };
+  }
+
   private onKeyDown(event: KeyboardEvent): void {
+    const investigation = this.investigationProjection();
+    if (investigation.qualifiers.length) {
+      const interpretations = investigation.activeInterpretations;
+      const candidates = investigation.candidateMatrix?.candidates ?? [];
+      const currentInterpretation = Math.max(
+        0,
+        interpretations.findIndex(
+          (interpretation) => interpretation.id === investigation.chosenInterpretation?.id,
+        ),
+      );
+      if ((event.key === "ArrowRight" || event.key === "ArrowLeft") && interpretations.length) {
+        event.preventDefault();
+        const delta = event.key === "ArrowRight" ? 1 : -1;
+        const next = (currentInterpretation + delta + interpretations.length) % interpretations.length;
+        this.activeInterpretation = interpretations[next]?.id ?? "";
+        this.activeCandidate = 0;
+        this.requestUpdate();
+        return;
+      }
+      if ((event.key === "ArrowDown" || event.key === "ArrowUp") && candidates.length) {
+        event.preventDefault();
+        const delta = event.key === "ArrowDown" ? 1 : -1;
+        this.activeCandidate =
+          (this.activeCandidate + delta + candidates.length) % candidates.length;
+        this.requestUpdate();
+        return;
+      }
+      if ((event.key === "Home" || event.key === "End") && candidates.length) {
+        event.preventDefault();
+        this.activeCandidate = event.key === "Home" ? 0 : candidates.length - 1;
+        this.requestUpdate();
+        return;
+      }
+      if (event.key === "Enter") {
+        event.preventDefault();
+        return;
+      }
+      return;
+    }
     const suggestions = this.suggestions().slice(0, 7);
     if (event.key === "Escape") {
       event.preventDefault();
@@ -988,7 +1102,15 @@ export class LuumOccurrenceComposerElement extends LitElement {
       this.selectionContext?.place?.name ??
       this.worldContext?.label ??
       "World center";
-    const suggestions = this.suggestions().slice(0, 7);
+    const investigation = this.investigationProjection();
+    const {
+      qualifiers,
+      activeInterpretations,
+      chosenInterpretation,
+      candidateMatrix,
+      unknownEntityId,
+    } = investigation;
+    const suggestions = qualifiers.length ? [] : this.suggestions().slice(0, 7);
     const selectedIndex = Math.min(this.activeSuggestion, Math.max(0, suggestions.length - 1));
     const activeSuggestion = suggestions[selectedIndex];
     const ghostSuffix =
@@ -1005,67 +1127,6 @@ export class LuumOccurrenceComposerElement extends LitElement {
     );
     const tagLabels = parsed.options.tags;
     const sections = composerEditableSections(this.value);
-    const qualifiers = projectInvestigativeQualifiers(this.value);
-    const activeQualifier =
-      qualifiers.find(
-        (qualifier) => this.cursorOffset >= qualifier.start && this.cursorOffset <= qualifier.end,
-      ) ?? qualifiers[0] ?? null;
-    const investigativeEntities = this.data.entities.map((entity) => ({
-      id: entity.id,
-      name: entity.name,
-      type: entity.type,
-      alternateNames: entity.alternateNames,
-      attributes: entity.attributes,
-      sourceIds: entity.sourceIds,
-    }));
-    const activeQualifierId = activeQualifier
-      ? `composer:${activeQualifier.kind}:${activeQualifier.start}:${activeQualifier.end}`
-      : "";
-    const activeInterpretations = activeQualifier
-      ? interpretInvestigativeQualifier(
-          {
-            id: activeQualifierId,
-            section: activeQualifier.kind,
-            text: activeQualifier.text.replace(/\?$/, ""),
-          },
-          { entities: investigativeEntities },
-        )
-      : [];
-    const chosenInterpretation =
-      activeInterpretations.find((interpretation) => interpretation.id === this.activeInterpretation) ??
-      activeInterpretations[0] ??
-      null;
-    const unknownEntityId = (() => {
-      if (!activeQualifier || !["subject", "object"].includes(activeQualifier.kind)) return null;
-      const clueId = activeQualifier.text.replace(/\?$/, "").replace(/^@/, "").trim();
-      if (clueId && this.data.entities.some((entity) => entity.id === clueId)) return clueId;
-      const contextualId =
-        activeQualifier.kind === "subject"
-          ? this.selectedSubjectId()
-          : (this.selectionContext?.relationship?.objectId ?? null);
-      return contextualId && this.data.entities.some((entity) => entity.id === contextualId)
-        ? contextualId
-        : null;
-    })();
-    const explicitEvidenceAssessments = unknownEntityId
-      ? (this.data.identityEvidence ?? [])
-          .filter((entry) => entry.unknownEntityId === unknownEntityId)
-          .map((entry) => ({
-            candidateEntityId: entry.candidateEntityId,
-            qualifierId: activeQualifierId,
-            assessment: entry.assessment,
-            reason: entry.reason,
-            recordIds: entry.recordIds,
-          }))
-      : [];
-    const candidateMatrix = chosenInterpretation
-      ? projectInvestigativeCandidateMatrix({
-          entities: investigativeEntities,
-          qualifiers: [{ id: activeQualifierId, interpretation: chosenInterpretation }],
-          evidenceAssessments: explicitEvidenceAssessments,
-          limit: 12,
-        })
-      : null;
     const preview = projectComposerPreview(
       this.value,
       this.data.entities,
@@ -1088,12 +1149,18 @@ export class LuumOccurrenceComposerElement extends LitElement {
               spellcheck="false"
               role="combobox"
               aria-autocomplete="both"
-              aria-expanded=${String(suggestions.length > 0)}
-              aria-controls=${suggestions.length ? "occurrence-composer-listbox" : nothing}
+              aria-expanded=${String(suggestions.length > 0 || qualifiers.length > 0)}
+              aria-controls=${
+                qualifiers.length
+                  ? "occurrence-investigation-panel"
+                  : suggestions.length
+                    ? "occurrence-composer-listbox"
+                    : nothing
+              }
               aria-activedescendant=${
                 suggestions.length ? `occurrence-composer-option-${selectedIndex}` : nothing
               }
-              aria-describedby="occurrence-composer-help occurrence-composer-diagnostic"
+              aria-describedby="occurrence-composer-help occurrence-composer-diagnostic occurrence-investigation-status"
               placeholder=${`Who did what to whom · at ${placeLabel} · on ${timeLabel ?? "timeline center"}`}
               .value=${this.value}
               @input=${(event: Event) => this.onInput(event)}
@@ -1156,7 +1223,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
           </section>
           ${
             qualifiers.length
-              ? html`<section class="investigation-panel" aria-label="Investigative clues">
+              ? html`<section id="occurrence-investigation-panel" class="investigation-panel" aria-label="Investigative clues">
             <strong>Unresolved · no fact will be created</strong>
             <div class="composer-qualifiers">${qualifiers.map(
               (qualifier) => html`<button
@@ -1171,15 +1238,18 @@ export class LuumOccurrenceComposerElement extends LitElement {
                 aria-pressed=${String(chosenInterpretation?.id === interpretation.id)}
                 @click=${() => {
                   this.activeInterpretation = interpretation.id;
+                  this.activeCandidate = 0;
                   this.requestUpdate();
                 }}>${interpretation.label}</button>`,
               )}
             </div>
             ${candidateMatrix
               ? html`<div class="candidate-matrix" role="table" aria-label="Candidate comparison">
-                  ${candidateMatrix.candidates.map((candidate) => {
+                  ${candidateMatrix.candidates.map((candidate, index) => {
                     const cell = candidate.cells[0];
-                    return html`<div class="candidate-row" role="row" data-scope=${candidate.candidateScope}>
+                    const active = index === Math.min(this.activeCandidate, candidateMatrix.candidates.length - 1);
+                    return html`<div class="candidate-row" role="row" data-scope=${candidate.candidateScope}
+                      data-active=${String(active)} aria-current=${active ? "true" : nothing}>
                       <strong role="cell">${candidate.label}</strong>
                       <span class="candidate-assessment" role="cell"
                         data-assessment=${cell?.assessment ?? "unknown"}>${cell?.assessment ?? "unknown"}</span>
@@ -1231,6 +1301,13 @@ export class LuumOccurrenceComposerElement extends LitElement {
           </section>`
               : nothing
           }
+          <span id="occurrence-investigation-status" class="help" aria-live="polite">
+            ${qualifiers.length && candidateMatrix?.candidates.length
+              ? `Investigation. Interpretation ${chosenInterpretation?.label ?? "unresolved"}. Candidate ${Math.min(this.activeCandidate + 1, candidateMatrix.candidates.length)} of ${candidateMatrix.candidates.length}: ${candidateMatrix.candidates[Math.min(this.activeCandidate, candidateMatrix.candidates.length - 1)]?.label ?? "none"}.`
+              : qualifiers.length
+                ? "Investigation mode. Choose an interpretation to compare candidates."
+                : ""}
+          </span>
           <div class="context-row" aria-label="Occurrence context">
             ${
               this.hasPendingSelectionContext
@@ -1346,7 +1423,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
         </div>
 
         <p id="occurrence-composer-help" class="help">
-          Arrow keys navigate suggestions · Enter accepts the active suggestion or commits ·
+          Without unresolved clues, Arrow keys navigate suggestions and Enter accepts or commits.
+          In investigation mode, Left/Right changes interpretation, Up/Down and Home/End navigate candidates, and Enter never commits a candidate.
           Tab moves focus · Esc closes. Quote multi-word entity names.
           Defaults follow ${placeLabel} and ${timeLabel ?? "the timeline center"} until explicitly pinned.
           Move the timeline or World while this is open to change unpinned defaults.

@@ -24,6 +24,10 @@ test("composer owns the card and incremental world preview with interactive gram
   assert.match(source, /identityEvidence/);
   assert.match(source, /aria-label="Candidate comparison"/);
   assert.match(source, /Compare candidates/);
+  assert.match(source, /private investigationProjection\(\)/);
+  assert.match(source, /event\.key === "ArrowRight"/);
+  assert.match(source, /event\.key === "Home"/);
+  assert.match(source, /qualifiers\.length \? \[\] : this\.suggestions/);
   assert.match(source, /previewCategory\?\.color/);
 });
 

@@ -62,4 +62,23 @@ test("unresolved clue remains editable and cannot be approved as a fact", async 
   await expect(composer.getByRole("table", { name: "Candidate comparison" })).toBeVisible();
   await expect(composer.locator(".candidate-row")).not.toHaveCount(0);
   await expect(composer.getByRole("button", { name: "Compare candidates" })).toBeVisible();
+  await expect(composer.locator(".option")).toHaveCount(0);
+  await expect(composer.locator('.candidate-row[data-active="true"]')).toHaveCount(1);
+  const firstCandidate = await composer.locator('.candidate-row[data-active="true"]').textContent();
+  await input.press("ArrowDown");
+  const secondCandidate = await composer.locator('.candidate-row[data-active="true"]').textContent();
+  expect(secondCandidate).not.toBe(firstCandidate);
+  await input.press("End");
+  await expect(composer.locator('.candidate-row[data-active="true"]')).toContainText(
+    "None of the currently known candidates",
+  );
+  const interpretationBefore = await composer
+    .locator('.interpretation-chip[aria-pressed="true"]')
+    .textContent();
+  await input.press("ArrowRight");
+  const interpretationAfter = await composer
+    .locator('.interpretation-chip[aria-pressed="true"]')
+    .textContent();
+  expect(interpretationAfter).not.toBe(interpretationBefore);
+  await expect(input).toHaveValue("man? calls @alice");
 });
