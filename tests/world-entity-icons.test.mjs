@@ -95,6 +95,29 @@ test("authored storybook glyphs override the generic entity-kind icon", () => {
   assert.match(svg, /M4 8 6 3l4 3/, "the authored wolf glyph is embedded in the marker");
 });
 
+test("semantic icon changes never alter node geometry or collision footprint", () => {
+  const baseInput = {
+    type: "person",
+    visualWeight: 0.7,
+    attributes: { style: { radius: 24, borderWidth: 3, shape: "diamond" } },
+  };
+  const iconInput = {
+    ...baseInput,
+    attributes: { style: { ...baseInput.attributes.style, icon: "wolf" } },
+  };
+
+  const baseStyle = worldNodeStyle(baseInput, WORLD_LIGHT_PALETTE);
+  const iconStyle = worldNodeStyle(iconInput, WORLD_LIGHT_PALETTE);
+  assert.equal(iconStyle.icon, "wolf");
+  assert.equal(iconStyle.radius, baseStyle.radius);
+  assert.equal(iconStyle.borderWidth, baseStyle.borderWidth);
+  assert.equal(iconStyle.shape, baseStyle.shape);
+  assert.equal(
+    worldNodeFootprintRadiusPx(iconInput),
+    worldNodeFootprintRadiusPx(baseInput),
+  );
+});
+
 test("production bindings supply a real deck.gl IconLayer", async () => {
   const bindings = await readFile(
     new URL("../site/world/deck-world-bindings.ts", import.meta.url),
