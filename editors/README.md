@@ -12,7 +12,7 @@ Lūm Project Interchange v1 remains JSON. Both integrations intentionally use a 
 `editors/vscode-lum` contains a dependency-free extension.
 
 It provides:
-- schema association for `*.lum.json`;
+- schema association for `*.lum.json` and strict `*.lum-proposal.json` agent proposals;
 - the built-in JSON syntax grammar plus Lūm-specific semantic key highlighting;
 - strict diagnostics delegated to `lum check/lint`;
 - document formatting delegated to `lum fmt -`;
@@ -54,3 +54,8 @@ Auto-format is disabled in the supplied configuration so adoption is explicit. S
 A custom grammar would imply Lūm has syntax that differs from JSON. Version 1 does not. The strictness belongs to JSON Schema plus the executable Lūm semantic validator.
 
 If a future Lūm version introduces a real textual DSL, its grammar should be versioned as a different encoding rather than retroactively changing what `.lum.json` means.
+
+
+## Agent proposals
+
+VS Code associates `*.lum-proposal.json` with the proposal schema and includes a `lum-proposal` snippet. Proposal validation itself remains a CLI operation because it must compare the proposal with the exact source project revision. Helix should edit proposal documents as ordinary JSON and run `lum agent validate-proposal ... --project ...` from a shell/task until project-aware multi-document LSP support is introduced.
