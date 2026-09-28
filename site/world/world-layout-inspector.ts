@@ -453,6 +453,12 @@ export function createWorldLayoutControls(
     step: 0.05,
     value: DEFAULT_D3_WORLD_FORCE_TUNING.linkDistanceScale ?? 1,
   });
+  const linkIterations = rangeRow(doc, "Link passes", {
+    min: 1,
+    max: 8,
+    step: 1,
+    value: DEFAULT_D3_WORLD_FORCE_TUNING.linkIterations ?? 1,
+  });
 
   const repulsion = rangeRow(doc, "Repulsion", {
     min: 0,
@@ -493,6 +499,7 @@ export function createWorldLayoutControls(
     sectionLabel(doc, "Link force"),
     linkStrength.row,
     linkDistance.row,
+    linkIterations.row,
     sectionLabel(doc, "Other forces"),
     repulsion.row,
     anchors.row,
@@ -511,6 +518,7 @@ export function createWorldLayoutControls(
       manyBodyStrength: -Number(repulsion.input.value),
       linkStrengthScale: Number(linkStrength.input.value),
       linkDistanceScale: Number(linkDistance.input.value),
+      linkIterations: Number(linkIterations.input.value),
       anchorStrengthScale: Number(anchors.input.value),
       dagStrengthScale: Number(dagGuidance.input.value),
     });
@@ -524,6 +532,7 @@ export function createWorldLayoutControls(
     clearance,
     linkStrength,
     linkDistance,
+    linkIterations,
     repulsion,
     anchors,
     dagGuidance,
@@ -537,6 +546,7 @@ export function createWorldLayoutControls(
     clearance.input.value = String(DEFAULT_D3_WORLD_FORCE_TUNING.connectivityClearanceScale);
     linkStrength.input.value = String(DEFAULT_D3_WORLD_FORCE_TUNING.linkStrengthScale);
     linkDistance.input.value = String(DEFAULT_D3_WORLD_FORCE_TUNING.linkDistanceScale ?? 1);
+    linkIterations.input.value = String(DEFAULT_D3_WORLD_FORCE_TUNING.linkIterations ?? 1);
     repulsion.input.value = String(Math.abs(DEFAULT_D3_WORLD_FORCE_TUNING.manyBodyStrength));
     anchors.input.value = String(DEFAULT_D3_WORLD_FORCE_TUNING.anchorStrengthScale);
     dagGuidance.input.value = String(DEFAULT_D3_WORLD_FORCE_TUNING.dagStrengthScale);
