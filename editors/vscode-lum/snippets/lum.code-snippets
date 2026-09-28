@@ -93,5 +93,22 @@
       "  ]",
       "}"
     ]
+  },
+  "Lūm project module": {
+    "prefix": "lum-module",
+    "description": "Strict modular Lūm source scaffold",
+    "body": [
+      "{",
+      "  \"$schema\": \"https://xtreemze.github.io/timeline/schemas/lum-project-module-v1.schema.json\",",
+      "  \"format\": \"lum-project-module\",",
+      "  \"moduleVersion\": 1,",
+      "  \"canonicalSchemaVersion\": 3,",
+      "  \"projectSchema\": \"https://xtreemze.github.io/timeline/schemas/lum-project-v1.schema.json\",",
+      "  \"projectKey\": \"${1:project-key}\",",
+      "  \"storyId\": \"${2:story-id}\",",
+      "  \"collection\": \"${3:entities}\",",
+      "  \"records\": []",
+      "}"
+    ]
   }
 }
