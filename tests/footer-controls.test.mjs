@@ -8,10 +8,12 @@ const worldUrl = new URL("../site/world/deck-world-surface.ts", import.meta.url)
 const factoryUrl = new URL("../site/world/world-view-factory.ts", import.meta.url);
 
 test("footer exposes view controls directly and keeps one primary Edit entry", async () => {
-  const [index, world, factory] = await Promise.all([
+  const [index, world, factory, timeline, composer] = await Promise.all([
     readFile(indexUrl, "utf8"),
     readFile(worldUrl, "utf8"),
     readFile(factoryUrl, "utf8"),
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/components/occurrence-composer.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(
@@ -28,21 +30,22 @@ test("footer exposes view controls directly and keeps one primary Edit entry", a
     index,
     /data-world-controls-slot role="group" aria-label="World view controls"/,
   );
-  assert.match(
-    index,
-    /id="timeline-related-zoom"[^>]*data-view-control[^>]*data-semantic-icon="zoom-in"[^>]*aria-label="Zoom to related nodes"[^>]*title="Zoom to related nodes"/,
-  );
-  assert.match(
-    index,
-    /id="timeline-related-fit"[^>]*data-view-control[^>]*data-semantic-icon="fit"[^>]*aria-label="Fit related nodes in world view"[^>]*title="Fit related nodes in world view"/,
-  );
+  assert.doesNotMatch(index, /timeline-focus-prev|timeline-focus-next|timeline-related-zoom|timeline-related-fit/);
+  assert.match(timeline, /timeline-focus-toolbar-actions/);
+  assert.match(timeline, /timeline-focus-prev[\s\S]*Previous event[\s\S]*chevron-left/);
+  assert.match(timeline, /timeline-focus-next[\s\S]*Next event[\s\S]*chevron-right/);
+  assert.match(timeline, /timeline-focus-related-zoom[\s\S]*Zoom to related nodes[\s\S]*zoom-in/);
+  assert.match(timeline, /timeline-focus-related-fit[\s\S]*Fit related nodes in world view[\s\S]*"fit"/);
 
   const footerStart = index.indexOf('<nav class="app-tool-dock app-footer-bar"');
   const footerEnd = index.indexOf("</nav>", footerStart);
   const footerMarkup = index.slice(footerStart, footerEnd);
   assert.equal((footerMarkup.match(/id="editor-toggle"/g) ?? []).length, 1);
-  assert.equal((footerMarkup.match(/id="occurrence-composer-toggle"/g) ?? []).length, 0);
-  assert.match(index, /id="occurrence-composer-toggle"[^>]*aria-controls="occurrence-composer"/);
+  assert.match(footerMarkup, /<luum-occurrence-composer id="occurrence-composer"><\/luum-occurrence-composer>/);
+  assert.doesNotMatch(index, /occurrence-composer-toggle/);
+  assert.match(composer, /class="launcher"/);
+  assert.match(composer, /occurrencecomposeropenrequest/);
+  assert.match(composer, /iconPathData\("add"\)/);
 
   assert.match(world, /element\.className = "toolbar-control world-camera-control"/);
   assert.match(world, /element\.dataset\.viewControl = ""/);
@@ -108,10 +111,6 @@ test("all footer buttons and controls share the canonical toolbar surface", asyn
     "project-menu-toggle",
     "editor-toggle",
     "timeline-browser-toggle",
-    "timeline-focus-prev",
-    "timeline-focus-next",
-    "timeline-related-zoom",
-    "timeline-related-fit",
     "timeline-orientation-toggle",
     "presentation-fullscreen-toggle",
     "timeline-auto-toggle",
@@ -201,11 +200,11 @@ test("every persistent toolbar button family has an executable interaction path"
   assert.match(index, /id="project-menu-toggle"[^>]*popovertarget="project-menu"/);
   assert.match(app, /editorToggle\?\.addEventListener\("click"[\s\S]*setEditorSurfaceOpen/);
   assert.match(app, /browserToggle\?\.addEventListener\("click"[\s\S]*setBrowserSurfaceOpen/);
-  assert.match(app, /focusPrev\.addEventListener\("click"[\s\S]*focusAdjacent\(-1/);
-  assert.match(app, /focusNext\.addEventListener\("click"[\s\S]*focusAdjacent\(1/);
-  assert.match(app, /function revealFocusedToolbarNavigation\([\s\S]*max-width: 699px[\s\S]*appToolDock\.scrollLeft/);
-  assert.match(app, /relatedZoom\.addEventListener\("click"[\s\S]*zoomContext/);
-  assert.match(app, /relatedFit\.addEventListener\("click"[\s\S]*fitContext/);
+  assert.match(timeline, /timeline-focus-prev[\s\S]*focusAdjacent\(-1/);
+  assert.match(timeline, /timeline-focus-next[\s\S]*focusAdjacent\(1/);
+  assert.match(timeline, /timelinefocuscontextaction[\s\S]*zoom-related[\s\S]*fit-related/);
+  assert.match(app, /timelinefocuscontextaction[\s\S]*zoomContext[\s\S]*fitContext/);
+  assert.doesNotMatch(app, /revealFocusedToolbarNavigation|focusPrev|focusNext|relatedZoom|relatedFit/);
   assert.match(app, /presentationFullscreenToggle\.addEventListener\("click"[\s\S]*togglePresentationFullscreen/);
   assert.match(app, /function presentationFullscreenAvailable\([\s\S]*document\.fullscreenEnabled[\s\S]*requestFullscreen/);
   assert.match(app, /Full-screen presentation unavailable/);
