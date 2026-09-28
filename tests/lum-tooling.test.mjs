@@ -363,5 +363,6 @@ test("lum agent context emits bounded canonical context for limited-context agen
   assert.deepEqual(context.project.categories, []);
   assert.deepEqual(context.project.stories, []);
   assert.match(context.composer.syntax, /SUBJECT/);
-  assert.ok(context.workflow.includes("lum lint <project.lum.json> --json"));
+  assert.ok(context.workflow.includes("lum lint <candidate.lum.json> --json"));
+  assert.equal(context.proposalWorkflow.schema, context.schema.proposalSchemaId);
 });
