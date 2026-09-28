@@ -583,7 +583,9 @@ function commandSchema(args) {
     process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
     return;
   }
-  process.stdout.write(`${value.id}\n${value.path}\n`);
+  process.stdout.write(
+    `${value.id}\n${value.path}\n${value.module.id}\n${value.module.path}\n`,
+  );
 }
 
 async function main() {
