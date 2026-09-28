@@ -7,6 +7,7 @@ import {
   type ComposerWorldContext,
 } from "../occurrence-composer-context.ts";
 import {
+  composerCursorSection,
   occurrenceComposerSuggestions,
   parseOccurrenceSentence,
   replaceComposerTail,
@@ -21,6 +22,7 @@ export interface OccurrenceComposerData {
   readonly entities: readonly ComposerEntityOption[];
   readonly places: readonly ComposerPlaceOption[];
   readonly categories: readonly ComposerCategoryOption[];
+  readonly predicates?: readonly string[];
 }
 
 export interface OccurrenceComposerSelectionContext {
@@ -318,10 +320,12 @@ export class LuumOccurrenceComposerElement extends LitElement {
     entities: Object.freeze([]),
     places: Object.freeze([]),
     categories: Object.freeze([]),
+    predicates: Object.freeze([]),
   });
   private timelineContext: ComposerTimelineContext | null = null;
   private worldContext: ComposerWorldContext | null = null;
   private activeSuggestion = 0;
+  private cursorOffset = 0;
   private externalError = "";
   private explicitPlaceContext: ComposerWorldContext | null = null;
   private selectionContext: OccurrenceComposerSelectionContext | null = null;
@@ -339,6 +343,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
       entities: Object.freeze([...data.entities]),
       places: Object.freeze([...data.places]),
       categories: Object.freeze([...data.categories]),
+      predicates: Object.freeze([...(data.predicates ?? [])]),
     });
     this.requestUpdate();
   }
@@ -390,6 +395,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
   private resetDraft(): void {
     this.value = "";
+    this.cursorOffset = 0;
     this.selectionSeeded = false;
     this.explicitPlaceContext = null;
     this.externalError = "";
@@ -425,6 +431,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     }
     if (!this.value.trim() || this.selectionSeeded) {
       this.value = `@${subjectId} `;
+      this.cursorOffset = this.value.length;
       this.selectionSeeded = true;
     }
   }
@@ -482,6 +489,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
       timelineDefault: this.timelineContext?.value ?? null,
       locationDefault: this.selectionContext?.place?.name ?? this.worldContext?.label ?? null,
       preferredEntityIds,
+      predicates: this.data.predicates,
+      cursorOffset: this.cursorOffset,
     });
   }
 
@@ -491,9 +500,10 @@ export class LuumOccurrenceComposerElement extends LitElement {
     );
   }
 
-  private setComposerValue(value: string): void {
+  private setComposerValue(value: string, cursorOffset = value.length): void {
     const previousPlace = this.parsed().place?.name ?? null;
     this.value = value;
+    this.cursorOffset = Math.max(0, Math.min(value.length, cursorOffset));
     this.selectionSeeded = false;
     const nextPlace = this.parsed().place?.name ?? null;
     if (!nextPlace) {
@@ -506,23 +516,40 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.requestUpdate();
   }
 
+  private syncCursorFromInput(target: HTMLInputElement): void {
+    const next = target.selectionStart ?? target.value.length;
+    if (next === this.cursorOffset) return;
+    this.cursorOffset = next;
+    this.activeSuggestion = 0;
+    this.requestUpdate();
+  }
+
   private onInput(event: Event): void {
     const target = event.currentTarget;
     if (!(target instanceof HTMLInputElement)) return;
-    this.setComposerValue(target.value);
+    this.setComposerValue(target.value, target.selectionStart ?? target.value.length);
+  }
+
+  private onCaretMove(event: Event): void {
+    const target = event.currentTarget;
+    if (!(target instanceof HTMLInputElement)) return;
+    this.syncCursorFromInput(target);
   }
 
   private applySuggestion(suggestion: ComposerSuggestion): void {
     if (!suggestion.insertText) return;
     const parsed = this.parsed();
-    this.setComposerValue(
-      replaceComposerTail(this.value, suggestion.insertText, parsed.stage),
-    );
+    const range = suggestion.replaceRange;
+    const nextValue = range
+      ? `${this.value.slice(0, range.start)}${suggestion.insertText}${this.value.slice(range.end)}`
+      : replaceComposerTail(this.value, suggestion.insertText, parsed.stage);
+    const nextCursor = range ? range.start + suggestion.insertText.length : nextValue.length;
+    this.setComposerValue(nextValue, nextCursor);
     void this.updateComplete.then(() => {
       const input = this.renderRoot.querySelector<HTMLInputElement>("input");
       if (!input) return;
       input.focus({ preventScroll: true });
-      input.setSelectionRange(input.value.length, input.value.length);
+      input.setSelectionRange(nextCursor, nextCursor);
     });
   }
 
@@ -594,7 +621,9 @@ export class LuumOccurrenceComposerElement extends LitElement {
     if (event.key !== "Enter") return;
     event.preventDefault();
     const draft = this.parsed();
-    if (draft.stage !== "complete" && suggestions.length) {
+    const cursorSection = composerCursorSection(this.value, this.cursorOffset);
+    const cursorLocal = cursorSection.kind !== "tail";
+    if ((draft.stage !== "complete" || cursorLocal) && suggestions.length) {
       const suggestion = suggestions[this.activeSuggestion] ?? suggestions[0];
       if (suggestion) this.applySuggestion(suggestion);
       return;
@@ -603,6 +632,14 @@ export class LuumOccurrenceComposerElement extends LitElement {
   }
 
   private stageLabel(parsed: OccurrenceSentenceDraft): string {
+    const cursor = composerCursorSection(this.value, this.cursorOffset);
+    if (cursor.kind !== "tail") {
+      if (cursor.kind === "predicate") return "action";
+      if (cursor.kind === "place" || cursor.kind === "time" || cursor.kind === "options") {
+        return cursor.kind;
+      }
+      return cursor.kind;
+    }
     if (parsed.stage === "predicate") return "action";
     if (parsed.stage === "place" || parsed.stage === "time" || parsed.stage === "options") {
       return "context";
@@ -646,6 +683,10 @@ export class LuumOccurrenceComposerElement extends LitElement {
             placeholder=${`Who did what to whom · at ${placeLabel} · on ${timeLabel ?? "timeline center"}`}
             .value=${this.value}
             @input=${(event: Event) => this.onInput(event)}
+            @focus=${(event: Event) => this.onCaretMove(event)}
+            @click=${(event: Event) => this.onCaretMove(event)}
+            @keyup=${(event: Event) => this.onCaretMove(event)}
+            @select=${(event: Event) => this.onCaretMove(event)}
             @keydown=${(event: KeyboardEvent) => this.onKeyDown(event)}
           />
           <button
