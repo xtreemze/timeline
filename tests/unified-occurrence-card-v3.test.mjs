@@ -25,6 +25,7 @@ test("composer retains explicit non-Enter commit and exact section targeting", a
   assert.match(source, /class="commit"/);
   assert.match(source, /@click=\$\{\(\) => this\.commit\(\)\}/);
   assert.match(source, /draft\.investigation\.qualifiers/);
+  assert.match(source, /:host\(\[data-host="card"\]\) \.completion-panel/);
 });
 
 test("promoted occurrence card and footer share one physical composer", async () => {
