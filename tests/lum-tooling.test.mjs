@@ -58,6 +58,21 @@ test("empty project scaffold is strict, valid, self-describing, and canonically 
   assert.equal(validateProjectInterchange(serialized).valid, true);
 });
 
+
+test("portable Lūm interchange requires its canonical schema identifier", () => {
+  const parsed = JSON.parse(
+    createEmptyProjectInterchange({
+      projectKey: "schema-case",
+      savedAt: "2026-09-28T08:00:00.000Z",
+    }),
+  );
+  delete parsed.$schema;
+  const validation = validateProjectInterchange(JSON.stringify(parsed));
+  assert.equal(validation.valid, false);
+  if (validation.valid) return;
+  assert.ok(validation.diagnostics.some((d) => d.code === "unsupported-schema-id"));
+});
+
 test("formatter is deterministic, idempotent, and preserves array order", () => {
   const source = createEmptyProjectInterchange({
     projectKey: "format-case",
