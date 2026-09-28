@@ -207,6 +207,9 @@ export interface DeckRuntimeViewport {
 export interface DeckRuntimeInstance {
   setProps(props: Readonly<Record<string, unknown>>): void;
   pickObject(options: Readonly<Record<string, unknown>>): DeckRuntimePickingInfo | null;
+  pickObjectAsync?(
+    options: Readonly<Record<string, unknown>>,
+  ): Promise<DeckRuntimePickingInfo | null>;
   getViewports(rect?: Readonly<Record<string, number>>): readonly DeckRuntimeViewport[];
   redraw(force?: boolean): void;
   finalize(): void;
@@ -3156,53 +3159,23 @@ export class DeckWorldSurface implements WorldSurface {
     }
     this.#touchTapCandidatePointerId = touch.pointerId;
 
-    // Object-only pick: the long-press gate needs no 3D unprojection, and
-    // skipping its extra depth pass keeps touch-down fast so a quick swipe's
-    // move events are not delayed past the hold threshold.
-    const hit = this.pick(touch.point, { depth: false });
-    const entityHit = hit?.kind === "entity" && this.#nodeDragSink ? hit : null;
-    if (hit && !entityHit) return;
+    // Object-only pick: the long-press gate needs no 3D unprojection. Keep the
+    // WebGL2 synchronous fast path, but start WebGPU's async pick immediately so
+    // its result is normally ready before the hold threshold expires.
+    const synchronousPick = this.#tryPick(touch.point, { depth: false });
+    if (synchronousPick.supported) {
+      const entityHit =
+        synchronousPick.hit?.kind === "entity" && this.#nodeDragSink ? synchronousPick.hit : null;
+      if (synchronousPick.hit && !entityHit) return;
+      this.#scheduleTouchHold(touch, synchronousPick.hit);
+      return;
+    }
 
-    this.#setTouchDragState("holding");
-    this.#touchHoldTimer = globalThis.setTimeout(() => {
-      this.#touchHoldTimer = null;
-      if (this.#destroyed || !this.#touchDrag.threshold(touch.pointerId, Date.now())) return;
-
-      // Give already-queued pointer input one task turn to invalidate a swipe
-      // that physically moved before the hold threshold but was delivered late
-      // because the main thread was busy. The shared arbiter owns whether the
-      // gesture is still claimable; this adapter only schedules the browser turn.
-      this.#touchHoldCommitTimer = globalThis.setTimeout(() => {
-        this.#touchHoldCommitTimer = null;
-        if (this.#destroyed || !this.#touchDrag.claim(touch.pointerId, Date.now())) return;
-
-        this.#touchTapCandidatePointerId = null;
-        this.#lastTouchTap = null;
-
-        if (!entityHit) {
-          const handled = this.#dispatchAuthoringContext(touch.point, touch.point);
-          if (!handled) {
-            this.#touchDrag.cancel(touch.pointerId);
-            this.#setTouchDragState(null);
-            return;
-          }
-          this.#authoringContextPointerId = touch.pointerId;
-          this.#setTouchDragState("active");
-          return;
-        }
-
-        if (!this.#beginTouchEntityDrag(touch.pointerId, entityHit.worldInstanceId, touch.point)) {
-          this.#touchDrag.cancel(touch.pointerId);
-          this.#setTouchDragState(null);
-          return;
-        }
-
-        this.#setTouchDragState("active");
-        this.#flashDragPickup(entityHit.worldInstanceId);
-        this.#setUserSelection(Object.freeze({ kind: "entity" as const, id: entityHit.entityId }));
-        void pulseHaptic("drag");
-      }, 1);
-    }, WORLD_TOUCH_HOLD_MS);
+    this.#scheduleTouchHold(
+      touch,
+      null,
+      this.#pickAsyncOnly(touch.point, { depth: false }),
+    );
   };
 
   readonly #handleTouchPointerMove = (event: TouchPointerEvent): void => {
@@ -3325,8 +3298,77 @@ export class DeckWorldSurface implements WorldSurface {
     this.#lastTouchTap = Object.freeze({ time, point });
   }
 
-  #dispatchAuthoringContext(point: ScreenPoint, clientPoint: ScreenPoint): boolean {
-    const hit = this.pick(point, { depth: false });
+  #scheduleTouchHold(
+    touch: Readonly<{ pointerId: number; point: ScreenPoint }>,
+    hit: WorldHit | null,
+    pendingHit: Promise<WorldHit | null> | null = null,
+  ): void {
+    this.#setTouchDragState("holding");
+    this.#touchHoldTimer = globalThis.setTimeout(() => {
+      this.#touchHoldTimer = null;
+      if (this.#destroyed || !this.#touchDrag.threshold(touch.pointerId, Date.now())) return;
+
+      // Give already-queued pointer input one task turn to invalidate a swipe
+      // that physically moved before the hold threshold but was delivered late
+      // because the main thread was busy. The shared arbiter owns whether the
+      // gesture is still claimable; this adapter only schedules the browser turn.
+      this.#touchHoldCommitTimer = globalThis.setTimeout(() => {
+        this.#touchHoldCommitTimer = null;
+        if (pendingHit) {
+          void pendingHit.then((resolvedHit) => this.#commitTouchHold(touch, resolvedHit));
+          return;
+        }
+        this.#commitTouchHold(touch, hit);
+      }, 1);
+    }, WORLD_TOUCH_HOLD_MS);
+  }
+
+  #commitTouchHold(
+    touch: Readonly<{ pointerId: number; point: ScreenPoint }>,
+    hit: WorldHit | null,
+  ): void {
+    if (this.#destroyed) return;
+    const entityHit = hit?.kind === "entity" && this.#nodeDragSink ? hit : null;
+    if (hit && !entityHit) {
+      this.#touchDrag.cancel(touch.pointerId);
+      this.#setTouchDragState(null);
+      return;
+    }
+    if (!this.#touchDrag.claim(touch.pointerId, Date.now())) return;
+
+    this.#touchTapCandidatePointerId = null;
+    this.#lastTouchTap = null;
+
+    if (!entityHit) {
+      const handled = this.#dispatchAuthoringContext(touch.point, touch.point, null);
+      if (!handled) {
+        this.#touchDrag.cancel(touch.pointerId);
+        this.#setTouchDragState(null);
+        return;
+      }
+      this.#authoringContextPointerId = touch.pointerId;
+      this.#setTouchDragState("active");
+      return;
+    }
+
+    if (!this.#beginTouchEntityDrag(touch.pointerId, entityHit.worldInstanceId, touch.point)) {
+      this.#touchDrag.cancel(touch.pointerId);
+      this.#setTouchDragState(null);
+      return;
+    }
+
+    this.#setTouchDragState("active");
+    this.#flashDragPickup(entityHit.worldInstanceId);
+    this.#setUserSelection(Object.freeze({ kind: "entity" as const, id: entityHit.entityId }));
+    void pulseHaptic("drag");
+  }
+
+  #dispatchAuthoringContext(
+    point: ScreenPoint,
+    clientPoint: ScreenPoint,
+    knownHit: WorldHit | null | undefined = undefined,
+  ): boolean {
+    const hit = knownHit === undefined ? this.pick(point, { depth: false }) : knownHit;
     if (hit) return false;
     const position = this.unproject(point, 0);
     if (!position) return false;
@@ -3352,14 +3394,25 @@ export class DeckWorldSurface implements WorldSurface {
       if (!Number.isFinite(x) || !Number.isFinite(y)) return;
       const clientX = Number(event.clientX);
       const clientY = Number(event.clientY);
-      const handled = this.#dispatchAuthoringContext(
-        Object.freeze({ x, y }),
-        Object.freeze({
-          x: Number.isFinite(clientX) ? clientX : x,
-          y: Number.isFinite(clientY) ? clientY : y,
-        }),
-      );
-      if (handled) event.preventDefault?.();
+      const point = Object.freeze({ x, y });
+      const clientPoint = Object.freeze({
+        x: Number.isFinite(clientX) ? clientX : x,
+        y: Number.isFinite(clientY) ? clientY : y,
+      });
+      const synchronousPick = this.#tryPick(point, { depth: false });
+      if (synchronousPick.supported) {
+        if (synchronousPick.hit) return;
+        const handled = this.#dispatchAuthoringContext(point, clientPoint, null);
+        if (handled) event.preventDefault?.();
+        return;
+      }
+
+      // WebGPU picking is asynchronous. Suppress the native menu immediately,
+      // then publish authoring context only after confirming the background hit.
+      event.preventDefault?.();
+      void this.#pickAsyncOnly(point, { depth: false }).then((hit) => {
+        if (!this.#destroyed && !hit) this.#dispatchAuthoringContext(point, clientPoint, null);
+      });
       return;
     }
     if (state !== "holding" && state !== "active") return;
@@ -3509,13 +3562,20 @@ export class DeckWorldSurface implements WorldSurface {
     if (changed) void pulseHaptic("selection");
   };
 
-  #focusAtPoint(point: ScreenPoint): void {
-    const hit = this.pick(point);
-    if (!hit) return;
-
+  #focusHit(hit: WorldHit | null): void {
+    if (!hit || this.#destroyed) return;
     if (hit.kind === "entity") this.focusEntity(hit.entityId);
     else if (hit.kind === "relationship") this.focusOccurrence(hit.relationshipId);
     else if (hit.kind === "place") this.focusPlace(hit.placeId);
+  }
+
+  #focusAtPoint(point: ScreenPoint): void {
+    const synchronousPick = this.#tryPick(point);
+    if (synchronousPick.supported) {
+      this.#focusHit(synchronousPick.hit);
+      return;
+    }
+    void this.#pickAsyncOnly(point).then((hit) => this.#focusHit(hit));
   }
 
   // Mouse double-click keeps native browser semantics. Touch double-tap is
@@ -4521,29 +4581,27 @@ export class DeckWorldSurface implements WorldSurface {
     }
   }
 
-  pick(point: ScreenPoint, options: { readonly depth?: boolean } = {}): WorldHit | null {
-    this.#assertAlive();
-    let picked: DeckRuntimePickingInfo | null;
-    try {
-      picked = this.#deck.pickObject({
-        x: point.x,
-        y: point.y,
-        radius: WORLD_PICKING_RADIUS_PX,
-        unproject3D: options.depth !== false,
-        layerIds: [
-          DECK_WORLD_LAYER_IDS.entityIcons,
-          DECK_WORLD_LAYER_IDS.entities,
-          DECK_WORLD_LAYER_IDS.relationshipDirections,
-          DECK_WORLD_LAYER_IDS.relationships,
-          DECK_WORLD_LAYER_IDS.placeIcons,
-          DECK_WORLD_LAYER_IDS.places,
-        ],
-      });
-    } catch {
-      // Backends without synchronous picking (deck.gl 9.4 WebGPU) throw;
-      // treat as "nothing under the pointer" instead of breaking input.
-      picked = null;
-    }
+  #pickOptions(
+    point: ScreenPoint,
+    options: { readonly depth?: boolean } = {},
+  ): Readonly<Record<string, unknown>> {
+    return {
+      x: point.x,
+      y: point.y,
+      radius: WORLD_PICKING_RADIUS_PX,
+      unproject3D: options.depth !== false,
+      layerIds: [
+        DECK_WORLD_LAYER_IDS.entityIcons,
+        DECK_WORLD_LAYER_IDS.entities,
+        DECK_WORLD_LAYER_IDS.relationshipDirections,
+        DECK_WORLD_LAYER_IDS.relationships,
+        DECK_WORLD_LAYER_IDS.placeIcons,
+        DECK_WORLD_LAYER_IDS.places,
+      ],
+    };
+  }
+
+  #validatedPickedHit(picked: DeckRuntimePickingInfo | null): WorldHit | null {
     const hit = worldHitFromPicking(picked);
     if (
       hit?.kind === "relationship" &&
@@ -4552,6 +4610,43 @@ export class DeckWorldSurface implements WorldSurface {
       return null;
     }
     return hit;
+  }
+
+  #tryPick(
+    point: ScreenPoint,
+    options: { readonly depth?: boolean } = {},
+  ): Readonly<{ supported: boolean; hit: WorldHit | null }> {
+    try {
+      return Object.freeze({
+        supported: true,
+        hit: this.#validatedPickedHit(this.#deck.pickObject(this.#pickOptions(point, options))),
+      });
+    } catch {
+      return Object.freeze({ supported: false, hit: null });
+    }
+  }
+
+  async #pickAsyncOnly(
+    point: ScreenPoint,
+    options: { readonly depth?: boolean } = {},
+  ): Promise<WorldHit | null> {
+    const pickObjectAsync = this.#deck.pickObjectAsync;
+    if (!pickObjectAsync) return null;
+    try {
+      return this.#validatedPickedHit(
+        await pickObjectAsync.call(this.#deck, this.#pickOptions(point, options)),
+      );
+    } catch {
+      return null;
+    }
+  }
+
+  pick(point: ScreenPoint, options: { readonly depth?: boolean } = {}): WorldHit | null {
+    this.#assertAlive();
+    // WorldSurface keeps a synchronous compatibility contract. WebGPU-specific
+    // interaction paths use #pickAsyncOnly after #tryPick reports sync support
+    // is unavailable.
+    return this.#tryPick(point, options).hit;
   }
 
   /**
@@ -6165,7 +6260,9 @@ export class DeckWorldSurface implements WorldSurface {
     this.#pickingWarm = true;
     // Next task, so the throwaway pick never lengthens the frame itself.
     globalThis.setTimeout(() => {
-      if (!this.#destroyed) this.pick({ x: 1, y: 1 });
+      if (this.#destroyed) return;
+      const synchronousPick = this.#tryPick({ x: 1, y: 1 });
+      if (!synchronousPick.supported) void this.#pickAsyncOnly({ x: 1, y: 1 });
     }, 0);
   };
 
