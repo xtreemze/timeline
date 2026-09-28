@@ -122,8 +122,9 @@ test("toolbar compound icon contract preserves scoped meaning and proportional o
   assert.match(index, /id="timeline-orientation-toggle"[^>]*data-semantic-icon="timeline"[^>]*data-semantic-icon-secondary="portrait"/);
   assert.match(index, /id="timeline-auto-toggle"[^>]*data-semantic-icon="timeline"[^>]*data-semantic-icon-secondary="play"/);
   assert.match(presentation, /export function createCompoundIcon/);
-  assert.match(presentation, /secondary\.setAttribute\("stroke-width",[\s\S]*size[\s\S]*secondarySize/);
-  assert.match(css, /\.compound-semantic-icon-secondary[\s\S]*inline-size:\s*11px[\s\S]*block-size:\s*11px/);
+  assert.match(presentation, /const primarySize = Math\.max\(12, Math\.round\(size \* 0\.86\)\)/);
+  assert.match(presentation, /secondary\.setAttribute\("stroke-width",[\s\S]*primarySize[\s\S]*secondarySize/);
+  assert.match(css, /\.compound-semantic-icon-secondary[\s\S]*--compound-icon-secondary-size/);
 });
 
 
