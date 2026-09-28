@@ -7,6 +7,7 @@ import {
   type ComposerWorldContext,
 } from "../occurrence-composer-context.ts";
 import {
+  composerCompletionSuffix,
   occurrenceComposerSuggestions,
   parseOccurrenceSentence,
   replaceComposerTail,
@@ -21,6 +22,8 @@ export interface OccurrenceComposerData {
   readonly entities: readonly ComposerEntityOption[];
   readonly places: readonly ComposerPlaceOption[];
   readonly categories: readonly ComposerCategoryOption[];
+  readonly tags: readonly string[];
+  readonly predicates: readonly string[];
 }
 
 export interface OccurrenceComposerSelectionContext {
@@ -66,7 +69,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     }
 
     :host(:not([active])) {
-      display: none;
+      min-inline-size: 0;
     }
 
     .composer {
@@ -100,7 +103,38 @@ export class LuumOccurrenceComposerElement extends LitElement {
       white-space: nowrap;
     }
 
+    .input-shell {
+      position: relative;
+      min-inline-size: 0;
+    }
+
+    .ghost-completion {
+      position: absolute;
+      z-index: 2;
+      inset: 0;
+      box-sizing: border-box;
+      display: block;
+      min-inline-size: 0;
+      min-block-size: 44px;
+      padding: 0.55rem 0.7rem;
+      overflow: hidden;
+      border: 1px solid transparent;
+      pointer-events: none;
+      font: 500 0.88rem/1.3 ui-monospace, "SFMono-Regular", Consolas, monospace;
+      white-space: pre;
+    }
+
+    .ghost-base {
+      visibility: hidden;
+    }
+
+    .ghost-suffix {
+      color: color-mix(in srgb, var(--muted, #615d56) 58%, transparent);
+    }
+
     input {
+      position: relative;
+      z-index: 1;
       inline-size: 100%;
       min-inline-size: 0;
       min-block-size: 44px;
@@ -218,6 +252,17 @@ export class LuumOccurrenceComposerElement extends LitElement {
       }
     }
 
+    .completion-heading {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.6rem;
+      padding: 0.36rem 0.55rem;
+      border-block-end: 1px solid var(--line, #d1ccc4);
+      color: var(--muted, #615d56);
+      font-size: 0.65rem;
+      font-weight: 650;
+    }
+
     .diagnostic {
       margin: 0;
       padding: 0.5rem 0.65rem;
@@ -318,6 +363,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
     entities: Object.freeze([]),
     places: Object.freeze([]),
     categories: Object.freeze([]),
+    tags: Object.freeze([]),
+    predicates: Object.freeze([]),
   });
   private timelineContext: ComposerTimelineContext | null = null;
   private worldContext: ComposerWorldContext | null = null;
@@ -339,6 +386,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
       entities: Object.freeze([...data.entities]),
       places: Object.freeze([...data.places]),
       categories: Object.freeze([...data.categories]),
+      tags: Object.freeze([...data.tags]),
+      predicates: Object.freeze([...data.predicates]),
     });
     this.requestUpdate();
   }
@@ -479,10 +528,19 @@ export class LuumOccurrenceComposerElement extends LitElement {
       entities: this.data.entities,
       places: this.data.places,
       categories: this.data.categories,
+      tags: this.data.tags,
+      predicates: this.data.predicates,
       timelineDefault: this.timelineContext?.value ?? null,
       locationDefault: this.selectionContext?.place?.name ?? this.worldContext?.label ?? null,
       preferredEntityIds,
     });
+  }
+
+  private requestOpen(): void {
+    if (this.active) return;
+    this.dispatchEvent(
+      new CustomEvent("occurrencecomposeropenrequest", { bubbles: true, composed: true }),
+    );
   }
 
   private requestClose(): void {
@@ -572,7 +630,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
   }
 
   private onKeyDown(event: KeyboardEvent): void {
-    const suggestions = this.suggestions();
+    const suggestions = this.suggestions().slice(0, 7);
     if (event.key === "Escape") {
       event.preventDefault();
       this.requestClose();
@@ -611,8 +669,6 @@ export class LuumOccurrenceComposerElement extends LitElement {
     return parsed.stage;
   }
   override render() {
-    if (!this.active) return nothing;
-
     const parsed = this.parsed();
     const timeLabel = parsed.time?.start ?? this.timelineContext?.label ?? null;
     const placeLabel =
@@ -620,108 +676,160 @@ export class LuumOccurrenceComposerElement extends LitElement {
       this.selectionContext?.place?.name ??
       this.worldContext?.label ??
       "World center";
-    const suggestions = this.suggestions();
+    const suggestions = this.suggestions().slice(0, 7);
+    const selectedIndex = Math.min(
+      this.activeSuggestion,
+      Math.max(0, suggestions.length - 1),
+    );
+    const activeSuggestion = suggestions[selectedIndex];
+    const ghostSuffix = this.active
+      ? composerCompletionSuffix(this.value, activeSuggestion)
+      : "";
     const diagnostic = this.externalError || parsed.diagnostics[0] || "";
     const subjectLabel = this.selectedSubjectLabel();
     const placePinned = Boolean(parsed.place || this.selectionContext?.place);
     const timePinned = Boolean(parsed.time);
+    const categoryLabel = parsed.options.category ?? null;
+    const tagLabels = parsed.options.tags;
+    const expanded = this.active && !this.hidden;
 
     return html`
-      <section class="composer" aria-label="Occurrence composer">
+      <section
+        class="composer"
+        aria-label="Occurrence composer"
+        aria-expanded=${String(expanded)}
+      >
         <div class="input-row">
-          <span class="stage" aria-hidden="true">${this.stageLabel(parsed)}</span>
-          <input
-            type="text"
-            autocomplete="off"
-            autocapitalize="sentences"
-            spellcheck="false"
-            role="combobox"
-            aria-autocomplete="list"
-            aria-expanded=${String(suggestions.length > 0)}
-            aria-controls=${suggestions.length ? "occurrence-composer-listbox" : nothing}
-            aria-activedescendant=${
-              suggestions.length ? `occurrence-composer-option-${this.activeSuggestion}` : nothing
-            }
-            aria-describedby="occurrence-composer-help occurrence-composer-diagnostic"
-            placeholder=${`Who did what to whom · at ${placeLabel} · on ${timeLabel ?? "timeline center"}`}
-            .value=${this.value}
-            @input=${(event: Event) => this.onInput(event)}
-            @keydown=${(event: KeyboardEvent) => this.onKeyDown(event)}
-          />
-          <button
-            class="close"
-            type="button"
-            aria-label="Close occurrence composer"
-            title="Close occurrence composer"
-            @click=${() => this.requestClose()}
-          >×</button>
-        </div>
-
-        <div class="completion-panel">
-          <div class="context-row" aria-label="Occurrence context">
-            ${subjectLabel
-              ? html`<span class="context-chip" data-context-kind="subject" data-context-state="pinned">
-                  <span>Subject</span><strong>${subjectLabel}</strong><span class="context-state">pinned</span>
-                </span>`
-              : nothing}
-            <span
-              class="context-chip"
-              data-context-kind="place"
-              data-context-state=${placePinned ? "pinned" : "live"}
-            >
-              <span>Place</span><strong>${placeLabel}</strong><span class="context-state">${placePinned ? "pinned" : "live"}</span>
+          ${expanded
+            ? html`<span class="stage" aria-hidden="true">${this.stageLabel(parsed)}</span>`
+            : nothing}
+          <div class="input-shell">
+            <span class="ghost-completion" aria-hidden="true">
+              <span class="ghost-base">${this.value}</span><span class="ghost-suffix">${ghostSuffix}</span>
             </span>
-            <span
-              class="context-chip"
-              data-context-kind="time"
-              data-context-state=${timePinned ? "pinned" : "live"}
-            >
-              <span>Time</span><strong>${timeLabel ?? "timeline center"}</strong><span class="context-state">${timePinned ? "pinned" : "live"}</span>
-            </span>
+            <input
+              type="text"
+              autocomplete="off"
+              autocapitalize="sentences"
+              spellcheck="false"
+              role="combobox"
+              aria-autocomplete="both"
+              aria-expanded=${String(expanded && suggestions.length > 0)}
+              aria-controls=${
+                expanded && suggestions.length ? "occurrence-composer-listbox" : nothing
+              }
+              aria-activedescendant=${
+                expanded && suggestions.length
+                  ? `occurrence-composer-option-${selectedIndex}`
+                  : nothing
+              }
+              aria-describedby="occurrence-composer-help occurrence-composer-diagnostic"
+              placeholder=${
+                expanded
+                  ? `Who did what to whom · at ${placeLabel} · on ${timeLabel ?? "timeline center"}`
+                  : "Compose occurrence…"
+              }
+              .value=${this.value}
+              @focus=${() => this.requestOpen()}
+              @input=${(event: Event) => this.onInput(event)}
+              @keydown=${(event: KeyboardEvent) => this.onKeyDown(event)}
+            />
           </div>
-          ${diagnostic
-            ? html`<p id="occurrence-composer-diagnostic" class="diagnostic" role="alert">${diagnostic}</p>`
-            : html`<span id="occurrence-composer-diagnostic" hidden></span>`}
-          ${suggestions.length
-            ? html`
-                <div id="occurrence-composer-listbox" class="listbox" role="listbox">
-                  ${suggestions.map(
-                    (suggestion, index) => html`
-                      <button
-                        id=${`occurrence-composer-option-${index}`}
-                        class="option"
-                        type="button"
-                        role="option"
-                        aria-selected=${String(index === this.activeSuggestion)}
-                        @pointerdown=${(event: PointerEvent) => event.preventDefault()}
-                        @click=${() => this.applySuggestion(suggestion)}
-                      >
-                        <span class="option-main">
-                          ${suggestion.icon
-                            ? html`<span class="option-icon" aria-hidden="true">
-                                <svg viewBox="0 0 24 24" focusable="false">
-                                  ${iconPathData(suggestion.icon).map(
-                                    (path) => html`<path d=${path}></path>`,
-                                  )}
-                                </svg>
-                              </span>`
-                            : nothing}
-                          <span class="option-label">${suggestion.label}</span>
-                        </span>
-                        <span class="option-detail">${suggestion.detail ?? suggestion.kind}</span>
-                      </button>
-                    `,
-                  )}
-                </div>
-              `
+          ${expanded
+            ? html`<button
+                class="close"
+                type="button"
+                aria-label="Collapse occurrence composer"
+                title="Collapse occurrence composer"
+                @click=${() => this.requestClose()}
+              >×</button>`
             : nothing}
         </div>
 
+        ${expanded
+          ? html`
+              <div class="completion-panel">
+                <div class="context-row" aria-label="Occurrence context">
+                  ${subjectLabel
+                    ? html`<span class="context-chip" data-context-kind="subject" data-context-state="pinned">
+                        <span>Subject</span><strong>${subjectLabel}</strong><span class="context-state">pinned</span>
+                      </span>`
+                    : nothing}
+                  <span
+                    class="context-chip"
+                    data-context-kind="place"
+                    data-context-state=${placePinned ? "pinned" : "live"}
+                  >
+                    <span>Place</span><strong>${placeLabel}</strong><span class="context-state">${placePinned ? "pinned" : "live"}</span>
+                  </span>
+                  <span
+                    class="context-chip"
+                    data-context-kind="time"
+                    data-context-state=${timePinned ? "pinned" : "live"}
+                  >
+                    <span>Time</span><strong>${timeLabel ?? "timeline center"}</strong><span class="context-state">${timePinned ? "pinned" : "live"}</span>
+                  </span>
+                  ${categoryLabel
+                    ? html`<span class="context-chip" data-context-kind="category" data-context-state="pinned">
+                        <span>Category</span><strong>${categoryLabel}</strong>
+                      </span>`
+                    : nothing}
+                  ${tagLabels.map(
+                    (tag) => html`<span class="context-chip" data-context-kind="tag" data-context-state="pinned">
+                      <span>Tag</span><strong>${tag}</strong>
+                    </span>`,
+                  )}
+                </div>
+                <div class="completion-heading" aria-hidden="true">
+                  <span>Suggestions</span>
+                  <span>↑↓ select · Enter accept</span>
+                </div>
+                ${diagnostic
+                  ? html`<p id="occurrence-composer-diagnostic" class="diagnostic" role="alert">${diagnostic}</p>`
+                  : html`<span id="occurrence-composer-diagnostic" hidden></span>`}
+                ${suggestions.length
+                  ? html`
+                      <div id="occurrence-composer-listbox" class="listbox" role="listbox">
+                        ${suggestions.map(
+                          (suggestion, index) => html`
+                            <button
+                              id=${`occurrence-composer-option-${index}`}
+                              class="option"
+                              type="button"
+                              role="option"
+                              aria-selected=${String(index === selectedIndex)}
+                              @pointerdown=${(event: PointerEvent) => event.preventDefault()}
+                              @click=${() => this.applySuggestion(suggestion)}
+                            >
+                              <span class="option-main">
+                                ${suggestion.icon
+                                  ? html`<span class="option-icon" aria-hidden="true">
+                                      <svg viewBox="0 0 24 24" focusable="false">
+                                        ${iconPathData(suggestion.icon).map(
+                                          (path) => html`<path d=${path}></path>`,
+                                        )}
+                                      </svg>
+                                    </span>`
+                                  : nothing}
+                                <span class="option-label">${suggestion.label}</span>
+                              </span>
+                              <span class="option-detail">${suggestion.detail ?? suggestion.kind}</span>
+                            </button>
+                          `,
+                        )}
+                      </div>
+                    `
+                  : nothing}
+              </div>
+            `
+          : nothing}
+
         <p id="occurrence-composer-help" class="help">
-          Arrow keys navigate suggestions · Enter accepts the active suggestion or commits ·
-          Tab moves focus · Esc closes. Quote multi-word entity names.
-          Defaults follow ${placeLabel} and ${timeLabel ?? "the timeline center"} until explicitly pinned.
-          Move the timeline or World while this is open to change unpinned defaults.
+          Focus expands the composer. Arrow keys navigate suggestions · Enter accepts the active
+          suggestion or commits · Tab moves focus · Esc collapses. Existing entities complete to
+          canonical @IDs; quote new multi-word entity names. Add category and tags in [brackets].
+          Defaults follow ${placeLabel} and ${timeLabel ?? "the timeline center"} until explicitly
+          pinned. Move the timeline or World while this is open to change unpinned defaults.
         </p>
       </section>
     `;
