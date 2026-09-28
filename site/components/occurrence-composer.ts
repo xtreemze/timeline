@@ -728,7 +728,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
   }
 
   private editSentenceSection(section: ComposerEditableSection): void {
-    this.cursorOffset = section.end;
+    this.cursorOffset = section.start;
     this.activeSuggestion = 0;
     this.externalError = "";
     this.requestUpdate();
