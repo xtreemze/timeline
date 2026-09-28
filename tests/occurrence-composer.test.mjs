@@ -17,13 +17,13 @@ import {
 
 test("occurrence sentence maps grammar into canonical authoring slots", () => {
   const parsed = parseOccurrenceSentence(
-    'Alice(type: person, icon: user) meets Bob at Stockholm on 2026-09-26T14:00Z [category: observation, tags: friend|work]',
+    'Alice(type: person, icon: person) meets Bob at Stockholm on 2026-09-26T14:00Z [category: observation, tags: friend|work]',
   );
 
   assert.equal(parsed.stage, "complete");
   assert.equal(parsed.subject?.name, "Alice");
   assert.equal(parsed.subject?.properties.type, "person");
-  assert.equal(parsed.subject?.properties.icon, "user");
+  assert.equal(parsed.subject?.properties.icon, "person");
   assert.equal(parsed.predicate, "meets");
   assert.equal(parsed.object?.name, "Bob");
   assert.equal(parsed.place?.name, "Stockholm");
@@ -66,6 +66,21 @@ test("composer exposes cursor-local entity properties before generic entity comp
     replaceComposerTail("Alice(type: ", "type: person", "subject"),
     "Alice(type: person",
   );
+});
+
+test("composer suggests only canonical semantic icon properties", () => {
+  const suggestions = occurrenceComposerSuggestions("Alice(icon: ", {
+    entities: [],
+    places: [],
+    categories: [],
+  });
+  const inserts = suggestions.map((suggestion) => suggestion.insertText);
+  assert.ok(inserts.includes("icon: person"));
+  assert.ok(inserts.includes("icon: group"));
+  assert.ok(inserts.includes("icon: evidence"));
+  assert.equal(inserts.includes("icon: user"), false);
+  assert.equal(inserts.includes("icon: building"), false);
+  assert.equal(inserts.includes("icon: document"), false);
 });
 
 test("ambiguous entity names complete by canonical ID", () => {
