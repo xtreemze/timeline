@@ -121,11 +121,11 @@ function createWorldLayoutControls(
   group.append(
     button(
       "Arrange relationships",
-      "Arrange relationships (D3 DAG)",
-      "relation",
+      "Arrange relationships",
+      "dag",
       actions.reorganizeDag,
     ),
-    button("Settle relationships", "Settle relationships (D3 force)", "force", actions.relaxForce),
+    button("Settle relationships", "Settle relationships", "refresh", actions.relaxForce),
   );
   return group;
 }
