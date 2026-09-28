@@ -36,6 +36,11 @@ function wrapDeckInstance(deck: InstanceType<typeof Deck>): DeckRuntimeInstance 
       return (deck.pickObject(options as Parameters<typeof deck.pickObject>[0]) ??
         null) as DeckRuntimePickingInfo | null;
     },
+    async pickObjectAsync(options) {
+      return (await deck.pickObjectAsync(
+        options as Parameters<typeof deck.pickObjectAsync>[0],
+      )) as DeckRuntimePickingInfo | null;
+    },
     getViewports(rect) {
       return deck.getViewports(rect as Parameters<typeof deck.getViewports>[0]);
     },
@@ -168,36 +173,19 @@ class TimelineWeightedGlobeController extends GlobeController {
 }
 
 /**
- * WebGPU stays out of the default production graph. deck.gl 9.4 cannot pick
- * on its WebGPU backend yet, so the app remains WebGL2-first and loads the
- * experimental adapter only for the explicit `?renderer=webgpu` path.
+ * WebGPU stays opt-in until Lūm's interaction and visual certification suites
+ * establish parity with the production WebGL2 backend. deck.gl 9.4 supports
+ * async picking on WebGPU; unsupported extensions (notably collision filtering)
+ * continue to use Lūm's CPU semantic/declutter fallback.
  */
-function createWebgpuOrWebgl2Adapter(webgpuAdapter: WebGpuAdapter): WebGpuAdapter {
-  const webgpuUsable: Promise<boolean> = (async () => {
-    try {
-      const gpu = (
-        globalThis.navigator as { gpu?: { requestAdapter(): Promise<unknown> } } | undefined
-      )?.gpu;
-      return Boolean(await gpu?.requestAdapter());
-    } catch {
-      return false;
-    }
-  })();
-
-  return Object.assign(Object.create(webgpuAdapter), {
-    async create(props: Parameters<WebGpuAdapter["create"]>[0]) {
-      return (await webgpuUsable) ? webgpuAdapter.create(props) : webgl2Adapter.create(props);
-    },
-  });
-}
-
-function worldDeviceProps(webgpuAdapter?: WebGpuAdapter) {
+export function worldDeviceProps(webgpuAdapter?: WebGpuAdapter) {
   if (!webgpuAdapter) return { type: "webgl" as const };
   return {
     type: "best-available" as const,
-    adapters: [createWebgpuOrWebgl2Adapter(webgpuAdapter)],
-    // Deck only defaults to a premultiplied (transparent) canvas when the
-    // type is exactly "webgpu"; without it WebGPU composites over black.
+    // luma.gl selects the first usable backend and falls through to WebGL2 if
+    // WebGPU device creation is unavailable or fails.
+    adapters: [webgpuAdapter, webgl2Adapter],
+    // Preserve transparent composition over the application's world surface.
     createCanvasContext: { alphaMode: "premultiplied" as const },
   };
 }
