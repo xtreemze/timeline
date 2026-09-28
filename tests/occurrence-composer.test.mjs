@@ -13,6 +13,7 @@ import {
   acceptComposerSuggestion,
   composerCompletionSuffix,
   composerCursorSection,
+  composerEditableSections,
   occurrenceComposerSuggestions,
   parseOccurrenceSentence,
   replaceComposerTail,
@@ -969,4 +970,169 @@ test("World surface publishes camera-center changes without persisting camera st
   assert.match(source, /new CustomEvent\("worldviewportchange"/);
   assert.match(source, /longitude:\s*this\.#camera\.longitude/);
   assert.match(source, /latitude:\s*this\.#camera\.latitude/);
+});
+
+test("composer exposes stable editable spans for every semantic sentence section", () => {
+  const sentence =
+    '@alice warns "Big Bad Wolf" at "Deep Forest" from 2026-09-28T08:00Z to 2026-09-28T09:00Z [category: "Critical Event", tags: work|urgent]';
+  const sections = composerEditableSections(sentence);
+  assert.deepEqual(
+    sections.map((section) => [
+      section.kind,
+      section.index ?? null,
+      sentence.slice(section.start, section.end),
+    ]),
+    [
+      ["subject", null, "@alice"],
+      ["predicate", null, "warns"],
+      ["object", null, '"Big Bad Wolf"'],
+      ["place", null, '"Deep Forest"'],
+      ["time", null, "from 2026-09-28T08:00Z to 2026-09-28T09:00Z"],
+      ["category", null, '"Critical Event"'],
+      ["tag", 0, "work"],
+      ["tag", 1, "urgent"],
+    ],
+  );
+});
+
+test("completed category and tag suggestions replace their selected spans in place", () => {
+  const base = "Alice meets Bob [category: Observation, tags: work|urgent]";
+  const options = {
+    entities: [],
+    places: [],
+    categories: [
+      { id: "observation", name: "Observation" },
+      { id: "conflict", name: "Conflict" },
+    ],
+    tags: ["work", "urgent", "travel"],
+  };
+
+  const category = composerEditableSections(base).find((section) => section.kind === "category");
+  assert.ok(category);
+  const conflict = occurrenceComposerSuggestions(base, {
+    ...options,
+    cursorOffset: category.end,
+  }).find((suggestion) => suggestion.kind === "category" && suggestion.label === "Conflict");
+  assert.ok(conflict?.replaceRange);
+  const categoryEdit = acceptComposerSuggestion(base, conflict, parseOccurrenceSentence(base).stage);
+  assert.equal(categoryEdit.value, "Alice meets Bob [category: Conflict, tags: work|urgent]");
+
+  const firstTag = composerEditableSections(categoryEdit.value).find(
+    (section) => section.kind === "tag" && section.index === 0,
+  );
+  assert.ok(firstTag);
+  const travel = occurrenceComposerSuggestions(categoryEdit.value, {
+    ...options,
+    cursorOffset: firstTag.end,
+  }).find((suggestion) => suggestion.kind === "tag" && suggestion.label === "travel");
+  assert.ok(travel?.replaceRange);
+  const tagEdit = acceptComposerSuggestion(
+    categoryEdit.value,
+    travel,
+    parseOccurrenceSentence(categoryEdit.value).stage,
+  );
+  assert.equal(tagEdit.value, "Alice meets Bob [category: Conflict, tags: travel|urgent]");
+});
+
+test("a complete sentence remains valid through reverse and unconventional edit order", () => {
+  const options = {
+    entities: [
+      { id: "alice", name: "Alice", type: "person" },
+      { id: "bob", name: "Bob", type: "person" },
+      { id: "carol", name: "Carol", type: "person" },
+      { id: "dana", name: "Dana", type: "person" },
+    ],
+    places: [
+      { id: "stockholm", name: "Stockholm" },
+      { id: "gothenburg", name: "Gothenburg" },
+    ],
+    categories: [{ id: "observation", name: "Observation" }],
+    tags: ["work", "urgent", "travel"],
+    timelineDefault: "2026-10-01T12:00Z",
+    predicates: ["meets", "calls", "warns"],
+  };
+  let value =
+    "Alice warns Dana at Stockholm from 2026-09-28T08:00Z to 2026-09-28T09:00Z [category: Observation, tags: work|urgent]";
+
+  const apply = (kind, label, index = 0) => {
+    const section = composerEditableSections(value).filter((candidate) => candidate.kind === kind)[index];
+    assert.ok(section, `missing ${kind}[${index}] in ${value}`);
+    const suggestion = occurrenceComposerSuggestions(value, {
+      ...options,
+      cursorOffset: section.end,
+    }).find((candidate) => candidate.label === label);
+    assert.ok(suggestion, `missing ${kind} suggestion ${label}`);
+    value = acceptComposerSuggestion(value, suggestion, parseOccurrenceSentence(value).stage).value;
+    assert.equal(parseOccurrenceSentence(value).stage, "complete", value);
+  };
+
+  apply("time", "2026-10-01T12:00Z");
+  apply("subject", "Carol");
+  apply("tag", "travel", 0);
+  apply("place", "Gothenburg");
+  apply("predicate", "calls");
+  apply("object", "Bob");
+
+  const parsed = parseOccurrenceSentence(value);
+  assert.equal(parsed.subject?.name, "Carol");
+  assert.equal(parsed.predicate, "calls");
+  assert.equal(parsed.object?.name, "Bob");
+  assert.equal(parsed.place?.name, "Gothenburg");
+  assert.deepEqual(parsed.time, { kind: "instant", start: "2026-10-01T12:00Z" });
+  assert.equal(parsed.options.category, "Observation");
+  assert.deepEqual(parsed.options.tags, ["travel", "urgent"]);
+});
+
+test("a full occurrence can be composed entirely by accepting suggestions", () => {
+  const options = {
+    entities: [
+      { id: "alice", name: "Alice", type: "person" },
+      { id: "bob", name: "Bob", type: "person" },
+    ],
+    places: [{ id: "stockholm", name: "Stockholm" }],
+    categories: [{ id: "observation", name: "Observation" }],
+    tags: ["work", "travel"],
+    timelineDefault: "2026-09-28T12:00Z",
+    predicates: ["meets"],
+  };
+  let value = "";
+  const accept = (kind, label) => {
+    const suggestions = occurrenceComposerSuggestions(value, {
+      ...options,
+      cursorOffset: value.length,
+    });
+    const suggestion = suggestions.find(
+      (candidate) => candidate.kind === kind && candidate.label === label,
+    );
+    assert.ok(suggestion, `missing ${kind} suggestion ${label} for ${value}`);
+    value = acceptComposerSuggestion(value, suggestion, parseOccurrenceSentence(value).stage).value;
+  };
+
+  accept("entity", "Alice");
+  accept("predicate", "meets");
+  accept("entity", "Bob");
+  accept("place", "Stockholm");
+  accept("time", "2026-09-28T12:00Z");
+  accept("category", "Observation");
+  accept("tag", "work");
+
+  const parsed = parseOccurrenceSentence(value);
+  assert.equal(parsed.stage, "complete");
+  assert.equal(parsed.subject?.name, "Alice");
+  assert.equal(parsed.predicate, "meets");
+  assert.equal(parsed.object?.name, "Bob");
+  assert.equal(parsed.place?.name, "Stockholm");
+  assert.equal(parsed.time?.start, "2026-09-28T12:00Z");
+  assert.equal(parsed.options.category, "Observation");
+  assert.deepEqual(parsed.options.tags, ["work"]);
+});
+
+test("live composer preserves project tags for option completion", async () => {
+  const source = await readFile(
+    new URL("../site/components/occurrence-composer.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /tags:\s*Object\.freeze\(\[\.\.\.\(data\.tags \?\? \[\]\)\]\)/);
+  assert.match(source, /composerEditableSections\(this\.value\)/);
+  assert.match(source, /editSentenceSection\(section\)/);
 });
