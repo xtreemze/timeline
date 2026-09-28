@@ -1,6 +1,5 @@
 import {
   defaultSemanticIconForEntityType,
-  normalizeEntityPresentationAttributes,
   normalizeSemanticIconName,
   type SemanticIconName,
 } from "./semantic-icons.ts";
