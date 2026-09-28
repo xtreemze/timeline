@@ -350,3 +350,48 @@ test("Cloudflare worker exposes health, verification challenge, and MCP routes",
   );
   assert.equal(mcp.status, 200);
 });
+
+test("public story staging reports advisory semantic icon provenance without mutating the proposal", () => {
+  const project = validProject();
+  project.entities[0].name = "The Wolf";
+  project.entities[0].attributes = { storyId: "story-a" };
+  project.entities[1].attributes = {
+    storyId: "story-a",
+    style: { icon: "person" },
+  };
+  project.items[0].title = "The Wolf warns Bob";
+  project.items[0].description = "The Wolf warned Bob.";
+  project.evidence[0].note = "The Wolf warned Bob on 2026-01-02.";
+  const before = structuredClone(project);
+
+  const result = stageStoryProject({
+    project,
+    sources: [{ id: "src-a", title: "Exhibit A" }],
+  });
+
+  assert.deepEqual(result.project, before);
+  assert.deepEqual(project, before);
+  assert.deepEqual(result.semanticIcons, [
+    {
+      entityId: "alice",
+      entityName: "The Wolf",
+      entityType: "person",
+      icon: "wolf",
+      origin: "inferred",
+      confidence: "high",
+      reason: "name:wolf",
+      authoredIcon: null,
+    },
+    {
+      entityId: "bob",
+      entityName: "Bob",
+      entityType: "person",
+      icon: "person",
+      origin: "explicit",
+      confidence: null,
+      reason: "authored",
+      authoredIcon: "person",
+    },
+  ]);
+  assert.equal(project.entities[0].attributes.style, undefined);
+});
