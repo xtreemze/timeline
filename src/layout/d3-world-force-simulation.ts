@@ -43,6 +43,13 @@ const INTERACTION_EDGE_MAX_STRETCH_SCALE = 8;
 /** Bound post-drop target error so a distant release cannot inject a one-frame force spike. */
 const INTERACTION_FORCE_MAX_ERROR_METERS = 6_000;
 const DRAG_MOVE_ALPHA_FLOOR = 0.04;
+/**
+ * A committed temporal re-anchor can preserve a visible pose far from its new
+ * place. This temporary alpha-independent force returns that survivor to local
+ * graph scale, then releases so ordinary anchor/DAG/link forces own equilibrium.
+ */
+const PROJECTION_HANDOFF_FORCE_STRENGTH = 0.03;
+const PROJECTION_HANDOFF_RELEASE_ERROR_METERS = 1_000;
 const CROSS_PLACE_INTERACTION_TICKS = 3;
 const EARTH_RADIUS_METERS = 6_371_008.8;
 const POLAR_COSINE_EPSILON = 1e-9;
