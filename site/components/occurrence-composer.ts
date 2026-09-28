@@ -510,6 +510,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
   private metadataSourceIds = "";
   private metadataConfidence = "";
   private useSelectionPlaceContext = true;
+  private contextDirty = false;
 
   constructor() {
     super();
@@ -579,7 +580,9 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const previousKey = this.selectionIdentityKey(this.selectionContext);
     const nextKey = this.selectionIdentityKey(nextContext);
     const dirtyDraft =
-      (Boolean(this.value.trim()) && !this.selectionSeeded) || this.metadataDirty;
+      (Boolean(this.value.trim()) && !this.selectionSeeded) ||
+      this.metadataDirty ||
+      this.contextDirty;
 
     if (previousKey !== nextKey && dirtyDraft) {
       this.pendingSelectionContext = nextContext;
@@ -665,6 +668,13 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.metadataSourceIds = "";
     this.metadataConfidence = "";
     this.useSelectionPlaceContext = true;
+    this.contextDirty = false;
+  }
+
+  private refreshContextDirty(): void {
+    this.contextDirty = Boolean(
+      this.explicitPlaceContext || this.explicitTimeContext || !this.useSelectionPlaceContext,
+    );
   }
 
   private selectionMetadataSnapshot(): OccurrenceComposerMetadata {
@@ -746,7 +756,11 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
   beginSession(): void {
     const nextKey = this.currentContextKey();
-    if (this.sessionKey && this.sessionKey !== nextKey && (this.value.trim() || this.metadataDirty)) {
+    if (
+      this.sessionKey &&
+      this.sessionKey !== nextKey &&
+      (this.value.trim() || this.metadataDirty || this.contextDirty)
+    ) {
       this.resetDraft();
     }
     this.sessionKey = nextKey;
@@ -878,6 +892,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     if (nextDraft.time && !previousTime) {
       this.explicitTimeContext = null;
     }
+    this.refreshContextDirty();
     this.externalError = "";
     this.activeSuggestion = 0;
     this.requestUpdate();
@@ -934,12 +949,14 @@ export class LuumOccurrenceComposerElement extends LitElement {
   private activateLivePlaceContext(): void {
     if (this.selectionContext?.place) {
       this.useSelectionPlaceContext = !this.useSelectionPlaceContext;
+      this.refreshContextDirty();
       this.externalError = "";
       this.requestUpdate();
       return;
     }
     if (!this.worldContext) return;
     this.explicitPlaceContext = this.explicitPlaceContext ? null : this.worldContext;
+    this.refreshContextDirty();
     this.externalError = "";
     this.requestUpdate();
   }
@@ -947,6 +964,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
   private activateLiveTimeContext(): void {
     if (this.explicitTimeContext) {
       this.explicitTimeContext = null;
+      this.refreshContextDirty();
       this.externalError = "";
       this.requestUpdate();
       return;
@@ -962,6 +980,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
       return;
     }
     this.explicitTimeContext = context;
+    this.refreshContextDirty();
     this.externalError = "";
     this.requestUpdate();
   }
