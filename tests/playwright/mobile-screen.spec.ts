@@ -101,6 +101,14 @@ test.describe("Narrow mobile screen contracts", () => {
       await expect(toggle).toHaveAttribute("aria-expanded", "true");
       await expect(composer).toHaveAttribute("active", "");
       await expect(input).toBeVisible();
+      await expect(composer.locator(".context-row")).toBeVisible();
+      const visualViewportHeight = await page.evaluate(
+        () => window.visualViewport?.height ?? innerHeight,
+      );
+      const composerViewportHeight = await composer.evaluate((element) =>
+        getComputedStyle(element).getPropertyValue("--composer-visual-viewport-height").trim(),
+      );
+      expect(composerViewportHeight).toBe(String(Math.round(visualViewportHeight)) + "px");
 
       const [expanded, inputBox] = await Promise.all([dock.boundingBox(), input.boundingBox()]);
       expect(expanded).not.toBeNull();
