@@ -234,6 +234,7 @@ test("Lit composer is a touch-safe ARIA combobox with live-context guidance", as
   assert.match(source, /beginSession\(\): void/);
   assert.match(source, /currentContextKey\(\)/);
   assert.match(source, /resetDraft\(\)/);
+  assert.match(source, /hide\(\): void \{[\s\S]*sessionKey = this\.currentContextKey\(\)/);
   assert.doesNotMatch(source, /event\.key === "Tab"/);
   assert.doesNotMatch(source, /event\.key === "Home"/);
   assert.doesNotMatch(source, /event\.key === "End"/);
