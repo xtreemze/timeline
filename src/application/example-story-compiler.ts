@@ -53,6 +53,11 @@ export interface CompiledExampleStoryProject {
   readonly serialized: string;
 }
 
+export interface CompiledExampleCorpusStory extends CompiledExampleStoryProject {
+  readonly storyId: string;
+  readonly modules: readonly string[];
+}
+
 function record(value: unknown): JsonRecord {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as JsonRecord)
@@ -424,4 +429,46 @@ export function compileExampleStoryModules(
     }),
     createProjectModule({ ...ownership, collection: "stories", records: project.stories ?? [] }),
   ]);
+}
+
+
+export function compileExampleStoryCorpus(
+  sample: LegacyExampleSample,
+  selectedStoryIds: readonly string[],
+  options: { readonly savedAt: string; readonly projectKeyPrefix?: string },
+): readonly CompiledExampleCorpusStory[] {
+  const ids = selectedStoryIds.map((value) => requiredString(value, "Example story ID"));
+  if (new Set(ids).size !== ids.length) {
+    throw new Error("Example corpus story IDs must not contain duplicates.");
+  }
+
+  const availableIds = new Set(sample.stories.map((story) => story.id));
+  for (const id of ids) {
+    if (!availableIds.has(id)) {
+      throw new Error(`Example story ${id} does not exist.`);
+    }
+  }
+
+  return Object.freeze(
+    ids.map((id) => {
+      const suffix = id.replace(/^story-/, "");
+      const projectKey = options.projectKeyPrefix
+        ? `${options.projectKeyPrefix}-${suffix}`
+        : undefined;
+      const compiled = compileExampleStoryProject(sample, id, {
+        savedAt: options.savedAt,
+        ...(projectKey ? { projectKey } : {}),
+      });
+      const modules = compileExampleStoryModules(sample, id, {
+        savedAt: options.savedAt,
+        ...(projectKey ? { projectKey } : {}),
+      });
+      return Object.freeze({
+        storyId: id,
+        snapshot: compiled.snapshot,
+        serialized: compiled.serialized,
+        modules,
+      });
+    }),
+  );
 }
