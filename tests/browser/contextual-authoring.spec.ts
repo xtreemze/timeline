@@ -698,7 +698,8 @@ test.describe("contextual world authoring certification", () => {
     const composer = await openPersistentComposer(page);
     const input = composer.locator("input");
     const baseline = await input.inputValue();
-    const dirty = `${baseline} `;
+    const dirty = baseline.replace(first.predicate, `${first.predicate}-draft`);
+    expect(dirty).not.toBe(baseline);
     await input.fill(dirty);
     await input.press("Escape");
     await expect(composer).not.toHaveAttribute("active", "");
