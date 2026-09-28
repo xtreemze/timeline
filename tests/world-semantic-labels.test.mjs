@@ -854,6 +854,11 @@ test("dense detail scenes keep only collision-free labels and reveal interaction
       .filter((datum) => datum.kind === "entity-label")
       .map((datum) => datum.entityId),
   );
+  const visiblePlaceIds = new Set(
+    labels.props.data
+      .filter((datum) => datum.kind === "place-label")
+      .map((datum) => datum.placeId),
+  );
   assert.ok(
     labels.props.data.length < instances.length * 2,
     "detail zoom no longer forces overlapping labels back into the scene",
@@ -876,6 +881,89 @@ test("dense detail scenes keep only collision-free labels and reveal interaction
       (datum) => datum.kind === "entity-label" && datum.entityId === hidden.canonicalId,
     ),
     "selection still reveals a suppressed label without restoring the surrounding clutter",
+  );
+
+  const hiddenPlaceId = instances
+    .map((candidate) => candidate.geographicAnchors[0]?.placeId)
+    .find((placeId) => placeId && !visiblePlaceIds.has(placeId));
+  assert.ok(hiddenPlaceId, "dense co-located fixture leaves at least one optional place label hidden");
+
+  surface.setSelection({ kind: "place", id: hiddenPlaceId });
+  const selectedPlaceLabels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
+  assert.ok(
+    selectedPlaceLabels.some(
+      (datum) => datum.kind === "place-label" && datum.placeId === hiddenPlaceId,
+    ),
+    "selected place labels survive saturated collision placement",
+  );
+});
+
+test("selected objects without authored labels fall back to canonical identity", () => {
+  const h = harness();
+  const source = instance(0, {
+    label: undefined,
+    geographicAnchors: [
+      {
+        placeId: "fallback-place",
+        longitude: 12,
+        latitude: 41,
+        influence: 1,
+      },
+    ],
+  });
+  const target = instance(1, {
+    geographicAnchors: [
+      {
+        placeId: "fallback-target-place",
+        label: "Fallback target place",
+        longitude: 13,
+        latitude: 41,
+        influence: 1,
+      },
+    ],
+  });
+  const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 9 });
+  surface.setProjection(
+    createWorldProjection({
+      instances: [source, target],
+      edges: [
+        createProjectedWorldEdge({
+          id: "fallback-edge",
+          sourceInstanceId: source.id,
+          targetInstanceId: target.id,
+          temporalWeight: 1,
+          visible: true,
+          retained: false,
+        }),
+      ],
+    }),
+  );
+
+  surface.setSelection({ kind: "entity", id: source.canonicalId });
+  let selected = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
+  assert.equal(
+    selected.find(
+      (datum) => datum.kind === "entity-label" && datum.entityId === source.canonicalId,
+    )?.text,
+    source.canonicalId,
+  );
+
+  surface.setSelection({ kind: "place", id: "fallback-place" });
+  selected = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
+  assert.equal(
+    selected.find(
+      (datum) => datum.kind === "place-label" && datum.placeId === "fallback-place",
+    )?.text,
+    "fallback-place",
+  );
+
+  surface.setSelection({ kind: "relationship", id: "fallback-edge" });
+  selected = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
+  assert.equal(
+    selected.find(
+      (datum) => datum.kind === "relationship-label" && datum.relationshipId === "fallback-edge",
+    )?.text,
+    "fallback-edge",
   );
 });
 
@@ -1911,6 +1999,94 @@ function crowdedIncidentProjection(count = 20) {
   );
   return createWorldProjection({ instances: [source, target], edges });
 }
+
+function clusteredRelationshipProjection() {
+  const geographicAnchors = [
+    {
+      placeId: "clustered-edge-place",
+      label: "Clustered edge place",
+      longitude: 10,
+      latitude: 40,
+      influence: 1,
+    },
+  ];
+  const source = instance(0, { visualWeight: 1, geographicAnchors });
+  const target = instance(1, { geographicAnchors });
+  const sibling = instance(2, { geographicAnchors });
+  return createWorldProjection({
+    instances: [source, target, sibling],
+    edges: [
+      createProjectedWorldEdge({
+        id: "clustered-selected-edge",
+        label: "connected",
+        sourceInstanceId: source.id,
+        targetInstanceId: target.id,
+        temporalWeight: 1,
+        visible: true,
+        retained: false,
+      }),
+    ],
+  });
+}
+
+test("directly selected relationship labels survive saturated collision placement", () => {
+  const h = harness();
+  const projection = crowdedIncidentProjection();
+  const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 9 });
+  surface.setProjection(projection);
+
+  const before = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
+  const visibleRelationshipIds = new Set(
+    before
+      .filter((datum) => datum.kind === "relationship-label")
+      .map((datum) => datum.relationshipId),
+  );
+  const hidden = projection.edges.find((edge) => !visibleRelationshipIds.has(edge.id));
+  assert.ok(hidden, "crowded relationship fixture suppresses at least one predicate label");
+
+  surface.setSelection({ kind: "relationship", id: hidden.id });
+  const after = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
+  assert.ok(
+    after.some(
+      (datum) => datum.kind === "relationship-label" && datum.relationshipId === hidden.id,
+    ),
+    "a directly selected relationship label cannot be dropped by collision declutter",
+  );
+});
+
+test("selected relationship labels remain visible inside collapsed clusters", () => {
+  const h = harness();
+  const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 0.2 });
+  surface.setProjection(clusteredRelationshipProjection());
+
+  assert.ok(
+    layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.entities).props.data.some(
+      (datum) => datum.kind === "cluster",
+    ),
+    "fixture must begin in a collapsed cluster",
+  );
+  let labels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
+  assert.equal(
+    labels.some(
+      (datum) =>
+        datum.kind === "relationship-label" &&
+        datum.relationshipId === "clustered-selected-edge",
+    ),
+    false,
+    "ordinary clustered relationship labels remain suppressed",
+  );
+
+  surface.setSelection({ kind: "relationship", id: "clustered-selected-edge" });
+  labels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
+  assert.ok(
+    labels.some(
+      (datum) =>
+        datum.kind === "relationship-label" &&
+        datum.relationshipId === "clustered-selected-edge",
+    ),
+    "selection overrides cluster label suppression",
+  );
+});
 
 test("selecting a node makes every incident edge predicate visibly labeled", () => {
   const h = harness();

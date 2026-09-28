@@ -2383,7 +2383,7 @@ function placeWorldLabelDatums(
       }
       if (required) {
         // Keep the common path at the original short-circuit cost. Only
-        // required selected-node edge labels pay for a scored fallback.
+        // required selected semantic labels and selected-node incident edge labels pay for a scored fallback.
         const labelConflictCount = keys.reduce(
           (count, key) =>
             count + (grid.get(key)?.filter((other) => overlaps(box, other)).length ?? 0),
@@ -2686,9 +2686,10 @@ function labelDatums(input: {
   };
 
   // Interaction overlays are appended after the stable base pass and never
-  // displace established labels. Selected-node incident edge labels are the
-  // readability exception: when every nearby slot conflicts they may use the
-  // least-conflicted nearby fallback rather than disappear or drift away.
+  // displace established labels. Directly selected semantic labels and
+  // selected-node incident edge labels are readability exceptions: when every
+  // nearby slot conflicts they may use the least-conflicted deterministic
+  // fallback rather than disappear or drift away.
   for (const cluster of input.clusters) {
     if (!clusterInteracted(cluster)) continue;
     const key = `cluster:${cluster.clusterId}`;
@@ -2714,8 +2715,12 @@ function labelDatums(input: {
     queueInteractionLabel(datum, input.clusterMarkerRadiusPx(cluster));
   }
 
+  const requiredInteractionLabelKeys = new Set<string>();
   const interactionPlaceIds = new Set<PlaceId>();
-  if (input.selection?.kind === "place") interactionPlaceIds.add(input.selection.id);
+  if (input.selection?.kind === "place") {
+    interactionPlaceIds.add(input.selection.id);
+    requiredInteractionLabelKeys.add(`place:${input.selection.id}`);
+  }
   if (input.hoverSelection?.kind === "place") interactionPlaceIds.add(input.hoverSelection.id);
   if (input.focus?.kind === "place") interactionPlaceIds.add(input.focus.id as PlaceId);
   // Place labels are revealed only by direct place interaction. Neighborhood
@@ -2723,10 +2728,10 @@ function labelDatums(input: {
   // already-visible place label, but it must not resurrect one suppressed by
   // the ordinary LOD/declutter pass.
   for (const place of input.places) {
-    if (!place.label || !interactionPlaceIds.has(place.placeId)) continue;
+    if (!interactionPlaceIds.has(place.placeId)) continue;
     const key = `place:${place.placeId}`;
     if (placedByKey.has(key)) continue;
-    const text = place.label;
+    const text = place.label?.trim() || String(place.placeId);
     const prior = input.previous.get(key);
     const datum =
       prior && labelDatumUnchanged(prior, text, place.position, true)
@@ -2742,7 +2747,6 @@ function labelDatums(input: {
     queueInteractionLabel(datum, input.placeMarkerRadiusPx(place.placeId));
   }
 
-  const requiredInteractionLabelKeys = new Set<string>();
   const interactionEntityIds = new Set<EntityId>(input.contextEntityIds);
   if (input.selection?.kind === "entity") interactionEntityIds.add(input.selection.id);
   if (input.hoverSelection?.kind === "entity") interactionEntityIds.add(input.hoverSelection.id);
@@ -2766,7 +2770,6 @@ function labelDatums(input: {
       }
     }
     for (const entity of interactionEntities.values()) {
-      if (!entity.label) continue;
       const key = `entity:${entity.worldInstanceId}`;
       if (placedByKey.has(key)) continue;
       if (
@@ -2777,7 +2780,7 @@ function labelDatums(input: {
         requiredInteractionLabelKeys.add(key);
       }
 
-      const text = entity.label;
+      const text = entity.label?.trim() || String(entity.entityId);
       const emphasized = focused("entity", entity.entityId);
       const prior = input.previous.get(key);
       const datum =
@@ -2809,7 +2812,10 @@ function labelDatums(input: {
       requiredInteractionLabelKeys.add(`relationship:${relationship.relationshipId}`);
     }
   }
-  if (input.selection?.kind === "relationship") interactionRelationshipIds.add(input.selection.id);
+  if (input.selection?.kind === "relationship") {
+    interactionRelationshipIds.add(input.selection.id);
+    requiredInteractionLabelKeys.add(`relationship:${input.selection.id}`);
+  }
   if (input.hoverSelection?.kind === "relationship") {
     interactionRelationshipIds.add(input.hoverSelection.id);
   }
@@ -2818,12 +2824,12 @@ function labelDatums(input: {
   }
   if (interactionRelationshipIds.size > 0) {
     for (const relationship of input.relationships) {
-      if (!relationship.label || !interactionRelationshipIds.has(relationship.relationshipId)) {
+      if (!interactionRelationshipIds.has(relationship.relationshipId)) {
         continue;
       }
       const key = `relationship:${relationship.relationshipId}`;
       if (placedByKey.has(key)) continue;
-      const text = relationship.label;
+      const text = relationship.label?.trim() || String(relationship.relationshipId);
       const position = edgePathMidpoint(relationship.path);
       const prior = input.previous.get(key);
       const datum =
@@ -5374,7 +5380,11 @@ export class DeckWorldSurface implements WorldSurface {
     );
     const labelRelationships = relationships.filter(
       (relationship) =>
-        !edgeIsClusterAffected(relationship) || showActiveClusterEdges || showReleasingClusterEdges,
+        !edgeIsClusterAffected(relationship) ||
+        showActiveClusterEdges ||
+        showReleasingClusterEdges ||
+        (this.#selection?.kind === "relationship" &&
+          this.#selection.id === relationship.relationshipId),
     );
     const labelResult = this.#runtime.createTextLayer
       ? labelDatums({
