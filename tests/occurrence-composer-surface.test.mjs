@@ -39,6 +39,18 @@ test("composer owns the card and incremental world preview with interactive gram
   assert.match(source, /event\.key === "Home"/);
   assert.match(source, /qualifiers\.length \? \[\] : this\.suggestions/);
   assert.match(source, /previewCategory\?\.color/);
+  assert.equal((source.match(/class="context-row composer-grammar"/g) ?? []).length, 1);
+  assert.doesNotMatch(source, /preview\.tags\.map/);
+  assert.match(source, /class="composer-card-media"/);
+  assert.match(source, /class="composer-card-context"/);
+  assert.match(
+    source,
+    /occurrenceContextDeckFrames\(\s*this\.selectionContext\?\.media,\s*null\s*\)/,
+  );
+  assert.match(
+    source,
+    /@media \(min-width: 721px\)[\s\S]*?\.composer-card-details[\s\S]*?grid-template-columns:/,
+  );
 });
 
 test("investigative question travels to application reasoning authority", async () => {
