@@ -21,6 +21,8 @@ test("composer retains explicit non-Enter commit and exact section targeting", a
   );
 
   assert.match(source, /editSection\(/);
+  assert.match(source, /if \(this\.hasPendingSelectionContext\)/);
+  assert.match(source, /pending-selection/);
   assert.match(source, /composerEditableSections/);
   assert.match(source, /class="commit"/);
   assert.match(source, /@click=\$\{\(\) => this\.commit\(\)\}/);
