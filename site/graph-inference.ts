@@ -314,7 +314,7 @@ export async function infer(input: any, options: any = {}): Promise<Record<strin
   }
   const source = inferenceInput(input);
   if (!source.fragments.length)
-    throw new Error("Add event context or evidence notes before running inference.");
+    throw new Error("Add occurrence context or evidence notes before running inference.");
 
   const session = await languageModel.create({
     initialPrompts: [{ role: "system", content: SYSTEM_PROMPT }],
