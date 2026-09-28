@@ -226,5 +226,5 @@ export function applyProjectTransaction<TProject>(
 
   const draft = cloneValue(input);
   for (const operation of operations) applyOperation(draft, operation);
-  return draft as TProject;
+  return draft as unknown as TProject;
 }
