@@ -141,4 +141,6 @@ A PR touching architecture should answer:
 - Did any compatibility/global/direct-mutation baseline increase? If so, the architecture is not ready to merge.
 - For performance changes, what measured evidence justifies the added complexity?
 
+Every behavior change follows test first: RED → GREEN → REFACTOR. Add or modify the smallest executable invariant/characterization test first, run it, and observe it fail for the intended reason before changing production code. Then make the minimum implementation change that turns it green, and refactor only while the relevant suite remains green. A recurring failure always receives its regression test before its implementation fix.
+
 Prefer small PRs that turn a named failing contract green. Do not weaken tests, broaden suppressions, increase timeouts, or add source-string exceptions to bypass a failing architectural rule.
