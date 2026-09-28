@@ -498,7 +498,8 @@ function relationshipHasSemanticSupport(
   return linkedItemIds.some((itemId) => {
     const item = items.find((candidate) => itemIdOf(candidate) === itemId);
     const record = itemRecord(item);
-    return Array.isArray(record?.["evidenceIds"]) && record!["evidenceIds"].length > 0;
+    const evidenceIds = record?.["evidenceIds"];
+    return Array.isArray(evidenceIds) && evidenceIds.length > 0;
   });
 }
 
