@@ -28,7 +28,6 @@
   <main id="workspace">
     <section id="app-shell" class="app-shell" aria-label="Lūm application" data-mode="view" data-editor-open="false" data-browser-open="false" data-graph-open="true">
       <nav class="app-tool-dock app-footer-bar" aria-label="Workspace controls">
-        <luum-occurrence-composer id="occurrence-composer"></luum-occurrence-composer>
         <div class="app-footer-zone app-footer-actions" role="group" aria-label="Primary workspace actions">
           <button id="project-menu-toggle" class="toolbar-control app-tool app-project-tool project-menu-toggle" type="button" data-semantic-icon="folder" popovertarget="project-menu" aria-haspopup="menu" aria-controls="project-menu" aria-expanded="false" aria-label="Project actions" title="Project actions">
             <span class="app-tool-label sr-only">Project</span>
@@ -40,6 +39,7 @@
             <span class="app-tool-label sr-only">Browse</span>
           </button>
         </div>
+        <luum-occurrence-composer id="occurrence-composer"></luum-occurrence-composer>
         <div id="timeline-view-controls" class="app-footer-zone app-footer-view" role="group" aria-label="View controls">
           <div class="view-control-group world-view-control-group" data-world-controls-slot role="group" aria-label="World view controls">
             <button id="timeline-related-zoom" class="toolbar-control timeline-context-action timeline-related-world-action" type="button" data-view-control disabled data-semantic-icon="zoom-in" aria-controls="temporal-graph-view" aria-label="Zoom to related nodes" title="Zoom to related nodes">
