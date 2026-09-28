@@ -307,6 +307,40 @@ test("D3 topology collision spans distinct place groups regardless of relationsh
   }
 });
 
+test("D3 topology cross-place collision cools to a settled state", () => {
+  const simulation = new D3WorldForceSimulation();
+  const left = '["settle-left","place-a"]';
+  const right = '["settle-right","place-b"]';
+
+  simulation.setScene({
+    nodes: [node(left, -20, 260), node(right, 20, 260)],
+    edges: [],
+    anchors: [
+      anchor(left, "place-a", 1, { longitude: 18, latitude: 59 }),
+      anchor(right, "place-b", 1, { longitude: 18, latitude: 59 }),
+    ],
+  });
+
+  simulation.apply(topologyRequest());
+  for (
+    let index = 0;
+    index < 480 && !simulation.getDiagnostics().settled;
+    index += 1
+  ) {
+    simulation.step(1000 / 60);
+  }
+
+  assert.equal(
+    simulation.getDiagnostics().settled,
+    true,
+    "cross-place collision must cool with the owning place groups instead of reheating forever",
+  );
+  assert.ok(
+    distance(simulation.getSnapshot(), left, right) >= 500,
+    "settling must preserve the combined collision footprint",
+  );
+});
+
 test("D3 topology collision resolves multiple nearby places without waking remote geography", () => {
   const simulation = new D3WorldForceSimulation();
   const first = '["first","place-a"]';
