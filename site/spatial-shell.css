@@ -421,7 +421,10 @@
   border-radius: var(--toolbar-control-radius);
   background: color-mix(in srgb, var(--paper) 86%, transparent);
   color: var(--muted);
-  font: 600 0.72rem/1.2 inherit;
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.2;
   text-align: start;
   text-overflow: ellipsis;
   white-space: nowrap;
