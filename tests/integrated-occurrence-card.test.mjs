@@ -51,4 +51,12 @@ test("direct occurrence activation always requests the composer, including an al
     view,
     /if \(this\.focusedId === item\.id\) \{\s*this\.ensureFocusPopover\(\);/,
   );
+  assert.match(
+    view,
+    /timeline-semantic-occurrence[\s\S]*timelineoccurrenceeditrequest/,
+  );
+  assert.match(
+    view,
+    /activateCommittedCluster[\s\S]*timelineoccurrenceeditrequest[\s\S]*detail: \{ id: selectedId \}/,
+  );
 });
