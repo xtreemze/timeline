@@ -775,6 +775,8 @@ test("application keeps timeline and World live while composer uses their center
     /updateOccurrence\([\s\S]*relationshipId:\s*detail\.editTarget\.relationshipId/,
   );
   assert.match(source, /Occurrence unchanged\./);
+  assert.match(source, /result\.semanticReviewRequired/);
+  assert.match(source, /Review its evidence, confidence, and semantic context/);
   assert.match(source, /composerItemIdForRelationship/);
   assert.doesNotMatch(source, /draft\.entities\.push\(entity\)/);
   assert.doesNotMatch(source, /draft\.places\.push\(place\)/);
