@@ -45,6 +45,22 @@ test("graph editor separates entity nodes, reusable places, and action-edge cont
   assert.match(html, /id="graph-edge-date-range"/);
 });
 
+test("entity semantic icon authoring exposes resolved preview and visible list semantics", async () => {
+  const [html, source] = await Promise.all([
+    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(html, /id="graph-node-icon-preview"/);
+  assert.match(html, /id="graph-node-icon-status"/);
+  assert.match(source, /defaultSemanticIconForEntityType/);
+  assert.match(source, /function syncGraphNodeIconPreview/);
+  assert.match(source, /graphNodeIcon\.addEventListener\("input"/);
+  assert.match(source, /graphNodeType\.addEventListener\("input"/);
+  assert.match(source, /dataset\.iconOrigin/);
+  assert.match(source, /renderGraphNodes[\s\S]*presentation\.createIcon/);
+});
+
 test("timeline includes an interactive temporal node-edge graph lens", async () => {
   const [html, source, css] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
