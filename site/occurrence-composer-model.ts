@@ -1016,15 +1016,12 @@ export function replaceComposerTail(
   }
 
   if (stage === "subject") return `${insertText} `;
-  if (stage === "predicate") {
-    const withoutTail = trimmed.replace(/[^\s]*$/, "");
-    return `${withoutTail}${insertText} `;
-  }
-  if (stage === "object") {
-    const parsedSubject = parseEntityAtStart(trimmed);
-    const predicate = parsedSubject.rest.match(/^([^\s()\[\]]+)/)?.[1] ?? "";
-    const prefix = `${quoteComposerName(parsedSubject.entity?.name ?? "")} ${predicate}`.trim();
-    return `${prefix} ${insertText} `;
+  if (stage === "predicate" || stage === "object") {
+    // At these parser stages there is no predicate/object token yet. Explicit suggestion
+    // acceptance must append the next grammar component instead of reconstructing or
+    // trimming the already-accepted prefix (which can contain quoted/multi-word entities
+    // or canonical @ids).
+    return `${trimmed}${trimmed ? " " : ""}${insertText} `;
   }
   const separator = trimmed ? " " : "";
   return `${trimmed}${separator}${insertText} `;
