@@ -2521,12 +2521,12 @@ function mediaRowParts(row) {
   };
 }
 
-function tagRowParts(row) {
+function tagRowParts(row: HTMLElement) {
   return {
-    label: row.querySelector('input[type="text"]'),
-    icon: row.querySelector("select"),
-    hue: row.querySelector('input[type="range"]'),
-    output: row.querySelector("output"),
+    label: requiredDescendant<HTMLInputElement>(row, 'input[id$="-label"]'),
+    icon: requiredDescendant<HTMLInputElement>(row, 'input[id$="-icon"]'),
+    hue: requiredDescendant<HTMLInputElement>(row, 'input[type="range"]'),
+    output: requiredDescendant<HTMLOutputElement>(row, "output"),
   };
 }
 
@@ -2566,9 +2566,14 @@ function collectTagForm() {
     const parts = tagRowParts(row);
     const label = parts.label.value.trim();
     if (!label) continue;
+    const rawIcon = parts.icon.value.trim();
+    const icon = rawIcon ? normalizeSemanticIconName(rawIcon) : "note";
+    if (rawIcon && !icon) {
+      throw new Error(`Unsupported semantic icon “${rawIcon}”.`);
+    }
     tags.push({
       label,
-      icon: parts.icon.value,
+      icon: icon ?? "note",
       hue: Number(parts.hue.value),
     });
   }
