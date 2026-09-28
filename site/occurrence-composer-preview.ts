@@ -1,4 +1,6 @@
 import { normalizeSemanticIconName } from "../src/presentation/semantic-icons.ts";
+import { worldNodeStyle, type WorldGraphPalette } from "../src/layout/world-graph-style.ts";
+import { worldNodeMarker } from "./world/world-node-marker.ts";
 import {
   composerEditableSections,
   parseOccurrenceSentence,
@@ -10,6 +12,27 @@ import {
 export interface ComposerPreviewNode {
   readonly label: string;
   readonly icon: string;
+  readonly entityId?: string;
+  readonly style?: Readonly<Record<string, string>>;
+}
+
+/** Share the renderer's marker geometry, authored styling and semantic glyph. */
+export function composerWorldNodeMarker(
+  node: ComposerPreviewNode,
+  entities: readonly ComposerEntityOption[],
+  palette: WorldGraphPalette,
+) {
+  const entity = entities.find((candidate) =>
+    node.entityId ? candidate.id === node.entityId : candidate.name === node.label,
+  );
+  const authoredStyle = entity?.attributes?.style;
+  const style = typeof authoredStyle === "object" && authoredStyle !== null && !Array.isArray(authoredStyle)
+    ? authoredStyle as Readonly<Record<string, unknown>>
+    : {};
+  return worldNodeMarker(worldNodeStyle({
+    type: entity?.type ?? "person",
+    attributes: { style: { ...style, ...node.style, icon: node.icon } },
+  }, palette));
 }
 
 export interface ComposerPreview {
@@ -41,7 +64,17 @@ function previewNode(
     normalizeSemanticIconName(properties?.icon) ||
     normalizeSemanticIconName(matched?.icon) ||
     "person";
-  return Object.freeze({ label: matched?.name ?? name.replace(/^@/, ""), icon });
+  const style = Object.fromEntries(
+    ["shape", "color", "fill", "border", "borderWidth", "image", "size", "radius"]
+      .filter((key) => properties?.[key])
+      .map((key) => [key, properties![key]]),
+  );
+  return Object.freeze({
+    label: matched?.name ?? name.replace(/^@/, ""),
+    icon,
+    ...(matched ? { entityId: matched.id } : {}),
+    ...(Object.keys(style).length ? { style: Object.freeze(style) } : {}),
+  });
 }
 
 export function projectComposerPreview(
@@ -69,6 +102,14 @@ export function projectComposerPreview(
           `@${candidate.id}` === parsed.place?.name,
       )
     : null;
+  const previewTags = parsed.options.tags.length
+    ? [...parsed.options.tags]
+    : sections.filter((section) => section.kind === "tag").map((section) => section.text);
+  if (suggestion?.kind === "tag") {
+    const current = sections.findLast((section) => section.kind === "tag");
+    if (current && previewTags.length) previewTags[previewTags.length - 1] = suggestion.insertText;
+    else previewTags.push(suggestion.insertText);
+  }
   return Object.freeze({
     subject: previewNode(
       parsed.subject?.name ?? sections.find((section) => section.kind === "subject")?.text,
@@ -83,8 +124,10 @@ export function projectComposerPreview(
       entities,
       previewObjectIcon,
     ),
-    category: parsed.options.category ?? null,
-    tags: parsed.options.tags,
+    category: suggestion?.kind === "category"
+      ? suggestion.insertText
+      : parsed.options.category ?? sections.find((section) => section.kind === "category")?.text ?? null,
+    tags: Object.freeze(previewTags),
     place: parsed.place
       ? Object.freeze({
           label: place?.name ?? parsed.place.name,
