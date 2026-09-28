@@ -46,6 +46,15 @@ test("legacy flat entity icon metadata migrates to canonical presentation style"
   );
 });
 
+test("semantic icon validation is part of the versioned graph contract", () => {
+  const contract = TimelineGraph.getGraphContract();
+  assert.equal(contract.version, "2026-09-28.1");
+  assert.equal(
+    contract.rules.semanticIcons,
+    "canonical-shared-vocabulary-with-entity-type-fallback",
+  );
+});
+
 test("graph validation rejects unknown icons and normalization migrates aliases", () => {
   assert.equal(
     TimelineGraph.validateEntityNode({
