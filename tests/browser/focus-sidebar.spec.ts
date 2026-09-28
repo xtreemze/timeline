@@ -90,9 +90,21 @@ test("landscape matches portrait timeline spacing at the physical edge", async (
   expect(Math.abs(landscapeEdgePixels - portraitEdgePixels)).toBeLessThanOrEqual(2);
 });
 
-test("focused detail is shell-owned while contextual actions stay in the footer", async ({
+test("focused detail owns contextual actions while persistent toolbar geometry stays unchanged", async ({
   page,
 }) => {
+  await ensureSample(page);
+  const persistent = [
+    page.locator("#occurrence-composer"),
+    page.locator("#project-menu-toggle"),
+    page.locator("#editor-toggle"),
+    page.locator("#timeline-browser-toggle"),
+    page.locator("#timeline-orientation-toggle"),
+    page.locator("#presentation-fullscreen-toggle"),
+    page.locator("#timeline-auto-toggle"),
+  ];
+  const before = await Promise.all(persistent.map((control) => control.boundingBox()));
+
   const focus = await focusOccurrence(page);
   await expect(focus).toHaveAttribute("data-presentation-surface", "sidebar");
   await expect(focus).not.toHaveAttribute("popover", /.+/);
@@ -103,17 +115,48 @@ test("focused detail is shell-owned while contextual actions stay in the footer"
   await expect(focus.locator(".timeline-focus-hero")).toBeVisible();
   await expect(focus.getByRole("tab", { name: "Context" })).toBeVisible();
   await expect(focus.getByRole("tab", { name: "Evidence" })).toBeVisible();
-  await expect(focus.locator(".timeline-focus-actions")).toHaveCount(0);
-  await expect(focus.getByRole("region", { name: "Place" })).toHaveCount(0);
-  await expect(focus.locator(".timeline-focus-edit")).toHaveCount(0);
-
-  await expect(page.locator("#timeline-focus-prev")).toBeVisible();
-  await expect(page.locator("#timeline-focus-next")).toBeVisible();
-  await expect(page.locator("#timeline-focus-edit")).toHaveCount(0);
+  await expect(page.locator(".app-footer-timeline")).toHaveCount(0);
+  await expect(page.locator("#timeline-focus-prev, #timeline-focus-next, #timeline-related-zoom, #timeline-related-fit")).toHaveCount(0);
   await expect(page.locator("#editor-toggle")).toHaveAttribute("aria-label", "Edit focused event");
-  await expect(page.locator("#timeline-related-zoom")).toBeVisible();
-  await expect(page.locator("#timeline-related-fit")).toBeVisible();
-  await expect(page.locator("#timeline-view-toolbar")).toBeVisible();
+
+  const actions = focus.locator(".timeline-focus-toolbar-actions");
+  await expect(actions).toBeVisible();
+  for (const selector of [
+    ".timeline-focus-prev",
+    ".timeline-focus-next",
+    ".timeline-focus-related-zoom",
+    ".timeline-focus-related-fit",
+    ".timeline-focus-close",
+  ]) {
+    const button = actions.locator(selector);
+    await expect(button).toBeVisible();
+    const [buttonBox, iconBox] = await Promise.all([
+      button.boundingBox(),
+      button.locator(":scope > .semantic-icon").boundingBox(),
+    ]);
+    expect(buttonBox).not.toBeNull();
+    expect(iconBox).not.toBeNull();
+    if (!buttonBox || !iconBox) continue;
+    expect(Math.abs(buttonBox.width - 44)).toBeLessThanOrEqual(1);
+    expect(Math.abs(buttonBox.height - 44)).toBeLessThanOrEqual(1);
+    expect(Math.abs(iconBox.width - 20)).toBeLessThanOrEqual(1);
+    expect(Math.abs(iconBox.height - 20)).toBeLessThanOrEqual(1);
+    expect(Math.abs(iconBox.x + iconBox.width / 2 - (buttonBox.x + buttonBox.width / 2))).toBeLessThanOrEqual(1);
+    expect(Math.abs(iconBox.y + iconBox.height / 2 - (buttonBox.y + buttonBox.height / 2))).toBeLessThanOrEqual(1);
+  }
+
+  const after = await Promise.all(persistent.map((control) => control.boundingBox()));
+  for (let index = 0; index < before.length; index += 1) {
+    const beforeBox = before[index];
+    const afterBox = after[index];
+    expect(beforeBox).not.toBeNull();
+    expect(afterBox).not.toBeNull();
+    if (!beforeBox || !afterBox) continue;
+    expect(Math.abs(afterBox.x - beforeBox.x)).toBeLessThanOrEqual(1);
+    expect(Math.abs(afterBox.y - beforeBox.y)).toBeLessThanOrEqual(1);
+    expect(Math.abs(afterBox.width - beforeBox.width)).toBeLessThanOrEqual(1);
+    expect(Math.abs(afterBox.height - beforeBox.height)).toBeLessThanOrEqual(1);
+  }
 
   await focus.locator(".timeline-focus-close").click();
   await expect(focus).toBeHidden();
@@ -184,21 +227,24 @@ test("hero image changes preserve the active detail tab and keyboard focus", asy
   expect(after).not.toBe(before);
 });
 
-test("focus edit affordances keep large hit targets with compact visible icons", async ({ page }) => {
+test("focused action icons keep one size and center position", async ({ page }) => {
   const focus = await focusOccurrence(page);
-  const edit = focus.locator(".timeline-focus-edit").first();
-  await expect(edit).toBeVisible();
-  const [buttonBox, iconBox] = await Promise.all([
-    edit.boundingBox(),
-    edit.locator(".semantic-icon").boundingBox(),
-  ]);
-  expect(buttonBox).not.toBeNull();
-  expect(iconBox).not.toBeNull();
-  if (!buttonBox || !iconBox) return;
-  expect(buttonBox.width).toBeGreaterThanOrEqual(44);
-  expect(buttonBox.height).toBeGreaterThanOrEqual(44);
-  expect(iconBox.width).toBeLessThanOrEqual(20);
-  expect(iconBox.height).toBeLessThanOrEqual(20);
+  const actions = focus.locator(".timeline-focus-icon-action");
+  await expect(actions).toHaveCount(5);
+  for (let index = 0; index < (await actions.count()); index += 1) {
+    const action = actions.nth(index);
+    const [buttonBox, iconBox] = await Promise.all([
+      action.boundingBox(),
+      action.locator(":scope > .semantic-icon").boundingBox(),
+    ]);
+    expect(buttonBox).not.toBeNull();
+    expect(iconBox).not.toBeNull();
+    if (!buttonBox || !iconBox) continue;
+    expect(Math.abs(iconBox.width - 20)).toBeLessThanOrEqual(1);
+    expect(Math.abs(iconBox.height - 20)).toBeLessThanOrEqual(1);
+    expect(Math.abs(iconBox.x + iconBox.width / 2 - (buttonBox.x + buttonBox.width / 2))).toBeLessThanOrEqual(1);
+    expect(Math.abs(iconBox.y + iconBox.height / 2 - (buttonBox.y + buttonBox.height / 2))).toBeLessThanOrEqual(1);
+  }
 });
 
 test("semantic activation of the selected occurrence keeps explicit-close focus open", async ({
