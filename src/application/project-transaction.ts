@@ -79,76 +79,76 @@ function records(value: unknown): unknown[] {
 
 function cleanupDelete(project: JsonRecord, collection: string, id: string): void {
   if (collection === "categories") {
-    const fallback = records(project.categories).find((raw) => {
+    const fallback = records(project["categories"]).find((raw) => {
       const candidate = record(raw);
-      return candidate && String(candidate.id ?? "") !== id;
+      return candidate && String(candidate["id"] ?? "") !== id;
     });
     const fallbackRecord = record(fallback);
     if (!fallbackRecord) throw new Error("The last category cannot be deleted.");
-    for (const raw of records(project.items)) {
+    for (const raw of records(project["items"])) {
       const item = record(raw);
-      if (item && String(item.categoryId ?? "") === id) item.categoryId = fallbackRecord.id;
+      if (item && String(item["categoryId"] ?? "") === id) item["categoryId"] = fallbackRecord["id"];
     }
   }
 
   if (collection === "items") {
-    for (const raw of records(project.stories)) {
+    for (const raw of records(project["stories"])) {
       const story = record(raw);
       if (!story) continue;
-      story.itemIds = records(story.itemIds).filter((itemId) => String(itemId) !== id);
+      story["itemIds"] = records(story["itemIds"]).filter((itemId) => String(itemId) !== id);
     }
-    for (const raw of records(project.relationships)) {
+    for (const raw of records(project["relationships"])) {
       const relationship = record(raw);
       if (!relationship) continue;
-      relationship.itemIds = records(relationship.itemIds).filter(
+      relationship["itemIds"] = records(relationship["itemIds"]).filter(
         (itemId) => String(itemId) !== id,
       );
     }
   }
 
   if (collection === "entities") {
-    project.relationships = records(project.relationships).filter((raw) => {
+    project["relationships"] = records(project["relationships"]).filter((raw) => {
       const relationship = record(raw);
       return (
         !relationship ||
-        (String(relationship.subjectId ?? "") !== id &&
-          String(relationship.objectId ?? "") !== id)
+        (String(relationship["subjectId"] ?? "") !== id &&
+          String(relationship["objectId"] ?? "") !== id)
       );
     });
   }
 
   if (collection === "places") {
-    for (const raw of records(project.relationships)) {
+    for (const raw of records(project["relationships"])) {
       const relationship = record(raw);
-      if (relationship && String(relationship.placeId ?? "") === id) {
-        relationship.placeId = "";
+      if (relationship && String(relationship["placeId"] ?? "") === id) {
+        relationship["placeId"] = "";
       }
     }
   }
 
   if (collection === "relationships") {
-    for (const raw of records(project.items)) {
+    for (const raw of records(project["items"])) {
       const item = record(raw);
       if (!item) continue;
-      item.relationChanges = records(item.relationChanges).filter((rawChange) => {
+      item["relationChanges"] = records(item["relationChanges"]).filter((rawChange) => {
         const change = record(rawChange);
-        return !change || String(change.relationshipId ?? "") !== id;
+        return !change || String(change["relationshipId"] ?? "") !== id;
       });
     }
   }
 
   if (collection === "evidence") {
-    for (const raw of records(project.items)) {
+    for (const raw of records(project["items"])) {
       const item = record(raw);
       if (!item) continue;
-      item.evidenceIds = records(item.evidenceIds).filter(
+      item["evidenceIds"] = records(item["evidenceIds"]).filter(
         (evidenceId) => String(evidenceId) !== id,
       );
     }
-    project.custodyActions = records(project.custodyActions).filter((raw) => {
+    project["custodyActions"] = records(project["custodyActions"]).filter((raw) => {
       const action = record(raw);
       if (!action) return true;
-      const evidenceId = action.evidenceId ?? action.recordId ?? action.evidenceRecordId ?? "";
+      const evidenceId = action["evidenceId"] ?? action["recordId"] ?? action["evidenceRecordId"] ?? "";
       return String(evidenceId) !== id;
     });
   }
@@ -174,19 +174,19 @@ function applyOperation(project: JsonRecord, operation: ProjectTransactionOperat
   const collection = text(operation.collection, 60);
   const collectionRecords = ensureCollection(project, collection);
   const suppliedId = text(operation.id, 120);
-  const valueId = text(record(operation.value)?.id, 120);
+  const valueId = text(record(operation.value)?.["id"], 120);
   const id = suppliedId || valueId;
   if (!id) {
     throw new Error(`${op || "collection"} operation on ${collection} requires a stable id.`);
   }
 
-  const index = collectionRecords.findIndex((raw) => String(record(raw)?.id ?? "") === id);
+  const index = collectionRecords.findIndex((raw) => String(record(raw)?.["id"] ?? "") === id);
   if (op === "delete") {
     if (index < 0) throw new Error(`${collection} record "${id}" does not exist.`);
     cleanupDelete(project, collection, id);
     const currentRecords = ensureCollection(project, collection);
     const currentIndex = currentRecords.findIndex(
-      (raw) => String(record(raw)?.id ?? "") === id,
+      (raw) => String(record(raw)?.["id"] ?? "") === id,
     );
     if (currentIndex >= 0) currentRecords.splice(currentIndex, 1);
     return;
@@ -202,7 +202,7 @@ function applyOperation(project: JsonRecord, operation: ProjectTransactionOperat
   }
 
   const value = cloneValue(input);
-  value.id = id;
+  value["id"] = id;
   if (index < 0) {
     collectionRecords.push(value);
     return;

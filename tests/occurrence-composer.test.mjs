@@ -267,16 +267,16 @@ test("application keeps timeline and World live while composer uses their center
   );
   assert.match(
     source,
-    /import \\{ authorOccurrence \\} from ["\']\\.\\.\\/src\\/application\\/occurrence-authoring\\.ts["\']/,
+    /import \{ authorOccurrence \} from ["']\.\.\/src\/application\/occurrence-authoring\.ts["']/,
   );
   assert.match(
     source,
-    /authorOccurrence\\(state,[\\s\\S]*activeStoryId:[\\s\\S]*ui\\.activeStoryId/,
+    /authorOccurrence\(state,[\s\S]*activeStoryId:[\s\S]*ui\.activeStoryId/,
   );
-  assert.doesNotMatch(source, /draft\\.entities\\.push\\(entity\\)/);
-  assert.doesNotMatch(source, /draft\\.places\\.push\\(place\\)/);
-  assert.doesNotMatch(source, /draft\\.items\\.push\\(item\\)/);
-  assert.doesNotMatch(source, /draft\\.relationships\\.push\\(relationship\\)/);
+  assert.doesNotMatch(source, /draft\.entities\.push\(entity\)/);
+  assert.doesNotMatch(source, /draft\.places\.push\(place\)/);
+  assert.doesNotMatch(source, /draft\.items\.push\(item\)/);
+  assert.doesNotMatch(source, /draft\.relationships\.push\(relationship\)/);
   assert.doesNotMatch(
     source,
     /function composerEntityByReference|function composerPlace|function composerCategory/,

@@ -30,6 +30,7 @@ import {
   worldInstanceId,
 } from "../src/projection/world-projection.ts";
 import { diffWorldProjection } from "../src/projection/world-projection-delta.ts";
+import { preserveWorldProjectionRenderContinuity } from "../src/layout/world-geographic-position.ts";
 
 const DEFAULT_CLUSTER_NODE_RADIUS_PX = WORLD_ENTITY_MIN_HIT_RADIUS_PX;
 
@@ -1298,6 +1299,7 @@ test("DeckWorldSurface renders places, globe-visible paths, and elevated entity 
   assert.equal(tethers.props.pickable, false);
   assert.ok(tethers.props.data.length > 0, "floating entities hang from their place");
   const relationship = relationships.props.data[0];
+  const tether = tethers.props.data[0];
   assert.equal(tethers.props.getWidth(tether), 1, "visible tethers keep a full CSS-pixel stroke");
   // The fake runtime provides basic getColor for path layers
   // Note: tether layer accessors may not be functions in the fake runtime

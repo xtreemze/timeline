@@ -116,14 +116,14 @@ export function defaultSemanticIconForEntityType(value: unknown): SemanticIconNa
 
 export function normalizeEntityPresentationAttributes(value: unknown): Record<string, unknown> {
   const attributes = record(value);
-  const style = record(attributes.style);
-  const iconCandidate = style.icon ?? attributes.icon;
+  const style = record(attributes["style"]);
+  const iconCandidate = style["icon"] ?? attributes["icon"];
   if (iconCandidate !== undefined && iconCandidate !== null && String(iconCandidate).trim()) {
     const canonical = normalizeSemanticIconName(iconCandidate);
-    style.icon = canonical ?? String(iconCandidate).trim().slice(0, 48);
+    style["icon"] = canonical ?? String(iconCandidate).trim().slice(0, 48);
   }
-  delete attributes.icon;
-  if (Object.keys(style).length > 0) attributes.style = style;
-  else delete attributes.style;
+  delete attributes["icon"];
+  if (Object.keys(style).length > 0) attributes["style"] = style;
+  else delete attributes["style"];
   return attributes;
 }

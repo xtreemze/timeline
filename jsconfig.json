@@ -53,8 +53,7 @@
     "globals.d.ts",
     "src/**/*.js",
     "site/**/*.js",
-    "tests/**/*.mjs",
-    "benchmarks/**/*.mjs"
+    "tests/**/*.mjs"
   ],
   "exclude": ["node_modules"]
 }

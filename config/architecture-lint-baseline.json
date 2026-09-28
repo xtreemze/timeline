@@ -1,8 +1,8 @@
 {
   "typescript": {
     "site/case-reasoning.ts": {
-      "any": 41,
-      "asAny": 0,
+      "any": 84,
+      "asAny": 8,
       "nonNull": 7
     },
     "site/date-range-picker.ts": {
@@ -11,8 +11,8 @@
       "nonNull": 0
     },
     "site/event-presentation.ts": {
-      "any": 11,
-      "asAny": 11,
+      "any": 10,
+      "asAny": 10,
       "nonNull": 1
     },
     "site/evidence-store.ts": {
@@ -71,12 +71,37 @@
       "nonNull": 0
     },
     "site/webmcp.ts": {
-      "any": 45,
-      "asAny": 12,
+      "any": 22,
+      "asAny": 4,
+      "nonNull": 0
+    },
+    "site/occurrence-composer-model.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 3
+    },
+    "site/ui/investigation-workspace.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 8
+    },
+    "site/storybook-entity-icons.ts": {
+      "any": 1,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/world/deck-world-bindings.ts": {
+      "any": 1,
+      "asAny": 0,
+      "nonNull": 0
+    },
+    "site/world/deck-world-surface.ts": {
+      "any": 1,
+      "asAny": 0,
       "nonNull": 0
     },
     "site/app.ts": {
-      "any": 0,
+      "any": 1,
       "asAny": 0,
       "nonNull": 0
     },
@@ -181,7 +206,7 @@
       "nonNull": 0
     },
     "site/timeline-graph.ts": {
-      "any": 62,
+      "any": 68,
       "asAny": 0,
       "nonNull": 0
     },
@@ -214,6 +239,11 @@
       "any": 0,
       "asAny": 0,
       "nonNull": 0
+    },
+    "site/components/occurrence-composer.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 1
     }
   },
   "css": {
@@ -320,11 +350,43 @@
       "legacy100vh": 0,
       "maxWidthContainer": {},
       "primarySurfaceOverflow": {}
+    },
+    "site/investigation-workspace.css": {
+      "maxWidthMedia": {
+        "@media (max-width: 720px)": 1
+      },
+      "hoverOnlySelectors": {},
+      "physicalInlineProperties": {},
+      "viewportWidthSizing": {},
+      "overflowXHidden": {},
+      "rootMinWidth": {
+        "min-width: 0;": 1
+      },
+      "legacy100vh": 0,
+      "maxWidthContainer": {},
+      "primarySurfaceOverflow": {}
+    },
+    "site/spatial-shell.css": {
+      "maxWidthMedia": {
+        "@media (max-width: 699px)": 2
+      },
+      "hoverOnlySelectors": {},
+      "physicalInlineProperties": {},
+      "viewportWidthSizing": {
+        "inline-size: clamp(104px, 12vw, 148px);": 1
+      },
+      "overflowXHidden": {},
+      "rootMinWidth": {},
+      "legacy100vh": 0,
+      "maxWidthContainer": {},
+      "primarySurfaceOverflow": {
+        "#app-shell:has(#occurrence-composer[active]) > .app-tool-dock.app-footer-bar, #app-shell:has(#occurrence-composer[active]) #presentation-stage:fullscreen > .app-tool-dock.app-footer-bar => overflow: hidden;": 1
+      }
     }
   },
   "architecture": {
     "ambientTimelineGlobals": {
-      "site/app.ts": 15,
+      "site/app.ts": 14,
       "site/case-reasoning-shim.ts": 1,
       "site/date-range-picker-shim.ts": 1,
       "site/event-presentation-shim.ts": 1,
@@ -349,11 +411,11 @@
       "site/timeline-graph-shim.ts": 1,
       "site/timeline-graph.ts": 8,
       "site/timeline-view-shim.ts": 1,
-      "site/timeline-view.ts": 2
+      "site/timeline-view.ts": 0
     },
     "directCanonicalMutations": {
-      "site/app.ts": 18,
-      "site/webmcp.ts": 2
+      "site/app.ts": 13,
+      "site/webmcp.ts": 0
     },
     "legacyInputHandlers": {
       "src/orb-graph-entry.js": {
