@@ -3,59 +3,15 @@
  * Media normalization, tag creation, semantic icon generation
  */
 
+import {
+  SEMANTIC_ICON_NAMES,
+  normalizeSemanticIconName,
+} from "../src/presentation/semantic-icons.ts";
+
 const MAX_MEDIA = 3;
 const MAX_TAGS = 6;
 
-const ICON_NAMES = Object.freeze([
-  "milestone",
-  "decision",
-  "evidence",
-  "person",
-  "group",
-  "place",
-  "media",
-  "relation",
-  "note",
-  "home",
-  "danger",
-  "magic",
-  "search",
-  "crown",
-  "object",
-  "pig",
-  "wolf",
-  "straw",
-  "sticks",
-  "bricks",
-  "mirror",
-  "apple",
-  "axe",
-  "pickaxe",
-  "laces",
-  "comb",
-  "coffin",
-  "disguise",
-  "slipper",
-  "carriage",
-  "pumpkin",
-  "gown",
-  "trumpet",
-  "hood",
-  "elder",
-  "child",
-  "witch",
-  "merchant",
-  "giant",
-  "beanstalk",
-  "goose",
-  "hair",
-  "frog",
-  "ball",
-  "spindle",
-  "baby",
-  "parent",
-  "view",
-] as const);
+const ICON_NAMES = SEMANTIC_ICON_NAMES;;
 
 const ICON_PATHS: Record<string, string[]> = Object.freeze({
   milestone: ["M12 3v18", "M3 12h18", "M7 7l10 10", "M17 7 7 17"],
@@ -211,7 +167,7 @@ export function normalizeTags(value: unknown): Tag[] {
     if (!label) continue;
     tags.push({
       label,
-      icon: ICON_NAMES.includes((raw as any).icon) ? (raw as any).icon : "note",
+      icon: normalizeSemanticIconName((raw as any).icon) ?? "note",
       hue: normalizeHue((raw as any).hue),
     });
   }
