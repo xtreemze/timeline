@@ -1,3 +1,4 @@
+import type { ApplicationSelection } from "../../src/application/selection.ts";
 import type { WorldCameraState } from "../../src/layout/world-surface.ts";
 
 export interface CompatibleSpatialView {
@@ -5,6 +6,7 @@ export interface CompatibleSpatialView {
   setWindow(viewport: unknown): void;
   previewWindow?(viewport: unknown): void;
   setFocus(id: string | number | null): void;
+  setSelection?(selection: ApplicationSelection | null): void;
   setPresentationMode?(active: boolean): void;
   hasContext?(): boolean;
   fitContext?(): boolean;
