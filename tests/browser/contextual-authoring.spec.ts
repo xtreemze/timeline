@@ -443,6 +443,74 @@ test.describe("contextual world authoring certification", () => {
     );
   });
 
+  test("material occurrence edits surface semantic-support review and invalidate confidence", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const [relationship] = await relationshipFocuses(page);
+    if (!relationship) test.skip(true, "Example project exposes no focusable relationship occurrence.");
+
+    await page.evaluate((relationshipId) => {
+      const api = (
+        window as typeof window & {
+          TimelineAgentAPI?: {
+            getProject?: () => any;
+            replaceProject?: (project: any) => unknown;
+          };
+        }
+      ).TimelineAgentAPI;
+      const project = api?.getProject?.();
+      if (!project || !api?.replaceProject) throw new Error("Timeline agent API is unavailable.");
+      const candidate = (project.relationships ?? []).find(
+        (entry: any) => String(entry.id) === relationshipId,
+      );
+      if (!candidate) throw new Error("Relationship fixture disappeared.");
+      candidate.confidence = 0.91;
+      api.replaceProject(project);
+    }, relationship!.relationshipId);
+
+    await focusRelationship(page, relationship!);
+    const composer = await openPersistentComposer(page);
+    const input = composer.locator("input");
+    const initial = await input.inputValue();
+    const replacementPredicate = relationship!.predicate === "reframes" ? "recounts" : "reframes";
+    const edited = initial.replace(
+      `@${relationship!.subjectId} ${relationship!.predicate} @${relationship!.objectId}`,
+      `@${relationship!.subjectId} ${replacementPredicate} @${relationship!.objectId}`,
+    );
+    expect(edited).not.toBe(initial);
+
+    await input.fill(edited);
+    await input.press("Enter");
+
+    await expect(page.locator("#status")).toContainText(
+      "Review its evidence, confidence, and semantic context",
+    );
+    await expect
+      .poll(async () =>
+        page.evaluate((relationshipId) => {
+          const relationship = (
+            window as typeof window & {
+              TimelineAgentAPI?: { getProject?: () => any };
+            }
+          ).TimelineAgentAPI?.getProject?.()?.relationships?.find(
+            (candidate: any) => String(candidate.id) === relationshipId,
+          );
+          return {
+            confidence: relationship?.confidence ?? null,
+            review: relationship?.attributes?.semanticReview ?? null,
+          };
+        }, relationship!.relationshipId),
+      )
+      .toEqual({
+        confidence: null,
+        review: {
+          required: true,
+          reasons: ["predicate-changed"],
+        },
+      });
+  });
+
   test("editing canonical time from one timeline projection updates every linked projection", async ({
     page,
   }) => {
