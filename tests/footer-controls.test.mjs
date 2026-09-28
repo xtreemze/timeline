@@ -100,55 +100,59 @@ test("footer exposes view controls directly and keeps one primary Edit entry", a
   assert.doesNotMatch(factory, /function createWorldLayoutControls\(/);
 });
 
-
 test(
   "graph layout buttons expose advanced options with input-modality parity and place scope",
   async () => {
-  const [inspector, css] = await Promise.all([
-    readFile(layoutInspectorUrl, "utf8"),
-    readFile(shellUrl, "utf8"),
-  ]);
+    const [inspector, css] = await Promise.all([
+      readFile(layoutInspectorUrl, "utf8"),
+      readFile(shellUrl, "utf8"),
+    ]);
 
-  assert.match(inspector, /const LONG_PRESS_MS = 500/);
-  assert.match(inspector, /addEventListener\("pointerdown"[\s\S]*setTimeout\(open, LONG_PRESS_MS\)/);
-  assert.match(inspector, /addEventListener\("contextmenu"[\s\S]*open\(\)/);
-  assert.match(inspector, /event\.key === "ArrowDown"[\s\S]*event\.key === "F10" && event\.shiftKey/);
-  assert.match(inspector, /aria-haspopup", "dialog"/);
+    assert.match(inspector, /const LONG_PRESS_MS = 500/);
+    assert.match(
+      inspector,
+      /addEventListener\("pointerdown"[\s\S]*setTimeout\(open, LONG_PRESS_MS\)/,
+    );
+    assert.match(inspector, /addEventListener\("contextmenu"[\s\S]*open\(\)/);
+    assert.match(
+      inspector,
+      /event\.key === "ArrowDown"[\s\S]*event\.key === "F10" && event\.shiftKey/,
+    );
+    assert.match(inspector, /aria-haspopup", "dialog"/);
     assert.match(
       inspector,
       /getSelectedPlaceId\(\)[\s\S]*state\.scope\.value = placeId === null \? "global" : "place"/,
     );
 
-  assert.match(inspector, /"longest-opt-greedy", "Longest path \+ optimal decross"/);
-  assert.match(inspector, /"longest-two-layer-greedy", "Longest path \+ two-layer"/);
-  assert.match(inspector, /"simplex-two-layer-greedy", "Simplex \+ two-layer"/);
-  assert.match(inspector, /"top-to-bottom", "Top → bottom"/);
-  assert.match(inspector, /"left-to-right", "Left → right"/);
+    assert.match(inspector, /"longest-opt-greedy", "Longest path \+ optimal decross"/);
+    assert.match(inspector, /"longest-two-layer-greedy", "Longest path \+ two-layer"/);
+    assert.match(inspector, /"simplex-two-layer-greedy", "Simplex \+ two-layer"/);
+    assert.match(inspector, /"top-to-bottom", "Top → bottom"/);
+    assert.match(inspector, /"left-to-right", "Left → right"/);
 
-  for (const label of [
-    "Collision strength",
-    "Collision passes",
-    "Connectivity clearance",
-    "Repulsion",
-    "Relationship springs",
-    "Place attraction",
-    "DAG guidance",
-  ]) {
-    assert.match(inspector, new RegExp(label));
-  }
-  assert.match(inspector, /"Collision radius", "Rendered node \+ border · fixed"/);
-  assert.match(inspector, /Connectivity clearance reserves additional soft space/);
-  assert.match(
-    inspector,
-    /addEventListener\("pointermove"[\s\S]*Math\.hypot[\s\S]*> 8[\s\S]*clearTimer\(\)/,
-  );
+    for (const label of [
+      "Collision strength",
+      "Collision passes",
+      "Connectivity clearance",
+      "Repulsion",
+      "Relationship springs",
+      "Place attraction",
+      "DAG guidance",
+    ]) {
+      assert.match(inspector, new RegExp(label));
+    }
+    assert.match(inspector, /"Collision radius", "Rendered node \+ border · fixed"/);
+    assert.match(inspector, /Connectivity clearance reserves additional soft space/);
+    assert.match(
+      inspector,
+      /addEventListener\("pointermove"[\s\S]*Math\.hypot[\s\S]*> 8[\s\S]*clearTimer\(\)/,
+    );
     assert.match(
       css,
       /\.world-layout-inspector\s*\{[\s\S]*position:\s*fixed[\s\S]*z-index:\s*2200/,
     );
   },
 );
-
 test("footer zoom controls neutralize legacy timeline grid geometry", async () => {
   const [shellCss, timelineCss] = await Promise.all([
     readFile(shellUrl, "utf8"),
