@@ -12,6 +12,7 @@ import {
   LUM_PROJECT_FILE_EXTENSION,
   LUM_PROJECT_INTERCHANGE_VERSION,
   LUM_PROJECT_SCHEMA_ID,
+  lintProjectInterchange,
   validateProjectInterchange,
 } from "../src/application/project-interchange.ts";
 import { CURRENT_PROJECT_SCHEMA_VERSION } from "../src/application/project-repository.ts";
@@ -130,43 +131,13 @@ async function commandCheck(args) {
   if (!result.valid) process.exitCode = 1;
 }
 
-async function lintDiagnostics(target, source) {
-  const result = validateProjectInterchange(source);
-  const diagnostics = [...result.diagnostics];
-
-  if (target !== "-" && !target.endsWith(LUM_PROJECT_FILE_EXTENSION)) {
-    diagnostics.push({
-      severity: "error",
-      code: "non-canonical-extension",
-      path: "",
-      message: `Portable Lūm projects must use the ${LUM_PROJECT_FILE_EXTENSION} suffix.`,
-    });
-  }
-
-  try {
-    if (formatProjectInterchange(source) !== source) {
-      diagnostics.push({
-        severity: "error",
-        code: "non-canonical-format",
-        path: "",
-        message: "Project text is not in canonical Lūm formatting. Run `lum fmt`.",
-      });
-    }
-  } catch {
-    // The strict validator already reports malformed JSON.
-  }
-
-  return diagnostics;
-}
-
 async function commandLint(args) {
   const target = positional(args)[0];
   if (!target) throw new Error("lint requires a .lum.json path or - for stdin.");
   const source = await readTarget(target);
-  const diagnostics = await lintDiagnostics(target, source);
-  const valid = !diagnostics.some((diagnostic) => diagnostic.severity === "error");
-  outputValidation(valid, diagnostics, args.includes("--json"));
-  if (!valid) process.exitCode = 1;
+  const result = lintProjectInterchange(source, { fileName: target });
+  outputValidation(result.valid, result.diagnostics, args.includes("--json"));
+  if (!result.valid) process.exitCode = 1;
 }
 
 async function commandFmt(args) {
@@ -194,7 +165,7 @@ function commandCompose(args) {
   const source = positional(args).join(" ").trim();
   if (!source) throw new Error("compose requires an occurrence sentence.");
   const parsed = parseOccurrenceSentence(source);
-  process.stdout.write(`${JSON.stringify(parsed, null, args.includes("--json") ? 2 : 2)}\n`);
+  process.stdout.write(`${JSON.stringify(parsed, null, 2)}\n`);
   if (parsed.stage !== "complete" || parsed.diagnostics.length > 0) {
     process.exitCode = 1;
   }
