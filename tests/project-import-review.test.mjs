@@ -120,6 +120,25 @@ test("preflight or local validation errors keep the proposal in needs-repair sta
   });
   assert.equal(localFailure?.status, "needs-repair");
   assert.deepEqual(localFailure?.errors, ["Graph contract rejected relationship rel-1."]);
+
+  const flagOnlyFailure = stageProjectImportReview(
+    envelope({
+      status: "needs-repair",
+      preflight: { valid: false, errors: [], warnings: [], summary: {} },
+    }),
+    dependencies,
+  );
+  assert.equal(flagOnlyFailure?.status, "needs-repair");
+  assert.ok(flagOnlyFailure?.errors.length);
+
+  const normalizationFailure = stageProjectImportReview(envelope(), {
+    ...dependencies,
+    normalize() {
+      throw new Error("Canonical project shape is invalid.");
+    },
+  });
+  assert.equal(normalizationFailure?.status, "needs-repair");
+  assert.deepEqual(normalizationFailure?.errors, ["Canonical project shape is invalid."]);
 });
 
 test("verification revalidates the exact fingerprinted candidate before commit", () => {
