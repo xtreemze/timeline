@@ -26,6 +26,93 @@ test("View controls are direct persistent toolbar content", async ({ page }) => 
   await expect(view.locator(".world-layout-controls")).toBeVisible();
 });
 
+test("footer view-control groups keep intrinsic width instead of overlapping", async ({ page }) => {
+  for (const viewport of [
+    { width: 1024, height: 768 },
+    { width: 1280, height: 800 },
+    { width: 1440, height: 900 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.goto("/");
+
+    const view = page.locator(viewControls);
+    await expect(view).toBeVisible();
+    await expect(view.locator(".world-camera-controls")).toBeVisible();
+    await expect(view.locator(".world-layout-controls")).toBeVisible();
+    await expect(view.locator("#timeline-view-toolbar")).toBeVisible();
+
+    const geometry = await view.evaluate((element) => {
+      element.scrollLeft = 0;
+      const viewRect = element.getBoundingClientRect();
+      const groups = [...element.children]
+        .filter(
+          (child) =>
+            child instanceof HTMLElement && child.classList.contains("view-control-group"),
+        )
+        .map((group) => {
+          const rect = group.getBoundingClientRect();
+          const style = getComputedStyle(group);
+          const children = [...group.children]
+            .filter((child) => child instanceof HTMLElement)
+            .map((child) => ({
+              element: child,
+              rect: child.getBoundingClientRect(),
+              style: getComputedStyle(child),
+            }))
+            .filter(
+              ({ element: child, rect: childRect, style: childStyle }) =>
+                childStyle.display !== "none" &&
+                !child.classList.contains("sr-only") &&
+                childRect.width > 1 &&
+                childRect.height > 1,
+            )
+            .map(({ rect: childRect }) => ({
+              left: childRect.left,
+              right: childRect.right,
+            }));
+          return {
+            left: rect.left,
+            right: rect.right,
+            flexShrink: style.flexShrink,
+            minInlineSize: style.minInlineSize,
+            children,
+          };
+        });
+
+      return {
+        viewLeft: viewRect.left,
+        clientWidth: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+        groups,
+      };
+    });
+
+    expect(geometry.groups.length).toBeGreaterThanOrEqual(3);
+    for (const group of geometry.groups) {
+      expect(group.flexShrink).toBe("0");
+      expect(group.minInlineSize).not.toBe("0px");
+      for (const child of group.children) {
+        expect(child.left).toBeGreaterThanOrEqual(group.left - 1);
+        expect(child.right).toBeLessThanOrEqual(group.right + 1);
+      }
+    }
+
+    for (let index = 0; index < geometry.groups.length - 1; index += 1) {
+      const current = geometry.groups[index];
+      const next = geometry.groups[index + 1];
+      if (!current || !next) continue;
+      expect(current.right).toBeLessThanOrEqual(next.left + 1);
+    }
+
+    const finalGroup = geometry.groups.at(-1);
+    expect(finalGroup).toBeDefined();
+    if (finalGroup) {
+      const requiredContentWidth = finalGroup.right - geometry.viewLeft;
+      expect(geometry.scrollWidth).toBeGreaterThanOrEqual(requiredContentWidth - 1);
+    }
+  }
+});
+
 test("atomic and compound toolbar controls share height, centerline, and icon sizing", async ({
   page,
 }) => {

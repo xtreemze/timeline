@@ -167,6 +167,10 @@ test("narrow toolbar pins authoring and scrolls only dense View controls", async
   assert.match(css, /\.app-footer-view \.world-camera-controls[\s\S]*flex-wrap:\s*nowrap/);
   assert.match(
     css,
+    /\.app-footer-view > \.view-control-group\s*\{[\s\S]*flex:\s*0 0 auto[\s\S]*min-inline-size:\s*max-content/,
+  );
+  assert.match(
+    css,
     /\.app-footer-view \.toolbar-zoom-control[\s\S]*var\(--toolbar-zoom-track-width\)[\s\S]*max-inline-size:/,
   );
   assert.match(
