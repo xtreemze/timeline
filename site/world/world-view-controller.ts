@@ -9,6 +9,9 @@ import {
   type WorldNodeDragPosition,
 } from "../../src/interaction/world-node-drag-controller.ts";
 import type {
+  WorldDagCoordinateStrategy,
+  WorldDagEdgeStyle,
+  WorldDagLayoutAlgorithm,
   WorldDagLayoutOrientation,
   WorldDagLayoutPlaceOverride,
   WorldDagLayoutStrategy,
@@ -51,7 +54,10 @@ export interface WorldLayoutReadback {
 export interface WorldDagOperatorSettings {
   /** "auto" follows the live viewport orientation. */
   readonly orientation?: WorldDagLayoutOrientation | "auto";
+  readonly algorithm?: WorldDagLayoutAlgorithm;
   readonly strategy?: WorldDagLayoutStrategy;
+  readonly coordinate?: WorldDagCoordinateStrategy;
+  readonly edgeStyle?: WorldDagEdgeStyle;
   /** Omit for global layout; set to reorganize only this authored place. */
   readonly placeId?: PlaceId;
 }
@@ -110,7 +116,10 @@ export class WorldViewRuntimeController {
   #projectionRevision = 0;
   #viewportDagOrientation: WorldDagLayoutOrientation = "top-to-bottom";
   #globalDagOrientation: WorldDagLayoutOrientation | null = null;
+  #globalDagAlgorithm: WorldDagLayoutAlgorithm = "sugiyama";
   #globalDagStrategy: WorldDagLayoutStrategy = "auto";
+  #globalDagCoordinate: WorldDagCoordinateStrategy = "greedy";
+  #globalDagEdgeStyle: WorldDagEdgeStyle = "routed";
   #dagPlaceOverrides = new Map<PlaceId, WorldDagLayoutPlaceOverride>();
   #sinceLayoutPush = Number.POSITIVE_INFINITY;
   #cameraInteractionActive = false;
@@ -182,7 +191,10 @@ export class WorldViewRuntimeController {
     // turning handoff offsets or altitude into permanent solver targets.
     const forceScene = createWorldForceScene(projection, this.#forcePolicy, {
       dagOrientation: this.#effectiveDagOrientation(),
+      dagAlgorithm: this.#globalDagAlgorithm,
       dagStrategy: this.#globalDagStrategy,
+      dagCoordinate: this.#globalDagCoordinate,
+      dagEdgeStyle: this.#globalDagEdgeStyle,
       dagPlaceOverrides: this.#dagPlaceOverrides,
       initialProjection: renderProjection,
     });
@@ -238,7 +250,10 @@ export class WorldViewRuntimeController {
     const projection = this.getRenderProjection() ?? this.#sourceProjection;
     const forceScene = createWorldForceScene(projection, this.#forcePolicy, {
       dagOrientation: effective,
+      dagAlgorithm: this.#globalDagAlgorithm,
       dagStrategy: this.#globalDagStrategy,
+      dagCoordinate: this.#globalDagCoordinate,
+      dagEdgeStyle: this.#globalDagEdgeStyle,
       dagPlaceOverrides: this.#dagPlaceOverrides,
     });
     this.#forceBackend.setScene(forceScene);
@@ -248,7 +263,7 @@ export class WorldViewRuntimeController {
   }
 
   /**
-   * Rebuild local Sugiyama targets and route hints for the current projection.
+   * Rebuild local D3 DAG targets and route hints for the current projection.
    * Geographic anchors are retained verbatim; only the entity layout around
    * each anchor is reorganized, then D3 force moves toward the new soft targets.
    */
@@ -265,20 +280,35 @@ export class WorldViewRuntimeController {
           : settings.orientation === "auto"
             ? undefined
             : settings.orientation;
+      const nextAlgorithm =
+        settings.algorithm === undefined ? previous?.algorithm : settings.algorithm;
       const nextStrategy =
         settings.strategy === undefined
           ? previous?.strategy
           : settings.strategy === "auto"
             ? undefined
             : settings.strategy;
-      if (nextOrientation === undefined && nextStrategy === undefined) {
+      const nextCoordinate =
+        settings.coordinate === undefined ? previous?.coordinate : settings.coordinate;
+      const nextEdgeStyle =
+        settings.edgeStyle === undefined ? previous?.edgeStyle : settings.edgeStyle;
+      if (
+        nextOrientation === undefined &&
+        nextAlgorithm === undefined &&
+        nextStrategy === undefined &&
+        nextCoordinate === undefined &&
+        nextEdgeStyle === undefined
+      ) {
         this.#dagPlaceOverrides.delete(placeId);
       } else {
         this.#dagPlaceOverrides.set(
           placeId,
           Object.freeze({
             ...(nextOrientation === undefined ? {} : { orientation: nextOrientation }),
+            ...(nextAlgorithm === undefined ? {} : { algorithm: nextAlgorithm }),
             ...(nextStrategy === undefined ? {} : { strategy: nextStrategy }),
+            ...(nextCoordinate === undefined ? {} : { coordinate: nextCoordinate }),
+            ...(nextEdgeStyle === undefined ? {} : { edgeStyle: nextEdgeStyle }),
           }),
         );
       }
@@ -287,14 +317,20 @@ export class WorldViewRuntimeController {
         this.#globalDagOrientation =
           settings.orientation === "auto" ? null : settings.orientation;
       }
+      if (settings.algorithm !== undefined) this.#globalDagAlgorithm = settings.algorithm;
       if (settings.strategy !== undefined) this.#globalDagStrategy = settings.strategy;
+      if (settings.coordinate !== undefined) this.#globalDagCoordinate = settings.coordinate;
+      if (settings.edgeStyle !== undefined) this.#globalDagEdgeStyle = settings.edgeStyle;
     }
 
     const forceScene = createWorldForceScene(this.#sourceProjection, this.#forcePolicy, {
       reorganizeDag: placeId === undefined,
       ...(placeId === undefined ? {} : { reorganizeDagPlaceId: placeId }),
       dagOrientation: this.#effectiveDagOrientation(),
+      dagAlgorithm: this.#globalDagAlgorithm,
       dagStrategy: this.#globalDagStrategy,
+      dagCoordinate: this.#globalDagCoordinate,
+      dagEdgeStyle: this.#globalDagEdgeStyle,
       dagPlaceOverrides: this.#dagPlaceOverrides,
     });
     this.#forceBackend.setScene(forceScene);
