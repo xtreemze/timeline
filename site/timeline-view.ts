@@ -3352,6 +3352,7 @@ export class TimelineViewController {
     if (this.focusView.childElementCount) this.focusView.replaceChildren();
 
     const detailHost = record.node.detailHost;
+    if (detailHost) detailHost.dataset.presentationSurface = "card";
     if (expanded && detailHost) {
       const needsRender =
         detailHost.dataset.occurrenceId !== record.item.id || detailHost.childElementCount === 0;
