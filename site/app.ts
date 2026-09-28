@@ -34,6 +34,7 @@ import type {
 import {
   formatOccurrenceComposition,
   parseOccurrenceSentence,
+  type ComposerEditableSection,
   type ComposerTimeReference,
 } from "./occurrence-composer-model.ts";
 import { TimelineEvidence } from "./evidence-store.ts";
@@ -1921,6 +1922,50 @@ function syncOccurrenceComposerSelection(selection = applicationSelection.curren
 
 let occurrenceComposerReturnFocus: HTMLElement | null = null;
 
+const occurrenceComposerHomeAnchor = document.createComment("occurrence-composer-home");
+els.occurrenceComposer.after(occurrenceComposerHomeAnchor);
+const occurrenceComposerProxy = document.createElement("button");
+occurrenceComposerProxy.type = "button";
+occurrenceComposerProxy.className = "occurrence-composer-proxy";
+occurrenceComposerProxy.textContent = "Editing selected occurrence";
+occurrenceComposerProxy.setAttribute(
+  "aria-label",
+  "Focus occurrence composer in selected occurrence card",
+);
+occurrenceComposerProxy.hidden = true;
+occurrenceComposerHomeAnchor.parentNode?.insertBefore(
+  occurrenceComposerProxy,
+  occurrenceComposerHomeAnchor,
+);
+occurrenceComposerProxy.addEventListener("click", () => {
+  els.occurrenceComposer.show();
+});
+
+function restoreOccurrenceComposerHome(): void {
+  const parent = occurrenceComposerHomeAnchor.parentNode;
+  if (!parent) return;
+  if (els.occurrenceComposer.parentNode !== parent) {
+    parent.insertBefore(els.occurrenceComposer, occurrenceComposerProxy);
+  }
+  els.occurrenceComposer.dataset.host = "footer";
+  occurrenceComposerProxy.hidden = true;
+  const cardHost = els.timelineViewRoot.querySelector<HTMLElement>(
+    "[data-occurrence-composer-host]",
+  );
+  if (cardHost) cardHost.hidden = true;
+}
+
+function mountOccurrenceComposerInCard(host: HTMLElement | null): boolean {
+  const composerHost =
+    host?.querySelector<HTMLElement>("[data-occurrence-composer-host]") ?? null;
+  if (!composerHost?.isConnected) return false;
+  composerHost.hidden = false;
+  composerHost.append(els.occurrenceComposer);
+  els.occurrenceComposer.dataset.host = "card";
+  occurrenceComposerProxy.hidden = false;
+  return true;
+}
+
 function composerInvoker(): HTMLElement | null {
   const active = document.activeElement;
   if (!(active instanceof HTMLElement) || active === document.body) return null;
@@ -1960,6 +2005,7 @@ function syncOccurrenceComposerData(): void {
       name: entity.name,
       type: entity.type,
       alternateNames: entity.alternateNames ?? [],
+      attributes: entity.attributes ?? {},
       icon: semanticIconStateForEntity(entity).icon ?? undefined,
     })),
     places: state.places.map((place) => ({
@@ -1993,6 +2039,7 @@ function setOccurrenceComposerOpen(open: boolean): void {
   if (ui.importReviewOpen) return;
   let focusToRestore: HTMLElement | null = null;
   if (open) {
+    restoreOccurrenceComposerHome();
     if (!els.occurrenceComposer.active) {
       occurrenceComposerReturnFocus = composerInvoker();
     }
@@ -2029,6 +2076,7 @@ function setOccurrenceComposerOpen(open: boolean): void {
     els.occurrenceComposer.show();
   } else {
     els.occurrenceComposer.hide();
+    restoreOccurrenceComposerHome();
     focusToRestore = occurrenceComposerReturnFocus;
     occurrenceComposerReturnFocus = null;
   }
@@ -6037,6 +6085,7 @@ els.timelineViewRoot.addEventListener("timelineorientationchange", (event) => {
 });
 
 els.timelineViewRoot.addEventListener("timelinefocuschange", (event) => {
+  restoreOccurrenceComposerHome();
   const focused = Boolean(event.detail?.focused);
   const cardFocused = focused && event.detail?.presentationSurface === "card";
   if (focused) {
@@ -6124,6 +6173,93 @@ els.graphViewRoot.addEventListener("worldcontextrequest", (event) => {
   els.occurrenceComposer.setWorldContext(longitude, latitude, Number.isFinite(zoom) ? zoom : null);
   els.occurrenceComposer.beginSession();
   request.preventDefault();
+});
+
+els.timelineViewRoot.addEventListener("timelineoccurrencecomposerrequest", (event) => {
+  if (!(event instanceof CustomEvent)) return;
+  const detail = event.detail as {
+    id?: string;
+    relationshipId?: string | null;
+    sectionKind?: ComposerEditableSection["kind"];
+    sectionIndex?: number;
+    host?: HTMLElement | null;
+  };
+
+  setOccurrenceComposerOpen(true);
+  if (detail.relationshipId) {
+    syncOccurrenceComposerSelection({
+      kind: "relationship",
+      id: detail.relationshipId,
+      itemId: detail.id ?? null,
+    });
+    els.occurrenceComposer.beginSession();
+  }
+  if (!mountOccurrenceComposerInCard(detail.host ?? null)) return;
+  globalThis.requestAnimationFrame(() => {
+    if (!detail.sectionKind) {
+      els.occurrenceComposer.show();
+      return;
+    }
+    els.occurrenceComposer.editSection(detail.sectionKind, detail.sectionIndex ?? 0);
+  });
+});
+
+els.occurrenceComposer.addEventListener("occurrenceinvestigationaction", (event) => {
+  if (!(event instanceof CustomEvent)) return;
+  const detail = event.detail as {
+    action?: string;
+    collection?: string | null;
+    records?: readonly Record<string, unknown>[];
+  };
+  const allowedCollections = new Set([
+    "questions",
+    "assumptions",
+    "linesOfEnquiry",
+    "informationReviews",
+  ]);
+  const collection = String(detail.collection || "");
+  const records = Array.isArray(detail.records) ? detail.records : [];
+
+  if (!allowedCollections.has(collection) || !records.length) {
+    setInvestigationSurfaceOpen(true);
+    investigationWorkspace?.render();
+    showStatus(
+      detail.action === "compare-candidates"
+        ? "Candidate hypotheses are prepared for review. Establish the unknown identity in the investigation workspace before persisting them."
+        : "Opened the investigation methodology workspace.",
+    );
+    return;
+  }
+
+  const reasoning = caseReasoning.normalizeReasoning(state.reasoning);
+  const existing = Array.isArray(reasoning[collection])
+    ? (reasoning[collection] as Record<string, unknown>[])
+    : [];
+  const byId = new Map(existing.map((record) => [String(record.id || ""), record] as const));
+  for (const record of records) {
+    const id = String(record.id || "");
+    if (id) byId.set(id, record);
+  }
+  const next = caseReasoning.normalizeReasoning({
+    ...reasoning,
+    [collection]: [...byId.values()],
+  });
+  const errors = caseReasoning
+    .validateReasoning(next, {
+      entityIds: state.entities.map((record) => record.id),
+      externalIds: investigationExternalIds(),
+    })
+    .filter((finding) => finding.severity === "error");
+  if (errors.length) {
+    els.occurrenceComposer.setError(
+      errors
+        .slice(0, 3)
+        .map((finding) => finding.message)
+        .join(" ") || "The investigative record is not valid.",
+    );
+    return;
+  }
+  applyInvestigationReasoning(next, "Investigation record saved from the occurrence composer.");
 });
 
 els.occurrenceComposer.addEventListener("occurrencecomposeropenrequest", () => {
