@@ -625,11 +625,19 @@ export function composerCompletionSuffix(
   suggestion: ComposerSuggestion | null | undefined,
 ): string {
   if (!suggestion) return "";
-  const token = currentToken(input);
-  if (!token) return "";
+  const trimmed = input.trimEnd();
+  const inputParts = trimmed.split(/\s+/);
   for (const candidate of [suggestion.label, suggestion.insertText]) {
-    if (candidate.toLocaleLowerCase().startsWith(token)) {
-      return candidate.slice(token.length);
+    const candidateLower = candidate.toLocaleLowerCase();
+    for (let start = 0; start < inputParts.length; start += 1) {
+      const fragment = inputParts
+        .slice(start)
+        .join(" ")
+        .replace(/^[@"'([]+/, "");
+      if (!fragment) continue;
+      if (candidateLower.startsWith(fragment.toLocaleLowerCase())) {
+        return candidate.slice(fragment.length);
+      }
     }
   }
   return "";
