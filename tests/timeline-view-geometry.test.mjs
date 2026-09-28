@@ -152,7 +152,7 @@ test("selected events use a shell-owned six-column detail surface with footer-ow
   assert.doesNotMatch(js, /timeline-focus-place-panel/);
   assert.match(js, /focusNavigationState\(\)/);
   assert.doesNotMatch(js, /timeline-focus-nav-prev|timeline-focus-nav-next|Edit event/);
-  assert.match(css, /Persistent footer control plane/);
+  assert.match(css, /Persistent primary command plane/);
   assert.match(
     css,
     /\.app-view-controls \.world-camera-controls[\s\S]*flex-direction:\s*row/,
