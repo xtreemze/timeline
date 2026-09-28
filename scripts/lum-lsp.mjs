@@ -31,17 +31,20 @@ function documentFormat(source) {
   }
 }
 
-function formatLumDocument(source) {
-  return documentFormat(source) === "lum-project-module"
+function isProjectModule(source, uri = "") {
+  return documentFormat(source) === "lum-project-module" || uri.endsWith(".module.lum.json");
+}
+
+function formatLumDocument(source, uri = "") {
+  return isProjectModule(source, uri)
     ? formatProjectModule(source)
     : formatProjectInterchange(source);
 }
 
-function lspDiagnostics(source) {
-  const result =
-    documentFormat(source) === "lum-project-module"
-      ? lintProjectModule(source)
-      : lintProjectInterchange(source);
+function lspDiagnostics(source, uri = "") {
+  const result = isProjectModule(source, uri)
+    ? lintProjectModule(source, { fileName: uri })
+    : lintProjectInterchange(source, { fileName: uri });
   return attachLumDiagnosticRanges(source, result.diagnostics).map((diagnostic) => ({
     range: diagnostic.range,
     severity: diagnostic.severity === "error" ? 1 : 2,
@@ -80,7 +83,7 @@ export function createLumLanguageServer(writeMessage) {
       method: "textDocument/publishDiagnostics",
       params: {
         uri,
-        diagnostics: lspDiagnostics(source),
+        diagnostics: lspDiagnostics(source, uri),
       },
     });
   }
@@ -165,7 +168,7 @@ export function createLumLanguageServer(writeMessage) {
           result = [
             {
               range: fullDocumentRange(source),
-              newText: formatLumDocument(source),
+              newText: formatLumDocument(source, uri),
             },
           ];
         } catch {
