@@ -921,6 +921,29 @@ export function occurrenceComposerSuggestions(
   return uniqueSuggestions(contextSuggestions);
 }
 
+export function composerCompletionSuffix(
+  input: string,
+  suggestion: ComposerSuggestion | null | undefined,
+): string {
+  if (!suggestion) return "";
+  const trimmed = input.trimEnd();
+  const inputParts = trimmed.split(/\s+/);
+  for (const candidate of [suggestion.label, suggestion.insertText]) {
+    const candidateLower = candidate.toLocaleLowerCase();
+    for (let start = 0; start < inputParts.length; start += 1) {
+      const fragment = inputParts
+        .slice(start)
+        .join(" ")
+        .replace(/^[@"'([]+/, "");
+      if (!fragment) continue;
+      if (candidateLower.startsWith(fragment.toLocaleLowerCase())) {
+        return candidate.slice(fragment.length);
+      }
+    }
+  }
+  return "";
+}
+
 export function replaceComposerTail(
   input: string,
   insertText: string,
