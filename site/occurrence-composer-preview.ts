@@ -35,6 +35,14 @@ export function composerWorldNodeMarker(
   }, palette));
 }
 
+function composerSuggestionScalar(value: string): string {
+  const trimmed = value.replace(/^category:\s*/i, "").trim();
+  if (trimmed.length >= 2 && trimmed.startsWith('"') && trimmed.endsWith('"')) {
+    return trimmed.slice(1, -1).replace(/\\"/g, '"').replace(/\\\\/g, "\\");
+  }
+  return trimmed;
+}
+
 export interface ComposerPreview {
   readonly subject: ComposerPreviewNode | null;
   readonly edge: { readonly label: string } | null;
@@ -125,7 +133,7 @@ export function projectComposerPreview(
       previewObjectIcon,
     ),
     category: suggestion?.kind === "category"
-      ? suggestion.insertText
+      ? composerSuggestionScalar(suggestion.insertText)
       : parsed.options.category ?? sections.find((section) => section.kind === "category")?.text ?? null,
     tags: Object.freeze(previewTags),
     place: parsed.place
