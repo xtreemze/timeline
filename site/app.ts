@@ -1901,6 +1901,13 @@ function syncOccurrenceComposerSelection(selection = applicationSelection.curren
       subjectId: String(relationship.subjectId),
       objectId: String(relationship.objectId),
     },
+    metadata: {
+      role: relationship.role ?? null,
+      initialState: relationship.initialState === "inactive" ? "inactive" : "active",
+      sourceIds: relationship.sourceIds ?? [],
+      confidence: relationship.confidence ?? null,
+      attributes: relationship.attributes ?? {},
+    },
     ...(relationshipPlace
       ? {
           place: {
