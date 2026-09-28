@@ -2173,7 +2173,11 @@ function commitOccurrenceComposer(detail: OccurrenceCommitDetail): void {
       // so the composer accepts and reseeds from the newly committed baseline.
       els.occurrenceComposer.markCommitted();
       renderAll();
-      showStatus("Occurrence updated.");
+      showStatus(
+        result.semanticReviewRequired
+          ? "Occurrence updated. Review its evidence, confidence, and semantic context."
+          : "Occurrence updated.",
+      );
       return;
     }
 
