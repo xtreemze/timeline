@@ -1,6 +1,5 @@
 import type { ApplicationSelection } from "../../src/application/selection.ts";
-import { entityId, placeId, relationshipId } from "../../src/domain/ids.ts";
-import type { PlaceId } from "../../src/domain/ids.ts";
+import { entityId, placeId, relationshipId, type PlaceId } from "../../src/domain/ids.ts";
 import type { WorldDagLayoutOrientation } from "../../src/layout/world-dag-layout.ts";
 import { D3WorldForceSimulation } from "../../src/layout/d3-world-force-simulation.ts";
 import type { WorldForceLayoutSample } from "../../src/layout/world-force-layout.ts";
