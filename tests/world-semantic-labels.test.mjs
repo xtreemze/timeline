@@ -1481,7 +1481,7 @@ test("clustered overview keeps directly interacted node labels visible", () => {
       worldInstanceId: hoveredMember.id,
     },
   });
-  let hoveredNodeLabel = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data.find(
+  const hoveredNodeLabel = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data.find(
     (datum) => datum.kind === "entity-label" && datum.entityId === hoveredMember.canonicalId,
   );
   assert.ok(
