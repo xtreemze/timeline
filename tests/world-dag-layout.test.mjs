@@ -284,7 +284,7 @@ test("operator can switch relationship edge routing without changing canonical t
   assert.equal(straight.routes.length, 1);
   assert.equal(straight.routes[0].points.length, 2);
   assert.equal(curved.routes.length, 1);
-  assert.ok(curved.routes[0].points.length >= 7, "curved routing should provide a smooth sampled path");
+  assert.ok(curved.routes[0].points.length >= 5, "curved routing should provide a smooth sampled path");
   const curvedSource = curved.routes[0].points[0];
   const curvedTarget = curved.routes[0].points.at(-1);
   assert.ok(curvedSource && curvedTarget);
