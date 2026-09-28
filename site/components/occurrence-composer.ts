@@ -1355,6 +1355,97 @@ export class LuumOccurrenceComposerElement extends LitElement {
             </button>
           </div>
           ${
+            this.metadataOpen
+              ? html`<div id="occurrence-composer-metadata" class="metadata-panel" aria-label="Occurrence details">
+                  <label class="metadata-field">
+                    <span>Role</span>
+                    <input
+                      type="text"
+                      maxlength="120"
+                      autocomplete="off"
+                      placeholder="recipient, witness, owner…"
+                      .value=${this.metadataRole}
+                      @input=${(event: Event) => {
+                        const target = event.currentTarget;
+                        if (!(target instanceof HTMLInputElement)) return;
+                        this.metadataRole = target.value;
+                        this.markMetadataDirty();
+                      }}
+                    />
+                  </label>
+                  <label class="metadata-field">
+                    <span>Initial state</span>
+                    <select
+                      .value=${this.metadataInitialState}
+                      @change=${(event: Event) => {
+                        const target = event.currentTarget;
+                        if (!(target instanceof HTMLSelectElement)) return;
+                        this.metadataInitialState = target.value === "inactive" ? "inactive" : "active";
+                        this.markMetadataDirty();
+                      }}
+                    >
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive until activated</option>
+                    </select>
+                  </label>
+                  <label class="metadata-field">
+                    <span>Confidence · 0–1</span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      inputmode="decimal"
+                      placeholder="0.85"
+                      .value=${this.metadataConfidence}
+                      @input=${(event: Event) => {
+                        const target = event.currentTarget;
+                        if (!(target instanceof HTMLInputElement)) return;
+                        this.metadataConfidence = target.value;
+                        this.markMetadataDirty();
+                      }}
+                    />
+                  </label>
+                  <label class="metadata-field metadata-field-wide">
+                    <span>Evidence / source IDs · one per line</span>
+                    <textarea
+                      rows="2"
+                      spellcheck="false"
+                      placeholder="evidence-17&#10;source-record-3"
+                      .value=${this.metadataSourceIds}
+                      @input=${(event: Event) => {
+                        const target = event.currentTarget;
+                        if (!(target instanceof HTMLTextAreaElement)) return;
+                        this.metadataSourceIds = target.value;
+                        this.markMetadataDirty();
+                      }}
+                    ></textarea>
+                  </label>
+                  <label class="metadata-field metadata-field-wide">
+                    <span>Properties · JSON object</span>
+                    <textarea
+                      rows="3"
+                      spellcheck="false"
+                      .value=${this.metadataAttributes}
+                      @input=${(event: Event) => {
+                        const target = event.currentTarget;
+                        if (!(target instanceof HTMLTextAreaElement)) return;
+                        this.metadataAttributes = target.value;
+                        this.markMetadataDirty();
+                      }}
+                    ></textarea>
+                  </label>
+                  ${this.selectionContext?.selectedOccurrenceId
+                    ? html`<div class="metadata-actions">
+                        <button type="button" @click=${() => this.requestAdvancedEdit()}>
+                          Open full edge editor
+                        </button>
+                      </div>`
+                    : nothing}
+                </div>`
+              : nothing
+          }
+          ${
             diagnostic
               ? html`<p id="occurrence-composer-diagnostic" class="diagnostic" role="alert">${diagnostic}</p>`
               : html`<span id="occurrence-composer-diagnostic" hidden></span>`
@@ -1400,8 +1491,9 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
         <p id="occurrence-composer-help" class="help">
           Arrow keys navigate suggestions · Enter accepts the active suggestion or commits ·
-          Tab moves focus · Esc closes. Activate a semantic chip to select exactly that sentence
-          section, then type or choose a suggestion. Quote multi-word entity names.
+          Ctrl/Cmd+Enter or the check button always commits · Tab moves focus · Left/Right move
+          between semantic chips · Esc closes. Activate a semantic chip to edit exactly that
+          component, then type or choose a suggestion. Quote multi-word entity names.
           Defaults follow ${placeLabel} and ${timeLabel ?? "the timeline center"} until explicitly pinned.
           Move the timeline or World while this is open to change unpinned defaults.
           A changed graph selection never replaces a modified draft until its context action is chosen.
