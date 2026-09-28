@@ -82,7 +82,9 @@ test("D3 gives high-connectivity nodes additional soft spacing beyond hard colli
 });
 
 
-test("place-scoped force tuning changes connected-node clearance without changing hard collision radius", () => {
+test(
+  "place-scoped force tuning changes connected-node clearance without changing hard collision radius",
+  () => {
   const simulation = new D3WorldForceSimulation();
   const stockholmHub = '["stockholm-hub",null]';
   const stockholmPeer = '["stockholm-peer",null]';
@@ -125,11 +127,12 @@ test("place-scoped force tuning changes connected-node clearance without changin
     stockholmDistance >= 350,
     "turning off soft hub clearance must still preserve the 360m combined rendered collision body",
   );
-  assert.ok(
-    copenhagenDistance > stockholmDistance + 150,
-    "place-scoped tuning must not erase the default connectivity clearance at other places",
-  );
-});
+    assert.ok(
+      copenhagenDistance > stockholmDistance + 150,
+      "place-scoped tuning must not erase the default connectivity clearance at other places",
+    );
+  },
+);
 
 test("force tuning rejects collision settings that would violate the solver contract", () => {
   const simulation = new D3WorldForceSimulation();
@@ -185,7 +188,6 @@ test("cross-place D3 spacing honors hub connectivity clearance", () => {
     "hub clearance must participate in the world-space cross-place collision island",
   );
 });
-
 
 test("selected-place tuning participates in cross-place collision islands", () => {
   const settle = (clearanceScale) => {
