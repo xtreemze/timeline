@@ -109,9 +109,7 @@ test("narrow toolbar scrolls horizontally instead of hiding direct controls", as
   );
   assert.doesNotMatch(css, /\.app-view-controls\[popover\]/);
   assert.doesNotMatch(css, /#timeline-view-controls-toggle/);
-  assert.match(css, /@media \(max-width: 699px\)[\s\S]*\.app-footer-actions[\s\S]*order:\s*1/);
-  assert.match(css, /@media \(max-width: 699px\)[\s\S]*\.app-footer-timeline[\s\S]*order:\s*2/);
-  assert.match(css, /@media \(max-width: 699px\)[\s\S]*\.app-footer-view[\s\S]*order:\s*3/);
+  assert.doesNotMatch(css, /\.app-footer-(?:actions|timeline|view)[\s\S]{0,120}order:\s*[123]/);
   assert.match(css, /scroll-padding-inline:[\s\S]*safe-area-inset-left[\s\S]*safe-area-inset-right/);
 });
 
@@ -149,6 +147,7 @@ test("every persistent toolbar button family has an executable interaction path"
   assert.match(app, /browserToggle\?\.addEventListener\("click"[\s\S]*setBrowserSurfaceOpen/);
   assert.match(app, /focusPrev\.addEventListener\("click"[\s\S]*focusAdjacent\(-1/);
   assert.match(app, /focusNext\.addEventListener\("click"[\s\S]*focusAdjacent\(1/);
+  assert.match(app, /function revealFocusedToolbarNavigation\([\s\S]*max-width: 699px[\s\S]*appToolDock\.scrollLeft/);
   assert.match(app, /relatedZoom\.addEventListener\("click"[\s\S]*zoomContext/);
   assert.match(app, /relatedFit\.addEventListener\("click"[\s\S]*fitContext/);
   assert.match(app, /presentationFullscreenToggle\.addEventListener\("click"[\s\S]*togglePresentationFullscreen/);
