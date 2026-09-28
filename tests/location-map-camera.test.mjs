@@ -122,20 +122,36 @@ test("map touch targets match the coarse-pointer interaction floor and editing h
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
   ]);
-  assert.match(source, /iconSize:\s*\[56, 56\]/);
-  assert.match(source, /iconAnchor:\s*\[28, 28\]/);
+  assert.match(
+    source,
+    /LOCATION_MAP_DEFAULT_MARKER_DIAMETER_PX\s*=\s*WORLD_ENTITY_MIN_HIT_RADIUS_PX\s*\*\s*2/,
+  );
+  assert.match(source, /function markerIconBoxSizePx\(/);
+  assert.match(source, /iconSize:\s*\[iconBoxSize, iconBoxSize\]/);
+  assert.match(source, /iconAnchor:\s*\[iconBoxSize \/ 2, iconBoxSize \/ 2\]/);
+  assert.match(source, /--map-marker-offset/);
   assert.match(
     source,
     /L\.marker\(\[lat, lng\],[\s\S]*draggable:\s*true[\s\S]*keyboard:\s*true[\s\S]*semanticMarkerIcon/,
   );
   assert.match(source, /this\.map\.on\("click"[\s\S]*this\.applyPosition/);
   assert.match(styles, /\.timeline-map-marker\s*\{[\s\S]*width:\s*44px[\s\S]*height:\s*44px/);
+  assert.match(styles, /transform:\s*translate\([\s\S]*--map-marker-offset/);
   assert.match(
     styles,
     /@media \(pointer:\s*coarse\)[\s\S]*leaflet-control-zoom a[\s\S]*width:\s*44px[\s\S]*height:\s*44px/,
   );
   assert.match(html, /id="item-location-latitude"[^>]*inputmode="decimal"/);
   assert.match(html, /id="item-location-longitude"[^>]*inputmode="decimal"/);
+});
+
+test("place marker editor exposes the full runtime-supported diameter range", async () => {
+  const html = await readFile(new URL("../site/index.html", import.meta.url), "utf8");
+  assert.match(html, /Visual size <small>16–64 px<\/small>/);
+  assert.match(
+    html,
+    /id="graph-place-marker-size"[^>]*min="16"[^>]*max="64"[^>]*placeholder="44"/,
+  );
 });
 
 test("map runtime is local and basemap failure cannot remove semantic geometry", async () => {

@@ -1,4 +1,5 @@
 import { surfacePointerMayStartDirectManipulation } from "../src/interaction/surface-input-policy.ts";
+import { WORLD_ENTITY_MIN_HIT_RADIUS_PX } from "../src/layout/world-graph-style.ts";
 import { Leaflet } from "../src/leaflet-entry.js";
 
 /**
@@ -24,6 +25,14 @@ const PRESENTATION_FLY_DURATION_SECONDS = 7;
 const PRESENTATION_WORLD_DWELL_MS = 450;
 const MAP_DRAG_MOVE_TOLERANCE_PX = 8;
 const MAP_CLICK_SUPPRESSION_MS = 350;
+const LOCATION_MAP_DEFAULT_MARKER_DIAMETER_PX = WORLD_ENTITY_MIN_HIT_RADIUS_PX * 2;
+const LOCATION_MAP_MIN_MARKER_DIAMETER_PX = 16;
+const LOCATION_MAP_MAX_MARKER_DIAMETER_PX = 64;
+const LOCATION_MAP_MARKER_BOX_PADDING_PX = 12;
+const LOCATION_MAP_MIN_ICON_BOX_PX =
+  LOCATION_MAP_DEFAULT_MARKER_DIAMETER_PX + LOCATION_MAP_MARKER_BOX_PADDING_PX;
+const LOCATION_MAP_MIN_GLYPH_PX = 14;
+const LOCATION_MAP_GLYPH_SCALE = 0.56;
 const motion = globalThis.TimelineMotion;
 
 interface PointCoord {
@@ -671,9 +680,25 @@ function markerAppearance(style: MapStyle = {}, fallbackColor = "#315fbd") {
     color: String(marker.color || fallbackColor),
     fillColor: String(marker.fillColor || ""),
     opacity: styleNumber(marker.opacity, 1, 0, 1),
-    size: styleNumber(marker.size, 44, 16, 64),
+    size: styleNumber(
+      marker.size,
+      LOCATION_MAP_DEFAULT_MARKER_DIAMETER_PX,
+      LOCATION_MAP_MIN_MARKER_DIAMETER_PX,
+      LOCATION_MAP_MAX_MARKER_DIAMETER_PX,
+    ),
     weight: styleNumber(marker.weight, 2, 0, 8),
   };
+}
+
+function markerGlyphSizePx(markerSizePx: number): number {
+  return Math.max(LOCATION_MAP_MIN_GLYPH_PX, Math.round(markerSizePx * LOCATION_MAP_GLYPH_SCALE));
+}
+
+function markerIconBoxSizePx(markerSizePx: number): number {
+  return Math.max(
+    LOCATION_MAP_MIN_ICON_BOX_PX,
+    markerSizePx + LOCATION_MAP_MARKER_BOX_PADDING_PX,
+  );
 }
 
 function leafletPathStyle(
@@ -714,12 +739,15 @@ function semanticMarkerIcon(
   if (appearance.fillColor) identity.style.setProperty("--map-marker-fill", appearance.fillColor);
   identity.style.setProperty("--map-marker-size", `${appearance.size}px`);
   identity.style.setProperty("--map-marker-weight", `${appearance.weight}px`);
+  const iconBoxSize = markerIconBoxSizePx(appearance.size);
+  const markerOffsetPx = (iconBoxSize - appearance.size) / 2;
+  identity.style.setProperty("--map-marker-offset", `${markerOffsetPx}px`);
   identity.style.opacity = String(appearance.opacity);
 
   const shell = document.createElement("span");
   shell.className = "timeline-map-marker-shell";
   const icon = globalThis.TimelinePresentation?.createIcon?.(iconName || "place", {
-    size: Math.max(14, Math.round(appearance.size * 0.56)),
+    size: markerGlyphSizePx(appearance.size),
   });
   if (icon) shell.append(icon);
   else shell.textContent = "•";
@@ -735,8 +763,8 @@ function semanticMarkerIcon(
   return L.divIcon({
     className: "timeline-map-marker",
     html: identity.outerHTML,
-    iconSize: [56, 56],
-    iconAnchor: [28, 28],
+    iconSize: [iconBoxSize, iconBoxSize],
+    iconAnchor: [iconBoxSize / 2, iconBoxSize / 2],
   });
 }
 
@@ -814,7 +842,7 @@ class ReadOnlyLocationMap {
     const iconShell = document.createElement("span");
     iconShell.className = "timeline-map-place-icon";
     const icon = globalThis.TimelinePresentation?.createIcon?.(this.iconName || "place", {
-      size: 22,
+      size: markerGlyphSizePx(appearance.size),
     });
     if (icon) iconShell.append(icon);
     else iconShell.textContent = "•";
