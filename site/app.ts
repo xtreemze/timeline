@@ -1213,19 +1213,6 @@ function normalizedChoice(value: unknown, allowed: readonly string[], fallback: 
   return typeof value === "string" && allowed.includes(value) ? value : fallback;
 }
 
-function stableJsonIdentity(value: unknown): string {
-  const normalize = (entry: unknown): unknown => {
-    if (Array.isArray(entry)) return entry.map(normalize);
-    if (!entry || typeof entry !== "object") return entry;
-    return Object.fromEntries(
-      Object.entries(entry as Record<string, unknown>)
-        .sort(([left], [right]) => left.localeCompare(right))
-        .map(([key, nested]) => [key, normalize(nested)]),
-    );
-  };
-  return JSON.stringify(normalize(value));
-}
-
 function normalizeTimeline(
   input: TimelineInputRecord | TimelineState,
   { strictGraph = false }: { strictGraph?: boolean } = {},
@@ -1483,22 +1470,12 @@ function normalizeTimeline(
     (relationship) =>
       graphEndpointIds.has(relationship.subjectId) && graphEndpointIds.has(relationship.objectId),
   );
-  if (strictGraph) {
-    const itemById = new Map(items.map((item) => [String(item.id), item] as const));
-    for (const relationship of graphData.relationships) {
-      if (!relationship.time || !(relationship.itemIds ?? []).length) continue;
-      const canonicalTime = stableJsonIdentity(relationship.time);
-      for (const itemId of relationship.itemIds ?? []) {
-        const item = itemById.get(String(itemId));
-        if (!item) continue;
-        if (stableJsonIdentity(item.time) !== canonicalTime) {
-          throw new Error(
-            `Occurrence “${relationship.id}” time conflicts with linked chronology item “${item.id}”. Canonical occurrence time and its linked projections must agree.`,
-          );
-        }
-      }
-    }
-  }
+  // relationship.itemIds[] remains a v2 compatibility link for chronology/presentation
+  // context. It does not prove that the linked item is a one-to-one temporal projection
+  // of the relationship occurrence, so strict graph normalization must not require their
+  // time extents to match. Authored occurrence edits keep true linked projections in sync
+  // through occurrence-authoring.ts; explicit projection identity can enforce this again
+  // once it is modeled independently from legacy itemIds[].
   const relationshipIds = new Set(graphData.relationships.map((relationship) => relationship.id));
   for (const item of items) {
     item.relationChanges = (item.relationChanges || []).filter((change) =>
