@@ -19,6 +19,7 @@ import {
   lumReferences,
   lumSemanticTokens,
 } from "./lib/lum-language-intelligence.mjs";
+import { LumWorkspaceIndex } from "./lib/lum-workspace-index.mjs";
 
 function documentFormat(source) {
   try {
@@ -67,6 +68,7 @@ function fullDocumentRange(source) {
 
 export function createLumLanguageServer(writeMessage) {
   const documents = new Map();
+  const workspace = new LumWorkspaceIndex();
 
   function reply(id, result) {
     writeMessage({ jsonrpc: "2.0", id, result });
@@ -74,7 +76,9 @@ export function createLumLanguageServer(writeMessage) {
 
   function sourceFor(message) {
     const uri = message.params?.textDocument?.uri;
-    return uri ? { uri, source: documents.get(uri) } : { uri: null, source: undefined };
+    return uri
+      ? { uri, source: documents.get(uri) ?? workspace.source(uri) }
+      : { uri: null, source: undefined };
   }
 
   function publish(uri, source) {
@@ -92,6 +96,12 @@ export function createLumLanguageServer(writeMessage) {
     const method = message?.method;
 
     if (method === "initialize") {
+      const folders = message.params?.workspaceFolders?.length
+        ? message.params.workspaceFolders
+        : message.params?.rootUri
+          ? [{ uri: message.params.rootUri, name: "root" }]
+          : [];
+      workspace.indexWorkspaceFolders(folders);
       reply(message.id, {
         capabilities: {
           textDocumentSync: 1,
@@ -103,6 +113,8 @@ export function createLumLanguageServer(writeMessage) {
           documentSymbolProvider: true,
           definitionProvider: true,
           referencesProvider: true,
+          workspaceSymbolProvider: true,
+          renameProvider: { prepareProvider: true },
           semanticTokensProvider: {
             legend: {
               tokenTypes: LUM_SEMANTIC_TOKEN_TYPES,
@@ -128,6 +140,7 @@ export function createLumLanguageServer(writeMessage) {
       const document = message.params?.textDocument;
       if (!document?.uri || typeof document.text !== "string") return;
       documents.set(document.uri, document.text);
+      workspace.setDocument(document.uri, document.text, { open: true });
       publish(document.uri, document.text);
       return;
     }
@@ -137,6 +150,7 @@ export function createLumLanguageServer(writeMessage) {
       const text = message.params?.contentChanges?.at(-1)?.text;
       if (!uri || typeof text !== "string") return;
       documents.set(uri, text);
+      workspace.setDocument(uri, text, { open: true });
       publish(uri, text);
       return;
     }
@@ -148,10 +162,19 @@ export function createLumLanguageServer(writeMessage) {
       return;
     }
 
+    if (method === "workspace/didChangeWatchedFiles") {
+      for (const change of message.params?.changes ?? []) {
+        if (!change?.uri) continue;
+        workspace.refreshUri(change.uri, change.type === 3);
+      }
+      return;
+    }
+
     if (method === "textDocument/didClose") {
       const uri = message.params?.textDocument?.uri;
       if (!uri) return;
       documents.delete(uri);
+      workspace.closeDocument(uri);
       writeMessage({
         jsonrpc: "2.0",
         method: "textDocument/publishDiagnostics",
@@ -180,19 +203,29 @@ export function createLumLanguageServer(writeMessage) {
     }
 
     if (method === "textDocument/completion") {
-      const { source } = sourceFor(message);
+      const { uri, source } = sourceFor(message);
+      if (!uri || typeof source !== "string") {
+        reply(message.id, []);
+        return;
+      }
+      const workspaceItems = workspace.completionItems(uri, source, message.params?.position);
       reply(
         message.id,
-        typeof source === "string" ? lumCompletions(source, message.params?.position) : [],
+        workspaceItems.length > 0
+          ? workspaceItems
+          : lumCompletions(source, message.params?.position),
       );
       return;
     }
 
     if (method === "textDocument/hover") {
-      const { source } = sourceFor(message);
+      const { uri, source } = sourceFor(message);
       reply(
         message.id,
-        typeof source === "string" ? lumHover(source, message.params?.position) : null,
+        uri && typeof source === "string"
+          ? workspace.resolvedHover(uri, source, message.params?.position) ??
+              lumHover(source, message.params?.position)
+          : null,
       );
       return;
     }
@@ -208,7 +241,8 @@ export function createLumLanguageServer(writeMessage) {
       reply(
         message.id,
         uri && typeof source === "string"
-          ? lumDefinition(source, message.params?.position, uri)
+          ? workspace.definition(uri, source, message.params?.position) ??
+              lumDefinition(source, message.params?.position, uri)
           : null,
       );
       return;
@@ -216,16 +250,58 @@ export function createLumLanguageServer(writeMessage) {
 
     if (method === "textDocument/references") {
       const { uri, source } = sourceFor(message);
+      if (!uri || typeof source !== "string") {
+        reply(message.id, []);
+        return;
+      }
+      const workspaceLocations = workspace.referenceLocations(
+        uri,
+        source,
+        message.params?.position,
+        message.params?.context?.includeDeclaration !== false,
+      );
       reply(
         message.id,
-        uri && typeof source === "string"
-          ? lumReferences(
+        workspaceLocations.length > 0
+          ? workspaceLocations
+          : lumReferences(
               source,
               message.params?.position,
               uri,
               message.params?.context?.includeDeclaration !== false,
+            ),
+      );
+      return;
+    }
+
+    if (method === "workspace/symbol") {
+      reply(message.id, workspace.workspaceSymbols(message.params?.query ?? ""));
+      return;
+    }
+
+    if (method === "textDocument/prepareRename") {
+      const { uri, source } = sourceFor(message);
+      reply(
+        message.id,
+        uri && typeof source === "string"
+          ? workspace.prepareRename(uri, source, message.params?.position)
+          : null,
+      );
+      return;
+    }
+
+    if (method === "textDocument/rename") {
+      const { uri, source } = sourceFor(message);
+      reply(
+        message.id,
+        uri && typeof source === "string"
+          ? workspace.rename(
+              uri,
+              source,
+              message.params?.position,
+              message.params?.newName,
             )
-          : [],
+          : null,
       );
       return;
     }

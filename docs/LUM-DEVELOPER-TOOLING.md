@@ -190,3 +190,20 @@ No editor, extension, or agent is allowed to weaken those layers.
 VS Code and Helix adapters are documented in [../editors/README.md](../editors/README.md).
 
 They consume the same CLI/schema/LSP contracts defined here. Editor-specific behavior must not redefine validation or formatting semantics.
+
+### Workspace language intelligence
+
+`lum lsp` maintains one compact canonical index for project/module files in configured workspace folders. VS Code and Helix consume the same server behavior.
+
+For files sharing the same `projectKey`, the server provides:
+
+- type-compatible canonical ID completion;
+- compact reference hover;
+- definition navigation across project modules;
+- typed reference search across modules;
+- document and workspace symbols using canonical IDs;
+- canonical-ID rename preview that edits only declarations and typed references.
+
+Workspace discovery ignores generated/dependency directories and `*.lum-proposal.json`. Open documents override their on-disk copy; watched-file changes refresh the compact index without reparsing unrelated files on every keystroke.
+
+Canonical ID rename is not text replacement. The server rejects ambiguous declarations and validates the resulting complete project or assembled module workspace before returning edits. Matching text in notes, source metadata, provenance, or arbitrary attributes is not renamed.

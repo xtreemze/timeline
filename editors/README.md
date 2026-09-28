@@ -62,3 +62,9 @@ VS Code associates `*.lum-proposal.json` with the proposal schema and includes a
 ## Project modules
 
 Project modules use the same JSON grammar, `lum lsp`, and `lum fmt -` path as complete projects. VS Code associates `*.module.lum.json` with the strict module schema and excludes those files from the complete-project schema association. Use `lum check-modules` when cross-module reference validation is required.
+
+## Workspace-aware canonical navigation
+
+Both supported editors use `lum lsp` for workspace-aware canonical navigation. Completion is restricted by the target reference type, and definition/references may cross `.module.lum.json` files with the same `projectKey`. Workspace symbols expose canonical IDs.
+
+Canonical-ID rename is validated as a typed workspace edit rather than a text rename. It does not modify matching prose, provenance, or source identifiers that merely contain the same text.
