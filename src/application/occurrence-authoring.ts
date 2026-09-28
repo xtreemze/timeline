@@ -176,6 +176,14 @@ function normalizedName(value: string): string {
   return value.trim().toLocaleLowerCase();
 }
 
+function normalizeConfidence(value: number | null | undefined): number | null {
+  if (value === null || value === undefined) return null;
+  if (!Number.isFinite(value) || value < 0 || value > 1) {
+    throw new Error("Confidence must be a finite number from 0 to 1.");
+  }
+  return value;
+}
+
 function resolveEntity<TState extends OccurrenceAuthoringState<TExtent>, TExtent>(
   reference: OccurrenceAuthoringEndpointReference,
   draft: TState,
@@ -430,10 +438,7 @@ export function authorOccurrence<TExtent, TState extends OccurrenceAuthoringStat
     initialState: request.initialState === "inactive" ? "inactive" : "active",
     time: request.time.extent,
     sourceIds: [...new Set((request.sourceIds ?? []).map((id) => id.trim()).filter(Boolean))],
-    confidence:
-      request.confidence === undefined || request.confidence === null
-        ? null
-        : Math.max(0, Math.min(1, request.confidence)),
+    confidence: normalizeConfidence(request.confidence),
     attributes: { ...(request.attributes ?? {}) },
   };
 
@@ -616,8 +621,7 @@ export function updateOccurrence<TExtent, TState extends OccurrenceAuthoringStat
     next.sourceIds = [...new Set(request.sourceIds.map((id) => id.trim()).filter(Boolean))];
   }
   if (request.confidence !== undefined) {
-    next.confidence =
-      request.confidence === null ? null : Math.max(0, Math.min(1, request.confidence));
+    next.confidence = normalizeConfidence(request.confidence);
   }
   if (request.attributes !== undefined) {
     next.attributes = { ...request.attributes };
