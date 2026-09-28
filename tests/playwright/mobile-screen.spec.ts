@@ -239,7 +239,12 @@ test.describe("Narrow mobile screen contracts", () => {
 
     for (let first = 0; first < boxes.length; first += 1) {
       for (let second = first + 1; second < boxes.length; second += 1) {
-        const intersection = overlap(boxes[first], boxes[second]);
+        const firstBox = boxes[first];
+        const secondBox = boxes[second];
+        if (!firstBox || !secondBox) {
+          throw new Error("Timeline card geometry disappeared during overlap validation.");
+        }
+        const intersection = overlap(firstBox, secondBox);
         expect(
           intersection.x > 2 && intersection.y > 2,
           `compact horizontal timeline cards ${first} and ${second} overlap by ${Math.max(0, intersection.x).toFixed(1)}×${Math.max(0, intersection.y).toFixed(1)}px`,

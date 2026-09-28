@@ -3784,7 +3784,7 @@ export class TimelineViewController {
   }
 
   // Keep this signature stable while callers migrate: focusItem(id, options = {})
-  focusItem(id: string, options: { moveViewport?: boolean } = {}) {
+  focusItem(id: string, options: { moveViewport?: boolean; direction?: number } = {}) {
     const item = this.items.find((candidate) => candidate.id === id);
     if (!item) return false;
     const moveViewport = options.moveViewport !== false;

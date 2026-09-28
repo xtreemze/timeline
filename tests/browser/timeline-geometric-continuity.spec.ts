@@ -315,7 +315,13 @@ test("cluster aggregates reclaim the nearest timeline lane when their primary sp
 
     const origin = Date.parse("2026-01-01T00:00:00Z");
     const day = 86_400_000;
-    const items = [];
+    const items: Array<{
+      id: string;
+      kind: "event";
+      title: string;
+      start: number;
+      startLabel: string;
+    }> = [];
     for (let group = 0; group < 3; group += 1) {
       const base = group * 30;
       // Lexicographic first member is deliberately the third temporal item.
@@ -399,6 +405,14 @@ test("cluster aggregates reclaim the nearest timeline lane when their primary sp
   }
 
   const primary = geometry.map((cluster) => cluster.primary).sort((left, right) => left - right);
-  expect(primary[1] - primary[0]).toBeGreaterThan(80);
-  expect(primary[2] - primary[1]).toBeGreaterThan(80);
+  const [firstPrimary, secondPrimary, thirdPrimary] = primary;
+  if (
+    firstPrimary === undefined ||
+    secondPrimary === undefined ||
+    thirdPrimary === undefined
+  ) {
+    throw new Error("Expected three cluster primary coordinates.");
+  }
+  expect(secondPrimary - firstPrimary).toBeGreaterThan(80);
+  expect(thirdPrimary - secondPrimary).toBeGreaterThan(80);
 });
