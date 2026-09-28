@@ -86,6 +86,7 @@ interface D3WorldLink extends SimulationLinkDatum<D3WorldNodeState> {
 
 interface D3CrossPlaceInteractionProbe extends SimulationNodeDatum {
   readonly state: D3WorldNodeState;
+  readonly tuning: WorldForceTuning;
   readonly collisionRadiusMeters: number;
   readonly preferredRadiusMeters: number;
 }
@@ -240,8 +241,11 @@ function geographicFromTangentOffset(
   return Object.freeze([wrapLongitude(origin[0] + longitudeDelta), latitude]);
 }
 
-function stateNeighborhoodRadiusMeters(state: D3WorldNodeState): number {
-  const collisionRadius = Math.max(1, worldForceNodePreferredRadiusMeters(state.node));
+function stateNeighborhoodRadiusMeters(
+  state: D3WorldNodeState,
+  tuning: WorldForceTuning,
+): number {
+  const collisionRadius = Math.max(1, tunedPreferredRadiusMeters(state.node, tuning));
   const precisionRadius = Math.max(0, state.anchor?.precisionRadiusMeters ?? 0);
   const targetEast = state.node.layoutTargetEastMeters ?? 0;
   const targetNorth = state.node.layoutTargetNorthMeters ?? 0;
@@ -249,8 +253,16 @@ function stateNeighborhoodRadiusMeters(state: D3WorldNodeState): number {
   return Math.max(collisionRadius * 8, precisionRadius, targetRadius);
 }
 
-function pairNeighborhoodRadiusMeters(left: D3WorldNodeState, right: D3WorldNodeState): number {
-  return stateNeighborhoodRadiusMeters(left) + stateNeighborhoodRadiusMeters(right);
+function pairNeighborhoodRadiusMeters(
+  left: D3WorldNodeState,
+  right: D3WorldNodeState,
+  leftTuning: WorldForceTuning,
+  rightTuning: WorldForceTuning,
+): number {
+  return (
+    stateNeighborhoodRadiusMeters(left, leftTuning) +
+    stateNeighborhoodRadiusMeters(right, rightTuning)
+  );
 }
 
 function surfaceCartesianMeters(
@@ -289,8 +301,8 @@ function crossPlaceGroupBounds(group: D3WorldGroup): D3WorldGroupBounds | null {
     maxZ = Math.max(maxZ, z);
     paddingMeters = Math.max(
       paddingMeters,
-      stateNeighborhoodRadiusMeters(state),
-      worldForceNodePreferredRadiusMeters(state.node) * 4,
+      stateNeighborhoodRadiusMeters(state, group.tuning),
+      tunedPreferredRadiusMeters(state.node, group.tuning) * 4,
     );
   }
 
@@ -941,15 +953,17 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     const rightPosition = geographicPosition(right);
     if (!leftPosition || !rightPosition) return false;
 
+    const leftTuning = this.#tuningForState(left);
+    const rightTuning = this.#tuningForState(right);
     const collisionDistance =
       left.node.collisionRadiusMeters + right.node.collisionRadiusMeters;
     const preferredDistance =
-      worldForceNodePreferredRadiusMeters(left.node) +
-      worldForceNodePreferredRadiusMeters(right.node);
+      tunedPreferredRadiusMeters(left.node, leftTuning) +
+      tunedPreferredRadiusMeters(right.node, rightTuning);
     const interactionDistance = Math.max(
       collisionDistance * 4,
       preferredDistance * 4,
-      pairNeighborhoodRadiusMeters(left, right),
+      pairNeighborhoodRadiusMeters(left, right, leftTuning, rightTuning),
     );
     if (surfaceDistanceMeters(leftPosition, rightPosition) > interactionDistance) return false;
 
@@ -959,8 +973,9 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     const probes: D3CrossPlaceInteractionProbe[] = [
       {
         state: left,
+        tuning: leftTuning,
         collisionRadiusMeters: left.node.collisionRadiusMeters,
-        preferredRadiusMeters: worldForceNodePreferredRadiusMeters(left.node),
+        preferredRadiusMeters: tunedPreferredRadiusMeters(left.node, leftTuning),
         x: 0,
         y: 0,
         vx: 0,
@@ -969,8 +984,9 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       },
       {
         state: right,
+        tuning: rightTuning,
         collisionRadiusMeters: right.node.collisionRadiusMeters,
-        preferredRadiusMeters: worldForceNodePreferredRadiusMeters(right.node),
+        preferredRadiusMeters: tunedPreferredRadiusMeters(right.node, rightTuning),
         x: rightEast,
         y: rightNorth,
         vx: 0,
@@ -988,7 +1004,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     pairSimulation.force(
       "charge",
       forceManyBody<D3CrossPlaceInteractionProbe>()
-        .strength(NORMAL_MANY_BODY_STRENGTH)
+        .strength((probe) => probe.tuning.manyBodyStrength)
         .distanceMin(
           Math.max(
             1,
@@ -1001,8 +1017,8 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       "collision",
       forceCollide<D3CrossPlaceInteractionProbe>()
         .radius((probe) => probe.collisionRadiusMeters)
-        .strength(COLLISION_STRENGTH)
-        .iterations(COLLISION_ITERATIONS),
+        .strength(Math.max(leftTuning.collisionStrength, rightTuning.collisionStrength))
+        .iterations(Math.max(leftTuning.collisionIterations, rightTuning.collisionIterations)),
     );
     if (preferredDistance > collisionDistance) {
       pairSimulation.force(
@@ -1061,29 +1077,40 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
         return [];
       const position = geographicPosition(state);
       if (!position) return [];
+      const focalTuning = this.#tuningForState(focalState);
+      const stateTuning = this.#tuningForState(state);
       const collisionDistance =
         focalState.node.collisionRadiusMeters + state.node.collisionRadiusMeters;
       const preferredDistance =
-        worldForceNodePreferredRadiusMeters(focalState.node) +
-        worldForceNodePreferredRadiusMeters(state.node);
+        tunedPreferredRadiusMeters(focalState.node, focalTuning) +
+        tunedPreferredRadiusMeters(state.node, stateTuning);
       const interactionDistance = Math.max(
         collisionDistance * 4,
         preferredDistance * 4,
-        pairNeighborhoodRadiusMeters(focalState, state),
+        pairNeighborhoodRadiusMeters(focalState, state, focalTuning, stateTuning),
       );
       if (surfaceDistanceMeters(focalPosition, position) > interactionDistance) return [];
       const [eastMeters, northMeters] = tangentOffsetMeters(focalPosition, position);
-      return [{ state, eastMeters, northMeters }];
+      return [{ state, tuning: stateTuning, eastMeters, northMeters }];
     });
     if (partners.length === 0) return false;
 
-    const participants = [{ state: focalState, eastMeters: 0, northMeters: 0 }, ...partners];
+    const participants = [
+      {
+        state: focalState,
+        tuning: this.#tuningForState(focalState),
+        eastMeters: 0,
+        northMeters: 0,
+      },
+      ...partners,
+    ];
     const pinFocal = this.#pin?.instanceId === focalState.id;
     const probes: D3CrossPlaceInteractionProbe[] = participants.map(
-      ({ state, eastMeters, northMeters }, index) => ({
+      ({ state, tuning, eastMeters, northMeters }, index) => ({
         state,
+        tuning,
         collisionRadiusMeters: state.node.collisionRadiusMeters,
-        preferredRadiusMeters: worldForceNodePreferredRadiusMeters(state.node),
+        preferredRadiusMeters: tunedPreferredRadiusMeters(state.node, tuning),
         x: eastMeters,
         y: northMeters,
         vx: 0,
@@ -1099,12 +1126,21 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       .alphaDecay(ALPHA_DECAY)
       .alphaTarget(0);
     const maximumInteractionDistance = Math.max(
-      ...participants.slice(1).map(({ state }) => pairNeighborhoodRadiusMeters(focalState, state)),
+      ...participants
+        .slice(1)
+        .map(({ state, tuning }) =>
+          pairNeighborhoodRadiusMeters(
+            focalState,
+            state,
+            participants[0]?.tuning ?? this.#globalTuning,
+            tuning,
+          ),
+        ),
     );
     interactionSimulation.force(
       "charge",
       forceManyBody<D3CrossPlaceInteractionProbe>()
-        .strength(NORMAL_MANY_BODY_STRENGTH)
+        .strength((probe) => probe.tuning.manyBodyStrength)
         .distanceMin(Math.max(1, Math.min(...probes.map((probe) => probe.collisionRadiusMeters))))
         .distanceMax(maximumInteractionDistance),
     );
@@ -1112,8 +1148,8 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       "collision",
       forceCollide<D3CrossPlaceInteractionProbe>()
         .radius((probe) => probe.collisionRadiusMeters)
-        .strength(COLLISION_STRENGTH)
-        .iterations(COLLISION_ITERATIONS),
+        .strength(Math.max(...probes.map((probe) => probe.tuning.collisionStrength)))
+        .iterations(Math.max(...probes.map((probe) => probe.tuning.collisionIterations))),
     );
     if (
       probes.some((probe) => probe.preferredRadiusMeters > probe.collisionRadiusMeters)
@@ -1166,6 +1202,13 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     }
 
     return moved;
+  }
+
+  #tuningForState(state: D3WorldNodeState): WorldForceTuning {
+    return (
+      (state.placeId === null ? undefined : this.#placeTunings.get(String(state.placeId))) ??
+      this.#globalTuning
+    );
   }
 
   #linkStrength(
