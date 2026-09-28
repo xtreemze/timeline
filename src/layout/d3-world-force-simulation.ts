@@ -27,7 +27,6 @@ import {
   type WorldForceTuningScope,
   type WorldSimulationDiagnostics,
   type WorldSimulationRequest,
-  worldForceNodePreferredRadiusMeters,
 } from "./world-force-simulation.ts";
 
 const NORMAL_MANY_BODY_STRENGTH = -2_600;
