@@ -5,7 +5,12 @@ import {
   OrbEventType,
   OrbView,
 } from "@memgraph/orb";
+import { iconPathData } from "../site/event-presentation.ts";
 import { TimelineMotion } from "../site/timeline-motion.ts";
+import {
+  defaultSemanticIconForEntityType,
+  normalizeSemanticIconName,
+} from "./presentation/semantic-icons.ts";
 import {
   connectedGraphComponents,
   graphComponentTopologySignature,
@@ -61,26 +66,6 @@ function supportsWebGL2() {
   return webGL2Support;
 }
 
-const ICON_PATHS = Object.freeze({
-  event: ["M6 4h12v16H6z", "M8 2v4", "M16 2v4", "M6 8h12", "M9 12h2", "M13 12h2", "M9 16h2"],
-  story: ["M4 18V6", "M4 7h7l2 2h7v8h-7l-2-2H4"],
-  person: ["M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z", "M4 21a8 8 0 0 1 16 0"],
-  place: [
-    "M12 22s7-6.1 7-13a7 7 0 1 0-14 0c0 6.9 7 13 7 13z",
-    "M12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6z",
-  ],
-  evidence: ["M5 3h10l4 4v14H5z", "M15 3v5h5", "M8 13h8", "M8 17h6"],
-  organization: ["M4 21h16", "M6 21V8l6-5 6 5v13", "M9 11h1", "M14 11h1", "M9 15h1", "M14 15h1"],
-  device: ["M5 4h14v12H5z", "M9 20h6", "M12 16v4"],
-  account: ["M4 7h16v12H4z", "M4 10h16", "M8 15h4"],
-  relation: [
-    "M7 7h10",
-    "M7 17h10",
-    "M7 7a2 2 0 1 1-4 0 2 2 0 0 1 4 0z",
-    "M21 17a2 2 0 1 1-4 0 2 2 0 0 1 4 0z",
-  ],
-});
-
 const iconCache = new Map();
 
 function semanticType(data) {
@@ -98,13 +83,30 @@ function semanticType(data) {
   return "relation";
 }
 
-function semanticIconUrl(type) {
-  if (iconCache.has(type)) return iconCache.get(type);
-  const paths = ICON_PATHS[type] || ICON_PATHS.relation;
-  const pathMarkup = paths.map((d) => `<path d="${d}"/>`).join("");
+function semanticIconName(data, type) {
+  const authored =
+    data?.properties?.attributes?.style?.icon ?? data?.properties?.attributes?.icon;
+  const canonicalAuthored = normalizeSemanticIconName(authored);
+  if (canonicalAuthored) return canonicalAuthored;
+
+  const canonicalType = defaultSemanticIconForEntityType(data?.properties?.timelineType);
+  if (canonicalType) return canonicalType;
+
+  if (type === "event") return "milestone";
+  if (type === "story") return "relation";
+  if (type === "organization") return "group";
+  if (type === "device" || type === "account") return "object";
+  return "relation";
+}
+
+function semanticIconUrl(icon) {
+  if (iconCache.has(icon)) return iconCache.get(icon);
+  const paths = iconPathData(icon);
+  const fallbackPaths = paths.length > 0 ? paths : iconPathData("relation");
+  const pathMarkup = fallbackPaths.map((d) => `<path d="${d}"/>`).join("");
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${pathMarkup}</svg>`;
   const url = `data:image/svg+xml,${encodeURIComponent(svg)}`;
-  iconCache.set(type, url);
+  iconCache.set(icon, url);
   return url;
 }
 
@@ -1267,6 +1269,7 @@ function create(container, handlers = {}) {
 
   function nodeStyle(data) {
     const type = semanticType(data);
+    const icon = semanticIconName(data, type);
     const nodeId = String(data?.id ?? "");
     const isDragged = Boolean(nodeId) && nodeId === activeDragNodeId;
     const isDragFlash = isDragged && nodeId === dragFlashNodeId;
@@ -1297,8 +1300,8 @@ function create(container, handlers = {}) {
       size: isDragFlash ? transitionSize * 1.16 : transitionSize,
       mass: type === "event" ? 3.4 : type === "story" ? 3 : 1.8,
       shape: nodeShape(type),
-      imageUrl: semanticIconUrl(type),
-      imageUrlSelected: semanticIconUrl(type),
+      imageUrl: semanticIconUrl(icon),
+      imageUrlSelected: semanticIconUrl(icon),
       color,
       colorHover: palette.focus,
       colorSelected: isDragFlash ? palette.paper : palette.focus,
