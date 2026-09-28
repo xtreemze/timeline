@@ -297,10 +297,9 @@ export class LuumOccurrenceComposerElement extends LitElement {
       display: flex;
       gap: 0.3rem;
       min-inline-size: 0;
-      padding: 0.38rem 0.45rem;
+      padding: 0;
       overflow-x: auto;
       overscroll-behavior-inline: contain;
-      border-block-end: 1px solid var(--line, #d1ccc4);
       scrollbar-width: none;
     }
 
@@ -316,15 +315,50 @@ export class LuumOccurrenceComposerElement extends LitElement {
     .composer-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; font-size: 0.8rem; }
     .composer-card-heading strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .composer-card-details {
-      position: relative;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
       min-inline-size: 0;
-      min-block-size: clamp(8rem, 24vh, 13rem);
       overflow: hidden;
       border: 1px solid color-mix(in srgb, var(--line, #d1ccc4) 78%, transparent);
       border-radius: 0.6rem;
       background: #171716;
       color: #f1ede7;
       isolation: isolate;
+    }
+    .composer-card-media {
+      position: relative;
+      min-inline-size: 0;
+      min-block-size: clamp(9rem, 22vh, 14rem);
+      overflow: hidden;
+      background: #171716;
+      isolation: isolate;
+    }
+    .composer-card-context {
+      display: grid;
+      min-inline-size: 0;
+      align-content: center;
+      gap: 0.5rem;
+      box-sizing: border-box;
+      padding: 1rem;
+      border-block-start: 1px solid color-mix(in srgb, var(--line, #d1ccc4) 55%, transparent);
+      background: linear-gradient(145deg, #252321, #171716);
+      color: #f1ede7;
+    }
+    .composer-card-context-label,
+    .composer-card-context-body {
+      margin: 0;
+    }
+    .composer-card-context-label {
+      color: color-mix(in srgb, #f1ede7 68%, transparent);
+      font-size: 0.68rem;
+      font-weight: 760;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .composer-card-context-body {
+      max-inline-size: 52ch;
+      font-size: 0.78rem;
+      line-height: 1.5;
     }
     .composer-context-deck {
       position: absolute;
@@ -526,6 +560,22 @@ export class LuumOccurrenceComposerElement extends LitElement {
       font-weight: 760;
       letter-spacing: 0.03em;
       text-transform: uppercase;
+    }
+
+    @media (min-width: 721px) {
+      .composer-card-details[data-split="true"] {
+        grid-template-columns: minmax(0, 1.15fr) minmax(16rem, 0.85fr);
+      }
+
+      .composer-card-details[data-split="true"] .composer-card-media {
+        aspect-ratio: 16 / 10;
+        min-block-size: 0;
+      }
+
+      .composer-card-details[data-split="true"] .composer-card-context {
+        border-block-start: 0;
+        border-inline-start: 1px solid color-mix(in srgb, var(--line, #d1ccc4) 55%, transparent);
+      }
     }
 
     @media (max-width: 480px) {
@@ -1298,10 +1348,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
       : html`<span class="preview-node preview-pending">${label}</span>`;
   }
   private contextDeckFrames() {
-    return occurrenceContextDeckFrames(
-      this.selectionContext?.media,
-      this.selectionContext?.description,
-    );
+    return occurrenceContextDeckFrames(this.selectionContext?.media, null);
   }
 
   private syncContextDeck(): void {
@@ -1464,9 +1511,23 @@ export class LuumOccurrenceComposerElement extends LitElement {
           <section class="composer-occurrence-card" aria-label="Occurrence card in composer">
             <div class="composer-card-heading"><strong>${this.selectionContext?.title || "New occurrence"}</strong>
               <span>${qualifiers.length ? "Investigating" : preview.category || "Draft"}</span></div>
-            ${this.contextDeckFrames().length
-              ? html`<div class="composer-card-details" aria-label="Occurrence media and context">
-                  <luum-occurrence-deck class="composer-context-deck"></luum-occurrence-deck>
+            ${this.contextDeckFrames().length || this.selectionContext?.description?.trim()
+              ? html`<div
+                  class="composer-card-details"
+                  data-split=${String(Boolean(this.contextDeckFrames().length && this.selectionContext?.description?.trim()))}
+                  aria-label="Occurrence media and context"
+                >
+                  ${this.contextDeckFrames().length
+                    ? html`<div class="composer-card-media" aria-label="Occurrence slideshow">
+                        <luum-occurrence-deck class="composer-context-deck"></luum-occurrence-deck>
+                      </div>`
+                    : nothing}
+                  ${this.selectionContext?.description?.trim()
+                    ? html`<aside class="composer-card-context" aria-label="Occurrence context">
+                        <strong class="composer-card-context-label">Context</strong>
+                        <p class="composer-card-context-body">${this.selectionContext.description.trim()}</p>
+                      </aside>`
+                    : nothing}
                 </div>`
               : nothing}
             <div class="composer-world-preview" role="img"
@@ -1487,21 +1548,66 @@ export class LuumOccurrenceComposerElement extends LitElement {
               </span>
               ${this.previewNode(preview.object, "Target", previewPalette)}
             </div>
-            <div class="composer-grammar" aria-label="Editable sentence sections">
+            <div class="context-row composer-grammar" aria-label="Editable occurrence context">
+              ${this.hasPendingSelectionContext
+                ? html`<button
+                    class="context-chip"
+                    type="button"
+                    data-context-kind="pending-selection"
+                    data-context-state="pending"
+                    title="Replace this draft with the newly selected graph context"
+                    @click=${() => this.acceptPendingSelectionContext()}
+                  >
+                    <span>Selection changed</span><strong>${this.pendingSelectionContext ? "Use selected context" : "Use no selection"}</strong>
+                  </button>`
+                : nothing}
               ${sections.map(
-                (section) => html`<button class="grammar-chip" type="button"
-                aria-label=${`Edit ${section.kind}: ${section.text}`}
-                @pointerdown=${(event: PointerEvent) => event.preventDefault()}
-                @click=${() => this.selectSection(section.start, section.end)}>${section.text}</button>`,
+                (section) => html`<button
+                  class="grammar-chip context-chip"
+                  type="button"
+                  data-context-kind=${section.kind}
+                  data-context-state="pinned"
+                  aria-label=${`Edit ${section.kind}: ${section.text}`}
+                  @pointerdown=${(event: PointerEvent) => event.preventDefault()}
+                  @click=${() => this.selectSection(section.start, section.end)}
+                >${section.text}</button>`,
               )}
-              ${preview.tags.map((tag) => {
-                const section = sections.find((entry) => entry.kind === "tag" && entry.text === tag);
-                return section
-                  ? html`<button class="context-chip" type="button" aria-label=${`Edit tag: ${tag}`}
-                      @pointerdown=${(event: PointerEvent) => event.preventDefault()}
-                      @click=${() => this.selectSection(section.start, section.end)}>#${tag}</button>`
-                  : nothing;
-              })}
+              ${subjectLabel && !sections.some((section) => section.kind === "subject")
+                ? html`<button
+                    class="context-chip"
+                    type="button"
+                    data-context-kind="subject"
+                    data-context-state="pinned"
+                    @click=${() => this.focusSection("subject")}
+                  ><span>Subject</span><strong>${subjectLabel}</strong><span class="context-state">pinned</span></button>`
+                : nothing}
+              ${!sections.some((section) => section.kind === "place")
+                ? html`<button
+                    type="button"
+                    @click=${() => this.focusSection("place")}
+                    class="context-chip"
+                    data-context-kind="place"
+                    data-context-state=${placePinned ? "pinned" : "live"}
+                  ><span>Place</span><strong>${placeLabel}</strong><span class="context-state">${placePinned ? "pinned" : "live"}</span></button>`
+                : nothing}
+              ${!sections.some((section) => section.kind === "time")
+                ? html`<button
+                    type="button"
+                    @click=${() => this.focusSection("time")}
+                    class="context-chip"
+                    data-context-kind="time"
+                    data-context-state=${timePinned ? "pinned" : "live"}
+                  ><span>Time</span><strong>${timeLabel ?? "timeline center"}</strong><span class="context-state">${timePinned ? "pinned" : "live"}</span></button>`
+                : nothing}
+              ${categoryLabel && !sections.some((section) => section.kind === "category")
+                ? html`<button
+                    class="context-chip"
+                    type="button"
+                    data-context-kind="category"
+                    data-context-state="pinned"
+                    @click=${() => this.focusSection("category")}
+                  ><span>Category</span><strong>${categoryLabel}</strong></button>`
+                : nothing}
             </div>
           </section>
           ${
@@ -1646,64 +1752,6 @@ export class LuumOccurrenceComposerElement extends LitElement {
                 ? "Investigation mode. Choose an interpretation to compare candidates."
                 : ""}
           </span>
-          <div class="context-row" aria-label="Occurrence context">
-            ${
-              this.hasPendingSelectionContext
-                ? html`<button
-                  class="context-chip"
-                  type="button"
-                  data-context-kind="pending-selection"
-                  data-context-state="pending"
-                  title="Replace this draft with the newly selected graph context"
-                  @click=${() => this.acceptPendingSelectionContext()}
-                >
-                  <span>Selection changed</span><strong>${this.pendingSelectionContext ? "Use selected context" : "Use no selection"}</strong>
-                </button>`
-                : nothing
-            }
-            ${
-              subjectLabel
-                ? html`<button class="context-chip" type="button" data-context-kind="subject" data-context-state="pinned"
-                  @click=${() => this.focusSection("subject")}>
-                  <span>Subject</span><strong>${subjectLabel}</strong><span class="context-state">pinned</span>
-                </button>`
-                : nothing
-            }
-            <button type="button" @click=${() => this.focusSection("place")}
-              class="context-chip"
-              data-context-kind="place"
-              data-context-state=${placePinned ? "pinned" : "live"}
-            >
-              <span>Place</span><strong>${placeLabel}</strong><span class="context-state">${placePinned ? "pinned" : "live"}</span>
-            </button>
-            <button type="button" @click=${() => this.focusSection("time")}
-              class="context-chip"
-              data-context-kind="time"
-              data-context-state=${timePinned ? "pinned" : "live"}
-            >
-              <span>Time</span><strong>${timeLabel ?? "timeline center"}</strong><span class="context-state">${timePinned ? "pinned" : "live"}</span>
-            </button>
-            ${
-              categoryLabel
-                ? html`<button class="context-chip" type="button" data-context-kind="category" data-context-state="pinned"
-                  @click=${() => this.focusSection("category")}>
-                  <span>Category</span><strong>${categoryLabel}</strong>
-                </button>`
-                : nothing
-            }
-            ${tagLabels.map(
-              (
-                tag,
-                index,
-              ) => html`<button class="context-chip" type="button" data-context-kind="tag" data-context-state="pinned"
-                @click=${() => {
-                  const section = sections.filter((candidate) => candidate.kind === "tag")[index];
-                  if (section) this.selectSection(section.start, section.end);
-                }}>
-                <span>Tag</span><strong>${tag}</strong>
-              </button>`,
-            )}
-          </div>
           ${
             diagnostic
               ? html`<p id="occurrence-composer-diagnostic" class="diagnostic" role="alert">${diagnostic}</p>`
