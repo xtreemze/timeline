@@ -261,22 +261,37 @@ test("Browse opens an example story into visible timeline context", async ({ pag
   const title = (await story.locator("strong").textContent())?.trim() || "";
   expect(storyId).not.toBe("");
   expect(title).not.toBe("");
-  const firstItemId = await page.evaluate((selectedStoryId) => {
+  const storyItems = await page.evaluate((selectedStoryId) => {
     const sample = globalThis.TimelineSampleCase;
-    return sample?.stories?.find((candidate) => candidate.id === selectedStoryId)?.itemIds?.[0] || "";
+    const selected = sample?.stories?.find((candidate) => candidate.id === selectedStoryId);
+    return (selected?.itemIds || []).map((id) => ({
+      id,
+      title: sample?.items?.find((item) => item.id === id)?.title || "",
+    }));
   }, storyId);
-  expect(firstItemId).not.toBe("");
+  expect(storyItems.length).toBeGreaterThan(1);
+  expect(storyItems[0].id).not.toBe("");
+  expect(storyItems[1].title).not.toBe("");
   await story.click();
 
   await expect(browser).toBeHidden();
   await expect(page.locator("#story-focus")).toBeVisible();
+  await expect(page.locator("#story-focus-title")).toBeVisible();
   await expect(page.locator("#story-focus-title")).toHaveText(title);
+  await expect(page.locator("#story-focus-position")).toHaveText(`1 / ${storyItems.length}`);
+  await expect(page.locator("#story-prev")).toBeDisabled();
+  await expect(page.locator("#story-next")).toBeEnabled();
   await expect
     .poll(() =>
       page.locator(".timeline-event:not(.timeline-cluster) .timeline-event-terminal:visible").count(),
     )
     .toBeGreaterThan(0);
-  await expect(page.locator(`.timeline-event[data-id="${firstItemId}"]`)).toBeVisible();
+  await expect(page.locator(`.timeline-event[data-id="${storyItems[0].id}"]`)).toBeVisible();
+
+  await page.locator("#story-next").click();
+  await expect(page.locator("#story-focus-position")).toHaveText(`2 / ${storyItems.length}`);
+  await expect(page.locator("#story-prev")).toBeEnabled();
+  await expect(page.locator(".timeline-focus-title")).toHaveText(storyItems[1].title);
 });
 
 test("stale bundled demo storage refreshes the current example stories", async ({ page }) => {
