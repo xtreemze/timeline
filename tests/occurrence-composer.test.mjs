@@ -963,6 +963,38 @@ test("Lit composer is a touch-safe ARIA combobox with live-context guidance", as
   assert.match(source, /--composer-completion-max-height/);
 });
 
+test("composer exposes save, live-context chips, metadata, and keyboard parity as real controls", async () => {
+  const source = await readFile(
+    new URL("../site/components/occurrence-composer.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /class="commit"/);
+  assert.match(source, /aria-label=\$\{this\.selectionContext\?\.selectedOccurrenceId \? "Save occurrence" : "Create occurrence"\}/);
+  assert.match(source, /@click=\$\{\(\) => this\.commit\(\)\}/);
+  assert.match(source, /event\.key === "Enter" && \(event\.ctrlKey \|\| event\.metaKey\)/);
+  assert.match(source, /event\.isComposing/);
+  assert.match(source, /data-context-kind="place"[\s\S]*@click=\$\{\(\) => this\.activateLivePlaceContext\(\)\}/);
+  assert.match(source, /data-context-kind="time"[\s\S]*@click=\$\{\(\) => this\.activateLiveTimeContext\(\)\}/);
+  assert.match(source, /onContextRowKeyDown/);
+  assert.match(source, /"ArrowLeft", "ArrowRight", "Home", "End"/);
+  assert.match(source, /data-context-kind="metadata"/);
+  assert.match(source, /id="occurrence-composer-metadata"/);
+  assert.match(source, /Confidence · 0–1/);
+  assert.match(source, /Evidence \/ provenance IDs/);
+  assert.match(source, /metadataDirty/);
+});
+
+test("application passes composer metadata through create and update occurrence transactions", async () => {
+  const source = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
+  assert.match(source, /metadata:\s*\{[\s\S]*role:\s*relationship\.role/);
+  assert.match(source, /!detail\.metadataDirty/);
+  assert.match(source, /role:\s*detail\.metadata\.role/);
+  assert.match(source, /initialState:\s*detail\.metadata\.initialState/);
+  assert.match(source, /sourceIds:\s*detail\.metadata\.sourceIds/);
+  assert.match(source, /confidence:\s*detail\.metadata\.confidence/);
+});
+
 test("application keeps timeline and World live while composer uses their centers as defaults", async () => {
   const source = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
   assert.match(
