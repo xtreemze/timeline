@@ -201,6 +201,32 @@ test("authorOccurrence atomically resolves endpoints and creates one occurrence 
   assert.deepEqual(result.state.items[0].tags, [{ label: "work" }]);
 });
 
+test("authorOccurrence persists semantic relationship metadata from the composer transaction", () => {
+  const result = authorOccurrence(
+    baseState(),
+    request({
+      role: "recipient",
+      initialState: "inactive",
+      sourceIds: [" evidence-17 ", "source-record-3", "evidence-17"],
+      confidence: 0.85,
+    }),
+    dependencies(),
+  );
+
+  const relationship = result.state.relationships[0];
+  assert.equal(relationship.role, "recipient");
+  assert.equal(relationship.initialState, "inactive");
+  assert.deepEqual(relationship.sourceIds, ["evidence-17", "source-record-3"]);
+  assert.equal(relationship.confidence, 0.85);
+});
+
+test("authorOccurrence rejects out-of-range semantic confidence", () => {
+  assert.throws(
+    () => authorOccurrence(baseState(), request({ confidence: 1.2 }), dependencies()),
+    /between 0 and 1/i,
+  );
+});
+
 test("authorOccurrence rejects ambiguous endpoint names instead of guessing", () => {
   const state = baseState();
   state.entities.push({
@@ -363,6 +389,46 @@ test("updateOccurrence preserves editorial metadata while flagging supported fac
   assert.deepEqual(item.extensions, originalItem.extensions);
   assert.deepEqual(item.tags, originalItem.tags);
   assert.deepEqual(item.time, originalItem.time);
+});
+
+test("updateOccurrence edits relationship metadata without rewriting the fact", () => {
+  const state = editableState();
+  const result = updateOccurrence(
+    state,
+    editRequest({
+      predicate: "meets",
+      role: "recipient",
+      initialState: "active",
+      sourceIds: ["evidence-new", "source-b"],
+      confidence: 0.91,
+    }),
+    dependencies(),
+  );
+
+  const relationship = result.state.relationships[0];
+  assert.equal(relationship.predicate, "meets");
+  assert.equal(relationship.role, "recipient");
+  assert.equal(relationship.initialState, "active");
+  assert.deepEqual(relationship.sourceIds, ["evidence-new", "source-b"]);
+  assert.equal(relationship.confidence, 0.91);
+  assert.equal(result.semanticReviewRequired, undefined);
+});
+
+test("updateOccurrence can clear role, evidence support, and confidence explicitly", () => {
+  const result = updateOccurrence(
+    editableState(),
+    editRequest({
+      predicate: "meets",
+      role: null,
+      sourceIds: [],
+      confidence: null,
+    }),
+    dependencies(),
+  );
+  const relationship = result.state.relationships[0];
+  assert.equal(relationship.role, undefined);
+  assert.deepEqual(relationship.sourceIds, []);
+  assert.equal(relationship.confidence, null);
 });
 
 test("updateOccurrence invalidates endpoint-bound context when an endpoint changes", () => {
