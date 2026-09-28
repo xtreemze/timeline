@@ -5570,6 +5570,24 @@ els.graphViewRoot.addEventListener("worldviewportchange", (event) => {
   els.occurrenceComposer.setWorldContext(longitude, latitude, zoom);
 });
 
+els.graphViewRoot.addEventListener("worldcontextrequest", (event) => {
+  const request = event as CustomEvent<{
+    position?: { longitude?: unknown; latitude?: unknown } | null;
+  }>;
+  const longitude = Number(request.detail?.position?.longitude);
+  const latitude = Number(request.detail?.position?.latitude);
+  if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return;
+
+  setOccurrenceComposerOpen(true);
+  const zoom = Number(temporalGraphView?.getCamera?.()?.zoom);
+  els.occurrenceComposer.setWorldContext(
+    longitude,
+    latitude,
+    Number.isFinite(zoom) ? zoom : null,
+  );
+  request.preventDefault();
+});
+
 els.occurrenceComposerToggle.addEventListener("click", () => {
   setOccurrenceComposerOpen(!els.occurrenceComposer.active);
 });
