@@ -17,6 +17,7 @@ import {
   worldLabelCollisionPriority,
 } from "../site/world/deck-world-surface.ts";
 import { WorldRenderTopologyIndex } from "../site/world/world-render-topology.ts";
+import { WORLD_ENTITY_MIN_HIT_RADIUS_PX } from "../src/layout/world-graph-style.ts";
 import {
   selectWorldSpatialMode,
   WORLD_CAMERA_MAX_ZOOM,
@@ -29,7 +30,6 @@ import {
   worldInstanceId,
 } from "../src/projection/world-projection.ts";
 import { diffWorldProjection } from "../src/projection/world-projection-delta.ts";
-import { WORLD_ENTITY_MIN_HIT_RADIUS_PX } from "../src/layout/world-graph-style.ts";
 
 const DEFAULT_CLUSTER_NODE_RADIUS_PX = WORLD_ENTITY_MIN_HIT_RADIUS_PX;
 
@@ -313,7 +313,9 @@ test("small isolated local graphs may resolve when the readability contract fits
     }),
   );
 
-  assert.ok(clusterRequiredLocalRadiusPx(DEFAULT_CLUSTER_NODE_RADIUS_PX, instances.length, 0) <= 320);
+  assert.ok(
+    clusterRequiredLocalRadiusPx(DEFAULT_CLUSTER_NODE_RADIUS_PX, instances.length, 0) <= 320,
+  );
   assert.deepEqual(
     clusterTargetPlaceIds(
       instances,
