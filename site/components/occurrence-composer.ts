@@ -509,6 +509,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
   private metadataInitialState: "active" | "inactive" = "active";
   private metadataSourceIds = "";
   private metadataConfidence = "";
+  private useSelectionPlaceContext = true;
 
   constructor() {
     super();
@@ -597,11 +598,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.hasPendingSelectionContext = false;
     this.selectionContext = nextContext;
     if (previousKey !== nextKey) {
-      this.value = "";
-      this.cursorOffset = 0;
-      this.selectionSeeded = false;
-      this.externalError = "";
-      this.activeSuggestion = 0;
+      this.resetDraft();
     }
     this.applySelectionSeed();
     if (!this.metadataDirty) this.applySelectionMetadata();
@@ -667,6 +664,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.metadataInitialState = "active";
     this.metadataSourceIds = "";
     this.metadataConfidence = "";
+    this.useSelectionPlaceContext = true;
   }
 
   private applySelectionMetadata(): void {
@@ -815,7 +813,11 @@ export class LuumOccurrenceComposerElement extends LitElement {
       categories: this.data.categories,
       tags: this.data.tags,
       timelineDefault: this.timelineContext?.value ?? null,
-      locationDefault: this.selectionContext?.place?.name ?? this.worldContext?.label ?? null,
+      locationDefault:
+        (this.useSelectionPlaceContext ? this.selectionContext?.place?.name : null) ??
+        this.explicitPlaceContext?.label ??
+        this.worldContext?.label ??
+        null,
       preferredEntityIds,
       predicates: this.data.predicates,
       cursorOffset: this.cursorOffset,
@@ -906,16 +908,9 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
   private activateLivePlaceContext(): void {
     if (this.selectionContext?.place) {
-      if (this.parsed().stage !== "complete") {
-        this.externalError = "";
-        this.requestUpdate();
-        return;
-      }
-      const suffix = `at @${this.selectionContext.place.id}`;
-      const separator = this.value.trimEnd() ? " " : "";
-      const value = `${this.value.trimEnd()}${separator}${suffix} `;
-      this.setComposerValue(value, value.length);
-      this.focusComposerInput(value.length);
+      this.useSelectionPlaceContext = !this.useSelectionPlaceContext;
+      this.externalError = "";
+      this.requestUpdate();
       return;
     }
     if (!this.worldContext) return;
@@ -1033,7 +1028,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
             accuracyMeters:
               this.explicitPlaceContext?.accuracyMeters ?? this.worldContext?.accuracyMeters ?? null,
             placeReference:
-              !draft.place && this.selectionContext?.place
+              !draft.place && this.useSelectionPlaceContext && this.selectionContext?.place
                 ? `@${this.selectionContext.place.id}`
                 : null,
           },
@@ -1132,7 +1127,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
       : (this.explicitTimeContext?.label ?? this.timelineContext?.label ?? null);
     const placeLabel =
       resolvedPlaceLabel(parsed.place?.name) ??
-      this.selectionContext?.place?.name ??
+      (this.useSelectionPlaceContext ? this.selectionContext?.place?.name : null) ??
       this.explicitPlaceContext?.label ??
       this.worldContext?.label ??
       "World center";
@@ -1160,7 +1155,11 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const timeSection = sectionFor("time");
     const categorySection = sectionFor("category");
     const subjectLabel = entityLabel(parsed.subject?.name) ?? this.selectedSubjectLabel();
-    const placePinned = Boolean(parsed.place || this.selectionContext?.place || this.explicitPlaceContext);
+    const placePinned = Boolean(
+      parsed.place ||
+        (this.useSelectionPlaceContext && this.selectionContext?.place) ||
+        this.explicitPlaceContext,
+    );
     const timePinned = Boolean(parsed.time || this.explicitTimeContext);
     const categoryLabel = parsed.options.category ?? null;
     const tagLabels = parsed.options.tags;
@@ -1273,24 +1272,35 @@ export class LuumOccurrenceComposerElement extends LitElement {
                   type="button"
                   data-context-kind="place"
                   data-context-state=${placePinned ? "pinned" : "live"}
-                  aria-label=${this.explicitPlaceContext
-                    ? `Unpin place context: ${placeLabel}`
-                    : this.selectionContext?.place
-                      ? this.parsed().stage === "complete"
-                        ? `Use place in sentence: ${placeLabel}`
-                        : `Selected place context: ${placeLabel}`
+                  aria-label=${this.selectionContext?.place
+                    ? this.useSelectionPlaceContext
+                      ? `Stop using selected place context: ${this.selectionContext.place.name}`
+                      : `Use selected place context: ${this.selectionContext.place.name}`
+                    : this.explicitPlaceContext
+                      ? `Unpin place context: ${placeLabel}`
                       : `Pin current World place context: ${placeLabel}`}
-                  title=${this.explicitPlaceContext
-                    ? "Return place context to the live World center"
-                    : this.selectionContext?.place
-                      ? this.parsed().stage === "complete"
-                        ? "Add the selected canonical place to the sentence"
-                        : "This selected place is already the occurrence context; complete the fact before adding an explicit place clause"
+                  aria-pressed=${this.selectionContext?.place
+                    ? String(this.useSelectionPlaceContext)
+                    : String(Boolean(this.explicitPlaceContext))}
+                  title=${this.selectionContext?.place
+                    ? this.useSelectionPlaceContext
+                      ? "Use the live World center instead of the selected place"
+                      : "Use the selected canonical place as the occurrence context"
+                    : this.explicitPlaceContext
+                      ? "Return place context to the live World center"
                       : "Pin the current World center for this occurrence"}
                   @click=${() => this.activateLivePlaceContext()}
                 >
-                  <span>Place</span><strong>${placeLabel}</strong
-                  ><span class="context-state">${this.explicitPlaceContext ? "pinned" : placePinned ? "context" : "live"}</span>
+                  <span>Place</span><strong>${this.selectionContext?.place?.name ?? placeLabel}</strong
+                  ><span class="context-state">${this.selectionContext?.place
+                    ? this.useSelectionPlaceContext
+                      ? "context"
+                      : "off"
+                    : this.explicitPlaceContext
+                      ? "pinned"
+                      : placePinned
+                        ? "context"
+                        : "live"}</span>
                 </button>`}
             ${timeSection
               ? editableChip("Time", timeLabel ?? "timeline center", timeSection)
