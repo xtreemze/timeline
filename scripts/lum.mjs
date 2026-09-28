@@ -22,6 +22,7 @@ import { attachLumDiagnosticRanges } from "./lib/lum-diagnostics.mjs";
 import {
   applyLumChangeProposal,
   createLumChangeProposalScaffold,
+  LUM_CHANGE_PROPOSAL_SCHEMA_ID,
   validateLumChangeProposal,
 } from "./lib/lum-agent-proposal.mjs";
 
@@ -246,6 +247,7 @@ async function commandAgent(args) {
           "Composer output is a proposal. It must pass canonical validation before any project mutation.",
       },
       proposalWorkflow: {
+        schema: LUM_CHANGE_PROPOSAL_SCHEMA_ID,
         scaffold:
           "lum agent scaffold-proposal --project <project.lum.json> --output change.lum-proposal.json",
         validate:
@@ -310,10 +312,34 @@ async function commandAgent(args) {
   const proposalSource = await readTarget(target);
 
   if (subcommand === "validate-proposal") {
-    const validation = validateLumChangeProposal(proposalSource, projectSource);
-    outputValidation(validation.valid, validation.diagnostics, json, proposalSource);
-    if (validation.valid && json) {
-      // outputValidation already emitted the machine validation payload.
+    const validation = validateLumChangeProposal(proposalSource, projectSource, {
+      fileName: target,
+    });
+    if (json) {
+      process.stdout.write(
+        `${JSON.stringify(
+          {
+            valid: validation.valid,
+            diagnostics: attachLumDiagnosticRanges(
+              proposalSource,
+              validation.diagnostics,
+            ),
+            ...(validation.summary ? { summary: validation.summary } : {}),
+            verificationRequired: true,
+          },
+          null,
+          2,
+        )}\n`,
+      );
+    } else if (validation.valid) {
+      process.stdout.write("Lūm change proposal is valid and ready for review.\n");
+      for (const operation of validation.summary?.operations ?? []) {
+        process.stdout.write(
+          `  ${operation.op} ${operation.collection} ${operation.id}\n`,
+        );
+      }
+    } else {
+      printDiagnostics(validation.diagnostics);
     }
     if (!validation.valid) process.exitCode = 1;
     return;
@@ -322,6 +348,7 @@ async function commandAgent(args) {
   if (subcommand === "apply") {
     const applied = applyLumChangeProposal(proposalSource, projectSource, {
       savedAt: new Date().toISOString(),
+      fileName: target,
     });
     if (!applied.valid) {
       outputValidation(false, applied.diagnostics, json, proposalSource);
