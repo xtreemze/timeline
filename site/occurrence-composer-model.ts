@@ -350,6 +350,38 @@ function rankedStrings(values: readonly string[], query: string): readonly strin
   );
 }
 
+function composerPlaceTailQuery(input: string): string | null {
+  const match = input.match(/\s+at\s+([^\[]*)$/i);
+  if (!match) return null;
+  const raw = match[1] ?? "";
+  if (/\s+(?:on|from)\s+/i.test(raw)) return null;
+  return unquote(raw.trim());
+}
+
+export function occurrenceComposerCompletionStage(input: string): OccurrenceComposerStage {
+  const parsed = parseOccurrenceSentence(input);
+  const trailingWhitespace = /\s$/.test(input);
+
+  if (composerPlaceTailQuery(input) !== null) return "place";
+  if (parsed.stage === "subject") return "subject";
+  if (parsed.stage === "predicate") return trailingWhitespace ? "predicate" : "subject";
+  if (parsed.stage === "object") {
+    if (parsed.object) return "object";
+    return trailingWhitespace ? "object" : "predicate";
+  }
+  if (
+    parsed.stage === "complete" &&
+    !parsed.place &&
+    !parsed.time &&
+    !parsed.options.category &&
+    parsed.options.tags.length === 0 &&
+    !trailingWhitespace
+  ) {
+    return "object";
+  }
+  return parsed.stage;
+}
+
 function uniqueSuggestions(suggestions: readonly ComposerSuggestion[]): readonly ComposerSuggestion[] {
   const seen = new Set<string>();
   const result: ComposerSuggestion[] = [];
@@ -376,6 +408,7 @@ export function occurrenceComposerSuggestions(
   },
 ): readonly ComposerSuggestion[] {
   const parsed = parseOccurrenceSentence(input);
+  const completionStage = occurrenceComposerCompletionStage(input);
   const token = currentToken(input);
 
   if (/\([^)]*$/.test(input)) {
@@ -460,7 +493,30 @@ export function occurrenceComposerSuggestions(
     ]);
   }
 
-  if (parsed.stage === "subject" || parsed.stage === "object") {
+  const placeQuery = composerPlaceTailQuery(input);
+  if (completionStage === "place" && placeQuery !== null) {
+    return Object.freeze(
+      options.places
+        .map((place) => ({
+          place,
+          score: suggestionScore(placeQuery, place.name),
+        }))
+        .filter(({ score }) => Number.isFinite(score))
+        .sort(
+          (left, right) =>
+            left.score - right.score || left.place.name.localeCompare(right.place.name),
+        )
+        .slice(0, 7)
+        .map(({ place }) => ({
+          kind: "place" as const,
+          label: place.name,
+          detail: `existing place · @${place.id}`,
+          insertText: `at @${place.id}`,
+        })),
+    );
+  }
+
+  if (completionStage === "subject" || completionStage === "object") {
     const preferredEntityIds = options.preferredEntityIds ?? [];
     const priority = new Map(preferredEntityIds.map((id, index) => [id, index] as const));
     const entitySuggestions = [...options.entities]
@@ -491,8 +547,8 @@ export function occurrenceComposerSuggestions(
           label: entity.name,
           detail:
             sameNameCount > 1
-              ? `${entity.type || "entity"} · ${entity.id}`
-              : entity.type || "entity",
+              ? `${entity.type || "entity"} · @${entity.id}`
+              : `${entity.type || "entity"} · @${entity.id}`,
           ...(entity.icon ? { icon: entity.icon } : {}),
           insertText: `@${entity.id}`,
         };
@@ -500,7 +556,7 @@ export function occurrenceComposerSuggestions(
     return uniqueSuggestions(entitySuggestions);
   }
 
-  if (parsed.stage === "predicate") {
+  if (completionStage === "predicate") {
     const existing = new Set((options.predicates ?? []).map((predicate) => predicate.trim()));
     return Object.freeze(
       rankedStrings([...(options.predicates ?? []), ...ACTION_SUGGESTIONS], token)
@@ -512,6 +568,10 @@ export function occurrenceComposerSuggestions(
           insertText: action,
         })),
     );
+  }
+
+  if (completionStage === "subject" || completionStage === "predicate" || completionStage === "object") {
+    return Object.freeze([]);
   }
 
   const placeSuggestions = options.places.slice(0, 10).map((place) => {
@@ -591,6 +651,14 @@ export function replaceComposerTail(input: string, insertText: string, stage: Oc
   if (!insertText) return input;
   const trimmed = input.trimEnd();
 
+  if (stage === "place" && /^at\s+/i.test(insertText)) {
+    const placeTail = trimmed.match(/\s+at\s+([^\[]*)$/i);
+    if (placeTail && !/\s+(?:on|from)\s+/i.test(placeTail[1] ?? "")) {
+      const start = placeTail.index ?? trimmed.length;
+      return `${trimmed.slice(0, start)} ${insertText} `;
+    }
+  }
+
   const bracketedOption = insertText.match(/^\[([^\]]+)\]$/)?.[1];
   const existingOptions = trimmed.match(/\[([^\]]*)\]\s*$/);
   if (bracketedOption && existingOptions) {
@@ -626,9 +694,13 @@ export function replaceComposerTail(input: string, insertText: string, stage: Oc
   }
   if (stage === "object") {
     const parsedSubject = parseEntityAtStart(trimmed);
-    const predicate = parsedSubject.rest.match(/^([^\s()\[\]]+)/)?.[1] ?? "";
-    const prefix = `${quoteComposerName(parsedSubject.entity?.name ?? "")} ${predicate}`.trim();
-    return `${prefix} ${insertText} `;
+    const predicateMatch = parsedSubject.rest.match(/^([^\s()\[\]]+)/);
+    if (predicateMatch) {
+      const restStart = trimmed.length - parsedSubject.rest.length;
+      const prefix = trimmed.slice(0, restStart + predicateMatch[0].length).trimEnd();
+      return `${prefix} ${insertText} `;
+    }
+    return `${insertText} `;
   }
   const separator = trimmed ? " " : "";
   return `${trimmed}${separator}${insertText} `;
