@@ -5,6 +5,7 @@
 
 import { authorOccurrence } from "../src/application/occurrence-authoring.ts";
 import {
+  defaultSemanticIconForEntityType,
   normalizeEntityPresentationAttributes,
   normalizeSemanticIconName,
 } from "../src/presentation/semantic-icons.ts";
@@ -528,6 +529,8 @@ const els = {
   graphNodeName: requiredElement<HTMLInputElement>("#graph-node-name"),
   graphNodeType: requiredElement<HTMLInputElement>("#graph-node-type"),
   graphNodeIcon: requiredElement<HTMLInputElement>("#graph-node-icon"),
+  graphNodeIconPreview: requiredElement<HTMLElement>("#graph-node-icon-preview"),
+  graphNodeIconStatus: requiredElement<HTMLElement>("#graph-node-icon-status"),
   semanticIconSuggestions: requiredElement<HTMLDataListElement>("#semantic-icon-suggestions"),
   graphNodeAlternateNames: requiredElement<HTMLTextAreaElement>("#graph-node-alternate-names"),
   graphNodeIdentifiers: requiredElement<HTMLTextAreaElement>("#graph-node-identifiers"),
@@ -1755,6 +1758,7 @@ function syncOccurrenceComposerData(): void {
       name: entity.name,
       type: entity.type,
       alternateNames: entity.alternateNames ?? [],
+      icon: semanticIconStateForEntity(entity).icon ?? undefined,
     })),
     places: state.places.map((place) => ({
       id: place.id,
@@ -3866,6 +3870,50 @@ function graphNodeAttributesForEditor(value: unknown): Record<string, unknown> {
   return attributes;
 }
 
+function semanticIconStateForEntity(entity: {
+  type?: unknown;
+  attributes?: unknown;
+}): { icon: string | null; origin: "explicit" | "type-fallback" | "none" } {
+  const normalized = normalizeEntityPresentationAttributes(entity.attributes || {});
+  const style =
+    normalized.style && typeof normalized.style === "object" && !Array.isArray(normalized.style)
+      ? (normalized.style as Record<string, unknown>)
+      : {};
+  const explicit = normalizeSemanticIconName(style.icon);
+  if (explicit) return { icon: explicit, origin: "explicit" };
+  const fallback = defaultSemanticIconForEntityType(entity.type);
+  return fallback
+    ? { icon: fallback, origin: "type-fallback" }
+    : { icon: null, origin: "none" };
+}
+
+function syncGraphNodeIconPreview(): void {
+  const raw = els.graphNodeIcon.value.trim();
+  const explicit = raw ? normalizeSemanticIconName(raw) : null;
+  const fallback = raw ? null : defaultSemanticIconForEntityType(els.graphNodeType.value);
+  const icon = explicit ?? fallback;
+  const origin = explicit ? "explicit" : raw ? "invalid" : fallback ? "type-fallback" : "none";
+
+  els.graphNodeIconPreview.dataset.iconOrigin = origin;
+  els.graphNodeIconPreview.replaceChildren(
+    ...(icon ? [presentation.createIcon(icon, { size: 22 })] : []),
+  );
+
+  if (origin === "explicit") {
+    els.graphNodeIconStatus.textContent = `Explicit semantic icon: ${icon}.`;
+    els.graphNodeIconPreview.setAttribute("aria-label", `Semantic icon ${icon}, explicitly selected`);
+  } else if (origin === "type-fallback") {
+    els.graphNodeIconStatus.textContent = `Automatic from type: ${icon}.`;
+    els.graphNodeIconPreview.setAttribute("aria-label", `Semantic icon ${icon}, automatic from entity type`);
+  } else if (origin === "invalid") {
+    els.graphNodeIconStatus.textContent = `Unsupported icon “${raw}”. Choose a listed semantic icon or clear the field.`;
+    els.graphNodeIconPreview.setAttribute("aria-label", "Unsupported semantic icon");
+  } else {
+    els.graphNodeIconStatus.textContent = "No explicit icon and no automatic icon for this entity type.";
+    els.graphNodeIconPreview.setAttribute("aria-label", "No semantic icon");
+  }
+}
+
 function graphNodeAttributesWithIcon(
   value: unknown,
   rawIcon: unknown,
@@ -3892,6 +3940,7 @@ function resetGraphNodeForm() {
   els.graphNodeId.value = "";
   els.graphNodeType.value = "entity";
   els.graphNodeIcon.value = "";
+  syncGraphNodeIconPreview();
   els.graphNodeAlternateNames.value = "";
   els.graphNodeIdentifiers.value = "[]";
   els.graphNodeSourceIds.value = "";
@@ -3916,6 +3965,7 @@ function beginGraphNodeEdit(id) {
       ? (presentationAttributes.style as Record<string, unknown>)
       : {};
   els.graphNodeIcon.value = normalizeSemanticIconName(presentationStyle.icon) ?? "";
+  syncGraphNodeIconPreview();
   els.graphNodeAlternateNames.value = (entity.alternateNames || []).join("\n");
   els.graphNodeIdentifiers.value = JSON.stringify(entity.identifiers || [], null, 2);
   els.graphNodeSourceIds.value = (entity.sourceIds || []).join("\n");
@@ -3973,7 +4023,11 @@ function renderGraphNodes() {
     row.dataset.id = entity.id;
     const copy = document.createElement("div");
     const title = document.createElement("strong");
-    title.textContent = entity.name;
+    title.className = "graph-record-title";
+    const iconState = semanticIconStateForEntity(entity);
+    row.dataset.iconOrigin = iconState.origin;
+    if (iconState.icon) title.append(presentation.createIcon(iconState.icon, { size: 18 }));
+    title.append(document.createTextNode(entity.name));
     const meta = document.createElement("span");
     const propertyCount = Object.keys(entity.attributes || {}).length;
     meta.textContent = `${entity.type || "entity"} · ${propertyCount} ${propertyCount === 1 ? "property" : "properties"}`;
@@ -4795,6 +4849,10 @@ els.tabs.forEach((tab) => {
     next.focus();
   });
 });
+
+els.graphNodeIcon.addEventListener("input", syncGraphNodeIconPreview);
+els.graphNodeType.addEventListener("input", syncGraphNodeIconPreview);
+syncGraphNodeIconPreview();
 
 els.graphNodeForm.addEventListener("submit", (event) => {
   event.preventDefault();
