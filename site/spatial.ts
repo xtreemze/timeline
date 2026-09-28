@@ -246,7 +246,7 @@ function normalizePlaceStyle(raw: unknown): PlaceStyle {
     color: optionalStyleColor(markerSource.color),
     fillColor: optionalStyleColor(markerSource.fillColor),
     opacity: optionalStyleNumber(markerSource.opacity, 0, 1),
-    size: optionalStyleNumber(markerSource.size, 16, 40),
+    size: optionalStyleNumber(markerSource.size, 16, 64),
     weight: optionalStyleNumber(markerSource.weight, 0, 8),
   };
   for (const key of Object.keys(marker) as Array<keyof typeof marker>) {
