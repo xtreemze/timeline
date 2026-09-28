@@ -13,6 +13,7 @@ test("installed Lūm registers its project file type and launch behavior", async
   assert.ok(Array.isArray(manifest.file_handlers));
   const handler = manifest.file_handlers.find((candidate) => candidate.action === "./");
   assert.ok(handler);
+  assert.ok(handler.accept?.["application/json"]?.includes(".lum.json"));
   assert.ok(handler.accept?.["application/json"]?.includes(".luum"));
 
   assert.ok(
