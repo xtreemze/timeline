@@ -47,6 +47,30 @@ async function focusOccurrenceWithEvidence(
   throw new Error("Sample must expose a focused occurrence with evidence.");
 }
 
+async function focusOccurrenceWithEvidenceAndMultipleMedia(page: Page) {
+  await page.locator("#load-sample").evaluate((button: HTMLButtonElement) => button.click());
+  const terminals = page.locator(
+    "#timeline-view .timeline-event-terminal:has(.timeline-event-art):visible",
+  );
+  const count = Math.min(await terminals.count(), 24);
+  for (let index = 0; index < count; index += 1) {
+    const terminal = terminals.nth(index);
+    const card = terminal.locator("xpath=ancestor::luum-event-card[1]");
+    await terminal.evaluate((button: HTMLButtonElement) => button.click());
+    await terminal.evaluate((button: HTMLButtonElement) => button.click());
+    const focus = card.locator(".timeline-event-detail");
+    const evidence = focus.getByRole("tab", { name: "Evidence" });
+    const deck = focus.locator("luum-occurrence-deck");
+    if (!(await evidence.count()) || !(await deck.count())) continue;
+    const frameCount = Number(await deck.getAttribute("data-frame-count"));
+    if (frameCount >= 2) {
+      await expect(focus).toBeVisible();
+      return focus;
+    }
+  }
+  throw new Error("Sample must expose an evidence-backed occurrence with multiple media frames.");
+}
+
 async function ensureOrientation(page: Page, orientation: "landscape" | "portrait") {
   const timeline = page.locator("#timeline-view");
   if ((await timeline.getAttribute("data-orientation")) !== orientation) {
@@ -314,10 +338,7 @@ test("focused detail tabs use roving keyboard focus and proper tabpanel semantic
 });
 
 test("hero image changes preserve the active detail tab and keyboard focus", async ({ page }) => {
-  const focus = await focusOccurrenceWithEvidence(
-    page,
-    "#timeline-view .timeline-event-terminal:has(.timeline-event-art):visible",
-  );
+  const focus = await focusOccurrenceWithEvidenceAndMultipleMedia(page);
   await expect(focus).toBeVisible();
   const deck = focus.locator("luum-occurrence-deck");
   await expect(deck).toBeVisible();
