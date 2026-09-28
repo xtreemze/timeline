@@ -2509,6 +2509,7 @@ function renderTimelineList(visible: TimelineItemRecord[], activeStory: StoryRec
 function reasoningContextForOccurrence(
   itemId: string | null,
   relationshipIds: readonly string[],
+  reasoningRecords: readonly Record<string, unknown>[],
 ): Array<{ id: string; type?: string; text?: string; status?: string }> {
   const normalizedItemId = itemId ? String(itemId) : "";
   const relationships = new Set(relationshipIds.map(String).filter(Boolean));
@@ -2516,7 +2517,7 @@ function reasoningContextForOccurrence(
     ? new Set(getItem(normalizedItemId)?.evidenceIds ?? [])
     : new Set<string>();
 
-  return (caseReasoning.recordsOf(state.reasoning) as Record<string, unknown>[])
+  return reasoningRecords
     .filter((record) => {
       const recordItems = reasoningRecordStringList(record, "itemIds");
       if (normalizedItemId && recordItems.includes(normalizedItemId)) return true;
@@ -2577,6 +2578,7 @@ function renderTimeline() {
     items: state.items,
     stories: state.stories,
   };
+  const reasoningRecords = caseReasoning.recordsOf(state.reasoning) as Record<string, unknown>[];
   const relationshipById = new Map(
     state.relationships.map((relationship) => [relationship.id, relationship]),
   );
@@ -2652,6 +2654,7 @@ function renderTimeline() {
             reasoningContext: reasoningContextForOccurrence(
               String(item.id),
               itemRelationships.map((relationship) => String(relationship.id)),
+              reasoningRecords,
             ),
             categoryName: category.name,
             color: category.color,
@@ -2735,6 +2738,7 @@ function renderTimeline() {
             reasoningContext: reasoningContextForOccurrence(
               null,
               relationship ? [String(relationship.id)] : [],
+              reasoningRecords,
             ),
             description: relationship?.role
               ? `${occurrence.subjectName} ${occurrence.predicate} ${occurrence.objectName} · ${relationship.role}`
