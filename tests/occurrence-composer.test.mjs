@@ -10,6 +10,7 @@ import {
   worldContextFromCamera,
 } from "../site/occurrence-composer-context.ts";
 import {
+  composerCompletionSuffix,
   composerCursorSection,
   occurrenceComposerSuggestions,
   parseOccurrenceSentence,
@@ -359,6 +360,82 @@ test("ambiguous entity names complete by canonical ID", () => {
   );
 });
 
+test("composer reuses existing tags and categories as contextual suggestions", () => {
+  const tagSuggestions = occurrenceComposerSuggestions("Alice meets Bob [tags: fri", {
+    entities: [],
+    places: [],
+    categories: [{ id: "observation", name: "Observation" }],
+    tags: ["friend", "family", "work"],
+    predicates: [],
+  });
+  assert.ok(
+    tagSuggestions.some(
+      (suggestion) => suggestion.kind === "tag" && suggestion.insertText === "tags: friend",
+    ),
+  );
+
+  const secondTagSuggestions = occurrenceComposerSuggestions(
+    "Alice meets Bob [tags: friend|wo",
+    {
+      entities: [],
+      places: [],
+      categories: [],
+      tags: ["friend", "work"],
+      predicates: [],
+    },
+  );
+  assert.equal(
+    secondTagSuggestions.some((suggestion) => suggestion.insertText.includes("friend|friend")),
+    false,
+  );
+  assert.ok(
+    secondTagSuggestions.some((suggestion) => suggestion.insertText === "tags: friend|work"),
+  );
+
+  const categorySuggestions = occurrenceComposerSuggestions("Alice meets Bob [category: obs", {
+    entities: [],
+    places: [],
+    categories: [{ id: "observation", name: "Observation" }],
+    tags: [],
+    predicates: [],
+  });
+  assert.ok(
+    categorySuggestions.some(
+      (suggestion) =>
+        suggestion.kind === "category" && suggestion.insertText === "category: Observation",
+    ),
+  );
+});
+
+test("composer exposes shell-style ghost completion text without mutating the draft", () => {
+  const suggestion = {
+    kind: "predicate",
+    label: "reports",
+    detail: "action",
+    insertText: "reports",
+  };
+  assert.equal(composerCompletionSuffix("Alice rep", suggestion), "orts");
+  assert.equal(
+    composerCompletionSuffix("Alice meets Big B", {
+      kind: "entity",
+      label: "Big Bad Wolf",
+      detail: "person · @big-bad-wolf",
+      insertText: "@big-bad-wolf",
+    }),
+    "ad Wolf",
+  );
+  assert.equal(
+    composerCompletionSuffix("Alice meets Bob at Central Sta", {
+      kind: "place",
+      label: "Central Station",
+      detail: "existing place · @central-station",
+      insertText: "at @central-station",
+    }),
+    "tion",
+  );
+  assert.equal(composerCompletionSuffix("Alice xyz", suggestion), "");
+});
+
 test("completed grammar offers live World and timeline defaults without writing them into text", () => {
   const suggestions = occurrenceComposerSuggestions("Alice meets Bob", {
     entities: [],
@@ -451,6 +528,9 @@ test("Lit composer is a touch-safe ARIA combobox with live-context guidance", as
   assert.match(source, /min-block-size:\s*44px/);
   assert.match(source, /Move the timeline or World while this is open/);
   assert.match(source, /class="compact"/);
+  assert.match(source, /class="ghost-completion"/);
+  assert.match(source, /aria-autocomplete="both"/);
+  assert.match(source, /suggestions\(\)\.slice\(0, 7\)/);
   assert.match(source, /Open occurrence composer/);
   assert.match(source, /occurrencecomposeropenrequest/);
   assert.doesNotMatch(source, /:host\(:not\(\[active\]\)\)\s*\{[\s\S]*display:\s*none/);
@@ -515,6 +595,7 @@ test("application keeps timeline and World live while composer uses their center
     /setOccurrenceComposerOpen[\s\S]*temporalGraphView\?\.getCamera\?\.\(\)[\s\S]*setWorldContext/,
   );
   assert.match(source, /occurrenceComposer\.beginSession\(\)/);
+  assert.match(source, /tags:\s*\[[\s\S]*state\.items\.flatMap/);
   assert.match(source, /predicates:\s*\[\.\.\.new Set\(state\.relationships\.map/);
   assert.match(
     source,
