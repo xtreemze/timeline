@@ -59,6 +59,10 @@ Supported collections:
 - `relationships`
 - `occurrences`
 - `trajectories`
+- `places`
+- `sources`
+- `categories`
+- `stories`
 
 Supported operations:
 
