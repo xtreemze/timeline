@@ -818,17 +818,36 @@ export class LuumOccurrenceComposerElement extends LitElement {
         : parsed.stage === "subject" && this.selectedSubjectId()
           ? [this.selectedSubjectId()!]
           : [];
-    return occurrenceComposerSuggestions(this.value, {
+    const suggestions = occurrenceComposerSuggestions(this.value, {
       entities: this.data.entities,
       places: this.data.places,
       categories: this.data.categories,
       tags: this.data.tags,
       timelineDefault: this.timelineContext?.value ?? null,
-      locationDefault: this.selectionContext?.place?.name ?? this.worldContext?.label ?? null,
+      locationDefault:
+        this.selectionContext?.place?.name ??
+        this.explicitPlaceContext?.label ??
+        this.worldContext?.label ??
+        null,
       preferredEntityIds,
       predicates: this.data.predicates,
       cursorOffset: this.cursorOffset,
     });
+    if (!this.activeContextKind) return suggestions;
+    const filtered = suggestions.filter((suggestion) => suggestion.kind === this.activeContextKind);
+    if (this.activeContextKind === "place" && !parsed.place && this.selectionContext?.place) {
+      return Object.freeze([
+        {
+          kind: "place" as const,
+          label: this.selectionContext.place.name,
+          detail: "selected place",
+          icon: "place",
+          insertText: `at @${this.selectionContext.place.id}`,
+        },
+        ...filtered,
+      ]);
+    }
+    return Object.freeze(filtered);
   }
 
   private requestOpen(): void {
@@ -856,6 +875,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     }
     this.externalError = "";
     this.activeSuggestion = 0;
+    this.activeContextKind = null;
     this.requestUpdate();
   }
 
@@ -896,10 +916,115 @@ export class LuumOccurrenceComposerElement extends LitElement {
     return this.cursorOffset >= section.start && this.cursorOffset <= section.end;
   }
 
+  private activateContext(kind: "place" | "time"): void {
+    this.metadataOpen = false;
+    this.activeContextKind = kind;
+    this.activeSuggestion = 0;
+    this.cursorOffset = this.value.length;
+    this.externalError = "";
+    this.requestUpdate();
+    void this.updateComplete.then(() => {
+      this.renderRoot.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
+    });
+  }
+
+  private toggleMetadata(): void {
+    this.activeContextKind = null;
+    this.metadataOpen = !this.metadataOpen;
+    this.externalError = "";
+    this.requestUpdate();
+  }
+
+  private markMetadataDirty(): void {
+    this.metadataDirty = true;
+    this.externalError = "";
+    this.requestUpdate();
+  }
+
+  private onContextChipKeyDown(event: KeyboardEvent): void {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    const current = event.currentTarget;
+    if (!(current instanceof HTMLButtonElement)) return;
+    const chips = [
+      ...this.renderRoot.querySelectorAll<HTMLButtonElement>(".context-row button.context-chip"),
+    ];
+    const index = chips.indexOf(current);
+    if (index < 0) return;
+    event.preventDefault();
+    const delta = event.key === "ArrowLeft" ? -1 : 1;
+    chips[(index + delta + chips.length) % chips.length]?.focus({ preventScroll: true });
+  }
+
+  private metadataValue():
+    | {
+        role: string | null;
+        initialState: "active" | "inactive";
+        sourceIds: readonly string[];
+        confidence: number | null;
+        attributes: Readonly<Record<string, unknown>>;
+      }
+    | null {
+    const confidenceText = this.metadataConfidence.trim();
+    const confidence = confidenceText ? Number(confidenceText) : null;
+    if (confidenceText && (!Number.isFinite(confidence) || confidence! < 0 || confidence! > 1)) {
+      this.externalError = "Confidence must be a number from 0 to 1.";
+      this.requestUpdate();
+      return null;
+    }
+    let attributes: unknown;
+    try {
+      attributes = JSON.parse(this.metadataAttributes.trim() || "{}");
+    } catch {
+      this.externalError = "Occurrence properties must be a valid JSON object.";
+      this.requestUpdate();
+      return null;
+    }
+    if (!attributes || typeof attributes !== "object" || Array.isArray(attributes)) {
+      this.externalError = "Occurrence properties must be a JSON object.";
+      this.requestUpdate();
+      return null;
+    }
+    return Object.freeze({
+      role: this.metadataRole.trim() || null,
+      initialState: this.metadataInitialState,
+      sourceIds: Object.freeze([
+        ...new Set(
+          this.metadataSourceIds
+            .split(/\r?\n|,/)
+            .map((value) => value.trim())
+            .filter(Boolean),
+        ),
+      ]),
+      confidence,
+      attributes: Object.freeze({ ...(attributes as Record<string, unknown>) }),
+    });
+  }
+
+  private requestAdvancedEdit(): void {
+    const relationshipId = this.selectionContext?.selectedOccurrenceId;
+    if (!relationshipId) return;
+    this.dispatchEvent(
+      new CustomEvent("occurrencecomposeradvancededitrequest", {
+        bubbles: true,
+        composed: true,
+        detail: { relationshipId },
+      }),
+    );
+  }
+
   private applySuggestion(suggestion: ComposerSuggestion): void {
-    if (!suggestion.insertText) return;
+    if (!suggestion.insertText) {
+      if (suggestion.kind === "place" && this.worldContext) {
+        this.explicitPlaceContext = this.worldContext;
+        this.activeContextKind = null;
+        this.activeSuggestion = 0;
+        this.requestUpdate();
+      }
+      return;
+    }
     const parsed = this.parsed();
     const accepted = acceptComposerSuggestion(this.value, suggestion, parsed.stage);
+    this.activeContextKind = null;
     this.setComposerValue(accepted.value, accepted.cursorOffset);
     void this.updateComplete.then(() => {
       const input = this.renderRoot.querySelector<HTMLInputElement>("input");
@@ -917,6 +1042,9 @@ export class LuumOccurrenceComposerElement extends LitElement {
       this.requestUpdate();
       return;
     }
+    const metadata = this.metadataValue();
+    if (!metadata) return;
+    const placeContext = this.explicitPlaceContext ?? this.worldContext;
     this.dispatchEvent(
       new CustomEvent<OccurrenceCommitDetail>("occurrencecommit", {
         bubbles: true,
@@ -932,26 +1060,15 @@ export class LuumOccurrenceComposerElement extends LitElement {
                   initialText: this.selectionContext.composition.trim(),
                 }
               : null,
+          metadata,
           defaults: {
             timeMs: this.timelineContext?.centerMs ?? null,
             timeValue: this.timelineContext?.value ?? null,
             timePrecision: this.timelineContext?.precision ?? null,
-            longitude:
-              draft.place && this.explicitPlaceContext
-                ? this.explicitPlaceContext.longitude
-                : (this.worldContext?.longitude ?? null),
-            latitude:
-              draft.place && this.explicitPlaceContext
-                ? this.explicitPlaceContext.latitude
-                : (this.worldContext?.latitude ?? null),
-            worldZoom:
-              draft.place && this.explicitPlaceContext
-                ? this.explicitPlaceContext.zoom
-                : (this.worldContext?.zoom ?? null),
-            accuracyMeters:
-              draft.place && this.explicitPlaceContext
-                ? this.explicitPlaceContext.accuracyMeters
-                : (this.worldContext?.accuracyMeters ?? null),
+            longitude: placeContext?.longitude ?? null,
+            latitude: placeContext?.latitude ?? null,
+            worldZoom: placeContext?.zoom ?? null,
+            accuracyMeters: placeContext?.accuracyMeters ?? null,
             placeReference:
               !draft.place && this.selectionContext?.place
                 ? `@${this.selectionContext.place.id}`
@@ -983,6 +1100,10 @@ export class LuumOccurrenceComposerElement extends LitElement {
     }
     if (event.key !== "Enter") return;
     event.preventDefault();
+    if (event.metaKey || event.ctrlKey) {
+      this.commit();
+      return;
+    }
     const draft = this.parsed();
     const cursorSection = composerCursorSection(this.value, this.cursorOffset);
     const cursorLocal = cursorSection.kind !== "tail";
