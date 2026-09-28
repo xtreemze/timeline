@@ -79,7 +79,11 @@ test("contextual composer returns focus to its connected invoker on close", asyn
   assert.match(app, /occurrenceComposerReturnFocus/);
   assert.match(
     app,
-    /setOccurrenceComposerOpen\(open: boolean\)[\s\S]*document\.activeElement/,
+    /function composerInvoker\(\)[\s\S]*document\.activeElement/,
+  );
+  assert.match(
+    app,
+    /setOccurrenceComposerOpen\(open: boolean\)[\s\S]*occurrenceComposerReturnFocus = composerInvoker\(\)/,
   );
   assert.match(
     app,
