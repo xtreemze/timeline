@@ -360,6 +360,7 @@ export function projectCollectionShapeDiagnostics(
     case "stories":
       return inspectRecordArray(records, path, STORY_FIELDS);
   }
+  return [];
 }
 
 function strictShapeDiagnostics(envelope: JsonRecord): ProjectInterchangeDiagnostic[] {
