@@ -6278,11 +6278,12 @@ async function importProjectFile(file: File, statusPrefix = "Imported"): Promise
     const staged = stageVerificationRequiredProjectImport(raw);
     if (staged) {
       pendingProjectImportReview = staged;
-      const issueCount = staged.errors.length + staged.warnings.length + staged.unresolved.length;
+      const review = pendingProjectImportReview;
+      const issueCount = review.errors.length + review.warnings.length + review.unresolved.length;
       showStatus(
-        staged.status === "ready-for-user-verification"
-          ? `Staged ${staged.summary.items} items and ${staged.summary.stories} stories for verification · ${issueCount} review ${issueCount === 1 ? "item" : "items"} · current project unchanged.`
-          : `Generated proposal needs repair before verification · ${staged.errors.length} ${staged.errors.length === 1 ? "error" : "errors"} · current project unchanged.`,
+        review.status === "ready-for-user-verification"
+          ? `Staged ${review.summary.items} items and ${review.summary.stories} stories for verification · ${issueCount} review ${issueCount === 1 ? "item" : "items"} · current project unchanged.`
+          : `Generated proposal needs repair before verification · ${review.errors.length} ${review.errors.length === 1 ? "error" : "errors"} · current project unchanged.`,
       );
       return true;
     }
