@@ -1909,10 +1909,11 @@ function composerInvoker(): HTMLElement | null {
 }
 
 function restoreComposerFocus(target: HTMLElement | null): void {
-  if (!target?.isConnected) return;
   globalThis.requestAnimationFrame(() => {
-    if (!target.isConnected) return;
-    target.focus({ preventScroll: true });
+    const visibleTarget =
+      target?.isConnected && target.getClientRects().length > 0 ? target : els.editorToggle;
+    if (!visibleTarget?.isConnected) return;
+    visibleTarget.focus({ preventScroll: true });
   });
 }
 
