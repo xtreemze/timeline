@@ -917,6 +917,14 @@ function presentationIsFullscreen() {
   return document.fullscreenElement === els.presentationStage;
 }
 
+function presentationFullscreenAvailable() {
+  return Boolean(
+    document.fullscreenEnabled &&
+      els.presentationStage &&
+      typeof els.presentationStage.requestFullscreen === "function",
+  );
+}
+
 function presentationModeActive() {
   return ui.mode !== "edit";
 }
@@ -999,7 +1007,13 @@ function syncPresentationFullscreenState() {
       }
     }
     if (els.presentationFullscreenToggle) {
-      const label = active ? "Exit full screen" : "Enter full screen";
+      const available = presentationFullscreenAvailable();
+      const label = !available
+        ? "Full-screen presentation unavailable"
+        : active
+          ? "Exit full screen"
+          : "Enter full screen";
+      els.presentationFullscreenToggle.disabled = !available;
       els.presentationFullscreenToggle.setAttribute("aria-pressed", String(active));
       setSemanticControlIcon(
         els.presentationFullscreenToggle,
@@ -1029,10 +1043,7 @@ async function togglePresentationFullscreen() {
     showStatus("No visible timeline items to present.");
     return;
   }
-  if (
-    !document.fullscreenEnabled ||
-    typeof els.presentationStage.requestFullscreen !== "function"
-  ) {
+  if (!presentationFullscreenAvailable()) {
     showStatus("Full-screen presentation is not available in this browser.");
     return;
   }
@@ -4935,7 +4946,10 @@ els.projectMenu?.addEventListener("beforetoggle", (event) => {
 });
 els.projectMenu?.addEventListener("toggle", (event) => {
   const open = event.newState === "open";
+  const label = open ? "Close project actions" : "Project actions";
   els.projectMenuToggle?.setAttribute("aria-expanded", String(open));
+  els.projectMenuToggle?.setAttribute("aria-label", label);
+  if (els.projectMenuToggle) els.projectMenuToggle.title = label;
   if (!open) return;
   requestAnimationFrame(positionProjectMenu);
 });
@@ -5322,13 +5336,13 @@ els.graphEdgeList.addEventListener("click", (event) => {
 });
 
 if (els.presentationFullscreenToggle) {
-  if (
-    !document.fullscreenEnabled ||
-    typeof els.presentationStage?.requestFullscreen !== "function"
-  ) {
+  if (!presentationFullscreenAvailable()) {
     els.presentationFullscreenToggle.disabled = true;
-    els.presentationFullscreenToggle.title =
-      "Full-screen presentation is unavailable in this browser.";
+    setSemanticControlIcon(
+      els.presentationFullscreenToggle,
+      "fullscreen",
+      "Full-screen presentation unavailable",
+    );
   } else {
     els.presentationFullscreenToggle.addEventListener("click", () => {
       togglePresentationFullscreen();
