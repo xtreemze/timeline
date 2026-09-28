@@ -308,7 +308,6 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
     .composer-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; font-size: 0.8rem; }
     .composer-card-heading strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .composer-card-context { display: -webkit-box; min-inline-size: 0; margin: 0; overflow: hidden; color: var(--muted, #615d56); font-size: 0.73rem; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
     .composer-card-details {
       position: relative;
       min-inline-size: 0;
