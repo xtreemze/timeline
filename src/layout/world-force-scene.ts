@@ -82,18 +82,19 @@ function finitePositive(value: number, label: string): number {
 function connectivityDegreeByInstance(
   projection: WorldProjection,
 ): ReadonlyMap<ProjectedWorldInstance["id"], number> {
-  const neighbors = new Map<ProjectedWorldInstance["id"], Set<ProjectedWorldInstance["id"]>>();
-  for (const instance of projection.instances) neighbors.set(instance.id, new Set());
+  const degree = new Map(projection.instances.map((instance) => [instance.id, 0] as const));
 
   for (const edge of projection.edges) {
     if (edge.sourceInstanceId === edge.targetInstanceId) continue;
-    neighbors.get(edge.sourceInstanceId)?.add(edge.targetInstanceId);
-    neighbors.get(edge.targetInstanceId)?.add(edge.sourceInstanceId);
+    if (degree.has(edge.sourceInstanceId)) {
+      degree.set(edge.sourceInstanceId, (degree.get(edge.sourceInstanceId) ?? 0) + 1);
+    }
+    if (degree.has(edge.targetInstanceId)) {
+      degree.set(edge.targetInstanceId, (degree.get(edge.targetInstanceId) ?? 0) + 1);
+    }
   }
 
-  return new Map(
-    [...neighbors.entries()].map(([instanceId, connected]) => [instanceId, connected.size] as const),
-  );
+  return degree;
 }
 
 function connectivityClearanceMeters(collisionRadiusMeters: number, degree: number): number {
