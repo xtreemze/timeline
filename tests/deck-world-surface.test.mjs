@@ -1838,7 +1838,7 @@ test("deck viewport projection rejects invalid renderer-neutral spatial inputs",
   assert.throws(() => surface.unproject({ x: Number.NaN, y: 0 }, 1000), /screen point/);
 });
 
-test("deck picking translates directly to canonical world hits with a touch-sized radius", () => {
+test("deck picking translates directly to canonical world hits with the shared picking tolerance", () => {
   const { calls, runtime, setPickResult } = harness();
   const surface = new DeckWorldSurface({}, runtime, {
     longitude: 18.0686,
@@ -1867,7 +1867,7 @@ test("deck picking translates directly to canonical world hits with a touch-size
   assert.deepEqual(calls.pickOptions.at(-1), {
     x: 10,
     y: 20,
-    radius: 22,
+    radius: WORLD_PICKING_RADIUS_PX,
     unproject3D: true,
     layerIds: [
       DECK_WORLD_LAYER_IDS.entityIcons,
@@ -1932,7 +1932,7 @@ test("double-click/double-tap focuses the canonical entity picked under the poin
   assert.deepEqual(calls.pickOptions.at(-1), {
     x: 40,
     y: 60,
-    radius: 22,
+    radius: WORLD_PICKING_RADIUS_PX,
     unproject3D: true,
     layerIds: [
       DECK_WORLD_LAYER_IDS.entityIcons,
