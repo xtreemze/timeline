@@ -206,12 +206,16 @@ test("selected events use a shell-owned detail surface without changing footer c
   assert.match(css, /> \.timeline-focus-summary[\s\S]*grid-column:\s*1 \/ -1/);
 });
 
-test("portrait-phone horizontal chronology reserves about one third of height for the edge rail", async () => {
+test("timeline rails reserve one occurrence-card lane while later lanes may overflow inward", async () => {
   const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
 
   assert.match(
     css,
-    /@media \(max-width: 699px\)[\s\S]*--mobile-relations-block-rail:\s*clamp\(188px,\s*30dvh,\s*280px\)/,
+    /@media \(min-width: 700px\)[\s\S]*--relations-inline-rail:\s*clamp\(208px,\s*21dvw,\s*248px\)[\s\S]*--relations-block-rail:\s*clamp\(156px,\s*18dvh,\s*184px\)/,
+  );
+  assert.match(
+    css,
+    /@media \(max-width: 699px\)[\s\S]*--mobile-relations-inline-rail:\s*clamp\(132px,\s*36dvw,\s*164px\)[\s\S]*--mobile-relations-block-rail:\s*clamp\(132px,\s*18dvh,\s*160px\)/,
   );
   assert.match(
     css,
@@ -221,6 +225,11 @@ test("portrait-phone horizontal chronology reserves about one third of height fo
     css,
     /#timeline-view\[data-orientation="landscape"\][\s\S]*> \.timeline-surface[\s\S]*bottom:\s*var\(--mobile-bottom-chrome\)[\s\S]*height:\s*var\(--mobile-relations-block-rail\)/,
   );
+  assert.match(
+    css,
+    /\.timeline-stage\s*\{[\s\S]*z-index:\s*1060[\s\S]*overflow:\s*visible[\s\S]*pointer-events:\s*none/,
+  );
+  assert.match(css, /\.timeline-event-terminal\s*\{[\s\S]*pointer-events:\s*auto/);
 });
 
 test("close zoom keeps every timeline item whose temporal extent intersects the viewport", () => {
