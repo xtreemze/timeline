@@ -19,6 +19,8 @@ import { CURRENT_PROJECT_SCHEMA_VERSION } from "../src/application/project-repos
 import { parseOccurrenceSentence } from "../site/occurrence-composer-model.ts";
 import { runLumLanguageServer } from "./lum-lsp.mjs";
 import { attachLumDiagnosticRanges } from "./lib/lum-diagnostics.mjs";
+import { buildLumAgentContext, parseLumAgentSelectors } from "./lib/lum-agent-context.mjs";
+import { runLumAgentAdapter } from "./lib/lum-agent-run.mjs";
 import {
   applyLumChangeProposal,
   createLumChangeProposalScaffold,
@@ -53,8 +55,18 @@ function optionValue(args, name) {
   return args[index + 1] ?? null;
 }
 
+function optionValues(args, name) {
+  const values = [];
+  for (let index = 0; index < args.length; index += 1) {
+    if (args[index] !== name) continue;
+    const value = args[index + 1];
+    if (typeof value === "string") values.push(value);
+  }
+  return values;
+}
+
 function positional(args) {
-  const withValue = new Set(["--project-key", "--project", "--output", "--instruction"]);
+  const withValue = new Set(["--project-key", "--project", "--output", "--instruction", "--story", "--occurrence", "--entity", "--depth", "--ids", "--adapter", "--adapter-arg"]);
   const result = [];
   for (let index = 0; index < args.length; index += 1) {
     const value = args[index];
@@ -194,100 +206,102 @@ async function commandAgent(args) {
     if (!target) {
       throw new Error("agent context requires a project.lum.json path or - for stdin.");
     }
-
     const source = await readTarget(target);
-    const validation = validateProjectInterchange(source);
-    if (!validation.valid) {
-      outputValidation(false, validation.diagnostics, json, source);
+    let context;
+    try {
+      context = buildLumAgentContext(source, parseLumAgentSelectors(args));
+    } catch (error) {
+      if (Array.isArray(error?.diagnostics)) {
+        outputValidation(false, error.diagnostics, json, source);
+        process.exitCode = 1;
+        return;
+      }
+      throw error;
+    }
+    process.stdout.write(`${JSON.stringify(context, null, 2)}\n`);
+    return;
+  }
+
+  if (subcommand === "run") {
+    if (!target || target === "-") {
+      throw new Error("agent run requires a project.lum.json path; stdin is reserved for adapters.");
+    }
+    const projectSource = await readTarget(target);
+    let context;
+    try {
+      context = buildLumAgentContext(projectSource, parseLumAgentSelectors(args));
+    } catch (error) {
+      if (Array.isArray(error?.diagnostics)) {
+        outputValidation(false, error.diagnostics, json, projectSource);
+        process.exitCode = 1;
+        return;
+      }
+      throw error;
+    }
+
+    const result = runLumAgentAdapter({
+      command: optionValue(args, "--adapter"),
+      args: optionValues(args, "--adapter-arg"),
+      context,
+      projectSource,
+      cwd: process.cwd(),
+    });
+    if (!result.valid) {
+      const diagnostics = attachLumDiagnosticRanges(result.proposalSource, result.diagnostics);
+      if (json) {
+        process.stdout.write(
+          `${JSON.stringify({ valid: false, diagnostics, verificationRequired: true }, null, 2)}\n`,
+        );
+      } else {
+        printDiagnostics(diagnostics);
+      }
       process.exitCode = 1;
       return;
     }
 
-    const project = validation.snapshot.project;
-    const context = {
-      protocol: "lum-agent-context-v1",
-      schema: {
-        id: LUM_PROJECT_SCHEMA_ID,
-        interchangeVersion: LUM_PROJECT_INTERCHANGE_VERSION,
-        canonicalSchemaVersion: CURRENT_PROJECT_SCHEMA_VERSION,
-      },
-      project: {
-        projectKey: validation.snapshot.projectKey,
-        revision: validation.snapshot.revision,
-        entities: project.entities.map((entity) => ({
-          id: String(entity.id),
-          name: entity.name,
-          type: entity.type,
-        })),
-        relationships: project.relationships.map((relationship) => ({
-          id: String(relationship.id),
-          subjectId: String(relationship.subjectId),
-          predicate: relationship.predicate,
-          objectId: String(relationship.objectId),
-        })),
-        occurrences: (project.occurrences ?? []).map((occurrence) => ({
-          id: String(occurrence.id),
-          ...(occurrence.title ? { title: occurrence.title } : {}),
-          ...(occurrence.occurrenceType ? { occurrenceType: occurrence.occurrenceType } : {}),
-          participantEntityIds: occurrence.participantContexts.map((participant) =>
-            String(participant.entityId),
-          ),
-          relationshipIds: occurrence.relationshipIds.map(String),
-        })),
-        trajectories: (project.trajectories ?? []).map((trajectory) => ({
-          id: String(trajectory.id),
-          sampleCount: trajectory.sampleCount,
-        })),
-        places: (project.places ?? []).map((place) => ({
-          id: String(place.id),
-          name: place.name,
-        })),
-        sources: (project.sources ?? []).map((source) => ({
-          id: String(source.id),
-          kind: source.kind,
-          title: source.title,
-        })),
-        categories: (project.categories ?? []).map((category) => ({
-          id: category.id,
-          name: category.name,
-          ...(category.color ? { color: category.color } : {}),
-        })),
-        stories: (project.stories ?? []).map((story) => ({
-          id: String(story.id),
-          title: story.title,
-          occurrenceIds: story.occurrenceIds.map(String),
-          placeIds: story.placeIds.map(String),
-        })),
-      },
-      composer: {
-        syntax:
-          "SUBJECT ACTION OBJECT [at PLACE] [on INSTANT | from START to END] [[category: CATEGORY, tags: A|B]]",
-        command: 'lum compose "<sentence>" --json',
-        rule:
-          "Composer output is a proposal. It must pass canonical validation before any project mutation.",
-      },
-      proposalWorkflow: {
-        schema: LUM_CHANGE_PROPOSAL_SCHEMA_ID,
-        scaffold:
-          "lum agent scaffold-proposal --project <project.lum.json> --output change.lum-proposal.json",
-        validate:
-          "lum agent validate-proposal change.lum-proposal.json --project <project.lum.json> --json",
-        apply:
-          "lum agent apply change.lum-proposal.json --project <project.lum.json> --output candidate.lum.json --json",
-        rule:
-          "Apply writes a separate candidate by default; the source project is never overwritten implicitly.",
-      },
-      workflow: [
-        "lum agent context <project.lum.json> --json",
-        'lum compose "<occurrence sentence>" --json',
-        "author a strict lum-change-proposal-v1 document",
-        "lum agent validate-proposal <proposal.json> --project <project.lum.json> --json",
-        "lum agent apply <proposal.json> --project <project.lum.json> --json",
-        "lum lint <candidate.lum.json> --json",
-      ],
-    };
+    const output = optionValue(args, "--output");
+    if (output) {
+      const outputPath = path.resolve(output);
+      const projectPath = path.resolve(target);
+      if (outputPath === projectPath) {
+        throw new Error("Refusing to overwrite the source project with provider output.");
+      }
+      await writeFile(outputPath, result.proposalSource, "utf8");
+      if (json) {
+        process.stdout.write(
+          `${JSON.stringify(
+            {
+              valid: true,
+              output: outputPath,
+              verificationRequired: true,
+              summary: result.summary,
+            },
+            null,
+            2,
+          )}\n`,
+        );
+      } else {
+        process.stdout.write(`${outputPath}\n`);
+      }
+      return;
+    }
 
-    process.stdout.write(`${JSON.stringify(context, null, 2)}\n`);
+    if (json) {
+      process.stdout.write(
+        `${JSON.stringify(
+          {
+            valid: true,
+            verificationRequired: true,
+            proposal: JSON.parse(result.proposalSource),
+            summary: result.summary,
+          },
+          null,
+          2,
+        )}\n`,
+      );
+    } else {
+      process.stdout.write(result.proposalSource);
+    }
     return;
   }
 
