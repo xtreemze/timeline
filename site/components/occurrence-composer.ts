@@ -810,6 +810,17 @@ export class LuumOccurrenceComposerElement extends LitElement {
   }
 
   editSection(kind: ComposerEditableSection["kind"], index = 0): boolean {
+    if (this.hasPendingSelectionContext) {
+      this.requestUpdate();
+      void this.updateComplete.then(() => {
+        this.renderRoot
+          .querySelector<HTMLButtonElement>(
+            'button.context-chip[data-context-kind="pending-selection"]',
+          )
+          ?.focus({ preventScroll: true });
+      });
+      return false;
+    }
     const section = composerEditableSections(this.value).filter(
       (candidate) => candidate.kind === kind,
     )[Math.max(0, Math.trunc(index))];
