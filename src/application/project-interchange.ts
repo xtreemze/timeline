@@ -329,6 +329,39 @@ function inspectTrajectory(
   return diagnostics;
 }
 
+export function projectCollectionShapeDiagnostics(
+  collection:
+    | "entities"
+    | "relationships"
+    | "occurrences"
+    | "trajectories"
+    | "places"
+    | "sources"
+    | "categories"
+    | "stories",
+  records: unknown,
+  path = "/records",
+): readonly ProjectInterchangeDiagnostic[] {
+  switch (collection) {
+    case "entities":
+      return inspectRecordArray(records, path, ENTITY_FIELDS, inspectEntity);
+    case "relationships":
+      return inspectRecordArray(records, path, RELATIONSHIP_FIELDS, inspectRelationship);
+    case "occurrences":
+      return inspectRecordArray(records, path, OCCURRENCE_FIELDS, inspectOccurrence);
+    case "trajectories":
+      return inspectRecordArray(records, path, TRAJECTORY_FIELDS, inspectTrajectory);
+    case "places":
+      return inspectRecordArray(records, path, PLACE_FIELDS, inspectPlace);
+    case "sources":
+      return inspectRecordArray(records, path, SOURCE_FIELDS);
+    case "categories":
+      return inspectRecordArray(records, path, CATEGORY_FIELDS);
+    case "stories":
+      return inspectRecordArray(records, path, STORY_FIELDS);
+  }
+}
+
 function strictShapeDiagnostics(envelope: JsonRecord): ProjectInterchangeDiagnostic[] {
   const diagnostics = unknownFieldDiagnostics(envelope, ENVELOPE_FIELDS);
   const project = record(envelope["project"]);
