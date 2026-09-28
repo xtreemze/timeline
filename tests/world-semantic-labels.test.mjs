@@ -3,12 +3,15 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import { createDeckWorldRuntime } from "../site/world/deck-world-runtime.ts";
-import { DECK_WORLD_LAYER_IDS, DeckWorldSurface } from "../site/world/deck-world-surface.ts";
+import {
+  DECK_WORLD_LAYER_IDS,
+  DeckWorldSurface,
+  WORLD_CLUSTER_DETAIL_ZOOM_CEILING,
+} from "../site/world/deck-world-surface.ts";
 import {
   directedEdgePathArrowhead,
   relationshipEdgePath,
 } from "../src/layout/world-semantic-presentation.ts";
-import { WORLD_CAMERA_MAX_ZOOM } from "../src/layout/world-spatial-mode.ts";
 import {
   createProjectedWorldEdge,
   createProjectedWorldInstance,
@@ -479,7 +482,7 @@ test("three very near places share one aggregate marker while readable nodes rem
   );
 });
 
-test("maximum zoom removes same-place aggregate markers so members are directly inspectable", () => {
+test("local-detail zoom removes same-place aggregate markers before maximum zoom", () => {
   const h = harness();
   const instances = Array.from({ length: 5 }, (_, index) =>
     instance(index, {
@@ -496,7 +499,7 @@ test("maximum zoom removes same-place aggregate markers so members are directly 
   );
   const surface = new DeckWorldSurface({}, h.runtime, {
     ...WORKING_CAMERA,
-    zoom: WORLD_CAMERA_MAX_ZOOM,
+    zoom: WORLD_CLUSTER_DETAIL_ZOOM_CEILING,
   });
   surface.setProjection(createWorldProjection({ instances, edges: [] }));
 
@@ -505,12 +508,12 @@ test("maximum zoom removes same-place aggregate markers so members are directly 
   assert.equal(
     entities.props.data.some((datum) => datum.kind === "cluster"),
     false,
-    "the terminal camera level must not leave an aggregate cluster with no further zoom action",
+    "local detail must not retain an aggregate marker while additional camera zoom remains",
   );
   assert.equal(
     entities.props.data.filter((datum) => datum.kind === "entity").length,
     5,
-    "all bounded same-place members remain directly represented at maximum zoom",
+    "all same-place members remain directly represented from the detail ceiling onward",
   );
   assert.equal(
     layer(layers, DECK_WORLD_LAYER_IDS.placeIcons).props.data.length,
