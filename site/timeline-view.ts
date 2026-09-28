@@ -51,6 +51,7 @@ import {
   setPresentation,
   switchOccurrenceSelection,
 } from "./occurrence-interaction-session.ts";
+import { composerEditableSections } from "./occurrence-composer-model.ts";
 import { TimelineClustering as clustering } from "./timeline-clustering.ts";
 import { TimelineMotion as motion } from "./timeline-motion.ts";
 
@@ -127,6 +128,15 @@ interface TimelineItem {
   relationChanges?: unknown[];
   graphContext?: unknown;
   editable?: boolean;
+  relationshipId?: string;
+  composition?: string;
+  storyNames?: string[];
+  reasoningContext?: Array<{
+    id: string;
+    type?: string;
+    text?: string;
+    status?: string;
+  }>;
 }
 
 interface SemanticTickSpec {
@@ -534,6 +544,7 @@ export class TimelineViewController {
   selectedRelationshipId: string | null = null;
   focusMediaIndex = 0;
   focusTab: "overview" | "evidence" = "overview";
+  focusEvidenceLimit = 6;
   orientation: Orientation = loadViewPreferences().orientation;
   scene = new Map<string, SceneRecord>();
   tickScene = new Map<string, HTMLDivElement>();
@@ -4142,6 +4153,7 @@ export class TimelineViewController {
     if (changedOccurrence) {
       this.focusMediaIndex = 0;
       this.focusTab = "overview";
+      this.focusEvidenceLimit = 6;
       this.explicitDetailOpen = options.detail === "open";
     } else if (options.detail === "open") {
       this.explicitDetailOpen = true;
