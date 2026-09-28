@@ -33,7 +33,7 @@ export interface ComposerOccurrenceOptions {
   readonly tags: readonly string[];
 }
 
-export interface OccurrenceSentenceDraft {
+interface OccurrenceSentenceCoreDraft {
   readonly subject: ComposerEntityReference | null;
   readonly predicate: string | null;
   readonly object: ComposerEntityReference | null;
@@ -42,6 +42,29 @@ export interface OccurrenceSentenceDraft {
   readonly options: ComposerOccurrenceOptions;
   readonly stage: OccurrenceComposerStage;
   readonly diagnostics: readonly string[];
+}
+
+export type InvestigativeQualifierScope = "section" | "sentence" | "ambiguous";
+
+export interface OccurrenceInvestigativeQualifier {
+  readonly id: string;
+  readonly section: ComposerEditableSectionKind | "sentence";
+  readonly start: number;
+  readonly end: number;
+  readonly operatorIndex: number;
+  readonly rawText: string;
+  readonly normalizedText: string;
+  readonly scope: InvestigativeQualifierScope;
+}
+
+export interface OccurrenceInvestigationDraft {
+  readonly qualifiers: readonly OccurrenceInvestigativeQualifier[];
+  readonly sentenceQuestion: boolean;
+  readonly hasAmbiguity: boolean;
+}
+
+export interface OccurrenceSentenceDraft extends OccurrenceSentenceCoreDraft {
+  readonly investigation: OccurrenceInvestigationDraft;
 }
 
 export interface ComposerEntityOption {
@@ -247,6 +270,41 @@ function findLastMarkerOutsideQuotes(input: string, marker: string, fromIndex = 
     if (index >= fromIndex && input.startsWith(marker, index)) found = index;
   }
   return found;
+}
+
+interface InvestigativeOperatorScan {
+  readonly sanitized: string;
+  readonly operatorIndexes: readonly number[];
+}
+
+function scanInvestigativeOperators(input: string): InvestigativeOperatorScan {
+  const characters = [...input];
+  const operatorIndexes: number[] = [];
+  let quoted = false;
+  let escaped = false;
+  for (let index = 0; index < characters.length; index += 1) {
+    const character = characters[index]!;
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (character === "\\") {
+      escaped = true;
+      continue;
+    }
+    if (character === '"') {
+      quoted = !quoted;
+      continue;
+    }
+    if (!quoted && character === "?") {
+      operatorIndexes.push(index);
+      characters[index] = " ";
+    }
+  }
+  return Object.freeze({
+    sanitized: characters.join(""),
+    operatorIndexes: Object.freeze(operatorIndexes),
+  });
 }
 
 function splitRangesOutsideQuotes(
@@ -502,7 +560,7 @@ function stripPlace(input: string): {
   };
 }
 
-export function parseOccurrenceSentence(input: string): OccurrenceSentenceDraft {
+function parseOccurrenceSentenceCore(input: string): OccurrenceSentenceCoreDraft {
   const diagnostics: string[] = [];
   const optionPass = stripOptions(input);
   if (optionPass.malformed) diagnostics.push("Close the occurrence options with ].");
@@ -568,6 +626,77 @@ export function parseOccurrenceSentence(input: string): OccurrenceSentenceDraft 
     options: optionPass.options,
     stage: diagnostics.length ? "object" : "complete",
     diagnostics: Object.freeze(diagnostics),
+  });
+}
+
+function parseInvestigativeQualifiers(
+  input: string,
+  scan: InvestigativeOperatorScan,
+  core: OccurrenceSentenceCoreDraft,
+): OccurrenceInvestigationDraft {
+  if (scan.operatorIndexes.length === 0) {
+    return Object.freeze({
+      qualifiers: Object.freeze([]),
+      sentenceQuestion: false,
+      hasAmbiguity: false,
+    });
+  }
+
+  const sections = composerEditableSections(scan.sanitized);
+  const trimmedEnd = input.trimEnd().length;
+  const qualifiers: OccurrenceInvestigativeQualifier[] = [];
+
+  for (const operatorIndex of scan.operatorIndexes) {
+    const attachedSection = sections.find((section) => section.end === operatorIndex) ?? null;
+    const terminal = operatorIndex === trimmedEnd - 1;
+
+    if (attachedSection) {
+      const scope: InvestigativeQualifierScope =
+        terminal && core.stage === "complete" ? "ambiguous" : "section";
+      qualifiers.push(
+        Object.freeze({
+          id: `${attachedSection.kind}:${attachedSection.start}:${operatorIndex + 1}`,
+          section: attachedSection.kind,
+          start: attachedSection.start,
+          end: operatorIndex + 1,
+          operatorIndex,
+          rawText: input.slice(attachedSection.start, operatorIndex + 1),
+          normalizedText: attachedSection.text.trim(),
+          scope,
+        }),
+      );
+      continue;
+    }
+
+    if (terminal) {
+      qualifiers.push(
+        Object.freeze({
+          id: `sentence:0:${trimmedEnd}`,
+          section: "sentence",
+          start: 0,
+          end: trimmedEnd,
+          operatorIndex,
+          rawText: input.slice(0, trimmedEnd),
+          normalizedText: scan.sanitized.slice(0, operatorIndex).trim(),
+          scope: "sentence",
+        }),
+      );
+    }
+  }
+
+  return Object.freeze({
+    qualifiers: Object.freeze(qualifiers),
+    sentenceQuestion: qualifiers.some((qualifier) => qualifier.scope === "sentence"),
+    hasAmbiguity: qualifiers.some((qualifier) => qualifier.scope === "ambiguous"),
+  });
+}
+
+export function parseOccurrenceSentence(input: string): OccurrenceSentenceDraft {
+  const scan = scanInvestigativeOperators(input);
+  const core = parseOccurrenceSentenceCore(scan.sanitized);
+  return Object.freeze({
+    ...core,
+    investigation: parseInvestigativeQualifiers(input, scan, core),
   });
 }
 
@@ -665,27 +794,45 @@ function cursorWithinSpan(
 }
 
 export function composerCursorSection(input: string, cursorOffset: number): ComposerCursorSection {
-  const offset = Math.max(0, Math.min(input.length, cursorOffset));
-  const subject = readEntitySpan(input, 0);
+  const investigation = parseOccurrenceSentence(input).investigation;
+  const qualifier = investigation.qualifiers.find(
+    (candidate) => cursorOffset >= candidate.start && cursorOffset < candidate.end,
+  );
+  if (qualifier && qualifier.section !== "sentence") {
+    const kind =
+      qualifier.section === "category" || qualifier.section === "tag"
+        ? "options"
+        : qualifier.section;
+    return Object.freeze({
+      kind,
+      start: qualifier.start,
+      end: qualifier.operatorIndex,
+      text: qualifier.normalizedText,
+    }) as ComposerCursorSection;
+  }
+
+  const source = scanInvestigativeOperators(input).sanitized;
+  const offset = Math.max(0, Math.min(source.length, cursorOffset));
+  const subject = readEntitySpan(source, 0);
   if (!subject) return Object.freeze({ kind: "tail", start: offset, end: offset, text: "" });
 
-  if (cursorWithinSpan(offset, subject.start, subject.end, input.length)) {
+  if (cursorWithinSpan(offset, subject.start, subject.end, source.length)) {
     return Object.freeze({ kind: "subject", ...subject });
   }
 
-  const predicate = readTokenSpan(input, subject.end);
+  const predicate = readTokenSpan(source, subject.end);
   if (!predicate) return Object.freeze({ kind: "tail", start: offset, end: offset, text: "" });
-  if (cursorWithinSpan(offset, predicate.start, predicate.end, input.length)) {
+  if (cursorWithinSpan(offset, predicate.start, predicate.end, source.length)) {
     return Object.freeze({ kind: "predicate", ...predicate });
   }
 
-  const object = readEntitySpan(input, predicate.end);
+  const object = readEntitySpan(source, predicate.end);
   if (!object) return Object.freeze({ kind: "tail", start: offset, end: offset, text: "" });
-  if (cursorWithinSpan(offset, object.start, object.end, input.length)) {
+  if (cursorWithinSpan(offset, object.start, object.end, source.length)) {
     return Object.freeze({ kind: "object", ...object });
   }
 
-  const lower = input.toLocaleLowerCase();
+  const lower = source.toLocaleLowerCase();
   const optionsStart = findMarkerOutsideQuotes(lower, "[", object.end);
   const onMarker = findMarkerOutsideQuotes(lower, " on ", object.end);
   const fromMarker = findMarkerOutsideQuotes(lower, " from ", object.end);
@@ -695,16 +842,16 @@ export function composerCursorSection(input: string, cursorOffset: number): Comp
 
   if (placeMarker >= 0 && (timeMarker < 0 || placeMarker < timeMarker)) {
     const start = placeMarker + 4;
-    const boundaryCandidates = [timeMarker, optionsStart, input.length].filter(
+    const boundaryCandidates = [timeMarker, optionsStart, source.length].filter(
       (candidate) => candidate >= start,
     );
-    const end = trimRangeEnd(input, start, Math.min(...boundaryCandidates));
-    if (offset >= placeMarker && cursorWithinSpan(offset, start, end, input.length)) {
+    const end = trimRangeEnd(source, start, Math.min(...boundaryCandidates));
+    if (offset >= placeMarker && cursorWithinSpan(offset, start, end, source.length)) {
       return Object.freeze({
         kind: "place",
         start,
         end,
-        text: unquote(input.slice(start, end)),
+        text: unquote(source.slice(start, end)),
       });
     }
   }
@@ -712,21 +859,21 @@ export function composerCursorSection(input: string, cursorOffset: number): Comp
   if (timeMarker >= 0) {
     const markerLength = timeMarker === onMarker ? 4 : 6;
     const start = timeMarker + markerLength;
-    const end = trimRangeEnd(input, start, optionsStart >= start ? optionsStart : input.length);
-    if (offset >= timeMarker && cursorWithinSpan(offset, start, end, input.length)) {
-      return Object.freeze({ kind: "time", start, end, text: input.slice(start, end).trim() });
+    const end = trimRangeEnd(source, start, optionsStart >= start ? optionsStart : source.length);
+    if (offset >= timeMarker && cursorWithinSpan(offset, start, end, source.length)) {
+      return Object.freeze({ kind: "time", start, end, text: source.slice(start, end).trim() });
     }
   }
 
   if (optionsStart >= 0) {
-    const optionsEnd = findMarkerOutsideQuotes(input, "]", optionsStart + 1);
-    const end = optionsEnd >= 0 ? optionsEnd + 1 : input.length;
+    const optionsEnd = findMarkerOutsideQuotes(source, "]", optionsStart + 1);
+    const end = optionsEnd >= 0 ? optionsEnd + 1 : source.length;
     if (offset >= optionsStart && offset < end) {
       return Object.freeze({
         kind: "options",
         start: optionsStart,
         end,
-        text: input.slice(optionsStart, end),
+        text: source.slice(optionsStart, end),
       });
     }
   }
@@ -747,20 +894,21 @@ function trimmedValueRange(
 }
 
 export function composerEditableSections(input: string): readonly ComposerEditableSection[] {
+  const source = scanInvestigativeOperators(input).sanitized;
   const sections: ComposerEditableSection[] = [];
-  const subject = readEntitySpan(input, 0);
+  const subject = readEntitySpan(source, 0);
   if (!subject) return Object.freeze(sections);
   sections.push(Object.freeze({ kind: "subject", ...subject }));
 
-  const predicate = readTokenSpan(input, subject.end);
+  const predicate = readTokenSpan(source, subject.end);
   if (!predicate) return Object.freeze(sections);
   sections.push(Object.freeze({ kind: "predicate", ...predicate }));
 
-  const object = readEntitySpan(input, predicate.end);
+  const object = readEntitySpan(source, predicate.end);
   if (!object) return Object.freeze(sections);
   sections.push(Object.freeze({ kind: "object", ...object }));
 
-  const lower = input.toLocaleLowerCase();
+  const lower = source.toLocaleLowerCase();
   const optionsStart = findMarkerOutsideQuotes(lower, "[", object.end);
   const onMarker = findMarkerOutsideQuotes(lower, " on ", object.end);
   const fromMarker = findMarkerOutsideQuotes(lower, " from ", object.end);
@@ -770,17 +918,17 @@ export function composerEditableSections(input: string): readonly ComposerEditab
 
   if (placeMarker >= 0 && (timeMarker < 0 || placeMarker < timeMarker)) {
     const valueStart = placeMarker + 4;
-    const boundaryCandidates = [timeMarker, optionsStart, input.length].filter(
+    const boundaryCandidates = [timeMarker, optionsStart, source.length].filter(
       (candidate) => candidate >= valueStart,
     );
-    const valueEnd = trimRangeEnd(input, valueStart, Math.min(...boundaryCandidates));
+    const valueEnd = trimRangeEnd(source, valueStart, Math.min(...boundaryCandidates));
     if (valueEnd > valueStart) {
       sections.push(
         Object.freeze({
           kind: "place",
           start: valueStart,
           end: valueEnd,
-          text: unquote(input.slice(valueStart, valueEnd)),
+          text: unquote(source.slice(valueStart, valueEnd)),
         }),
       );
     }
@@ -789,9 +937,9 @@ export function composerEditableSections(input: string): readonly ComposerEditab
   if (timeMarker >= 0) {
     const clauseStart = timeMarker + 1;
     const clauseEnd = trimRangeEnd(
-      input,
+      source,
       clauseStart,
-      optionsStart >= clauseStart ? optionsStart : input.length,
+      optionsStart >= clauseStart ? optionsStart : source.length,
     );
     if (clauseEnd > clauseStart) {
       sections.push(
@@ -799,16 +947,16 @@ export function composerEditableSections(input: string): readonly ComposerEditab
           kind: "time",
           start: clauseStart,
           end: clauseEnd,
-          text: input.slice(clauseStart, clauseEnd).trim(),
+          text: source.slice(clauseStart, clauseEnd).trim(),
         }),
       );
     }
   }
 
   if (optionsStart >= 0) {
-    const optionsClose = findMarkerOutsideQuotes(input, "]", optionsStart + 1);
-    const bodyEnd = optionsClose >= 0 ? optionsClose : input.length;
-    const body = input.slice(optionsStart + 1, bodyEnd);
+    const optionsClose = findMarkerOutsideQuotes(source, "]", optionsStart + 1);
+    const bodyEnd = optionsClose >= 0 ? optionsClose : source.length;
+    const body = source.slice(optionsStart + 1, bodyEnd);
     const entries = parsePropertyEntries(body);
     const categoryEntry = entries.find(
       (entry) => entry.key.toLocaleLowerCase() === "category",
@@ -821,7 +969,7 @@ export function composerEditableSections(input: string): readonly ComposerEditab
           kind: "category",
           start,
           end,
-          text: unquote(input.slice(start, end)),
+          text: unquote(source.slice(start, end)),
         }),
       );
     }
@@ -832,7 +980,7 @@ export function composerEditableSections(input: string): readonly ComposerEditab
       let tagIndex = 0;
       for (const tagRange of splitRangesOutsideQuotes(tagsEntry.rawValue, "|")) {
         const range = trimmedValueRange(
-          input,
+          source,
           rawBase + tagRange.start,
           rawBase + tagRange.end,
         );
@@ -842,7 +990,7 @@ export function composerEditableSections(input: string): readonly ComposerEditab
               kind: "tag",
               start: range.start,
               end: range.end,
-              text: unquote(input.slice(range.start, range.end)),
+              text: unquote(source.slice(range.start, range.end)),
               index: tagIndex,
             }),
           );
