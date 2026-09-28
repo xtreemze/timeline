@@ -128,6 +128,8 @@ export interface WorldForceTuning {
   readonly linkStrengthScale: number;
   /** Multiplier applied to each semantic relationship's desired link distance. */
   readonly linkDistanceScale?: number;
+  /** Number of link-constraint relaxation passes per simulation tick. */
+  readonly linkIterations?: number;
   /** Multiplier applied to geographic anchor attraction. */
   readonly anchorStrengthScale: number;
   /** Multiplier applied to d3-dag soft target attraction. */
