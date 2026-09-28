@@ -420,13 +420,12 @@ test.describe("Timeline interaction contracts", () => {
       await page.keyboard.press("Home");
       await waitForViewportEvents(page);
       await settleTimeline(page);
+      const baseline = (await viewportEvents(page)).at(-1);
+      if (!baseline) throw new Error("Timeline has no baseline viewport event.");
       await clearViewportEvents(page);
       await expect(target).toBeVisible();
       const [id, box] = await Promise.all([target.getAttribute("data-id"), target.boundingBox()]);
       if (!id || !box) throw new Error("Occurrence target is missing identity or geometry.");
-      const baseline = (await viewportEvents(page)).at(-1);
-      if (!baseline) throw new Error("Timeline has no baseline viewport event.");
-      await clearViewportEvents(page);
 
       await waitForQuietMainThread(page);
       await doubleTap(page, { x: box.x + box.width / 2, y: box.y + box.height / 2 });
