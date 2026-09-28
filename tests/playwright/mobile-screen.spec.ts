@@ -8,11 +8,11 @@ const NARROW_LANDSCAPE = { width: 780, height: 360 };
 
 async function ensureOrientation(page: Page, orientation: "portrait" | "landscape") {
   const timeline = page.locator("#timeline-view");
-  const toggle = page.locator("#timeline-orientation-toggle");
   await expect(timeline).toBeVisible();
   if ((await timeline.getAttribute("data-orientation")) !== orientation) {
-    await expect(toggle).toBeVisible();
-    await toggle.click();
+    await page.locator("#timeline-view-controls-toggle").click();
+    await page.locator("#timeline-orientation-toggle").click();
+    await page.keyboard.press("Escape");
   }
   await expect(timeline).toHaveAttribute("data-orientation", orientation);
 }
@@ -82,6 +82,7 @@ test.describe("Narrow mobile screen contracts", () => {
       const composer = page.locator("#occurrence-composer");
       const toggle = page.locator("#occurrence-composer-toggle");
       const input = composer.locator("input");
+      const viewToggle = page.locator("#timeline-view-controls-toggle");
       const timelineToggle = page.locator("#timeline-orientation-toggle");
       const before = await dock.boundingBox();
       expect(before).not.toBeNull();
@@ -104,15 +105,17 @@ test.describe("Narrow mobile screen contracts", () => {
       expect(inputBox.y).toBeGreaterThanOrEqual(expanded.y - 1);
       expect(inputBox.y + inputBox.height).toBeLessThanOrEqual(expanded.y + expanded.height + 1);
 
-      await expect(page.locator(".app-footer-world")).toBeVisible();
       await expect(page.locator(".app-footer-actions")).toBeVisible();
-      await expect(page.locator(".app-footer-timeline")).toBeVisible();
+      await expect(viewToggle).toBeVisible();
+      await viewToggle.click();
+      await expect(page.locator("#timeline-view-controls")).toBeVisible();
       await expect(timelineToggle).toBeVisible();
 
       const nextOrientation = orientation === "portrait" ? "landscape" : "portrait";
       await timelineToggle.click();
       await expect(page.locator("#timeline-view")).toHaveAttribute("data-orientation", nextOrientation);
       await expect(input).toBeVisible();
+      await page.keyboard.press("Escape");
       await expectNoPageScroll(page, viewport);
 
       await toggle.click();
@@ -285,16 +288,16 @@ test.describe("Narrow mobile screen contracts", () => {
         };
       });
       expect(metrics.display).toBe("flex");
-      expect(["auto", "scroll"]).toContain(metrics.overflowX);
-      expect(metrics.scrollWidth).toBeGreaterThan(metrics.clientWidth + 44);
+      expect(metrics.overflowX).not.toBe("auto");
+      expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth + 1);
       for (const zone of metrics.zones) {
         expect(zone.overflowX).toBe("visible");
         expect(zone.scrollWidth).toBeLessThanOrEqual(zone.clientWidth + 1);
       }
 
-      const buttons = dock.locator("button:visible");
+      const buttons = dock.locator(":scope > .app-footer-actions > button:visible, :scope > .app-footer-timeline > button:visible");
       const buttonCount = await buttons.count();
-      expect(buttonCount).toBeGreaterThanOrEqual(10);
+      expect(buttonCount).toBeGreaterThanOrEqual(5);
       const buttonGeometry: Array<{
         position: string;
         width: number;
@@ -328,27 +331,20 @@ test.describe("Narrow mobile screen contracts", () => {
       expect(Math.max(...buttonTops) - Math.min(...buttonTops)).toBeLessThanOrEqual(1);
       expect(Math.max(...buttonBottoms) - Math.min(...buttonBottoms)).toBeLessThanOrEqual(1);
 
-      for (const selector of [
-        ".world-camera-controls",
-        ".world-layout-controls",
-        ".app-footer-actions",
-        ".app-footer-timeline",
-      ]) {
-        const group = dock.locator(selector);
-        await expect(group).toBeVisible();
-        const geometry = await group.evaluate((element) => {
-          const style = getComputedStyle(element);
-          const rect = element.getBoundingClientRect();
-          return {
-            position: style.position,
-            top: rect.top,
-            bottom: rect.bottom,
-          };
-        });
-        expect(["absolute", "fixed", "sticky"]).not.toContain(geometry.position);
-        expect(geometry.top).toBeGreaterThanOrEqual(metrics.top - 1);
-        expect(geometry.bottom).toBeLessThanOrEqual(metrics.bottom + 1);
-      }
+      const actions = dock.locator(".app-footer-actions");
+      await expect(actions).toBeVisible();
+      const geometry = await actions.evaluate((element) => {
+        const style = getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return {
+          position: style.position,
+          top: rect.top,
+          bottom: rect.bottom,
+        };
+      });
+      expect(["absolute", "fixed", "sticky"]).not.toContain(geometry.position);
+      expect(geometry.top).toBeGreaterThanOrEqual(metrics.top - 1);
+      expect(geometry.bottom).toBeLessThanOrEqual(metrics.bottom + 1);
 
       const semanticIcons = dock.locator(".toolbar-control .semantic-icon:visible");
       const semanticIconCount = await semanticIcons.count();
