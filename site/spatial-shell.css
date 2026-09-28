@@ -404,12 +404,35 @@
   padding-inline-start: max(0.18rem, env(safe-area-inset-left));
 }
 
-.app-footer-bar > #occurrence-composer:not([active]) {
+.app-footer-bar > #occurrence-composer:not([active]),
+.app-footer-bar > .occurrence-composer-host-proxy {
   grid-column: 2;
   align-self: center;
   inline-size: 100%;
   min-inline-size: 160px;
   max-inline-size: 320px;
+}
+
+.app-footer-bar > .occurrence-composer-host-proxy {
+  min-block-size: var(--toolbar-control-size);
+  padding-inline: 0.62rem;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--toolbar-control-radius);
+  background: color-mix(in srgb, var(--paper) 86%, transparent);
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: start;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: text;
+}
+
+.app-footer-bar > .occurrence-composer-host-proxy[hidden] {
+  display: none;
 }
 
 .app-footer-view {
@@ -736,8 +759,8 @@
 
 /* The occurrence composer is always visible as a compact field. Activating it
    expands the same field within the one-line footer instead of creating a second row. */
-#app-shell:has(#occurrence-composer[active]) > .app-tool-dock.app-footer-bar,
-#app-shell:has(#occurrence-composer[active])
+#app-shell:has(.app-footer-bar > #occurrence-composer[active]) > .app-tool-dock.app-footer-bar,
+#app-shell:has(.app-footer-bar > #occurrence-composer[active])
   #presentation-stage:fullscreen
   > .app-tool-dock.app-footer-bar {
   display: grid;
@@ -761,12 +784,12 @@
   padding-inline: 0;
 }
 
-#app-shell:has(#occurrence-composer[active]) .app-footer-bar > .app-footer-actions {
+#app-shell:has(.app-footer-bar > #occurrence-composer[active]) .app-footer-bar > .app-footer-actions {
   grid-column: 1;
   grid-row: 1;
 }
 
-#app-shell:has(#occurrence-composer[active]) .app-footer-bar > .app-footer-view {
+#app-shell:has(.app-footer-bar > #occurrence-composer[active]) .app-footer-bar > .app-footer-view {
   grid-column: 3;
   grid-row: 1;
   min-inline-size: 0;
@@ -776,19 +799,19 @@
   scrollbar-width: none;
 }
 
-#app-shell:has(#occurrence-composer[active])
+#app-shell:has(.app-footer-bar > #occurrence-composer[active])
   .app-footer-bar
   > .app-footer-view::-webkit-scrollbar {
   display: none;
 }
 
-#app-shell:has(#occurrence-composer[active]) .app-footer-bar > .app-footer-zone {
+#app-shell:has(.app-footer-bar > #occurrence-composer[active]) .app-footer-bar > .app-footer-zone {
   min-block-size: var(--toolbar-control-size);
 }
 
 @media (max-width: 699px) {
-  #app-shell:has(#occurrence-composer[active]) > .app-tool-dock.app-footer-bar,
-  #app-shell:has(#occurrence-composer[active])
+  #app-shell:has(.app-footer-bar > #occurrence-composer[active]) > .app-tool-dock.app-footer-bar,
+  #app-shell:has(.app-footer-bar > #occurrence-composer[active])
     #presentation-stage:fullscreen
     > .app-tool-dock.app-footer-bar {
     grid-template-columns: auto minmax(120px, 1fr) 44px;
@@ -796,7 +819,7 @@
     touch-action: auto;
   }
 
-  #app-shell:has(#occurrence-composer[active]) .app-footer-bar > .app-footer-view {
+  #app-shell:has(.app-footer-bar > #occurrence-composer[active]) .app-footer-bar > .app-footer-view {
     inline-size: 44px;
     max-inline-size: 44px;
   }
