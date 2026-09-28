@@ -460,10 +460,10 @@ jobs:
           grep -F '[Mobile Chrome Landscape]' /tmp/contextual-authoring-list.txt
           grep -F '[Tablet Touch]' /tmp/contextual-authoring-list.txt
           grep -F '[Reduced Motion]' /tmp/contextual-authoring-list.txt
-      - name: Certify contextual world authoring
-        run: pnpm test:contextual-authoring-browser
       - name: Certify composer card, preview, and investigation interactions
         run: pnpm exec playwright test --config=playwright.config.ts tests/browser/occurrence-composer-integration.spec.ts --project="Desktop Chrome" --project="Mobile Chrome"
+      - name: Certify contextual world authoring
+        run: pnpm test:contextual-authoring-browser
 
   project-import-review-browser:
     runs-on: ubuntu-latest
