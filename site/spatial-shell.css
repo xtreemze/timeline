@@ -739,44 +739,51 @@
 }
 
 /* The occurrence composer is always visible as a compact field. Activating it
-   expands the same footer without adding a second authoring button to the toolbar. */
-#app-shell:has(#occurrence-composer[active]) {
-  --workspace-footer-content-block-size: 116px;
-}
-
+   expands the same field within the one-line footer instead of creating a second row. */
 #app-shell:has(#occurrence-composer[active]) > .app-tool-dock.app-footer-bar,
 #app-shell:has(#occurrence-composer[active])
   #presentation-stage:fullscreen
   > .app-tool-dock.app-footer-bar {
   display: grid;
-  grid-template-columns: auto minmax(160px, 320px) minmax(0, 1fr);
-  grid-template-rows: 48px minmax(0, 1fr);
+  grid-template-columns: auto minmax(220px, 1fr) minmax(44px, 44vw);
+  grid-template-rows: minmax(0, 1fr);
   align-items: center;
   column-gap: var(--toolbar-control-gap);
-  row-gap: 0.16rem;
-  overflow: hidden;
+  overflow: visible;
   touch-action: auto;
 }
 
 .app-footer-bar > #occurrence-composer[active] {
   z-index: 3;
-  grid-column: 1 / -1;
+  grid-column: 2;
   grid-row: 1;
   align-self: center;
-  justify-self: center;
-  inline-size: min(62rem, 100%);
+  justify-self: stretch;
+  inline-size: 100%;
   min-inline-size: 0;
-  padding-inline: max(0.06rem, env(safe-area-inset-left)) max(0.06rem, env(safe-area-inset-right));
+  max-inline-size: none;
+  padding-inline: 0;
 }
 
 #app-shell:has(#occurrence-composer[active]) .app-footer-bar > .app-footer-actions {
   grid-column: 1;
-  grid-row: 2;
+  grid-row: 1;
 }
 
 #app-shell:has(#occurrence-composer[active]) .app-footer-bar > .app-footer-view {
-  grid-column: 2 / -1;
-  grid-row: 2;
+  grid-column: 3;
+  grid-row: 1;
+  min-inline-size: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: none;
+}
+
+#app-shell:has(#occurrence-composer[active])
+  .app-footer-bar
+  > .app-footer-view::-webkit-scrollbar {
+  display: none;
 }
 
 #app-shell:has(#occurrence-composer[active]) .app-footer-bar > .app-footer-zone {
@@ -784,17 +791,18 @@
 }
 
 @media (max-width: 699px) {
-  #app-shell:has(#occurrence-composer[active]) .app-footer-bar > .app-footer-view {
-    overflow-x: auto;
-    overflow-y: hidden;
-    overscroll-behavior-inline: contain;
-    scrollbar-width: none;
+  #app-shell:has(#occurrence-composer[active]) > .app-tool-dock.app-footer-bar,
+  #app-shell:has(#occurrence-composer[active])
+    #presentation-stage:fullscreen
+    > .app-tool-dock.app-footer-bar {
+    grid-template-columns: auto minmax(120px, 1fr) 44px;
+    overflow: visible;
+    touch-action: auto;
   }
 
-  #app-shell:has(#occurrence-composer[active])
-    .app-footer-bar
-    > .app-footer-view::-webkit-scrollbar {
-    display: none;
+  #app-shell:has(#occurrence-composer[active]) .app-footer-bar > .app-footer-view {
+    inline-size: 44px;
+    max-inline-size: 44px;
   }
 }
 
