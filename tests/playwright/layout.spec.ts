@@ -88,12 +88,9 @@ async function expectNoPrimaryDocumentScroll(page, viewport) {
 }
 
 async function toggleTimelineOrientation(page) {
-  const view = page.locator("#timeline-view-controls");
-  if (!(await view.isVisible())) await page.locator("#timeline-view-controls-toggle").click();
-  const orientationToggle = view.locator("#timeline-orientation-toggle");
+  const orientationToggle = page.locator("#timeline-orientation-toggle");
   await expect(orientationToggle).toBeVisible();
   await orientationToggle.click();
-  await page.keyboard.press("Escape");
 }
 
 async function ensureTimelineOrientation(page, orientation) {
@@ -184,7 +181,7 @@ test.describe("Mobile-first Timeline layout contracts", () => {
     await expectNoPrimaryDocumentScroll(page, PHONE_LANDSCAPE);
   });
 
-  test("bottom navigation remains a conventional footer in every timeline orientation", async ({
+  test("bottom navigation is one direct, uniform toolbar in every timeline orientation", async ({
     page,
   }) => {
     await page.setViewportSize(PHONE_PORTRAIT);
@@ -204,7 +201,11 @@ test.describe("Mobile-first Timeline layout contracts", () => {
       const titleBar = page.locator(".timeline-project-heading");
       const surface = page.locator(".timeline-surface");
       const actions = dock.locator(".app-footer-actions > .app-tool");
-      await expect(actions).toHaveCount(5);
+      const view = dock.locator("#timeline-view-controls");
+      await expect(actions).toHaveCount(3);
+      await expect(view).toBeVisible();
+      await expect(dock.locator("#timeline-view-controls-toggle")).toHaveCount(0);
+      await expect(dock.locator("#occurrence-composer-toggle")).toHaveCount(0);
 
       const dockBox = await expectInsideViewport(dock, viewport);
       const titleBox = await expectInsideViewport(titleBar, viewport);
@@ -214,26 +215,18 @@ test.describe("Mobile-first Timeline layout contracts", () => {
         "#project-menu-toggle",
         "#editor-toggle",
         "#timeline-browser-toggle",
-        "#occurrence-composer-toggle",
-        "#timeline-view-controls-toggle",
+        "#timeline-orientation-toggle",
+        "#presentation-fullscreen-toggle",
+        "#timeline-auto-toggle",
       ]) {
-        await expect(dock.locator(selector)).toBeVisible();
+        await expect(dock.locator(selector)).toHaveCount(1);
       }
 
-      const dockMetrics = await dock.evaluate((element) => ({
-        display: getComputedStyle(element).display,
-        overflowX: getComputedStyle(element).overflowX,
-        scrollWidth: element.scrollWidth,
-        clientWidth: element.clientWidth,
-      }));
-      expect(dockMetrics.scrollWidth).toBeLessThanOrEqual(dockMetrics.clientWidth + 1);
-      expect(dockMetrics.overflowX).not.toBe("auto");
-
       const visibleFooterButtons = dock.locator(
-        ":scope > .app-footer-actions > button:visible, :scope > .app-footer-timeline > button:visible",
+        ":scope > .app-footer-actions > button:visible, :scope > .app-footer-view button:visible, :scope > .app-footer-timeline > button:visible",
       );
       const visibleFooterButtonCount = await visibleFooterButtons.count();
-      expect(visibleFooterButtonCount).toBe(5);
+      expect(visibleFooterButtonCount).toBeGreaterThanOrEqual(8);
       for (let index = 0; index < visibleFooterButtonCount; index += 1) {
         const buttonBox = await visibleFooterButtons.nth(index).boundingBox();
         expect(buttonBox).not.toBeNull();
@@ -242,23 +235,22 @@ test.describe("Mobile-first Timeline layout contracts", () => {
         expect(Math.abs(buttonBox.height - 44)).toBeLessThanOrEqual(1);
       }
 
-      const actionsBox = await dock.locator(".app-footer-actions").boundingBox();
-      expect(actionsBox).not.toBeNull();
-      if (!actionsBox) throw new Error("Primary action group has no bounds.");
-      expect(
-        Math.abs(actionsBox.x + actionsBox.width / 2 - viewport.width / 2),
-      ).toBeLessThanOrEqual(3);
-
-      const viewToggle = dock.locator("#timeline-view-controls-toggle");
-      await viewToggle.click();
-      const view = page.locator("#timeline-view-controls");
-      const viewBox = await expectInsideViewport(view, viewport);
       await expect(view.locator("#timeline-view-toolbar")).toBeVisible();
       await expect(view.locator(".world-camera-controls")).toBeVisible();
       await expect(view.locator(".world-layout-controls .world-layout-control")).toHaveCount(2);
       await expect(view.locator("#investigation-workspace-toggle")).toBeVisible();
-      expect(viewBox.y + viewBox.height).toBeLessThanOrEqual(dockBox.y + 1);
-      await page.keyboard.press("Escape");
+
+      const dockMetrics = await dock.evaluate((element) => ({
+        display: getComputedStyle(element).display,
+        overflowX: getComputedStyle(element).overflowX,
+        scrollWidth: element.scrollWidth,
+        clientWidth: element.clientWidth,
+      }));
+      if (viewport.width < 700) {
+        expect(dockMetrics.display).toBe("flex");
+        expect(dockMetrics.overflowX).toBe("auto");
+        expect(dockMetrics.scrollWidth).toBeGreaterThan(dockMetrics.clientWidth);
+      }
 
       expect(dockBox.x).toBeLessThanOrEqual(2);
       expect(dockBox.width).toBeGreaterThanOrEqual(viewport.width - 4);
@@ -290,7 +282,7 @@ test.describe("Mobile-first Timeline layout contracts", () => {
     { label: "tablet landscape", viewport: TABLET_LANDSCAPE, orientation: "landscape" },
     { label: "desktop landscape", viewport: DESKTOP_LANDSCAPE, orientation: "landscape" },
   ] as const) {
-    test(`utility sheets and popovers stay reachable in ${label}`, async ({ page }) => {
+    test(`utility sheets and Project popover stay reachable in ${label}`, async ({ page }) => {
       await page.setViewportSize(viewport);
       await page.goto("/");
       await ensureTimelineOrientation(page, orientation);
@@ -307,6 +299,7 @@ test.describe("Mobile-first Timeline layout contracts", () => {
       } else {
         expect(editorBox.width).toBeGreaterThan(viewport.width * 0.9);
       }
+      await expect(page.locator("#timeline-orientation-toggle")).toBeDisabled();
       await page.locator("#control-panel-close").click();
 
       await page.locator("#timeline-browser-toggle").click();
@@ -317,6 +310,7 @@ test.describe("Mobile-first Timeline layout contracts", () => {
       if (!browserStage) throw new Error("Presentation stage disappeared under Browse.");
       expect(Math.abs(browserStage.width - baselineStage.width)).toBeLessThanOrEqual(2);
       expect(Math.abs(browserStage.height - baselineStage.height)).toBeLessThanOrEqual(2);
+      await expect(page.locator("#timeline-orientation-toggle")).toBeDisabled();
       await page.locator("#timeline-browser-close").click();
 
       const projectButton = page.locator("#project-menu-toggle");
@@ -328,47 +322,41 @@ test.describe("Mobile-first Timeline layout contracts", () => {
       await page.keyboard.press("Escape");
       await expect(projectButton).toHaveAttribute("aria-expanded", "false");
 
-      const viewToggle = page.locator("#timeline-view-controls-toggle");
-      await viewToggle.click();
       const viewControls = page.locator("#timeline-view-controls");
-      const viewControlsBox = await expectInsideViewport(viewControls, viewport);
-      const dockAfterUtilities = await page.locator(".app-tool-dock").boundingBox();
-      expect(dockAfterUtilities).not.toBeNull();
-      if (!dockAfterUtilities) throw new Error("Footer geometry is unavailable.");
-      expect(viewControlsBox.y + viewControlsBox.height).toBeLessThanOrEqual(
-        dockAfterUtilities.y + 1,
-      );
-      await expect(viewToggle).toHaveAttribute("aria-expanded", "true");
-      await page.keyboard.press("Escape");
-      await expect(viewToggle).toHaveAttribute("aria-expanded", "false");
+      await expect(viewControls).toBeVisible();
+      await expect(viewControls.locator("#timeline-view-toolbar")).toBeVisible();
+      await expect(viewControls.locator(".world-camera-controls")).toBeVisible();
     });
   }
 
-  test("desktop footer keeps primary commands centered and leaves spatial controls secondary", async ({ page }) => {
+  test("desktop footer keeps primary and spatial controls on one toolbar", async ({ page }) => {
     await page.setViewportSize(DESKTOP_LANDSCAPE);
     await page.goto("/");
     await ensureTimelineOrientation(page, "landscape");
 
     const dock = page.locator(".app-tool-dock.app-footer-bar");
     const actions = dock.locator(".app-footer-actions");
-    const [dockBox, actionsBox] = await Promise.all([dock.boundingBox(), actions.boundingBox()]);
+    const view = dock.locator("#timeline-view-controls");
+    const [dockBox, actionsBox, viewBox] = await Promise.all([
+      dock.boundingBox(),
+      actions.boundingBox(),
+      view.boundingBox(),
+    ]);
     expect(dockBox).not.toBeNull();
     expect(actionsBox).not.toBeNull();
-    if (!dockBox || !actionsBox) throw new Error("Desktop command dock has no live bounds.");
+    expect(viewBox).not.toBeNull();
+    if (!dockBox || !actionsBox || !viewBox) {
+      throw new Error("Desktop command dock has no live bounds.");
+    }
 
-    expect(
-      Math.abs(actionsBox.x + actionsBox.width / 2 - DESKTOP_LANDSCAPE.width / 2),
-    ).toBeLessThanOrEqual(2);
-    await expect(actions.locator(":scope > .app-tool")).toHaveCount(5);
+    await expect(actions.locator(":scope > .app-tool")).toHaveCount(3);
+    await expect(dock.locator("#timeline-view-controls-toggle")).toHaveCount(0);
     await expect(dock.locator(".app-footer-timeline")).toBeHidden();
-
-    const viewToggle = dock.locator("#timeline-view-controls-toggle");
-    await viewToggle.click();
-    const view = page.locator("#timeline-view-controls");
     await expect(view).toBeVisible();
     await expect(view.locator(".world-camera-controls")).toBeVisible();
     await expect(view.locator("#timeline-view-toolbar")).toBeVisible();
-    await page.keyboard.press("Escape");
+    expect(viewBox.y).toBeGreaterThanOrEqual(dockBox.y - 1);
+    expect(viewBox.y + viewBox.height).toBeLessThanOrEqual(dockBox.y + dockBox.height + 1);
   });
 
   test("orientation changes retain rendered occurrence identity and update control semantics", async ({
@@ -454,7 +442,7 @@ test.describe("Mobile-first Timeline layout contracts", () => {
     await expect(page.locator("#app-shell")).toHaveAttribute("data-mode", "view");
   });
 
-  test("Project stays in the responsive app bar and reachable while editing", async ({ page }) => {
+  test("Project stays reachable while Edit is the single toolbar authoring entry", async ({ page }) => {
     const viewport = { width: 390, height: 844 };
     await page.setViewportSize(viewport);
     await page.goto("/");
@@ -464,18 +452,19 @@ test.describe("Mobile-first Timeline layout contracts", () => {
     const projectButton = toolDock.locator("#project-menu-toggle");
     const editorButton = toolDock.locator("#editor-toggle");
     const browseButton = toolDock.locator("#timeline-browser-toggle");
-    const viewToggle = toolDock.locator("#timeline-view-controls-toggle");
-    const viewControls = page.locator("#timeline-view-controls");
+    const viewControls = toolDock.locator("#timeline-view-controls");
 
+    await expect(toolDock.locator("#occurrence-composer-toggle")).toHaveCount(0);
     await editorButton.click();
     await expect(page.locator("#control-panel")).toBeVisible();
     await expect(page.locator("#app-shell")).toHaveAttribute("data-mode", "edit");
     await expect(editorButton).toHaveAttribute("aria-label", "Done editing");
+    await expect(page.locator("#occurrence-composer-toggle")).toBeVisible();
 
     await expect(projectButton).toBeVisible();
     await expect(browseButton).toBeVisible();
-    await expect(viewToggle).toBeVisible();
-    await expect(viewControls).not.toBeVisible();
+    await expect(viewControls).toBeVisible();
+    await expect(viewControls.locator("#timeline-orientation-toggle")).toBeDisabled();
     await expect(browseButton).toBeDisabled();
 
     await projectButton.click();
@@ -623,10 +612,8 @@ test.describe("Persistent footer and focus geometry", () => {
         throw new Error("Focused chronology navigation lost its layout bounds.");
       }
 
-      await page.locator("#timeline-view-controls-toggle").click();
       await expect(page.locator("#timeline-related-zoom")).toBeVisible();
       await expect(page.locator("#timeline-related-fit")).toBeVisible();
-      await page.keyboard.press("Escape");
       await expect(page.locator("#timeline-focus-edit")).toHaveCount(0);
       await expect(page.locator("#editor-toggle")).toHaveAttribute(
         "aria-label",
@@ -697,7 +684,7 @@ test.describe("Persistent footer and focus geometry", () => {
     if (!editDock) throw new Error("Footer disappeared under Edit.");
     expect(Math.abs(editDock.y - baseline.y)).toBeLessThanOrEqual(2);
     expect(Math.abs(editDock.height - baseline.height)).toBeLessThanOrEqual(2);
-    await expect(page.locator("#timeline-view-controls-toggle")).toBeVisible();
-    await expect(page.locator("#timeline-view-controls")).not.toBeVisible();
+    await expect(page.locator("#timeline-view-controls")).toBeVisible();
+    await expect(page.locator("#timeline-orientation-toggle")).toBeDisabled();
   });
 });

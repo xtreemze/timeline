@@ -10,18 +10,15 @@ test("built Pages shell boots application runtime on mobile", async ({ page }) =
   const shell = page.locator("#app-shell");
   const edit = page.locator("#editor-toggle");
   const browse = page.locator("#timeline-browser-toggle");
-  const viewToggle = page.locator("#timeline-view-controls-toggle");
   const view = page.locator("#timeline-view-controls");
   const project = page.locator("#project-menu-toggle");
 
   await expect(shell).toHaveAttribute("data-mode", "view");
   await expect(edit.locator(".semantic-icon")).toHaveCount(1);
   await expect(browse.locator(".semantic-icon")).toHaveCount(1);
-  await expect(viewToggle.locator(".semantic-icon")).toHaveCount(1);
-  await viewToggle.click();
   await expect(view).toBeVisible();
   await expect(view.locator("#timeline-orientation-toggle .semantic-icon")).toHaveCount(1);
-  await page.keyboard.press("Escape");
+  await expect(view.locator(".world-camera-control .semantic-icon").first()).toHaveCount(1);
 
   await project.click();
   await expect(page.locator("#project-menu:popover-open")).toBeVisible();

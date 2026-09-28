@@ -24,9 +24,7 @@ async function focusOccurrence(page: Page) {
 async function ensureOrientation(page: Page, orientation: "landscape" | "portrait") {
   const timeline = page.locator("#timeline-view");
   if ((await timeline.getAttribute("data-orientation")) !== orientation) {
-    await page.locator("#timeline-view-controls-toggle").click();
     await page.locator("#timeline-orientation-toggle").click();
-    await page.keyboard.press("Escape");
   }
   await expect(timeline).toHaveAttribute("data-orientation", orientation);
 }
@@ -113,11 +111,9 @@ test("focused detail is shell-owned while contextual actions stay in the footer"
   await expect(page.locator("#timeline-focus-next")).toBeVisible();
   await expect(page.locator("#timeline-focus-edit")).toHaveCount(0);
   await expect(page.locator("#editor-toggle")).toHaveAttribute("aria-label", "Edit focused event");
-  await page.locator("#timeline-view-controls-toggle").click();
   await expect(page.locator("#timeline-related-zoom")).toBeVisible();
   await expect(page.locator("#timeline-related-fit")).toBeVisible();
   await expect(page.locator("#timeline-view-toolbar")).toBeVisible();
-  await page.keyboard.press("Escape");
 
   await focus.locator(".timeline-focus-close").click();
   await expect(focus).toBeHidden();
@@ -267,7 +263,6 @@ test("Browse and persistent View controls do not discard the focused occurrence"
   await expect(page.locator("#app-shell")).toHaveClass(/is-event-focused/);
   await page.locator("#timeline-browser-close").click();
 
-  await expect(page.locator("#timeline-view-controls-toggle")).toBeVisible();
-  await expect(page.locator("#timeline-view-controls")).not.toBeVisible();
+  await expect(page.locator("#timeline-view-controls")).toBeVisible();
   await expect(page.locator("#app-shell")).toHaveClass(/is-event-focused/);
 });

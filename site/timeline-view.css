@@ -2068,7 +2068,7 @@
   min-height: 100%;
 }
 
-#app-shell .app-view-controls .timeline-window-readout {
+#app-shell .app-footer-view .timeline-window-readout {
   display: none;
 }
 

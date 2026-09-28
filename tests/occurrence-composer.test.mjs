@@ -263,7 +263,7 @@ test("application keeps timeline and World live while composer uses their center
   );
 });
 
-test("occurrence composer is structurally integrated into the persistent footer", async () => {
+test("occurrence composer is integrated into the footer through the single Edit surface", async () => {
   const [markup, shellStyles] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/spatial-shell.css", import.meta.url), "utf8"),
@@ -275,8 +275,17 @@ test("occurrence composer is structurally integrated into the persistent footer"
   );
   assert.match(
     markup,
-    /id="occurrence-composer-toggle"[\s\S]*aria-controls="occurrence-composer"[\s\S]*aria-expanded="false"/,
+    /id="occurrence-composer-toggle"[^>]*aria-controls="occurrence-composer"[^>]*aria-expanded="false"/,
   );
+
+  const footerStart = markup.indexOf('<nav class="app-tool-dock app-footer-bar"');
+  const footerEnd = markup.indexOf("</nav>", footerStart);
+  assert.equal(
+    (markup.slice(footerStart, footerEnd).match(/id="occurrence-composer-toggle"/g) ?? []).length,
+    0,
+    "Compose is reached through the editor instead of a second toolbar authoring button",
+  );
+
   assert.match(
     shellStyles,
     /#app-shell:has\(#occurrence-composer\[active\]\)[\s\S]*--workspace-footer-content-block-size:\s*116px/,
@@ -287,10 +296,13 @@ test("occurrence composer is structurally integrated into the persistent footer"
   );
   assert.match(
     shellStyles,
-    /app-footer-actions[\s\S]*grid-row:\s*2[\s\S]*app-footer-timeline[\s\S]*grid-row:\s*2/,
+    /app-footer-actions[\s\S]*grid-row:\s*2[\s\S]*app-footer-view[\s\S]*grid-row:\s*2[\s\S]*app-footer-timeline[\s\S]*grid-row:\s*2/,
   );
-  assert.match(markup, /id="timeline-view-controls-toggle"/);
-  assert.match(markup, /id="timeline-view-controls" class="app-view-controls" popover="auto"/);
+  assert.doesNotMatch(markup, /id="timeline-view-controls-toggle"/);
+  assert.match(
+    markup,
+    /id="timeline-view-controls" class="app-footer-zone app-footer-view" role="group"/,
+  );
 });
 
 test("World application view exposes current camera for immediate composer initialization", async () => {

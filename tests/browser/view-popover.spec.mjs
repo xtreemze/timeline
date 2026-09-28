@@ -1,56 +1,44 @@
 import { expect, test } from "@playwright/test";
 
-const viewSurface = "#timeline-view-controls";
-const viewToggle = "#timeline-view-controls-toggle";
+const viewControls = "#timeline-view-controls";
 
 test.beforeEach(async ({ page }) => {
   await page.goto("/");
   await expect(page.locator(".app-tool-dock")).toBeVisible();
-  await expect(page.locator(viewToggle)).toBeVisible();
+  await expect(page.locator(viewControls)).toBeVisible();
 });
 
-test("View is a single utility surface instead of permanent secondary toolbar content", async ({ page }) => {
-  const surface = page.locator(viewSurface);
+test("View controls are direct persistent toolbar content", async ({ page }) => {
   const footer = page.locator(".app-tool-dock");
+  const view = footer.locator(viewControls);
 
-  await expect(surface).not.toBeVisible();
-  await expect(page.locator(viewToggle)).toHaveAttribute("aria-expanded", "false");
-  await expect(
-    footer.locator(
-      ":scope > .app-footer-actions #timeline-orientation-toggle, :scope > .app-footer-timeline #timeline-orientation-toggle",
-    ),
-  ).toHaveCount(0);
-  await expect(
-    footer.locator(
-      ":scope > .app-footer-actions #timeline-zoom-level, :scope > .app-footer-timeline #timeline-zoom-level",
-    ),
-  ).toHaveCount(0);
-
-  await page.locator(viewToggle).click();
-
-  await expect(surface).toBeVisible();
-  await expect(page.locator(viewToggle)).toHaveAttribute("aria-expanded", "true");
-  await expect(surface.locator("#timeline-orientation-toggle")).toBeVisible();
-  await expect(surface.locator("#presentation-fullscreen-toggle")).toBeVisible();
-  await expect(surface.locator("#timeline-zoom-level")).toBeVisible();
-  await expect(surface.locator("#timeline-auto-toggle")).toBeVisible();
-  await expect(surface.locator("#timeline-auto-seconds")).toBeVisible();
-  await expect(surface.locator("[data-world-controls-slot]")).toBeVisible();
+  await expect(page.locator("#timeline-view-controls-toggle")).toHaveCount(0);
+  await expect(view).toBeVisible();
+  await expect(view.locator("#timeline-orientation-toggle")).toBeVisible();
+  await expect(view.locator("#presentation-fullscreen-toggle")).toBeVisible();
+  await expect(view.locator("#timeline-zoom-level")).toBeVisible();
+  await expect(view.locator("#timeline-auto-toggle")).toBeVisible();
+  await expect(view.locator("#timeline-auto-seconds")).toBeVisible();
+  await expect(view.locator("[data-world-controls-slot]")).toBeVisible();
+  await expect(view.locator(".world-camera-controls")).toBeVisible();
+  await expect(view.locator(".world-layout-controls")).toBeVisible();
 });
 
-test("opening Browse dismisses View without changing spatial stage geometry", async ({ page }) => {
-  await page.locator(viewToggle).click();
-  await expect(page.locator(viewSurface)).toBeVisible();
-
+test("opening Browse disables direct View controls without changing spatial stage geometry", async ({
+  page,
+}) => {
   const before = await page.locator("#presentation-stage").boundingBox();
   await page.locator("#timeline-browser-toggle").click();
 
-  await expect(page.locator(viewSurface)).not.toBeVisible();
-  await expect(page.locator(viewToggle)).toHaveAttribute("aria-expanded", "false");
   await expect(page.locator("#timeline-browser-toggle")).toHaveAttribute("aria-expanded", "true");
   await expect(page.locator("#presentation-stage")).toHaveAttribute("inert", "");
+  await expect(page.locator("#timeline-orientation-toggle")).toBeDisabled();
+  await expect(page.locator(".world-camera-control").first()).toBeDisabled();
+  await expect(page.locator(".world-layout-control").first()).toBeDisabled();
 
   await page.locator("#timeline-browser-close").click();
+  await expect(page.locator("#timeline-orientation-toggle")).toBeEnabled();
+  await expect(page.locator(".world-camera-control").first()).toBeEnabled();
   const after = await page.locator("#presentation-stage").boundingBox();
   expect(before).not.toBeNull();
   expect(after).not.toBeNull();
@@ -104,7 +92,7 @@ test("stale bundled demo storage refreshes the current example stories", async (
 
   expect(expectedStoryIds.length).toBeGreaterThan(3);
   await page.reload();
-  await expect(page.locator(viewToggle)).toBeVisible();
+  await expect(page.locator(viewControls)).toBeVisible();
   await page.locator("#timeline-browser-toggle").click();
 
   await expect(page.locator("#browser-story-count")).toHaveText(String(expectedStoryIds.length));
@@ -117,7 +105,7 @@ test("loading the example resets a stale shared temporal viewport on mobile", as
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ colorScheme: "dark" });
   await page.reload();
-  await expect(page.locator(viewToggle)).toBeVisible();
+  await expect(page.locator(viewControls)).toBeVisible();
 
   await page.evaluate(() => {
     const root = document.querySelector("#timeline-view");
@@ -154,21 +142,25 @@ test("loading the example resets a stale shared temporal viewport on mobile", as
   expect(viewport.end).toBeLessThan(Date.UTC(1500, 0, 1));
 });
 
-test("Edit dismisses View and keeps the presentation controls non-mutating", async ({ page }) => {
-  await page.locator(viewToggle).click();
-  await expect(page.locator(viewSurface)).toBeVisible();
+test("Edit is the single toolbar authoring entry and disables direct View controls", async ({
+  page,
+}) => {
+  const footer = page.locator(".app-tool-dock");
+  await expect(footer.locator("#occurrence-composer-toggle")).toHaveCount(0);
+  await expect(footer.locator("#editor-toggle")).toHaveCount(1);
 
   await page.locator("#editor-toggle").click();
   await expect(page.locator("#editor-toggle")).toHaveAttribute("aria-expanded", "true");
-  await expect(page.locator(viewSurface)).not.toBeVisible();
+  await expect(page.locator("#occurrence-composer-toggle")).toBeVisible();
+  await expect(page.locator("#timeline-orientation-toggle")).toBeDisabled();
+  await expect(page.locator(".world-camera-control").first()).toBeDisabled();
 
   await page.keyboard.press("Escape");
   await expect(page.locator("#editor-toggle")).toHaveAttribute("aria-expanded", "false");
-  await page.locator(viewToggle).click();
-  await expect(page.locator(viewSurface).locator("#timeline-orientation-toggle")).toBeEnabled();
+  await expect(page.locator("#timeline-orientation-toggle")).toBeEnabled();
 });
 
-test("mobile dock exposes primary commands without horizontal scrolling", async ({ page }) => {
+test("mobile dock horizontally scrolls to keep all direct controls reachable", async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 800 });
   const dock = page.locator(".app-tool-dock");
   await expect(dock).toBeVisible();
@@ -178,25 +170,30 @@ test("mobile dock exposes primary commands without horizontal scrolling", async 
     scrollWidth: element.scrollWidth,
     overflowX: getComputedStyle(element).overflowX,
   }));
-  expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth + 1);
-  expect(metrics.overflowX).not.toBe("auto");
+  expect(metrics.scrollWidth).toBeGreaterThan(metrics.clientWidth);
+  expect(metrics.overflowX).toBe("auto");
 
   for (const selector of [
     "#project-menu-toggle",
     "#editor-toggle",
     "#timeline-browser-toggle",
-    "#occurrence-composer-toggle",
-    "#timeline-view-controls-toggle",
+    "#timeline-orientation-toggle",
+    "#presentation-fullscreen-toggle",
+    "#timeline-auto-toggle",
   ]) {
-    await expect(dock.locator(selector)).toBeVisible();
+    await expect(dock.locator(selector)).toHaveCount(1);
   }
+
+  await dock.evaluate((element) => {
+    element.scrollLeft = element.scrollWidth;
+  });
+  await expect(dock.locator("#timeline-auto-toggle")).toBeVisible();
 });
 
-test("View controls remain horizontal and usable after timeline orientation changes", async ({ page }) => {
-  await page.locator(viewToggle).click();
-  const surface = page.locator(viewSurface);
-  await surface.locator("#timeline-orientation-toggle").click();
+test("direct View controls stay horizontal after timeline orientation changes", async ({ page }) => {
+  const orientationToggle = page.locator("#timeline-orientation-toggle");
+  await orientationToggle.click();
   await expect(page.locator("#timeline-view")).toHaveAttribute("data-orientation", "portrait");
-  await expect(surface.locator("#timeline-zoom-level")).toHaveAttribute("aria-orientation", "horizontal");
-  await expect(surface).toBeVisible();
+  await expect(page.locator("#timeline-zoom-level")).toHaveAttribute("aria-orientation", "horizontal");
+  await expect(page.locator(viewControls)).toBeVisible();
 });

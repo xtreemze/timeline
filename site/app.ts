@@ -408,8 +408,6 @@ const els = {
   semanticIconTargets: requiredElements<HTMLElement>("[data-semantic-icon]"),
   projectMenu: requiredElement<HTMLElement>("#project-menu"),
   projectMenuToggle: requiredElement<HTMLButtonElement>("#project-menu-toggle"),
-  viewControls: requiredElement<HTMLElement>("#timeline-view-controls"),
-  viewControlsToggle: requiredElement<HTMLButtonElement>("#timeline-view-controls-toggle"),
   importJsonTrigger: requiredElement<HTMLButtonElement>("#import-json-trigger"),
   importInterchangeTrigger: requiredElement<HTMLButtonElement>("#import-interchange-trigger"),
   installApp: requiredElement<HTMLButtonElement>("#install-app"),
@@ -1690,15 +1688,12 @@ function syncApplicationSurfaces() {
   if (els.editorToggle) {
     els.editorToggle.setAttribute("aria-expanded", String(ui.editorOpen));
   }
+  const viewControlsDisabled = ui.editorOpen || ui.browserOpen || ui.investigationOpen;
   for (const control of els.appToolDock.querySelectorAll<HTMLButtonElement | HTMLInputElement>(
     "[data-view-control]",
   )) {
-    control.disabled = ui.editorOpen;
+    control.disabled = viewControlsDisabled;
   }
-  els.viewControlsToggle.setAttribute(
-    "aria-expanded",
-    String(els.viewControls.matches(":popover-open")),
-  );
   for (const opener of els.panelOpeners) {
     opener.setAttribute("aria-expanded", String(ui.editorOpen));
   }
@@ -1906,7 +1901,6 @@ function setEditorSurfaceOpen(open) {
     els.occurrenceComposer.hide();
     closeLargeUtilitySurfaces("editor");
     closeProjectMenu();
-    closeViewControls();
     closeFocusedEventForUtility();
   }
   syncApplicationSurfaces();
@@ -1918,7 +1912,6 @@ function setBrowserSurfaceOpen(open) {
   if (ui.browserOpen) {
     closeLargeUtilitySurfaces("browser");
     closeProjectMenu();
-    closeViewControls();
   }
   syncApplicationSurfaces();
   if (ui.browserOpen) {
@@ -1936,7 +1929,6 @@ function setInvestigationSurfaceOpen(open) {
   if (ui.investigationOpen) {
     closeLargeUtilitySurfaces("investigation");
     closeProjectMenu();
-    closeViewControls();
     closeFocusedEventForUtility();
   }
   investigationWorkspace?.setOpen(ui.investigationOpen);
@@ -4626,10 +4618,6 @@ function closeProjectMenu() {
   if (els.projectMenu?.matches?.(":popover-open")) els.projectMenu.hidePopover();
 }
 
-function closeViewControls() {
-  if (els.viewControls?.matches?.(":popover-open")) els.viewControls.hidePopover();
-}
-
 els.importJsonTrigger?.addEventListener("click", async () => {
   if (!supportsNativeProjectOpen()) {
     els.importJson?.click();
@@ -4741,18 +4729,6 @@ els.projectMenu?.addEventListener("click", (event) => {
   queueMicrotask(closeProjectMenu);
 });
 
-els.viewControls?.addEventListener("toggle", (event) => {
-  els.viewControlsToggle.setAttribute("aria-expanded", String(event.newState === "open"));
-});
-els.viewControlsToggle?.addEventListener("click", () => {
-  const opening = !els.viewControls.matches(":popover-open");
-  if (!opening) return;
-  if (ui.editorOpen) setEditorSurfaceOpen(false);
-  if (ui.browserOpen) setBrowserSurfaceOpen(false);
-  if (ui.investigationOpen) setInvestigationSurfaceOpen(false);
-  closeProjectMenu();
-});
-
 els.editorToggle?.addEventListener("click", () => {
   if (ui.editorOpen) {
     setEditorSurfaceOpen(false);
@@ -4803,10 +4779,6 @@ document.addEventListener("keydown", (event) => {
     event.preventDefault();
     setBrowserSurfaceOpen(false);
     return;
-  }
-  if (els.viewControls.matches(":popover-open")) {
-    event.preventDefault();
-    closeViewControls();
   }
 });
 

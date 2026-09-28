@@ -327,10 +327,9 @@
   }
 }
 
-/* Persistent primary command plane.
-   Workspace actions stay centered, while contextual chronology navigation may occupy
-   the physical right only when focus makes it relevant. Dense world/timeline controls
-   live in View rather than competing for permanent footer space. */
+/* Persistent command plane.
+   Primary actions, spatial/presentation controls, and focused chronology navigation
+   share one footer toolbar. The View zone scrolls horizontally when space is constrained. */
 #app-shell > .app-tool-dock.app-footer-bar,
 #presentation-stage:fullscreen > .app-tool-dock.app-footer-bar,
 #app-shell:has(#timeline-view[data-orientation="landscape"]) > .app-tool-dock.app-footer-bar,
@@ -338,63 +337,123 @@
   z-index: 1600;
   display: grid;
   pointer-events: auto;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: stretch;
-  justify-content: stretch;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
   inline-size: 100%;
   max-inline-size: none;
 }
 
-.app-footer-zone {
-  display: flex;
-  align-items: center;
-  min-inline-size: 0;
-  min-block-size: 0;
-}
-
-.app-footer-timeline::-webkit-scrollbar {
-  display: none;
-}
-
-.app-footer-actions {
-  justify-content: center;
-  min-inline-size: 132px;
-  max-inline-size: 264px;
+#presentation-stage:fullscreen > .app-tool-dock.app-footer-bar {
+  inset-inline: 0;
+  transform: none;
+  overflow: visible;
 }
 
 /* Canonical persistent toolbar contract.
-   Buttons and compound inputs share one surface, state, focus, and target language. */
+   Every direct command and compound input uses the same target, surface,
+   icon, focus, active and disabled language. */
 .app-footer-bar {
   --toolbar-control-size: 44px;
   --toolbar-control-radius: 0.58rem;
   --toolbar-control-gap: 0.14rem;
 }
 
-.app-footer-zone {
-  container-type: inline-size;
+.app-footer-zone,
+.view-control-group,
+.app-footer-view .world-camera-controls,
+.app-footer-view .world-layout-controls {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
   gap: var(--toolbar-control-gap);
-  padding-inline: 0.06rem;
+  min-inline-size: 0;
+  min-block-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .app-footer-actions {
-  gap: var(--toolbar-control-gap);
+  grid-column: 1;
+  justify-content: flex-start;
+  padding-inline-start: max(0.18rem, env(safe-area-inset-left));
+}
+
+.app-footer-view {
+  grid-column: 2;
+  justify-content: safe center;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: none;
+}
+
+.app-footer-view::-webkit-scrollbar,
+.app-footer-timeline::-webkit-scrollbar {
+  display: none;
+}
+
+.app-footer-view > .view-control-group + .view-control-group,
+.app-footer-view > .view-control-group + .app-view-utility-actions {
+  margin-inline-start: 0.18rem;
+  padding-inline-start: 0.28rem;
+  border-inline-start: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+}
+
+.app-footer-view .world-camera-controls,
+.app-footer-view .world-layout-controls {
+  flex: 0 0 auto;
+}
+
+.app-footer-view .world-camera-controls.is-footer-control {
+  position: static;
+  z-index: auto;
+  overflow: visible;
+}
+
+.app-footer-view .toolbar-control,
+.app-footer-view .world-camera-control,
+.app-footer-view .world-layout-control {
+  position: static;
+  z-index: auto;
+}
+
+.app-footer-timeline {
+  grid-column: 3;
+  justify-self: end;
+  padding-inline-end: max(0.18rem, env(safe-area-inset-right));
+}
+
+.app-footer-timeline.timeline-local-toolbar {
+  justify-content: flex-end;
+  overflow: visible;
+}
+
+.app-footer-timeline:not(:has(.timeline-context-action:not([hidden]))) {
+  display: none;
 }
 
 .app-footer-bar .toolbar-control {
   appearance: none;
   display: grid;
   place-items: center;
+  box-sizing: border-box;
   flex: 0 0 var(--toolbar-control-size);
   inline-size: var(--toolbar-control-size);
   block-size: var(--toolbar-control-size);
   min-inline-size: var(--toolbar-control-size);
   min-block-size: var(--toolbar-control-size);
+  max-inline-size: var(--toolbar-control-size);
+  max-block-size: var(--toolbar-control-size);
   margin: 0;
   padding: 0;
-  border: 1px solid transparent;
+  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
   border-radius: var(--toolbar-control-radius);
-  background: transparent;
-  color: var(--muted);
+  background: color-mix(in srgb, var(--paper) 82%, transparent);
+  color: var(--ink);
   box-shadow: none;
   cursor: pointer;
   touch-action: manipulation;
@@ -412,7 +471,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .app-footer-bar .toolbar-control:is(:hover, :focus-visible, :focus-within) {
-    border-color: color-mix(in srgb, var(--line-strong) 70%, transparent);
+    border-color: color-mix(in srgb, var(--line-strong) 88%, transparent);
     background: var(--paper-2);
     color: var(--ink);
   }
@@ -421,16 +480,14 @@
 .app-footer-bar .toolbar-control:is(:focus-visible, :focus-within) {
   outline: 2px solid var(--focus);
   outline-offset: -3px;
-  box-shadow: none;
 }
 
 #app-shell[data-editor-open="true"] .app-footer-bar #editor-toggle,
 #app-shell[data-browser-open="true"] .app-footer-bar #timeline-browser-toggle,
 .app-footer-bar #project-menu-toggle[aria-expanded="true"],
-.app-footer-bar #occurrence-composer-toggle[aria-expanded="true"],
 .app-footer-bar .toolbar-control[aria-pressed="true"] {
-  border-color: color-mix(in srgb, var(--line-strong) 82%, transparent);
-  background: var(--paper-2);
+  border-color: color-mix(in srgb, var(--focus) 56%, var(--line-strong));
+  background: color-mix(in srgb, var(--focus) 9%, var(--paper-2));
   color: var(--ink);
 }
 
@@ -440,40 +497,25 @@
   cursor: not-allowed;
 }
 
-.app-footer-timeline.timeline-local-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--toolbar-control-gap);
-  min-inline-size: 0;
-  overflow: visible;
-}
-
-.app-footer-timeline.timeline-local-toolbar::-webkit-scrollbar {
-  display: none;
-}
-
-/* Compound toolbar controls inherit the exact same surface/state contract as
-   buttons. Modifiers change only the space needed by their native input. */
+/* Compound controls keep the canonical surface; only their required width differs. */
 .app-footer-bar .toolbar-control-wide {
-  display: grid;
   grid-template-columns: 16px minmax(64px, 1fr) 16px;
-  align-items: center;
   gap: 0.22rem;
-  flex-basis: auto;
+  flex-basis: 104px;
   inline-size: 104px;
   min-inline-size: 104px;
+  max-inline-size: 104px;
   padding-inline: 0.34rem;
   cursor: default;
 }
 
 .app-footer-bar .toolbar-control-value {
   display: flex;
-  align-items: center;
   gap: 0.18rem;
   flex-basis: auto;
   inline-size: auto;
   min-inline-size: 54px;
+  max-inline-size: none;
   padding-inline: 0.24rem;
   font-size: 0.62rem;
   cursor: default;
@@ -528,13 +570,21 @@
   font-size: 0.62rem;
 }
 
-@container (min-width: 421px) {
-  .app-footer-zone {
-    padding-inline: 0.12rem;
+@media (min-width: 700px) {
+  #app-shell > .app-tool-dock.app-footer-bar,
+  #presentation-stage:fullscreen > .app-tool-dock.app-footer-bar,
+  #app-shell:has(#timeline-view[data-orientation="landscape"]) > .app-tool-dock.app-footer-bar,
+  #app-shell:has(#timeline-view[data-orientation="portrait"]) > .app-tool-dock.app-footer-bar {
+    --toolbar-control-gap: clamp(0.18rem, 0.24vw, 0.32rem);
+    column-gap: clamp(0.35rem, 0.7vw, 0.7rem);
+    padding-inline: 0.35rem;
   }
 
   .app-footer-bar .toolbar-control-wide {
-    inline-size: clamp(104px, 18cqi, 148px);
+    flex-basis: clamp(104px, 12vw, 148px);
+    inline-size: clamp(104px, 12vw, 148px);
+    min-inline-size: 104px;
+    max-inline-size: 148px;
   }
 
   .app-footer-bar .toolbar-control-value {
@@ -547,70 +597,8 @@
   }
 }
 
-/* The canonical 44px button geometry must outrank legacy .app-tool
-   minimums in every orientation and viewport size. */
-#app-shell:has(#timeline-view[data-orientation="landscape"])
-  .app-footer-bar
-  .toolbar-control,
-#app-shell:has(#timeline-view[data-orientation="portrait"])
-  .app-footer-bar
-  .toolbar-control {
-  box-sizing: border-box;
-  position: static;
-  z-index: auto;
-  block-size: var(--toolbar-control-size);
-  min-block-size: var(--toolbar-control-size);
-  max-block-size: var(--toolbar-control-size);
-}
-
-#app-shell:has(#timeline-view[data-orientation="landscape"])
-  .app-footer-bar
-  .toolbar-control:not(.toolbar-control-wide):not(.toolbar-control-value),
-#app-shell:has(#timeline-view[data-orientation="portrait"])
-  .app-footer-bar
-  .toolbar-control:not(.toolbar-control-wide):not(.toolbar-control-value) {
-  flex: 0 0 var(--toolbar-control-size);
-  inline-size: var(--toolbar-control-size);
-  min-inline-size: var(--toolbar-control-size);
-  max-inline-size: var(--toolbar-control-size);
-}
-
-@media (min-width: 700px) {
-  /* Desktop preserves the same hierarchy as mobile rather than revealing
-     secondary controls merely because more width is available. */
-  #app-shell > .app-tool-dock.app-footer-bar,
-  #presentation-stage:fullscreen > .app-tool-dock.app-footer-bar,
-  #app-shell:has(#timeline-view[data-orientation="landscape"]) > .app-tool-dock.app-footer-bar,
-  #app-shell:has(#timeline-view[data-orientation="portrait"]) > .app-tool-dock.app-footer-bar {
-    --toolbar-control-gap: clamp(0.18rem, 0.24vw, 0.32rem);
-    --toolbar-zone-gap: clamp(0.55rem, 1vw, 1rem);
-    column-gap: var(--toolbar-zone-gap);
-    padding-inline: max(0.65rem, env(safe-area-inset-left))
-      max(0.65rem, env(safe-area-inset-right));
-  }
-
-  #app-shell .app-footer-bar .app-footer-zone {
-    padding-inline: 0;
-  }
-
-  #app-shell .app-footer-bar .app-footer-actions {
-    min-inline-size: 0;
-    max-inline-size: none;
-    padding-inline: clamp(0.18rem, 0.35vw, 0.34rem);
-  }
-
-}
-
-@media (min-width: 1024px) {
-  /* Contextual chronology controls stay at the right edge when present. */
-  #app-shell .app-footer-bar .app-footer-timeline.timeline-local-toolbar {
-    justify-content: flex-end;
-  }
-}
-
 @media (max-width: 699px) {
-  /* The narrow footer is one physical toolbar. All groups stay in normal flow
-     and the footer itself owns horizontal scrolling. */
+  /* Narrow screens keep one direct toolbar and expose overflow by horizontal pan. */
   #app-shell:has(#timeline-view[data-orientation="landscape"])
     > .app-tool-dock.app-footer-bar,
   #app-shell:has(#timeline-view[data-orientation="portrait"])
@@ -620,12 +608,14 @@
     > .app-tool-dock.app-footer-bar {
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     gap: var(--toolbar-control-gap);
-    overflow-x: clip;
+    overflow-x: auto;
     overflow-y: hidden;
-    touch-action: manipulation;
+    overscroll-behavior-inline: contain;
+    touch-action: pan-x;
     scrollbar-width: none;
+    scroll-snap-type: x proximity;
   }
 
   #app-shell:has(#timeline-view[data-orientation="landscape"])
@@ -643,47 +633,36 @@
     inline-size: auto;
     min-inline-size: 0;
     max-inline-size: none;
-    padding-inline: 0;
     overflow: visible;
-    container-type: normal;
-  }
-
-  #app-shell .app-footer-bar .app-footer-timeline.timeline-local-toolbar {
-    overflow: visible;
-    overscroll-behavior: auto;
-    scrollbar-width: auto;
   }
 
   #app-shell .app-footer-bar .app-footer-actions {
-    justify-content: center;
-    min-inline-size: 0;
-    max-inline-size: none;
+    padding-inline-start: max(0.18rem, env(safe-area-inset-left));
+  }
+
+  #app-shell .app-footer-bar .app-footer-view {
+    overflow: visible;
+  }
+
+  #app-shell .app-footer-bar .app-footer-timeline {
+    padding-inline-end: max(0.18rem, env(safe-area-inset-right));
   }
 
   #app-shell .app-footer-bar .app-footer-zone + .app-footer-zone {
-    margin-inline-start: 0.18rem;
+    margin-inline-start: 0.12rem;
     padding-inline-start: 0.24rem;
     border-inline-start: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
   }
 
-  #app-shell .app-footer-bar .toolbar-control-wide {
-    flex: 0 0 104px;
-    inline-size: 104px;
-    min-inline-size: 104px;
-    max-inline-size: 104px;
-  }
-
+  #app-shell .app-footer-bar .toolbar-control,
+  #app-shell .app-footer-bar .toolbar-control-wide,
   #app-shell .app-footer-bar .toolbar-control-value {
-    flex: 0 0 auto;
-    inline-size: auto;
-    min-inline-size: 54px;
-    max-inline-size: none;
+    scroll-snap-align: nearest;
   }
 }
 
-/* The occurrence composer is part of the persistent footer, not a floating surface.
-   Opening it adds one compact authoring row while keeping world, app, and timeline controls
-   reachable on the row below. The footer height remains authoritative for workspace geometry. */
+/* The occurrence composer expands inside the same footer. Its trigger lives in
+   the single Edit surface, while the direct toolbar remains available below. */
 #app-shell:has(#occurrence-composer[active]) {
   --workspace-footer-content-block-size: 116px;
 }
@@ -693,11 +672,12 @@
   #presentation-stage:fullscreen
   > .app-tool-dock.app-footer-bar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr) auto;
   grid-template-rows: 48px minmax(0, 1fr);
   align-items: center;
+  column-gap: var(--toolbar-control-gap);
   row-gap: 0.16rem;
-  overflow: visible;
+  overflow: hidden;
   touch-action: auto;
 }
 
@@ -714,6 +694,11 @@
 }
 
 #app-shell:has(#occurrence-composer[active]) .app-footer-bar > .app-footer-actions {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+#app-shell:has(#occurrence-composer[active]) .app-footer-bar > .app-footer-view {
   grid-column: 2;
   grid-row: 2;
 }
@@ -727,11 +712,32 @@
   min-block-size: var(--toolbar-control-size);
 }
 
+@media (max-width: 699px) {
+  #app-shell:has(#occurrence-composer[active]) .app-footer-bar > .app-footer-view {
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: none;
+  }
+
+  #app-shell:has(#occurrence-composer[active])
+    .app-footer-bar
+    > .app-footer-view::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.app-surface-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+}
+
 @media (forced-colors: active) {
   .app-footer-bar .toolbar-control:is(:focus-visible, :focus-within) {
     outline-color: Highlight;
   }
-
 }
 
 
@@ -815,167 +821,4 @@
 
 .timeline-related-world-action[hidden] {
   display: none;
-}
-
-
-/* Spatial control hierarchy: the dock exposes primary commands only.
-   Dense timeline/world controls live in a transient View surface so mobile
-   never depends on discovering horizontally-scrolled toolbar content. */
-.app-footer-actions {
-  grid-column: 2;
-  justify-content: center;
-}
-
-.app-footer-timeline {
-  grid-column: 3;
-  justify-self: end;
-}
-
-.app-footer-timeline:not(:has(.timeline-context-action:not([hidden]))) {
-  display: none;
-}
-
-.app-view-controls[popover] {
-  position: fixed;
-  z-index: 2100;
-  inset: auto auto calc(var(--workspace-footer-block-size, 64px) + 0.5rem) 50%;
-  transform: translateX(-50%);
-  box-sizing: border-box;
-  inline-size: min(38rem, calc(100vw - 1rem));
-  max-inline-size: calc(100vw - 1rem);
-  max-block-size: min(34rem, calc(100dvh - var(--workspace-footer-block-size, 64px) - 1rem));
-  margin: 0;
-  padding: 0.65rem;
-  overflow: auto;
-  overscroll-behavior: contain;
-  border: 1px solid color-mix(in srgb, var(--line-strong) 82%, transparent);
-  border-radius: 1rem;
-  background: color-mix(in srgb, var(--paper) 97%, transparent);
-  color: var(--ink);
-  box-shadow: 0 14px 42px color-mix(in srgb, var(--ink) 18%, transparent);
-  backdrop-filter: blur(18px);
-}
-
-.app-view-controls[popover]::backdrop {
-  background: transparent;
-}
-
-.app-view-controls-header {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.3rem 1rem;
-  align-items: end;
-  padding: 0.1rem 0.15rem 0.6rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
-}
-
-.app-view-controls-header > div {
-  display: grid;
-  gap: 0.08rem;
-}
-
-.app-view-controls-header .kicker {
-  margin: 0;
-}
-
-.app-view-controls-header > small,
-.app-view-control-heading > span {
-  color: var(--muted);
-  font-size: 0.68rem;
-  line-height: 1.3;
-}
-
-.app-view-control-sections {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 0.5rem;
-  padding-top: 0.5rem;
-}
-
-.app-view-control-section {
-  min-inline-size: 0;
-  padding: 0.5rem;
-  border: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
-  border-radius: 0.75rem;
-  background: color-mix(in srgb, var(--paper-2) 72%, transparent);
-}
-
-.app-view-utility-section {
-  grid-column: 1 / -1;
-}
-
-.app-view-control-heading {
-  display: grid;
-  gap: 0.06rem;
-  margin-block-end: 0.4rem;
-}
-
-.view-control-group,
-.app-view-controls .world-camera-controls,
-.app-view-controls .world-layout-controls {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--toolbar-control-gap);
-  min-inline-size: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-}
-
-.app-view-controls .world-layout-controls {
-  margin-inline-start: 0.2rem;
-  padding-inline-start: 0.3rem;
-  border-inline-start: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
-}
-
-.app-view-controls .toolbar-control {
-  position: static;
-  z-index: auto;
-}
-
-#timeline-view-controls-toggle[aria-expanded="true"] {
-  border-color: color-mix(in srgb, var(--line-strong) 82%, transparent);
-  background: var(--paper-2);
-  color: var(--ink);
-}
-
-@media (max-width: 699px) {
-  .app-view-controls[popover] {
-    inset-block-end: calc(var(--workspace-footer-block-size, 64px) + 0.3rem);
-    inline-size: calc(100vw - 0.5rem);
-    max-inline-size: calc(100vw - 0.5rem);
-    max-block-size: calc(100dvh - var(--workspace-footer-block-size, 64px) - 0.6rem);
-    padding: 0.5rem;
-    border-radius: 0.85rem;
-  }
-
-  .app-view-controls-header {
-    grid-template-columns: 1fr;
-    align-items: start;
-  }
-
-  .app-view-controls-header > small {
-    display: none;
-  }
-
-  .app-view-control-sections {
-    grid-template-columns: 1fr;
-  }
-
-  .app-view-utility-section {
-    grid-column: auto;
-  }
-
-  #app-shell .app-footer-bar .app-footer-actions {
-    flex: 0 0 auto;
-  }
-
-  #app-shell .app-footer-bar .app-footer-zone + .app-footer-zone {
-    margin-inline-start: 0.12rem;
-    padding-inline-start: 0.14rem;
-  }
 }

@@ -158,13 +158,16 @@ test("snapshot exposes every normalized candidate and stable rejection reasons",
   assert.equal(snapshot.selected?.id, "open");
 });
 
-test("View is a bounded utility rather than permanent footer chrome", async () => {
+test("View is permanent direct footer chrome rather than a utility overlay", async () => {
   const app = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
   const html = await readFile(new URL("../site/index.html", import.meta.url), "utf8");
 
-  assert.doesNotMatch(app, /positionViewControls|planWorkspacePlacement/);
-  assert.match(app, /viewControlsToggle/);
-  assert.match(html, /id="timeline-view-controls" class="app-view-controls" popover="auto"/);
+  assert.doesNotMatch(app, /positionViewControls|planWorkspacePlacement|viewControlsToggle/);
+  assert.doesNotMatch(html, /timeline-view-controls-toggle|app-view-controls|popover="auto"[^>]*timeline-view-controls/);
+  assert.match(
+    html,
+    /id="timeline-view-controls" class="app-footer-zone app-footer-view" role="group"/,
+  );
   assert.match(html, /id="timeline-view-toolbar" class="view-control-group timeline-local-toolbar"/);
 });
 

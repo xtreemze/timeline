@@ -4,6 +4,7 @@ import {
   surfaceCursor,
 } from "../../src/interaction/surface-input-policy.ts";
 import type { WorldNodeDragPosition } from "../../src/interaction/world-node-drag-controller.ts";
+import { createIcon } from "../event-presentation.ts";
 import { resolveWorldNodeDragPosition } from "../../src/interaction/world-node-drag-geometry.ts";
 import { worldPointerDragMayStart } from "../../src/interaction/world-pointer-policy.ts";
 import {
@@ -3672,13 +3673,14 @@ export class DeckWorldSurface implements WorldSurface {
     bar.className = "world-camera-controls";
     bar.setAttribute("role", "group");
     bar.setAttribute("aria-label", "Globe camera controls");
-    const button = (label: string, text: string, action: () => void) => {
+    const button = (label: string, icon: string, action: () => void) => {
       const element = doc.createElement("button");
       element.type = "button";
       element.className = "toolbar-control world-camera-control";
+      element.dataset.viewControl = "";
       element.setAttribute("aria-label", label);
       element.title = label;
-      element.textContent = text;
+      element.append(createIcon(icon, { size: 20 }));
       element.addEventListener("click", (event) => {
         event.stopPropagation();
         action();
@@ -3686,10 +3688,10 @@ export class DeckWorldSurface implements WorldSurface {
       return element;
     };
     bar.append(
-      button("Zoom in", "+", () => this.#zoomBy(1)),
-      button("Zoom out", "\u2212", () => this.#zoomBy(-1)),
-      button("Fit to content", "\u2922", () => this.fitToContent()),
-      button("Show whole globe", "\u25CB", () => this.showWholeGlobe()),
+      button("Zoom in", "zoom-in", () => this.#zoomBy(1)),
+      button("Zoom out", "zoom-out", () => this.#zoomBy(-1)),
+      button("Fit to content", "fit", () => this.fitToContent()),
+      button("Show whole globe", "view", () => this.showWholeGlobe()),
     );
     this.#container.appendChild?.(bar);
     return bar;
