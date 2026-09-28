@@ -591,15 +591,38 @@ test.describe("Persistent footer and focus geometry", () => {
 
       const timeline = page.locator("#timeline-view");
       const surface = page.locator(".timeline-surface");
+      const footer = page.locator(".app-footer-bar");
+      const composer = footer.locator("#occurrence-composer");
+      const compactComposer = composer.locator(".compact");
+      const footerActions = footer.locator(".app-footer-actions");
+      const viewControls = footer.locator("#timeline-view-controls");
       const terminal = page
         .locator(".timeline-event:not(.timeline-cluster) .timeline-event-terminal:visible")
         .first();
       await expect(terminal).toBeVisible();
+      await expect(compactComposer).toBeVisible();
 
-      const beforeTimeline = await timeline.boundingBox();
-      const beforeSurface = await surface.boundingBox();
+      const [
+        beforeTimeline,
+        beforeSurface,
+        beforeFooter,
+        beforeComposer,
+        beforeActions,
+        beforeView,
+      ] = await Promise.all([
+        timeline.boundingBox(),
+        surface.boundingBox(),
+        footer.boundingBox(),
+        composer.boundingBox(),
+        footerActions.boundingBox(),
+        viewControls.boundingBox(),
+      ]);
       expect(beforeTimeline).not.toBeNull();
       expect(beforeSurface).not.toBeNull();
+      expect(beforeFooter).not.toBeNull();
+      expect(beforeComposer).not.toBeNull();
+      expect(beforeActions).not.toBeNull();
+      expect(beforeView).not.toBeNull();
 
       await terminal.evaluate((button: HTMLButtonElement) => button.click());
       await expect(page.locator("#app-shell")).toHaveClass(/is-event-focused/);
@@ -638,17 +661,52 @@ test.describe("Persistent footer and focus geometry", () => {
         expect(Math.abs(iconBox.height - 20)).toBeLessThanOrEqual(1);
       }
 
-      const afterTimeline = await timeline.boundingBox();
-      const afterSurface = await surface.boundingBox();
+      await expect(compactComposer).toBeVisible();
+      const [
+        afterTimeline,
+        afterSurface,
+        afterFooter,
+        afterComposer,
+        afterActions,
+        afterView,
+      ] = await Promise.all([
+        timeline.boundingBox(),
+        surface.boundingBox(),
+        footer.boundingBox(),
+        composer.boundingBox(),
+        footerActions.boundingBox(),
+        viewControls.boundingBox(),
+      ]);
       expect(afterTimeline).not.toBeNull();
       expect(afterSurface).not.toBeNull();
-      if (!beforeTimeline || !beforeSurface || !afterTimeline || !afterSurface) {
-        throw new Error("Timeline geometry disappeared while focusing an event.");
+      expect(afterFooter).not.toBeNull();
+      expect(afterComposer).not.toBeNull();
+      expect(afterActions).not.toBeNull();
+      expect(afterView).not.toBeNull();
+      if (
+        !beforeTimeline ||
+        !beforeSurface ||
+        !beforeFooter ||
+        !beforeComposer ||
+        !beforeActions ||
+        !beforeView ||
+        !afterTimeline ||
+        !afterSurface ||
+        !afterFooter ||
+        !afterComposer ||
+        !afterActions ||
+        !afterView
+      ) {
+        throw new Error("Persistent geometry disappeared while focusing an event.");
       }
 
       for (const [before, after] of [
         [beforeTimeline, afterTimeline] as const,
         [beforeSurface, afterSurface] as const,
+        [beforeFooter, afterFooter] as const,
+        [beforeComposer, afterComposer] as const,
+        [beforeActions, afterActions] as const,
+        [beforeView, afterView] as const,
       ]) {
         expect(Math.abs(after.x - before.x)).toBeLessThanOrEqual(2);
         expect(Math.abs(after.y - before.y)).toBeLessThanOrEqual(2);
