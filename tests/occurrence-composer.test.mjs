@@ -68,6 +68,29 @@ test("composer exposes cursor-local entity properties before generic entity comp
   );
 });
 
+test("composer suggests only supported semantic icon properties", async () => {
+  const { TimelinePresentation } = await import("../site/event-presentation.ts");
+  const suggestions = occurrenceComposerSuggestions("Alice(icon: ", {
+    entities: [],
+    places: [],
+    categories: [],
+  });
+  const iconSuggestions = suggestions
+    .filter((suggestion) => suggestion.insertText.startsWith("icon: "))
+    .map((suggestion) => suggestion.insertText.slice("icon: ".length));
+
+  assert.ok(iconSuggestions.length >= 6);
+  for (const icon of iconSuggestions) {
+    assert.ok(TimelinePresentation.ICON_NAMES.includes(icon), icon);
+  }
+  assert.equal(iconSuggestions.includes("user"), false);
+  assert.equal(iconSuggestions.includes("building"), false);
+  assert.equal(iconSuggestions.includes("document"), false);
+  assert.ok(iconSuggestions.includes("person"));
+  assert.ok(iconSuggestions.includes("group"));
+  assert.ok(iconSuggestions.includes("evidence"));
+});
+
 test("ambiguous entity names complete by canonical ID", () => {
   const suggestions = occurrenceComposerSuggestions("", {
     entities: [
