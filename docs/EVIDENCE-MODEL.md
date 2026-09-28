@@ -1,6 +1,6 @@
 # Evidence model
 
-Timeline distinguishes chronology claims from the sources offered to support them.
+Lūm distinguishes chronology claims from the sources offered to support them.
 
 ## Data shape
 
