@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { WORLD_CAMERA_MAX_ZOOM } from "../../src/layout/world-spatial-mode.ts";
-import { pinch, swipe, touchscreen } from "../support/touch-gestures.ts";
+import { doubleTap, pinch, swipe, touchscreen } from "../support/touch-gestures.ts";
 
 /**
  * Issue #445 Priority 8: real-browser Playwright interaction coverage for
@@ -759,8 +759,24 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
     await expect
       .poll(() => page.evaluate(() => window.__worldPerfHarness.surface.getCamera().longitude))
       .not.toBeCloseTo(before.longitude, 4);
+    const afterRelease = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera());
+    expect(
+      afterRelease.zoom,
+      "one-finger globe navigation must not zoom when the touch is released",
+    ).toBeCloseTo(before.zoom, 6);
     const calls = await page.evaluate(() => window.__worldPerfHarness.dragSinkCalls);
     expect(calls.begin, "a quick touch drag must not claim the node").toBe(0);
+
+    // Camera navigation must not poison the next deliberate double-tap.
+    const deliberatePoint = await placeTouchTarget(page);
+    if (!deliberatePoint) throw new Error("Touch target did not reproject after globe navigation.");
+    const beforeDoubleTap = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera());
+    await doubleTap(page, deliberatePoint);
+    await expect
+      .poll(() => page.evaluate(() => window.__worldPerfHarness.surface.getCamera().zoom), {
+        message: "a deliberate double-tap after camera navigation should still focus",
+      })
+      .toBeGreaterThan(beforeDoubleTap.zoom);
   });
 
   test("long-press then drag moves an elevated node on mobile touch without panning", async ({
