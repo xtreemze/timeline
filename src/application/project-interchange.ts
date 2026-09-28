@@ -20,7 +20,9 @@ export type ProjectInterchangeDiagnosticCode =
   | "unsupported-interchange-version"
   | "unsupported-schema-id"
   | "unknown-field"
-  | "invalid-project";
+  | "invalid-project"
+  | "non-canonical-extension"
+  | "non-canonical-format";
 
 export interface ProjectInterchangeDiagnostic {
   readonly severity: "error" | "warning";
@@ -109,13 +111,17 @@ const OCCURRENCE_FIELDS = new Set([
   "attributes",
 ]);
 
-const PARTICIPANT_FIELDS = new Set([
-  "entityId",
+const ACTOR_CONTEXT_FIELDS = new Set([
   "roleType",
   "representedEntityId",
   "organizationId",
   "authoritySourceIds",
   "externalMappings",
+]);
+
+const OCCURRENCE_PARTICIPANT_FIELDS = new Set([
+  "entityId",
+  ...ACTOR_CONTEXT_FIELDS,
 ]);
 
 const TRAJECTORY_FIELDS = new Set([
@@ -231,7 +237,7 @@ function inspectRelationship(
     const context = record(relationship[field]);
     if (!context) continue;
     const contextPath = `${path}/${field}`;
-    diagnostics.push(...unknownFieldDiagnostics(context, PARTICIPANT_FIELDS, contextPath));
+    diagnostics.push(...unknownFieldDiagnostics(context, ACTOR_CONTEXT_FIELDS, contextPath));
     diagnostics.push(...inspectParticipant(context, contextPath));
   }
   return diagnostics;
@@ -247,7 +253,7 @@ function inspectOccurrence(
     ...inspectRecordArray(
       occurrence["participantContexts"],
       `${path}/participantContexts`,
-      PARTICIPANT_FIELDS,
+      OCCURRENCE_PARTICIPANT_FIELDS,
       inspectParticipant,
     ),
   ];
@@ -455,6 +461,45 @@ export function validateProjectInterchange(
       ],
     };
   }
+}
+
+export function lintProjectInterchange(
+  serialized: string,
+  options: { readonly fileName?: string } = {},
+): { readonly valid: boolean; readonly diagnostics: readonly ProjectInterchangeDiagnostic[] } {
+  const validation = validateProjectInterchange(serialized);
+  const diagnostics = [...validation.diagnostics];
+
+  if (
+    options.fileName &&
+    options.fileName !== "-" &&
+    !options.fileName.endsWith(LUM_PROJECT_FILE_EXTENSION)
+  ) {
+    diagnostics.push({
+      severity: "error",
+      code: "non-canonical-extension",
+      path: "",
+      message: `Portable Lūm projects must use the ${LUM_PROJECT_FILE_EXTENSION} suffix.`,
+    });
+  }
+
+  try {
+    if (formatProjectInterchange(serialized) !== serialized) {
+      diagnostics.push({
+        severity: "error",
+        code: "non-canonical-format",
+        path: "",
+        message: "Project text is not in canonical Lūm formatting. Run `lum fmt`.",
+      });
+    }
+  } catch {
+    // Invalid JSON is already diagnosed by validateProjectInterchange.
+  }
+
+  return {
+    valid: !diagnostics.some((diagnostic) => diagnostic.severity === "error"),
+    diagnostics,
+  };
 }
 
 export class ProjectInterchangeValidationError extends Error {
