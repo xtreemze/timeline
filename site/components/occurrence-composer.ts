@@ -799,6 +799,15 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.requestUpdate();
   }
 
+  editSection(kind: ComposerEditableSection["kind"], index = 0): boolean {
+    const section = composerEditableSections(this.value).filter(
+      (candidate) => candidate.kind === kind,
+    )[Math.max(0, Math.trunc(index))];
+    if (!section) return false;
+    this.editSentenceSection(section);
+    return true;
+  }
+
   markCommitted(): void {
     this.pendingSelectionContext = null;
     this.hasPendingSelectionContext = false;
