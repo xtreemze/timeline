@@ -26,6 +26,11 @@ import {
   validateProjectModule,
 } from "../src/application/project-module.ts";
 import { CURRENT_PROJECT_SCHEMA_VERSION } from "../src/application/project-repository.ts";
+import {
+  LUM_ICALENDAR_FILE_EXTENSION,
+  projectOccurrencesToCalendar,
+  serializeICalendar,
+} from "../src/application/calendar-projection.ts";
 import { parseOccurrenceSentence } from "../site/occurrence-composer-model.ts";
 import { runLumLanguageServer } from "./lum-lsp.mjs";
 import { attachLumDiagnosticRanges } from "./lib/lum-diagnostics.mjs";
@@ -53,6 +58,7 @@ Usage:
   lum lint <project.lum.json|-> [--json]
   lum fmt <project.lum.json|-> [--check]
   lum compose "<subject> <action> <object> ..." [--json]
+  lum calendar <project.lum.json|-> [--occurrence <id> ... | --story <id>] [--output <calendar.ics>]
   lum agent context <project.lum.json|-> [--json]
   lum agent validate-proposal <change.lum-proposal.json|-> --project <project.lum.json> [--json]
   lum agent apply <change.lum-proposal.json|-> --project <project.lum.json> [--output <candidate.lum.json>] [--json]
@@ -418,6 +424,42 @@ function commandCompose(args) {
   }
 }
 
+async function commandCalendar(args) {
+  const target = positional(args)[0];
+  if (!target) {
+    throw new Error("calendar requires a project.lum.json path or - for stdin.");
+  }
+
+  const source = await readTarget(target);
+  const validation = validateProjectInterchange(source);
+  if (!validation.valid) {
+    outputValidation(false, validation.diagnostics, args.includes("--json"), source);
+    process.exitCode = 1;
+    return;
+  }
+
+  const occurrenceIds = optionValues(args, "--occurrence");
+  const storyId = optionValue(args, "--story") ?? undefined;
+  const calendar = projectOccurrencesToCalendar(validation.snapshot, {
+    ...(occurrenceIds.length ? { occurrenceIds } : {}),
+    ...(storyId ? { storyId } : {}),
+  });
+  const serialized = serializeICalendar(calendar);
+  const output = optionValue(args, "--output");
+
+  if (!output) {
+    process.stdout.write(serialized);
+    return;
+  }
+  if (!output.endsWith(LUM_ICALENDAR_FILE_EXTENSION)) {
+    throw new Error(`Calendar output must use the ${LUM_ICALENDAR_FILE_EXTENSION} extension.`);
+  }
+
+  const outputPath = path.resolve(output);
+  await writeFile(outputPath, serialized, "utf8");
+  process.stdout.write(`${outputPath}\n`);
+}
+
 
 async function commandAgent(args) {
   const [subcommand, target] = positional(args);
@@ -696,6 +738,9 @@ async function main() {
       return;
     case "compose":
       commandCompose(args);
+      return;
+    case "calendar":
+      await commandCalendar(args);
       return;
     case "agent":
       await commandAgent(args);
