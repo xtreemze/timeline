@@ -263,6 +263,11 @@ export class WorldViewRuntimeController {
     this.#surface.setSelection(selection);
   }
 
+  setContextRelationships(ids: readonly RelationshipId[]): void {
+    this.#assertAlive();
+    this.#surface.setContextRelationships?.(ids);
+  }
+
   focusEntity(id: Parameters<WorldSurface["focusEntity"]>[0]): void {
     this.#assertAlive();
     this.#surface.focusEntity(id);
