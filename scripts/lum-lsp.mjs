@@ -5,6 +5,16 @@ import {
   lintProjectInterchange,
 } from "../src/application/project-interchange.ts";
 import { attachLumDiagnosticRanges } from "./lib/lum-diagnostics.mjs";
+import {
+  LUM_SEMANTIC_TOKEN_MODIFIERS,
+  LUM_SEMANTIC_TOKEN_TYPES,
+  lumCompletions,
+  lumDefinition,
+  lumDocumentSymbols,
+  lumHover,
+  lumReferences,
+  lumSemanticTokens,
+} from "./lib/lum-language-intelligence.mjs";
 
 function lspDiagnostics(source) {
   const result = lintProjectInterchange(source);
@@ -31,6 +41,15 @@ function fullDocumentRange(source) {
 export function createLumLanguageServer(writeMessage) {
   const documents = new Map();
 
+  function reply(id, result) {
+    writeMessage({ jsonrpc: "2.0", id, result });
+  }
+
+  function sourceFor(message) {
+    const uri = message.params?.textDocument?.uri;
+    return uri ? { uri, source: documents.get(uri) } : { uri: null, source: undefined };
+  }
+
   function publish(uri, source) {
     writeMessage({
       jsonrpc: "2.0",
@@ -46,25 +65,35 @@ export function createLumLanguageServer(writeMessage) {
     const method = message?.method;
 
     if (method === "initialize") {
-      writeMessage({
-        jsonrpc: "2.0",
-        id: message.id,
-        result: {
-          capabilities: {
-            textDocumentSync: 1,
-            documentFormattingProvider: true,
+      reply(message.id, {
+        capabilities: {
+          textDocumentSync: 1,
+          documentFormattingProvider: true,
+          completionProvider: {
+            triggerCharacters: ['"', ":"],
           },
-          serverInfo: {
-            name: "lum",
-            version: "1",
+          hoverProvider: true,
+          documentSymbolProvider: true,
+          definitionProvider: true,
+          referencesProvider: true,
+          semanticTokensProvider: {
+            legend: {
+              tokenTypes: LUM_SEMANTIC_TOKEN_TYPES,
+              tokenModifiers: LUM_SEMANTIC_TOKEN_MODIFIERS,
+            },
+            full: true,
           },
+        },
+        serverInfo: {
+          name: "lum",
+          version: "1",
         },
       });
       return;
     }
 
     if (method === "shutdown") {
-      writeMessage({ jsonrpc: "2.0", id: message.id, result: null });
+      reply(message.id, null);
       return;
     }
 
@@ -105,8 +134,7 @@ export function createLumLanguageServer(writeMessage) {
     }
 
     if (method === "textDocument/formatting") {
-      const uri = message.params?.textDocument?.uri;
-      const source = documents.get(uri);
+      const { source } = sourceFor(message);
       let result = [];
       if (typeof source === "string") {
         try {
@@ -120,7 +148,64 @@ export function createLumLanguageServer(writeMessage) {
           result = [];
         }
       }
-      writeMessage({ jsonrpc: "2.0", id: message.id, result });
+      reply(message.id, result);
+      return;
+    }
+
+    if (method === "textDocument/completion") {
+      const { source } = sourceFor(message);
+      reply(
+        message.id,
+        typeof source === "string" ? lumCompletions(source, message.params?.position) : [],
+      );
+      return;
+    }
+
+    if (method === "textDocument/hover") {
+      const { source } = sourceFor(message);
+      reply(
+        message.id,
+        typeof source === "string" ? lumHover(source, message.params?.position) : null,
+      );
+      return;
+    }
+
+    if (method === "textDocument/documentSymbol") {
+      const { source } = sourceFor(message);
+      reply(message.id, typeof source === "string" ? lumDocumentSymbols(source) : []);
+      return;
+    }
+
+    if (method === "textDocument/definition") {
+      const { uri, source } = sourceFor(message);
+      reply(
+        message.id,
+        uri && typeof source === "string"
+          ? lumDefinition(source, message.params?.position, uri)
+          : null,
+      );
+      return;
+    }
+
+    if (method === "textDocument/references") {
+      const { uri, source } = sourceFor(message);
+      reply(
+        message.id,
+        uri && typeof source === "string"
+          ? lumReferences(
+              source,
+              message.params?.position,
+              uri,
+              message.params?.context?.includeDeclaration !== false,
+            )
+          : [],
+      );
+      return;
+    }
+
+    if (method === "textDocument/semanticTokens/full") {
+      const { source } = sourceFor(message);
+      reply(message.id, typeof source === "string" ? lumSemanticTokens(source) : { data: [] });
     }
   }
 
