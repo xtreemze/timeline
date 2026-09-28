@@ -829,7 +829,8 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       for (const left of leftGroup.nodes) {
         if (!left.anchor) continue;
         for (const right of rightGroup.nodes) {
-          if (!right.anchor || this.#stepCrossPlacePairForces(left, right, alpha) === false) continue;
+          if (!right.anchor) continue;
+          if (this.#stepCrossPlacePairForces(left, right, alpha) === false) continue;
           moved = true;
         }
       }
