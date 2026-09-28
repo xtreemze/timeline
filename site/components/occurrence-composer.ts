@@ -683,7 +683,11 @@ export class LuumOccurrenceComposerElement extends LitElement {
       role: metadata?.role?.trim() || null,
       initialState: metadata?.initialState ?? "active",
       sourceIds: Object.freeze(
-        [...new Set((metadata?.sourceIds ?? []).map((sourceId) => sourceId.trim()).filter(Boolean))],
+        [
+          ...new Set(
+            (metadata?.sourceIds ?? []).map((sourceId) => sourceId.trim()).filter(Boolean),
+          ),
+        ],
       ),
       confidence: metadata?.confidence ?? null,
     });
@@ -1099,7 +1103,9 @@ export class LuumOccurrenceComposerElement extends LitElement {
             worldZoom:
               this.explicitPlaceContext?.zoom ?? this.worldContext?.zoom ?? null,
             accuracyMeters:
-              this.explicitPlaceContext?.accuracyMeters ?? this.worldContext?.accuracyMeters ?? null,
+              this.explicitPlaceContext?.accuracyMeters ??
+              this.worldContext?.accuracyMeters ??
+              null,
             placeReference:
               !draft.place && this.useSelectionPlaceContext && this.selectionContext?.place
                 ? `@${this.selectionContext.place.id}`
@@ -1262,7 +1268,9 @@ export class LuumOccurrenceComposerElement extends LitElement {
             @click=${() => this.editSentenceSection(section)}
           >
             <span>${label}</span><strong>${value}</strong
-            ><span class="context-state">${this.sectionIsActive(section) ? "editing" : "edit"}</span>
+            ><span class="context-state"
+              >${this.sectionIsActive(section) ? "editing" : "edit"}</span
+            >
           </button>`
         : nothing;
 
@@ -1272,7 +1280,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
           <span class="stage" aria-hidden="true">${this.stageLabel(parsed)}</span>
           <div class="input-shell">
             <span class="ghost-completion" aria-hidden="true">
-              <span class="ghost-base">${this.value}</span><span class="ghost-suffix">${ghostSuffix}</span>
+              <span class="ghost-base">${this.value}</span
+              ><span class="ghost-suffix">${ghostSuffix}</span>
             </span>
             <input
               type="text"
@@ -1287,7 +1296,9 @@ export class LuumOccurrenceComposerElement extends LitElement {
                 listboxVisible ? `occurrence-composer-option-${selectedIndex}` : nothing
               }
               aria-describedby="occurrence-composer-help occurrence-composer-diagnostic"
-              placeholder=${`Who did what to whom · at ${placeLabel} · on ${timeLabel ?? "timeline center"}`}
+              placeholder=${`Who did what to whom · at ${placeLabel} · on ${
+                timeLabel ?? "timeline center"
+              }`}
               .value=${this.value}
               @input=${(event: Event) => this.onInput(event)}
               @focus=${(event: Event) => this.onCaretMove(event)}
@@ -1301,7 +1312,9 @@ export class LuumOccurrenceComposerElement extends LitElement {
             class="commit"
             type="button"
             ?disabled=${!canCommit}
-            aria-label=${this.selectionContext?.selectedOccurrenceId ? "Save occurrence" : "Create occurrence"}
+            aria-label=${
+              this.selectionContext?.selectedOccurrenceId ? "Save occurrence" : "Create occurrence"
+            }
             title=${this.selectionContext?.selectedOccurrenceId
               ? "Save occurrence (Ctrl/Cmd+Enter)"
               : "Create occurrence (Ctrl/Cmd+Enter)"}
@@ -1331,7 +1344,10 @@ export class LuumOccurrenceComposerElement extends LitElement {
                   title="Replace this draft with the newly selected graph context"
                   @click=${() => this.acceptPendingSelectionContext()}
                 >
-                  <span>Selection changed</span><strong>${this.pendingSelectionContext ? "Use selected context" : "Use no selection"}</strong>
+                  <span>Selection changed</span
+                  ><strong
+                    >${this.pendingSelectionContext ? "Use selected context" : "Use no selection"}</strong
+                  >
                 </button>`
               : nothing
             }
@@ -1364,7 +1380,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
                       : "Pin the current World center for this occurrence"}
                   @click=${() => this.activateLivePlaceContext()}
                 >
-                  <span>Place</span><strong>${this.selectionContext?.place?.name ?? placeLabel}</strong
+                  <span>Place</span
+                  ><strong>${this.selectionContext?.place?.name ?? placeLabel}</strong
                   ><span class="context-state">${this.selectionContext?.place
                     ? this.useSelectionPlaceContext
                       ? "context"
@@ -1387,12 +1404,15 @@ export class LuumOccurrenceComposerElement extends LitElement {
                     : `Pin timeline time: ${timeLabel ?? "timeline center"}`}
                   title=${this.explicitTimeContext
                     ? "Return time context to the live timeline center"
-                    : "Pin the current timeline center; complete facts become an explicit on-clause"}
+                    : "Pin the current timeline center; complete facts become an explicit on-clause"
+                  }
                   ?disabled=${!this.timelineContext?.value && !this.explicitTimeContext}
                   @click=${() => this.activateLiveTimeContext()}
                 >
                   <span>Time</span><strong>${timeLabel ?? "timeline center"}</strong
-                  ><span class="context-state">${this.explicitTimeContext ? "pinned" : timePinned ? "context" : "live"}</span>
+                  ><span class="context-state"
+                    >${this.explicitTimeContext ? "pinned" : timePinned ? "context" : "live"}</span
+                  >
                 </button>`}
             ${editableChip("Category", categoryLabel, categorySection)}
             ${tagLabels.map((tag, index) =>
@@ -1402,7 +1422,9 @@ export class LuumOccurrenceComposerElement extends LitElement {
               class="context-chip"
               type="button"
               data-context-kind="metadata"
-              data-context-state=${this.metadataPanelOpen ? "editing" : metadataCount ? "pinned" : "live"}
+              data-context-state=${
+                this.metadataPanelOpen ? "editing" : metadataCount ? "pinned" : "live"
+              }
               aria-expanded=${String(this.metadataPanelOpen)}
               aria-controls="occurrence-composer-metadata"
               @click=${() => {
@@ -1410,13 +1432,18 @@ export class LuumOccurrenceComposerElement extends LitElement {
                 this.requestUpdate();
               }}
             >
-              <span>Details</span><strong>${metadataCount ? `${metadataCount} set` : "Role · support"}</strong
+              <span>Details</span
+              ><strong>${metadataCount ? `${metadataCount} set` : "Role · support"}</strong
               ><span class="context-state">${this.metadataPanelOpen ? "editing" : "edit"}</span>
             </button>
           </div>
           ${
             diagnostic
-              ? html`<p id="occurrence-composer-diagnostic" class="diagnostic" role="alert">${diagnostic}</p>`
+              ? html`<p
+                  id="occurrence-composer-diagnostic"
+                  class="diagnostic"
+                  role="alert"
+                >${diagnostic}</p>`
               : html`<span id="occurrence-composer-diagnostic" hidden></span>`
           }
           ${
@@ -1437,7 +1464,10 @@ export class LuumOccurrenceComposerElement extends LitElement {
                       placeholder="recipient, witness…"
                       .value=${this.metadataRole}
                       @input=${(event: Event) =>
-                        this.setMetadataValue("role", (event.currentTarget as HTMLInputElement).value)}
+                        this.setMetadataValue(
+                          "role",
+                          (event.currentTarget as HTMLInputElement).value,
+                        )}
                     />
                   </label>
                   <label class="metadata-field">
@@ -1445,7 +1475,10 @@ export class LuumOccurrenceComposerElement extends LitElement {
                     <select
                       .value=${this.metadataInitialState}
                       @change=${(event: Event) =>
-                        this.setMetadataValue("initialState", (event.currentTarget as HTMLSelectElement).value)}
+                        this.setMetadataValue(
+                          "initialState",
+                          (event.currentTarget as HTMLSelectElement).value,
+                        )}
                     >
                       <option value="active">Active</option>
                       <option value="inactive">Inactive</option>
@@ -1462,7 +1495,10 @@ export class LuumOccurrenceComposerElement extends LitElement {
                       placeholder="0.85"
                       .value=${this.metadataConfidence}
                       @input=${(event: Event) =>
-                        this.setMetadataValue("confidence", (event.currentTarget as HTMLInputElement).value)}
+                        this.setMetadataValue(
+                          "confidence",
+                          (event.currentTarget as HTMLInputElement).value,
+                        )}
                     />
                   </label>
                   <label class="metadata-field metadata-field-wide">
@@ -1473,7 +1509,10 @@ export class LuumOccurrenceComposerElement extends LitElement {
                       placeholder="evidence-17, source-record-3"
                       .value=${this.metadataSourceIds}
                       @input=${(event: Event) =>
-                        this.setMetadataValue("sourceIds", (event.currentTarget as HTMLInputElement).value)}
+                        this.setMetadataValue(
+                          "sourceIds",
+                          (event.currentTarget as HTMLInputElement).value,
+                        )}
                     />
                   </label>
                 </div>
