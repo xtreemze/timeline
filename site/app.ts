@@ -8,16 +8,16 @@ import {
   stageProjectImportReview,
   type StagedProjectImport,
 } from "../src/application/project-import-review.ts";
-import {
-  defaultSemanticIconForEntityType,
-  normalizeEntityPresentationAttributes,
-  normalizeSemanticIconName,
-} from "../src/presentation/semantic-icons.ts";
 import { applyProjectTransaction } from "../src/application/project-transaction.ts";
 import {
   createApplicationSelectionController,
   selectionForTimelineFocus,
 } from "../src/application/selection.ts";
+import {
+  defaultSemanticIconForEntityType,
+  normalizeEntityPresentationAttributes,
+  normalizeSemanticIconName,
+} from "../src/presentation/semantic-icons.ts";
 import { projectTimelineOccurrences } from "../src/projection/timeline-projection.ts";
 import "./components/occurrence-composer.ts";
 import type {
