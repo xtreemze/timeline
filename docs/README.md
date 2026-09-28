@@ -51,3 +51,5 @@ For product copy, use **Lūm**. The repository and some compatibility APIs still
 5. Compatibility or migration behavior must be labeled as such.
 6. Browser/version claims should point to executable configuration or tests whenever possible.
 7. If a behavior becomes normative, encode it in tests or lint rules as well as prose.
+- [LUM-PROJECT-INTERCHANGE.md](LUM-PROJECT-INTERCHANGE.md) — strict portable `.lum.json` contract.
+- [LUM-DEVELOPER-TOOLING.md](LUM-DEVELOPER-TOOLING.md) — CLI, formatter, linter, schemas, LSP, and agent context.
