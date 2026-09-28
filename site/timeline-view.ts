@@ -3742,6 +3742,9 @@ export class TimelineViewController {
       evidence.append(missing);
     }
 
+    const toolbar = document.createElement("div");
+    toolbar.className = "timeline-focus-toolbar";
+
     const tabs = document.createElement("div");
     tabs.className = "timeline-focus-tabs";
     tabs.setAttribute("role", "tablist");
@@ -3760,29 +3763,71 @@ export class TimelineViewController {
     evidenceTab.textContent = "Evidence";
     evidenceTab.setAttribute("role", "tab");
     evidenceTab.setAttribute("aria-controls", "timeline-focus-evidence-panel");
-    const close = document.createElement("button");
-    close.type = "button";
-    close.className = "timeline-focus-close timeline-focus-icon-action";
-    close.setAttribute("aria-label", "Return to timeline");
-    close.title = "Return to timeline";
-    const closeIcon =
-      presentation && typeof presentation.createIcon === "function"
-        ? presentation.createIcon("close", { size: 16 })
-        : null;
-    if (closeIcon) {
-      close.append(closeIcon);
-    } else {
-      const fallbackIcon = document.createElement("span");
-      fallbackIcon.className = "timeline-focus-fallback-icon";
-      fallbackIcon.setAttribute("aria-hidden", "true");
-      fallbackIcon.textContent = "×";
-      close.append(fallbackIcon);
-    }
-    const closeLabel = document.createElement("span");
-    closeLabel.className = "sr-only";
-    closeLabel.textContent = "Return to timeline";
-    close.append(closeLabel);
-    close.addEventListener("click", () => this.closeFocus());
+
+    const actions = document.createElement("div");
+    actions.className = "timeline-focus-toolbar-actions";
+    actions.setAttribute("role", "group");
+    actions.setAttribute("aria-label", "Focused occurrence actions");
+
+    const iconAction = (
+      className: string,
+      label: string,
+      iconName: string,
+      action: () => void,
+    ): HTMLButtonElement => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `timeline-focus-icon-action ${className}`;
+      button.setAttribute("aria-label", label);
+      button.title = label;
+      const icon =
+        presentation && typeof presentation.createIcon === "function"
+          ? presentation.createIcon(iconName, { size: 20 })
+          : null;
+      if (icon) button.append(icon);
+      const accessibleLabel = document.createElement("span");
+      accessibleLabel.className = "sr-only";
+      accessibleLabel.textContent = label;
+      button.append(accessibleLabel);
+      button.addEventListener("click", action);
+      return button;
+    };
+
+    const previous = iconAction("timeline-focus-prev", "Previous event", "chevron-left", () => {
+      this.focusAdjacent(-1, { reference: "viewport" });
+    });
+    const next = iconAction("timeline-focus-next", "Next event", "chevron-right", () => {
+      this.focusAdjacent(1, { reference: "viewport" });
+    });
+    const relatedZoom = iconAction(
+      "timeline-focus-related-action timeline-focus-related-zoom",
+      "Zoom to related nodes",
+      "zoom-in",
+      () => {
+        this.root.dispatchEvent(
+          new CustomEvent("timelinefocuscontextaction", {
+            bubbles: true,
+            detail: { action: "zoom-related", id: item.id },
+          }),
+        );
+      },
+    );
+    const relatedFit = iconAction(
+      "timeline-focus-related-action timeline-focus-related-fit",
+      "Fit related nodes in world view",
+      "fit",
+      () => {
+        this.root.dispatchEvent(
+          new CustomEvent("timelinefocuscontextaction", {
+            bubbles: true,
+            detail: { action: "fit-related", id: item.id },
+          }),
+        );
+      },
+    );
+    const close = iconAction("timeline-focus-close", "Return to timeline", "close", () => {
+      this.closeFocus();
+    });
 
     const applyFocusTab = (name: "overview" | "evidence"): void => {
       const evidenceActive = name === "evidence";
@@ -3843,10 +3888,12 @@ export class TimelineViewController {
       const nextTab = next === "evidence" ? evidenceTab : overviewTab;
       nextTab.focus({ preventScroll: true });
     });
-    tabs.append(overviewTab, evidenceTab, close);
+    tabs.append(overviewTab, evidenceTab);
+    actions.append(previous, next, relatedZoom, relatedFit, close);
+    toolbar.append(tabs, actions);
     applyFocusTab(this.focusTab);
 
-    this.focusView.replaceChildren(tabs, hero, summary, evidence);
+    this.focusView.replaceChildren(toolbar, hero, summary, evidence);
     this.root.dispatchEvent(
       new CustomEvent("timelinefocusrender", {
         bubbles: true,
