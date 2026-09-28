@@ -23,6 +23,25 @@ lum init my-project --project-key investigation-2026
 
 This creates `my-project/project.lum.json`, already self-described, canonically formatted, and strict-valid.
 
+### Start modular sources
+
+```sh
+lum init-module entities.module.lum.json \
+  --project-key investigation-2026 \
+  --story-id story-main \
+  --collection entities
+```
+
+Modules use `.module.lum.json`, remain ordinary JSON, and own exactly one canonical collection. `lum check`, `lum lint`, and `lum fmt` auto-detect project vs module documents from the format discriminator.
+
+Validate a complete module set with:
+
+```sh
+lum check-modules *.module.lum.json --json
+```
+
+This assembles the modules through the ordinary canonical project validator. Cross-module reference failures are reported against the originating module path and JSON pointer where the owning record is identifiable.
+
 ### Validate
 
 ```sh
@@ -147,6 +166,7 @@ Focused contract:
 ```sh
 pnpm test:lum-tooling
 pnpm test:lum-language-intelligence
+pnpm test:lum-modules
 ```
 
 The broader architecture suite also includes the tooling contract.
