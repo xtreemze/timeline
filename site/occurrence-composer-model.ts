@@ -341,7 +341,7 @@ export function occurrenceComposerSuggestions(
   const token = currentToken(input);
 
   if (/\([^)]*$/.test(input)) {
-    const iconValueActive = /(?:^|[,([])\s*icon\s*:\s*[^,)]*$/i.test(input);
+    const iconValueActive = /(?:^|[,(])\s*icon\s*:\s*[^,)]*$/i.test(input);
     const properties = iconValueActive
       ? ENTITY_ICON_PROPERTY_SUGGESTIONS
       : ENTITY_PROPERTY_SUGGESTIONS;
