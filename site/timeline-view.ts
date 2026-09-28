@@ -3777,7 +3777,7 @@ export class TimelineViewController {
     commit();
   }
 
-  createFocusHero(item: TimelineItem, focusHost: HTMLElement): HTMLElement {
+  createFocusHero(item: TimelineItem): HTMLElement {
     const hero = document.createElement("section");
     hero.className = "timeline-focus-hero";
     const media = Array.isArray(item.media) ? item.media : [];
@@ -3839,10 +3839,8 @@ export class TimelineViewController {
 
   renderFocus(item: TimelineItem, host: HTMLElement | null = null): void {
     const focusHost =
-      host ??
-      (this.focusedId
-        ? this.scene.get(occurrenceSceneKey(this.focusedId))?.node.detailHost ?? null
-        : null) ??
+      host ||
+      (this.focusedId ? this.scene.get(occurrenceSceneKey(this.focusedId))?.node.detailHost : null) ||
       this.focusView;
     focusHost.tabIndex = -1;
     focusHost.style.setProperty("--event-color", item.color || "var(--accent)");
@@ -3850,7 +3848,7 @@ export class TimelineViewController {
     focusHost.dataset.activeTab = this.focusTab;
     focusHost.setAttribute("aria-labelledby", "timeline-focus-heading");
 
-    const hero = this.createFocusHero(item, focusHost);
+    const hero = this.createFocusHero(item);
 
     const summary = document.createElement("section");
     summary.id = "timeline-focus-context-panel";
@@ -4029,7 +4027,6 @@ export class TimelineViewController {
     };
 
     const setFocusTab = (name: "overview" | "evidence"): void => {
-      const evidenceActive = name === "evidence";
       const apply = () => {
         applyFocusTab(name);
       };

@@ -561,7 +561,7 @@ test.describe("contextual world authoring certification", () => {
       );
       if (!sample || !api?.validateProject) return null;
 
-      const itemsById = new Map(
+      const itemsById = new Map<string, any>(
         (Array.isArray(sample.items) ? sample.items : []).map((item: any) => [
           String(item.id),
           item,
