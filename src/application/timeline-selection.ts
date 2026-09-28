@@ -12,8 +12,8 @@ interface TimelineSelectionLocation {
 
 export interface TimelineSelectionItem {
   readonly id: string;
-  readonly location?: TimelineSelectionLocation | unknown;
-  readonly relations?: readonly TimelineSelectionRelation[] | unknown;
+  readonly location?: unknown;
+  readonly relations?: unknown;
 }
 
 export interface TimelineSelectionProjection {
