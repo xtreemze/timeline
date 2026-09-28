@@ -463,6 +463,26 @@ jobs:
       - name: Certify contextual world authoring
         run: pnpm test:contextual-authoring-browser
 
+  occurrence-investigation-browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Verify occurrence investigation browser matrix
+        run: |
+          pnpm exec playwright test --config=playwright.config.ts tests/browser/occurrence-investigation-certification.spec.ts --list | tee /tmp/occurrence-investigation-list.txt
+          grep -F 'occurrence-investigation-certification.spec.ts' /tmp/occurrence-investigation-list.txt
+          grep -F '[Desktop Chrome]' /tmp/occurrence-investigation-list.txt
+          grep -F '[Mobile Chrome]' /tmp/occurrence-investigation-list.txt
+          grep -F '[Mobile Chrome Landscape]' /tmp/occurrence-investigation-list.txt
+      - name: Certify unified occurrence investigation
+        run: pnpm test:occurrence-investigation-browser
+
   project-import-review-browser:
     runs-on: ubuntu-latest
     steps:
