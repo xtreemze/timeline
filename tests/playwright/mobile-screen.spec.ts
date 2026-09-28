@@ -283,15 +283,17 @@ test.describe("Narrow mobile screen contracts", () => {
     await expect(navigation.locator("#timeline-focus-prev")).toBeVisible();
     await expect(navigation.locator("#timeline-focus-next")).toBeVisible();
 
-    const layout = await Promise.all(
-      [actions, navigation, view].map((locator) =>
-        locator.evaluate((element) => ({
-          order: Number(getComputedStyle(element).order),
-          rect: element.getBoundingClientRect().toJSON(),
-        })),
+    const domOrder = await dock.evaluate((element) =>
+      [...element.querySelectorAll(":scope > .app-footer-zone")].map((zone) =>
+        zone.classList.contains("app-footer-actions")
+          ? "actions"
+          : zone.classList.contains("app-footer-view")
+            ? "view"
+            : "timeline",
       ),
     );
-    expect(layout.map((entry) => entry.order)).toEqual([1, 2, 3]);
+    expect(domOrder).toEqual(["actions", "view", "timeline"]);
+    await expect.poll(() => dock.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
 
     const dockBox = await dock.boundingBox();
     expect(dockBox).not.toBeNull();
