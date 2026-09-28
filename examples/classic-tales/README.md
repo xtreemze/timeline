@@ -56,3 +56,16 @@ The generated `project.lum.json` is not a hand-edited source. The pilot compiler
 ### Collection modules
 
 A modular story uses one `*.module.lum.json` file per canonical collection. Module envelopes are strict and versioned, while record semantics are referenced from the canonical Lūm project schema. Cross-record and cross-module semantics are validated only after assembly into a full project, preventing module/editor validators from becoming competing authorities.
+
+
+## Complete corpus compiler
+
+All nine shipped stories can now be compiled in one deterministic pass through the same production compiler, module envelopes, module assembler, and strict Lūm validator:
+
+```sh
+pnpm compile:example-corpus
+```
+
+The command reads `manifest.json` and writes each story only to its declared `targetDirectory`. It refuses to run when the manifest and shipped story IDs drift.
+
+This remains a migration compiler: until the generated per-story modules become the hand-maintained source and runtime loading consumes them directly, `site/sample-case.ts` / `site/sample-case-additions.ts` remain compatibility inputs. CI nevertheless certifies all nine stories through the canonical boundary on every compiler test run.
