@@ -867,6 +867,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
   private onInput(event: Event): void {
     const target = event.currentTarget;
     if (!(target instanceof HTMLInputElement)) return;
+    this.metadataPanelOpen = false;
     this.setComposerValue(target.value, target.selectionStart ?? target.value.length);
   }
 
@@ -877,6 +878,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
   }
 
   private editSentenceSection(section: ComposerEditableSection): void {
+    this.metadataPanelOpen = false;
     this.cursorOffset = section.start;
     this.activeSuggestion = 0;
     this.externalError = "";
@@ -904,6 +906,11 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
   private activateLivePlaceContext(): void {
     if (this.selectionContext?.place) {
+      if (this.parsed().stage !== "complete") {
+        this.externalError = "";
+        this.requestUpdate();
+        return;
+      }
       const suffix = `at @${this.selectionContext.place.id}`;
       const separator = this.value.trimEnd() ? " " : "";
       const value = `${this.value.trimEnd()}${separator}${suffix} `;
@@ -1036,7 +1043,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
   }
 
   private onKeyDown(event: KeyboardEvent): void {
-    const suggestions = this.suggestions().slice(0, 7);
+    const suggestions = this.metadataPanelOpen ? [] : this.suggestions().slice(0, 7);
     if (event.isComposing) return;
     if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
       event.preventDefault();
@@ -1269,12 +1276,16 @@ export class LuumOccurrenceComposerElement extends LitElement {
                   aria-label=${this.explicitPlaceContext
                     ? `Unpin place context: ${placeLabel}`
                     : this.selectionContext?.place
-                      ? `Use place in sentence: ${placeLabel}`
+                      ? this.parsed().stage === "complete"
+                        ? `Use place in sentence: ${placeLabel}`
+                        : `Selected place context: ${placeLabel}`
                       : `Pin current World place context: ${placeLabel}`}
                   title=${this.explicitPlaceContext
                     ? "Return place context to the live World center"
                     : this.selectionContext?.place
-                      ? "Add the selected canonical place to the sentence"
+                      ? this.parsed().stage === "complete"
+                        ? "Add the selected canonical place to the sentence"
+                        : "This selected place is already the occurrence context; complete the fact before adding an explicit place clause"
                       : "Pin the current World center for this occurrence"}
                   @click=${() => this.activateLivePlaceContext()}
                 >
