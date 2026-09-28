@@ -3718,12 +3718,26 @@ export class DeckWorldSurface implements WorldSurface {
     this.#reframe("content");
   }
 
-  /** Fits the current projection, then advances one semantic camera step for inspection. */
+  /** Frames the current projection, then progressively advances inspection depth. */
   zoomToContent(): void {
-    this.fitToContent();
+    const positions = this.#projection.instances
+      .map((instance) => anchorPosition(instance))
+      .filter((position): position is WorldRenderPosition => position !== null);
+    if (positions.length === 0) return;
+
+    const width = Number(this.#container.clientWidth) || 1024;
+    const height = Number(this.#container.clientHeight) || 768;
+    const fitted = this.#readableContentCamera(
+      fitWorldCamera(positions, { width, height }, this.#camera),
+    );
+    if (!fitted) return;
+
     this.setCamera({
-      ...this.#camera,
-      zoom: Math.min(WORLD_CAMERA_MAX_ZOOM, this.#camera.zoom + 0.85),
+      ...fitted,
+      zoom: Math.min(
+        WORLD_CAMERA_MAX_ZOOM,
+        Math.max(this.#camera.zoom, fitted.zoom) + 0.85,
+      ),
     });
   }
 
