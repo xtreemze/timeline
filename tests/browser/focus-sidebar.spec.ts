@@ -131,11 +131,35 @@ test("focused detail owns contextual actions without mutating the footer", async
   await expect(page.locator(".app-footer-bar #timeline-focus-prev")).toHaveCount(0);
   await expect(page.locator(".app-footer-bar #timeline-related-zoom")).toHaveCount(0);
   await expect(page.locator("#timeline-focus-edit")).toHaveCount(0);
-  await expect(page.locator("#editor-toggle")).toHaveAttribute("aria-label", "Edit focused event");
+  await expect(page.locator("#editor-toggle")).toHaveAttribute("aria-label", "Edit timeline");
+  await expect(page.locator("#editor-toggle")).toHaveAttribute("data-semantic-icon", "edit");
+  await expect(page.locator("#editor-toggle")).toHaveAttribute("aria-pressed", "false");
   await expect(page.locator("#timeline-view-toolbar")).toBeVisible();
 
   await focus.locator(".timeline-focus-close").click();
   await expect(focus).toBeHidden();
+});
+
+test("composer opens from selected context without dismissing focus or activating Edit", async ({
+  page,
+}) => {
+  const focus = await focusOccurrence(page);
+  const composer = page.locator("#occurrence-composer");
+  const compact = composer.locator(".compact");
+
+  await expect(compact).toBeVisible();
+  await compact.click();
+
+  await expect(composer).toHaveAttribute("active", "");
+  await expect(focus).toBeVisible();
+  await expect(page.locator("#app-shell")).toHaveClass(/is-event-focused/);
+  await expect(page.locator("#editor-toggle")).toHaveAttribute("aria-pressed", "false");
+  await expect(page.locator("#editor-toggle")).toHaveAttribute("aria-label", "Edit timeline");
+
+  await composer.locator("input").press("Escape");
+  await expect(composer).not.toHaveAttribute("active", "");
+  await expect(compact).toBeVisible();
+  await expect(focus).toBeVisible();
 });
 
 test("clicking the selected card keeps its attached detail open", async ({ page }) => {
