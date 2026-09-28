@@ -464,6 +464,11 @@
   cursor: pointer;
   pointer-events: auto;
 }
+.timeline-relation-segment.is-selected {
+  background: color-mix(in srgb, var(--relation-event-color, var(--story)) 84%, transparent);
+  outline: 2px solid color-mix(in srgb, var(--relation-event-color, var(--story)) 72%, var(--ink));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--relation-event-color, var(--story)) 16%, transparent);
+}
 .timeline-relation-segment:is(:hover, :focus-visible) {
   background: color-mix(in srgb, var(--relation-event-color, var(--story)) 72%, transparent);
   outline-color: color-mix(in srgb, var(--relation-event-color, var(--story)) 55%, transparent);
@@ -625,6 +630,11 @@
   color: contrast-color(var(--cluster-tile-color));
   transform: translateY(-50%);
   box-shadow: 0 2px 7px rgba(38, 31, 23, 0.12);
+}
+.timeline-cluster-tile.is-selected {
+  box-shadow:
+    0 0 0 2px var(--paper),
+    0 0 0 4px color-mix(in srgb, var(--cluster-tile-color) 72%, var(--ink));
 }
 .timeline-cluster-tile:nth-child(1) {
   left: 0;
