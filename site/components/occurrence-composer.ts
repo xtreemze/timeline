@@ -66,7 +66,48 @@ export class LuumOccurrenceComposerElement extends LitElement {
     }
 
     :host(:not([active])) {
-      display: none;
+      inline-size: 44px;
+      block-size: 44px;
+      flex: 0 0 44px;
+    }
+
+    .launcher,
+    .close {
+      appearance: none;
+      display: grid;
+      place-items: center;
+      box-sizing: border-box;
+      inline-size: 44px;
+      block-size: 44px;
+      min-inline-size: 44px;
+      min-block-size: 44px;
+      padding: 0;
+      border: 1px solid color-mix(in srgb, var(--line, #d1ccc4) 78%, transparent);
+      border-radius: var(--toolbar-control-radius, 0.58rem);
+      background: color-mix(in srgb, var(--paper, #fff) 82%, transparent);
+      color: var(--ink, #191714);
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    .launcher:is(:hover, :focus-visible),
+    .close:is(:hover, :focus-visible) {
+      border-color: color-mix(in srgb, var(--line-strong, #b8b1a5) 88%, transparent);
+      background: var(--paper-2, #f5f3ef);
+      outline: 2px solid var(--focus, #315fbd);
+      outline-offset: -3px;
+    }
+
+    .launcher svg,
+    .close svg {
+      display: block;
+      inline-size: 20px;
+      block-size: 20px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.9;
+      stroke-linecap: round;
+      stroke-linejoin: round;
     }
 
     .composer {
@@ -117,26 +158,6 @@ export class LuumOccurrenceComposerElement extends LitElement {
     input:focus-visible {
       border-color: var(--focus, #315fbd);
       box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus, #315fbd) 20%, transparent);
-    }
-
-    .close {
-      inline-size: 44px;
-      block-size: 44px;
-      border: 1px solid transparent;
-      border-radius: var(--toolbar-control-radius, 0.58rem);
-      background: transparent;
-      color: var(--muted, #615d56);
-      cursor: pointer;
-      font-size: 1.15rem;
-      touch-action: manipulation;
-    }
-
-    .close:focus-visible,
-    .close:hover {
-      border-color: color-mix(in srgb, var(--line-strong, #b8b1a5) 70%, transparent);
-      background: var(--paper-2, #f5f3ef);
-      color: var(--ink, #191714);
-      outline: none;
     }
 
     .completion-panel {
@@ -485,10 +506,22 @@ export class LuumOccurrenceComposerElement extends LitElement {
     });
   }
 
+  private requestOpen(): void {
+    this.dispatchEvent(
+      new CustomEvent("occurrencecomposeropenrequest", { bubbles: true, composed: true }),
+    );
+  }
+
   private requestClose(): void {
     this.dispatchEvent(
       new CustomEvent("occurrencecomposercloserequest", { bubbles: true, composed: true }),
     );
+  }
+
+  focusLauncher(): void {
+    void this.updateComplete.then(() => {
+      this.renderRoot.querySelector<HTMLButtonElement>(".launcher")?.focus({ preventScroll: true });
+    });
   }
 
   private setComposerValue(value: string): void {
@@ -611,7 +644,21 @@ export class LuumOccurrenceComposerElement extends LitElement {
     return parsed.stage;
   }
   override render() {
-    if (!this.active) return nothing;
+    if (!this.active) {
+      return html`
+        <button
+          class="launcher"
+          type="button"
+          aria-label="Compose occurrence"
+          title="Compose occurrence"
+          @click=${() => this.requestOpen()}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            ${iconPathData("add").map((path) => html`<path d=${path}></path>`)}
+          </svg>
+        </button>
+      `;
+    }
 
     const parsed = this.parsed();
     const timeLabel = parsed.time?.start ?? this.timelineContext?.label ?? null;
@@ -654,7 +701,11 @@ export class LuumOccurrenceComposerElement extends LitElement {
             aria-label="Close occurrence composer"
             title="Close occurrence composer"
             @click=${() => this.requestClose()}
-          >×</button>
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              ${iconPathData("close").map((path) => html`<path d=${path}></path>`)}
+            </svg>
+          </button>
         </div>
 
         <div class="completion-panel">
