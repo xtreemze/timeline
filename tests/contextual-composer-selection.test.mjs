@@ -70,6 +70,10 @@ test("composer selection context reuses canonical entity and place identities", 
 
   assert.match(composer, /setSelectionContext\(/);
   assert.match(composer, /selectedOccurrenceId/);
+  assert.match(composer, /selectedItemId/);
+  assert.match(composer, /editTarget/);
+  assert.match(composer, /dirtyDraft/);
+  assert.match(composer, /pendingSelectionContext/);
   assert.match(composer, /composition/);
   assert.match(composer, /this\.value = composition/);
   assert.match(composer, /@\$\{subjectId\}/);
@@ -82,7 +86,13 @@ test("composer selection context reuses canonical entity and place identities", 
   assert.match(app, /applicationSelection\.subscribe[\s\S]*syncOccurrenceComposerSelection/);
   assert.match(app, /selectedEntityId:/);
   assert.match(app, /selectedOccurrenceId:/);
-  assert.match(app, /composition:\s*occurrenceCompositionForRelationship\(relationship\)/);
+  assert.match(app, /selectedItemId/);
+  assert.match(app, /composerItemIdForRelationship/);
+  assert.match(app, /updateOccurrence/);
+  assert.match(
+    app,
+    /composition:\s*occurrenceCompositionForRelationship\(relationship, selectedItemId\)/,
+  );
   assert.match(app, /relationship:[\s\S]*subjectId:[\s\S]*objectId:/);
   assert.match(app, /place:[\s\S]*id:[\s\S]*name:/);
   assert.match(

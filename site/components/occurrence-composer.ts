@@ -30,6 +30,7 @@ export interface OccurrenceComposerData {
 export interface OccurrenceComposerSelectionContext {
   readonly selectedEntityId?: string | null;
   readonly selectedOccurrenceId?: string | null;
+  readonly selectedItemId?: string | null;
   readonly composition?: string | null;
   readonly relationship?: {
     readonly subjectId: string;
@@ -44,6 +45,11 @@ export interface OccurrenceComposerSelectionContext {
 export interface OccurrenceCommitDetail {
   readonly text: string;
   readonly draft: OccurrenceSentenceDraft;
+  readonly editTarget: {
+    readonly relationshipId: string;
+    readonly itemId: string | null;
+    readonly initialText: string;
+  } | null;
   readonly defaults: {
     readonly timeMs: number | null;
     readonly timeValue: string | null;
@@ -263,6 +269,19 @@ export class LuumOccurrenceComposerElement extends LitElement {
       color: var(--ink, #191714);
     }
 
+    button.context-chip {
+      appearance: none;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    button.context-chip:hover,
+    button.context-chip:focus-visible {
+      border-color: var(--line-strong, #b8b1a5);
+      color: var(--ink, #191714);
+      outline: none;
+    }
+
     .context-chip strong {
       max-inline-size: 12rem;
       overflow: hidden;
@@ -400,6 +419,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
   private externalError = "";
   private explicitPlaceContext: ComposerWorldContext | null = null;
   private selectionContext: OccurrenceComposerSelectionContext | null = null;
+  private pendingSelectionContext: OccurrenceComposerSelectionContext | null = null;
+  private hasPendingSelectionContext = false;
   private selectionSeeded = false;
   private sessionKey = "";
 
@@ -429,14 +450,16 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.requestUpdate();
   }
 
-  setSelectionContext(context: OccurrenceComposerSelectionContext | null): void {
-    const previousKey = this.selectionIdentityKey(this.selectionContext);
-    this.selectionContext = context
+  private frozenSelectionContext(
+    context: OccurrenceComposerSelectionContext | null,
+  ): OccurrenceComposerSelectionContext | null {
+    return context
       ? Object.freeze({
           ...(context.selectedEntityId ? { selectedEntityId: context.selectedEntityId } : {}),
           ...(context.selectedOccurrenceId
             ? { selectedOccurrenceId: context.selectedOccurrenceId }
             : {}),
+          ...(context.selectedItemId ? { selectedItemId: context.selectedItemId } : {}),
           ...(context.composition ? { composition: context.composition } : {}),
           ...(context.relationship
             ? {
@@ -451,9 +474,33 @@ export class LuumOccurrenceComposerElement extends LitElement {
             : {}),
         })
       : null;
-    const nextKey = this.selectionIdentityKey(this.selectionContext);
+  }
+
+  setSelectionContext(context: OccurrenceComposerSelectionContext | null): void {
+    const nextContext = this.frozenSelectionContext(context);
+    const previousKey = this.selectionIdentityKey(this.selectionContext);
+    const nextKey = this.selectionIdentityKey(nextContext);
+    const dirtyDraft = Boolean(this.value.trim()) && !this.selectionSeeded;
+
+    if (previousKey !== nextKey && dirtyDraft) {
+      this.pendingSelectionContext = nextContext;
+      this.hasPendingSelectionContext = true;
+      this.requestUpdate();
+      return;
+    }
+    if (previousKey === nextKey && dirtyDraft) {
+      this.pendingSelectionContext = null;
+      this.hasPendingSelectionContext = false;
+      this.requestUpdate();
+      return;
+    }
+
+    this.pendingSelectionContext = null;
+    this.hasPendingSelectionContext = false;
+    this.selectionContext = nextContext;
     if (previousKey !== nextKey) {
       this.value = "";
+      this.cursorOffset = 0;
       this.selectionSeeded = false;
       this.externalError = "";
       this.activeSuggestion = 0;
@@ -462,13 +509,33 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.requestUpdate();
   }
 
-  private selectionIdentityKey(context: OccurrenceComposerSelectionContext | null): string {
+  private selectionIdentityKey(
+    context: OccurrenceComposerSelectionContext | null,
+  ): string {
     return JSON.stringify({
       occurrence: context?.selectedOccurrenceId ?? "",
+      item: context?.selectedItemId ?? "",
       entity: context?.selectedEntityId ?? "",
       subject: context?.relationship?.subjectId ?? "",
       object: context?.relationship?.objectId ?? "",
       place: context?.place?.id ?? "",
+    });
+  }
+
+  private acceptPendingSelectionContext(): void {
+    if (!this.hasPendingSelectionContext) return;
+    this.selectionContext = this.pendingSelectionContext;
+    this.pendingSelectionContext = null;
+    this.hasPendingSelectionContext = false;
+    this.resetDraft();
+    this.sessionKey = this.currentContextKey();
+    this.applySelectionSeed();
+    this.requestUpdate();
+    void this.updateComplete.then(() => {
+      const input = this.renderRoot.querySelector<HTMLInputElement>("input");
+      if (!input) return;
+      input.focus({ preventScroll: true });
+      input.setSelectionRange(this.cursorOffset, this.cursorOffset);
     });
   }
 
@@ -498,6 +565,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
   private currentContextKey(): string {
     return JSON.stringify({
       occurrence: this.selectionContext?.selectedOccurrenceId ?? "",
+      item: this.selectionContext?.selectedItemId ?? "",
       subject: this.selectedSubjectId() ?? "",
       object: this.selectionContext?.relationship?.objectId ?? "",
       place: this.selectionContext?.place?.id ?? "",
@@ -521,6 +589,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     if (composition) {
       if (!this.value.trim() || this.selectionSeeded) {
         this.value = composition;
+        this.cursorOffset = composition.length;
         this.selectionSeeded = true;
       }
       return;
@@ -564,6 +633,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
   }
 
   markCommitted(): void {
+    this.pendingSelectionContext = null;
+    this.hasPendingSelectionContext = false;
     this.resetDraft();
     this.sessionKey = this.currentContextKey();
     this.applySelectionSeed();
@@ -678,6 +749,14 @@ export class LuumOccurrenceComposerElement extends LitElement {
         detail: {
           text: this.value.trim(),
           draft,
+          editTarget:
+            this.selectionContext?.selectedOccurrenceId && this.selectionContext.composition
+              ? {
+                  relationshipId: this.selectionContext.selectedOccurrenceId,
+                  itemId: this.selectionContext.selectedItemId ?? null,
+                  initialText: this.selectionContext.composition.trim(),
+                }
+              : null,
           defaults: {
             timeMs: this.timelineContext?.centerMs ?? null,
             timeValue: this.timelineContext?.value ?? null,
@@ -838,6 +917,19 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
         <div class="completion-panel">
           <div class="context-row" aria-label="Occurrence context">
+            ${this.hasPendingSelectionContext
+              ? html`<button
+                  class="context-chip"
+                  type="button"
+                  data-context-kind="pending-selection"
+                  data-context-state="pending"
+                  title="Replace this draft with the newly selected graph context"
+                  @click=${() => this.acceptPendingSelectionContext()}
+                >
+                  <span>Selection changed</span><strong>${this.pendingSelectionContext ? "Use selected context" : "Use no selection"}</strong>
+                </button>`
+              : nothing
+            }
             ${
               subjectLabel
                 ? html`<span class="context-chip" data-context-kind="subject" data-context-state="pinned">
@@ -919,6 +1011,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
           Tab moves focus · Esc closes. Quote multi-word entity names.
           Defaults follow ${placeLabel} and ${timeLabel ?? "the timeline center"} until explicitly pinned.
           Move the timeline or World while this is open to change unpinned defaults.
+          A changed graph selection never replaces a modified draft until its context action is chosen.
         </p>
       </section>
     `;

@@ -1,4 +1,4 @@
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 import { WORLD_TOUCH_HOLD_MS } from "../../src/interaction/world-touch-hold.ts";
 import { touchscreen } from "../support/touch-gestures.ts";
 
@@ -105,6 +105,93 @@ async function discoverEmptyWorldPoint(page: Page): Promise<FractionPoint> {
     if ((await composer.getAttribute("active")) !== null) return candidate;
   }
   throw new Error("Could not find empty WorldSurface space through real context-menu input.");
+}
+
+interface RelationshipFocus {
+  readonly focusId: string;
+  readonly relationshipId: string;
+  readonly subjectId: string;
+  readonly objectId: string;
+  readonly predicate: string;
+}
+
+async function relationshipFocuses(page: Page): Promise<RelationshipFocus[]> {
+  await expect.poll(() => page.locator(".timeline-semantic-occurrence").count()).toBeGreaterThan(0);
+  return page.evaluate(() => {
+    const agentAPI = (
+      window as typeof window & {
+        TimelineAgentAPI?: {
+          getProject?: () => {
+            relationships?: Array<{
+              id?: unknown;
+              subjectId?: unknown;
+              objectId?: unknown;
+              predicate?: unknown;
+              itemIds?: unknown[];
+            }>;
+          };
+        };
+      }
+    ).TimelineAgentAPI;
+    const relationships = agentAPI?.getProject?.()?.relationships ?? [];
+    const focusIds = new Set(
+      [...document.querySelectorAll<HTMLElement>(".timeline-semantic-occurrence")]
+        .map((button) => button.dataset.id ?? "")
+        .filter(Boolean),
+    );
+
+    const itemOwnerCounts = new Map<string, number>();
+    for (const relationship of relationships) {
+      for (const itemId of relationship.itemIds ?? []) {
+        const id = String(itemId);
+        itemOwnerCounts.set(id, (itemOwnerCounts.get(id) ?? 0) + 1);
+      }
+    }
+
+    return relationships
+      .map((relationship) => {
+        const relationshipId = String(relationship.id ?? "");
+        const exactRelationshipFocus = focusIds.has(relationshipId) ? relationshipId : "";
+        const uniqueItemFocus =
+          (relationship.itemIds ?? [])
+            .map((itemId) => String(itemId))
+            .find((itemId) => focusIds.has(itemId) && itemOwnerCounts.get(itemId) === 1) ?? "";
+        const focusId = exactRelationshipFocus || uniqueItemFocus;
+        return {
+          focusId,
+          relationshipId,
+          subjectId: String(relationship.subjectId ?? ""),
+          objectId: String(relationship.objectId ?? ""),
+          predicate: String(relationship.predicate ?? ""),
+        };
+      })
+      .filter(
+        (relationship) =>
+          relationship.focusId &&
+          relationship.relationshipId &&
+          relationship.subjectId &&
+          relationship.objectId &&
+          relationship.predicate,
+      );
+  });
+}
+
+async function focusRelationship(page: Page, relationship: RelationshipFocus): Promise<void> {
+  const semantic = page.locator(
+    `.timeline-semantic-occurrence[data-id="${relationship.focusId}"]`,
+  );
+  await semantic.evaluate((button: HTMLButtonElement) => button.click());
+  await expect(semantic).toHaveAttribute("data-selected", "");
+}
+
+async function openPersistentComposer(page: Page): Promise<Locator> {
+  const composer = page.locator("#occurrence-composer");
+  if ((await composer.getAttribute("active")) === null) {
+    await composer.locator("button.compact").click();
+  }
+  await expect(composer).toHaveAttribute("active", "");
+  await expect(composer.locator("input")).toBeFocused();
+  return composer;
 }
 
 async function assertComposerInsideFooter(page: Page): Promise<void> {
@@ -224,6 +311,120 @@ test.describe("contextual world authoring certification", () => {
     expect(request?.source).toBe("keyboard");
     expect(Number.isFinite(request?.position?.longitude)).toBe(true);
     expect(Number.isFinite(request?.position?.latitude)).toBe(true);
+  });
+
+  test("selected occurrence composition edits the canonical relationship in place", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const [relationship] = await relationshipFocuses(page);
+    if (!relationship) test.skip(true, "Example project exposes no focusable relationship occurrence.");
+
+    await focusRelationship(page, relationship!);
+    const composer = await openPersistentComposer(page);
+    const input = composer.locator("input");
+    const initial = await input.inputValue();
+    expect(initial).toContain(`@${relationship!.subjectId} ${relationship!.predicate} @${relationship!.objectId}`);
+
+    const beforeCount = await page.evaluate(
+      () =>
+        (
+          window as typeof window & {
+            TimelineAgentAPI?: { getProject?: () => { relationships?: unknown[] } };
+          }
+        ).TimelineAgentAPI?.getProject?.()?.relationships?.length ?? 0,
+    );
+    const replacementPredicate = relationship!.predicate === "reframes" ? "recounts" : "reframes";
+    const edited = initial.replace(
+      `@${relationship!.subjectId} ${relationship!.predicate} @${relationship!.objectId}`,
+      `@${relationship!.subjectId} ${replacementPredicate} @${relationship!.objectId}`,
+    );
+    expect(edited).not.toBe(initial);
+    await input.fill(edited);
+    await input.press("Enter");
+
+    await expect
+      .poll(async () =>
+        page.evaluate((relationshipId) => {
+          const project = (
+            window as typeof window & {
+              TimelineAgentAPI?: {
+                getProject?: () => {
+                  relationships?: Array<{ id?: unknown; predicate?: unknown }>;
+                };
+              };
+            }
+          ).TimelineAgentAPI?.getProject?.();
+          const relationships = project?.relationships ?? [];
+          return {
+            count: relationships.length,
+            predicate: String(
+              relationships.find((candidate) => String(candidate.id) === relationshipId)
+                ?.predicate ?? "",
+            ),
+          };
+        }, relationship!.relationshipId),
+      )
+      .toEqual({
+        count: beforeCount,
+        predicate: replacementPredicate,
+      });
+
+    const persisted = await page.evaluate((relationshipId) => {
+      const relationships =
+        (
+          window as typeof window & {
+            TimelineAgentAPI?: {
+              getProject?: () => {
+                relationships?: Array<{ id?: unknown; predicate?: unknown }>;
+              };
+            };
+          }
+        ).TimelineAgentAPI?.getProject?.()?.relationships ?? [];
+      return relationships.filter((candidate) => String(candidate.id) === relationshipId);
+    }, relationship!.relationshipId);
+    expect(persisted).toHaveLength(1);
+    expect(String(persisted[0]?.predicate)).toBe(replacementPredicate);
+    expect(await input.inputValue()).toContain(
+      `@${relationship!.subjectId} ${replacementPredicate} @${relationship!.objectId}`,
+    );
+  });
+
+  test("dirty composer draft requires explicit adoption of a newly selected occurrence", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const relationships = await relationshipFocuses(page);
+    test.skip(relationships.length < 2, "Example project needs two focusable relationships.");
+    const first = relationships[0]!;
+    const second = relationships.find(
+      (relationship) => relationship.relationshipId !== first.relationshipId,
+    );
+    test.skip(!second, "Example project needs two distinct focusable relationships.");
+
+    await focusRelationship(page, first);
+    const composer = await openPersistentComposer(page);
+    const input = composer.locator("input");
+    const baseline = await input.inputValue();
+    const dirty = `${baseline} `;
+    await input.fill(dirty);
+    await input.press("Escape");
+    await expect(composer).not.toHaveAttribute("active", "");
+
+    await focusRelationship(page, second!);
+    await openPersistentComposer(page);
+
+    await expect(input).toHaveValue(dirty);
+    const pending = composer.locator('[data-context-kind="pending-selection"]');
+    await expect(pending).toBeVisible();
+    await expect(pending).toContainText("Use selected context");
+
+    await pending.click();
+    await expect(input).not.toHaveValue(dirty);
+    const adopted = await input.inputValue();
+    expect(adopted).toContain(
+      `@${second!.subjectId} ${second!.predicate} @${second!.objectId}`,
+    );
   });
 
   test("canonical World selection propagates to timeline and survives as the composer @id seed", async ({

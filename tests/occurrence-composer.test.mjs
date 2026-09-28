@@ -563,6 +563,10 @@ test("Lit composer is a touch-safe ARIA combobox with live-context guidance", as
   assert.match(source, /data-context-state=\$\{placePinned \? "pinned" : "live"\}/);
   assert.match(source, /data-context-state=\$\{timePinned \? "pinned" : "live"\}/);
   assert.match(source, /private sessionKey = ""/);
+  assert.match(source, /hasPendingSelectionContext/);
+  assert.match(source, /Use selected context/);
+  assert.match(source, /dirtyDraft/);
+  assert.match(source, /editTarget:/);
   assert.match(source, /beginSession\(\): void/);
   assert.match(source, /currentContextKey\(\)/);
   assert.match(source, /resetDraft\(\)/);
@@ -625,9 +629,15 @@ test("application keeps timeline and World live while composer uses their center
   );
   assert.match(
     source,
-    /import \{ authorOccurrence \} from ["']\.\.\/src\/application\/occurrence-authoring\.ts["']/,
+    /import \{[\s\S]*authorOccurrence,[\s\S]*updateOccurrence,[\s\S]*\} from ["']\.\.\/src\/application\/occurrence-authoring\.ts["']/,
   );
   assert.match(source, /authorOccurrence\(state,[\s\S]*activeStoryId:[\s\S]*ui\.activeStoryId/);
+  assert.match(
+    source,
+    /updateOccurrence\([\s\S]*relationshipId:\s*detail\.editTarget\.relationshipId/,
+  );
+  assert.match(source, /Occurrence unchanged\./);
+  assert.match(source, /composerItemIdForRelationship/);
   assert.doesNotMatch(source, /draft\.entities\.push\(entity\)/);
   assert.doesNotMatch(source, /draft\.places\.push\(place\)/);
   assert.doesNotMatch(source, /draft\.items\.push\(item\)/);

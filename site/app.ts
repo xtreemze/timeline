@@ -3,7 +3,11 @@
  * Main entry point coordinating all modules, UI state, and persistence
  */
 
-import { authorOccurrence } from "../src/application/occurrence-authoring.ts";
+import {
+  authorOccurrence,
+  updateOccurrence,
+  type OccurrenceAuthoringDependencies,
+} from "../src/application/occurrence-authoring.ts";
 import {
   type StagedProjectImport,
   stageProjectImportReview,
@@ -27,7 +31,11 @@ import type {
   LuumOccurrenceComposerElement,
   OccurrenceCommitDetail,
 } from "./components/occurrence-composer.ts";
-import { formatOccurrenceComposition } from "./occurrence-composer-model.ts";
+import {
+  formatOccurrenceComposition,
+  parseOccurrenceSentence,
+  type ComposerTimeReference,
+} from "./occurrence-composer-model.ts";
 import { TimelineEvidence } from "./evidence-store.ts";
 import { TimelineGraphInference } from "./graph-inference.ts";
 import { TimelineInterchangeAdapter } from "./interchange-adapter.ts";
@@ -1811,12 +1819,28 @@ function syncTimelineContextControls() {
   }
 }
 
-function occurrenceCompositionForRelationship(relationship: RelationshipRecord): string {
-  const linkedItemId = (relationship.itemIds ?? []).find((itemId) =>
-    state.items.some((item) => String(item.id) === String(itemId)),
-  );
-  const linkedItem = linkedItemId
-    ? (state.items.find((item) => String(item.id) === String(linkedItemId)) ?? null)
+function composerItemIdForRelationship(
+  relationship: RelationshipRecord,
+  requestedItemId: string | null | undefined,
+): string | null {
+  const linkedItemIds = [
+    ...new Set(
+      (relationship.itemIds ?? [])
+        .map(String)
+        .filter((itemId) => state.items.some((item) => String(item.id) === itemId)),
+    ),
+  ];
+  const requested = requestedItemId ? String(requestedItemId) : "";
+  if (requested && linkedItemIds.includes(requested)) return requested;
+  return linkedItemIds.length === 1 ? linkedItemIds[0]! : null;
+}
+
+function occurrenceCompositionForRelationship(
+  relationship: RelationshipRecord,
+  itemId: string | null,
+): string {
+  const linkedItem = itemId
+    ? state.items.find((item) => String(item.id) === itemId) ?? null
     : null;
   const category = linkedItem
     ? state.categories.find((candidate) => String(candidate.id) === String(linkedItem.categoryId))
@@ -1873,9 +1897,11 @@ function syncOccurrenceComposerSelection(selection = applicationSelection.curren
   const relationshipPlace = relationship.placeId
     ? state.places.find((candidate) => String(candidate.id) === String(relationship.placeId))
     : null;
+  const selectedItemId = composerItemIdForRelationship(relationship, selection.itemId);
   els.occurrenceComposer.setSelectionContext({
     selectedOccurrenceId: String(relationship.id),
-    composition: occurrenceCompositionForRelationship(relationship),
+    ...(selectedItemId ? { selectedItemId } : {}),
+    composition: occurrenceCompositionForRelationship(relationship, selectedItemId),
     relationship: {
       subjectId: String(relationship.subjectId),
       objectId: String(relationship.objectId),
@@ -2037,8 +2063,102 @@ function composerTime(detail: OccurrenceCommitDetail): {
   });
 }
 
+function occurrenceAuthoringDependencies(): OccurrenceAuthoringDependencies<
+  TemporalExtent,
+  TimelineState
+> {
+  return {
+    cloneState: (current) => clone(current) as TimelineState,
+    newId,
+    validatePredicate: (predicate) => graph.validateActionPredicate(predicate),
+    validateEntity: (entity) => graph.validateEntityNode(entity),
+    createPointPlace: ({ id, name, longitude, latitude, accuracyMeters }) =>
+      spatial.placeFromForm({
+        id,
+        name,
+        latitude,
+        longitude,
+        radiusMeters: accuracyMeters ?? undefined,
+        icon: suggestSemanticIconForPlace({ name })?.icon ?? "place",
+        markerShape: "pin",
+      }),
+    placeIdentity: (place) => spatial.placeIdentity(place as PlaceRecord),
+    findDuplicateRelationship: (relationship, relationships, relationshipId) =>
+      graph.findDuplicateRelationship(relationship, relationships, relationshipId),
+    findMirroredRelationship: (relationship, relationships, relationshipId) =>
+      graph.findMirroredRelationship(relationship, relationships, relationshipId),
+    normalizeState: (draft) =>
+      normalizeTimeline(draft as TimelineState, { strictGraph: true }) as TimelineState,
+  };
+}
+
+function composerTimeIdentity(time: ComposerTimeReference | null): string {
+  return time ? JSON.stringify([time.kind, time.start, time.end ?? null]) : "";
+}
+
+function composerTagsIdentity(tags: readonly string[]): string {
+  return JSON.stringify(tags.map((tag) => tag.trim()).filter(Boolean));
+}
+
 function commitOccurrenceComposer(detail: OccurrenceCommitDetail): void {
   try {
+    if (detail.editTarget) {
+      if (detail.text.trim() === detail.editTarget.initialText.trim()) {
+        els.occurrenceComposer.markCommitted();
+        showStatus("Occurrence unchanged.");
+        return;
+      }
+
+      const initialDraft = parseOccurrenceSentence(detail.editTarget.initialText);
+      const initialPlace = initialDraft.place?.name ?? null;
+      const nextPlace = detail.draft.place?.name ?? null;
+      const placeName = initialPlace === nextPlace ? undefined : nextPlace;
+      const initialTime = composerTimeIdentity(initialDraft.time);
+      const nextTime = composerTimeIdentity(detail.draft.time);
+      const time =
+        initialTime === nextTime
+          ? undefined
+          : detail.draft.time
+            ? composerTime(detail)
+            : null;
+      const initialCategory = initialDraft.options.category ?? null;
+      const nextCategory = detail.draft.options.category ?? null;
+      const categoryName = initialCategory === nextCategory ? undefined : nextCategory;
+      const tags =
+        composerTagsIdentity(initialDraft.options.tags) ===
+        composerTagsIdentity(detail.draft.options.tags)
+          ? undefined
+          : detail.draft.options.tags;
+
+      const result = updateOccurrence(
+        state,
+        {
+          relationshipId: detail.editTarget.relationshipId,
+          itemId: detail.editTarget.itemId,
+          subject: detail.draft.subject,
+          object: detail.draft.object,
+          predicate: detail.draft.predicate,
+          placeName,
+          longitude: detail.defaults.longitude,
+          latitude: detail.defaults.latitude,
+          accuracyMeters: detail.defaults.accuracyMeters,
+          time,
+          categoryName,
+          tags,
+        },
+        occurrenceAuthoringDependencies(),
+      );
+
+      state = result.state;
+      persist();
+      // Reset the dirty draft before renderAll refreshes the selected occurrence
+      // so the composer accepts and reseeds from the newly committed baseline.
+      els.occurrenceComposer.markCommitted();
+      renderAll();
+      showStatus("Occurrence updated.");
+      return;
+    }
+
     const result = authorOccurrence(
       state,
       {
@@ -2054,29 +2174,7 @@ function commitOccurrenceComposer(detail: OccurrenceCommitDetail): void {
         tags: detail.draft.options.tags,
         activeStoryId: ui.activeStoryId,
       },
-      {
-        cloneState: (current) => clone(current) as TimelineState,
-        newId,
-        validatePredicate: (predicate) => graph.validateActionPredicate(predicate),
-        validateEntity: (entity) => graph.validateEntityNode(entity),
-        createPointPlace: ({ id, name, longitude, latitude, accuracyMeters }) =>
-          spatial.placeFromForm({
-            id,
-            name,
-            latitude,
-            longitude,
-            radiusMeters: accuracyMeters ?? undefined,
-            icon: suggestSemanticIconForPlace({ name })?.icon ?? "place",
-            markerShape: "pin",
-          }),
-        placeIdentity: (place) => spatial.placeIdentity(place as PlaceRecord),
-        findDuplicateRelationship: (relationship, relationships, relationshipId) =>
-          graph.findDuplicateRelationship(relationship, relationships, relationshipId),
-        findMirroredRelationship: (relationship, relationships, relationshipId) =>
-          graph.findMirroredRelationship(relationship, relationships, relationshipId),
-        normalizeState: (draft) =>
-          normalizeTimeline(draft as TimelineState, { strictGraph: true }) as TimelineState,
-      },
+      occurrenceAuthoringDependencies(),
     );
 
     state = result.state;

@@ -19,6 +19,31 @@ test("canonical application selection suppresses feedback duplicates", () => {
   assert.equal(changes[0]?.source, "world");
 });
 
+test("relationship selection treats exact chronology item context as part of identity", () => {
+  const selection = createApplicationSelectionController();
+  const changes = [];
+  selection.subscribe((change) => changes.push(change));
+
+  assert.equal(
+    selection.select({ kind: "relationship", id: "r1", itemId: "item-a" }, "timeline"),
+    true,
+  );
+  assert.equal(
+    selection.select({ kind: "relationship", id: "r1", itemId: "item-a" }, "app"),
+    false,
+  );
+  assert.equal(
+    selection.select({ kind: "relationship", id: "r1", itemId: "item-b" }, "timeline"),
+    true,
+  );
+  assert.deepEqual(selection.current, {
+    kind: "relationship",
+    id: "r1",
+    itemId: "item-b",
+  });
+  assert.equal(changes.length, 2);
+});
+
 test("canonical selection clears only when its record disappears", () => {
   const selection = createApplicationSelectionController();
   selection.select({ kind: "place", id: "stockholm" }, "world");
@@ -56,6 +81,7 @@ test("timeline focus resolves only deterministic relationship ownership", () => 
   assert.deepEqual(selectionForTimelineFocus("item-a", relationships), {
     kind: "relationship",
     id: "r1",
+    itemId: "item-a",
   });
   assert.equal(selectionForTimelineFocus("item-c", relationships), null);
   assert.equal(selectionForTimelineFocus("missing", relationships), null);
