@@ -278,10 +278,10 @@ function assertEntityShape(value: unknown): CanonicalEntity {
         }
       : {}),
     ...(identifiers
-      ? { identifiers: identifiers as NonNullable<CanonicalEntity["identifiers"]> }
+      ? { identifiers: identifiers as unknown as NonNullable<CanonicalEntity["identifiers"]> }
       : {}),
     ...(appellations
-      ? { appellations: appellations as NonNullable<CanonicalEntity["appellations"]> }
+      ? { appellations: appellations as unknown as NonNullable<CanonicalEntity["appellations"]> }
       : {}),
     ...(semanticMappings
       ? {
@@ -453,7 +453,7 @@ function assertTrajectoryShape(
     bounds: value.bounds as TrajectoryBounds | null,
     channels: value.channels as readonly TrajectoryChannel[],
     levels: value.levels as readonly TrajectoryLevel[],
-    storage: value.storage as TrajectoryStorageReference,
+    storage: value.storage as unknown as TrajectoryStorageReference,
     ...(semanticMappings
       ? {
           externalMappings: semanticMappings as NonNullable<TrajectoryArtifact["externalMappings"]>,

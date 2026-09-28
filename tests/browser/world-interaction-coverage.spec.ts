@@ -123,14 +123,14 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
     await page.waitForTimeout(450);
 
     const result = await page.evaluate(
-      ({ point, before }) => {
+      ({ before }) => {
         const surface = window.__worldPerfHarness.surface;
         return {
           camera: surface.getCamera(),
           projectedAnchor: surface.project(before),
         };
       },
-      { point, before },
+      { before },
     );
     if (!result.projectedAnchor) {
       throw new Error("WorldSurface could not reproject the pointer anchor after zoom.");

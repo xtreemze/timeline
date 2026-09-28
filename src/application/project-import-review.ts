@@ -14,12 +14,10 @@ export interface ProjectImportReviewDependencies<TProject> {
   validate?(project: TProject): ProjectImportValidation;
 }
 
-export interface StagedProjectImport<TProject> {
+interface StagedProjectImportBase {
   readonly schemaVersion: typeof PROJECT_IMPORT_REVIEW_SCHEMA_VERSION;
   readonly sourceSchemaVersion: typeof STORY_PROPOSAL_SCHEMA_VERSION;
-  readonly status: "ready-for-user-verification" | "needs-repair";
   readonly verificationRequired: true;
-  readonly project: TProject;
   readonly fingerprint: string;
   readonly sources: readonly JsonRecord[];
   readonly unresolved: readonly string[];
@@ -37,6 +35,16 @@ export interface StagedProjectImport<TProject> {
     sources: number;
   }>;
 }
+
+export type StagedProjectImport<TProject> =
+  | (StagedProjectImportBase & {
+      readonly status: "ready-for-user-verification";
+      readonly project: TProject;
+    })
+  | (StagedProjectImportBase & {
+      readonly status: "needs-repair";
+      readonly project: unknown;
+    });
 
 interface StoryProposalEnvelope extends JsonRecord {
   readonly schemaVersion: typeof STORY_PROPOSAL_SCHEMA_VERSION;
@@ -142,20 +150,28 @@ export function stageProjectImportReview<TProject>(
   const errors = strings(preflight["errors"]);
   const warnings = strings(preflight["warnings"]);
   const rawProject = cloneValue(input.project);
-  let normalized = rawProject;
+  let normalized:
+    | { readonly ok: true; readonly project: TProject }
+    | { readonly ok: false; readonly project: JsonRecord } = {
+    ok: false,
+    project: rawProject,
+  };
   let validation: ProjectImportValidation = { valid: true, errors: [], warnings: [] };
 
   try {
-    normalized = dependencies.normalize(cloneValue(input.project));
+    normalized = {
+      ok: true,
+      project: dependencies.normalize(cloneValue(input.project)),
+    };
   } catch (error) {
     errors.push(
       error instanceof Error ? error.message : "The proposed project could not be normalized.",
     );
   }
 
-  if (errors.length === 0 && dependencies.validate) {
+  if (errors.length === 0 && dependencies.validate && normalized.ok) {
     try {
-      validation = dependencies.validate(cloneValue(normalized));
+      validation = dependencies.validate(cloneValue(normalized.project));
     } catch (error) {
       validation = {
         valid: false,
@@ -179,17 +195,12 @@ export function stageProjectImportReview<TProject>(
   const uniqueErrors = unique(errors);
   const uniqueWarnings = unique(warnings);
   const sources = records(input.sources);
-
-  return {
+  const normalizedProject = normalized.project;
+  const common = {
     schemaVersion: PROJECT_IMPORT_REVIEW_SCHEMA_VERSION,
     sourceSchemaVersion: STORY_PROPOSAL_SCHEMA_VERSION,
-    status:
-      uniqueErrors.length === 0 && validation.valid
-        ? "ready-for-user-verification"
-        : "needs-repair",
-    verificationRequired: true,
-    project: cloneValue(normalized),
-    fingerprint: fingerprint(normalized),
+    verificationRequired: true as const,
+    fingerprint: fingerprint(normalizedProject),
     sources: Object.freeze(sources),
     unresolved: Object.freeze(strings(input.unresolved)),
     generationNotes: typeof input.generationNotes === "string" ? input.generationNotes.trim() : "",
@@ -197,14 +208,28 @@ export function stageProjectImportReview<TProject>(
     errors: Object.freeze(uniqueErrors),
     warnings: Object.freeze(uniqueWarnings),
     summary: Object.freeze({
-      stories: collectionCount(normalized, "stories"),
-      items: collectionCount(normalized, "items"),
-      entities: collectionCount(normalized, "entities"),
-      relationships: collectionCount(normalized, "relationships"),
-      places: collectionCount(normalized, "places"),
-      evidence: collectionCount(normalized, "evidence"),
+      stories: collectionCount(normalizedProject, "stories"),
+      items: collectionCount(normalizedProject, "items"),
+      entities: collectionCount(normalizedProject, "entities"),
+      relationships: collectionCount(normalizedProject, "relationships"),
+      places: collectionCount(normalizedProject, "places"),
+      evidence: collectionCount(normalizedProject, "evidence"),
       sources: sources.length,
     }),
+  };
+
+  if (uniqueErrors.length === 0 && validation.valid && normalized.ok) {
+    return {
+      ...common,
+      status: "ready-for-user-verification",
+      project: cloneValue(normalized.project),
+    };
+  }
+
+  return {
+    ...common,
+    status: "needs-repair",
+    project: cloneValue(normalizedProject),
   };
 }
 

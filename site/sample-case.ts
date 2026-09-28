@@ -1,5 +1,4 @@
 import { extendSampleCase } from "./sample-case-additions.ts";
-import { applyStorybookEntityIcons } from "./storybook-entity-icons.ts";
 
 /**
  * Sample timeline case: Nine classic tales — distributed fictional casebook

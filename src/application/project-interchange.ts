@@ -474,7 +474,9 @@ const CANONICAL_KEY_ORDER = Object.freeze([
   "attributes",
 ] as const);
 
-const CANONICAL_KEY_RANK = new Map(CANONICAL_KEY_ORDER.map((key, index) => [key, index] as const));
+const CANONICAL_KEY_RANK = new Map<string, number>(
+  CANONICAL_KEY_ORDER.map((key, index): [string, number] => [key, index]),
+);
 
 function compareCanonicalKeys(left: string, right: string): number {
   const leftRank = CANONICAL_KEY_RANK.get(left);
