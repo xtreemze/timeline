@@ -1546,7 +1546,7 @@ function layoutPlace(
   const sizes = nodeSizeMap(nodeIds, options.nodeSizes);
   const placeSize = finitePositiveSize(options.placeSizes?.get(placeId));
   const edges = localAcyclicEdges(nodeIdSet, candidateEdges);
-  // Every entity sharing a geographic layout domain participates in Sugiyama
+  // Every entity sharing a geographic layout domain participates in D3 DAG
   // spacing. Semantic edges still determine hierarchy; isolated entities enter
   // as roots so they reserve real layout territory instead of becoming force-only
   // obstacles that can drift back through routed topology.
@@ -1768,11 +1768,18 @@ function layoutCrossPlaceTopology(
   options: WorldDagLayoutOptions,
   revision: number,
 ): CrossPlaceLayoutCache | null {
-  const orientation = options.orientation ?? "top-to-bottom";
-  const algorithm = options.algorithm ?? "sugiyama";
-  const strategy = options.strategy ?? "auto";
-  const coordinate = options.coordinate ?? "greedy";
-  const edgeStyle = options.edgeStyle ?? "routed";
+  const selectedOverride =
+    options.reorganizePlaceId === undefined
+      ? undefined
+      : options.placeOverrides?.get(options.reorganizePlaceId);
+  const orientation =
+    selectedOverride?.orientation ?? options.orientation ?? "top-to-bottom";
+  const algorithm = selectedOverride?.algorithm ?? options.algorithm ?? "sugiyama";
+  const strategy = selectedOverride?.strategy ?? options.strategy ?? "auto";
+  const coordinate = selectedOverride?.coordinate ?? options.coordinate ?? "greedy";
+  const edgeStyle = selectedOverride?.edgeStyle ?? options.edgeStyle ?? "routed";
+  const reorganize =
+    options.reorganize === true || options.reorganizePlaceId !== undefined;
   const connectedIds = layoutNeighborhoodNodeIds(index, options);
   if (connectedIds.size === 0) {
     crossPlaceCache = null;
@@ -1822,13 +1829,13 @@ function layoutCrossPlaceTopology(
     edgeStyle,
   );
 
-  if (!options.reorganize && crossPlaceCache?.topologyKey === key) {
+  if (!reorganize && crossPlaceCache?.topologyKey === key) {
     crossPlaceCache = { ...crossPlaceCache, lastSeenRevision: revision };
     return crossPlaceCache;
   }
 
   const previousTargets = new Map(
-    (options.reorganize ? [] : (crossPlaceCache?.targets ?? [])).map(
+    (reorganize ? [] : (crossPlaceCache?.targets ?? [])).map(
       (target) => [String(target.instanceId), target] as const,
     ),
   );
@@ -1842,7 +1849,7 @@ function layoutCrossPlaceTopology(
     strategy,
     coordinate,
     edgeStyle,
-    options.reorganize ? undefined : crossPlaceCache?.algorithm,
+    reorganize ? undefined : crossPlaceCache?.algorithm,
     placeObstacles,
   );
   if (candidate.targets.length === 0) {
