@@ -60,6 +60,11 @@ test("offset scale keeps the local graph at one stable screen-space radius while
 });
 
 test("entity altitude separation tapers continuously as detail zoom increases", () => {
+  assert.equal(
+    WORLD_ENTITY_FLOAT_DETAIL_ZOOM,
+    7,
+    "entity altitude taper owns its detail threshold independently of graph-radius zoom behavior",
+  );
   assert.equal(worldEntityFloatPx(WORLD_ENTITY_FLOAT_DETAIL_ZOOM - 1), WORLD_ENTITY_FLOAT_PX);
   assert.equal(worldEntityFloatPx(WORLD_ENTITY_FLOAT_DETAIL_ZOOM), WORLD_ENTITY_FLOAT_PX);
   assert.ok(
