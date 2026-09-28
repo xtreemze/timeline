@@ -1,3 +1,5 @@
+import type { ApplicationSelection } from "../../src/application/selection.ts";
+import { entityId, placeId, relationshipId } from "../../src/domain/ids.ts";
 import type { WorldDagLayoutOrientation } from "../../src/layout/world-dag-layout.ts";
 import { D3WorldForceSimulation } from "../../src/layout/d3-world-force-simulation.ts";
 import type { WorldForceLayoutSample } from "../../src/layout/world-force-layout.ts";
@@ -26,6 +28,7 @@ export interface WorldApplicationView {
   setWindow(viewport: WorldViewViewport | null): void;
   previewWindow(viewport: WorldViewViewport | null): void;
   setFocus(id: string | number | null): void;
+  setSelection(selection: ApplicationSelection | null): void;
   setPresentationMode(active: boolean): void;
   hasContext(): boolean;
   fitContext(): boolean;
@@ -186,6 +189,19 @@ class ScheduledWorldProjectionView implements WorldApplicationView {
   setFocus(id: string | number | null): void {
     this.#assertAlive();
     this.#view.setFocus(id);
+  }
+
+  setSelection(selection: ApplicationSelection | null): void {
+    this.#assertAlive();
+    this.#surface.setSelection(
+      selection === null
+        ? null
+        : selection.kind === "entity"
+          ? { kind: "entity", id: entityId(selection.id) }
+          : selection.kind === "relationship"
+            ? { kind: "relationship", id: relationshipId(selection.id) }
+            : { kind: "place", id: placeId(selection.id) },
+    );
   }
 
   setPresentationMode(active: boolean): void {
