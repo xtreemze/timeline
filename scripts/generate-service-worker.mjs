@@ -32,7 +32,16 @@ const sortedFiles = [...files].sort();
 await Promise.all(sortedFiles.map((file) => access(new URL(file, distUrl))));
 
 const precache = ["./", ...sortedFiles.map((file) => `./${file}`)];
-const revision = createHash("sha256").update(JSON.stringify(precache)).digest("hex").slice(0, 16);
+const contentRevisions = await Promise.all(
+  sortedFiles.map(async (file) => {
+    const bytes = await readFile(new URL(file, distUrl));
+    return [file, createHash("sha256").update(bytes).digest("hex")];
+  }),
+);
+const revision = createHash("sha256")
+  .update(JSON.stringify(contentRevisions))
+  .digest("hex")
+  .slice(0, 16);
 const cacheName = `lum-shell-${revision}`;
 
 const source = `const CACHE_NAME = ${JSON.stringify(cacheName)};
