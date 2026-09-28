@@ -978,11 +978,15 @@ test("composer exposes save, live-context chips, metadata, and keyboard parity a
   assert.match(source, /data-context-kind="time"[\s\S]*@click=\$\{\(\) => this\.activateLiveTimeContext\(\)\}/);
   assert.match(source, /onContextRowKeyDown/);
   assert.match(source, /"ArrowLeft", "ArrowRight", "Home", "End"/);
+  assert.match(source, /onMetadataKeyDown/);
+  assert.match(source, /useSelectionPlaceContext/);
+  assert.match(source, /aria-pressed=/);
   assert.match(source, /data-context-kind="metadata"/);
   assert.match(source, /id="occurrence-composer-metadata"/);
   assert.match(source, /Confidence · 0–1/);
   assert.match(source, /Evidence \/ provenance IDs/);
   assert.match(source, /metadataDirty/);
+  assert.match(source, /metadataIdentity\(this\.metadataSnapshot\(\)\)/);
 });
 
 test("application passes composer metadata through create and update occurrence transactions", async () => {
