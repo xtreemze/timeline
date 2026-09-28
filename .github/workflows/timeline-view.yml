@@ -90,6 +90,7 @@ on:
       - 'tests/browser/timeline-geometric-continuity.spec.ts'
       - 'tests/browser/world-interaction-coverage.spec.ts'
       - 'tests/browser/contextual-authoring.spec.ts'
+      - 'tests/browser/project-import-review.spec.ts'
       - 'tests/browser/world-app-visibility.spec.ts'
       - 'tests/browser/world-webgpu.spec.ts'
       - 'tests/browser/world-performance-certification.spec.ts'
@@ -203,6 +204,7 @@ on:
       - 'tests/browser/timeline-geometric-continuity.spec.ts'
       - 'tests/browser/world-interaction-coverage.spec.ts'
       - 'tests/browser/contextual-authoring.spec.ts'
+      - 'tests/browser/project-import-review.spec.ts'
       - 'tests/browser/world-app-visibility.spec.ts'
       - 'tests/browser/world-webgpu.spec.ts'
       - 'tests/browser/world-performance-certification.spec.ts'
@@ -460,6 +462,28 @@ jobs:
           grep -F '[Reduced Motion]' /tmp/contextual-authoring-list.txt
       - name: Certify contextual world authoring
         run: pnpm test:contextual-authoring-browser
+
+  project-import-review-browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Verify generated project review browser matrix
+        run: |
+          pnpm exec playwright test --config=playwright.config.ts tests/browser/project-import-review.spec.ts --list | tee /tmp/project-import-review-list.txt
+          grep -F 'project-import-review.spec.ts' /tmp/project-import-review-list.txt
+          grep -F '[Desktop Chrome]' /tmp/project-import-review-list.txt
+          grep -F '[Mobile Chrome]' /tmp/project-import-review-list.txt
+          grep -F '[Mobile Chrome Landscape]' /tmp/project-import-review-list.txt
+          grep -F '[Tablet Touch]' /tmp/project-import-review-list.txt
+          grep -F '[Reduced Motion]' /tmp/project-import-review-list.txt
+      - name: Certify generated project verification before import
+        run: pnpm test:project-import-review-browser
 
   retained-performance-browser:
     continue-on-error: true
