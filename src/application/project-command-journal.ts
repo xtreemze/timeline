@@ -161,5 +161,3 @@ export function createProjectCommandJournal<TProject>(
     reset,
   });
 }
-
-export type ProjectCommandJournal<TProject> = ReturnType<typeof createProjectCommandJournal<TProject>>;
