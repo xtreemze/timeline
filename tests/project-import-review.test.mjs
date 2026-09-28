@@ -173,3 +173,70 @@ test("application stages public story proposal envelopes without replacing canon
   assert.ok(applyIndex > stageIndex, "ordinary trusted import may apply only after staged-proposal detection");
   assert.doesNotMatch(importBody, /applyImportedTimeline\(\s*staged/);
 });
+
+test("staged import recomputes semantic icon provenance locally without applying inferred icons", () => {
+  const source = envelope({
+    project: {
+      title: "Generated icon review",
+      stories: [],
+      items: [],
+      entities: [
+        { id: "wolf", name: "The Wolf", type: "person", attributes: {} },
+        {
+          id: "queen",
+          name: "Queen",
+          type: "person",
+          attributes: { style: { icon: "crown" } },
+        },
+        { id: "vessel", name: "Unknown Vessel", type: "spaceship", attributes: {} },
+      ],
+      relationships: [],
+      places: [],
+      evidence: [],
+    },
+    semanticIcons: [
+      {
+        entityId: "wolf",
+        icon: "person",
+        origin: "explicit",
+        reason: "untrusted-envelope-metadata",
+      },
+    ],
+  });
+
+  const staged = stageProjectImportReview(source, dependencies);
+  assert.ok(staged);
+  assert.deepEqual(staged.semanticIcons, [
+    {
+      entityId: "wolf",
+      entityName: "The Wolf",
+      entityType: "person",
+      icon: "wolf",
+      origin: "inferred",
+      confidence: "high",
+      reason: "name:wolf",
+      authoredIcon: null,
+    },
+    {
+      entityId: "queen",
+      entityName: "Queen",
+      entityType: "person",
+      icon: "crown",
+      origin: "explicit",
+      confidence: null,
+      reason: "authored",
+      authoredIcon: "crown",
+    },
+    {
+      entityId: "vessel",
+      entityName: "Unknown Vessel",
+      entityType: "spaceship",
+      icon: null,
+      origin: "none",
+      confidence: null,
+      reason: "no-confident-semantic-icon",
+      authoredIcon: null,
+    },
+  ]);
+  assert.equal(staged.project.entities[0].attributes.style, undefined);
+});
