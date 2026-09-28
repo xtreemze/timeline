@@ -80,5 +80,10 @@ test("unresolved clue remains editable and cannot be approved as a fact", async 
     .locator('.interpretation-chip[aria-pressed="true"]')
     .textContent();
   expect(interpretationAfter).not.toBe(interpretationBefore);
-  await expect(input).toHaveValue("man? calls @alice");
+  await composer.locator(".candidate-select").first().click();
+  await expect(composer.locator('.candidate-row[data-active="true"]')).toContainText(
+    await composer.locator(".candidate-select").first().textContent(),
+  );
+  await input.press("Escape");
+  await expect(composer.locator(".compact")).toBeVisible();
 });

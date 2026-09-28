@@ -313,6 +313,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
     .candidate-assessment[data-assessment="consistent"] { color: var(--success, #18794e); }
     .candidate-assessment[data-assessment="contradicts"] { color: var(--danger, #b42318); }
     .candidate-reason { color: var(--muted, #615d56); line-height: 1.3; }
+    .candidate-select { appearance: none; inline-size: 100%; min-block-size: 44px; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; font-weight: 700; text-align: start; cursor: pointer; touch-action: manipulation; }
+    .candidate-select:focus-visible { outline: 2px solid var(--focus, #315fbd); outline-offset: 2px; }
     .candidate-sources { grid-column: 1 / -1; color: var(--muted, #615d56); font-size: 0.68rem; }
     .approval { min-inline-size: 44px; min-block-size: 44px; border: 1px solid var(--line, #d1ccc4); border-radius: 0.58rem; background: var(--paper, #fff); color: var(--ink, #191714); cursor: pointer; }
     .approval svg { inline-size: 20px; block-size: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
@@ -983,6 +985,11 @@ export class LuumOccurrenceComposerElement extends LitElement {
   }
 
   private onKeyDown(event: KeyboardEvent): void {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      this.requestClose();
+      return;
+    }
     const investigation = this.investigationProjection();
     if (investigation.qualifiers.length) {
       const interpretations = investigation.activeInterpretations;
@@ -1023,11 +1030,6 @@ export class LuumOccurrenceComposerElement extends LitElement {
       return;
     }
     const suggestions = this.suggestions().slice(0, 7);
-    if (event.key === "Escape") {
-      event.preventDefault();
-      this.requestClose();
-      return;
-    }
     if (event.key === "ArrowDown" && suggestions.length) {
       event.preventDefault();
       this.activeSuggestion = (this.activeSuggestion + 1) % suggestions.length;
@@ -1250,7 +1252,13 @@ export class LuumOccurrenceComposerElement extends LitElement {
                     const active = index === Math.min(this.activeCandidate, candidateMatrix.candidates.length - 1);
                     return html`<div class="candidate-row" role="row" data-scope=${candidate.candidateScope}
                       data-active=${String(active)} aria-current=${active ? "true" : nothing}>
-                      <strong role="cell">${candidate.label}</strong>
+                      <div role="cell"><button class="candidate-select" type="button"
+                        aria-pressed=${String(active)}
+                        @pointerdown=${(event: PointerEvent) => event.preventDefault()}
+                        @click=${() => {
+                          this.activeCandidate = index;
+                          this.requestUpdate();
+                        }}>${candidate.label}</button></div>
                       <span class="candidate-assessment" role="cell"
                         data-assessment=${cell?.assessment ?? "unknown"}>${cell?.assessment ?? "unknown"}</span>
                       <span class="candidate-reason" role="cell">${cell?.reason ?? "No comparison available."}</span>
