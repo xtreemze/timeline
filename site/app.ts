@@ -1956,11 +1956,16 @@ function syncOccurrenceComposerData(): void {
     places: state.places.map((place) => ({
       id: place.id,
       name: place.name,
+      icon:
+        normalizeSemanticIconName(place.icon) ??
+        suggestSemanticIconForPlace({ name: place.name })?.icon ??
+        "place",
     })),
     categories: state.categories.map((category) => ({
       id: category.id,
       name: category.name,
     })),
+    predicates: [...new Set(state.relationships.map((relationship) => relationship.predicate))],
   });
   syncOccurrenceComposerSelection(applicationSelection.current);
 }
@@ -2075,7 +2080,7 @@ function commitOccurrenceComposer(detail: OccurrenceCommitDetail): void {
             latitude,
             longitude,
             radiusMeters: accuracyMeters ?? undefined,
-            icon: "place",
+            icon: suggestSemanticIconForPlace({ name })?.icon ?? "place",
             markerShape: "pin",
           }),
         placeIdentity: (place) => spatial.placeIdentity(place as PlaceRecord),
