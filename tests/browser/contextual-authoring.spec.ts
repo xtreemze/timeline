@@ -140,14 +140,23 @@ async function relationshipFocuses(page: Page): Promise<RelationshipFocus[]> {
         .filter(Boolean),
     );
 
+    const itemOwnerCounts = new Map<string, number>();
+    for (const relationship of relationships) {
+      for (const itemId of relationship.itemIds ?? []) {
+        const id = String(itemId);
+        itemOwnerCounts.set(id, (itemOwnerCounts.get(id) ?? 0) + 1);
+      }
+    }
+
     return relationships
       .map((relationship) => {
         const relationshipId = String(relationship.id ?? "");
-        const candidates = [
-          relationshipId,
-          ...(relationship.itemIds ?? []).map((itemId) => String(itemId)),
-        ];
-        const focusId = candidates.find((candidate) => focusIds.has(candidate)) ?? "";
+        const exactRelationshipFocus = focusIds.has(relationshipId) ? relationshipId : "";
+        const uniqueItemFocus =
+          (relationship.itemIds ?? [])
+            .map((itemId) => String(itemId))
+            .find((itemId) => focusIds.has(itemId) && itemOwnerCounts.get(itemId) === 1) ?? "";
+        const focusId = exactRelationshipFocus || uniqueItemFocus;
         return {
           focusId,
           relationshipId,
