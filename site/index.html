@@ -823,7 +823,11 @@
             </label>
             <label class="field">
               <span>Semantic icon <small>optional</small></span>
-              <input id="graph-node-icon" type="text" maxlength="48" autocomplete="off" list="semantic-icon-suggestions" placeholder="Automatic from type">
+              <span class="semantic-icon-field-row">
+                <span id="graph-node-icon-preview" class="semantic-icon-preview" role="img" aria-label="No semantic icon"></span>
+                <input id="graph-node-icon" type="text" maxlength="48" autocomplete="off" list="semantic-icon-suggestions" aria-describedby="graph-node-icon-status" placeholder="Automatic from type">
+              </span>
+              <small id="graph-node-icon-status" class="semantic-icon-status">Automatic from entity type when available.</small>
             </label>
             <p class="field-hint field-wide">One node = one durable entity. A canonical node must participate in at least one meaningful action edge; stories, categories, navigation containers, roles, events, actions, time, and places stay outside graph topology. A node must not contain a verb, date/time, place/location, coordinates, radius, or geometry. Put the action in the edge predicate, time in edge.time, and spatial context in edge.placeId.</p>
             <details id="graph-node-identity-details" class="optional-editor field-wide">
