@@ -950,7 +950,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
           {
             id: activeQualifierId,
             section: activeQualifier.kind,
-            text: activeQualifier.text.replace(/\?$/, ""),
+            text: activeQualifier.normalizedText,
           },
           { entities: investigativeEntities },
         )
@@ -1246,7 +1246,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
             <strong>Unresolved · no fact will be created</strong>
             <div class="composer-qualifiers">${qualifiers.map(
               (qualifier) => html`<button
-              class="qualifier-chip" type="button" aria-label=${`Investigate ${qualifier.kind}: ${qualifier.text}`}
+              class="qualifier-chip" type="button" aria-label=${`Investigate ${qualifier.kind}: ${qualifier.normalizedText}${qualifier.scope === "ambiguous" ? " (ambiguous terminal question)" : ""}`}
               @pointerdown=${(event: PointerEvent) => event.preventDefault()}
               @click=${() => this.selectSection(qualifier.start, qualifier.end)}>${qualifier.text}</button>`,
             )}</div>
@@ -1343,7 +1343,12 @@ export class LuumOccurrenceComposerElement extends LitElement {
                             unknownEntityId,
                             candidates,
                             qualifier: activeQualifier
-                              ? { kind: activeQualifier.kind, text: activeQualifier.text }
+                              ? {
+                                  kind: activeQualifier.kind,
+                                  text: activeQualifier.text,
+                                  normalizedText: activeQualifier.normalizedText,
+                                  scope: activeQualifier.scope,
+                                }
                               : null,
                             provenance: {
                               sourceIds,

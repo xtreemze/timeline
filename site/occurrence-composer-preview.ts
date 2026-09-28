@@ -100,6 +100,7 @@ export interface InvestigativeQualifier {
   readonly start: number;
   readonly end: number;
   readonly text: string;
+  readonly normalizedText: string;
   readonly scope: "section" | "sentence" | "ambiguous";
   readonly interpretations: readonly string[];
 }
@@ -177,6 +178,7 @@ export function projectInvestigativeQualifiers(input: string): readonly Investig
         start: qualifier.start,
         end: qualifier.end,
         text: qualifier.rawText,
+        normalizedText: qualifier.normalizedText,
         scope: qualifier.scope,
         interpretations: Object.freeze(
           qualifier.section === "subject" || qualifier.section === "object"

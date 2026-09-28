@@ -888,8 +888,14 @@ function stripInvestigativeOperators(
   input: string,
   qualifiers: readonly OccurrenceInvestigativeQualifier[],
 ): string {
-  const operators = new Set(qualifiers.map((qualifier) => qualifier.operatorIndex));
-  return [...input].filter((_, index) => !operators.has(index)).join("");
+  const operators = [...new Set(qualifiers.map((qualifier) => qualifier.operatorIndex))].sort(
+    (left, right) => right - left,
+  );
+  let result = input;
+  for (const operatorIndex of operators) {
+    result = result.slice(0, operatorIndex) + result.slice(operatorIndex + 1);
+  }
+  return result;
 }
 
 function normalizedMatchText(value: string): string {
