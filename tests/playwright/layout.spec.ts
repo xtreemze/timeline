@@ -629,11 +629,15 @@ test.describe("Persistent footer and focus geometry", () => {
       );
       const beforeScroll = await footer.evaluate((element) => element.scrollLeft);
 
+      const card = terminal.locator("xpath=ancestor::luum-event-card[1]");
       await terminal.evaluate((button: HTMLButtonElement) => button.click());
-      await expect(page.locator("#app-shell")).toHaveClass(/is-event-focused/);
-      await expect(page.locator("#timeline-focus-view")).toBeVisible();
+      await terminal.evaluate((button: HTMLButtonElement) => button.click());
+      await expect(page.locator("#app-shell")).toHaveClass(/is-event-card-focused/);
+      await expect(page.locator("#timeline-focus-view")).toBeHidden();
 
-      const focusActions = page.locator("#timeline-focus-view .timeline-focus-context-actions");
+      const detail = card.locator(".timeline-event-detail");
+      await expect(detail).toBeVisible();
+      const focusActions = detail.locator(".timeline-focus-context-actions");
       await expect(focusActions).toBeVisible();
       await expect(focusActions.locator("#timeline-focus-prev")).toBeVisible();
       await expect(focusActions.locator("#timeline-focus-next")).toBeVisible();
