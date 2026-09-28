@@ -455,7 +455,7 @@ test("focused popover chrome derives from the focused timeline event color", asy
   );
   assert.match(
     css,
-    /\.timeline-focus-close\.button\.primary[\s\S]*background:\s*var\(--focus-chrome-color\)/,
+    /\.timeline-focus-icon-action:is\(:hover, :focus-visible\)::before[\s\S]*border-color:[\s\S]*var\(--event-color, var\(--accent\)\)/,
   );
   assert.match(
     css,
@@ -490,7 +490,7 @@ test("coarse-pointer phone controls preserve a 44 CSS px interaction target", as
   assert.doesNotMatch(timelineCss, /timeline-project-menu-toggle/);
   assert.match(
     timelineCss,
-    /@media \(pointer: coarse\)[\s\S]*\.timeline-focus-tab,[\s\S]*\.timeline-focus-close[\s\S]*min-height:\s*44px/,
+    /@media \(pointer: coarse\)[\s\S]*\.timeline-focus-tab,[\s\S]*\.timeline-focus-icon-action[\s\S]*min-height:\s*44px/,
   );
   assert.match(
     timelineCss,
