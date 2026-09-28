@@ -146,7 +146,10 @@ function advancedButton(
   });
 
   options.panel.addEventListener("toggle", () => {
-    const open = options.panel.matches(":popover-open") || !options.panel.hidden;
+    const nativePopover =
+      typeof (options.panel as HTMLElement & { showPopover?: () => void }).showPopover ===
+      "function";
+    const open = nativePopover ? options.panel.matches(":popover-open") : !options.panel.hidden;
     element.setAttribute("aria-expanded", String(open));
   });
 
@@ -160,6 +163,9 @@ function panelShell(doc: Document, id: string, title: string): HTMLElement {
   panel.setAttribute("popover", "auto");
   panel.setAttribute("role", "dialog");
   panel.setAttribute("aria-label", title);
+  if (!(("showPopover" in panel) && typeof panel.showPopover === "function")) {
+    panel.hidden = true;
+  }
 
   const heading = doc.createElement("h3");
   heading.className = "world-layout-inspector-title";
