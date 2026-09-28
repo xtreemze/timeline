@@ -1,5 +1,8 @@
 import { expect, test } from "@playwright/test";
-import { WORLD_CAMERA_MAX_ZOOM } from "../../src/layout/world-spatial-mode.ts";
+import {
+  DEFAULT_WORLD_SPATIAL_MODE_POLICY,
+  WORLD_CAMERA_MAX_ZOOM,
+} from "../../src/layout/world-spatial-mode.ts";
 import { doubleTap, pinch, swipe, touchscreen } from "../support/touch-gestures.ts";
 
 /**
@@ -81,6 +84,58 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
       before.zoom,
       5,
     );
+  });
+
+  test("wheel zoom crosses the globe/local handoff and continues without slider or button input", async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, "Mobile projects certify two-finger pinch separately.");
+    test.skip(!(await gotoHarness(page)), "WebGL2 unavailable in this environment.");
+
+    const viewport = page.viewportSize();
+    if (!viewport) throw new Error("WorldSurface wheel handoff certification requires a viewport.");
+
+    await page.evaluate(async ({ enterLocalAtZoom }) => {
+      const surface = window.__worldPerfHarness.surface;
+      surface.setCamera({
+        longitude: 18.0686,
+        latitude: 59.3293,
+        zoom: enterLocalAtZoom - 0.25,
+        bearing: 0,
+        pitch: 0,
+      });
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      );
+    }, { enterLocalAtZoom: DEFAULT_WORLD_SPATIAL_MODE_POLICY.enterLocalAtZoom });
+
+    const point = {
+      x: Math.round(viewport.width * 0.62),
+      y: Math.round(viewport.height * 0.46),
+    };
+    await page.mouse.move(point.x, point.y);
+
+    // First wheel gesture crosses the semantic/detail threshold. Let the
+    // controlled globe gesture settle so the deferred MapView/controller
+    // handoff can complete, then continue with wheel input only.
+    await page.mouse.wheel(0, -600);
+    await page.waitForTimeout(450);
+    const afterCrossing = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera().zoom);
+    expect(afterCrossing).toBeGreaterThanOrEqual(
+      DEFAULT_WORLD_SPATIAL_MODE_POLICY.enterLocalAtZoom,
+    );
+
+    await page.mouse.wheel(0, -600);
+    await page.waitForTimeout(450);
+    const afterContinuation = await page.evaluate(
+      () => window.__worldPerfHarness.surface.getCamera().zoom,
+    );
+    expect(
+      afterContinuation,
+      "wheel zoom must continue after the globe/local handoff without requiring toolbar controls",
+    ).toBeGreaterThan(afterCrossing + 0.1);
+    expect(afterContinuation).toBeGreaterThan(12);
   });
 
   test("local precision wheel zoom passes the legacy ceiling and preserves its pointer anchor", async ({
@@ -228,7 +283,7 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
       harness.surface.setCamera({
         longitude: 12,
         latitude: 30,
-        zoom: 12.6,
+        zoom: DEFAULT_WORLD_SPATIAL_MODE_POLICY.enterLocalAtZoom - 0.25,
         bearing: 0,
         pitch: 0,
       });
@@ -243,7 +298,7 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
       .poll(() => page.evaluate(() => window.__worldPerfHarness.surface.getCamera().zoom), {
         message: "pinch should cross into local precision zoom",
       })
-      .toBeGreaterThan(12);
+      .toBeGreaterThan(DEFAULT_WORLD_SPATIAL_MODE_POLICY.enterLocalAtZoom);
 
     const afterPinch = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera());
     await swipe(
