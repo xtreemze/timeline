@@ -502,7 +502,9 @@ export class TimelineViewController {
   focusView: HTMLElement;
   readout: HTMLElement;
   orientationToggle: HTMLButtonElement | null;
+  zoomOutButton: HTMLButtonElement | null;
   zoomSlider: HTMLInputElement | null;
+  zoomInButton: HTMLButtonElement | null;
   stage: HTMLDivElement;
   axis: HTMLDivElement;
   semanticList: HTMLOListElement;
@@ -602,9 +604,15 @@ export class TimelineViewController {
     this.orientationToggle =
       root.querySelector("#timeline-orientation-toggle") ||
       controlsRoot.querySelector("#timeline-orientation-toggle");
+    this.zoomOutButton =
+      root.querySelector("#timeline-zoom-out") ||
+      controlsRoot.querySelector("#timeline-zoom-out");
     this.zoomSlider =
       root.querySelector("#timeline-zoom-level") ||
       controlsRoot.querySelector("#timeline-zoom-level");
+    this.zoomInButton =
+      root.querySelector("#timeline-zoom-in") ||
+      controlsRoot.querySelector("#timeline-zoom-in");
 
     this.stage = document.createElement("div");
     this.stage.className = "timeline-stage timeline-retained-scene";
@@ -629,6 +637,8 @@ export class TimelineViewController {
     this.orientationToggle?.addEventListener("click", () => {
       this.setOrientation(this.orientation === "horizontal" ? "vertical" : "horizontal");
     });
+    this.zoomOutButton?.addEventListener("click", () => this.nudgeSemanticZoom(-10));
+    this.zoomInButton?.addEventListener("click", () => this.nudgeSemanticZoom(10));
     this.zoomSlider?.addEventListener("input", () => {
       this.markInputForNextRender();
       this.setSemanticZoom(Number(this.zoomSlider?.value || 0), false);
@@ -1428,6 +1438,18 @@ export class TimelineViewController {
       : `Focus to isolate, ${Math.round(normalized)} percent`;
   }
 
+  nudgeSemanticZoom(delta: number): void {
+    if (!this.zoomSlider || this.zoomSlider.disabled) return;
+    const current = Number(this.zoomSlider.value || 0);
+    const next = clamp(
+      current + delta,
+      Number(this.zoomSlider.min || 0),
+      Number(this.zoomSlider.max || 100),
+    );
+    this.markInputForNextRender();
+    this.setSemanticZoom(next, true);
+  }
+
   setSemanticZoom(value: number, commit: boolean): void {
     if (!this.items.length) return;
     const targets = this.semanticZoomTargets();
@@ -1486,6 +1508,12 @@ export class TimelineViewController {
 
     const disabled = !this.items.length;
     if (this.zoomSlider.disabled !== disabled) this.zoomSlider.disabled = disabled;
+    if (this.zoomOutButton && this.zoomOutButton.disabled !== disabled) {
+      this.zoomOutButton.disabled = disabled;
+    }
+    if (this.zoomInButton && this.zoomInButton.disabled !== disabled) {
+      this.zoomInButton.disabled = disabled;
+    }
 
     // View controls live in the persistent horizontal footer. The slider's
     // own physical orientation no longer follows the timeline axis.
@@ -3465,7 +3493,8 @@ export class TimelineViewController {
     this.surface.classList.toggle("is-portrait", portrait);
     this.surface.classList.toggle("is-landscape", !portrait);
     if (this.zoomSlider) {
-      this.zoomSlider.setAttribute("aria-orientation", portrait ? "vertical" : "horizontal");
+      // The persistent footer is always horizontal even when the timeline itself is portrait.
+      this.zoomSlider.setAttribute("aria-orientation", "horizontal");
     }
     if (this.orientationToggle) {
       const label = portrait ? "Switch to landscape timeline" : "Switch to portrait timeline";

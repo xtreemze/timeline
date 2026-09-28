@@ -116,6 +116,19 @@ test("opening the composer reapplies the retained canonical selection context", 
     app,
     /setOccurrenceComposerOpen\(open: boolean\)[\s\S]*syncOccurrenceComposerSelection\(applicationSelection\.current\)[\s\S]*occurrenceComposer\.show\(\)/,
   );
+  const composerOpen =
+    app.match(/function setOccurrenceComposerOpen\(open: boolean\)[\s\S]*?\n\}/)?.[0] ?? "";
+  assert.match(composerOpen, /ui\.mode = "view"/);
+  assert.doesNotMatch(composerOpen, /closeFocusedEventForUtility\(\)/);
+  assert.doesNotMatch(composerOpen, /ui\.mode = "edit"/);
+});
+
+test("selection does not change the persistent Edit control presentation", async () => {
+  const app = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
+  const sync =
+    app.match(/function syncTimelineContextControls\(\)[\s\S]*?\n\}/)?.[0] ?? "";
+  assert.match(sync, /ui\.editorOpen \? "Done editing" : "Edit timeline"/);
+  assert.doesNotMatch(sync, /Edit focused event|composerActive \? "Open editor"/);
 });
 
 test("composer owns Home/End suggestion navigation while active", async () => {

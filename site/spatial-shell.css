@@ -439,7 +439,7 @@
   overflow: visible;
 }
 
-.app-footer-view .world-zoom-control {
+.app-footer-view .toolbar-zoom-control {
   display: grid;
   grid-template-columns:
     var(--toolbar-control-size) minmax(72px, 96px)
@@ -450,21 +450,21 @@
   overflow: hidden;
 }
 
-.app-footer-view .world-zoom-control .world-zoom-endpoint-button {
+.app-footer-view .toolbar-zoom-control .toolbar-zoom-endpoint-button {
   border: 0;
   border-radius: 0;
   background: transparent;
 }
 
-.app-footer-view .world-zoom-control .world-zoom-endpoint-button:first-child {
+.app-footer-view .toolbar-zoom-control .toolbar-zoom-endpoint-button:first-child {
   border-inline-end: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
 }
 
-.app-footer-view .world-zoom-control .world-zoom-endpoint-button:last-child {
+.app-footer-view .toolbar-zoom-control .toolbar-zoom-endpoint-button:last-child {
   border-inline-start: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
 }
 
-.app-footer-view .world-zoom-slider {
+.app-footer-view .toolbar-zoom-slider {
   inline-size: 100%;
   min-inline-size: 0;
   block-size: var(--toolbar-control-size);
@@ -478,12 +478,12 @@
   touch-action: pan-y;
 }
 
-.app-footer-view .world-zoom-slider:focus-visible {
+.app-footer-view .toolbar-zoom-slider:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: -3px;
 }
 
-.app-footer-view .world-zoom-slider:disabled {
+.app-footer-view .toolbar-zoom-slider:disabled {
   opacity: 0.42;
   cursor: not-allowed;
 }
@@ -569,19 +569,6 @@
 }
 
 /* Compound controls keep the canonical surface; only their required width differs. */
-.app-footer-bar .toolbar-control-wide {
-  display: grid;
-  grid-template-columns: 16px minmax(64px, 1fr) 16px;
-  place-items: center;
-  gap: 0.22rem;
-  flex-basis: 104px;
-  inline-size: 104px;
-  min-inline-size: 104px;
-  max-inline-size: 104px;
-  padding-inline: 0.34rem;
-  cursor: default;
-}
-
 .app-footer-bar .toolbar-control-value {
   display: flex;
   align-items: center;
@@ -593,33 +580,6 @@
   padding-inline: 0.24rem;
   font-size: 0.62rem;
   cursor: default;
-}
-
-.app-footer-bar .timeline-zoom-endpoint {
-  display: grid;
-  place-items: center;
-  inline-size: 16px;
-  block-size: 16px;
-  color: var(--muted);
-}
-
-.app-footer-bar .timeline-zoom-endpoint .semantic-icon {
-  inline-size: 16px;
-  block-size: 16px;
-  stroke-width: 1.8;
-}
-
-.app-footer-bar .toolbar-range-control input[type="range"] {
-  inline-size: 100%;
-  min-inline-size: 0;
-  block-size: var(--toolbar-control-size);
-  margin: 0;
-  padding: 0;
-  border: 0;
-  outline: 0;
-  accent-color: var(--ink);
-  cursor: ew-resize;
-  touch-action: pan-y;
 }
 
 .app-footer-bar .toolbar-number-control input {
@@ -654,12 +614,6 @@
     padding-inline: 0.35rem;
   }
 
-  .app-footer-bar .toolbar-control-wide {
-    flex-basis: clamp(104px, 12vw, 148px);
-    inline-size: clamp(104px, 12vw, 148px);
-    min-inline-size: 104px;
-    max-inline-size: 148px;
-  }
 
   .app-footer-bar .toolbar-control-value {
     min-inline-size: 58px;
@@ -732,7 +686,7 @@
   }
 
   #app-shell .app-footer-bar .toolbar-control,
-  #app-shell .app-footer-bar .toolbar-control-wide,
+  #app-shell .app-footer-bar .toolbar-zoom-control,
   #app-shell .app-footer-bar .toolbar-control-value {
     scroll-snap-align: nearest;
   }

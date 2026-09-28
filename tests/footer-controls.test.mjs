@@ -54,13 +54,27 @@ test("footer exposes view controls directly and keeps one primary Edit entry", a
   assert.match(world, /createIcon\(icon, \{ size: 20 \}\)/);
   assert.match(world, /button\("Show whole world", "world"/);
   assert.doesNotMatch(world, /button\("Show whole world", "home"/);
-  assert.match(world, /className = "toolbar-compound-control world-zoom-control"/);
-  assert.match(world, /className = "world-zoom-slider"/);
+  assert.match(world, /className = "toolbar-compound-control toolbar-zoom-control world-zoom-control"/);
+  assert.match(world, /className = "toolbar-zoom-slider world-zoom-slider"/);
+  assert.match(world, /classList\.add\("toolbar-zoom-endpoint-button", "world-zoom-endpoint-button"\)/);
   assert.match(world, /slider\.min = String\(WORLD_CAMERA_MIN_ZOOM\)/);
   assert.match(world, /slider\.max = String\(WORLD_CAMERA_MAX_ZOOM\)/);
   assert.match(world, /slider\.step = "0\.1"/);
   assert.match(world, /button\("Zoom out", "zoom-out"/);
   assert.match(world, /button\("Zoom in", "zoom-in"/);
+  assert.match(
+    index,
+    /id="timeline-zoom-out"[^>]*class="toolbar-control toolbar-zoom-endpoint-button timeline-zoom-endpoint-button"[^>]*data-semantic-icon="zoom-out"[^>]*aria-label="Zoom timeline out"[^>]*title="Zoom timeline out"/,
+  );
+  assert.match(
+    index,
+    /id="timeline-zoom-level"[^>]*class="toolbar-zoom-slider timeline-zoom-slider"[^>]*aria-label="Timeline zoom level"/,
+  );
+  assert.match(
+    index,
+    /id="timeline-zoom-in"[^>]*class="toolbar-control toolbar-zoom-endpoint-button timeline-zoom-endpoint-button"[^>]*data-semantic-icon="zoom-in"[^>]*aria-label="Zoom timeline in"[^>]*title="Zoom timeline in"/,
+  );
+  assert.doesNotMatch(index, /<span class="timeline-zoom-endpoint"/);
   assert.match(world, /#syncZoomControls\(\)/);
   assert.match(world, /#publishCameraContext\(\)[\s\S]*#syncZoomControls\(\)/);
   assert.match(factory, /element\.className = "toolbar-control world-layout-control"/);
@@ -73,7 +87,6 @@ test("footer exposes view controls directly and keeps one primary Edit entry", a
 
 test("all footer buttons and controls share the canonical toolbar surface", async () => {
   const [index, css] = await Promise.all([readFile(indexUrl, "utf8"), readFile(shellUrl, "utf8")]);
-
   assert.match(css, /--toolbar-control-size:\s*44px/);
   assert.match(
     css,
@@ -95,14 +108,16 @@ test("all footer buttons and controls share the canonical toolbar surface", asyn
   );
   assert.match(activeControlRule, /var\(--ink\)/);
   assert.match(css, /\.app-footer-bar \.toolbar-control:disabled[\s\S]*opacity:\s*0\.42/);
-  assert.match(css, /\.app-footer-bar \.toolbar-control-wide/);
+  assert.doesNotMatch(css, /\.app-footer-bar \.toolbar-control-wide/);
+  assert.doesNotMatch(css, /\.app-footer-bar \.toolbar-range-control/);
   assert.match(css, /\.app-footer-bar \.toolbar-control-value/);
   assert.match(index, /id="project-menu-toggle"[^>]*data-semantic-icon="folder"/);
   assert.doesNotMatch(index, /id="project-menu-toggle"[\s\S]{0,420}<img\s+src="\.\/icon\.svg"/);
   assert.match(
     index,
-    /class="toolbar-compound-control toolbar-control-wide toolbar-range-control"/,
+    /class="toolbar-compound-control toolbar-zoom-control timeline-zoom-control"/,
   );
+  assert.doesNotMatch(index, /toolbar-control-wide|toolbar-range-control/);
   assert.match(
     index,
     /class="toolbar-compound-control toolbar-control-value toolbar-number-control"/,
@@ -137,12 +152,13 @@ test("narrow toolbar scrolls horizontally instead of hiding direct controls", as
   assert.match(css, /\.app-footer-view \.world-camera-controls[\s\S]*flex-wrap:\s*nowrap/);
   assert.match(
     css,
-    /\.app-footer-view \.world-zoom-control[\s\S]*grid-template-columns:[\s\S]*var\(--toolbar-control-size\)[\s\S]*var\(--toolbar-control-size\)/,
+    /\.app-footer-view \.toolbar-zoom-control[\s\S]*grid-template-columns:[\s\S]*var\(--toolbar-control-size\)[\s\S]*var\(--toolbar-control-size\)/,
   );
   assert.match(
     css,
-    /\.app-footer-view \.world-zoom-slider[\s\S]*block-size:\s*var\(--toolbar-control-size\)/,
+    /\.app-footer-view \.toolbar-zoom-slider[\s\S]*block-size:\s*var\(--toolbar-control-size\)/,
   );
+  assert.match(css, /\.app-footer-view \.toolbar-zoom-endpoint-button/);
   assert.doesNotMatch(css, /\.app-view-controls\[popover\]/);
   assert.doesNotMatch(css, /#timeline-view-controls-toggle/);
   assert.doesNotMatch(css, /\.app-footer-(?:actions|timeline|view)[\s\S]{0,120}order:\s*[123]/);
