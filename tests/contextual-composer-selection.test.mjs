@@ -55,3 +55,38 @@ test("opening the composer reapplies the retained canonical selection context", 
     /setOccurrenceComposerOpen\(open: boolean\)[\s\S]*syncOccurrenceComposerSelection\(applicationSelection\.current\)[\s\S]*occurrenceComposer\.show\(\)/,
   );
 });
+
+
+test("composer owns Home/End suggestion navigation while active", async () => {
+  const composer = await readFile(
+    new URL("../site/components/occurrence-composer.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(
+    composer,
+    /event\.key === "Home"[\s\S]*activeSuggestion = 0/,
+  );
+  assert.match(
+    composer,
+    /event\.key === "End"[\s\S]*activeSuggestion = suggestions\.length - 1/,
+  );
+});
+
+test("contextual composer returns focus to its connected invoker on close", async () => {
+  const app = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
+
+  assert.match(app, /occurrenceComposerReturnFocus/);
+  assert.match(
+    app,
+    /setOccurrenceComposerOpen\(open: boolean\)[\s\S]*document\.activeElement/,
+  );
+  assert.match(
+    app,
+    /restoreComposerFocus[\s\S]*isConnected[\s\S]*focus\(\{ preventScroll: true \}\)/,
+  );
+  assert.match(
+    app,
+    /syncApplicationSurfaces\(\)[\s\S]*restoreComposerFocus/,
+  );
+});
