@@ -115,7 +115,8 @@
     "test:lum-agent": "node --test tests/lum-agent-proposal.test.mjs",
     "test:lum-agent-context": "node --test tests/lum-agent-context-run.test.mjs",
     "test:lum-modules": "node --test tests/lum-module-tooling.test.mjs",
-    "test:lum-workspace-intelligence": "node --test tests/lum-workspace-language-intelligence.test.mjs"
+    "test:lum-workspace-intelligence": "node --test tests/lum-workspace-language-intelligence.test.mjs",
+    "compile:example-corpus": "node scripts/compile-example-story.mjs --all"
   },
   "packageManager": "pnpm@12.5.1+sha512.e3f305bc784a2bc89f5ad3b6138889470fae8d2af5f36b61216ec91c2c3d64089775f9de38aac331044ea40f245cb0d5666392dfdf65824e1907ef6a2c62de5f",
   "devDependencies": {
