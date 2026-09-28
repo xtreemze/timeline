@@ -926,6 +926,9 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const target = event.currentTarget;
     if (!(target instanceof HTMLInputElement)) return;
     this.setComposerValue(target.value, target.selectionStart ?? target.value.length);
+    queueMicrotask(() => {
+      if (target.isConnected) this.syncCursorFromInput(target);
+    });
   }
 
   private onCaretMove(event: Event): void {
