@@ -9,7 +9,7 @@ import {
 } from "../src/presentation/semantic-icons.ts";
 import { relationshipOccurrenceExtent } from "../src/projection/spatiotemporal-projection.ts";
 
-const GRAPH_CONTRACT_VERSION = "2026-09-21.1";
+const GRAPH_CONTRACT_VERSION = "2026-09-28.1";
 const GRAPH_MODEL_RULES = Object.freeze({
   nodeIdentity: "one-durable-entity",
   relationshipIdentity: "one-directed-action-fact",
