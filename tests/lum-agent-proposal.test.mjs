@@ -304,9 +304,42 @@ test("candidate validation rejects reference-unsafe deletion", () => {
   assert.equal(result.valid, false);
   assert.ok(
     result.diagnostics.some(
+      (finding) => finding.code === "record-still-referenced",
+    ),
+  );
+});
+
+test("source deletion is blocked while provenance references remain", () => {
+  const parsed = JSON.parse(baseProject());
+  parsed.project.sources = [
+    {
+      id: "source-1",
+      kind: "document",
+      title: "Source document",
+      attributes: {},
+    },
+  ];
+  parsed.project.entities[0].sourceIds = ["source-1"];
+  const project = formatProjectInterchange(JSON.stringify(parsed));
+
+  const result = applyLumChangeProposal(
+    proposal([
+      {
+        op: "delete",
+        collection: "sources",
+        id: "source-1",
+      },
+    ]),
+    project,
+    { savedAt: "2026-09-28T09:00:00.000Z" },
+  );
+
+  assert.equal(result.valid, false);
+  assert.ok(
+    result.diagnostics.some(
       (finding) =>
-        finding.code === "candidate-invalid" ||
-        finding.code === "invalid-project",
+        finding.code === "record-still-referenced" &&
+        finding.message.includes("/project/entities/0/sourceIds"),
     ),
   );
 });
