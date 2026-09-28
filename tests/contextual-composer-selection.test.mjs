@@ -28,6 +28,7 @@ test("composer selection context reuses canonical entity and place identities", 
   assert.match(composer, /@\$\{subjectId\}/);
   assert.match(composer, /placeReference:/);
   assert.match(composer, /preferredEntityIds/);
+  assert.match(composer, /selectionSeeded/);
 
   assert.match(app, /syncOccurrenceComposerSelection/);
   assert.match(app, /applicationSelection\.subscribe[\s\S]*syncOccurrenceComposerSelection/);
