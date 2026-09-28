@@ -30,6 +30,13 @@ export interface OccurrenceInvestigationActionDetail {
 }
 
 export class LuumOccurrenceInvestigationElement extends LitElement {
+  static override properties = {
+    qualifiers: { attribute: false },
+    entities: { attribute: false },
+    sourceText: { attribute: false },
+    activeQualifierId: { attribute: false },
+  };
+
   static override styles = css`
     :host {
       display: block;
@@ -141,10 +148,10 @@ export class LuumOccurrenceInvestigationElement extends LitElement {
     }
   `;
 
-  private qualifiers: readonly OccurrenceInvestigativeQualifier[] = Object.freeze([]);
-  private entities: readonly ComposerEntityOption[] = Object.freeze([]);
-  private sourceText = "";
-  private activeQualifierId = "";
+  qualifiers: readonly OccurrenceInvestigativeQualifier[] = Object.freeze([]);
+  entities: readonly ComposerEntityOption[] = Object.freeze([]);
+  sourceText = "";
+  activeQualifierId = "";
   private interpretationIds = new Map<string, string>();
 
   setInvestigation(input: {
