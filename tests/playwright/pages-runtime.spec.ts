@@ -62,3 +62,29 @@ test("built Pages shell boots application runtime on mobile", async ({ page }) =
 
   expect(pageErrors).toEqual([]);
 });
+
+
+test("built Pages runtime initializes the production WorldSurface", async ({ page }) => {
+  const runtimeErrors: string[] = [];
+  page.on("pageerror", (error) => runtimeErrors.push(error.message));
+  page.on("console", (message) => {
+    if (/Failed to initialize the deck\.gl world view|ReferenceError/.test(message.text())) {
+      runtimeErrors.push(message.text());
+    }
+  });
+
+  const response = await page.goto("/timeline/", { waitUntil: "domcontentloaded" });
+  expect(response?.status()).toBe(200);
+
+  const webgl2 = await page.evaluate(() =>
+    Boolean(document.createElement("canvas").getContext("webgl2")),
+  );
+  test.skip(!webgl2, "WebGL2 unavailable; the legacy fallback is expected.");
+
+  const worldStatus = page.locator('.temporal-graph-canvas [role="status"]');
+  await expect(worldStatus).toContainText(
+    /World view: [1-9]\d* places?, [1-9]\d* relationships?, [1-9]\d* entit/,
+  );
+  await expect(page.locator(".temporal-graph-canvas canvas").first()).toBeVisible();
+  expect(runtimeErrors).toEqual([]);
+});
