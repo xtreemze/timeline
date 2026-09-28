@@ -262,9 +262,9 @@ test("place anchors render through the node marker path", () => {
   const renderedPosition = placeIcons.props.getPosition(datum);
   assert.ok(marker.id.includes("pin"));
   assert.ok(marker.id.includes("place"));
-  // Visual marker size respects authored geometry (default pin radius 12 + border 2 = 30px).
+  // Visual marker size is the authored footprint exactly: radius 12 + border 2 = 28px.
   // The separate >=44px hit target is handled by the scatter layer, not the icon size.
-  assert.equal(placeIcons.props.getSize(datum), 30);
+  assert.equal(placeIcons.props.getSize(datum), 28);
   assert.equal(
     placeIcons.props.parameters.depthCompare,
     "always",
