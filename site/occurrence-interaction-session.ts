@@ -211,25 +211,12 @@ export function resolveOccurrencePresentation(
   session: OccurrenceInteractionSession,
   viewport: CommittedViewportState,
 ): OccurrenceInteractionSession {
-  const selectedId = session.occurrenceId;
-  if (!selectedId) return setPresentation(session, "resting");
+  if (!session.occurrenceId) return setPresentation(session, "resting");
 
-  if (viewport.explicitDetailOpen) return setPresentation(session, "expanded");
-
-  const logicalIds = new Set(viewport.logicalOccurrenceIds.filter(Boolean));
-  const selectedIsVisible = logicalIds.has(selectedId);
-  const logicalHasOther = [...logicalIds].some((id) => id !== selectedId);
-  const fallback = viewport.focused ? "focused" : "selected";
-
-  if (session.presentation === "expanded") {
-    const demotionIds = new Set(
-      (viewport.demotionOccurrenceIds ?? viewport.logicalOccurrenceIds).filter(Boolean),
-    );
-    const hasDemotionBlocker = [...demotionIds].some((id) => id !== selectedId);
-    return setPresentation(session, hasDemotionBlocker ? fallback : "expanded");
-  }
-
-  return setPresentation(session, selectedIsVisible && !logicalHasOther ? "expanded" : fallback);
+  // Occurrence detail is owned by the persistent composer. Timeline density,
+  // viewport isolation, and the legacy explicit-detail flag must never promote
+  // a retained timeline card into a competing detached detail surface.
+  return setPresentation(session, viewport.focused ? "focused" : "selected");
 }
 
 export function setComposerDraft(
