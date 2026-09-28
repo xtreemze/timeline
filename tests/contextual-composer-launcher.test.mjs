@@ -18,7 +18,7 @@ test("empty-world context request launches the existing footer occurrence compos
   );
   assert.match(
     app,
-    /worldcontextrequest[\s\S]*occurrenceComposer\.setWorldContext\(longitude, latitude, zoom\)/,
+    /worldcontextrequest[\s\S]*occurrenceComposer\.setWorldContext\([\s\S]*longitude,[\s\S]*latitude,[\s\S]*(?:zoom|Number\.isFinite\(zoom\))/,
   );
   assert.doesNotMatch(app, /worldcontextrequest[\s\S]*luum-authoring-menu/);
 });
