@@ -5212,3 +5212,62 @@
     0 0 0 2px color-mix(in srgb, var(--event-color) 24%, transparent),
     0 6px 18px color-mix(in srgb, var(--event-color) 14%, transparent);
 }
+
+
+/* Story titlebar context keeps the active story name visible in both timeline orientations. */
+#app-shell
+  #presentation-stage
+  > #timeline-view:is([data-orientation="portrait"], [data-orientation="landscape"])
+  .timeline-project-heading:has(.story-focus:not([hidden])) {
+  inline-size: min(46rem, calc(100% - 1rem));
+}
+
+#app-shell
+  #presentation-stage
+  > #timeline-view:is([data-orientation="portrait"], [data-orientation="landscape"])
+  .timeline-project-heading:has(.story-focus:not([hidden]))
+  .timeline-project-title {
+  flex: 1 1 16rem;
+  min-inline-size: 0;
+  max-inline-size: 18rem;
+}
+
+#app-shell
+  #presentation-stage
+  > #timeline-view:is([data-orientation="portrait"], [data-orientation="landscape"])
+  .story-focus-header:not([hidden]) {
+  display: flex;
+  flex: 1 1 20rem;
+  flex-direction: row;
+  align-items: center;
+  min-inline-size: min(14rem, 60vw);
+  max-inline-size: none;
+  padding: 0 0 0 0.34rem;
+  border-top: 0;
+  border-inline-start: 1px solid color-mix(in srgb, var(--story) 42%, var(--line));
+}
+
+#app-shell
+  #presentation-stage
+  > #timeline-view:is([data-orientation="portrait"], [data-orientation="landscape"])
+  .story-focus-copy {
+  display: flex;
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  max-inline-size: none;
+}
+
+#app-shell
+  #presentation-stage
+  > #timeline-view:is([data-orientation="portrait"], [data-orientation="landscape"])
+  #story-focus-title {
+  display: block;
+  min-inline-size: 4rem;
+}
+
+#app-shell
+  #presentation-stage
+  > #timeline-view:is([data-orientation="portrait"], [data-orientation="landscape"])
+  .story-focus-controls {
+  flex-direction: row;
+}
