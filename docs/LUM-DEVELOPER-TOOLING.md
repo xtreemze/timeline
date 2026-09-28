@@ -23,6 +23,25 @@ lum init my-project --project-key investigation-2026
 
 This creates `my-project/project.lum.json`, already self-described, canonically formatted, and strict-valid.
 
+### Start modular sources
+
+```sh
+lum init-module entities.module.lum.json \
+  --project-key investigation-2026 \
+  --story-id story-main \
+  --collection entities
+```
+
+Modules use `.module.lum.json`, remain ordinary JSON, and own exactly one canonical collection. `lum check`, `lum lint`, and `lum fmt` auto-detect project vs module documents from the format discriminator.
+
+Validate a complete module set with:
+
+```sh
+lum check-modules *.module.lum.json --json
+```
+
+This assembles the modules through the ordinary canonical project validator, so cross-module references and whole-project invariants are checked without inventing a second semantic model.
+
 ### Validate
 
 ```sh
@@ -67,9 +86,7 @@ lum agent context project.lum.json --json
 
 This emits a bounded canonical summary rather than dumping every project attribute into an agent context window. It includes stable IDs, entity names/types, relationship endpoints/actions, occurrence membership, schema identity, composer syntax, and the required format/lint workflow.
 
-The current command deliberately stops before autonomous mutation. Full propose/apply/review workflows should preserve the application's verification boundary and are tracked separately through #927.
-
-Agent mutation remains proposal-based rather than autonomous. Use the strict review workflow documented in [LUM-AGENT-PROPOSALS.md](LUM-AGENT-PROPOSALS.md):
+Direct autonomous mutation remains unsupported. Agent mutation is proposal-based rather than authoritative. Use the strict review workflow documented in [LUM-AGENT-PROPOSALS.md](LUM-AGENT-PROPOSALS.md):
 
 ```sh
 lum agent scaffold-proposal --project project.lum.json --output change.lum-proposal.json
@@ -116,6 +133,7 @@ Focused contract:
 ```sh
 pnpm test:lum-tooling
 pnpm test:lum-language-intelligence
+pnpm test:lum-modules
 ```
 
 The broader architecture suite also includes the tooling contract.
