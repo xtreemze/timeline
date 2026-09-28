@@ -153,9 +153,13 @@ The zero-dependency stdio LSP supports:
 - hover documentation for canonical fields and resolved references;
 - document symbols for canonical collections and records;
 - go-to-definition from canonical references to their ID declarations;
-- find-references for canonical IDs.
+- find-references for canonical IDs;
+- project/module workspace indexing for cross-file completion, hover, definition, references, and symbols;
+- guarded canonical-ID rename previews that update only typed declarations/references and validate the resulting project/module workspace before returning edits.
 
-The language-intelligence layer is deliberately document-local and deterministic. It can keep highlighting and navigation useful while JSON is temporarily incomplete, but it never repairs semantics or invents IDs.
+The language-intelligence layer is deterministic and workspace-aware. It scans Lūm project/module files under configured workspace folders while skipping generated/dependency directories, then tracks open-document edits in memory. When modular sources and an assembled project coexist, modules are treated as the editable authority so navigation and rename do not target generated aggregate output.
+
+Incomplete JSON can still retain local highlighting/navigation through the tolerant scanner, but the LSP never repairs semantics or invents IDs. Canonical-ID rename is typed, not textual: matching free text, notes, source identifiers, and provenance strings are not rewritten. A rename is withheld when the declaration is ambiguous or the simulated result fails strict project/module validation.
 
 VS Code and Helix integrations should consume the shared schema/CLI/LSP contracts rather than reimplement Lūm validation.
 
@@ -166,6 +170,7 @@ Focused contract:
 ```sh
 pnpm test:lum-tooling
 pnpm test:lum-language-intelligence
+pnpm test:lum-workspace-language
 pnpm test:lum-modules
 ```
 
