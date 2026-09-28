@@ -2,6 +2,7 @@ import {
   DOCUMENT_STORY_GUIDE,
   authoringGuideResult,
   stageStoryProject,
+  validateStoryFragment,
 } from "./story-authoring.ts";
 
 type JsonRecord = Record<string, unknown>;
@@ -18,9 +19,10 @@ const SERVER_INSTRUCTIONS =
   "Build source-grounded Lūm story proposals from user-provided documents/text. " +
   "For new projects, call lum.get_story_authoring_guide before authoring. " +
   "Read uploaded documents in the host; do not send raw document binaries to this server. " +
-  "Construct the complete project, preserve uncertainty and evidence locators, then call " +
-  "lum.stage_story_project. A successful preflight is structural only: the user must import " +
-  "the proposal into Lūm and verify it with the live graph audit/project validator.";
+  "Author canonical lum-project-module fragments when working with bounded context, validate them " +
+  "with lum.validate_project_fragment, then construct a complete canonical lum-project and call " +
+  "lum.stage_story_project. A successful preflight proves structure/semantics only; factual truth " +
+  "and final acceptance remain a user verification decision.";
 
 const EMPTY_SCHEMA = {
   type: "object",
@@ -56,6 +58,29 @@ const TOOLS = Object.freeze([
     },
   },
   {
+    name: "lum.validate_project_fragment",
+    title: "Validate a canonical Lūm project fragment",
+    description:
+      "Validate one strict lum-project-module fragment with the same structural diagnostic vocabulary used by the canonical Lūm toolchain. This does not prove cross-module references or factual truth.",
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        fragment: {
+          type: "object",
+          description: "One canonical lum-project-module document.",
+        },
+      },
+      required: ["fragment"],
+    },
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
+  {
     name: "lum.stage_story_project",
     title: "Stage a source-derived Lūm story project",
     description:
@@ -67,7 +92,7 @@ const TOOLS = Object.freeze([
         project: {
           type: "object",
           description:
-            "Complete Lūm project proposal with stories, chronology items, entities, relationships, evidence, and optional places/categories.",
+            "Complete canonical lum-project interchange document. It must pass the same whole-project validator used by import/export.",
         },
         sources: {
           type: "array",
@@ -307,6 +332,9 @@ function callTool(params: JsonRecord, modern: boolean): JsonRecord {
 
   if (name === "lum.get_story_authoring_guide") {
     return toolResult(authoringGuideResult(), modern);
+  }
+  if (name === "lum.validate_project_fragment") {
+    return toolResult(validateStoryFragment(args.fragment), modern);
   }
   if (name === "lum.stage_story_project") {
     const staged = stageStoryProject(args);
