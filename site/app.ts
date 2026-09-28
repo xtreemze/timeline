@@ -1966,6 +1966,14 @@ function mountOccurrenceComposerInCard(host: HTMLElement | null): boolean {
   return true;
 }
 
+function remountOccurrenceComposerCardHost(): void {
+  if (!els.occurrenceComposer.active || els.occurrenceComposer.dataset.host !== "card") return;
+  const focusHost = els.timelineViewRoot.querySelector<HTMLElement>(
+    ".timeline-event-detail:not([hidden])",
+  );
+  if (!mountOccurrenceComposerInCard(focusHost)) restoreOccurrenceComposerHome();
+}
+
 function composerInvoker(): HTMLElement | null {
   const active = document.activeElement;
   if (!(active instanceof HTMLElement) || active === document.body) return null;
@@ -6177,6 +6185,7 @@ els.timelineViewRoot.addEventListener("timelinefocuschange", (event) => {
 
 els.timelineViewRoot.addEventListener("timelinefocusrender", (event) => {
   const cardFocused = event.detail?.presentationSurface === "card";
+  if (cardFocused) remountOccurrenceComposerCardHost();
   syncContextualPresentationPanels();
   syncTimelineContextControls();
   schedulePresentationGeometryRefresh({ recenterGraph: !cardFocused });
