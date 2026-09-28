@@ -20,10 +20,16 @@ const collectionKeys = new Set([
   "relationships",
   "occurrences",
   "trajectories",
+  "places",
+  "sources",
+  "categories",
+  "stories",
   "participantContexts",
   "relationshipIds",
   "trajectoryIds",
   "sourceIds",
+  "occurrenceIds",
+  "placeIds",
 ]);
 const referenceKeys = new Set([
   "id",
@@ -33,6 +39,8 @@ const referenceKeys = new Set([
   "entityId",
   "representedEntityId",
   "organizationId",
+  "categoryId",
+  "storyId",
 ]);
 
 function isLumDocument(document) {

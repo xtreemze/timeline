@@ -33,11 +33,13 @@ It registers `*.lum.json` as a Lūm file type while using Helix's JSON tree-sitt
 grammar = "json"
 ```
 
-Diagnostics come from:
+Diagnostics and language intelligence come from:
 
 ```sh
 lum lsp
 ```
+
+The LSP supplies strict diagnostics, semantic tokens, canonical-ID completion, field/reference hover, document symbols, go-to-definition, and find-references. Helix continues to use the JSON tree-sitter grammar for syntax; the semantic layer only adds Lūm meaning.
 
 Formatting comes from:
 
