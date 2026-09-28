@@ -3742,10 +3742,17 @@ export class TimelineViewController {
       evidence.append(missing);
     }
 
+    const header = document.createElement("div");
+    header.className = "timeline-focus-header";
     const tabs = document.createElement("div");
     tabs.className = "timeline-focus-tabs";
     tabs.setAttribute("role", "tablist");
     tabs.setAttribute("aria-label", "Focused event views");
+    const contextActions = document.createElement("div");
+    contextActions.className = "timeline-focus-context-actions";
+    contextActions.dataset.focusContextActions = "";
+    contextActions.setAttribute("role", "group");
+    contextActions.setAttribute("aria-label", "Focused event actions");
     const overviewTab = document.createElement("button");
     overviewTab.type = "button";
     overviewTab.id = "timeline-focus-context-tab";
@@ -3843,10 +3850,12 @@ export class TimelineViewController {
       const nextTab = next === "evidence" ? evidenceTab : overviewTab;
       nextTab.focus({ preventScroll: true });
     });
-    tabs.append(overviewTab, evidenceTab, close);
+    tabs.append(overviewTab, evidenceTab);
+    contextActions.append(close);
+    header.append(tabs, contextActions);
     applyFocusTab(this.focusTab);
 
-    this.focusView.replaceChildren(tabs, hero, summary, evidence);
+    this.focusView.replaceChildren(header, hero, summary, evidence);
     this.root.dispatchEvent(
       new CustomEvent("timelinefocusrender", {
         bubbles: true,

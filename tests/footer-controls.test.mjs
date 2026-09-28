@@ -27,11 +27,11 @@ test("footer exposes view controls directly and keeps one primary Edit entry", a
   assert.match(index, /data-world-controls-slot role="group" aria-label="World view controls"/);
   assert.match(
     index,
-    /id="timeline-related-zoom"[^>]*data-view-control[^>]*data-semantic-icon="zoom-in"[^>]*aria-label="Zoom to related nodes"[^>]*title="Zoom to related nodes"/,
+    /id="timeline-focus-context-controls" hidden[\s\S]*id="timeline-related-zoom"[^>]*data-semantic-icon="zoom-in"[^>]*aria-label="Zoom to related nodes"[^>]*title="Zoom to related nodes"/,
   );
   assert.match(
     index,
-    /id="timeline-related-fit"[^>]*data-view-control[^>]*data-semantic-icon="fit"[^>]*aria-label="Fit related nodes in world view"[^>]*title="Fit related nodes in world view"/,
+    /id="timeline-related-fit"[^>]*data-semantic-icon="fit"[^>]*aria-label="Fit related nodes in world view"[^>]*title="Fit related nodes in world view"/,
   );
 
   const footerStart = index.indexOf('<nav class="app-tool-dock app-footer-bar"');
@@ -39,7 +39,12 @@ test("footer exposes view controls directly and keeps one primary Edit entry", a
   const footerMarkup = index.slice(footerStart, footerEnd);
   assert.equal((footerMarkup.match(/id="editor-toggle"/g) ?? []).length, 1);
   assert.equal((footerMarkup.match(/id="occurrence-composer-toggle"/g) ?? []).length, 0);
-  assert.match(index, /id="occurrence-composer-toggle"[^>]*aria-controls="occurrence-composer"/);
+  assert.equal((footerMarkup.match(/id="timeline-focus-prev"/g) ?? []).length, 0);
+  assert.equal((footerMarkup.match(/id="timeline-focus-next"/g) ?? []).length, 0);
+  assert.equal((footerMarkup.match(/id="timeline-related-zoom"/g) ?? []).length, 0);
+  assert.equal((footerMarkup.match(/id="timeline-related-fit"/g) ?? []).length, 0);
+  assert.match(footerMarkup, /<luum-occurrence-composer id="occurrence-composer"><\/luum-occurrence-composer>/);
+  assert.doesNotMatch(index, /id="occurrence-composer-toggle"/);
 
   assert.match(world, /element\.className = "toolbar-control world-camera-control"/);
   assert.match(world, /element\.dataset\.viewControl = ""/);
@@ -113,10 +118,6 @@ assert.match(css, /--toolbar-control-size:\s*44px/);
     "project-menu-toggle",
     "editor-toggle",
     "timeline-browser-toggle",
-    "timeline-focus-prev",
-    "timeline-focus-next",
-    "timeline-related-zoom",
-    "timeline-related-fit",
     "timeline-orientation-toggle",
     "presentation-fullscreen-toggle",
     "timeline-auto-toggle",

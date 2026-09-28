@@ -450,7 +450,10 @@ test("Lit composer is a touch-safe ARIA combobox with live-context guidance", as
   assert.match(source, /role="listbox"/);
   assert.match(source, /min-block-size:\s*44px/);
   assert.match(source, /Move the timeline or World while this is open/);
-  assert.match(source, /:host\(:not\(\[active\]\)\)/);
+  assert.match(source, /class="compact"/);
+  assert.match(source, /Open occurrence composer/);
+  assert.match(source, /occurrencecomposeropenrequest/);
+  assert.doesNotMatch(source, /:host\(:not\(\[active\]\)\)\s*\{[\s\S]*display:\s*none/);
   assert.doesNotMatch(source, /position:\s*fixed/);
   assert.match(source, /\.completion-panel[\s\S]*position:\s*absolute/);
   assert.match(source, /occurrencecommit/);
@@ -489,17 +492,16 @@ test("application keeps timeline and World live while composer uses their center
 
 
   assert.match(source, /requiredElement<LuumOccurrenceComposerElement>\("#occurrence-composer"\)/);
-  assert.match(source, /requiredElement<HTMLButtonElement>\("#occurrence-composer-toggle"\)/);
-  assert.match(
-    source,
-    /occurrenceComposerToggle\.addEventListener\("click"[\s\S]*setOccurrenceComposerOpen\(!els\.occurrenceComposer\.active\)/,
-  );
   assert.match(
     source,
     /presentationStage\.inert = Boolean\([\s\S]*ui\.browserOpen[\s\S]*ui\.investigationOpen[\s\S]*ui\.editorOpen/,
   );
   assert.match(source, /const titleEditing = ui\.editorOpen/);
-  assert.match(source, /occurrenceComposer\.hidden = Boolean\([\s\S]*ui\.investigationOpen/);
+  assert.match(source, /occurrenceComposer\.hidden = ui\.importReviewOpen/);
+  assert.match(
+    source,
+    /occurrencecomposeropenrequest[\s\S]*setOccurrenceComposerOpen\(true\)/,
+  );
   assert.match(
     source,
     /timelineviewportchange[\s\S]*setTimelineViewport\([\s\S]*viewport\.start[\s\S]*viewport\.end/,
@@ -548,7 +550,7 @@ test("application keeps timeline and World live while composer uses their center
   );
 });
 
-test("occurrence composer is integrated into the footer through the single Edit surface", async () => {
+test("occurrence composer stays visibly integrated into the stable footer", async () => {
   const [markup, shellStyles] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/spatial-shell.css", import.meta.url), "utf8"),
@@ -558,18 +560,10 @@ test("occurrence composer is integrated into the footer through the single Edit 
     markup,
     /<nav class="app-tool-dock app-footer-bar"[\s\S]*<luum-occurrence-composer id="occurrence-composer"><\/luum-occurrence-composer>/,
   );
-  assert.match(
-    markup,
-    /id="occurrence-composer-toggle"[^>]*aria-controls="occurrence-composer"[^>]*aria-expanded="false"/,
-  );
-
   const footerStart = markup.indexOf('<nav class="app-tool-dock app-footer-bar"');
   const footerEnd = markup.indexOf("</nav>", footerStart);
-  assert.equal(
-    (markup.slice(footerStart, footerEnd).match(/id="occurrence-composer-toggle"/g) ?? []).length,
-    0,
-    "Compose is reached through the editor instead of a second toolbar authoring button",
-  );
+  assert.equal((markup.match(/id="occurrence-composer-toggle"/g) ?? []).length, 0);
+  assert.match(markup.slice(footerStart, footerEnd), /id="occurrence-composer"/);
 
   assert.match(
     shellStyles,
@@ -581,8 +575,13 @@ test("occurrence composer is integrated into the footer through the single Edit 
   );
   assert.match(
     shellStyles,
-    /app-footer-actions[\s\S]*grid-row:\s*2[\s\S]*app-footer-view[\s\S]*grid-row:\s*2[\s\S]*app-footer-timeline[\s\S]*grid-row:\s*2/,
+    /#occurrence-composer:not\(\[active\]\)[\s\S]*grid-column:\s*2[\s\S]*min-inline-size:\s*160px/,
   );
+  assert.match(
+    shellStyles,
+    /app-footer-actions[\s\S]*grid-row:\s*2[\s\S]*app-footer-view[\s\S]*grid-column:\s*2 \/ -1[\s\S]*grid-row:\s*2/,
+  );
+  assert.doesNotMatch(shellStyles, /app-footer-timeline/);
   assert.doesNotMatch(markup, /id="timeline-view-controls-toggle"/);
   assert.match(
     markup,

@@ -2442,20 +2442,32 @@
   padding-top: 0;
 }
 
-.timeline-focus-tabs {
+.timeline-focus-header {
   position: absolute;
   z-index: 30;
   top: 0.52rem;
   right: 0.52rem;
   display: flex;
   align-items: center;
-  gap: 0.28rem;
+  justify-content: space-between;
+  gap: 0.32rem;
   max-width: calc(100% - 1.04rem);
   padding: 0.24rem;
   border: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
   border-radius: 0.72rem;
   background: color-mix(in srgb, var(--paper) 90%, transparent);
   backdrop-filter: blur(10px);
+}
+
+.timeline-focus-tabs,
+.timeline-focus-context-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.28rem;
+}
+
+.timeline-focus-context-actions {
+  flex: 0 0 auto;
 }
 
 .timeline-focus-tab {
@@ -5167,6 +5179,7 @@
   line-height: 1;
 }
 
+.timeline-focus-context-action,
 .timeline-focus-close.timeline-focus-icon-action {
   position: relative;
   z-index: 8;
@@ -5185,6 +5198,21 @@
   color: var(--ink);
   cursor: pointer;
   touch-action: manipulation;
+}
+
+.timeline-focus-context-action .semantic-icon,
+.timeline-focus-close.timeline-focus-icon-action .semantic-icon {
+  position: relative;
+  z-index: 1;
+  display: block;
+  inline-size: 20px;
+  block-size: 20px;
+  stroke-width: 1.9;
+}
+
+.timeline-focus-context-action:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .timeline-focus-tab:focus-visible {

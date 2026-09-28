@@ -203,16 +203,28 @@
   border-radius: 0;
 }
 
-#app-shell.is-event-focused #presentation-stage > .timeline-focus-sidebar .timeline-focus-tabs {
+#app-shell.is-event-focused #presentation-stage > .timeline-focus-sidebar .timeline-focus-header {
   position: sticky;
   z-index: 5;
   top: -0.5rem;
+  right: auto;
   grid-column: 1 / -1;
   grid-row: 1;
+  inline-size: calc(100% + 1rem);
+  max-inline-size: none;
   margin: -0.5rem -0.5rem 0;
   padding: 0.42rem 0.5rem;
   background: color-mix(in srgb, var(--paper) 94%, transparent);
   backdrop-filter: blur(16px);
+}
+
+#app-shell.is-event-focused #presentation-stage > .timeline-focus-sidebar .timeline-focus-tabs {
+  position: static;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  backdrop-filter: none;
 }
 
 #app-shell.is-event-focused
@@ -328,15 +340,15 @@
 }
 
 /* Persistent command plane.
-   Primary actions, spatial/presentation controls, and focused chronology navigation
-   share one footer toolbar. The View zone scrolls horizontally when space is constrained. */
+   Primary actions, the compact occurrence composer, and spatial/presentation controls
+   share one stable footer toolbar. Event selection never changes this composition. */
 #app-shell > .app-tool-dock.app-footer-bar,
 #app-shell:has(#timeline-view[data-orientation="landscape"]) > .app-tool-dock.app-footer-bar,
 #app-shell:has(#timeline-view[data-orientation="portrait"]) > .app-tool-dock.app-footer-bar {
   z-index: 1600;
   display: grid;
   pointer-events: auto;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(160px, 320px) minmax(0, 1fr);
   align-items: center;
   inline-size: 100%;
   max-inline-size: none;
@@ -346,7 +358,7 @@
   z-index: 1600;
   display: grid;
   pointer-events: auto;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(160px, 320px) minmax(0, 1fr);
   align-items: center;
   inline-size: 100%;
   max-inline-size: none;
@@ -388,8 +400,16 @@
   padding-inline-start: max(0.18rem, env(safe-area-inset-left));
 }
 
-.app-footer-view {
+.app-footer-bar > #occurrence-composer:not([active]) {
   grid-column: 2;
+  align-self: center;
+  inline-size: 100%;
+  min-inline-size: 160px;
+  max-inline-size: 320px;
+}
+
+.app-footer-view {
+  grid-column: 3;
   justify-content: safe center;
   overflow-x: auto;
   overflow-y: hidden;
@@ -397,8 +417,7 @@
   scrollbar-width: none;
 }
 
-.app-footer-view::-webkit-scrollbar,
-.app-footer-timeline::-webkit-scrollbar {
+.app-footer-view::-webkit-scrollbar {
   display: none;
 }
 
@@ -473,21 +492,6 @@
 .app-footer-view .world-layout-control {
   position: static;
   z-index: auto;
-}
-
-.app-footer-timeline {
-  grid-column: 3;
-  justify-self: end;
-  padding-inline-end: max(0.18rem, env(safe-area-inset-right));
-}
-
-.app-footer-timeline.timeline-local-toolbar {
-  justify-content: flex-end;
-  overflow: visible;
-}
-
-.app-footer-timeline:not(:has(.timeline-context-action:not([hidden]))) {
-  display: none;
 }
 
 .app-footer-bar :is(.toolbar-control, .toolbar-compound-control) {
@@ -711,12 +715,14 @@
     padding-inline-start: max(0.18rem, env(safe-area-inset-left));
   }
 
-  #app-shell .app-footer-bar .app-footer-view {
-    overflow: visible;
+  #app-shell .app-footer-bar > #occurrence-composer:not([active]) {
+    flex: 0 0 clamp(170px, 46vw, 260px);
+    inline-size: clamp(170px, 46vw, 260px);
+    min-inline-size: 170px;
   }
 
-  #app-shell .app-footer-bar .app-footer-timeline {
-    padding-inline-end: max(0.18rem, env(safe-area-inset-right));
+  #app-shell .app-footer-bar .app-footer-view {
+    overflow: visible;
   }
 
   #app-shell .app-footer-bar .app-footer-zone + .app-footer-zone {
@@ -732,8 +738,8 @@
   }
 }
 
-/* The occurrence composer expands inside the same footer. Its trigger lives in
-   the single Edit surface, while the direct toolbar remains available below. */
+/* The occurrence composer is always visible as a compact field. Activating it
+   expands the same footer without adding a second authoring button to the toolbar. */
 #app-shell:has(#occurrence-composer[active]) {
   --workspace-footer-content-block-size: 116px;
 }
@@ -743,7 +749,7 @@
   #presentation-stage:fullscreen
   > .app-tool-dock.app-footer-bar {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(160px, 320px) minmax(0, 1fr);
   grid-template-rows: 48px minmax(0, 1fr);
   align-items: center;
   column-gap: var(--toolbar-control-gap);
@@ -769,12 +775,7 @@
 }
 
 #app-shell:has(#occurrence-composer[active]) .app-footer-bar > .app-footer-view {
-  grid-column: 2;
-  grid-row: 2;
-}
-
-#app-shell:has(#occurrence-composer[active]) .app-footer-bar > .app-footer-timeline {
-  grid-column: 3;
+  grid-column: 2 / -1;
   grid-row: 2;
 }
 
