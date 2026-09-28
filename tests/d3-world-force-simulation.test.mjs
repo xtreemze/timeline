@@ -272,6 +272,120 @@ test("D3 drag and post-drop stay local and publish sparse changed positions", ()
   assert.deepEqual(remoteAfter, remoteBefore);
 });
 
+test("D3 topology collision spans distinct place groups regardless of relationship", () => {
+  for (const related of [false, true]) {
+    const simulation = new D3WorldForceSimulation();
+    const left = `["left-${related}","place-a"]`;
+    const right = `["right-${related}","place-b"]`;
+
+    simulation.setScene({
+      nodes: [node(left, -20, 260), node(right, 20, 260)],
+      edges: related
+        ? [
+            {
+              id: `cross-place-${related}`,
+              sourceId: left,
+              targetId: right,
+              strength: 0.08,
+              restLengthMeters: 1_000,
+            },
+          ]
+        : [],
+      anchors: [
+        anchor(left, "place-a", 0, { longitude: 18, latitude: 59 }),
+        anchor(right, "place-b", 0, { longitude: 18, latitude: 59 }),
+      ],
+    });
+
+    simulation.apply(topologyRequest());
+    for (let index = 0; index < 180; index += 1) simulation.step(1000 / 60);
+
+    assert.ok(
+      distance(simulation.getSnapshot(), left, right) >= 500,
+      `cross-place topology collision must reserve marker footprints when related=${related}`,
+    );
+  }
+});
+
+test("D3 topology cross-place collision cools to a settled state", () => {
+  const simulation = new D3WorldForceSimulation();
+  const left = '["settle-left","place-a"]';
+  const right = '["settle-right","place-b"]';
+
+  simulation.setScene({
+    nodes: [node(left, -20, 260), node(right, 20, 260)],
+    edges: [],
+    anchors: [
+      anchor(left, "place-a", 1, { longitude: 18, latitude: 59 }),
+      anchor(right, "place-b", 1, { longitude: 18, latitude: 59 }),
+    ],
+  });
+
+  simulation.apply(topologyRequest());
+  for (
+    let index = 0;
+    index < 480 && !simulation.getDiagnostics().settled;
+    index += 1
+  ) {
+    simulation.step(1000 / 60);
+  }
+
+  assert.equal(
+    simulation.getDiagnostics().settled,
+    true,
+    "cross-place collision must cool with the owning place groups instead of reheating forever",
+  );
+  assert.ok(
+    distance(simulation.getSnapshot(), left, right) >= 500,
+    "settling must preserve the combined collision footprint",
+  );
+});
+
+test("D3 topology collision resolves multiple nearby places without waking remote geography", () => {
+  const simulation = new D3WorldForceSimulation();
+  const first = '["first","place-a"]';
+  const second = '["second","place-b"]';
+  const third = '["third","place-c"]';
+  const remote = '["remote","copenhagen"]';
+
+  simulation.setScene({
+    nodes: [
+      node(first, -10, 180),
+      node(second, 0, 180),
+      node(third, 10, 180),
+      node(remote, 123, 180),
+    ],
+    edges: [],
+    anchors: [
+      anchor(first, "place-a", 0, { longitude: 18, latitude: 59 }),
+      anchor(second, "place-b", 0, { longitude: 18, latitude: 59 }),
+      anchor(third, "place-c", 0, { longitude: 18, latitude: 59 }),
+      anchor(remote, "copenhagen", 0),
+    ],
+  });
+
+  const remoteBefore = simulation.getSnapshot().find((entry) => entry.instanceId === remote);
+  simulation.apply(topologyRequest());
+  for (let index = 0; index < 180; index += 1) simulation.step(1000 / 60);
+  const snapshot = simulation.getSnapshot();
+  const minimumNearDistance = Math.min(
+    distance(snapshot, first, second),
+    distance(snapshot, first, third),
+    distance(snapshot, second, third),
+  );
+  const remoteAfter = snapshot.find((entry) => entry.instanceId === remote);
+
+  assert.ok(
+    minimumNearDistance >= 330,
+    `three distinct place groups must resolve their shared collision island; minimum=${minimumNearDistance}`,
+  );
+  assert.deepEqual(
+    remoteAfter,
+    remoteBefore,
+    "remote unrelated geography must remain outside the cross-place collision broad phase",
+  );
+});
+
 test("D3 drag rejects nearby nodes across different geographic anchors before collision", () => {
   const simulation = new D3WorldForceSimulation();
   const dragged = '["dragged","origin"]';
