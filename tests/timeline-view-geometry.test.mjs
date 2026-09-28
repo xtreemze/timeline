@@ -53,6 +53,30 @@ test("timeline axis placement resolves CSS percentages and pixels without JavaSc
   assert.equal(geometry.axisCrossFromCss("invalid", 240, 0.5), 120);
 });
 
+test("timeline cards resolve calc/var edge rails from rendered axis geometry", () => {
+  const surface = { left: 40, top: 100, width: 1200, height: 240 };
+  assert.equal(
+    geometry.axisCrossFromRects(
+      surface,
+      { left: 40, top: 248 },
+      "horizontal",
+    ),
+    148,
+  );
+  assert.equal(
+    geometry.axisCrossFromRects(
+      { left: 40, top: 100, width: 280, height: 800 },
+      { left: 248, top: 100 },
+      "vertical",
+    ),
+    208,
+  );
+  assert.equal(
+    geometry.axisCrossFromRects(surface, { left: 40, top: 20 }, "horizontal"),
+    null,
+  );
+});
+
 test("wide portrait and landscape rails share one physical edge gutter", async () => {
   const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
 
