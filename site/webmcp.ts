@@ -13,10 +13,6 @@ import {
 const MANAGED_COLLECTIONS = PROJECT_TRANSACTION_COLLECTIONS;
 const TOP_LEVEL_FIELDS = PROJECT_TRANSACTION_TOP_LEVEL_FIELDS;
 
-function text(value: unknown, max: number = 240): string {
-  return typeof value === "string" ? value.trim().slice(0, max) : "";
-}
-
 type Operation = ProjectTransactionOperation;
 
 /**
@@ -62,15 +58,17 @@ export function graphContractVersionSchema(version: string): Record<string, unkn
   };
 }
 
+type MaybePromise<T> = T | Promise<T>;
+
 interface TimelineAdapter {
   getGraphContract(): any;
-  getProject(): Promise<any>;
-  auditGraph(project?: any): Promise<any>;
-  validateProject(project?: any): Promise<any>;
-  applyOperations(operations: Operation[]): Promise<any>;
-  replaceProject(project: any): Promise<any>;
-  exportMemgraph(options?: any): Promise<any>;
-  importMemgraph(snapshot: any): Promise<any>;
+  getProject(): MaybePromise<any>;
+  auditGraph(project?: any): MaybePromise<any>;
+  validateProject(project?: any): MaybePromise<any>;
+  applyOperations(operations: Operation[]): MaybePromise<any>;
+  replaceProject(project: any): MaybePromise<any>;
+  exportMemgraph(options?: any): MaybePromise<any>;
+  importMemgraph(snapshot: any): MaybePromise<any>;
 }
 
 export function toolDefinitions(adapter: TimelineAdapter): Record<string, unknown>[] {
