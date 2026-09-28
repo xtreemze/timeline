@@ -125,3 +125,29 @@ test("toolbar compound icon contract preserves scoped meaning and proportional o
   assert.match(presentation, /secondary\.setAttribute\("stroke-width",[\s\S]*size[\s\S]*secondarySize/);
   assert.match(css, /\.compound-semantic-icon-secondary[\s\S]*inline-size:\s*11px[\s\S]*block-size:\s*11px/);
 });
+
+
+test("every persistent toolbar button family has an executable interaction path", async () => {
+  const [index, app, timeline, world, factory, investigation] = await Promise.all([
+    readFile(indexUrl, "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
+    readFile(worldUrl, "utf8"),
+    readFile(factoryUrl, "utf8"),
+    readFile(new URL("../site/ui/investigation-workspace.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(index, /id="project-menu-toggle"[^>]*popovertarget="project-menu"/);
+  assert.match(app, /editorToggle\?\.addEventListener\("click"[\s\S]*setEditorSurfaceOpen/);
+  assert.match(app, /browserToggle\?\.addEventListener\("click"[\s\S]*setBrowserSurfaceOpen/);
+  assert.match(app, /focusPrev\.addEventListener\("click"[\s\S]*focusAdjacent\(-1/);
+  assert.match(app, /focusNext\.addEventListener\("click"[\s\S]*focusAdjacent\(1/);
+  assert.match(app, /relatedZoom\.addEventListener\("click"[\s\S]*zoomContext/);
+  assert.match(app, /relatedFit\.addEventListener\("click"[\s\S]*fitContext/);
+  assert.match(app, /presentationFullscreenToggle\.addEventListener\("click"[\s\S]*togglePresentationFullscreen/);
+  assert.match(app, /autoToggle\.addEventListener\("click"[\s\S]*toggle-auto/);
+  assert.match(timeline, /orientationToggle\?\.addEventListener\("click"[\s\S]*setOrientation/);
+  assert.match(world, /world-camera-control[\s\S]*addEventListener\("click"[\s\S]*action\(\)/);
+  assert.match(factory, /world-layout-control[\s\S]*addEventListener\("click"[\s\S]*action\(\)/);
+  assert.match(investigation, /toggle\.addEventListener\("click"[\s\S]*onRequestOpen\(!open\)/);
+});
