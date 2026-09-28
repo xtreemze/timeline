@@ -59,7 +59,6 @@ test("empty project scaffold is strict, valid, self-describing, and canonically 
   assert.equal(validateProjectInterchange(serialized).valid, true);
 });
 
-
 test("portable Lūm interchange requires its canonical schema identifier", () => {
   const parsed = JSON.parse(
     createEmptyProjectInterchange({
@@ -188,8 +187,7 @@ test("strict validator rejects unknown fields rather than preserving agent guess
   if (result.valid) return;
   assert.ok(
     result.diagnostics.some(
-      (diagnostic) =>
-        diagnostic.code === "unknown-field" && diagnostic.path === "/project/camera",
+      (diagnostic) => diagnostic.code === "unknown-field" && diagnostic.path === "/project/camera",
     ),
   );
 });
@@ -199,10 +197,7 @@ test("machine diagnostics pinpoint the JSON Pointer source range", () => {
     projectKey: "range-case",
     savedAt: "2026-09-28T08:00:00.000Z",
   });
-  const source = valid.replace(
-    '  "project": {',
-    '  "surprise": true,\n  "project": {',
-  );
+  const source = valid.replace('  "project": {', '  "surprise": true,\n  "project": {');
   const validation = validateProjectInterchange(source);
   assert.equal(validation.valid, false);
   if (validation.valid) return;
@@ -268,10 +263,7 @@ test("LSP uses strict diagnostics and canonical formatter from the same toolchai
     projectKey: "lsp-case",
     savedAt: "2026-09-28T08:00:00.000Z",
   });
-  const invalid = valid.replace(
-    '  "project": {',
-    '  "surprise": true,\n  "project": {',
-  );
+  const invalid = valid.replace('  "project": {', '  "surprise": true,\n  "project": {');
 
   server.handle({
     jsonrpc: "2.0",
@@ -357,7 +349,10 @@ test("lum agent context emits bounded canonical context for limited-context agen
   assert.equal(context.project.projectKey, "agent-case");
   assert.equal(context.schema.id, LUM_PROJECT_SCHEMA_ID);
   assert.ok(context.manifest.counts.entities >= 0);
-  assert.equal(context.schema.proposalSchemaId, "https://xtreemze.github.io/timeline/schemas/lum-change-proposal-v1.schema.json");
+  assert.equal(
+    context.schema.proposalSchemaId,
+    "https://xtreemze.github.io/timeline/schemas/lum-change-proposal-v1.schema.json",
+  );
   assert.deepEqual(context.project.places, []);
   assert.deepEqual(context.project.sources, []);
   assert.deepEqual(context.project.categories, []);

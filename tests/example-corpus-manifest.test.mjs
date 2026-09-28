@@ -47,9 +47,11 @@ test("classic tales manifest target directories are unique", () => {
   assert.equal(new Set(targets).size, targets.length);
 });
 
-
 test("corpus compiler CLI derives all story targets from the manifest", async () => {
-  const source = await readFile(new URL("../scripts/compile-example-story.mjs", import.meta.url), "utf8");
+  const source = await readFile(
+    new URL("../scripts/compile-example-story.mjs", import.meta.url),
+    "utf8",
+  );
   assert.match(source, /compileExampleStoryCorpus/);
   assert.match(source, /--all/);
   assert.match(source, /manifest\.json/);

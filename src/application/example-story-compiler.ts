@@ -16,14 +16,8 @@ import type {
   CanonicalSource,
   CanonicalStory,
 } from "../domain/composition.ts";
-import {
-  CURRENT_PROJECT_SCHEMA_VERSION,
-  type ProjectSnapshot,
-} from "./project-repository.ts";
-import {
-  serializeProjectInterchange,
-  validateProjectInterchange,
-} from "./project-interchange.ts";
+import { CURRENT_PROJECT_SCHEMA_VERSION, type ProjectSnapshot } from "./project-repository.ts";
+import { serializeProjectInterchange, validateProjectInterchange } from "./project-interchange.ts";
 import { createProjectModule } from "./project-module.ts";
 
 type JsonRecord = Record<string, unknown>;
@@ -59,9 +53,7 @@ export interface CompiledExampleCorpusStory extends CompiledExampleStoryProject 
 }
 
 function record(value: unknown): JsonRecord {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as JsonRecord)
-    : {};
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as JsonRecord) : {};
 }
 
 function strings(value: unknown): string[] {
@@ -106,16 +98,24 @@ function canonicalEntity(raw: JsonRecord): CanonicalEntity {
         }
       : {}),
     ...(Array.isArray(raw.identifiers)
-      ? { identifiers: structuredClone(raw.identifiers) as NonNullable<CanonicalEntity["identifiers"]> }
+      ? {
+          identifiers: structuredClone(raw.identifiers) as NonNullable<
+            CanonicalEntity["identifiers"]
+          >,
+        }
       : {}),
     ...(Array.isArray(raw.appellations)
-      ? { appellations: structuredClone(raw.appellations) as NonNullable<CanonicalEntity["appellations"]> }
+      ? {
+          appellations: structuredClone(raw.appellations) as NonNullable<
+            CanonicalEntity["appellations"]
+          >,
+        }
       : {}),
     ...(Array.isArray(raw.semanticMappings)
       ? {
-          semanticMappings: structuredClone(
-            raw.semanticMappings,
-          ) as NonNullable<CanonicalEntity["semanticMappings"]>,
+          semanticMappings: structuredClone(raw.semanticMappings) as NonNullable<
+            CanonicalEntity["semanticMappings"]
+          >,
         }
       : {}),
     sourceIds: strings(raw.sourceIds).map(sourceId),
@@ -123,7 +123,10 @@ function canonicalEntity(raw: JsonRecord): CanonicalEntity {
   };
 }
 
-function canonicalRelationship(raw: JsonRecord, allowedOccurrenceIds: ReadonlySet<string>): CanonicalRelationship {
+function canonicalRelationship(
+  raw: JsonRecord,
+  allowedOccurrenceIds: ReadonlySet<string>,
+): CanonicalRelationship {
   const itemIds = strings(raw.itemIds).filter((id) => allowedOccurrenceIds.has(id));
   const attributes = structuredClone(record(raw.attributes));
   if (raw.initialState !== undefined) {
@@ -140,23 +143,23 @@ function canonicalRelationship(raw: JsonRecord, allowedOccurrenceIds: ReadonlySe
       : {}),
     ...(raw.subjectContext && typeof raw.subjectContext === "object"
       ? {
-          subjectContext: structuredClone(
-            raw.subjectContext,
-          ) as NonNullable<CanonicalRelationship["subjectContext"]>,
+          subjectContext: structuredClone(raw.subjectContext) as NonNullable<
+            CanonicalRelationship["subjectContext"]
+          >,
         }
       : {}),
     ...(raw.objectContext && typeof raw.objectContext === "object"
       ? {
-          objectContext: structuredClone(
-            raw.objectContext,
-          ) as NonNullable<CanonicalRelationship["objectContext"]>,
+          objectContext: structuredClone(raw.objectContext) as NonNullable<
+            CanonicalRelationship["objectContext"]
+          >,
         }
       : {}),
     ...(Array.isArray(raw.semanticMappings)
       ? {
-          semanticMappings: structuredClone(
-            raw.semanticMappings,
-          ) as NonNullable<CanonicalRelationship["semanticMappings"]>,
+          semanticMappings: structuredClone(raw.semanticMappings) as NonNullable<
+            CanonicalRelationship["semanticMappings"]
+          >,
         }
       : {}),
     ...(typeof raw.placeId === "string" && raw.placeId.trim()
@@ -165,9 +168,7 @@ function canonicalRelationship(raw: JsonRecord, allowedOccurrenceIds: ReadonlySe
     itemIds: itemIds.map(occurrenceId),
     sourceIds: strings(raw.sourceIds).map(sourceId),
     confidence:
-      typeof raw.confidence === "number" && Number.isFinite(raw.confidence)
-        ? raw.confidence
-        : null,
+      typeof raw.confidence === "number" && Number.isFinite(raw.confidence) ? raw.confidence : null,
     time:
       raw.time && typeof raw.time === "object"
         ? (structuredClone(raw.time) as CanonicalRelationship["time"])
@@ -191,9 +192,7 @@ function canonicalOccurrence(
     ]),
   );
   const linkedPlaces = unique(
-    linked.flatMap((relationship) =>
-      relationship.placeId ? [String(relationship.placeId)] : [],
-    ),
+    linked.flatMap((relationship) => (relationship.placeId ? [String(relationship.placeId)] : [])),
   );
   const attributes: JsonRecord = {
     description: typeof item.description === "string" ? item.description : "",
@@ -263,10 +262,7 @@ function canonicalSource(raw: JsonRecord, id: string): CanonicalSource {
         : typeof raw.kind === "string" && raw.kind.trim()
           ? raw.kind
           : "source",
-    title:
-      typeof raw.title === "string" && raw.title.trim()
-        ? raw.title
-        : id,
+    title: typeof raw.title === "string" && raw.title.trim() ? raw.title : id,
     ...(typeof raw.sourceName === "string" ? { sourceName: raw.sourceName } : {}),
     ...(typeof raw.note === "string" ? { note: raw.note } : {}),
     ...(typeof raw.publishedAt === "string" ? { publishedAt: raw.publishedAt } : {}),
@@ -310,10 +306,12 @@ export function compileExampleStoryProject(
     );
   });
   const entityIdSet = new Set(
-    relationshipRows.flatMap((relationship) => [
-      String(relationship.subjectId ?? ""),
-      String(relationship.objectId ?? ""),
-    ]).filter(Boolean),
+    relationshipRows
+      .flatMap((relationship) => [
+        String(relationship.subjectId ?? ""),
+        String(relationship.objectId ?? ""),
+      ])
+      .filter(Boolean),
   );
   const entities = sample.entities.filter((entity) => entityIdSet.has(String(entity.id)));
   if (entities.length !== entityIdSet.size) {
@@ -339,7 +337,9 @@ export function compileExampleStoryProject(
   if (places.length !== referencedPlaceIds.size) {
     const present = new Set(places.map((place) => String(place.id)));
     const missing = [...referencedPlaceIds].filter((id) => !present.has(id));
-    throw new Error(`Example story ${selectedStoryId} has unresolved places: ${missing.join(", ")}.`);
+    throw new Error(
+      `Example story ${selectedStoryId} has unresolved places: ${missing.join(", ")}.`,
+    );
   }
 
   const entityRecords = entities.map(canonicalEntity);
@@ -396,7 +396,6 @@ export function compileExampleStoryProject(
   return Object.freeze({ snapshot: validation.snapshot, serialized });
 }
 
-
 export function compileExampleStoryModules(
   sample: LegacyExampleSample,
   selectedStoryId: string,
@@ -430,7 +429,6 @@ export function compileExampleStoryModules(
     createProjectModule({ ...ownership, collection: "stories", records: project.stories ?? [] }),
   ]);
 }
-
 
 export function compileExampleStoryCorpus(
   sample: LegacyExampleSample,

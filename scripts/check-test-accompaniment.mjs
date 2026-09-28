@@ -60,8 +60,7 @@ function changedFiles(base) {
 
 function isProductionBehavior(path) {
   return (
-    behaviorRoots.some((root) => path.startsWith(root)) &&
-    behaviorExtensions.has(extname(path))
+    behaviorRoots.some((root) => path.startsWith(root)) && behaviorExtensions.has(extname(path))
   );
 }
 

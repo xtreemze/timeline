@@ -1,10 +1,7 @@
 import type { CanonicalEntity, ValidationResult } from "./entity.ts";
 import type { EntityId, PlaceId, RelationshipId, SourceId, TimelineId } from "./ids.ts";
 import { validateOccurrenceTypeId } from "./occurrence-type.ts";
-import type {
-  ActorParticipationContext,
-  ExternalSemanticMapping,
-} from "./semantics.ts";
+import type { ActorParticipationContext, ExternalSemanticMapping } from "./semantics.ts";
 import {
   participationFactIdentity,
   validateActorParticipationContext,
@@ -170,7 +167,9 @@ export function validateRelationship(
   }
 
   const entityIds = new Set(entities.map((entity) => String(entity.id)));
-  if (!(entityIds.has(String(relationship.subjectId)) && entityIds.has(String(relationship.objectId)))) {
+  if (
+    !(entityIds.has(String(relationship.subjectId)) && entityIds.has(String(relationship.objectId)))
+  ) {
     return {
       valid: false,
       message: "Both relationship endpoints must reference existing canonical entities.",

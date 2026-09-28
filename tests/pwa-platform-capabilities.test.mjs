@@ -16,12 +16,8 @@ test("installed Lūm registers its project file type and launch behavior", async
   assert.ok(handler.accept?.["application/json"]?.includes(".lum.json"));
   assert.ok(handler.accept?.["application/json"]?.includes(".luum"));
 
-  assert.ok(
-    manifest.shortcuts?.some((shortcut) => shortcut.url === "./?shortcut=new-event"),
-  );
-  assert.ok(
-    manifest.shortcuts?.some((shortcut) => shortcut.url === "./?shortcut=browse"),
-  );
+  assert.ok(manifest.shortcuts?.some((shortcut) => shortcut.url === "./?shortcut=new-event"));
+  assert.ok(manifest.shortcuts?.some((shortcut) => shortcut.url === "./?shortcut=browse"));
 });
 
 test("platform capability layer progressively enhances installed app behavior", async () => {

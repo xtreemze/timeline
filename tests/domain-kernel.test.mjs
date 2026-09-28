@@ -94,7 +94,8 @@ test("actor identity metadata stays canonical while biographical history stays o
     true,
   );
   assert.equal(
-    validateEntity({ name: "Alice", type: "person", attributes: { employer: "Example Corp" } }).valid,
+    validateEntity({ name: "Alice", type: "person", attributes: { employer: "Example Corp" } })
+      .valid,
     false,
   );
   assert.equal(
@@ -182,10 +183,7 @@ test("place and role context distinguish otherwise identical occurrences", () =>
     relationshipFactKey({ ...base, placeId: "stockholm" }),
     relationshipFactKey({ ...base, placeId: "copenhagen" }),
   );
-  assert.notEqual(
-    relationshipFactKey(base),
-    relationshipFactKey({ ...base, role: "director" }),
-  );
+  assert.notEqual(relationshipFactKey(base), relationshipFactKey({ ...base, role: "director" }));
 });
 
 test("domain relationship predicates remain action-only", () => {
@@ -342,7 +340,6 @@ test("relationship matrix filters source coverage without mutating canonical rel
   assert.equal(JSON.stringify(project), before);
 });
 
-
 test("multi-participant occurrences keep one shared identity without event nodes", () => {
   const carol = {
     id: entityId("carol"),
@@ -382,10 +379,7 @@ test("multi-participant occurrences keep one shared identity without event nodes
     attributes: {},
   };
 
-  assert.deepEqual(
-    validateOccurrence(birth, [alice, bob, carol], [parentA, parentB]),
-    [],
-  );
+  assert.deepEqual(validateOccurrence(birth, [alice, bob, carol], [parentA, parentB]), []);
   const created = recordOccurrence(
     {
       schemaVersion: 3,
@@ -403,7 +397,6 @@ test("multi-participant occurrences keep one shared identity without event nodes
     }),
   );
 });
-
 
 test("dense trajectories stay as one manifest instead of high-frequency Places or occurrences", () => {
   const trajectory = {

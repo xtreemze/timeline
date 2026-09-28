@@ -41,7 +41,10 @@ test("command journal commits atomically and undoes/redoes heterogeneous transac
     source: "user",
     timestamp: "2026-09-28T10:40:00.000Z",
   });
-  assert.equal(first.project.entities.some((entity) => entity.id === "bob"), true);
+  assert.equal(
+    first.project.entities.some((entity) => entity.id === "bob"),
+    true,
+  );
   assert.equal(first.canUndo, true);
   assert.equal(first.canRedo, false);
 
@@ -57,7 +60,10 @@ test("command journal commits atomically and undoes/redoes heterogeneous transac
 
   const undone = journal.undo();
   assert.equal(undone.project.title, "Fixture");
-  assert.equal(undone.project.entities.some((entity) => entity.id === "bob"), true);
+  assert.equal(
+    undone.project.entities.some((entity) => entity.id === "bob"),
+    true,
+  );
   assert.equal(undone.canRedo, true);
 
   const redone = journal.redo();
@@ -85,10 +91,19 @@ test("undo followed by a new commit truncates the redo branch", () => {
     operations: [upsertEntity("dave")],
   });
 
-  assert.equal(branch.project.entities.some((entity) => entity.id === "carol"), false);
-  assert.equal(branch.project.entities.some((entity) => entity.id === "dave"), true);
+  assert.equal(
+    branch.project.entities.some((entity) => entity.id === "carol"),
+    false,
+  );
+  assert.equal(
+    branch.project.entities.some((entity) => entity.id === "dave"),
+    true,
+  );
   assert.equal(branch.canRedo, false);
-  assert.deepEqual(branch.history.map((entry) => entry.id), ["tx-a", "tx-c"]);
+  assert.deepEqual(
+    branch.history.map((entry) => entry.id),
+    ["tx-a", "tx-c"],
+  );
 });
 
 test("failed transactions leave canonical state, cursor, and history unchanged", () => {
@@ -124,10 +139,7 @@ test("validation failure rolls back the whole grouped transaction", () => {
       journal.commit({
         id: "tx-group",
         type: "BulkImport",
-        operations: [
-          upsertEntity("bob"),
-          upsertEntity("forbidden"),
-        ],
+        operations: [upsertEntity("bob"), upsertEntity("forbidden")],
       }),
     /forbidden entity/,
   );
@@ -145,13 +157,25 @@ test("bounded history drops oldest undo entries without changing current state",
     operations: [upsertEntity("c")],
   });
 
-  assert.deepEqual(current.history.map((entry) => entry.id), ["tx-b", "tx-c"]);
-  assert.equal(current.project.entities.some((entity) => entity.id === "a"), true);
+  assert.deepEqual(
+    current.history.map((entry) => entry.id),
+    ["tx-b", "tx-c"],
+  );
+  assert.equal(
+    current.project.entities.some((entity) => entity.id === "a"),
+    true,
+  );
 
   journal.undo();
   const oldestReachable = journal.undo();
-  assert.equal(oldestReachable.project.entities.some((entity) => entity.id === "a"), true);
-  assert.equal(oldestReachable.project.entities.some((entity) => entity.id === "b"), false);
+  assert.equal(
+    oldestReachable.project.entities.some((entity) => entity.id === "a"),
+    true,
+  );
+  assert.equal(
+    oldestReachable.project.entities.some((entity) => entity.id === "b"),
+    false,
+  );
   assert.equal(oldestReachable.canUndo, false);
 });
 

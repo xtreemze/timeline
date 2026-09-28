@@ -17,12 +17,7 @@ function hexColor(value) {
           .join("")
       : normalized.padEnd(6, "8").slice(0, 6);
   const integer = Number.parseInt(expanded, 16);
-  return [
-    ((integer >> 16) & 255) / 255,
-    ((integer >> 8) & 255) / 255,
-    (integer & 255) / 255,
-    1,
-  ];
+  return [((integer >> 16) & 255) / 255, ((integer >> 8) & 255) / 255, (integer & 255) / 255, 1];
 }
 
 function radians(value) {
@@ -55,12 +50,60 @@ function boxGeometry(primitive) {
   const hy = sy / 2;
   const hz = sz / 2;
   const faces = [
-    { normal: [0, 0, 1], corners: [[-hx, -hy, hz], [hx, -hy, hz], [hx, hy, hz], [-hx, hy, hz]] },
-    { normal: [0, 0, -1], corners: [[hx, -hy, -hz], [-hx, -hy, -hz], [-hx, hy, -hz], [hx, hy, -hz]] },
-    { normal: [1, 0, 0], corners: [[hx, -hy, hz], [hx, -hy, -hz], [hx, hy, -hz], [hx, hy, hz]] },
-    { normal: [-1, 0, 0], corners: [[-hx, -hy, -hz], [-hx, -hy, hz], [-hx, hy, hz], [-hx, hy, -hz]] },
-    { normal: [0, 1, 0], corners: [[-hx, hy, hz], [hx, hy, hz], [hx, hy, -hz], [-hx, hy, -hz]] },
-    { normal: [0, -1, 0], corners: [[-hx, -hy, -hz], [hx, -hy, -hz], [hx, -hy, hz], [-hx, -hy, hz]] },
+    {
+      normal: [0, 0, 1],
+      corners: [
+        [-hx, -hy, hz],
+        [hx, -hy, hz],
+        [hx, hy, hz],
+        [-hx, hy, hz],
+      ],
+    },
+    {
+      normal: [0, 0, -1],
+      corners: [
+        [hx, -hy, -hz],
+        [-hx, -hy, -hz],
+        [-hx, hy, -hz],
+        [hx, hy, -hz],
+      ],
+    },
+    {
+      normal: [1, 0, 0],
+      corners: [
+        [hx, -hy, hz],
+        [hx, -hy, -hz],
+        [hx, hy, -hz],
+        [hx, hy, hz],
+      ],
+    },
+    {
+      normal: [-1, 0, 0],
+      corners: [
+        [-hx, -hy, -hz],
+        [-hx, -hy, hz],
+        [-hx, hy, hz],
+        [-hx, hy, -hz],
+      ],
+    },
+    {
+      normal: [0, 1, 0],
+      corners: [
+        [-hx, hy, hz],
+        [hx, hy, hz],
+        [hx, hy, -hz],
+        [-hx, hy, -hz],
+      ],
+    },
+    {
+      normal: [0, -1, 0],
+      corners: [
+        [-hx, -hy, -hz],
+        [hx, -hy, -hz],
+        [hx, -hy, hz],
+        [-hx, -hy, hz],
+      ],
+    },
   ];
 
   const positions = [];
@@ -129,7 +172,10 @@ export function validateMaquetteAsset(asset) {
   }
   for (const primitive of asset.primitives || []) {
     if (primitive.kind !== "box") findings.push(`Unsupported primitive kind ${primitive.kind}.`);
-    if (!Array.isArray(primitive.sizeMeters) || primitive.sizeMeters.some((value) => !(value > 0))) {
+    if (
+      !Array.isArray(primitive.sizeMeters) ||
+      primitive.sizeMeters.some((value) => !(value > 0))
+    ) {
       findings.push(`Primitive ${primitive.name || "unnamed"} requires positive meter dimensions.`);
     }
   }

@@ -123,7 +123,8 @@ export async function saveNativeProjectFile(
 }
 
 export function canShareProjectFile(): boolean {
-  if (typeof navigator.share !== "function" || typeof navigator.canShare !== "function") return false;
+  if (typeof navigator.share !== "function" || typeof navigator.canShare !== "function")
+    return false;
   try {
     const probe = new File(["{}"], "project.lum.json", { type: "application/json" });
     return navigator.canShare({ files: [probe] });

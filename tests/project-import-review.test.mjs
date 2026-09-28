@@ -47,7 +47,10 @@ const dependencies = {
 
 test("recognizes only verification-required public story proposal envelopes", () => {
   assert.equal(isVerificationRequiredStoryProposal(envelope()), true);
-  assert.equal(isVerificationRequiredStoryProposal({ ...envelope(), verificationRequired: false }), false);
+  assert.equal(
+    isVerificationRequiredStoryProposal({ ...envelope(), verificationRequired: false }),
+    false,
+  );
   assert.equal(isVerificationRequiredStoryProposal(envelope({ schemaVersion: "other" })), false);
   assert.equal(isVerificationRequiredStoryProposal({ title: "ordinary project" }), false);
 });
@@ -115,7 +118,11 @@ test("preflight or local validation errors keep the proposal in needs-repair sta
   const localFailure = stageProjectImportReview(envelope(), {
     ...dependencies,
     validate() {
-      return { valid: false, errors: ["Graph contract rejected relationship rel-1."], warnings: [] };
+      return {
+        valid: false,
+        errors: ["Graph contract rejected relationship rel-1."],
+        warnings: [],
+      };
     },
   });
   assert.equal(localFailure?.status, "needs-repair");
@@ -164,12 +171,13 @@ test("application stages public story proposal envelopes without replacing canon
     /importProjectFile[\s\S]*stageVerificationRequiredProjectImport\(raw\)[\s\S]*current project unchanged/,
   );
 
-  const importBody = app.match(
-    /async function importProjectFile[\s\S]*?\n\}/,
-  )?.[0] ?? "";
+  const importBody = app.match(/async function importProjectFile[\s\S]*?\n\}/)?.[0] ?? "";
   const stageIndex = importBody.indexOf("stageVerificationRequiredProjectImport(raw)");
   const applyIndex = importBody.indexOf("applyImportedTimeline(");
   assert.ok(stageIndex >= 0);
-  assert.ok(applyIndex > stageIndex, "ordinary trusted import may apply only after staged-proposal detection");
+  assert.ok(
+    applyIndex > stageIndex,
+    "ordinary trusted import may apply only after staged-proposal detection",
+  );
   assert.doesNotMatch(importBody, /applyImportedTimeline\(\s*staged/);
 });

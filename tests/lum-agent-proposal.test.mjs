@@ -214,10 +214,7 @@ test("proposal fails closed when expected project revision is stale", () => {
 });
 
 test("unknown proposal fields and unsupported operations are rejected", () => {
-  const unknown = validateLumChangeProposal(
-    proposal([], { agentGuess: true }),
-    baseProject(),
-  );
+  const unknown = validateLumChangeProposal(proposal([], { agentGuess: true }), baseProject());
   assert.equal(unknown.valid, false);
   assert.ok(unknown.diagnostics.some((finding) => finding.code === "unknown-field"));
 
@@ -293,20 +290,15 @@ test("candidate validation rejects reference-unsafe deletion", () => {
   assert.equal(created.valid, true);
   if (!created.valid) return;
 
-  const deleteAlice = proposal(
-    [{ op: "delete", collection: "entities", id: "alice" }],
-    { expectedRevision: 2 },
-  );
+  const deleteAlice = proposal([{ op: "delete", collection: "entities", id: "alice" }], {
+    expectedRevision: 2,
+  });
   const result = applyLumChangeProposal(deleteAlice, created.candidate, {
     savedAt: "2026-09-28T09:01:00.000Z",
   });
 
   assert.equal(result.valid, false);
-  assert.ok(
-    result.diagnostics.some(
-      (finding) => finding.code === "record-still-referenced",
-    ),
-  );
+  assert.ok(result.diagnostics.some((finding) => finding.code === "record-still-referenced"));
 });
 
 test("source deletion is blocked while provenance references remain", () => {
@@ -405,9 +397,7 @@ test("composer options are rejected when the canonical relationship cannot prese
   );
 
   assert.equal(result.valid, false);
-  assert.ok(
-    result.diagnostics.some((finding) => finding.code === "composer-options-unverifiable"),
-  );
+  assert.ok(result.diagnostics.some((finding) => finding.code === "composer-options-unverifiable"));
 });
 
 test("CLI validate-proposal and apply write a new candidate by default", async (t) => {
@@ -442,14 +432,7 @@ test("CLI validate-proposal and apply write a new candidate by default", async (
   assert.equal(check.status, 0, check.stderr);
   assert.equal(JSON.parse(check.stdout).valid, true);
 
-  const apply = runLum([
-    "agent",
-    "apply",
-    proposalPath,
-    "--project",
-    projectPath,
-    "--json",
-  ]);
+  const apply = runLum(["agent", "apply", proposalPath, "--project", projectPath, "--json"]);
   assert.equal(apply.status, 0, apply.stderr);
   const output = JSON.parse(apply.stdout);
   assert.match(output.output, /\.candidate\.lum\.json$/);

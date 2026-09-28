@@ -113,7 +113,9 @@ test("workspace LSP indexes unopened module files for compatible completion", as
     params: { textDocument: { uri: harness.relationshipUri }, position },
   });
 
-  const labels = response(harness.messages, 2).result.map((item) => item.label).sort();
+  const labels = response(harness.messages, 2)
+    .result.map((item) => item.label)
+    .sort();
   assert.deepEqual(labels, ["alice", "bob"]);
 });
 
@@ -170,7 +172,11 @@ test("workspace symbols expose canonical module records", async (t) => {
     params: { query: "Alice" },
   });
   const symbols = response(harness.messages, 5).result;
-  assert.ok(symbols.some((symbol) => symbol.name.includes("alice") && symbol.location.uri === harness.entityUri));
+  assert.ok(
+    symbols.some(
+      (symbol) => symbol.name.includes("alice") && symbol.location.uri === harness.entityUri,
+    ),
+  );
 });
 
 test("module document symbols identify the owned canonical collection", async (t) => {
@@ -212,11 +218,7 @@ test("canonical ID rename previews only typed declarations and references across
     },
   });
 
-  const declarationPosition = positionOf(
-    harness.entities,
-    '"id": "alice"',
-    '"id": "'.length + 2,
-  );
+  const declarationPosition = positionOf(harness.entities, '"id": "alice"', '"id": "'.length + 2);
   harness.server.handle({
     jsonrpc: "2.0",
     id: 7,

@@ -5241,7 +5241,6 @@
     0 6px 18px color-mix(in srgb, var(--event-color) 14%, transparent);
 }
 
-
 /* Story titlebar context keeps the active story name visible in both timeline orientations. */
 #app-shell
   #presentation-stage

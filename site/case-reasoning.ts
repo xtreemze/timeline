@@ -124,7 +124,8 @@ export const ANALYTIC_METHODS = Object.freeze([
     family: "diagnostic",
     source: "CIA Tradecraft Primer",
     sourceUrl: "https://www.cia.gov/resources/csi/books-monographs/a-tradecraft-primer/",
-    purpose: "compare the same evidence across reasonable alternative hypotheses, emphasizing inconsistency and diagnostic evidence",
+    purpose:
+      "compare the same evidence across reasonable alternative hypotheses, emphasizing inconsistency and diagnostic evidence",
   }),
   Object.freeze({
     id: "key-assumptions-check",
@@ -132,7 +133,8 @@ export const ANALYTIC_METHODS = Object.freeze([
     family: "diagnostic",
     source: "CIA Tradecraft Primer",
     sourceUrl: "https://www.cia.gov/resources/csi/books-monographs/a-tradecraft-primer/",
-    purpose: "make assumptions explicit and challenge whether they remain necessary and well founded",
+    purpose:
+      "make assumptions explicit and challenge whether they remain necessary and well founded",
   }),
   Object.freeze({
     id: "quality-of-information-check",
@@ -140,7 +142,8 @@ export const ANALYTIC_METHODS = Object.freeze([
     family: "diagnostic",
     source: "CIA Tradecraft Primer",
     sourceUrl: "https://www.cia.gov/resources/csi/books-monographs/a-tradecraft-primer/",
-    purpose: "review source strengths, weaknesses, corroboration, and information gaps without collapsing them to a truth score",
+    purpose:
+      "review source strengths, weaknesses, corroboration, and information gaps without collapsing them to a truth score",
   }),
   Object.freeze({
     id: "indicators-signposts",
@@ -148,7 +151,8 @@ export const ANALYTIC_METHODS = Object.freeze([
     family: "diagnostic",
     source: "CIA Tradecraft Primer",
     sourceUrl: "https://www.cia.gov/resources/csi/books-monographs/a-tradecraft-primer/",
-    purpose: "state observable developments that would support, contradict, or change an analytical hypothesis",
+    purpose:
+      "state observable developments that would support, contradict, or change an analytical hypothesis",
   }),
   Object.freeze({
     id: "devils-advocacy",
@@ -172,7 +176,8 @@ export const ANALYTIC_METHODS = Object.freeze([
     family: "investigative",
     source: "College of Policing investigation guidance",
     sourceUrl: "https://www.college.police.uk/app/investigation/investigation-process",
-    purpose: "record and pursue proportionate enquiries that gather material pointing both toward and away from a hypothesis or suspect",
+    purpose:
+      "record and pursue proportionate enquiries that gather material pointing both toward and away from a hypothesis or suspect",
   }),
   Object.freeze({
     id: "alternative-propositions",
@@ -180,7 +185,8 @@ export const ANALYTIC_METHODS = Object.freeze([
     family: "forensic-interpretation",
     source: "ISO 21043-4:2025",
     sourceUrl: "https://www.iso.org/standard/72039.html",
-    purpose: "interpret observations against alternative propositions relevant to the decision question",
+    purpose:
+      "interpret observations against alternative propositions relevant to the decision question",
   }),
 ]);
 
@@ -377,10 +383,7 @@ export function normalizeRecord(
     record.propositionIds = idList(raw.propositionIds);
     record.targetIds = idList(raw.targetIds);
     record.resultIds = idList(raw.resultIds);
-    record.expectedDiscriminator = text(
-      raw.expectedDiscriminator ?? raw.expectedResult,
-      12000,
-    );
+    record.expectedDiscriminator = text(raw.expectedDiscriminator ?? raw.expectedResult, 12000);
   } else if (type === "indicator") {
     const state = text(raw.state, 80);
     record.state = INDICATOR_STATES.includes(state as any) ? state : "unknown";
@@ -393,9 +396,7 @@ export function normalizeRecord(
         : null;
   } else if (type === "informationReview") {
     const finding = text(raw.finding, 80);
-    record.finding = INFORMATION_FINDINGS.includes(finding as any)
-      ? finding
-      : "unknown";
+    record.finding = INFORMATION_FINDINGS.includes(finding as any) ? finding : "unknown";
     record.targetIds = idList(raw.targetIds);
     record.methodId = text(raw.methodId, 160) || "quality-of-information-check";
   } else if (type === "citation") {
@@ -601,13 +602,9 @@ function hypothesisCell(
   const edges = normalized.edges.filter(
     (edge: any) => edge.fromId === evidenceId && edge.toId === hypothesis.id,
   );
-  const predicates = new Set<string>(
-    edges.map((edge: any) => String(edge.predicate ?? "")),
-  );
+  const predicates = new Set<string>(edges.map((edge: any) => String(edge.predicate ?? "")));
   const supports = [...predicates].some((predicate) => SUPPORT_PREDICATES.has(predicate));
-  const contradicts = [...predicates].some((predicate) =>
-    CONTRADICTION_PREDICATES.has(predicate),
-  );
+  const contradicts = [...predicates].some((predicate) => CONTRADICTION_PREDICATES.has(predicate));
   const explicitlyLinked =
     hypothesis.observationIds?.includes(evidenceId) ||
     hypothesis.assertionIds?.includes(evidenceId) ||
@@ -662,9 +659,7 @@ export function competingHypothesisMatrix(reasoning: any, alternativeGroupId: un
     evidenceRows: evidence.map((record: any) => ({
       evidenceId: record.id,
       evidenceType: record.type,
-      cells: hypotheses.map((hypothesis: any) =>
-        hypothesisCell(record.id, hypothesis, normalized),
-      ),
+      cells: hypotheses.map((hypothesis: any) => hypothesisCell(record.id, hypothesis, normalized)),
     })),
   };
 }
@@ -790,10 +785,10 @@ interface ValidationFinding {
 }
 
 export function validateReasoning(reasoning: any, options: any = {}): ValidationFinding[] {
-  const { normalized, records, recordById, knownIds } = indexReasoning(
-    reasoning,
-    [...idList(options.externalIds), ...idList(options.entityIds)],
-  );
+  const { normalized, records, recordById, knownIds } = indexReasoning(reasoning, [
+    ...idList(options.externalIds),
+    ...idList(options.entityIds),
+  ]);
   const findings: ValidationFinding[] = [];
 
   const add = (severity: string, code: string, recordId: string | undefined, message: string) =>
@@ -913,10 +908,7 @@ export function validateReasoning(reasoning: any, options: any = {}): Validation
       }
     }
     if (record.type === "lineOfEnquiry") {
-      if (
-        ["deferred", "not-pursued"].includes(record.status) &&
-        !record.rationale
-      ) {
+      if (["deferred", "not-pursued"].includes(record.status) && !record.rationale) {
         add(
           "error",
           "enquiry-rationale-required",
@@ -946,10 +938,7 @@ export function validateReasoning(reasoning: any, options: any = {}): Validation
       }
     }
     if (record.type === "indicator") {
-      if (
-        ["observed", "absent"].includes(record.state) &&
-        record.observationIds.length === 0
-      ) {
+      if (["observed", "absent"].includes(record.state) && record.observationIds.length === 0) {
         add(
           "warning",
           "indicator-observation-missing",

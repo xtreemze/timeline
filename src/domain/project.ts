@@ -12,10 +12,7 @@ import { validateTrajectoryArtifact } from "./trajectory.ts";
 import { validateOccurrence } from "./occurrence.ts";
 import type { CanonicalRelationship } from "./relationship.ts";
 import { relationshipFactKey, validateRelationship } from "./relationship.ts";
-import type {
-  ActorParticipationContext,
-  ExternalSemanticMapping,
-} from "./semantics.ts";
+import type { ActorParticipationContext, ExternalSemanticMapping } from "./semantics.ts";
 
 export interface CanonicalProject {
   readonly schemaVersion: number;
@@ -190,7 +187,6 @@ export function findRelationship(
   return project.relationships.find((relationship) => relationship.id === id);
 }
 
-
 export function recordOccurrence(
   project: CanonicalProject,
   candidate: CanonicalOccurrence,
@@ -202,7 +198,9 @@ export function recordOccurrence(
   if ((project.occurrences ?? []).some((occurrence) => occurrence.id === candidate.id)) {
     throw new Error(`Occurrence ID ${String(candidate.id)} already exists.`);
   }
-  const trajectoryIds = new Set((project.trajectories ?? []).map((trajectory) => String(trajectory.id)));
+  const trajectoryIds = new Set(
+    (project.trajectories ?? []).map((trajectory) => String(trajectory.id)),
+  );
   for (const id of candidate.trajectoryIds ?? []) {
     if (!trajectoryIds.has(String(id))) {
       throw new Error(`Occurrence trajectory ${String(id)} does not resolve.`);
@@ -225,7 +223,6 @@ export function findOccurrence(
 ): CanonicalOccurrence | undefined {
   return (project.occurrences ?? []).find((occurrence) => occurrence.id === id);
 }
-
 
 export function recordTrajectory(
   project: CanonicalProject,

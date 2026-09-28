@@ -311,7 +311,10 @@ test.describe("contextual world authoring certification", () => {
 
     for (const viewport of cases) {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
-      test.skip(!(await certifyWebGlWorld(page)), "WebGL2 unavailable; WorldSurface is not active.");
+      test.skip(
+        !(await certifyWebGlWorld(page)),
+        "WebGL2 unavailable; WorldSurface is not active.",
+      );
 
       const empty = await discoverEmptyWorldPoint(page);
       await assertComposerInsideFooter(page);
@@ -373,5 +376,4 @@ test.describe("contextual world authoring certification", () => {
       await page.goto("/");
     }
   });
-
 });

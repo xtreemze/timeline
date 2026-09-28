@@ -133,10 +133,7 @@ function collection(
 
 function labelFor(record: ReasoningRecord, fallback: string): string {
   return (
-    stringValue(record.text) ||
-    stringValue(record.title) ||
-    stringValue(record.id) ||
-    fallback
+    stringValue(record.text) || stringValue(record.title) || stringValue(record.id) || fallback
   );
 }
 
@@ -202,7 +199,14 @@ function statusBadge(value: string): HTMLElement {
 }
 
 function parseIdList(value: string): string[] {
-  return [...new Set(value.split(/[\n,]/).map((entry) => entry.trim()).filter(Boolean))];
+  return [
+    ...new Set(
+      value
+        .split(/[\n,]/)
+        .map((entry) => entry.trim())
+        .filter(Boolean),
+    ),
+  ];
 }
 
 function focusButton(
@@ -400,7 +404,9 @@ export function createInvestigationWorkspace(
     const region = createElement("section", "investigation-evidence-drilldown");
     region.setAttribute("aria-live", "polite");
     if (!record) {
-      region.append(emptyState("Select an evidence or observation row to inspect its source context."));
+      region.append(
+        emptyState("Select an evidence or observation row to inspect its source context."),
+      );
       return region;
     }
 
@@ -555,12 +561,9 @@ export function createInvestigationWorkspace(
         inspect.type = "button";
         inspect.setAttribute("aria-expanded", String(selectedMatrixRecordId === row.evidenceId));
         inspect.addEventListener("click", () => {
-          selectedMatrixRecordId =
-            selectedMatrixRecordId === row.evidenceId ? "" : row.evidenceId;
+          selectedMatrixRecordId = selectedMatrixRecordId === row.evidenceId ? "" : row.evidenceId;
           drilldownHost.replaceChildren(
-            renderEvidenceDrilldown(
-              selectedMatrixRecordId === row.evidenceId ? record : undefined,
-            ),
+            renderEvidenceDrilldown(selectedMatrixRecordId === row.evidenceId ? record : undefined),
           );
           inspect.setAttribute("aria-expanded", String(Boolean(selectedMatrixRecordId)));
         });
@@ -631,11 +634,7 @@ export function createInvestigationWorkspace(
       reviewList("Assumptions needing review", review.assumptionIdsNeedingReview, reasoning),
       reviewList("Active / proposed enquiries", review.activeEnquiryIds, reasoning),
       reviewList("Deferred / not pursued", review.deferredEnquiryIds, reasoning),
-      reviewList(
-        "Information-quality concerns",
-        review.unresolvedInformationReviewIds,
-        reasoning,
-      ),
+      reviewList("Information-quality concerns", review.unresolvedInformationReviewIds, reasoning),
       reviewList("Unknown indicators", review.unknownIndicatorIds, reasoning),
     );
 
@@ -679,9 +678,7 @@ export function createInvestigationWorkspace(
     }
     root.append(coverage);
 
-    const errors = review.validationFindings.filter(
-      (finding) => finding.severity === "error",
-    );
+    const errors = review.validationFindings.filter((finding) => finding.severity === "error");
     if (errors.length) {
       const validation = createElement("section", "investigation-review-group");
       validation.append(createElement("h3", "", "Validation"));
@@ -729,7 +726,11 @@ export function createInvestigationWorkspace(
     rationale.placeholder = "Why is this assumption supported, challenged, or retained?";
 
     const actions = createElement("div", "investigation-form-actions");
-    const save = createElement("button", "button primary", editing ? "Update assumption" : "Add assumption");
+    const save = createElement(
+      "button",
+      "button primary",
+      editing ? "Update assumption" : "Add assumption",
+    );
     save.type = "submit";
     const cancel = createElement("button", "button ghost", "Cancel");
     cancel.type = "button";
@@ -757,7 +758,13 @@ export function createInvestigationWorkspace(
         rationale: rationale.value.trim(),
       };
       if (!stringValue(record.text)) return;
-      if (commitCollection("assumptions", record, editing ? "Assumption updated." : "Assumption added.")) {
+      if (
+        commitCollection(
+          "assumptions",
+          record,
+          editing ? "Assumption updated." : "Assumption added.",
+        )
+      ) {
         editingAssumptionId = "";
         render();
       }
@@ -829,7 +836,11 @@ export function createInvestigationWorkspace(
     rationale.placeholder = "Required when deferred or not pursued.";
 
     const actions = createElement("div", "investigation-form-actions");
-    const save = createElement("button", "button primary", editing ? "Update enquiry" : "Add enquiry");
+    const save = createElement(
+      "button",
+      "button primary",
+      editing ? "Update enquiry" : "Add enquiry",
+    );
     save.type = "submit";
     const cancel = createElement("button", "button ghost", "Cancel");
     cancel.type = "button";
@@ -862,7 +873,13 @@ export function createInvestigationWorkspace(
         rationale: rationale.value.trim(),
       };
       if (!stringValue(record.text)) return;
-      if (commitCollection("linesOfEnquiry", record, editing ? "Line of enquiry updated." : "Line of enquiry added.")) {
+      if (
+        commitCollection(
+          "linesOfEnquiry",
+          record,
+          editing ? "Line of enquiry updated." : "Line of enquiry added.",
+        )
+      ) {
         editingEnquiryId = "";
         render();
       }
@@ -1037,7 +1054,9 @@ export function createInvestigationWorkspace(
     const records = collection(reasoning, "indicators");
     const editing = records.find((record) => recordId(record) === editingIndicatorId);
     const temporalScope =
-      editing?.temporalScope && typeof editing.temporalScope === "object" && !Array.isArray(editing.temporalScope)
+      editing?.temporalScope &&
+      typeof editing.temporalScope === "object" &&
+      !Array.isArray(editing.temporalScope)
         ? (editing.temporalScope as Record<string, unknown>)
         : {};
 
@@ -1108,16 +1127,15 @@ export function createInvestigationWorkspace(
         propositionIds: parseIdList(propositions.value),
         temporalScope:
           temporalStart || temporalEnd
-            ? { ...(temporalStart ? { start: temporalStart } : {}), ...(temporalEnd ? { end: temporalEnd } : {}) }
+            ? {
+                ...(temporalStart ? { start: temporalStart } : {}),
+                ...(temporalEnd ? { end: temporalEnd } : {}),
+              }
             : null,
       };
       if (!stringValue(record.text)) return;
       if (
-        commitCollection(
-          "indicators",
-          record,
-          editing ? "Indicator updated." : "Indicator added.",
-        )
+        commitCollection("indicators", record, editing ? "Indicator updated." : "Indicator added.")
       ) {
         editingIndicatorId = "";
         render();
@@ -1188,9 +1206,11 @@ export function createInvestigationWorkspace(
     if (open) {
       render();
       requestAnimationFrame(() => {
-        tabButtons.find((button) => button.dataset.investigationPanel === activePanel)?.focus({
-          preventScroll: true,
-        });
+        tabButtons
+          .find((button) => button.dataset.investigationPanel === activePanel)
+          ?.focus({
+            preventScroll: true,
+          });
       });
     }
   }

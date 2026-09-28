@@ -85,13 +85,15 @@ test("composer selection context reuses canonical entity and place identities", 
   assert.match(app, /composition:\s*occurrenceCompositionForRelationship\(relationship\)/);
   assert.match(app, /relationship:[\s\S]*subjectId:[\s\S]*objectId:/);
   assert.match(app, /place:[\s\S]*id:[\s\S]*name:/);
-  assert.match(app, /placeName:\s*detail\.draft\.place\?\.name\s*\?\?\s*detail\.defaults\.placeReference/);
+  assert.match(
+    app,
+    /placeName:\s*detail\.draft\.place\?\.name\s*\?\?\s*detail\.defaults\.placeReference/,
+  );
 });
 
 test("closing timeline focus does not erase canonical selection", async () => {
   const app = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
-  const focusHandler =
-    app.match(/timelinefocuschange"[\s\S]*?\n\}\);/)?.[0] ?? "";
+  const focusHandler = app.match(/timelinefocuschange"[\s\S]*?\n\}\);/)?.[0] ?? "";
 
   assert.match(focusHandler, /if \(focused\)[\s\S]*selectionForTimelineFocus/);
   assert.doesNotMatch(focusHandler, /focused \? selectionForTimelineFocus[\s\S]*: null/);
@@ -106,31 +108,21 @@ test("opening the composer reapplies the retained canonical selection context", 
   );
 });
 
-
 test("composer owns Home/End suggestion navigation while active", async () => {
   const composer = await readFile(
     new URL("../site/components/occurrence-composer.ts", import.meta.url),
     "utf8",
   );
 
-  assert.match(
-    composer,
-    /event\.key === "Home"[\s\S]*activeSuggestion = 0/,
-  );
-  assert.match(
-    composer,
-    /event\.key === "End"[\s\S]*activeSuggestion = suggestions\.length - 1/,
-  );
+  assert.match(composer, /event\.key === "Home"[\s\S]*activeSuggestion = 0/);
+  assert.match(composer, /event\.key === "End"[\s\S]*activeSuggestion = suggestions\.length - 1/);
 });
 
 test("contextual composer returns focus to its connected invoker on close", async () => {
   const app = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
 
   assert.match(app, /occurrenceComposerReturnFocus/);
-  assert.match(
-    app,
-    /function composerInvoker\(\)[\s\S]*document\.activeElement/,
-  );
+  assert.match(app, /function composerInvoker\(\)[\s\S]*document\.activeElement/);
   assert.match(
     app,
     /setOccurrenceComposerOpen\(open: boolean\)[\s\S]*occurrenceComposerReturnFocus = composerInvoker\(\)/,
@@ -139,8 +131,5 @@ test("contextual composer returns focus to its connected invoker on close", asyn
     app,
     /restoreComposerFocus[\s\S]*isConnected[\s\S]*focus\(\{ preventScroll: true \}\)/,
   );
-  assert.match(
-    app,
-    /syncApplicationSurfaces\(\)[\s\S]*restoreComposerFocus/,
-  );
+  assert.match(app, /syncApplicationSurfaces\(\)[\s\S]*restoreComposerFocus/);
 });

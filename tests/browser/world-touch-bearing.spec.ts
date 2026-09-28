@@ -19,7 +19,10 @@ test.describe("world single-touch bearing constraint", () => {
     browserName,
     isMobile,
   }) => {
-    test.skip(!isMobile || browserName !== "chromium", "Trusted touch certification is mobile Chromium.");
+    test.skip(
+      !isMobile || browserName !== "chromium",
+      "Trusted touch certification is mobile Chromium.",
+    );
     test.skip(!(await gotoHarness(page)), "WebGL2 unavailable in this environment.");
 
     const viewport = page.viewportSize();

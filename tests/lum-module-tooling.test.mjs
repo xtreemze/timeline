@@ -57,7 +57,9 @@ test("lum check/lint/fmt auto-detect project modules", async (t) => {
 
   const lint = runLum(["lint", modulePath, "--json"]);
   assert.equal(lint.status, 1);
-  assert.ok(JSON.parse(lint.stdout).diagnostics.some((finding) => finding.code === "non-canonical-format"));
+  assert.ok(
+    JSON.parse(lint.stdout).diagnostics.some((finding) => finding.code === "non-canonical-format"),
+  );
 
   const fmt = runLum(["fmt", modulePath]);
   assert.equal(fmt.status, 0, fmt.stderr);
@@ -129,7 +131,11 @@ test("lum check-modules performs whole-project validation across module files", 
   ];
   for (const [name, source] of files) await writeFile(path.join(directory, name), source, "utf8");
 
-  const result = runLum(["check-modules", ...files.map(([name]) => path.join(directory, name)), "--json"]);
+  const result = runLum([
+    "check-modules",
+    ...files.map(([name]) => path.join(directory, name)),
+    "--json",
+  ]);
   assert.equal(result.status, 0, result.stderr);
   const payload = JSON.parse(result.stdout);
   assert.equal(payload.valid, true);
@@ -172,8 +178,8 @@ test("VS Code selects the module schema without applying the project schema", as
     moduleAssociation.url,
     "https://xtreemze.github.io/timeline/schemas/lum-project-module-v1.schema.json",
   );
-  const projectAssociation = manifest.contributes.jsonValidation.find(
-    (entry) => entry.url.endsWith("/lum-project-v1.schema.json"),
+  const projectAssociation = manifest.contributes.jsonValidation.find((entry) =>
+    entry.url.endsWith("/lum-project-v1.schema.json"),
   );
   assert.ok(projectAssociation.fileMatch.includes("!*.module.lum.json"));
 });
@@ -186,29 +192,33 @@ test("check-modules maps cross-module semantic failures back to the owning modul
   const relationshipsPath = path.join(directory, "relationships.module.lum.json");
   await writeFile(
     entitiesPath,
-    validModule("entities", [{
-      id: "alice",
-      type: "person",
-      name: "Alice",
-      alternateNames: [],
-      sourceIds: [],
-      attributes: {},
-    }]),
+    validModule("entities", [
+      {
+        id: "alice",
+        type: "person",
+        name: "Alice",
+        alternateNames: [],
+        sourceIds: [],
+        attributes: {},
+      },
+    ]),
     "utf8",
   );
   await writeFile(
     relationshipsPath,
-    validModule("relationships", [{
-      id: "bad-rel",
-      subjectId: "alice",
-      predicate: "warns",
-      objectId: "missing-bob",
-      itemIds: [],
-      sourceIds: [],
-      confidence: null,
-      time: null,
-      attributes: {},
-    }]),
+    validModule("relationships", [
+      {
+        id: "bad-rel",
+        subjectId: "alice",
+        predicate: "warns",
+        objectId: "missing-bob",
+        itemIds: [],
+        sourceIds: [],
+        confidence: null,
+        time: null,
+        attributes: {},
+      },
+    ]),
     "utf8",
   );
 

@@ -462,9 +462,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.requestUpdate();
   }
 
-  private selectionIdentityKey(
-    context: OccurrenceComposerSelectionContext | null,
-  ): string {
+  private selectionIdentityKey(context: OccurrenceComposerSelectionContext | null): string {
     return JSON.stringify({
       occurrence: context?.selectedOccurrenceId ?? "",
       entity: context?.selectedEntityId ?? "",
@@ -725,8 +723,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     }
     if (event.key === "ArrowUp" && suggestions.length) {
       event.preventDefault();
-      this.activeSuggestion =
-        (this.activeSuggestion - 1 + suggestions.length) % suggestions.length;
+      this.activeSuggestion = (this.activeSuggestion - 1 + suggestions.length) % suggestions.length;
       this.requestUpdate();
       return;
     }
@@ -841,11 +838,13 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
         <div class="completion-panel">
           <div class="context-row" aria-label="Occurrence context">
-            ${subjectLabel
-              ? html`<span class="context-chip" data-context-kind="subject" data-context-state="pinned">
+            ${
+              subjectLabel
+                ? html`<span class="context-chip" data-context-kind="subject" data-context-state="pinned">
                   <span>Subject</span><strong>${subjectLabel}</strong><span class="context-state">pinned</span>
                 </span>`
-              : nothing}
+                : nothing
+            }
             <span
               class="context-chip"
               data-context-kind="place"
@@ -871,11 +870,14 @@ export class LuumOccurrenceComposerElement extends LitElement {
               </span>`,
             )}
           </div>
-          ${diagnostic
-            ? html`<p id="occurrence-composer-diagnostic" class="diagnostic" role="alert">${diagnostic}</p>`
-            : html`<span id="occurrence-composer-diagnostic" hidden></span>`}
-          ${suggestions.length
-            ? html`
+          ${
+            diagnostic
+              ? html`<p id="occurrence-composer-diagnostic" class="diagnostic" role="alert">${diagnostic}</p>`
+              : html`<span id="occurrence-composer-diagnostic" hidden></span>`
+          }
+          ${
+            suggestions.length
+              ? html`
                 <div id="occurrence-composer-listbox" class="listbox" role="listbox">
                   ${suggestions.map(
                     (suggestion, index) => html`
@@ -889,15 +891,17 @@ export class LuumOccurrenceComposerElement extends LitElement {
                         @click=${() => this.applySuggestion(suggestion)}
                       >
                         <span class="option-main">
-                          ${suggestion.icon
-                            ? html`<span class="option-icon" aria-hidden="true">
+                          ${
+                            suggestion.icon
+                              ? html`<span class="option-icon" aria-hidden="true">
                                 <svg viewBox="0 0 24 24" focusable="false">
                                   ${iconPathData(suggestion.icon).map(
                                     (path) => html`<path d=${path}></path>`,
                                   )}
                                 </svg>
                               </span>`
-                            : nothing}
+                              : nothing
+                          }
                           <span class="option-label">${suggestion.label}</span>
                         </span>
                         <span class="option-detail">${suggestion.detail ?? suggestion.kind}</span>
@@ -906,7 +910,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
                   )}
                 </div>
               `
-            : nothing}
+              : nothing
+          }
         </div>
 
         <p id="occurrence-composer-help" class="help">

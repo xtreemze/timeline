@@ -89,7 +89,10 @@ test("inference review exposes semantic icon suggestion provenance without auto-
   assert.match(app, /Suggested semantic icon/);
   assert.match(app, /inferred · high confidence/);
   assert.match(app, /presentation\.createIcon\(candidate\.semanticIconSuggestion\.icon/);
-  assert.doesNotMatch(app, /record\.attributes\.style\.icon\s*=\s*candidate\.semanticIconSuggestion/);
+  assert.doesNotMatch(
+    app,
+    /record\.attributes\.style\.icon\s*=\s*candidate\.semanticIconSuggestion/,
+  );
 });
 
 test("app migration preserves the established default category fallback", async () => {

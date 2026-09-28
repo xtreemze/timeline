@@ -78,13 +78,11 @@ function normalizeToolDefinition(raw: Record<string, unknown>): ToolDefinition {
   return {
     name,
     description: text(raw.description, 4000),
-    inputSchema:
-      record(raw.inputSchema) ||
-      {
-        type: "object",
-        additionalProperties: false,
-        properties: {},
-      },
+    inputSchema: record(raw.inputSchema) || {
+      type: "object",
+      additionalProperties: false,
+      properties: {},
+    },
     annotations: record(raw.annotations) || {},
     execute(input = {}) {
       return execute(input);
@@ -308,9 +306,7 @@ export async function runOllamaAgent(
       const functionName = text(fn?.name, 240);
       const tool = byFunctionName.get(functionName);
       if (!functionName || !tool) {
-        throw new Error(
-          `Ollama requested unavailable MCP tool "${functionName || "unknown"}".`,
-        );
+        throw new Error(`Ollama requested unavailable MCP tool "${functionName || "unknown"}".`);
       }
       return {
         name: tool.name,

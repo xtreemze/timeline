@@ -145,9 +145,7 @@ interface DeckRuntimeInteractionState {
   readonly isZooming?: boolean;
 }
 
-function deckCameraInteractionActive(
-  state: DeckRuntimeInteractionState | undefined,
-): boolean {
+function deckCameraInteractionActive(state: DeckRuntimeInteractionState | undefined): boolean {
   // deck.gl's generic isDragging flag is also raised for layer/object drags.
   // Treat only camera-specific controller state as camera ownership; otherwise
   // direct node dragging can suspend the force/readback loop that must move the
@@ -687,10 +685,7 @@ export function clusterTargetPlaceIds(
     if (!sourcePlace || !targetPlace) continue;
     const sourceComponent = componentIndexByPlace.get(sourcePlace);
     const targetComponent = componentIndexByPlace.get(targetPlace);
-    if (
-      sourceComponent !== undefined &&
-      sourceComponent === targetComponent
-    ) {
+    if (sourceComponent !== undefined && sourceComponent === targetComponent) {
       componentEdgeCounts[sourceComponent] = (componentEdgeCounts[sourceComponent] ?? 0) + 1;
     }
   }
@@ -720,10 +715,7 @@ export function clusterTargetPlaceIds(
       available > 0 &&
       zoom >= densityReleaseZoom &&
       requiredWithHysteresis <= available * WORLD_CLUSTER_PANNABLE_OVERFLOW_RATIO;
-    if (
-      !overviewClustering &&
-      (requiredWithHysteresis <= available || pannableDetailRelease)
-    ) {
+    if (!overviewClustering && (requiredWithHysteresis <= available || pannableDetailRelease)) {
       continue;
     }
 
@@ -897,9 +889,7 @@ export function clusterEntityDatumsByPlace(
   minimumPlaceCount = 0,
 ): readonly DeckWorldEntityRenderDatum[] {
   const requiredPlaceCount =
-    Number.isFinite(minimumPlaceCount) && minimumPlaceCount > 0
-      ? Math.floor(minimumPlaceCount)
-      : 0;
+    Number.isFinite(minimumPlaceCount) && minimumPlaceCount > 0 ? Math.floor(minimumPlaceCount) : 0;
   type Anchor = ProjectedWorldInstance["geographicAnchors"][number];
   interface PlaceGroup {
     readonly placeId: PlaceId;
@@ -2227,21 +2217,12 @@ function placeWorldLabelDatums(
     right.top < left.bottom;
   const placementPoint = (position: WorldRenderPosition): readonly [number, number] => {
     const latitudeScale = Math.max(0.2, Math.cos((position[1] * Math.PI) / 180));
-    return Object.freeze([
-      position[0] * scale * latitudeScale,
-      -position[1] * scale,
-    ]);
+    return Object.freeze([position[0] * scale * latitudeScale, -position[1] * scale]);
   };
   const pointInside = (x: number, y: number, box: Box) =>
     x >= box.left && x <= box.right && y >= box.top && y <= box.bottom;
-  const orientation = (
-    ax: number,
-    ay: number,
-    bx: number,
-    by: number,
-    cx: number,
-    cy: number,
-  ) => (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
+  const orientation = (ax: number, ay: number, bx: number, by: number, cx: number, cy: number) =>
+    (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
   const segmentCrosses = (
     ax: number,
     ay: number,
@@ -2255,8 +2236,7 @@ function placeWorldLabelDatums(
     const boundsOverlap =
       Math.max(Math.min(ax, bx), Math.min(cx, dx)) <=
         Math.min(Math.max(ax, bx), Math.max(cx, dx)) &&
-      Math.max(Math.min(ay, by), Math.min(cy, dy)) <=
-        Math.min(Math.max(ay, by), Math.max(cy, dy));
+      Math.max(Math.min(ay, by), Math.min(cy, dy)) <= Math.min(Math.max(ay, by), Math.max(cy, dy));
     if (!boundsOverlap) return false;
     const abC = orientation(ax, ay, bx, by, cx, cy);
     const abD = orientation(ax, ay, bx, by, dx, dy);
@@ -2357,13 +2337,11 @@ function placeWorldLabelDatums(
     const candidates = baseCandidates;
     let chosen: readonly [number, number] | null = null;
     let chosenBox: Box | null = null;
-    let fallback:
-      | {
-          readonly offset: readonly [number, number];
-          readonly box: Box;
-          readonly conflictScore: number;
-        }
-      | null = null;
+    let fallback: {
+      readonly offset: readonly [number, number];
+      readonly box: Box;
+      readonly conflictScore: number;
+    } | null = null;
 
     for (const offset of candidates) {
       const centerX = anchorX + offset[0];
@@ -2375,9 +2353,7 @@ function placeWorldLabelDatums(
         bottom: centerY + footprint.height / 2 + LABEL_PLACEMENT_PADDING_PX,
       };
       const keys = cells(box);
-      const labelBlocked = keys.some((key) =>
-        grid.get(key)?.some((other) => overlaps(box, other)),
-      );
+      const labelBlocked = keys.some((key) => grid.get(key)?.some((other) => overlaps(box, other)));
       const edgeBlocked = keys.some((key) =>
         edgeGrid.get(key)?.some((segment) => edgeIntersectsBox(segment, box)),
       );
@@ -2679,10 +2655,7 @@ function labelDatums(input: {
   // their datum identity and placement while the active object can identify
   // itself without forcing the whole dense scene back into view.
   const interactionLabels: DeckWorldLabelDatum[] = [];
-  const queueInteractionLabel = (
-    datum: DeckWorldLabelDatum,
-    markerRadiusPx: number,
-  ): void => {
+  const queueInteractionLabel = (datum: DeckWorldLabelDatum, markerRadiusPx: number): void => {
     if (placedByKey.has(datum.key) || interactionLabels.some((item) => item.key === datum.key)) {
       return;
     }
@@ -2710,9 +2683,7 @@ function labelDatums(input: {
             key,
             clusterId: cluster.clusterId,
             placeIds: Object.freeze([...(cluster.placeIds ?? [])]),
-            memberEntityIds: Object.freeze(
-              cluster.clusterMembers.map((member) => member.entityId),
-            ),
+            memberEntityIds: Object.freeze(cluster.clusterMembers.map((member) => member.entityId)),
             memberCount: cluster.clusterMembers.length,
             text,
             position: cluster.position,
@@ -3046,10 +3017,7 @@ export class DeckWorldSurface implements WorldSurface {
   // Actual node geometry derives its scale/float from each instance's primary anchor latitude.
   #offsetScale = 1;
   #floatMeters = 0;
-  #projectionHandoffPresentation = new Map<
-    WorldInstanceId,
-    WorldRenderContinuitySample
-  >();
+  #projectionHandoffPresentation = new Map<WorldInstanceId, WorldRenderContinuitySample>();
   #projectionHandoffFresh = false;
   #spatialMode: WorldSpatialMode = "globe";
   #cameraInteractionActive = false;
@@ -3142,8 +3110,7 @@ export class DeckWorldSurface implements WorldSurface {
     // release. A later finger must not hand the already-claimed gesture back
     // to deck's pinch/pan controller.
     if (
-      (this.#activeDragPointerId !== null &&
-        this.#activeDragPointerId !== touch.pointerId) ||
+      (this.#activeDragPointerId !== null && this.#activeDragPointerId !== touch.pointerId) ||
       (this.#authoringContextPointerId !== null &&
         this.#authoringContextPointerId !== touch.pointerId)
     ) {
@@ -3196,9 +3163,7 @@ export class DeckWorldSurface implements WorldSurface {
           return;
         }
 
-        if (
-          !this.#beginTouchEntityDrag(touch.pointerId, entityHit.worldInstanceId, touch.point)
-        ) {
+        if (!this.#beginTouchEntityDrag(touch.pointerId, entityHit.worldInstanceId, touch.point)) {
           this.#touchDrag.cancel(touch.pointerId);
           this.#setTouchDragState(null);
           return;
@@ -3352,10 +3317,7 @@ export class DeckWorldSurface implements WorldSurface {
         this.#setTouchDragState(null);
         return;
       }
-      if (
-        this.#activeDragPointerId !== null &&
-        event.pointerId !== this.#activeDragPointerId
-      ) {
+      if (this.#activeDragPointerId !== null && event.pointerId !== this.#activeDragPointerId) {
         return;
       }
       this.#clearTouchHoldTimer();
@@ -3412,9 +3374,7 @@ export class DeckWorldSurface implements WorldSurface {
 
   #setUserSelection(selection: WorldSelection | null): boolean {
     const changed =
-      selection === null
-        ? this.#selection !== null
-        : !selectionEquals(selection, this.#selection);
+      selection === null ? this.#selection !== null : !selectionEquals(selection, this.#selection);
     if (!changed) return false;
     this.setSelection(selection);
     this.#container.dispatchEvent?.(
@@ -3922,10 +3882,7 @@ export class DeckWorldSurface implements WorldSurface {
 
     this.setCamera({
       ...fitted,
-      zoom: Math.min(
-        WORLD_CAMERA_MAX_ZOOM,
-        Math.max(this.#camera.zoom, fitted.zoom) + 0.85,
-      ),
+      zoom: Math.min(WORLD_CAMERA_MAX_ZOOM, Math.max(this.#camera.zoom, fitted.zoom) + 0.85),
     });
   }
 
@@ -4057,12 +4014,10 @@ export class DeckWorldSurface implements WorldSurface {
       this.#availableLocalGraphRadiusPx(),
       this.#clusterPhase,
     );
-    const selectedPlaceId =
-      this.#selection?.kind === "place" ? this.#selection.id : null;
+    const selectedPlaceId = this.#selection?.kind === "place" ? this.#selection.id : null;
     return Object.freeze(
       targets.filter(
-        (placeId) =>
-          placeId !== selectedPlaceId && !this.#revealedClusterPlaceIds.has(placeId),
+        (placeId) => placeId !== selectedPlaceId && !this.#revealedClusterPlaceIds.has(placeId),
       ),
     );
   }
@@ -4270,10 +4225,7 @@ export class DeckWorldSurface implements WorldSurface {
     this.#render();
   }
 
-  getRenderedInstanceContinuity(): ReadonlyMap<
-    WorldInstanceId,
-    WorldRenderContinuitySample
-  > {
+  getRenderedInstanceContinuity(): ReadonlyMap<WorldInstanceId, WorldRenderContinuitySample> {
     this.#assertAlive();
     const byId = new Map(
       this.#projection.instances.map((instance) => [instance.id, instance] as const),
@@ -4713,11 +4665,7 @@ export class DeckWorldSurface implements WorldSurface {
   #updateTouchEntityDrag(pointerId: number, point: ScreenPoint): boolean {
     const sink = this.#nodeDragSink;
     const instanceId = this.#activeDragInstanceId;
-    if (
-      !sink ||
-      instanceId === null ||
-      this.#activeDragPointerId !== pointerId
-    ) {
+    if (!sink || instanceId === null || this.#activeDragPointerId !== pointerId) {
       return false;
     }
     const position = this.#dragPositionForInstance(instanceId, point);
@@ -4898,11 +4846,11 @@ export class DeckWorldSurface implements WorldSurface {
     else dataset.worldTouchDrag = state;
   }
 
-  #syncSpatialMode(
-    {
-      deferDuringInteraction = false,
-    }: { readonly deferDuringInteraction?: boolean } = {},
-  ): void {
+  #syncSpatialMode({
+    deferDuringInteraction = false,
+  }: {
+    readonly deferDuringInteraction?: boolean;
+  } = {}): void {
     const nextMode =
       this.#localView === null ? "globe" : selectWorldSpatialMode(this.#camera, this.#spatialMode);
     if (nextMode === this.#spatialMode) {
@@ -4956,8 +4904,7 @@ export class DeckWorldSurface implements WorldSurface {
     const screenScaleChanged =
       screenScaleZoomStep(this.#camera.zoom) !== this.#screenScaleZoomLastRender;
     const cameraFacingChanged =
-      includeCameraFacing &&
-      cameraFacingStep(this.#camera) !== this.#cameraFacingStepLastRender;
+      includeCameraFacing && cameraFacingStep(this.#camera) !== this.#cameraFacingStepLastRender;
     const placeLabelVisibilityChanged =
       worldShowsOrdinaryPlaceLabels(this.#camera.zoom) !== this.#placeLabelsVisibleLastRender;
     return (
@@ -5008,7 +4955,10 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   #availableLocalGraphRadiusPx(): number {
-    return Math.min(worldFloatingGraphRadiusPx(this.#camera.zoom), this.#viewportGraphRadiusLimitPx());
+    return Math.min(
+      worldFloatingGraphRadiusPx(this.#camera.zoom),
+      this.#viewportGraphRadiusLimitPx(),
+    );
   }
 
   #clusterMergeRadiusPx(): number {
@@ -5056,17 +5006,11 @@ export class DeckWorldSurface implements WorldSurface {
     return worldPrimarySpatialAnchor(instance)?.latitude ?? 0;
   }
 
-  #baseOffsetScaleForInstance(
-    instance: ProjectedWorldInstance,
-    zoom = this.#camera.zoom,
-  ): number {
+  #baseOffsetScaleForInstance(instance: ProjectedWorldInstance, zoom = this.#camera.zoom): number {
     return this.#nextOffsetScale(zoom, this.#instanceLatitude(instance));
   }
 
-  #baseFloatMetersForInstance(
-    instance: ProjectedWorldInstance,
-    zoom = this.#camera.zoom,
-  ): number {
+  #baseFloatMetersForInstance(instance: ProjectedWorldInstance, zoom = this.#camera.zoom): number {
     return this.#nextFloatMeters(zoom, this.#instanceLatitude(instance));
   }
 
@@ -5319,9 +5263,7 @@ export class DeckWorldSurface implements WorldSurface {
     const neighborhood = this.#topologyIndex.interactionNeighborhood([
       this.#selection,
       this.#hoverSelection,
-      ...[...this.#contextRelationshipIds].map(
-        (id) => ({ kind: "relationship", id }) as const,
-      ),
+      ...[...this.#contextRelationshipIds].map((id) => ({ kind: "relationship", id }) as const),
     ]);
     const placeResult = placeDatums(
       this.#projection.instances,
@@ -5884,9 +5826,7 @@ export class DeckWorldSurface implements WorldSurface {
             ? scaleAlpha(this.#theme.clusterBorder, clusterVisibility)
             : this.#theme.clusterBorder,
         getFillColor: (datum: DeckWorldEntityRenderDatum) =>
-          datum.kind === "cluster"
-            ? scaleAlpha(this.#theme.cluster, 0)
-            : this.#theme.hit,
+          datum.kind === "cluster" ? scaleAlpha(this.#theme.cluster, 0) : this.#theme.hit,
         updateTriggers: {
           getPosition: [this.#dragPresentationRevision, screenScaleZoomStep(this.#camera.zoom)],
           getRadius: [this.#palette, clusterPhase],
@@ -6089,8 +6029,7 @@ export class DeckWorldSurface implements WorldSurface {
                 }
                 const entity = entityResult.byId.get(datum.worldInstanceId);
                 const directlyInteracted =
-                  (this.#selection?.kind === "entity" &&
-                    this.#selection.id === datum.entityId) ||
+                  (this.#selection?.kind === "entity" && this.#selection.id === datum.entityId) ||
                   (this.#hoverSelection?.kind === "entity" &&
                     this.#hoverSelection.id === datum.entityId) ||
                   (this.#focus?.kind === "entity" && this.#focus.id === datum.entityId);
@@ -6099,16 +6038,10 @@ export class DeckWorldSurface implements WorldSurface {
                     ? worldColorBytes(this.#entityStyle(entity).fill)
                     : this.#theme.labelText;
                 const entityBase =
-                  muteMembers &&
-                  memberIds.has(datum.worldInstanceId) &&
-                  !directlyInteracted
+                  muteMembers && memberIds.has(datum.worldInstanceId) && !directlyInteracted
                     ? this.#theme.labelPlace
                     : semanticBase;
-                const visibility = directlyInteracted
-                  ? 1
-                  : entity
-                    ? entityExpansion(entity)
-                    : 0;
+                const visibility = directlyInteracted ? 1 : entity ? entityExpansion(entity) : 0;
                 return scaleAlpha(entityBase, facing * visibility);
               },
               getTextAnchor: "middle",
@@ -6136,7 +6069,9 @@ export class DeckWorldSurface implements WorldSurface {
         : []),
     ];
 
-    this.#deck.setProps(withCamera ? { layers, viewState: deckViewState(this.#camera) } : { layers });
+    this.#deck.setProps(
+      withCamera ? { layers, viewState: deckViewState(this.#camera) } : { layers },
+    );
     this.#warmUpPicking();
     this.#updateLiveRegion();
   }

@@ -4,10 +4,7 @@ import {
   formatProjectInterchange,
   lintProjectInterchange,
 } from "../src/application/project-interchange.ts";
-import {
-  formatProjectModule,
-  lintProjectModule,
-} from "../src/application/project-module.ts";
+import { formatProjectModule, lintProjectModule } from "../src/application/project-module.ts";
 import { attachLumDiagnosticRanges } from "./lib/lum-diagnostics.mjs";
 import {
   LUM_SEMANTIC_TOKEN_MODIFIERS,
@@ -24,9 +21,7 @@ import { LumWorkspaceIndex } from "./lib/lum-workspace-index.mjs";
 function documentFormat(source) {
   try {
     const parsed = JSON.parse(source);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
-      ? parsed.format
-      : null;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed.format : null;
   } catch {
     return null;
   }
@@ -223,8 +218,8 @@ export function createLumLanguageServer(writeMessage) {
       reply(
         message.id,
         uri && typeof source === "string"
-          ? workspace.resolvedHover(uri, source, message.params?.position) ??
-              lumHover(source, message.params?.position)
+          ? (workspace.resolvedHover(uri, source, message.params?.position) ??
+              lumHover(source, message.params?.position))
           : null,
       );
       return;
@@ -241,8 +236,8 @@ export function createLumLanguageServer(writeMessage) {
       reply(
         message.id,
         uri && typeof source === "string"
-          ? workspace.definition(uri, source, message.params?.position) ??
-              lumDefinition(source, message.params?.position, uri)
+          ? (workspace.definition(uri, source, message.params?.position) ??
+              lumDefinition(source, message.params?.position, uri))
           : null,
       );
       return;
@@ -295,12 +290,7 @@ export function createLumLanguageServer(writeMessage) {
       reply(
         message.id,
         uri && typeof source === "string"
-          ? workspace.rename(
-              uri,
-              source,
-              message.params?.position,
-              message.params?.newName,
-            )
+          ? workspace.rename(uri, source, message.params?.position, message.params?.newName)
           : null,
       );
       return;

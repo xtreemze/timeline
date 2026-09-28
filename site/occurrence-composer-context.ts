@@ -1,10 +1,4 @@
-export type ComposerTemporalPrecision =
-  | "year"
-  | "month"
-  | "day"
-  | "hour"
-  | "minute"
-  | "second";
+export type ComposerTemporalPrecision = "year" | "month" | "day" | "hour" | "minute" | "second";
 
 export interface ComposerTimelineContext {
   readonly centerMs: number;
@@ -52,9 +46,7 @@ function isoYear(year: number): string {
   return `${year < 0 ? "-" : "+"}${absolute}`;
 }
 
-export function temporalPrecisionForViewportSpan(
-  spanMs: number,
-): ComposerTemporalPrecision {
+export function temporalPrecisionForViewportSpan(spanMs: number): ComposerTemporalPrecision {
   const span = Math.max(0, Number(spanMs) || 0);
   if (span >= 5 * YEAR_MS) return "year";
   if (span >= 180 * DAY_MS) return "month";
@@ -134,8 +126,7 @@ export function spatialAccuracyForWorldZoom(
 
   const clampedLatitude = Math.max(-85, Math.min(85, latitude));
   const metersPerPixel =
-    (EARTH_CIRCUMFERENCE_METERS *
-      Math.cos((clampedLatitude * Math.PI) / 180)) /
+    (EARTH_CIRCUMFERENCE_METERS * Math.cos((clampedLatitude * Math.PI) / 180)) /
     (WEB_MERCATOR_TILE_SIZE * 2 ** Math.min(zoom, 30));
   return roundedAccuracyMeters(metersPerPixel * AUTHORING_RADIUS_PX);
 }

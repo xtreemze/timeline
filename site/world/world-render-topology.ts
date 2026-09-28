@@ -57,8 +57,8 @@ export class WorldRenderTopologyIndex {
       instanceById.set(instance.id, instance);
       entityByInstance.set(instance.id, instance.canonicalId);
       const placeIds = Object.freeze(
-        [...new Set(instance.geographicAnchors.map((anchor) => anchor.placeId))].sort((left, right) =>
-          String(left).localeCompare(String(right)),
+        [...new Set(instance.geographicAnchors.map((anchor) => anchor.placeId))].sort(
+          (left, right) => String(left).localeCompare(String(right)),
         ),
       );
       placeIdsByInstance.set(instance.id, placeIds);
@@ -141,7 +141,9 @@ export class WorldRenderTopologyIndex {
     this.#placeIdsByEntity = new Map(
       [...mutablePlaceIdsByEntity].map(([entityId, placeIds]) => [
         entityId,
-        Object.freeze([...placeIds].sort((left, right) => String(left).localeCompare(String(right)))),
+        Object.freeze(
+          [...placeIds].sort((left, right) => String(left).localeCompare(String(right))),
+        ),
       ]),
     );
     this.#instanceIdsByPlace = new Map(
@@ -171,7 +173,9 @@ export class WorldRenderTopologyIndex {
       const previousPlaces = previous
         ? [...new Set(previous.geographicAnchors.map((anchor) => anchor.placeId))].sort()
         : [];
-      const nextPlaces = [...new Set(instance.geographicAnchors.map((anchor) => anchor.placeId))].sort();
+      const nextPlaces = [
+        ...new Set(instance.geographicAnchors.map((anchor) => anchor.placeId)),
+      ].sort();
       if (
         !previous ||
         previous.canonicalId !== instance.canonicalId ||

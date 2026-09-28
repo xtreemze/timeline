@@ -509,7 +509,6 @@ test("every storybook graph entity has a representative supported icon", () => {
   }
 });
 
-
 test("storybook scene tags describe the scene instead of repeating story membership", () => {
   const storyById = new Map(sample.stories.map((story) => [story.id, story]));
   const genericLabels = new Set([

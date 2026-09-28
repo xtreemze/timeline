@@ -77,8 +77,7 @@ export function projectTimelineSelection(
       if (
         relations(item).some(
           (relation) =>
-            text(relation.subjectId) === selection.id ||
-            text(relation.objectId) === selection.id,
+            text(relation.subjectId) === selection.id || text(relation.objectId) === selection.id,
         )
       ) {
         selected.add(item.id);

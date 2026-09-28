@@ -116,7 +116,11 @@ test("application project transaction rejects invalid or unsafe operation shapes
   assert.throws(() => applyProjectTransaction(null, []), /project must be an object/i);
   assert.throws(() => applyProjectTransaction(base, []), /non-empty operations array/i);
   assert.throws(
-    () => applyProjectTransaction(base, Array.from({ length: 501 }, () => ({ op: "set", field: "title", value: "x" }))),
+    () =>
+      applyProjectTransaction(
+        base,
+        Array.from({ length: 501 }, () => ({ op: "set", field: "title", value: "x" })),
+      ),
     /limited to 500 operations/i,
   );
   assert.throws(
@@ -124,11 +128,15 @@ test("application project transaction rejects invalid or unsafe operation shapes
     /unsupported top-level field/i,
   );
   assert.throws(
-    () => applyProjectTransaction(base, [{ op: "upsert", collection: "unknown", id: "x", value: {} }]),
+    () =>
+      applyProjectTransaction(base, [{ op: "upsert", collection: "unknown", id: "x", value: {} }]),
     /unsupported collection/i,
   );
   assert.throws(
-    () => applyProjectTransaction(base, [{ op: "upsert", collection: "entities", value: { name: "No ID" } }]),
+    () =>
+      applyProjectTransaction(base, [
+        { op: "upsert", collection: "entities", value: { name: "No ID" } },
+      ]),
     /stable id/i,
   );
 });

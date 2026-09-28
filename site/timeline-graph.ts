@@ -851,11 +851,15 @@ function normalizeRelationship(raw: any, index: number, temporal: any): Relation
     role: text(raw.role, 120),
     occurrenceType: text(raw.occurrenceType, 80),
     subjectContext:
-      raw.subjectContext && typeof raw.subjectContext === "object" && !Array.isArray(raw.subjectContext)
+      raw.subjectContext &&
+      typeof raw.subjectContext === "object" &&
+      !Array.isArray(raw.subjectContext)
         ? cloneJson(raw.subjectContext)
         : undefined,
     objectContext:
-      raw.objectContext && typeof raw.objectContext === "object" && !Array.isArray(raw.objectContext)
+      raw.objectContext &&
+      typeof raw.objectContext === "object" &&
+      !Array.isArray(raw.objectContext)
         ? cloneJson(raw.objectContext)
         : undefined,
     semanticMappings: Array.isArray(raw.semanticMappings) ? cloneJson(raw.semanticMappings) : [],

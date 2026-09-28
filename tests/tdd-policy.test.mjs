@@ -7,7 +7,9 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const _root = new URL("../", import.meta.url);
-const gateScript = fileURLToPath(new URL("../scripts/check-test-accompaniment.mjs", import.meta.url));
+const gateScript = fileURLToPath(
+  new URL("../scripts/check-test-accompaniment.mjs", import.meta.url),
+);
 
 function git(cwd, args) {
   const result = spawnSync("git", args, { cwd, encoding: "utf8" });

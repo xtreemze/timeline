@@ -8,7 +8,10 @@ test("empty-world context request launches the existing footer occurrence compos
     readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
   ]);
 
-  assert.match(world, /new CustomEvent\("worldcontextrequest"[\s\S]*bubbles:\s*true[\s\S]*cancelable:\s*true/);
+  assert.match(
+    world,
+    /new CustomEvent\("worldcontextrequest"[\s\S]*bubbles:\s*true[\s\S]*cancelable:\s*true/,
+  );
   assert.match(world, /position:\s*this\.unproject\(point,\s*0\)/);
   assert.match(world, /#handleTouchContextMenu[\s\S]*#dispatchAuthoringContext/);
 

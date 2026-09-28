@@ -35,10 +35,7 @@ export default {
       );
     }
 
-    if (
-      url.pathname === "/.well-known/openai-apps-challenge" &&
-      request.method === "GET"
-    ) {
+    if (url.pathname === "/.well-known/openai-apps-challenge" && request.method === "GET") {
       const challenge = String(env.OPENAI_APPS_CHALLENGE || "").trim();
       return challenge
         ? textResponse(challenge)

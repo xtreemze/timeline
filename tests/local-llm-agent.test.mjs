@@ -1,10 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {
-  ollamaToolDefinitions,
-  runOllamaAgent,
-} from "../site/local-llm-agent.ts";
+import { ollamaToolDefinitions, runOllamaAgent } from "../site/local-llm-agent.ts";
 
 function adapterFixture(overrides = {}) {
   const project = { title: "Fixture", items: [], entities: [], relationships: [] };
@@ -152,7 +149,6 @@ test("mutation access is opt-in and dispatches through the existing MCP adapter"
   assert.equal(applied.length, 1);
   assert.equal(applied[0].field, "title");
 });
-
 
 test("post-mutation canonical verification failure stops the local agent", async () => {
   const fetch = async (_url, init) => {

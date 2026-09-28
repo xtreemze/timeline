@@ -1,7 +1,4 @@
-import {
-  SEMANTIC_ICON_NAMES,
-  type SemanticIconName,
-} from "../src/presentation/semantic-icons.ts";
+import { SEMANTIC_ICON_NAMES, type SemanticIconName } from "../src/presentation/semantic-icons.ts";
 import {
   suggestSemanticIcon,
   suggestSemanticIconForPlace,
@@ -67,14 +64,7 @@ export interface ComposerCategoryOption {
 }
 
 export interface ComposerSuggestion {
-  readonly kind:
-    | "entity"
-    | "predicate"
-    | "place"
-    | "time"
-    | "property"
-    | "category"
-    | "tag";
+  readonly kind: "entity" | "predicate" | "place" | "time" | "property" | "category" | "tag";
   readonly label: string;
   readonly detail?: string;
   readonly icon?: string;
@@ -155,8 +145,12 @@ function actionIconHint(action: string): SemanticIconName {
 
 function availableActions(projectPredicates: readonly string[] = []): readonly string[] {
   return Object.freeze(
-    [...new Set([...ACTION_SUGGESTIONS, ...projectPredicates.map((predicate) => predicate.trim())])]
-      .filter(Boolean),
+    [
+      ...new Set([
+        ...ACTION_SUGGESTIONS,
+        ...projectPredicates.map((predicate) => predicate.trim()),
+      ]),
+    ].filter(Boolean),
   );
 }
 
@@ -234,9 +228,10 @@ function parseProperties(value: string): Readonly<Record<string, string>> {
   return Object.freeze(result);
 }
 
-function parseEntityAtStart(
-  input: string,
-): { readonly entity: ComposerEntityReference | null; readonly rest: string } {
+function parseEntityAtStart(input: string): {
+  readonly entity: ComposerEntityReference | null;
+  readonly rest: string;
+} {
   const source = input.trimStart();
   if (!source) return { entity: null, rest: "" };
 
@@ -292,11 +287,19 @@ function stripOptions(input: string): {
 } {
   const trimmed = input.trim();
   if (!trimmed.endsWith("]")) {
-    return { source: trimmed, options: Object.freeze({ tags: Object.freeze([]) }), malformed: false };
+    return {
+      source: trimmed,
+      options: Object.freeze({ tags: Object.freeze([]) }),
+      malformed: false,
+    };
   }
   const open = trimmed.lastIndexOf("[");
   if (open < 0) {
-    return { source: trimmed, options: Object.freeze({ tags: Object.freeze([]) }), malformed: true };
+    return {
+      source: trimmed,
+      options: Object.freeze({ tags: Object.freeze([]) }),
+      malformed: true,
+    };
   }
   const properties = parseProperties(trimmed.slice(open + 1, -1));
   const tags = (properties.tags ?? "")
@@ -422,7 +425,9 @@ function currentToken(input: string): string {
   return (match?.[1] ?? "").replace(/^["([]/, "").toLocaleLowerCase();
 }
 
-function uniqueSuggestions(suggestions: readonly ComposerSuggestion[]): readonly ComposerSuggestion[] {
+function uniqueSuggestions(
+  suggestions: readonly ComposerSuggestion[],
+): readonly ComposerSuggestion[] {
   const seen = new Set<string>();
   const result: ComposerSuggestion[] = [];
   for (const suggestion of suggestions) {
@@ -499,7 +504,12 @@ function trimRangeEnd(input: string, start: number, end: number): number {
   return cursor;
 }
 
-function cursorWithinSpan(offset: number, start: number, end: number, inputLength: number): boolean {
+function cursorWithinSpan(
+  offset: number,
+  start: number,
+  end: number,
+  inputLength: number,
+): boolean {
   return offset >= start && (offset < end || (offset === end && offset === inputLength));
 }
 
@@ -538,10 +548,7 @@ export function composerCursorSection(input: string, cursorOffset: number): Comp
       (candidate) => candidate >= start,
     );
     const end = trimRangeEnd(input, start, Math.min(...boundaryCandidates));
-    if (
-      offset >= placeMarker &&
-      cursorWithinSpan(offset, start, end, input.length)
-    ) {
+    if (offset >= placeMarker && cursorWithinSpan(offset, start, end, input.length)) {
       return Object.freeze({
         kind: "place",
         start,
@@ -554,15 +561,8 @@ export function composerCursorSection(input: string, cursorOffset: number): Comp
   if (timeMarker >= 0) {
     const markerLength = timeMarker === onMarker ? 4 : 6;
     const start = timeMarker + markerLength;
-    const end = trimRangeEnd(
-      input,
-      start,
-      optionsStart >= start ? optionsStart : input.length,
-    );
-    if (
-      offset >= timeMarker &&
-      cursorWithinSpan(offset, start, end, input.length)
-    ) {
+    const end = trimRangeEnd(input, start, optionsStart >= start ? optionsStart : input.length);
+    if (offset >= timeMarker && cursorWithinSpan(offset, start, end, input.length)) {
       return Object.freeze({ kind: "time", start, end, text: input.slice(start, end).trim() });
     }
   }
@@ -640,12 +640,14 @@ function cursorEntitySuggestions(
         ...(entity.alternateNames ?? []),
       ]),
     }))
-    .sort((left, right) => left.score - right.score || left.entity.name.localeCompare(right.entity.name))
+    .sort(
+      (left, right) =>
+        left.score - right.score || left.entity.name.localeCompare(right.entity.name),
+    )
     .slice(0, 8)
     .map(({ entity }) => {
       const sameNameCount = entities.filter(
-        (candidate) =>
-          normalizedMatchText(candidate.name) === normalizedMatchText(entity.name),
+        (candidate) => normalizedMatchText(candidate.name) === normalizedMatchText(entity.name),
       ).length;
       return {
         kind: "entity" as const,
@@ -714,12 +716,13 @@ function cursorPlaceSuggestions(
       place,
       score: nearestMatchScore(section.text, [place.name, `@${place.id}`]),
     }))
-    .sort((left, right) => left.score - right.score || left.place.name.localeCompare(right.place.name))
+    .sort(
+      (left, right) => left.score - right.score || left.place.name.localeCompare(right.place.name),
+    )
     .slice(0, 8)
     .map(({ place }) => {
       const sameNameCount = places.filter(
-        (candidate) =>
-          normalizedMatchText(candidate.name) === normalizedMatchText(place.name),
+        (candidate) => normalizedMatchText(candidate.name) === normalizedMatchText(place.name),
       ).length;
       return {
         kind: "place" as const,
@@ -757,7 +760,6 @@ export function occurrenceComposerSuggestions(
     readonly entities: readonly ComposerEntityOption[];
     readonly places: readonly ComposerPlaceOption[];
     readonly categories: readonly ComposerCategoryOption[];
-    readonly tags?: readonly string[];
     readonly timelineDefault?: string | null;
     readonly locationDefault?: string | null;
     readonly preferredEntityIds?: readonly string[];
@@ -791,76 +793,15 @@ export function occurrenceComposerSuggestions(
   }
 
   if (/\[[^\]]*$/.test(prefix)) {
-    const open = prefix.lastIndexOf("[");
-    const fragment = prefix.slice(open + 1);
-    const segment = fragment.split(",").at(-1)?.trim() ?? "";
-    const separator = segment.indexOf(":");
-    const optionKey =
-      separator >= 0 ? segment.slice(0, separator).trim().toLocaleLowerCase() : "";
-    const optionValue = separator >= 0 ? segment.slice(separator + 1).trim() : segment;
-
-    if (optionKey === "tags") {
-      const pipe = optionValue.lastIndexOf("|");
-      const retained = pipe >= 0 ? optionValue.slice(0, pipe + 1) : "";
-      const query = pipe >= 0 ? optionValue.slice(pipe + 1).trim() : optionValue;
-      const selectedTags = new Set(
-        retained
-          .split("|")
-          .map((tag) => tag.trim())
-          .filter(Boolean),
-      );
-      return Object.freeze(
-        (options.tags ?? [])
-          .filter((tag) => !selectedTags.has(tag))
-          .map((tag) => ({ tag, score: nearestMatchScore(query, [tag]) }))
-          .sort((left, right) => left.score - right.score || left.tag.localeCompare(right.tag))
-          .slice(0, 7)
-          .map(({ tag }) => ({
-            kind: "tag" as const,
-            label: tag,
-            detail: "existing tag",
-            insertText: `tags: ${retained}${tag}`,
-          })),
-      );
-    }
-
-    if (optionKey === "category") {
-      return Object.freeze(
-        options.categories
-          .map((category) => ({
-            category,
-            score: nearestMatchScore(optionValue, [category.name, category.id]),
-          }))
-          .sort(
-            (left, right) =>
-              left.score - right.score || left.category.name.localeCompare(right.category.name),
-          )
-          .slice(0, 7)
-          .map(({ category }) => ({
-            kind: "category" as const,
-            label: category.name,
-            detail: "existing category",
-            insertText: `category: ${quoteComposerName(category.name)}`,
-          })),
-      );
-    }
-
-    const categorySuggestions = options.categories.slice(0, 6).map((category) => ({
+    const categorySuggestions = options.categories.slice(0, 10).map((category) => ({
       kind: "category" as const,
       label: category.name,
-      detail: "existing category",
+      detail: "category",
       insertText: `category: ${quoteComposerName(category.name)}`,
-    }));
-    const tagSuggestions = (options.tags ?? []).slice(0, 4).map((tag) => ({
-      kind: "tag" as const,
-      label: tag,
-      detail: "existing tag",
-      insertText: `tags: ${tag}`,
     }));
     return uniqueSuggestions([
       ...categorySuggestions,
-      ...tagSuggestions,
-      { kind: "tag", label: "new tag", detail: "separate tags with |", insertText: "tags: " },
+      { kind: "tag", label: "tags", detail: "separate tags with |", insertText: "tags: " },
     ]);
   }
 
@@ -905,8 +846,7 @@ export function occurrenceComposerSuggestions(
       .slice(0, 12)
       .map((entity) => {
         const sameNameCount = options.entities.filter(
-          (candidate) =>
-            candidate.name.toLocaleLowerCase() === entity.name.toLocaleLowerCase(),
+          (candidate) => candidate.name.toLocaleLowerCase() === entity.name.toLocaleLowerCase(),
         ).length;
         return {
           kind: "entity" as const,
@@ -916,8 +856,7 @@ export function occurrenceComposerSuggestions(
               ? `${entity.type || "entity"} · ${entity.id}`
               : entity.type || "entity",
           ...(entity.icon ? { icon: entity.icon } : {}),
-          insertText:
-            sameNameCount > 1 ? `@${entity.id}` : quoteComposerName(entity.name),
+          insertText: sameNameCount > 1 ? `@${entity.id}` : quoteComposerName(entity.name),
         };
       });
     return uniqueSuggestions(entitySuggestions);
@@ -940,17 +879,13 @@ export function occurrenceComposerSuggestions(
 
   const placeSuggestions = options.places.slice(0, 10).map((place) => {
     const sameNameCount = options.places.filter(
-      (candidate) =>
-        candidate.name.toLocaleLowerCase() === place.name.toLocaleLowerCase(),
+      (candidate) => candidate.name.toLocaleLowerCase() === place.name.toLocaleLowerCase(),
     ).length;
     return {
       kind: "place" as const,
       label: place.name,
       detail: sameNameCount > 1 ? `place · ${place.id}` : "place",
-      insertText:
-        sameNameCount > 1
-          ? `at @${place.id}`
-          : `at ${quoteComposerName(place.name)}`,
+      insertText: sameNameCount > 1 ? `at @${place.id}` : `at ${quoteComposerName(place.name)}`,
     };
   });
   const contextSuggestions: ComposerSuggestion[] = [];
@@ -983,43 +918,14 @@ export function occurrenceComposerSuggestions(
       })),
     );
   }
-  if (parsed.options.tags.length === 0) {
-    contextSuggestions.push(
-      ...(options.tags ?? []).slice(0, 4).map((tag) => ({
-        kind: "tag" as const,
-        label: tag,
-        detail: "existing tag",
-        insertText: `[tags: ${tag}]`,
-      })),
-    );
-  }
   return uniqueSuggestions(contextSuggestions);
 }
 
-export function composerCompletionSuffix(
+export function replaceComposerTail(
   input: string,
-  suggestion: ComposerSuggestion | null | undefined,
+  insertText: string,
+  stage: OccurrenceComposerStage,
 ): string {
-  if (!suggestion) return "";
-  const trimmed = input.trimEnd();
-  const inputParts = trimmed.split(/\s+/);
-  for (const candidate of [suggestion.label, suggestion.insertText]) {
-    const candidateLower = candidate.toLocaleLowerCase();
-    for (let start = 0; start < inputParts.length; start += 1) {
-      const fragment = inputParts
-        .slice(start)
-        .join(" ")
-        .replace(/^[@"'([]+/, "");
-      if (!fragment) continue;
-      if (candidateLower.startsWith(fragment.toLocaleLowerCase())) {
-        return candidate.slice(fragment.length);
-      }
-    }
-  }
-  return "";
-}
-
-export function replaceComposerTail(input: string, insertText: string, stage: OccurrenceComposerStage): string {
   if (!insertText) return input;
   const trimmed = input.trimEnd();
 

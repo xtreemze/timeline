@@ -84,8 +84,7 @@ function semanticType(data) {
 }
 
 function semanticIconName(data, type) {
-  const authored =
-    data?.properties?.attributes?.style?.icon ?? data?.properties?.attributes?.icon;
+  const authored = data?.properties?.attributes?.style?.icon ?? data?.properties?.attributes?.icon;
   const canonicalAuthored = normalizeSemanticIconName(authored);
   if (canonicalAuthored) return canonicalAuthored;
 

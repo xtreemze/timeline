@@ -129,7 +129,10 @@ test("timeline occurrence points and ranges share selection and zoom gesture sem
   const view = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
 
   assert.match(view, /interactive:\s*Boolean\(timelineInteractionTarget\)/);
-  assert.match(view, /zoomable:\s*!timelineInteractionTarget \|\| Boolean\(timelineOccurrenceTarget\)/);
+  assert.match(
+    view,
+    /zoomable:\s*!timelineInteractionTarget \|\| Boolean\(timelineOccurrenceTarget\)/,
+  );
   assert.match(view, /tap\.cancelled \|\| !tap\.zoomable/);
   assert.match(
     view,

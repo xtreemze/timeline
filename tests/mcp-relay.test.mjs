@@ -94,8 +94,5 @@ test("MCP relay validates local relay configuration", async () => {
   const bridge = createMcpRelayBridge({ document: browser.document });
 
   await assert.rejects(bridge.connect({ port: 70000 }), /between 1 and 65535/);
-  await assert.rejects(
-    bridge.connect({ requestTimeoutMs: 700000 }),
-    /between 1 and 600000/,
-  );
+  await assert.rejects(bridge.connect({ requestTimeoutMs: 700000 }), /between 1 and 600000/);
 });

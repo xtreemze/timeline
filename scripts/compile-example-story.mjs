@@ -26,11 +26,7 @@ async function writeCompiledStory(directory, compiled, modules) {
   await mkdir(directory, { recursive: true });
   for (let index = 0; index < modules.length; index += 1) {
     const collection = COLLECTIONS[index];
-    await writeFile(
-      path.join(directory, `${collection}.module.lum.json`),
-      modules[index],
-      "utf8",
-    );
+    await writeFile(path.join(directory, `${collection}.module.lum.json`), modules[index], "utf8");
   }
   await writeFile(path.join(directory, "project.lum.json"), compiled.serialized, "utf8");
 }
@@ -42,9 +38,7 @@ const modulesIndex = args.indexOf("--modules");
 const modulesDirectory = modulesIndex >= 0 ? args[modulesIndex + 1] : null;
 const savedAtIndex = args.indexOf("--saved-at");
 const savedAt =
-  savedAtIndex >= 0 && args[savedAtIndex + 1]
-    ? args[savedAtIndex + 1]
-    : "2026-09-28T09:00:00.000Z";
+  savedAtIndex >= 0 && args[savedAtIndex + 1] ? args[savedAtIndex + 1] : "2026-09-28T09:00:00.000Z";
 
 const sample = globalThis.TimelineSampleCase;
 if (!sample) throw new Error("TimelineSampleCase did not initialize.");
@@ -74,8 +68,13 @@ if (args.includes("--all")) {
   for (const entry of entries) {
     const compiledEntry = byId.get(entry.id);
     if (!compiledEntry) throw new Error(`Compiled corpus is missing ${entry.id}.`);
-    if (!entry.targetDirectory) throw new Error(`Manifest story ${entry.id} has no targetDirectory.`);
-    await writeCompiledStory(path.resolve(String(entry.targetDirectory)), compiledEntry, compiledEntry.modules);
+    if (!entry.targetDirectory)
+      throw new Error(`Manifest story ${entry.id} has no targetDirectory.`);
+    await writeCompiledStory(
+      path.resolve(String(entry.targetDirectory)),
+      compiledEntry,
+      compiledEntry.modules,
+    );
   }
   process.stdout.write(`${entries.length} stories compiled from ${manifestPath}\n`);
 } else {

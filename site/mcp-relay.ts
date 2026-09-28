@@ -1,8 +1,6 @@
 const MCP_B_VERSION = "5.1.0";
-const MCP_B_RUNTIME_URL =
-  `https://cdn.jsdelivr.net/npm/@mcp-b/global@${MCP_B_VERSION}/dist/index.iife.js`;
-const MCP_B_RELAY_URL =
-  `https://cdn.jsdelivr.net/npm/@mcp-b/webmcp-local-relay@${MCP_B_VERSION}/dist/browser/embed.js`;
+const MCP_B_RUNTIME_URL = `https://cdn.jsdelivr.net/npm/@mcp-b/global@${MCP_B_VERSION}/dist/index.iife.js`;
+const MCP_B_RELAY_URL = `https://cdn.jsdelivr.net/npm/@mcp-b/webmcp-local-relay@${MCP_B_VERSION}/dist/browser/embed.js`;
 
 export type McpRelayConnectOptions = {
   port?: number;
@@ -103,8 +101,8 @@ export function createMcpRelayBridge(root: RelayRoot = globalThis): Readonly<{
     return {
       runtimeReady: Boolean(current && hasWebMcpRuntime(current)),
       relayLoaded: Boolean(
-        current?.querySelector<HTMLScriptElement>(scriptSelector("relay"))?.dataset
-          .lumMcpLoaded === "true",
+        current?.querySelector<HTMLScriptElement>(scriptSelector("relay"))?.dataset.lumMcpLoaded ===
+          "true",
       ),
       version: MCP_B_VERSION,
       runtimeUrl: MCP_B_RUNTIME_URL,

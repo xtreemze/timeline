@@ -72,15 +72,9 @@ test("review makes provenance, unresolved facts, and findings visible without ex
   assert.match(app, /review\.verificationInstructions/);
   assert.match(app, /review\.fingerprint/);
 
-  assert.match(
-    app,
-    /presentationStage\.inert = Boolean\([\s\S]*ui\.importReviewOpen/,
-  );
+  assert.match(app, /presentationStage\.inert = Boolean\([\s\S]*ui\.importReviewOpen/);
   assert.match(app, /appToolDock\.inert = ui\.importReviewOpen/);
-  assert.match(
-    app,
-    /if \(ui\.importReviewOpen\)[\s\S]*setProjectImportReviewOpen\(false/,
-  );
+  assert.match(app, /if \(ui\.importReviewOpen\)[\s\S]*setProjectImportReviewOpen\(false/);
 });
 
 test("review dismissal restores focus without scrolling and verified warnings are not mislabeled as conversion warnings", async () => {
@@ -90,10 +84,7 @@ test("review dismissal restores focus without scrolling and verified warnings ar
     app,
     /setProjectImportReviewOpen[\s\S]*projectMenuToggle\.focus\(\{ preventScroll: true \}\)/,
   );
-  assert.match(
-    app,
-    /applyImportedTimeline\(verified, "Verified import"\)/,
-  );
+  assert.match(app, /applyImportedTimeline\(verified, "Verified import"\)/);
   assert.doesNotMatch(
     app,
     /applyImportedTimeline\(verified, "Verified import", review\.warnings\.length\)/,

@@ -77,8 +77,7 @@ export const STORYBOOK_ENTITY_ICONS = Object.freeze({
   "rumpel-child": "baby",
 } as const);
 
-type StorybookEntityIcon =
-  (typeof STORYBOOK_ENTITY_ICONS)[keyof typeof STORYBOOK_ENTITY_ICONS];
+type StorybookEntityIcon = (typeof STORYBOOK_ENTITY_ICONS)[keyof typeof STORYBOOK_ENTITY_ICONS];
 
 function record(value: unknown): Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
@@ -87,9 +86,7 @@ function record(value: unknown): Record<string, unknown> {
 }
 
 export function storybookEntityIcon(entityId: string): StorybookEntityIcon | null {
-  return (
-    STORYBOOK_ENTITY_ICONS[entityId as keyof typeof STORYBOOK_ENTITY_ICONS] ?? null
-  );
+  return STORYBOOK_ENTITY_ICONS[entityId as keyof typeof STORYBOOK_ENTITY_ICONS] ?? null;
 }
 
 export function applyStorybookEntityIcons(entities: any[]): void {

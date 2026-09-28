@@ -255,7 +255,6 @@ for (const orientation of ["horizontal", "vertical"] as const) {
   });
 }
 
-
 test("long range cards yield the temporal midpoint to exact-date events without moving the range", async ({
   page,
 }) => {
@@ -345,7 +344,6 @@ test("long range cards yield the temporal midpoint to exact-date events without 
   expect([0.24, 0.76]).toContain(geometry.anchorRatio);
 });
 
-
 test("cluster aggregates reclaim the nearest timeline lane when their primary spans do not collide", async ({
   page,
 }) => {
@@ -422,11 +420,11 @@ test("cluster aggregates reclaim the nearest timeline lane when their primary sp
     const surfaceRect = surface.getBoundingClientRect();
     const axisValue = getComputedStyle(surface).getPropertyValue("--timeline-axis-cross").trim();
     const parsed = Number.parseFloat(axisValue);
-    const axisCross = axisValue.endsWith("%")
-      ? surfaceRect.width * (parsed / 100)
-      : parsed;
+    const axisCross = axisValue.endsWith("%") ? surfaceRect.width * (parsed / 100) : parsed;
 
-    return [...document.querySelectorAll<HTMLElement>("#timeline-continuity-host .timeline-cluster")]
+    return [
+      ...document.querySelectorAll<HTMLElement>("#timeline-continuity-host .timeline-cluster"),
+    ]
       .filter((node) => !node.hidden)
       .map((node) => {
         const match = /translate3d\((-?[\d.]+)px,\s*(-?[\d.]+)px/.exec(node.style.transform);
@@ -452,11 +450,7 @@ test("cluster aggregates reclaim the nearest timeline lane when their primary sp
 
   const primary = geometry.map((cluster) => cluster.primary).sort((left, right) => left - right);
   const [firstPrimary, secondPrimary, thirdPrimary] = primary;
-  if (
-    firstPrimary === undefined ||
-    secondPrimary === undefined ||
-    thirdPrimary === undefined
-  ) {
+  if (firstPrimary === undefined || secondPrimary === undefined || thirdPrimary === undefined) {
     throw new Error("Expected three cluster primary coordinates.");
   }
   expect(secondPrimary - firstPrimary).toBeGreaterThan(80);

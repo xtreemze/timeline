@@ -25,7 +25,6 @@ function ids(value) {
   return list(value).filter((entry) => typeof entry === "string" && entry);
 }
 
-
 function optionValues(args, name) {
   const values = [];
   for (let index = 0; index < args.length; index += 1) {
@@ -41,7 +40,10 @@ export function parseLumAgentSelectors(args) {
   const occurrenceIds = optionValues(args, "--occurrence");
   const entityIds = optionValues(args, "--entity");
   const rawIds = optionValues(args, "--ids").flatMap((value) =>
-    value.split(",").map((entry) => entry.trim()).filter(Boolean),
+    value
+      .split(",")
+      .map((entry) => entry.trim())
+      .filter(Boolean),
   );
   const rawDepth = optionValues(args, "--depth").at(-1);
   const depth = rawDepth === undefined ? undefined : Number(rawDepth);
@@ -56,7 +58,9 @@ export function parseLumAgentSelectors(args) {
     rawIds.length ? "ids" : null,
   ].filter(Boolean);
   if (modes.length > 1) {
-    throw new Error("Use one bounded agent selector mode at a time: --story, --occurrence, --entity, or --ids.");
+    throw new Error(
+      "Use one bounded agent selector mode at a time: --story, --occurrence, --entity, or --ids.",
+    );
   }
   if (depth !== undefined && !entityIds.length) {
     throw new Error("--depth is only valid with --entity.");
@@ -385,8 +389,7 @@ export function buildLumAgentContext(source, selectors = {}) {
       syntax:
         "SUBJECT ACTION OBJECT [at PLACE] [on INSTANT | from START to END] [[category: CATEGORY, tags: A|B]]",
       command: 'lum compose "<sentence>" --json',
-      rule:
-        "Composer output is a proposal. It must pass canonical validation before any project mutation.",
+      rule: "Composer output is a proposal. It must pass canonical validation before any project mutation.",
     }),
     proposalWorkflow: Object.freeze({
       schema: LUM_CHANGE_PROPOSAL_SCHEMA_ID,
@@ -396,8 +399,7 @@ export function buildLumAgentContext(source, selectors = {}) {
         "lum agent validate-proposal change.lum-proposal.json --project <project.lum.json> --json",
       apply:
         "lum agent apply change.lum-proposal.json --project <project.lum.json> --output candidate.lum.json --json",
-      rule:
-        "Provider output is untrusted. Apply writes a separate candidate and never authorizes canonical replacement.",
+      rule: "Provider output is untrusted. Apply writes a separate candidate and never authorizes canonical replacement.",
     }),
     workflow: Object.freeze([
       "lum agent context <project.lum.json> --json",

@@ -1811,14 +1811,12 @@ function syncTimelineContextControls() {
   }
 }
 
-function occurrenceCompositionForRelationship(
-  relationship: RelationshipRecord,
-): string {
+function occurrenceCompositionForRelationship(relationship: RelationshipRecord): string {
   const linkedItemId = (relationship.itemIds ?? []).find((itemId) =>
     state.items.some((item) => String(item.id) === String(itemId)),
   );
   const linkedItem = linkedItemId
-    ? state.items.find((item) => String(item.id) === String(linkedItemId)) ?? null
+    ? (state.items.find((item) => String(item.id) === String(linkedItemId)) ?? null)
     : null;
   const category = linkedItem
     ? state.categories.find((candidate) => String(candidate.id) === String(linkedItem.categoryId))
@@ -5975,11 +5973,7 @@ els.graphViewRoot.addEventListener("worldcontextrequest", (event) => {
 
   setOccurrenceComposerOpen(true);
   const zoom = Number(temporalGraphView?.getCamera?.()?.zoom);
-els.occurrenceComposer.setWorldContext(
-    longitude,
-    latitude,
-    Number.isFinite(zoom) ? zoom : null,
-  );
+  els.occurrenceComposer.setWorldContext(longitude, latitude, Number.isFinite(zoom) ? zoom : null);
   els.occurrenceComposer.beginSession();
   request.preventDefault();
 });

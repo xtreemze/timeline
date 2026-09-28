@@ -73,9 +73,7 @@ export function validatePlaceScene3D(scene: CanonicalPlaceScene3D): readonly str
     findings.push("3D place scene root scale must remain [1, 1, 1].");
   }
 
-  const assetBacked = ["model", "composite", "interior", "landmark"].includes(
-    scene.representation,
-  );
+  const assetBacked = ["model", "composite", "interior", "landmark"].includes(scene.representation);
   if (assetBacked && !scene.assetId?.trim()) {
     findings.push("Asset-backed 3D place scenes require an asset ID.");
   }

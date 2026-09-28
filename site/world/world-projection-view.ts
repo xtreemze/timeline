@@ -465,7 +465,9 @@ export class WorldProjectionView {
   setFocus(id: string | number | null): void {
     const next = id === null || id === undefined ? null : String(id);
     if (next === this.#focusId) return;
-    const previousContextual = Boolean(this.#focusId && this.#relationshipIdsByItem.has(this.#focusId));
+    const previousContextual = Boolean(
+      this.#focusId && this.#relationshipIdsByItem.has(this.#focusId),
+    );
     const nextContextual = Boolean(next && this.#relationshipIdsByItem.has(next));
     this.#focusId = next;
     if (previousContextual || nextContextual) this.#render();
@@ -514,7 +516,9 @@ export class WorldProjectionView {
     const base = this.#sharedActiveIds
       ? this.#sharedActivation(this.#sharedActiveIds)
       : this.#standaloneActivation();
-    const contextualIds = this.#focusId ? this.#relationshipIdsByItem.get(this.#focusId) : undefined;
+    const contextualIds = this.#focusId
+      ? this.#relationshipIdsByItem.get(this.#focusId)
+      : undefined;
     const activeIds = contextualIds?.length
       ? Object.freeze(
           contextualIds.filter((id) =>

@@ -4,10 +4,7 @@
   "project": {
     "id": "classic-tales",
     "title": "Nine classic tales — distributed fictional casebook",
-    "currentSourceFiles": [
-      "site/sample-case.ts",
-      "site/sample-case-additions.ts"
-    ]
+    "currentSourceFiles": ["site/sample-case.ts", "site/sample-case-additions.ts"]
   },
   "stories": [
     {

@@ -42,11 +42,7 @@
     "project": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "schemaVersion",
-        "entities",
-        "relationships"
-      ],
+      "required": ["schemaVersion", "entities", "relationships"],
       "properties": {
         "schemaVersion": {
           "const": 3
@@ -120,11 +116,7 @@
     "semanticMapping": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "scheme",
-        "identifier",
-        "relation"
-      ],
+      "required": ["scheme", "identifier", "relation"],
       "properties": {
         "scheme": {
           "$ref": "#/$defs/nonEmptyString"
@@ -136,22 +128,14 @@
           "$ref": "#/$defs/nonEmptyString"
         },
         "relation": {
-          "enum": [
-            "exact",
-            "broader",
-            "narrower",
-            "related"
-          ]
+          "enum": ["exact", "broader", "narrower", "related"]
         }
       }
     },
     "identifier": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "scheme",
-        "value"
-      ],
+      "required": ["scheme", "value"],
       "properties": {
         "scheme": {
           "$ref": "#/$defs/nonEmptyString"
@@ -170,21 +154,13 @@
     "appellation": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "value"
-      ],
+      "required": ["value"],
       "properties": {
         "value": {
           "$ref": "#/$defs/nonEmptyString"
         },
         "kind": {
-          "enum": [
-            "preferred",
-            "alias",
-            "legal",
-            "historical",
-            "other"
-          ]
+          "enum": ["preferred", "alias", "legal", "historical", "other"]
         },
         "languageTag": {
           "$ref": "#/$defs/nonEmptyString"
@@ -195,34 +171,19 @@
       }
     },
     "temporalExtent": {
-      "type": [
-        "object",
-        "null"
-      ],
+      "type": ["object", "null"],
       "additionalProperties": false,
-      "required": [
-        "type",
-        "start"
-      ],
+      "required": ["type", "start"],
       "properties": {
         "type": {
-          "enum": [
-            "instant",
-            "interval"
-          ]
+          "enum": ["instant", "interval"]
         },
         "start": {
-          "type": [
-            "object",
-            "null"
-          ],
+          "type": ["object", "null"],
           "additionalProperties": true
         },
         "end": {
-          "type": [
-            "object",
-            "null"
-          ],
+          "type": ["object", "null"],
           "additionalProperties": true
         },
         "openStart": {
@@ -236,14 +197,7 @@
     "entity": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "id",
-        "type",
-        "name",
-        "alternateNames",
-        "sourceIds",
-        "attributes"
-      ],
+      "required": ["id", "type", "name", "alternateNames", "sourceIds", "attributes"],
       "properties": {
         "id": {
           "$ref": "#/$defs/nonEmptyString"
@@ -261,11 +215,7 @@
           }
         },
         "identityResolution": {
-          "enum": [
-            "identified",
-            "unresolved",
-            "disputed"
-          ]
+          "enum": ["identified", "unresolved", "disputed"]
         },
         "identifiers": {
           "type": "array",
@@ -348,10 +298,7 @@
           "$ref": "#/$defs/stringArray"
         },
         "confidence": {
-          "type": [
-            "number",
-            "null"
-          ],
+          "type": ["number", "null"],
           "minimum": 0,
           "maximum": 1
         },
@@ -407,10 +354,7 @@
           "$ref": "#/$defs/stringArray"
         },
         "confidence": {
-          "type": [
-            "number",
-            "null"
-          ],
+          "type": ["number", "null"],
           "minimum": 0,
           "maximum": 1
         },
@@ -426,17 +370,9 @@
       }
     },
     "trajectoryBounds": {
-      "type": [
-        "object",
-        "null"
-      ],
+      "type": ["object", "null"],
       "additionalProperties": false,
-      "required": [
-        "minLongitude",
-        "minLatitude",
-        "maxLongitude",
-        "maxLatitude"
-      ],
+      "required": ["minLongitude", "minLatitude", "maxLongitude", "maxLatitude"],
       "properties": {
         "minLongitude": {
           "type": "number",
@@ -469,9 +405,7 @@
     "trajectoryChannel": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "id"
-      ],
+      "required": ["id"],
       "properties": {
         "id": {
           "$ref": "#/$defs/nonEmptyString"
@@ -487,10 +421,7 @@
     "trajectoryLevel": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "id",
-        "pointCount"
-      ],
+      "required": ["id", "pointCount"],
       "properties": {
         "id": {
           "$ref": "#/$defs/nonEmptyString"
@@ -511,18 +442,10 @@
     "trajectoryStorage": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "kind",
-        "ref"
-      ],
+      "required": ["kind", "ref"],
       "properties": {
         "kind": {
-          "enum": [
-            "source-artifact",
-            "project-blob",
-            "indexeddb",
-            "external"
-          ]
+          "enum": ["source-artifact", "project-blob", "indexeddb", "external"]
         },
         "ref": {
           "$ref": "#/$defs/nonEmptyString"
@@ -625,9 +548,7 @@
     "occurrenceParticipant": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "entityId"
-      ],
+      "required": ["entityId"],
       "properties": {
         "entityId": {
           "$ref": "#/$defs/nonEmptyString"
@@ -657,10 +578,7 @@
         {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "type",
-            "coordinates"
-          ],
+          "required": ["type", "coordinates"],
           "properties": {
             "type": {
               "const": "Point"
@@ -677,18 +595,10 @@
         {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "type",
-            "coordinates"
-          ],
+          "required": ["type", "coordinates"],
           "properties": {
             "type": {
-              "enum": [
-                "LineString",
-                "MultiLineString",
-                "Polygon",
-                "MultiPolygon"
-              ]
+              "enum": ["LineString", "MultiLineString", "Polygon", "MultiPolygon"]
             },
             "coordinates": {
               "type": "array"
@@ -700,13 +610,7 @@
     "place": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "id",
-        "name",
-        "geometry",
-        "sourceIds",
-        "attributes"
-      ],
+      "required": ["id", "name", "geometry", "sourceIds", "attributes"],
       "properties": {
         "id": {
           "$ref": "#/$defs/nonEmptyString"
@@ -734,12 +638,7 @@
     "source": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "id",
-        "kind",
-        "title",
-        "attributes"
-      ],
+      "required": ["id", "kind", "title", "attributes"],
       "properties": {
         "id": {
           "$ref": "#/$defs/nonEmptyString"
@@ -770,11 +669,7 @@
     "category": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "id",
-        "name",
-        "attributes"
-      ],
+      "required": ["id", "name", "attributes"],
       "properties": {
         "id": {
           "$ref": "#/$defs/nonEmptyString"
@@ -794,13 +689,7 @@
     "story": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "id",
-        "title",
-        "occurrenceIds",
-        "placeIds",
-        "attributes"
-      ],
+      "required": ["id", "title", "occurrenceIds", "placeIds", "attributes"],
       "properties": {
         "id": {
           "$ref": "#/$defs/nonEmptyString"

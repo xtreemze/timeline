@@ -279,11 +279,7 @@ test("D3 drag rejects nearby nodes across different geographic anchors before co
   const nearbyB = '["nearby-b","place-b"]';
 
   simulation.setScene({
-    nodes: [
-      node(dragged, 0, 180),
-      node(nearbyA, 0, 180),
-      node(nearbyB, 0, 180),
-    ],
+    nodes: [node(dragged, 0, 180), node(nearbyA, 0, 180), node(nearbyB, 0, 180)],
     edges: [],
     anchors: [
       anchor(dragged, "origin", 0, { longitude: 18, latitude: 59 }),
@@ -292,9 +288,7 @@ test("D3 drag rejects nearby nodes across different geographic anchors before co
     ],
   });
   simulation.getChangedSnapshot();
-  const before = new Map(
-    simulation.getSnapshot().map((entry) => [entry.instanceId, entry]),
-  );
+  const before = new Map(simulation.getSnapshot().map((entry) => [entry.instanceId, entry]));
 
   simulation.setPin({
     instanceId: dragged,
@@ -305,12 +299,8 @@ test("D3 drag rejects nearby nodes across different geographic anchors before co
   simulation.apply({ reason: "drag", excitation: 0.2, reheat: true });
   simulation.step(1000 / 60);
 
-  const after = new Map(
-    simulation.getSnapshot().map((entry) => [entry.instanceId, entry]),
-  );
-  const changed = new Set(
-    simulation.getChangedSnapshot().map((entry) => entry.instanceId),
-  );
+  const after = new Map(simulation.getSnapshot().map((entry) => [entry.instanceId, entry]));
+  const changed = new Set(simulation.getChangedSnapshot().map((entry) => entry.instanceId));
 
   for (const id of [nearbyA, nearbyB]) {
     const start = before.get(id);

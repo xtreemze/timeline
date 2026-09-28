@@ -76,7 +76,10 @@ function response(messages, id) {
 test("Lūm LSP advertises language-intelligence capabilities", () => {
   const { messages } = createHarness();
   const initialized = response(messages, 1);
-  assert.equal(initialized.result.capabilities.completionProvider.triggerCharacters.includes('"'), true);
+  assert.equal(
+    initialized.result.capabilities.completionProvider.triggerCharacters.includes('"'),
+    true,
+  );
   assert.equal(initialized.result.capabilities.hoverProvider, true);
   assert.equal(initialized.result.capabilities.documentSymbolProvider, true);
   assert.equal(initialized.result.capabilities.definitionProvider, true);
@@ -149,7 +152,9 @@ test("Lūm LSP navigates canonical references to declarations and back", () => {
   });
   const references = response(messages, 6).result;
   assert.ok(references.length >= 2);
-  assert.ok(references.some((location) => location.range.start.line === definition.range.start.line));
+  assert.ok(
+    references.some((location) => location.range.start.line === definition.range.start.line),
+  );
   assert.ok(references.some((location) => location.range.start.line === referencePosition.line));
 });
 

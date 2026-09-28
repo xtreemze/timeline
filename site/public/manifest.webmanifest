@@ -9,10 +9,7 @@
   "background_color": "#111111",
   "theme_color": "#111111",
   "orientation": "any",
-  "categories": [
-    "productivity",
-    "utilities"
-  ],
+  "categories": ["productivity", "utilities"],
   "icons": [
     {
       "src": "./pwa-icon-192.png",
@@ -52,10 +49,7 @@
     {
       "action": "./",
       "accept": {
-        "application/json": [
-          ".lum.json",
-          ".luum"
-        ]
+        "application/json": [".lum.json", ".luum"]
       }
     }
   ],

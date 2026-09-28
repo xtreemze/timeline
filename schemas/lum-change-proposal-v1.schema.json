@@ -62,9 +62,7 @@
     "unresolvedFact": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "question"
-      ],
+      "required": ["question"],
       "properties": {
         "id": {
           "type": "string",
@@ -173,11 +171,7 @@
     "createEntity": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "op",
-        "collection",
-        "record"
-      ],
+      "required": ["op", "collection", "record"],
       "properties": {
         "op": {
           "const": "create"
@@ -196,11 +190,7 @@
     "replaceEntity": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "op",
-        "collection",
-        "record"
-      ],
+      "required": ["op", "collection", "record"],
       "properties": {
         "op": {
           "const": "replace"
@@ -219,11 +209,7 @@
     "createRelationship": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "op",
-        "collection",
-        "record"
-      ],
+      "required": ["op", "collection", "record"],
       "properties": {
         "op": {
           "const": "create"
@@ -246,11 +232,7 @@
     "replaceRelationship": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "op",
-        "collection",
-        "record"
-      ],
+      "required": ["op", "collection", "record"],
       "properties": {
         "op": {
           "const": "replace"
@@ -273,11 +255,7 @@
     "createOccurrence": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "op",
-        "collection",
-        "record"
-      ],
+      "required": ["op", "collection", "record"],
       "properties": {
         "op": {
           "const": "create"
@@ -296,11 +274,7 @@
     "replaceOccurrence": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "op",
-        "collection",
-        "record"
-      ],
+      "required": ["op", "collection", "record"],
       "properties": {
         "op": {
           "const": "replace"
@@ -319,11 +293,7 @@
     "createTrajectory": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "op",
-        "collection",
-        "record"
-      ],
+      "required": ["op", "collection", "record"],
       "properties": {
         "op": {
           "const": "create"
@@ -342,11 +312,7 @@
     "replaceTrajectory": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "op",
-        "collection",
-        "record"
-      ],
+      "required": ["op", "collection", "record"],
       "properties": {
         "op": {
           "const": "replace"
@@ -365,11 +331,7 @@
     "deleteOperation": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "op",
-        "collection",
-        "id"
-      ],
+      "required": ["op", "collection", "id"],
       "properties": {
         "op": {
           "const": "delete"
@@ -398,11 +360,7 @@
     "createPlace": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "op",
-        "collection",
-        "record"
-      ],
+      "required": ["op", "collection", "record"],
       "properties": {
         "op": {
           "const": "create"
@@ -421,11 +379,7 @@
     "replacePlace": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "op",
-        "collection",
-        "record"
-      ],
+      "required": ["op", "collection", "record"],
       "properties": {
         "op": {
           "const": "replace"
@@ -444,11 +398,7 @@
     "createSource": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "op",
-        "collection",
-        "record"
-      ],
+      "required": ["op", "collection", "record"],
       "properties": {
         "op": {
           "const": "create"
@@ -467,11 +417,7 @@
     "replaceSource": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "op",
-        "collection",
-        "record"
-      ],
+      "required": ["op", "collection", "record"],
       "properties": {
         "op": {
           "const": "replace"
@@ -490,11 +436,7 @@
     "createCategory": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "op",
-        "collection",
-        "record"
-      ],
+      "required": ["op", "collection", "record"],
       "properties": {
         "op": {
           "const": "create"
@@ -513,11 +455,7 @@
     "replaceCategory": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "op",
-        "collection",
-        "record"
-      ],
+      "required": ["op", "collection", "record"],
       "properties": {
         "op": {
           "const": "replace"
@@ -536,11 +474,7 @@
     "createStory": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "op",
-        "collection",
-        "record"
-      ],
+      "required": ["op", "collection", "record"],
       "properties": {
         "op": {
           "const": "create"
@@ -559,11 +493,7 @@
     "replaceStory": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "op",
-        "collection",
-        "record"
-      ],
+      "required": ["op", "collection", "record"],
       "properties": {
         "op": {
           "const": "replace"

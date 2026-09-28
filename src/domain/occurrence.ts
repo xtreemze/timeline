@@ -9,10 +9,7 @@ import type {
 } from "./ids.ts";
 import { validateOccurrenceTypeId } from "./occurrence-type.ts";
 import type { CanonicalRelationship, CanonicalTemporalExtent } from "./relationship.ts";
-import type {
-  ActorParticipationContext,
-  ExternalSemanticMapping,
-} from "./semantics.ts";
+import type { ActorParticipationContext, ExternalSemanticMapping } from "./semantics.ts";
 import {
   participationFactIdentity,
   validateActorParticipationContext,
@@ -93,10 +90,7 @@ export function validateOccurrence(
     }
   }
 
-  if (
-    occurrence.participantContexts.length === 0 &&
-    occurrence.relationshipIds.length === 0
-  ) {
+  if (occurrence.participantContexts.length === 0 && occurrence.relationshipIds.length === 0) {
     findings.push(
       "A standalone occurrence must have at least one participant or grouped relationship.",
     );

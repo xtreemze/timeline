@@ -857,10 +857,7 @@ geolocation {
 }
 .timeline-map-marker-identity {
   position: relative;
-  transform: translate(
-    var(--map-marker-offset, 6px),
-    var(--map-marker-offset, 6px)
-  );
+  transform: translate(var(--map-marker-offset, 6px), var(--map-marker-offset, 6px));
   display: flex;
   align-items: center;
   gap: 0.45rem;

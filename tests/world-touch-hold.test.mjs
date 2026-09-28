@@ -262,7 +262,11 @@ test("a long press on an entity then drag claims the node drag", (t) => {
   );
 
   h.touch("pointermove", 4, 160, 280);
-  assert.equal(h.updates.length, 1, "capture-phase touch movement updates the claimed node directly");
+  assert.equal(
+    h.updates.length,
+    1,
+    "capture-phase touch movement updates the claimed node directly",
+  );
 
   h.touch("pointerup", 4, 160, 280);
   assert.deepEqual(h.releases, [4]);
@@ -417,7 +421,11 @@ test("stationary long-press on empty world launches authoring without claiming a
 
   const release = h.touch("pointerup", 4, 130, 270, 1_650);
   assert.equal(release.defaultPrevented, true);
-  assert.equal(release.propagationStopped, false, "deck still receives terminal pointer-up cleanup");
+  assert.equal(
+    release.propagationStopped,
+    false,
+    "deck still receives terminal pointer-up cleanup",
+  );
 });
 
 test("moving empty-world touch before the hold threshold remains camera-owned", (t) => {
@@ -452,7 +460,6 @@ test("a second finger cancels empty-world authoring hold and yields to camera pi
     false,
   );
 });
-
 
 test("mouse and pen drags stay immediate", () => {
   const h = surfaceHarness();

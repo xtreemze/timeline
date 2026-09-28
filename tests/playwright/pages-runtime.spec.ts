@@ -64,7 +64,6 @@ test("built Pages shell boots application runtime on mobile", async ({ page }) =
   expect(pageErrors).toEqual([]);
 });
 
-
 test("built Pages runtime initializes the production WorldSurface", async ({ page }) => {
   const runtimeErrors: string[] = [];
   page.on("pageerror", (error) => runtimeErrors.push(error.message));

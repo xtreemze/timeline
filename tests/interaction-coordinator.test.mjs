@@ -206,10 +206,7 @@ test("shared keyboard navigation ignores controls and platform shortcuts", () =>
     surfaceKeyboardMayNavigate({ key: "ArrowLeft", target: { tagName: "input" } }),
     false,
   );
-  assert.equal(
-    surfaceKeyboardMayNavigate({ key: "Enter", target: { tagName: "button" } }),
-    false,
-  );
+  assert.equal(surfaceKeyboardMayNavigate({ key: "Enter", target: { tagName: "button" } }), false);
   assert.equal(
     surfaceKeyboardMayNavigate({
       key: "ArrowLeft",
@@ -250,14 +247,8 @@ test("embedded event actions and focused detail use shared semantic roles", () =
       return name === "data-surface-interaction" ? "detail" : null;
     },
   };
-  assert.equal(
-    surfaceInteractionRoleFromTarget({ closest: () => action }),
-    "action",
-  );
-  assert.equal(
-    surfaceInteractionRoleFromTarget({ closest: () => detail }),
-    "detail",
-  );
+  assert.equal(surfaceInteractionRoleFromTarget({ closest: () => action }), "action");
+  assert.equal(surfaceInteractionRoleFromTarget({ closest: () => detail }), "detail");
   assert.equal(surfaceInteractionRoleFromTarget({ closest: () => null }), null);
 });
 

@@ -18,9 +18,7 @@ import {
   createWorldForceScene,
   type WorldForceScenePolicy,
 } from "../../src/layout/world-force-scene.ts";
-import {
-  preserveWorldProjectionRenderContinuity,
-} from "../../src/layout/world-geographic-position.ts";
+import { preserveWorldProjectionRenderContinuity } from "../../src/layout/world-geographic-position.ts";
 import {
   createWorldSimulationCoordinator,
   type WorldForceSimulationBackend,
@@ -129,16 +127,11 @@ export class WorldViewRuntimeController {
     // Materialize the currently rendered force state only at a committed
     // projection boundary. Timeline scrubbing/previews never call this path.
     const previous = this.#sourceProjection ? this.getRenderProjection() : null;
-    const renderedContinuity: ReadonlyMap<
-      WorldInstanceId,
-      WorldRenderContinuitySample
-    > | undefined = previous
-      ? this.#surface.getRenderedInstanceContinuity?.()
-      : undefined;
+    const renderedContinuity:
+      | ReadonlyMap<WorldInstanceId, WorldRenderContinuitySample>
+      | undefined = previous ? this.#surface.getRenderedInstanceContinuity?.() : undefined;
     const legacyRenderedPositions =
-      previous && !renderedContinuity
-        ? this.#surface.getRenderedInstancePositions?.()
-        : undefined;
+      previous && !renderedContinuity ? this.#surface.getRenderedInstancePositions?.() : undefined;
     const renderProjection = previous
       ? preserveWorldProjectionRenderContinuity(
           previous,

@@ -65,6 +65,7 @@ export function createProjectCommandJournal<TProject>(
   let cursor = 0;
   const seenTransactionIds = new Set<string>();
 
+  // biome-ignore lint/correctness/useQwikValidLexicalScope: renderer-neutral utility, not used in Qwik components
   const snapshot = (): ProjectCommandJournalSnapshot<TProject> =>
     Object.freeze({
       project: cloneValue(project),
@@ -72,7 +73,9 @@ export function createProjectCommandJournal<TProject>(
         history.map((entry) =>
           Object.freeze({
             ...entry,
-            operations: Object.freeze(entry.operations.map((operation) => Object.freeze(cloneValue(operation)))),
+            operations: Object.freeze(
+              entry.operations.map((operation) => Object.freeze(cloneValue(operation))),
+            ),
             before: cloneValue(entry.before),
             after: cloneValue(entry.after),
           }),
@@ -83,6 +86,7 @@ export function createProjectCommandJournal<TProject>(
       canRedo: cursor < history.length,
     });
 
+  // biome-ignore lint/correctness/useQwikValidLexicalScope: renderer-neutral utility, not used in Qwik components
   const commit = (command: ProjectCommandMetadata): ProjectCommandJournalSnapshot<TProject> => {
     const id = normalizedText(command?.id, "Transaction id");
     const type = normalizedText(command?.type, "Command type");
@@ -127,6 +131,7 @@ export function createProjectCommandJournal<TProject>(
     return snapshot();
   };
 
+  // biome-ignore lint/correctness/useQwikValidLexicalScope: renderer-neutral utility, not used in Qwik components
   const undo = (): ProjectCommandJournalSnapshot<TProject> => {
     if (cursor <= 0) return snapshot();
     const entry = history[cursor - 1];
@@ -136,6 +141,7 @@ export function createProjectCommandJournal<TProject>(
     return snapshot();
   };
 
+  // biome-ignore lint/correctness/useQwikValidLexicalScope: renderer-neutral utility, not used in Qwik components
   const redo = (): ProjectCommandJournalSnapshot<TProject> => {
     if (cursor >= history.length) return snapshot();
     const entry = history[cursor];
@@ -145,6 +151,7 @@ export function createProjectCommandJournal<TProject>(
     return snapshot();
   };
 
+  // biome-ignore lint/correctness/useQwikValidLexicalScope: renderer-neutral utility, not used in Qwik components
   const reset = (nextProject: TProject): ProjectCommandJournalSnapshot<TProject> => {
     project = cloneValue(validate(cloneValue(nextProject)));
     history = [];

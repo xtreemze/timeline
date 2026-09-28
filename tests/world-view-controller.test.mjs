@@ -129,10 +129,8 @@ function harness({
   if (renderedContinuity) {
     surface.getRenderedInstanceContinuity = () => renderedContinuity;
   }
-  surface.setProjectionHandoffPresentation = (value) =>
-    calls.push(["surface:handoff", value]);
-  surface.clearProjectionHandoffPresentation = () =>
-    calls.push(["surface:handoff-clear"]);
+  surface.setProjectionHandoffPresentation = (value) => calls.push(["surface:handoff", value]);
+  surface.clearProjectionHandoffPresentation = () => calls.push(["surface:handoff-clear"]);
 
   const backend = {
     setScene(scene) {
@@ -625,7 +623,10 @@ test("manual force relaxation reheats the existing scene without rebuilding geog
   calls.length = 0;
   assert.equal(controller.relaxForce(), true);
 
-  assert.equal(calls.some(([name]) => name === "force:scene"), false);
+  assert.equal(
+    calls.some(([name]) => name === "force:scene"),
+    false,
+  );
   const applyCall = calls.find(([name]) => name === "force:apply");
   assert.ok(applyCall);
   assert.equal(applyCall[1].reason, "topology");
@@ -639,4 +640,3 @@ test("manual layout commands are inert until a world projection exists", () => {
   assert.equal(controller.relaxForce(), false);
   assert.deepEqual(calls, []);
 });
-

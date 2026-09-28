@@ -1,11 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {
-  entityId,
-  occurrenceId,
-  relationshipId,
-} from "../src/domain/ids.ts";
+import { entityId, occurrenceId, relationshipId } from "../src/domain/ids.ts";
 import { projectCanonicalOccurrences } from "../src/projection/canonical-occurrence-projection.ts";
 import { createTemporalOccurrenceIndex } from "../src/projection/temporal-occurrence-index.ts";
 
@@ -37,7 +33,6 @@ test("TemporalOccurrenceIndex replacement is immutable and preserves the prior i
     ["b"],
   );
 });
-
 
 test("grouped relationships produce one canonical temporal occurrence identity", () => {
   const relationship = {
@@ -73,17 +68,15 @@ test("grouped relationships produce one canonical temporal occurrence identity",
   );
   const index = createTemporalOccurrenceIndex(projected);
 
-  assert.deepEqual(projected.map((occurrence) => String(occurrence.id)), [
-    "signing-ceremony",
-  ]);
   assert.deepEqual(
-    index.query({ time: { start: 100, end: 100 } }).map((occurrence) =>
-      String(occurrence.id),
-    ),
+    projected.map((occurrence) => String(occurrence.id)),
+    ["signing-ceremony"],
+  );
+  assert.deepEqual(
+    index.query({ time: { start: 100, end: 100 } }).map((occurrence) => String(occurrence.id)),
     ["signing-ceremony"],
   );
 });
-
 
 test("incoherent grouped timing falls back to child relationship chronology", () => {
   const relationships = [

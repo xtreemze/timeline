@@ -62,7 +62,10 @@ test("a two-node proximity bucket is never clustered inside a larger overview sc
 
   assert.equal(shouldClusterEntityDatums(entities.length, 1), true);
   const overview = clusterEntityDatums(entities, 1);
-  assert.equal(overview.some((datum) => datum.kind === "cluster"), false);
+  assert.equal(
+    overview.some((datum) => datum.kind === "cluster"),
+    false,
+  );
   assert.deepEqual(
     overview.map((datum) => datum.worldInstanceId).sort(),
     entities.map((datum) => datum.worldInstanceId).sort(),
@@ -124,11 +127,11 @@ test("two same-place nodes remain individual instead of entering cluster present
   ]);
 
   const result = clusterEntityDatumsByPlace(entities, instances);
-  assert.equal(result.some((datum) => datum.kind === "cluster"), false);
-  assert.deepEqual(
-    result.map((datum) => datum.worldInstanceId).sort(),
-    ["alice::a", "bob::b"],
+  assert.equal(
+    result.some((datum) => datum.kind === "cluster"),
+    false,
   );
+  assert.deepEqual(result.map((datum) => datum.worldInstanceId).sort(), ["alice::a", "bob::b"]);
 });
 
 test("overview place merging uses proximity across cell boundaries and the dateline", () => {
@@ -171,9 +174,7 @@ test("place-marker aggregation requires three distinct places, not merely three 
     "node topology may cluster because the component contains four nodes",
   );
   assert.equal(
-    clusterEntityDatumsByPlace(entities, instances, 1, 3).some(
-      (datum) => datum.kind === "cluster",
-    ),
+    clusterEntityDatumsByPlace(entities, instances, 1, 3).some((datum) => datum.kind === "cluster"),
     false,
     "two nearby place pins remain distinct even when they contain several nodes",
   );

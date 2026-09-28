@@ -361,13 +361,15 @@ test.describe("Timeline interaction contracts", () => {
       await settleTimeline(page);
       await expect
         .poll(() =>
-          page.locator(".timeline-event-terminal").evaluateAll(
-            (nodes, occurrenceId) =>
-              nodes.find((node) => node.getAttribute("data-id") === occurrenceId)?.getAttribute(
-                "aria-expanded",
-              ) ?? null,
-            id,
-          ),
+          page
+            .locator(".timeline-event-terminal")
+            .evaluateAll(
+              (nodes, occurrenceId) =>
+                nodes
+                  .find((node) => node.getAttribute("data-id") === occurrenceId)
+                  ?.getAttribute("aria-expanded") ?? null,
+              id,
+            ),
         )
         .toBe("true");
 
@@ -386,13 +388,15 @@ test.describe("Timeline interaction contracts", () => {
         .toBeLessThan(span(selectedViewport));
       await expect
         .poll(() =>
-          page.locator(".timeline-event-terminal").evaluateAll(
-            (nodes, occurrenceId) =>
-              nodes.find((node) => node.getAttribute("data-id") === occurrenceId)?.getAttribute(
-                "aria-expanded",
-              ) ?? null,
-            id,
-          ),
+          page
+            .locator(".timeline-event-terminal")
+            .evaluateAll(
+              (nodes, occurrenceId) =>
+                nodes
+                  .find((node) => node.getAttribute("data-id") === occurrenceId)
+                  ?.getAttribute("aria-expanded") ?? null,
+              id,
+            ),
         )
         .toBe("true");
     }
@@ -435,13 +439,15 @@ test.describe("Timeline interaction contracts", () => {
 
       await expect
         .poll(() =>
-          page.locator(".timeline-event-terminal").evaluateAll(
-            (nodes, occurrenceId) =>
-              nodes.find((node) => node.getAttribute("data-id") === occurrenceId)?.getAttribute(
-                "aria-expanded",
-              ) ?? null,
-            id,
-          ),
+          page
+            .locator(".timeline-event-terminal")
+            .evaluateAll(
+              (nodes, occurrenceId) =>
+                nodes
+                  .find((node) => node.getAttribute("data-id") === occurrenceId)
+                  ?.getAttribute("aria-expanded") ?? null,
+              id,
+            ),
         )
         .toBe("true");
       await expect

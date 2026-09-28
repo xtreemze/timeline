@@ -21,14 +21,12 @@ test("web app manifest exposes an installable standalone Lūm app", async () => 
   const icons = manifest.icons ?? [];
   assert.ok(
     icons.some(
-      (icon) =>
-        icon.sizes === "192x192" && icon.type === "image/png" && icon.purpose === "any",
+      (icon) => icon.sizes === "192x192" && icon.type === "image/png" && icon.purpose === "any",
     ),
   );
   assert.ok(
     icons.some(
-      (icon) =>
-        icon.sizes === "512x512" && icon.type === "image/png" && icon.purpose === "any",
+      (icon) => icon.sizes === "512x512" && icon.type === "image/png" && icon.purpose === "any",
     ),
   );
   assert.ok(

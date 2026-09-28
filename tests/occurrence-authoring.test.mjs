@@ -83,7 +83,11 @@ test("authorOccurrence atomically resolves endpoints and creates one occurrence 
   assert.equal(original.entities.length, 1, "input state must remain immutable");
   assert.equal(original.items.length, 0);
   assert.equal(result.state.entities.length, 2);
-  assert.equal(result.state.entities[0].id, "alice", "alternate-name match reuses canonical entity");
+  assert.equal(
+    result.state.entities[0].id,
+    "alice",
+    "alternate-name match reuses canonical entity",
+  );
   assert.equal(result.state.entities[1].name, "Bob");
   assert.equal(result.state.places.length, 1);
   assert.equal(result.state.items.length, 1);
@@ -140,10 +144,7 @@ test("authorOccurrence rejects duplicate and mirrored facts through the shared r
   const mirroredDeps = dependencies({
     findMirroredRelationship: () => ({ id: "reverse" }),
   });
-  assert.throws(
-    () => authorOccurrence(baseState(), request(), mirroredDeps),
-    /reverse copy/i,
-  );
+  assert.throws(() => authorOccurrence(baseState(), request(), mirroredDeps), /reverse copy/i);
 });
 
 test("authorOccurrence rejects self-relations after canonical endpoint resolution", () => {

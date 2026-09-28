@@ -309,10 +309,7 @@ test("subdued edges mute while emphasis restores category or endpoint colour", (
 });
 
 test("visible relationship strokes keep a full CSS-pixel floor", () => {
-  const hairline = worldEdgeStyle(
-    { attributes: { style: { width: 0.5 } } },
-    WORLD_LIGHT_PALETTE,
-  );
+  const hairline = worldEdgeStyle({ attributes: { style: { width: 0.5 } } }, WORLD_LIGHT_PALETTE);
   assert.equal(WORLD_MIN_VISIBLE_STROKE_PX, 1);
   assert.equal(hairline.width, WORLD_MIN_VISIBLE_STROKE_PX);
 });

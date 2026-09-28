@@ -71,7 +71,8 @@ test("landscape matches portrait timeline spacing at the physical edge", async (
     ]);
     expect(surfaceBox).not.toBeNull();
     expect(axisBox).not.toBeNull();
-    if (!surfaceBox || !axisBox) throw new Error(`${orientation} timeline geometry is unavailable.`);
+    if (!surfaceBox || !axisBox)
+      throw new Error(`${orientation} timeline geometry is unavailable.`);
 
     if (orientation === "landscape") {
       const axisCenter = axisBox.y + axisBox.height / 2;
@@ -145,7 +146,9 @@ test("clicking the selected card keeps its attached detail open", async ({ page 
   await expect(page.locator("#app-shell")).toHaveClass(/is-event-focused/);
 });
 
-test("focused detail tabs use roving keyboard focus and proper tabpanel semantics", async ({ page }) => {
+test("focused detail tabs use roving keyboard focus and proper tabpanel semantics", async ({
+  page,
+}) => {
   const focus = await focusOccurrence(page);
   const contextTab = focus.getByRole("tab", { name: "Context" });
   const evidenceTab = focus.getByRole("tab", { name: "Evidence" });
@@ -189,7 +192,9 @@ test("hero image changes preserve the active detail tab and keyboard focus", asy
 
   const next = focus.locator(".timeline-focus-media-control.is-next");
   await expect(next).toBeVisible();
-  const before = await focus.locator(".timeline-focus-slide-dot.is-active").getAttribute("data-slide-index");
+  const before = await focus
+    .locator(".timeline-focus-slide-dot.is-active")
+    .getAttribute("data-slide-index");
   await next.click();
 
   await expect(focus).toHaveAttribute("data-active-tab", "evidence");
@@ -198,11 +203,15 @@ test("hero image changes preserve the active detail tab and keyboard focus", asy
     "true",
   );
   await expect(focus.locator(".timeline-focus-media-control.is-next")).toBeFocused();
-  const after = await focus.locator(".timeline-focus-slide-dot.is-active").getAttribute("data-slide-index");
+  const after = await focus
+    .locator(".timeline-focus-slide-dot.is-active")
+    .getAttribute("data-slide-index");
   expect(after).not.toBe(before);
 });
 
-test("focus edit affordances keep large hit targets with compact visible icons", async ({ page }) => {
+test("focus edit affordances keep large hit targets with compact visible icons", async ({
+  page,
+}) => {
   const focus = await focusOccurrence(page);
   const edit = focus.locator(".timeline-focus-edit").first();
   await expect(edit).toBeVisible();
@@ -273,7 +282,9 @@ test("portrait preserves the right timeline rail while focused detail layers ins
   expect(overlapArea(focusBox, graphBox)).toBeGreaterThan(100);
 });
 
-test("Browse and persistent View controls do not discard the focused occurrence", async ({ page }) => {
+test("Browse and persistent View controls do not discard the focused occurrence", async ({
+  page,
+}) => {
   await focusOccurrence(page);
 
   await page.locator("#timeline-browser-toggle").click();

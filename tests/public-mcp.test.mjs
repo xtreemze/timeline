@@ -131,14 +131,16 @@ test("fragment validation uses the exact project-module diagnostic vocabulary", 
       projectKey: "fixture-source-story",
       storyId: "story-a",
       collection: "entities",
-      records: [{
-        id: "alice",
-        type: "person",
-        name: "Alice",
-        alternateNames: [],
-        sourceIds: [],
-        attributes: {},
-      }],
+      records: [
+        {
+          id: "alice",
+          type: "person",
+          name: "Alice",
+          alternateNames: [],
+          sourceIds: [],
+          attributes: {},
+        },
+      ],
     }),
   );
   fragment.records[0].camera = { zoom: 4 };
@@ -185,11 +187,10 @@ test("whole-project staging cannot become ready when canonical references are in
 test("modern MCP advertises canonical guide, fragment validation, and final staging", async () => {
   const response = await handlePublicMcpRequest(rpcRequest("tools/list", {}, { modern: true }));
   const body = await response.json();
-  assert.deepEqual(body.result.tools.map((tool) => tool.name), [
-    "lum.get_story_authoring_guide",
-    "lum.validate_project_fragment",
-    "lum.stage_story_project",
-  ]);
+  assert.deepEqual(
+    body.result.tools.map((tool) => tool.name),
+    ["lum.get_story_authoring_guide", "lum.validate_project_fragment", "lum.stage_story_project"],
+  );
 });
 
 test("fragment MCP tool returns structured stable diagnostics", async () => {
@@ -202,7 +203,17 @@ test("fragment MCP tool returns structured stable diagnostics", async () => {
     projectKey: "fixture-source-story",
     storyId: "story-a",
     collection: "entities",
-    records: [{ id: "alice", type: "person", name: "Alice", alternateNames: [], sourceIds: [], attributes: {}, camera: {} }],
+    records: [
+      {
+        id: "alice",
+        type: "person",
+        name: "Alice",
+        alternateNames: [],
+        sourceIds: [],
+        attributes: {},
+        camera: {},
+      },
+    ],
   };
   const response = await handlePublicMcpRequest(
     rpcRequest(

@@ -163,14 +163,19 @@ test("View is permanent direct footer chrome rather than a utility overlay", asy
   const html = await readFile(new URL("../site/index.html", import.meta.url), "utf8");
 
   assert.doesNotMatch(app, /positionViewControls|planWorkspacePlacement|viewControlsToggle/);
-  assert.doesNotMatch(html, /timeline-view-controls-toggle|app-view-controls|popover="auto"[^>]*timeline-view-controls/);
+  assert.doesNotMatch(
+    html,
+    /timeline-view-controls-toggle|app-view-controls|popover="auto"[^>]*timeline-view-controls/,
+  );
   assert.match(
     html,
     /id="timeline-view-controls" class="app-footer-zone app-footer-view" role="group"/,
   );
-  assert.match(html, /id="timeline-view-toolbar" class="view-control-group timeline-local-toolbar"/);
+  assert.match(
+    html,
+    /id="timeline-view-toolbar" class="view-control-group timeline-local-toolbar"/,
+  );
 });
-
 
 test("investigation methodology workspace is a bounded utility surface with internal matrix scrolling", async () => {
   const [app, workspace, styles] = await Promise.all([
@@ -181,7 +186,10 @@ test("investigation methodology workspace is a bounded utility surface with inte
 
   assert.match(app, /investigationOpen:\s*false/);
   assert.match(app, /function setInvestigationSurfaceOpen/);
-  assert.match(app, /applyInvestigationReasoning[\s\S]*caseReasoning\.normalizeReasoning[\s\S]*persist\(\)[\s\S]*renderAll\(\)/);
+  assert.match(
+    app,
+    /applyInvestigationReasoning[\s\S]*caseReasoning\.normalizeReasoning[\s\S]*persist\(\)[\s\S]*renderAll\(\)/,
+  );
   assert.match(app, /focusInvestigationTarget[\s\S]*focusEntity[\s\S]*focusItem/);
   assert.match(workspace, /competingHypothesisMatrix/);
   assert.match(workspace, /methodologyReview/);

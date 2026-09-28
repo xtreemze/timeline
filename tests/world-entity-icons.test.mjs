@@ -112,10 +112,7 @@ test("semantic icon changes never alter node geometry or collision footprint", (
   assert.equal(iconStyle.radius, baseStyle.radius);
   assert.equal(iconStyle.borderWidth, baseStyle.borderWidth);
   assert.equal(iconStyle.shape, baseStyle.shape);
-  assert.equal(
-    worldNodeFootprintRadiusPx(iconInput),
-    worldNodeFootprintRadiusPx(baseInput),
-  );
+  assert.equal(worldNodeFootprintRadiusPx(iconInput), worldNodeFootprintRadiusPx(baseInput));
 });
 
 test("production bindings supply a real deck.gl IconLayer", async () => {

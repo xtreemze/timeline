@@ -597,7 +597,6 @@ test("focused event detail keeps event semantics compact with explicit image con
   assert.match(architectureDocs, /explicit duration for ranged events/);
 });
 
-
 test("graph normalization scopes occurrence-backed biography fields to actor entities", () => {
   assert.equal(
     graph.validateEntityNode({
@@ -630,7 +629,10 @@ test("graph normalization scopes occurrence-backed biography fields to actor ent
     ],
   });
 
-  assert.equal(normalized.entities.find((entity) => entity.id === "artifact-a")?.attributes.role, "ceremonial object");
+  assert.equal(
+    normalized.entities.find((entity) => entity.id === "artifact-a")?.attributes.role,
+    "ceremonial object",
+  );
   assert.equal(
     normalized.relationships[0]?.attributes?.profession,
     "source wording retained on occurrence context",

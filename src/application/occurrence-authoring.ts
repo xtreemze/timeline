@@ -229,9 +229,7 @@ function resolvePlace<TState extends OccurrenceAuthoringState<TExtent>, TExtent>
 
   if (requested) {
     const key = normalizedName(requested);
-    const matches = draft.places.filter(
-      (candidate) => normalizedName(candidate.name) === key,
-    );
+    const matches = draft.places.filter((candidate) => normalizedName(candidate.name) === key);
     if (matches.length > 1) {
       throw new Error(
         `“${requested}” is ambiguous. Choose the intended completion or enter @<place-id>.`,
@@ -303,8 +301,7 @@ function resolveCategory<TState extends OccurrenceAuthoringState<TExtent>, TExte
 
   const key = normalizedName(name);
   const existing = draft.categories.find(
-    (category) =>
-      normalizedName(category.id) === key || normalizedName(category.name) === key,
+    (category) => normalizedName(category.id) === key || normalizedName(category.name) === key,
   );
   if (existing) return existing;
 
@@ -317,10 +314,7 @@ function resolveCategory<TState extends OccurrenceAuthoringState<TExtent>, TExte
   return category;
 }
 
-export function authorOccurrence<
-  TExtent,
-  TState extends OccurrenceAuthoringState<TExtent>,
->(
+export function authorOccurrence<TExtent, TState extends OccurrenceAuthoringState<TExtent>>(
   state: TState,
   request: OccurrenceAuthoringRequest<TExtent>,
   dependencies: OccurrenceAuthoringDependencies<TExtent, TState>,

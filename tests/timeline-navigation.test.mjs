@@ -30,10 +30,7 @@ test("keyboard maps TV remote, media and focused D-pad keys to presentation comm
 
 test("presentation arrows yield to a focused world camera surface", () => {
   const target = new FakeElement({ navigation: true });
-  assert.equal(
-    navigation.commandFromKeyboard({ key: "ArrowRight", target }, true),
-    null,
-  );
+  assert.equal(navigation.commandFromKeyboard({ key: "ArrowRight", target }, true), null);
   assert.equal(navigation.commandFromKeyboard({ key: "Enter", target }, true), null);
   assert.equal(
     navigation.commandFromKeyboard({ key: "MediaPlayPause", target }, true),

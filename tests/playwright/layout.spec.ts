@@ -442,7 +442,9 @@ test.describe("Mobile-first Timeline layout contracts", () => {
     await expect(page.locator("#app-shell")).toHaveAttribute("data-mode", "view");
   });
 
-  test("Project stays reachable while Edit is the single toolbar authoring entry", async ({ page }) => {
+  test("Project stays reachable while Edit is the single toolbar authoring entry", async ({
+    page,
+  }) => {
     const viewport = { width: 390, height: 844 };
     await page.setViewportSize(viewport);
     await page.goto("/");
@@ -617,7 +619,9 @@ test.describe("Persistent footer and focus geometry", () => {
         "Edit focused event",
       );
 
-      const contextActionCount = await focusActions.locator(".timeline-focus-context-action").count();
+      const contextActionCount = await focusActions
+        .locator(".timeline-focus-context-action")
+        .count();
       expect(contextActionCount).toBe(4);
       for (let index = 0; index < contextActionCount; index += 1) {
         const action = focusActions.locator(".timeline-focus-context-action").nth(index);

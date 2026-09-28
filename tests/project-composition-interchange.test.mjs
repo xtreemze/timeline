@@ -36,9 +36,7 @@ test("Lūm interchange round-trips canonical places, sources, categories, and st
       attributes: {},
     },
   ];
-  doc.project.categories = [
-    { id: "movement", name: "Movement", color: "#0e7090", attributes: {} },
-  ];
+  doc.project.categories = [{ id: "movement", name: "Movement", color: "#0e7090", attributes: {} }];
   doc.project.occurrences = [
     {
       id: "occurrence-1",
@@ -99,9 +97,7 @@ test("strict composition validation rejects dangling story and place references"
     },
   ];
 
-  const validation = validateProjectInterchange(
-    formatProjectInterchange(JSON.stringify(doc)),
-  );
+  const validation = validateProjectInterchange(formatProjectInterchange(JSON.stringify(doc)));
   assert.equal(validation.valid, false);
   if (validation.valid) return;
   assert.ok(validation.diagnostics.some((d) => /missing-place|does not resolve/i.test(d.message)));

@@ -58,7 +58,7 @@ export const SEMANTIC_ICON_NAMES = Object.freeze([
   "gate",
   "market",
   "castle",
-  "view"
+  "view",
 ] as const);
 
 export type SemanticIconName = (typeof SEMANTIC_ICON_NAMES)[number];

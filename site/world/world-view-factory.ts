@@ -125,12 +125,7 @@ function createWorldLayoutControls(
       "relation",
       actions.reorganizeDag,
     ),
-    button(
-      "Settle relationships",
-      "Settle relationships (D3 force)",
-      "force",
-      actions.relaxForce,
-    ),
+    button("Settle relationships", "Settle relationships (D3 force)", "force", actions.relaxForce),
   );
   return group;
 }

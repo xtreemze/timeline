@@ -73,7 +73,9 @@ function walkLumFiles(rootPath) {
 }
 
 function normalizeQuery(value) {
-  return String(value ?? "").trim().toLocaleLowerCase();
+  return String(value ?? "")
+    .trim()
+    .toLocaleLowerCase();
 }
 
 function applyTextEdits(source, edits) {
@@ -251,9 +253,10 @@ export class LumWorkspaceIndex {
     );
     if (includeDeclaration) {
       locations.unshift(
-        ...this.declarations(projectKey, symbol.collection, symbol.id, uri).map(
-          (declaration) => ({ uri: declaration.uri, range: declaration.range }),
-        ),
+        ...this.declarations(projectKey, symbol.collection, symbol.id, uri).map((declaration) => ({
+          uri: declaration.uri,
+          range: declaration.range,
+        })),
       );
     }
     return locations;
@@ -290,7 +293,8 @@ export class LumWorkspaceIndex {
         const token = `${projectKey ?? ""}:${declaration.collection}:${declaration.id}:${document.uri}`;
         if (seen.has(token)) continue;
         seen.add(token);
-        const haystack = `${declaration.id} ${declaration.label} ${declaration.collection}`.toLocaleLowerCase();
+        const haystack =
+          `${declaration.id} ${declaration.label} ${declaration.collection}`.toLocaleLowerCase();
         if (normalized && !haystack.includes(normalized)) continue;
         result.push({
           name: declaration.label,

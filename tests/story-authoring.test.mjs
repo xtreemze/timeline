@@ -111,10 +111,7 @@ test("narrative-relative time resolves to stable synthetic ISO anchors", () => {
 });
 
 test("narrative-relative time refuses missing anchors and duplicate exact timestamps", () => {
-  assert.throws(
-    () => resolveNarrativeRelativeTime("Day 2"),
-    /narrative epoch is required/i,
-  );
+  assert.throws(() => resolveNarrativeRelativeTime("Day 2"), /narrative epoch is required/i);
   assert.throws(
     () =>
       resolveNarrativeRelativeTime("Day 2 · 09:00", {

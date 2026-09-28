@@ -48,13 +48,7 @@
     "story": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "id",
-        "title",
-        "sourceFile",
-        "targetDirectory",
-        "migrationStatus"
-      ],
+      "required": ["id", "title", "sourceFile", "targetDirectory", "migrationStatus"],
       "properties": {
         "id": {
           "type": "string",
@@ -66,22 +60,14 @@
         },
         "sourceFile": {
           "type": "string",
-          "enum": [
-            "site/sample-case.ts",
-            "site/sample-case-additions.ts"
-          ]
+          "enum": ["site/sample-case.ts", "site/sample-case-additions.ts"]
         },
         "targetDirectory": {
           "type": "string",
           "pattern": "^examples/classic-tales/[a-z0-9-]+$"
         },
         "migrationStatus": {
-          "enum": [
-            "legacy-source",
-            "pilot",
-            "modular",
-            "canonical"
-          ]
+          "enum": ["legacy-source", "pilot", "modular", "canonical"]
         }
       }
     }

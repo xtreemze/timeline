@@ -18,7 +18,10 @@ test("double tap zooms around the tapped temporal coordinate", async () => {
   assert.match(source, /TOUCH_DOUBLE_TAP_MS\s*=\s*320/);
   assert.match(source, /TOUCH_DOUBLE_TAP_DISTANCE_PX\s*=\s*28/);
   assert.match(source, /const registerTouchTap/);
-  assert.match(source, /zoomable:\s*!timelineInteractionTarget \|\| Boolean\(timelineOccurrenceTarget\)/);
+  assert.match(
+    source,
+    /zoomable:\s*!timelineInteractionTarget \|\| Boolean\(timelineOccurrenceTarget\)/,
+  );
   assert.match(source, /tap\.cancelled \|\| !tap\.zoomable/);
   assert.match(
     source,

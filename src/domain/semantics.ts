@@ -110,7 +110,9 @@ export function validateCanonicalIdentifiers(value: unknown): string[] {
     if (entry["issuer"] !== undefined && !nonEmptyString(entry["issuer"])) {
       findings.push(`Entity identifier ${index + 1} issuer must be a non-empty string.`);
     }
-    findings.push(...validateSourceIdList(entry["sourceIds"], `Entity identifier ${index + 1} sourceIds`));
+    findings.push(
+      ...validateSourceIdList(entry["sourceIds"], `Entity identifier ${index + 1} sourceIds`),
+    );
   });
   return findings;
 }
@@ -128,10 +130,7 @@ export function validateCanonicalAppellations(value: unknown): string[] {
     if (!nonEmptyString(entry["value"])) {
       findings.push(`Entity appellation ${index + 1} requires a value.`);
     }
-    if (
-      entry["kind"] !== undefined &&
-      !APPELLATION_KINDS.has(entry["kind"] as AppellationKind)
-    ) {
+    if (entry["kind"] !== undefined && !APPELLATION_KINDS.has(entry["kind"] as AppellationKind)) {
       findings.push(
         `Entity appellation ${index + 1} kind must be preferred, alias, legal, historical, or other.`,
       );
@@ -139,7 +138,9 @@ export function validateCanonicalAppellations(value: unknown): string[] {
     if (entry["languageTag"] !== undefined && !nonEmptyString(entry["languageTag"])) {
       findings.push(`Entity appellation ${index + 1} languageTag must be a non-empty string.`);
     }
-    findings.push(...validateSourceIdList(entry["sourceIds"], `Entity appellation ${index + 1} sourceIds`));
+    findings.push(
+      ...validateSourceIdList(entry["sourceIds"], `Entity appellation ${index + 1} sourceIds`),
+    );
   });
   return findings;
 }

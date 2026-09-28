@@ -25,11 +25,7 @@ export class CalendarProjectionError extends Error {
   readonly code: CalendarProjectionErrorCode;
   readonly occurrenceId?: string;
 
-  constructor(
-    code: CalendarProjectionErrorCode,
-    message: string,
-    occurrenceId?: string,
-  ) {
+  constructor(code: CalendarProjectionErrorCode, message: string, occurrenceId?: string) {
     super(message);
     this.name = "CalendarProjectionError";
     this.code = code;
@@ -163,13 +159,7 @@ function parseIsoCalendarValue(value: string): ParsedIsoDateTime | null {
     millisecond,
     offset,
     precision:
-      hour === null
-        ? "day"
-        : second === null
-          ? "minute"
-          : fraction
-            ? "millisecond"
-            : "second",
+      hour === null ? "day" : second === null ? "minute" : fraction ? "millisecond" : "second",
   };
 }
 
@@ -180,9 +170,7 @@ function endpointRecord(value: unknown): Readonly<Record<string, unknown>> | nul
 }
 
 function exactCertainty(record: Readonly<Record<string, unknown>>): string {
-  return typeof record.certainty === "string" && record.certainty
-    ? record.certainty
-    : "exact";
+  return typeof record.certainty === "string" && record.certainty ? record.certainty : "exact";
 }
 
 function endpointPrecision(
@@ -198,18 +186,13 @@ function offsetMinutes(offset: string): number {
   if (offset === "Z") return 0;
   const sign = offset[0] === "-" ? -1 : 1;
   const [hours, minutes] = offset.slice(1).split(":").map(Number);
-  return sign * (((hours ?? 0) * 60) + (minutes ?? 0));
+  return sign * ((hours ?? 0) * 60 + (minutes ?? 0));
 }
 
 function toUtcTimestamp(parts: ParsedIsoDateTime): number {
   const date = new Date(0);
   date.setUTCFullYear(parts.year, parts.month - 1, parts.day);
-  date.setUTCHours(
-    parts.hour ?? 0,
-    parts.minute ?? 0,
-    parts.second ?? 0,
-    parts.millisecond,
-  );
+  date.setUTCHours(parts.hour ?? 0, parts.minute ?? 0, parts.second ?? 0, parts.millisecond);
   return date.getTime() - offsetMinutes(parts.offset ?? "Z") * 60_000;
 }
 
@@ -258,10 +241,7 @@ function addCalendarDays(value: string, days: number): string {
   return `${pad(date.getUTCFullYear(), 4)}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
 }
 
-function projectEndpoint(
-  raw: unknown,
-  occurrenceId: string,
-): EndpointProjection {
+function projectEndpoint(raw: unknown, occurrenceId: string): EndpointProjection {
   const record = endpointRecord(raw);
   if (!record) {
     throw new CalendarProjectionError(
@@ -291,11 +271,7 @@ function projectEndpoint(
     );
   }
 
-  if (
-    typeof record.calendar === "string" &&
-    record.calendar &&
-    record.calendar !== "gregorian"
-  ) {
+  if (typeof record.calendar === "string" && record.calendar && record.calendar !== "gregorian") {
     throw new CalendarProjectionError(
       "calendar-temporal-calendar",
       `Calendar export currently supports Gregorian endpoints, not "${record.calendar}".`,
@@ -423,9 +399,7 @@ function stableUid(projectKey: string, occurrenceId: string): string {
   return `urn:lum:${encodeURIComponent(projectKey)}:occurrence:${encodeURIComponent(occurrenceId)}`;
 }
 
-function projectTemporal(
-  occurrence: CanonicalOccurrence,
-): {
+function projectTemporal(occurrence: CanonicalOccurrence): {
   readonly temporal: CalendarProjectionEvent["temporal"];
   readonly metadata: Pick<
     CalendarProjectionMetadata,
@@ -446,10 +420,7 @@ function projectTemporal(
       String(occurrence.id),
     );
   }
-  if (
-    time.type === "interval" &&
-    (time.openStart === true || time.openEnd === true)
-  ) {
+  if (time.type === "interval" && (time.openStart === true || time.openEnd === true)) {
     throw new CalendarProjectionError(
       "calendar-open-interval",
       "Open-ended occurrences require an explicit calendar boundary before export.",
@@ -459,9 +430,7 @@ function projectTemporal(
 
   const start = projectEndpoint(time.start, String(occurrence.id));
   const end =
-    time.type === "interval"
-      ? projectEndpoint(time.end, String(occurrence.id))
-      : undefined;
+    time.type === "interval" ? projectEndpoint(time.end, String(occurrence.id)) : undefined;
 
   if (end && end.kind !== start.kind) {
     throw new CalendarProjectionError(
@@ -699,9 +668,7 @@ function eventLines(
   }
   if (event.metadata.floating) lines.push("X-LUM-FLOATING-TIME:TRUE");
   if (event.metadata.canonicalDateEnd) {
-    lines.push(
-      `X-LUM-CANONICAL-DATE-END:${escapeICalendarText(event.metadata.canonicalDateEnd)}`,
-    );
+    lines.push(`X-LUM-CANONICAL-DATE-END:${escapeICalendarText(event.metadata.canonicalDateEnd)}`);
   }
 
   lines.push("END:VEVENT");

@@ -1,8 +1,5 @@
 import type { CanonicalProject } from "../domain/project.ts";
-import {
-  CURRENT_PROJECT_SCHEMA_VERSION,
-  type ProjectSnapshot,
-} from "./project-repository.ts";
+import { CURRENT_PROJECT_SCHEMA_VERSION, type ProjectSnapshot } from "./project-repository.ts";
 import {
   formatProjectInterchange,
   LUM_PROJECT_SCHEMA_ID,
@@ -72,11 +69,7 @@ function record(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-function diagnostic(
-  code: string,
-  path: string,
-  message: string,
-): ProjectInterchangeDiagnostic {
+function diagnostic(code: string, path: string, message: string): ProjectInterchangeDiagnostic {
   return Object.freeze({
     severity: "error" as const,
     code,
@@ -152,7 +145,11 @@ export function validateProjectModule(serialized: string): ProjectModuleValidati
   }
   if (envelope["projectSchema"] !== LUM_PROJECT_SCHEMA_ID) {
     diagnostics.push(
-      diagnostic("unsupported-project-schema", "/projectSchema", `Expected ${LUM_PROJECT_SCHEMA_ID}.`),
+      diagnostic(
+        "unsupported-project-schema",
+        "/projectSchema",
+        `Expected ${LUM_PROJECT_SCHEMA_ID}.`,
+      ),
     );
   }
   if (!nonEmptyString(envelope["projectKey"])) {
@@ -163,9 +160,7 @@ export function validateProjectModule(serialized: string): ProjectModuleValidati
   }
   if (
     typeof envelope["collection"] !== "string" ||
-    !LUM_PROJECT_MODULE_COLLECTIONS.includes(
-      envelope["collection"] as ProjectModuleCollection,
-    )
+    !LUM_PROJECT_MODULE_COLLECTIONS.includes(envelope["collection"] as ProjectModuleCollection)
   ) {
     diagnostics.push(
       diagnostic(
@@ -176,9 +171,7 @@ export function validateProjectModule(serialized: string): ProjectModuleValidati
     );
   }
   if (!Array.isArray(envelope["records"])) {
-    diagnostics.push(
-      diagnostic("invalid-module-records", "/records", "records must be an array."),
-    );
+    diagnostics.push(diagnostic("invalid-module-records", "/records", "records must be an array."));
   } else {
     envelope["records"].forEach((entry, index) => {
       if (!record(entry)) {
@@ -193,9 +186,7 @@ export function validateProjectModule(serialized: string): ProjectModuleValidati
     });
     if (
       typeof envelope["collection"] === "string" &&
-      LUM_PROJECT_MODULE_COLLECTIONS.includes(
-        envelope["collection"] as ProjectModuleCollection,
-      )
+      LUM_PROJECT_MODULE_COLLECTIONS.includes(envelope["collection"] as ProjectModuleCollection)
     ) {
       diagnostics.push(
         ...projectCollectionShapeDiagnostics(
@@ -297,7 +288,9 @@ export function createProjectModule(options: {
   const validation = validateProjectModule(serialized);
   if (!validation.valid) {
     throw new Error(
-      validation.diagnostics.map((finding) => `${finding.path || "/"}: ${finding.message}`).join(" "),
+      validation.diagnostics
+        .map((finding) => `${finding.path || "/"}: ${finding.message}`)
+        .join(" "),
     );
   }
   return serialized;
@@ -327,8 +320,7 @@ export function assembleProjectModules(
   if (!first) throw new Error("At least one Lūm project module is required.");
   if (
     modules.some(
-      (module) =>
-        module.projectKey !== first.projectKey || module.storyId !== first.storyId,
+      (module) => module.projectKey !== first.projectKey || module.storyId !== first.storyId,
     )
   ) {
     throw new Error("All Lūm project modules must use the same projectKey and storyId.");
@@ -346,17 +338,11 @@ export function assembleProjectModules(
     schemaVersion: CURRENT_PROJECT_SCHEMA_VERSION,
     entities: byCollection.get("entities") ?? [],
     relationships: byCollection.get("relationships") ?? [],
-    ...(byCollection.has("occurrences")
-      ? { occurrences: byCollection.get("occurrences") }
-      : {}),
-    ...(byCollection.has("trajectories")
-      ? { trajectories: byCollection.get("trajectories") }
-      : {}),
+    ...(byCollection.has("occurrences") ? { occurrences: byCollection.get("occurrences") } : {}),
+    ...(byCollection.has("trajectories") ? { trajectories: byCollection.get("trajectories") } : {}),
     ...(byCollection.has("places") ? { places: byCollection.get("places") } : {}),
     ...(byCollection.has("sources") ? { sources: byCollection.get("sources") } : {}),
-    ...(byCollection.has("categories")
-      ? { categories: byCollection.get("categories") }
-      : {}),
+    ...(byCollection.has("categories") ? { categories: byCollection.get("categories") } : {}),
     ...(byCollection.has("stories") ? { stories: byCollection.get("stories") } : {}),
   } as unknown as CanonicalProject;
 

@@ -32,13 +32,15 @@ test("module validation rejects invented envelope fields and wrong collection re
     createProjectModule({
       ...base,
       collection: "stories",
-      records: [{
-        id: "story-three-little-pigs",
-        title: "The Three Little Pigs",
-        occurrenceIds: [],
-        placeIds: [],
-        attributes: {},
-      }],
+      records: [
+        {
+          id: "story-three-little-pigs",
+          title: "The Three Little Pigs",
+          occurrenceIds: [],
+          placeIds: [],
+          attributes: {},
+        },
+      ],
     }),
   );
   parsed.camera = { zoom: 4 };
@@ -68,13 +70,15 @@ test("module assembly composes canonical collections and must pass whole-project
     createProjectModule({
       ...base,
       collection: "stories",
-      records: [{
-        id: "story-three-little-pigs",
-        title: "The Three Little Pigs",
-        occurrenceIds: [],
-        placeIds: [],
-        attributes: {},
-      }],
+      records: [
+        {
+          id: "story-three-little-pigs",
+          title: "The Three Little Pigs",
+          occurrenceIds: [],
+          placeIds: [],
+          attributes: {},
+        },
+      ],
     }),
   ];
 

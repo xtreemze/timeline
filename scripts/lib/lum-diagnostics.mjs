@@ -51,10 +51,7 @@ function readString(source, state) {
 
 function readPrimitive(source, state) {
   const start = state.index;
-  while (
-    state.index < source.length &&
-    !/[\s,}\]]/.test(source[state.index])
-  ) {
+  while (state.index < source.length && !/[\s,}\]]/.test(source[state.index])) {
     state.index += 1;
   }
   if (state.index === start) throw new Error("Expected JSON value.");

@@ -69,12 +69,7 @@ const FIELD_DOCS = Object.freeze({
   attributes: "Explicit extensibility namespace. Structural fields remain closed and strict.",
 });
 
-export const LUM_SEMANTIC_TOKEN_TYPES = Object.freeze([
-  "keyword",
-  "property",
-  "variable",
-  "type",
-]);
+export const LUM_SEMANTIC_TOKEN_TYPES = Object.freeze(["keyword", "property", "variable", "type"]);
 
 export const LUM_SEMANTIC_TOKEN_MODIFIERS = Object.freeze(["declaration", "readonly"]);
 
@@ -348,9 +343,11 @@ function stringTokenAt(source, position) {
 
 function referenceAt(source, position) {
   const offset = positionToOffset(source, position);
-  return referenceOccurrences(source).find(
-    (reference) => offset >= reference.start && offset <= reference.end,
-  ) ?? null;
+  return (
+    referenceOccurrences(source).find(
+      (reference) => offset >= reference.start && offset <= reference.end,
+    ) ?? null
+  );
 }
 
 function declarationAt(source, position) {
@@ -549,9 +546,7 @@ export function lumReferences(source, position, uri, includeDeclaration = true) 
   if (!id || !collection) return [];
 
   const locations = referenceOccurrences(source)
-    .filter(
-      (candidate) => candidate.id === id && candidate.targetCollection === collection,
-    )
+    .filter((candidate) => candidate.id === id && candidate.targetCollection === collection)
     .map((candidate) => ({ uri, range: candidate.range }));
 
   if (includeDeclaration) {

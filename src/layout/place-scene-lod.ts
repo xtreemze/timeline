@@ -27,7 +27,8 @@ export function placeSceneLodForProjectedPixels(
   if (raw === previous) return previous;
 
   if (raw === null) {
-    return projectedPixels < PLACE_SCENE_LOD_THRESHOLDS_PX.markerOnly - PLACE_SCENE_LOD_HYSTERESIS_PX
+    return projectedPixels <
+      PLACE_SCENE_LOD_THRESHOLDS_PX.markerOnly - PLACE_SCENE_LOD_HYSTERESIS_PX
       ? null
       : previous;
   }

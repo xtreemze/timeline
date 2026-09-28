@@ -2,8 +2,7 @@
   position: fixed;
   z-index: 54;
   inset: max(0.5rem, env(safe-area-inset-top)) max(0.5rem, env(safe-area-inset-right))
-    max(4.75rem, calc(3.75rem + env(safe-area-inset-bottom)))
-    max(0.5rem, env(safe-area-inset-left));
+    max(4.75rem, calc(3.75rem + env(safe-area-inset-bottom))) max(0.5rem, env(safe-area-inset-left));
   display: grid;
   place-items: stretch;
   min-width: 0;
@@ -204,7 +203,6 @@
   color: #16734a;
 }
 
-
 .investigation-evidence-drilldown-host {
   margin-block-start: 0.85rem;
 }
@@ -241,7 +239,6 @@
   flex-wrap: wrap;
   gap: 0.5rem;
 }
-
 
 .investigation-card-list,
 .investigation-review-group {

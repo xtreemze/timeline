@@ -364,7 +364,6 @@ test("selected place labels preserve the authored semantic marker color", () => 
   );
 });
 
-
 test("place acquisition radius follows the same shape-aware marker footprint", () => {
   const h = harness();
   const styled = instance(0, {
@@ -392,7 +391,9 @@ test("place acquisition radius follows the same shape-aware marker footprint", (
   const layers = h.lastLayers();
   const placeIcons = layer(layers, DECK_WORLD_LAYER_IDS.placeIcons);
   const places = layer(layers, DECK_WORLD_LAYER_IDS.places);
-  const iconDatum = placeIcons.props.data.find((candidate) => candidate.placeId === "diamond-place");
+  const iconDatum = placeIcons.props.data.find(
+    (candidate) => candidate.placeId === "diamond-place",
+  );
   const placeDatum = places.props.data.find((candidate) => candidate.placeId === "diamond-place");
   assert.ok(iconDatum);
   assert.ok(placeDatum);
@@ -502,11 +503,11 @@ test("two very near places remain separate markers", () => {
 
   const layers = h.lastLayers();
   const entities = layer(layers, DECK_WORLD_LAYER_IDS.entities);
-  assert.equal(entities.props.data.some((datum) => datum.kind === "cluster"), false);
   assert.equal(
-    entities.props.data.filter((datum) => datum.kind === "entity").length,
-    2,
+    entities.props.data.some((datum) => datum.kind === "cluster"),
+    false,
   );
+  assert.equal(entities.props.data.filter((datum) => datum.kind === "entity").length, 2);
   assert.equal(layer(layers, DECK_WORLD_LAYER_IDS.placeIcons).props.data.length, 2);
 });
 
@@ -584,8 +585,7 @@ test("selecting a clustered place reveals its incident nodes and edges without o
     );
     for (const member of [b2, b3]) {
       const datum = entities.props.data.find(
-        (candidate) =>
-          candidate.kind === "entity" && candidate.worldInstanceId === member.id,
+        (candidate) => candidate.kind === "entity" && candidate.worldInstanceId === member.id,
       );
       assert.ok(datum, "sub-three cluster remnants stay as individual node datums");
       assert.ok(
@@ -595,9 +595,7 @@ test("selecting a clustered place reveals its incident nodes and edges without o
     }
 
     const relationships = layer(layers, DECK_WORLD_LAYER_IDS.relationships);
-    const cross = relationships.props.data.find(
-      (datum) => datum.relationshipId === "a-to-b",
-    );
+    const cross = relationships.props.data.find((datum) => datum.relationshipId === "a-to-b");
     assert.ok(cross);
     assert.ok(
       relationships.props.getWidth(cross) > 0,
@@ -695,9 +693,7 @@ test("overview hides ordinary place labels until detail zoom while direct select
   surface.setSelection({ kind: "place", id: "overview-b" });
   labels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
   assert.deepEqual(
-    labels.props.data
-      .filter((datum) => datum.kind === "place-label")
-      .map((datum) => datum.placeId),
+    labels.props.data.filter((datum) => datum.kind === "place-label").map((datum) => datum.placeId),
     ["overview-b"],
     "direct place selection reveals only the requested overview label",
   );
@@ -890,9 +886,7 @@ test("dense detail scenes keep only collision-free labels and reveal interaction
       .map((datum) => datum.entityId),
   );
   const visiblePlaceIds = new Set(
-    labels.props.data
-      .filter((datum) => datum.kind === "place-label")
-      .map((datum) => datum.placeId),
+    labels.props.data.filter((datum) => datum.kind === "place-label").map((datum) => datum.placeId),
   );
   assert.ok(
     labels.props.data.length < instances.length * 2,
@@ -921,7 +915,10 @@ test("dense detail scenes keep only collision-free labels and reveal interaction
   const hiddenPlaceId = instances
     .map((candidate) => candidate.geographicAnchors[0]?.placeId)
     .find((placeId) => placeId && !visiblePlaceIds.has(placeId));
-  assert.ok(hiddenPlaceId, "dense co-located fixture leaves at least one optional place label hidden");
+  assert.ok(
+    hiddenPlaceId,
+    "dense co-located fixture leaves at least one optional place label hidden",
+  );
 
   surface.setSelection({ kind: "place", id: hiddenPlaceId });
   const selectedPlaceLabels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
@@ -993,18 +990,16 @@ test("selected objects without authored labels fall back to canonical identity",
   surface.setSelection({ kind: "entity", id: source.canonicalId });
   let selected = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
   assert.equal(
-    selected.find(
-      (datum) => datum.kind === "entity-label" && datum.entityId === source.canonicalId,
-    )?.text,
+    selected.find((datum) => datum.kind === "entity-label" && datum.entityId === source.canonicalId)
+      ?.text,
     source.canonicalId,
   );
 
   surface.setSelection({ kind: "place", id: "fallback-place" });
   selected = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels).props.data;
   assert.equal(
-    selected.find(
-      (datum) => datum.kind === "place-label" && datum.placeId === "fallback-place",
-    )?.text,
+    selected.find((datum) => datum.kind === "place-label" && datum.placeId === "fallback-place")
+      ?.text,
     "fallback-place",
   );
 
@@ -1279,8 +1274,7 @@ test("relationship labels avoid every rendered edge and remain fixed across sele
     const latitudeScale = Math.max(0.2, Math.cos((position[1] * Math.PI) / 180));
     return [position[0] * scale * latitudeScale, -position[1] * scale];
   };
-  const orientation = (a, b, c) =>
-    (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+  const orientation = (a, b, c) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
   const segmentsIntersect = (a, b, c, d) => {
     const boundsOverlap =
       Math.max(Math.min(a[0], b[0]), Math.min(c[0], d[0])) <=
@@ -1312,9 +1306,7 @@ test("relationship labels avoid every rendered edge and remain fixed across sele
     );
   };
 
-  const paths = relationshipLayer.props.data.map((datum) =>
-    relationshipLayer.props.getPath(datum),
-  );
+  const paths = relationshipLayer.props.data.map((datum) => relationshipLayer.props.getPath(datum));
   const beforeGeometry = new Map();
   for (const datum of relationshipLabels) {
     const anchor = point(labelLayer.props.getPosition(datum));
@@ -1506,9 +1498,7 @@ test("direction marker length and stroke follow the target marker scale", () => 
     const marker = directions.props.data[0];
     const icons = layer(layers, DECK_WORLD_LAYER_IDS.entityIcons);
     const entities = layer(layers, DECK_WORLD_LAYER_IDS.entities);
-    const targetIcon = icons.props.data.find(
-      (datum) => datum.worldInstanceId === target.id,
-    );
+    const targetIcon = icons.props.data.find((datum) => datum.worldInstanceId === target.id);
     const targetEntity = entities.props.data.find(
       (datum) => datum.kind === "entity" && datum.worldInstanceId === target.id,
     );
@@ -1545,15 +1535,13 @@ test("direction marker length and stroke follow the target marker scale", () => 
   );
   assert.ok(
     Math.abs(
-      largeTarget.length / ordinary.length -
-        largeTarget.targetRadius / ordinary.targetRadius,
+      largeTarget.length / ordinary.length - largeTarget.targetRadius / ordinary.targetRadius,
     ) < 1e-12,
     "chevron length scales by the exact rendered target-marker radius",
   );
   assert.ok(
     Math.abs(
-      largeTarget.width / ordinary.width -
-        largeTarget.targetRadius / ordinary.targetRadius,
+      largeTarget.width / ordinary.width - largeTarget.targetRadius / ordinary.targetRadius,
     ) < 1e-12,
     "chevron stroke scales by the exact rendered target-marker radius",
   );
@@ -1659,9 +1647,7 @@ test("focused entity labels remain pinned after returning to dense overview", ()
       .filter((datum) => datum.kind === "entity-label")
       .map((datum) => datum.entityId),
   );
-  const hidden = projection.instances.find(
-    (candidate) => !beforeIds.has(candidate.canonicalId),
-  );
+  const hidden = projection.instances.find((candidate) => !beforeIds.has(candidate.canonicalId));
   assert.ok(hidden, "dense overview fixture must suppress at least one entity label");
 
   surface.focusEntity(hidden.canonicalId);
@@ -1784,9 +1770,7 @@ test("relationship labels use the exact rendered edge RGB in every interaction s
     const layers = h.lastLayers();
     const relationships = layer(layers, DECK_WORLD_LAYER_IDS.relationships);
     const labels = layer(layers, DECK_WORLD_LAYER_IDS.labels);
-    const edge = relationships.props.data.find(
-      (datum) => datum.relationshipId === "meeting",
-    );
+    const edge = relationships.props.data.find((datum) => datum.relationshipId === "meeting");
     const labelDatum = labels.props.data.find(
       (datum) => datum.kind === "relationship-label" && datum.relationshipId === "meeting",
     );
@@ -1940,7 +1924,11 @@ test("the non-WebGL accessibility snapshot carries the same labels and directed 
     "Entity 1",
     "Entity 2",
   ]);
-  assert.deepEqual(snapshot.places.map((place) => place.label).sort(), ["Place 0", "Place 1", "Place 2"]);
+  assert.deepEqual(snapshot.places.map((place) => place.label).sort(), [
+    "Place 0",
+    "Place 1",
+    "Place 2",
+  ]);
   assert.deepEqual(snapshot.relationships, [
     {
       relationshipId: "meeting",
@@ -2157,12 +2145,13 @@ test("active timeline event relationships expose their label and authored edge c
   const labelDatum = labels.props.data.find(
     (datum) => datum.kind === "relationship-label" && datum.relationshipId === hidden.id,
   );
-  assert.ok(labelDatum, "active event relationship forces its predicate label through LOD/declutter");
+  assert.ok(
+    labelDatum,
+    "active event relationship forces its predicate label through LOD/declutter",
+  );
 
   const relationships = layer(layers, DECK_WORLD_LAYER_IDS.relationships);
-  const edgeDatum = relationships.props.data.find(
-    (datum) => datum.relationshipId === hidden.id,
-  );
+  const edgeDatum = relationships.props.data.find((datum) => datum.relationshipId === hidden.id);
   assert.ok(edgeDatum, "active event relationship remains in the rendered edge layer");
   const edgeColor = relationships.props.getColor(edgeDatum);
   assert.equal(edgeColor[3], 242, "active event relationship uses emphasized edge opacity");
@@ -2188,8 +2177,7 @@ test("selected relationship labels remain visible inside collapsed clusters", ()
   assert.equal(
     labels.some(
       (datum) =>
-        datum.kind === "relationship-label" &&
-        datum.relationshipId === "clustered-selected-edge",
+        datum.kind === "relationship-label" && datum.relationshipId === "clustered-selected-edge",
     ),
     false,
     "ordinary clustered relationship labels remain suppressed",
@@ -2200,8 +2188,7 @@ test("selected relationship labels remain visible inside collapsed clusters", ()
   assert.ok(
     labels.some(
       (datum) =>
-        datum.kind === "relationship-label" &&
-        datum.relationshipId === "clustered-selected-edge",
+        datum.kind === "relationship-label" && datum.relationshipId === "clustered-selected-edge",
     ),
     "selection overrides cluster label suppression",
   );
@@ -2216,8 +2203,7 @@ test("hovered relationship labels remain visible inside collapsed clusters", () 
   assert.equal(
     labels.some(
       (datum) =>
-        datum.kind === "relationship-label" &&
-        datum.relationshipId === "clustered-selected-edge",
+        datum.kind === "relationship-label" && datum.relationshipId === "clustered-selected-edge",
     ),
     false,
     "ordinary clustered relationship labels remain suppressed",
@@ -2233,8 +2219,7 @@ test("hovered relationship labels remain visible inside collapsed clusters", () 
   assert.ok(
     labels.some(
       (datum) =>
-        datum.kind === "relationship-label" &&
-        datum.relationshipId === "clustered-selected-edge",
+        datum.kind === "relationship-label" && datum.relationshipId === "clustered-selected-edge",
     ),
     "hover overrides cluster label suppression",
   );
@@ -2249,8 +2234,7 @@ test("active timeline event relationship remains enabled inside a collapsed clus
   assert.equal(
     layer(layers, DECK_WORLD_LAYER_IDS.labels).props.data.some(
       (datum) =>
-        datum.kind === "relationship-label" &&
-        datum.relationshipId === "clustered-selected-edge",
+        datum.kind === "relationship-label" && datum.relationshipId === "clustered-selected-edge",
     ),
     false,
     "ordinary clustered relationship labels remain suppressed",
@@ -2263,8 +2247,7 @@ test("active timeline event relationship remains enabled inside a collapsed clus
   assert.ok(
     labels.props.data.some(
       (datum) =>
-        datum.kind === "relationship-label" &&
-        datum.relationshipId === "clustered-selected-edge",
+        datum.kind === "relationship-label" && datum.relationshipId === "clustered-selected-edge",
     ),
     "active event context overrides cluster label suppression",
   );
@@ -2279,9 +2262,7 @@ test("active timeline event relationship remains enabled inside a collapsed clus
 
   const directions = layer(layers, DECK_WORLD_LAYER_IDS.relationshipDirections);
   assert.ok(
-    directions?.props.data.some(
-      (datum) => datum.relationshipId === "clustered-selected-edge",
-    ),
+    directions?.props.data.some((datum) => datum.relationshipId === "clustered-selected-edge"),
     "active event context keeps the edge direction marker enabled",
   );
 
@@ -2290,8 +2271,7 @@ test("active timeline event relationship remains enabled inside a collapsed clus
   assert.equal(
     layer(layers, DECK_WORLD_LAYER_IDS.labels).props.data.some(
       (datum) =>
-        datum.kind === "relationship-label" &&
-        datum.relationshipId === "clustered-selected-edge",
+        datum.kind === "relationship-label" && datum.relationshipId === "clustered-selected-edge",
     ),
     false,
     "clearing event context restores ordinary cluster suppression",

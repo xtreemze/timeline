@@ -19,7 +19,7 @@ import {
 
 test("occurrence sentence maps grammar into canonical authoring slots", () => {
   const parsed = parseOccurrenceSentence(
-    'Alice(type: person, icon: user) meets Bob at Stockholm on 2026-09-26T14:00Z [category: observation, tags: friend|work]',
+    "Alice(type: person, icon: user) meets Bob at Stockholm on 2026-09-26T14:00Z [category: observation, tags: friend|work]",
   );
 
   assert.equal(parsed.stage, "complete");
@@ -55,8 +55,7 @@ test("quoted endpoint names and ranges remain deterministic", () => {
 });
 
 test("composer identifies the grammatical section under the caret", () => {
-  const sentence =
-    'Alice meets "The Wolf" at "Deep Forest" on 2026-09-28 [category: Conflict]';
+  const sentence = 'Alice meets "The Wolf" at "Deep Forest" on 2026-09-28 [category: Conflict]';
 
   assert.equal(composerCursorSection(sentence, sentence.indexOf("Alice") + 2).kind, "subject");
   assert.equal(composerCursorSection(sentence, sentence.indexOf("meets") + 2).kind, "predicate");
@@ -121,7 +120,10 @@ test("composer stays on the current grammatical token until whitespace advances 
     ...baseOptions,
     cursorOffset: placeAdvancedText.length,
   });
-  assert.equal(placeAdvanced.some((suggestion) => suggestion.detail === "nearest place"), false);
+  assert.equal(
+    placeAdvanced.some((suggestion) => suggestion.detail === "nearest place"),
+    false,
+  );
   assert.ok(placeAdvanced.some((suggestion) => suggestion.kind === "time"));
 });
 
@@ -139,7 +141,10 @@ test("single object character does not advance into occurrence context", () => {
 
   assert.equal(suggestions[0]?.kind, "entity");
   assert.equal(suggestions[0]?.label, "Bob");
-  assert.equal(suggestions.some((suggestion) => suggestion.kind === "time"), false);
+  assert.equal(
+    suggestions.some((suggestion) => suggestion.kind === "time"),
+    false,
+  );
 });
 
 test("caret-local entity suggestions rank nearest canonical matches and show their icons", () => {
@@ -233,9 +238,7 @@ test("new semantic entity and place text exposes an icon suggestion at the caret
 test("complete sentence tail keeps contextual suggestions after an explicit separator", () => {
   const sentence = "Alice meets Bob ";
   const suggestions = occurrenceComposerSuggestions(sentence, {
-    entities: [
-      { id: "bob", name: "Bob", type: "person", icon: "person" },
-    ],
+    entities: [{ id: "bob", name: "Bob", type: "person", icon: "person" }],
     places: [{ id: "stockholm", name: "Stockholm", icon: "place" }],
     categories: [{ id: "observation", name: "Observation" }],
     timelineDefault: "2026-09-28T10:00:00Z",
@@ -245,7 +248,10 @@ test("complete sentence tail keeps contextual suggestions after an explicit sepa
 
   assert.ok(suggestions.some((suggestion) => suggestion.kind === "place"));
   assert.ok(suggestions.some((suggestion) => suggestion.kind === "time"));
-  assert.equal(suggestions.some((suggestion) => suggestion.detail?.startsWith("nearest object")), false);
+  assert.equal(
+    suggestions.some((suggestion) => suggestion.detail?.startsWith("nearest object")),
+    false,
+  );
 });
 
 test("caret over the time section suggests the live timeline center with iconography", () => {
@@ -300,7 +306,16 @@ test("composer suggests only supported semantic icon properties", async () => {
   assert.ok(iconSuggestions.includes("person"));
   assert.ok(iconSuggestions.includes("group"));
   assert.ok(iconSuggestions.includes("evidence"));
-  for (const placeIcon of ["forest", "road", "garden", "well", "room", "gate", "market", "castle"]) {
+  for (const placeIcon of [
+    "forest",
+    "road",
+    "garden",
+    "well",
+    "room",
+    "gate",
+    "market",
+    "castle",
+  ]) {
     assert.ok(iconSuggestions.includes(placeIcon), `${placeIcon}: shared composer vocabulary`);
   }
 });
@@ -456,8 +471,7 @@ test("completed grammar offers live World and timeline defaults without writing 
   assert.ok(
     suggestions.some(
       (suggestion) =>
-        suggestion.kind === "time" &&
-        suggestion.insertText === "on 2026-09-26T14:00:00Z",
+        suggestion.kind === "time" && suggestion.insertText === "on 2026-09-26T14:00:00Z",
     ),
   );
 });
@@ -474,10 +488,7 @@ test("timeline viewport span derives a bounded authoring precision", () => {
 
 test("timeline context formats the viewport center without manufacturing millisecond precision", () => {
   const center = Date.UTC(2026, 8, 26, 14, 37, 42, 987);
-  const broad = timelineContextFromViewport(
-    center - 30 * 86_400_000,
-    center + 30 * 86_400_000,
-  );
+  const broad = timelineContextFromViewport(center - 30 * 86_400_000, center + 30 * 86_400_000);
   const narrow = timelineContextFromViewport(center - 5 * 60_000, center + 5 * 60_000);
 
   assert.equal(broad?.precision, "day");
@@ -570,7 +581,6 @@ test("application keeps timeline and World live while composer uses their center
     /function syncOccurrenceComposerData\(\): void \{[\s\S]*occurrenceComposer\.setData\(/,
   );
 
-
   assert.match(source, /requiredElement<LuumOccurrenceComposerElement>\("#occurrence-composer"\)/);
   assert.match(
     source,
@@ -578,10 +588,7 @@ test("application keeps timeline and World live while composer uses their center
   );
   assert.match(source, /const titleEditing = ui\.editorOpen/);
   assert.match(source, /occurrenceComposer\.hidden = ui\.importReviewOpen/);
-  assert.match(
-    source,
-    /occurrencecomposeropenrequest[\s\S]*setOccurrenceComposerOpen\(true\)/,
-  );
+  assert.match(source, /occurrencecomposeropenrequest[\s\S]*setOccurrenceComposerOpen\(true\)/);
   assert.match(
     source,
     /timelineviewportchange[\s\S]*setTimelineViewport\([\s\S]*viewport\.start[\s\S]*viewport\.end/,
@@ -602,7 +609,10 @@ test("application keeps timeline and World live while composer uses their center
     /createPointPlace:[\s\S]*suggestSemanticIconForPlace\(\{ name \}\)\?\.icon \?\? "place"/,
   );
   assert.match(source, /function syncComposerVisualViewport\(\)/);
-  assert.match(source, /visualViewport\?\.addEventListener\("resize", syncComposerVisualViewport\)/);
+  assert.match(
+    source,
+    /visualViewport\?\.addEventListener\("resize", syncComposerVisualViewport\)/,
+  );
   assert.match(source, /dataset\.composerOpen = String\(composerActive\)/);
   assert.match(source, /editorToggle\.setAttribute\("aria-pressed", String\(authoringActive\)\)/);
   assert.match(
@@ -617,10 +627,7 @@ test("application keeps timeline and World live while composer uses their center
     source,
     /import \{ authorOccurrence \} from ["']\.\.\/src\/application\/occurrence-authoring\.ts["']/,
   );
-  assert.match(
-    source,
-    /authorOccurrence\(state,[\s\S]*activeStoryId:[\s\S]*ui\.activeStoryId/,
-  );
+  assert.match(source, /authorOccurrence\(state,[\s\S]*activeStoryId:[\s\S]*ui\.activeStoryId/);
   assert.doesNotMatch(source, /draft\.entities\.push\(entity\)/);
   assert.doesNotMatch(source, /draft\.places\.push\(place\)/);
   assert.doesNotMatch(source, /draft\.items\.push\(item\)/);

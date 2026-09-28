@@ -14,7 +14,6 @@ function uniqueIds(values) {
   return result;
 }
 
-
 const NARRATIVE_DAYPART_HOURS = Object.freeze({
   morning: 8,
   afternoon: 15,
@@ -36,7 +35,9 @@ const NARRATIVE_NUMBER_WORDS = Object.freeze({
 });
 
 function narrativeNumber(value) {
-  const normalized = String(value ?? "").trim().toLowerCase();
+  const normalized = String(value ?? "")
+    .trim()
+    .toLowerCase();
   if (/^\d+$/.test(normalized)) return Number(normalized);
   return NARRATIVE_NUMBER_WORDS[normalized] || 0;
 }
@@ -137,7 +138,8 @@ export function resolveNarrativeRelativeTime(
 
   if (intent.kind === "day") {
     const epochMillis = parseUtc(epoch);
-    if (epochMillis === null) throw new RangeError("A narrative epoch is required for Day N input.");
+    if (epochMillis === null)
+      throw new RangeError("A narrative epoch is required for Day N input.");
     const dayStart = utcDayStart(epochMillis) + (intent.day - 1) * 86_400_000;
     if (intent.hour === null) {
       resolvedValue = utcDateOnly(dayStart);

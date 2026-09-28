@@ -72,7 +72,8 @@ test("compiled pilot is reference-closed across relationships, occurrences, plac
 
   const [story] = project.stories ?? [];
   assert.ok(story);
-  for (const occurrenceId of story.occurrenceIds) assert.ok(occurrenceIds.has(String(occurrenceId)));
+  for (const occurrenceId of story.occurrenceIds)
+    assert.ok(occurrenceIds.has(String(occurrenceId)));
   for (const placeId of story.placeIds) assert.ok(placeIds.has(String(placeId)));
 });
 
@@ -119,7 +120,6 @@ test("pilot can split into bounded modules and reassemble without semantic drift
     compiled.snapshot.project.relationships.map((relationship) => String(relationship.id)),
   );
 });
-
 
 test("the complete nine-story corpus compiles deterministically through canonical Lūm", () => {
   const storyIds = sample.stories.map((story) => story.id);

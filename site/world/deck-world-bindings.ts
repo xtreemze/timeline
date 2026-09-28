@@ -58,9 +58,7 @@ function weightedGlobeEasing(progress: number): number {
   return (1 - Math.exp(-WEIGHTED_GLOBE_DECAY * t)) * WEIGHTED_GLOBE_NORMALIZATION;
 }
 
-type GlobeControllerEvent = Parameters<
-  InstanceType<typeof GlobeController>["handleEvent"]
->[0];
+type GlobeControllerEvent = Parameters<InstanceType<typeof GlobeController>["handleEvent"]>[0];
 
 interface TouchBearingConstraintState {
   bearing: number | null;
@@ -150,8 +148,7 @@ class TimelineWeightedGlobeController extends GlobeController {
       }
     }
 
-    const endsSingleTouchPan =
-      event.type === "panend" && this.#touchBearing.singleTouchPan;
+    const endsSingleTouchPan = event.type === "panend" && this.#touchBearing.singleTouchPan;
     if (endsSingleTouchPan) {
       this.#touchBearing.awaitingTransitionEnd = true;
     }

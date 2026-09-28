@@ -39,18 +39,34 @@ const PLACE_NAME_RULES = Object.freeze([
   { pattern: /\bgate\b/, icon: "gate", reason: "place:gate" },
   { pattern: /\bwell\b/, icon: "well", reason: "place:well" },
   { pattern: /\bmarket\b/, icon: "market", reason: "place:market" },
-  { pattern: /\bchamber\b|\broom\b|\bhall\b|\bballroom\b|\bnursery\b/, icon: "room", reason: "place:room" },
-  { pattern: /\bpath\b|\broad\b|\btrail\b|\btrack\b|\bcrossing\b|\broute\b|\bapproach\b/, icon: "road", reason: "place:road" },
+  {
+    pattern: /\bchamber\b|\broom\b|\bhall\b|\bballroom\b|\bnursery\b/,
+    icon: "room",
+    reason: "place:room",
+  },
+  {
+    pattern: /\bpath\b|\broad\b|\btrail\b|\btrack\b|\bcrossing\b|\broute\b|\bapproach\b/,
+    icon: "road",
+    reason: "place:road",
+  },
   { pattern: /\bgarden\b|\bpumpkin patch\b/, icon: "garden", reason: "place:garden" },
   { pattern: /\bmeadow\b/, icon: "meadow", reason: "place:meadow" },
   { pattern: /\bfield\b/, icon: "field", reason: "place:field" },
-  { pattern: /\bforest\b|\bwoodland\b|\bgrove\b|\bthornwood\b/, icon: "forest", reason: "place:forest" },
+  {
+    pattern: /\bforest\b|\bwoodland\b|\bgrove\b|\bthornwood\b/,
+    icon: "forest",
+    reason: "place:forest",
+  },
   { pattern: /\btower\b/, icon: "tower", reason: "place:tower" },
   { pattern: /\bcastle\b|\bpalace\b/, icon: "castle", reason: "place:castle" },
 ] as const);
 
 const NAME_RULES = Object.freeze([
-  { pattern: /\broyal\b|\bking\b|\bqueen\b|\bprince\b|\bprincess\b/, icon: "crown", reason: "name:royal" },
+  {
+    pattern: /\broyal\b|\bking\b|\bqueen\b|\bprince\b|\bprincess\b/,
+    icon: "crown",
+    reason: "name:royal",
+  },
   { pattern: /\bwolf\b/, icon: "wolf", reason: "name:wolf" },
   { pattern: /\bpig\b/, icon: "pig", reason: "name:pig" },
   { pattern: /\bwitch\b/, icon: "witch", reason: "name:witch" },
@@ -68,7 +84,11 @@ const NAME_RULES = Object.freeze([
   { pattern: /\bcoffin\b/, icon: "coffin", reason: "name:coffin" },
   { pattern: /\bspindle\b/, icon: "spindle", reason: "name:spindle" },
   { pattern: /\bball\b/, icon: "ball", reason: "name:ball" },
-  { pattern: /\bmother\b|\bfather\b|\bparent\b|\bstepmother\b|\bstepfather\b/, icon: "parent", reason: "name:parent" },
+  {
+    pattern: /\bmother\b|\bfather\b|\bparent\b|\bstepmother\b|\bstepfather\b/,
+    icon: "parent",
+    reason: "name:parent",
+  },
   { pattern: /\bchild\b/, icon: "child", reason: "name:child" },
   { pattern: /\belder\b|\bgrandmother\b|\bgrandfather\b/, icon: "elder", reason: "name:elder" },
   { pattern: /\bmerchant\b|\bpeddler\b|\bvendor\b/, icon: "merchant", reason: "name:merchant" },

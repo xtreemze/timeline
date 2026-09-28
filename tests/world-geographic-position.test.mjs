@@ -201,11 +201,7 @@ test("unchanged anchors preserve logical force state instead of semantic-zoom ma
     ],
   ]);
 
-  const reconciled = preserveWorldProjectionRenderContinuity(
-    before,
-    after,
-    renderedContinuity,
-  );
+  const reconciled = preserveWorldProjectionRenderContinuity(before, after, renderedContinuity);
 
   assert.deepEqual(reconciled.instances[0].localOffset, {
     eastMeters: 100,
@@ -264,16 +260,8 @@ test("committed temporal reprojection preserves exact Deck position with scale a
     ],
   ]);
 
-  const reconciled = preserveWorldProjectionRenderContinuity(
-    before,
-    after,
-    renderedContinuity,
-  );
-  const position = resolveWorldRenderPosition(
-    reconciled.instances[0],
-    offsetScale,
-    floatMeters,
-  );
+  const reconciled = preserveWorldProjectionRenderContinuity(before, after, renderedContinuity);
+  const position = resolveWorldRenderPosition(reconciled.instances[0], offsetScale, floatMeters);
 
   assert.ok(position);
   assert.ok(Math.abs(position[0] - renderedPosition[0]) < 1e-9);

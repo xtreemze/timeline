@@ -26,8 +26,18 @@ test("semantic icon registry is the single rendered vocabulary", () => {
 
 test("canonical place type icons are rendered and human-labeled", () => {
   const placeTypes = [
-    "forest", "road", "meadow", "garden", "field", "tower",
-    "well", "room", "kitchen", "gate", "market", "castle",
+    "forest",
+    "road",
+    "meadow",
+    "garden",
+    "field",
+    "tower",
+    "well",
+    "room",
+    "kitchen",
+    "gate",
+    "market",
+    "castle",
   ];
   for (const icon of placeTypes) {
     assert.ok(SEMANTIC_ICON_NAMES.includes(icon), `${icon}: shared registry`);
@@ -39,16 +49,24 @@ test("canonical place type icons are rendered and human-labeled", () => {
 
 test("place icon inference is deterministic and conservative", () => {
   assert.deepEqual(suggestSemanticIconForPlace({ name: "Deep Forest" }), {
-    icon: "forest", confidence: "high", reason: "place:forest",
+    icon: "forest",
+    confidence: "high",
+    reason: "place:forest",
   });
   assert.deepEqual(suggestSemanticIconForPlace({ name: "Merecourt Old Well" }), {
-    icon: "well", confidence: "high", reason: "place:well",
+    icon: "well",
+    confidence: "high",
+    reason: "place:well",
   });
   assert.deepEqual(suggestSemanticIconForPlace({ name: "Queen's Mirror Chamber" }), {
-    icon: "room", confidence: "high", reason: "place:room",
+    icon: "room",
+    confidence: "high",
+    reason: "place:room",
   });
   assert.deepEqual(suggestSemanticIconForPlace({ name: "Village Market" }), {
-    icon: "market", confidence: "high", reason: "place:market",
+    icon: "market",
+    confidence: "high",
+    reason: "place:market",
   });
   assert.equal(suggestSemanticIconForPlace({ name: "Mystery Clearing" }), null);
   assert.equal(suggestSemanticIconForPlace({ name: "North Ridge" }), null);
@@ -123,7 +141,6 @@ test("graph validation rejects unknown icons and normalization migrates aliases"
     style: { icon: "person" },
   });
 });
-
 
 test("semantic icon suggestions are deterministic and conservative", () => {
   assert.deepEqual(suggestSemanticIcon({ name: "The Wolf", type: "person" }), {

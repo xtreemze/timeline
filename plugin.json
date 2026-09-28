@@ -8,13 +8,7 @@
   },
   "homepage": "https://xtreemze.github.io/timeline/",
   "repository": "https://github.com/xtreemze/timeline",
-  "keywords": [
-    "timeline",
-    "continuum",
-    "evidence",
-    "graph",
-    "mcp"
-  ],
+  "keywords": ["timeline", "continuum", "evidence", "graph", "mcp"],
   "extensions": {
     "com.openai": {
       "interface": {

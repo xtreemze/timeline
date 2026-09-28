@@ -1,9 +1,4 @@
-import type {
-  EntityId,
-  OccurrenceId,
-  PlaceId,
-  RelationshipId,
-} from "../domain/ids.ts";
+import type { EntityId, OccurrenceId, PlaceId, RelationshipId } from "../domain/ids.ts";
 import type { CanonicalOccurrence } from "../domain/occurrence.ts";
 import { occurrenceParticipantEntityIds } from "../domain/occurrence.ts";
 import type { CanonicalProject } from "../domain/project.ts";
@@ -50,9 +45,7 @@ function groupedExtent(
   if (childExtents.length === 0) return null;
   const first = childExtents[0];
   if (!first) return null;
-  return childExtents.every(
-    (extent) => extent.start === first.start && extent.end === first.end,
-  )
+  return childExtents.every((extent) => extent.start === first.start && extent.end === first.end)
     ? first
     : null;
 }
@@ -73,9 +66,7 @@ function groupedType(
 ): string | undefined {
   if (occurrence.occurrenceType) return occurrence.occurrenceType;
   return uniqueDefined(
-    occurrence.relationshipIds.map(
-      (id) => relationshipsById.get(String(id))?.occurrenceType,
-    ),
+    occurrence.relationshipIds.map((id) => relationshipsById.get(String(id))?.occurrenceType),
   );
 }
 
@@ -119,9 +110,7 @@ export function projectCanonicalOccurrences(
       Object.freeze({
         id: relationship.id,
         kind: "relationship" as const,
-        ...(relationship.occurrenceType
-          ? { occurrenceType: relationship.occurrenceType }
-          : {}),
+        ...(relationship.occurrenceType ? { occurrenceType: relationship.occurrenceType } : {}),
         ...(relationship.placeId ? { placeId: relationship.placeId } : {}),
         entityIds: Object.freeze(
           [relationship.subjectId, relationship.objectId].sort((left, right) =>

@@ -90,4 +90,3 @@ test("production footer exposes separate DAG reorganization and force relaxation
   assert.match(factory, /scheduledView\.reorganizeDag\(\)/);
   assert.match(factory, /scheduledView\.relaxForce\(\)/);
 });
-

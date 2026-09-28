@@ -44,7 +44,6 @@ test("trackpad pinch keeps wheel units but amplifies Ctrl-modified deltas like d
   assert.equal(geometry.normalizeWheelDelta({ deltaY: 1, deltaMode: 2, ctrlKey: false }, 800), 800);
 });
 
-
 test("timeline axis placement resolves CSS percentages and pixels without JavaScript overriding layout", () => {
   assert.ok(Math.abs(geometry.axisCrossFromCss("46%", 253.2, 0.5) - 116.472) < 0.001);
   assert.equal(geometry.axisCrossFromCss("68%", 300, 0.58), 204);
@@ -206,8 +205,6 @@ test("selected events use a shell-owned detail surface without changing footer c
   assert.match(css, /timeline-focus-anchor-local-x/);
   assert.match(css, /> \.timeline-focus-summary[\s\S]*grid-column:\s*1 \/ -1/);
 });
-
-
 
 test("portrait-phone horizontal chronology reserves about one third of height for the edge rail", async () => {
   const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");

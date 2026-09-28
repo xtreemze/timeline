@@ -1,9 +1,4 @@
-import type {
-  EntityId,
-  SourceArtifactId,
-  SourceId,
-  TrajectoryId,
-} from "./ids.ts";
+import type { EntityId, SourceArtifactId, SourceId, TrajectoryId } from "./ids.ts";
 import type { CanonicalTemporalExtent } from "./relationship.ts";
 import type { ExternalSemanticMapping } from "./semantics.ts";
 import { validateExternalSemanticMappings } from "./semantics.ts";

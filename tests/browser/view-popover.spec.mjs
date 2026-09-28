@@ -43,9 +43,7 @@ test("atomic and compound toolbar controls share height, centerline, and icon si
     if (!box) continue;
     expect(Math.abs(box.height - 44)).toBeLessThanOrEqual(1);
   }
-  const centerlines = boxes
-    .filter((box) => box !== null)
-    .map((box) => box.y + box.height / 2);
+  const centerlines = boxes.filter((box) => box !== null).map((box) => box.y + box.height / 2);
   expect(Math.max(...centerlines) - Math.min(...centerlines)).toBeLessThanOrEqual(1);
 
   const project = page.locator("#project-menu-toggle");
@@ -88,7 +86,10 @@ test("toolbar actions update state, labels, tooltips, and direct icons", async (
   const beforeOrientation = await page.locator("#timeline-view").getAttribute("data-orientation");
   await orientation.click();
   const afterOrientation = beforeOrientation === "portrait" ? "landscape" : "portrait";
-  await expect(page.locator("#timeline-view")).toHaveAttribute("data-orientation", afterOrientation);
+  await expect(page.locator("#timeline-view")).toHaveAttribute(
+    "data-orientation",
+    afterOrientation,
+  );
   await expect(orientation).toHaveAttribute(
     "data-semantic-icon",
     afterOrientation === "portrait" ? "landscape" : "portrait",
@@ -157,7 +158,9 @@ test("toolbar actions update state, labels, tooltips, and direct icons", async (
   await expect(investigation).toHaveAttribute("aria-label", "Investigation methodology");
 });
 
-test("composer exposes live context, pins explicit context, and leaves Tab for focus navigation", async ({ page }) => {
+test("composer exposes live context, pins explicit context, and leaves Tab for focus navigation", async ({
+  page,
+}) => {
   await page.locator("#editor-toggle").click();
   const compose = page.locator("#occurrence-composer-toggle");
   await compose.click();
@@ -176,7 +179,7 @@ test("composer exposes live context, pins explicit context, and leaves Tab for f
     "live",
   );
 
-  await input.fill('Alice meets Bob at Stockholm on 2026-09-28');
+  await input.fill("Alice meets Bob at Stockholm on 2026-09-28");
   await expect(composer.locator('.context-chip[data-context-kind="place"]')).toHaveAttribute(
     "data-context-state",
     "pinned",
@@ -283,7 +286,9 @@ test("Browse opens an example story into visible timeline context", async ({ pag
   await expect(page.locator("#story-next")).toBeEnabled();
   await expect
     .poll(() =>
-      page.locator(".timeline-event:not(.timeline-cluster) .timeline-event-terminal:visible").count(),
+      page
+        .locator(".timeline-event:not(.timeline-cluster) .timeline-event-terminal:visible")
+        .count(),
     )
     .toBeGreaterThan(0);
   await expect(page.locator(`.timeline-event[data-id="${storyItems[0].id}"]`)).toBeVisible();
@@ -404,10 +409,15 @@ test("mobile dock horizontally scrolls to keep all direct controls reachable", a
   await expect(dock.locator("#timeline-auto-toggle")).toBeVisible();
 });
 
-test("direct View controls stay horizontal after timeline orientation changes", async ({ page }) => {
+test("direct View controls stay horizontal after timeline orientation changes", async ({
+  page,
+}) => {
   const orientationToggle = page.locator("#timeline-orientation-toggle");
   await orientationToggle.click();
   await expect(page.locator("#timeline-view")).toHaveAttribute("data-orientation", "portrait");
-  await expect(page.locator("#timeline-zoom-level")).toHaveAttribute("aria-orientation", "horizontal");
+  await expect(page.locator("#timeline-zoom-level")).toHaveAttribute(
+    "aria-orientation",
+    "horizontal",
+  );
   await expect(page.locator(viewControls)).toBeVisible();
 });

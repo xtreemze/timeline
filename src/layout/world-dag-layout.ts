@@ -319,8 +319,7 @@ function placeNeighborhoodRadiusMeters(
     return Math.max(radius, width / 2, height / 2);
   }, DAG_FALLBACK_NODE_SIZE_METERS / 2);
   const precisionRadius = instances.reduce(
-    (radius, instance) =>
-      Math.max(radius, primaryAnchor(instance)?.precisionRadiusMeters ?? 0),
+    (radius, instance) => Math.max(radius, primaryAnchor(instance)?.precisionRadiusMeters ?? 0),
     0,
   );
   const [placeWidth, placeHeight] = finitePositiveSize(options.placeSizes?.get(placeId));
@@ -593,10 +592,7 @@ function routingAwareNodeSizes(
       const ports = demand.get(key);
       const portCount = Math.max(ports?.incoming ?? 0, ports?.outgoing ?? 0);
       if (portCount <= 1) {
-        return [
-          key,
-          Object.freeze([width, height]) as readonly [number, number],
-        ] as const;
+        return [key, Object.freeze([width, height]) as readonly [number, number]] as const;
       }
 
       const crossSize = orientation === "left-to-right" ? height : width;
@@ -700,10 +696,8 @@ function allocateRoutePorts(
         DAG_FALLBACK_NODE_SIZE_METERS,
         DAG_FALLBACK_NODE_SIZE_METERS,
       ];
-      const sourceHalfFlow =
-        (orientation === "left-to-right" ? sourceWidth : sourceHeight) / 2;
-      const targetHalfFlow =
-        (orientation === "left-to-right" ? targetWidth : targetHeight) / 2;
+      const sourceHalfFlow = (orientation === "left-to-right" ? sourceWidth : sourceHeight) / 2;
+      const targetHalfFlow = (orientation === "left-to-right" ? targetWidth : targetHeight) / 2;
       const flowDistance =
         orientation === "left-to-right"
           ? target.eastMeters - source.eastMeters
@@ -713,10 +707,7 @@ function allocateRoutePorts(
 
       const preferredStub = Math.max(
         DAG_PORT_STUB_MIN_METERS,
-        Math.min(
-          DAG_PORT_STUB_MAX_METERS,
-          Math.min(sourceHalfFlow, targetHalfFlow) * 0.8,
-        ),
+        Math.min(DAG_PORT_STUB_MAX_METERS, Math.min(sourceHalfFlow, targetHalfFlow) * 0.8),
       );
       const stub = Math.max(1, Math.min(preferredStub, clearFlow * 0.28));
       const sourceOffset = sourceOffsets.get(route.relationshipId) ?? 0;
@@ -742,13 +733,15 @@ function allocateRoutePorts(
               northMeters: target.northMeters + targetHalfFlow + stub,
             });
 
-      const interior = route.points.slice(1, -1).filter((point) =>
-        orientation === "left-to-right"
-          ? point.eastMeters > sourcePort.eastMeters + 1 &&
-            point.eastMeters < targetPort.eastMeters - 1
-          : point.northMeters < sourcePort.northMeters - 1 &&
-            point.northMeters > targetPort.northMeters + 1,
-      );
+      const interior = route.points
+        .slice(1, -1)
+        .filter((point) =>
+          orientation === "left-to-right"
+            ? point.eastMeters > sourcePort.eastMeters + 1 &&
+              point.eastMeters < targetPort.eastMeters - 1
+            : point.northMeters < sourcePort.northMeters - 1 &&
+              point.northMeters > targetPort.northMeters + 1,
+        );
       return Object.freeze({
         ...route,
         points: Object.freeze([
@@ -900,8 +893,7 @@ function mirrorForStability(
       target.northMeters,
     );
     mirroredCost +=
-      (mirroredEast - previous.eastMeters) ** 2 +
-      (mirroredNorth - previous.northMeters) ** 2;
+      (mirroredEast - previous.eastMeters) ** 2 + (mirroredNorth - previous.northMeters) ** 2;
     comparisons += 1;
   }
 
@@ -1116,12 +1108,15 @@ function runLayoutCandidate(
   layoutSizes.set(rootId, rootSize);
   for (const obstacle of placeObstacles) layoutSizes.set(obstacle.id, obstacle.size);
   const dagSizes = new Map(
-    [...layoutSizes].map(([id, [width, height]]) => [
-      id,
-      orientation === "left-to-right"
-        ? (Object.freeze([height, width]) as readonly [number, number])
-        : (Object.freeze([width, height]) as readonly [number, number]),
-    ] as const),
+    [...layoutSizes].map(
+      ([id, [width, height]]) =>
+        [
+          id,
+          orientation === "left-to-right"
+            ? (Object.freeze([height, width]) as readonly [number, number])
+            : (Object.freeze([width, height]) as readonly [number, number]),
+        ] as const,
+    ),
   );
   const dagGap =
     orientation === "left-to-right"
@@ -1366,8 +1361,7 @@ function chooseCandidate(
 
   const compareLayering =
     (nodeIds.length <= COMPARE_LAYERING_MAX_NODES && edges.length <= COMPARE_LAYERING_MAX_EDGES) ||
-    ((previousName === "longest-two-layer-greedy" ||
-      previousName === "simplex-two-layer-greedy") &&
+    ((previousName === "longest-two-layer-greedy" || previousName === "simplex-two-layer-greedy") &&
       nodeIds.length <= COMPARE_LAYERING_MAX_NODES + COMPARE_LAYERING_HYSTERESIS_NODES &&
       edges.length <= COMPARE_LAYERING_MAX_EDGES + COMPARE_LAYERING_HYSTERESIS_EDGES);
 
@@ -1517,7 +1511,6 @@ function layoutPlace(
   return result;
 }
 
-
 function layoutNeighborhoodNodeIds(
   index: LayoutIndex,
   options: WorldDagLayoutOptions,
@@ -1607,11 +1600,7 @@ function crossPlaceTopologyKey(
   orientation: WorldDagLayoutOrientation,
 ): string {
   const usedPlaces = [
-    ...new Set(
-      nodeIds
-        .map((id) => places.get(id))
-        .filter((id): id is PlaceId => id !== undefined),
-    ),
+    ...new Set(nodeIds.map((id) => places.get(id)).filter((id): id is PlaceId => id !== undefined)),
   ].sort((left, right) => String(left).localeCompare(String(right)));
 
   return JSON.stringify([
@@ -1870,7 +1859,10 @@ export function createWorldDagLayout(
   }
 
   prunePlaceCache(revision);
-  if (crossPlaceCache && revision - crossPlaceCache.lastSeenRevision > DAG_CACHE_RETENTION_REVISIONS) {
+  if (
+    crossPlaceCache &&
+    revision - crossPlaceCache.lastSeenRevision > DAG_CACHE_RETENTION_REVISIONS
+  ) {
     crossPlaceCache = null;
   }
 

@@ -69,10 +69,7 @@ test("cross-place relationships participate in one DAG and influence nodes back 
   const layout = createWorldDagLayout(
     createWorldProjection({
       instances: [departure, encounter, returnHome],
-      edges: [
-        edge("cross-out", departure, encounter),
-        edge("cross-back", encounter, returnHome),
-      ],
+      edges: [edge("cross-out", departure, encounter), edge("cross-back", encounter, returnHome)],
     }),
     {
       reorganize: true,
@@ -152,10 +149,7 @@ test("Sugiyama flow follows viewport orientation", () => {
     Math.abs(landscapeEast) > Math.abs(landscapeNorth),
     "landscape hierarchy should advance primarily west/east",
   );
-  assert.ok(
-    landscapeEast > 0,
-    "left-to-right hierarchy should advance toward positive local east",
-  );
+  assert.ok(landscapeEast > 0, "left-to-right hierarchy should advance toward positive local east");
   assert.equal(
     landscape.metrics.crossingCount,
     portrait.metrics.crossingCount,
@@ -684,8 +678,6 @@ test("explicit reorganization bypasses cached place layout while preserving geog
   );
 });
 
-
-
 test("nearby place domains share one Sugiyama neighborhood without requiring a semantic edge", () => {
   const westPlace = {
     placeId: "near-west",
@@ -718,10 +710,9 @@ test("nearby place domains share one Sugiyama neighborhood without requiring a s
     make("near-east-b", eastPlace),
   ];
 
-  const layout = createWorldDagLayout(
-    createWorldProjection({ instances: nodes, edges: [] }),
-    { reorganize: true },
-  );
+  const layout = createWorldDagLayout(createWorldProjection({ instances: nodes, edges: [] }), {
+    reorganize: true,
+  });
 
   assert.equal(layout.targets.length, nodes.length);
   assert.ok(

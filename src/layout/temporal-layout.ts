@@ -220,9 +220,7 @@ export function planAggregateLanes(
   const overlaps = (
     candidate: { start: number; end: number },
     interval: { start: number; end: number },
-  ) =>
-    candidate.end + laneGapPx > interval.start &&
-    candidate.start < interval.end + laneGapPx;
+  ) => candidate.end + laneGapPx > interval.start && candidate.start < interval.end + laneGapPx;
 
   for (const obstacle of obstacles) {
     const lane = Math.trunc(finite(obstacle.lane, -1));
@@ -250,7 +248,8 @@ export function planAggregateLanes(
       const pressure = laneIntervals.map((intervals, candidateLane) => ({
         lane: candidateLane,
         pressure: intervals.reduce((sum, occupied) => {
-          const overlap = Math.min(interval.end, occupied.end + laneGapPx) -
+          const overlap =
+            Math.min(interval.end, occupied.end + laneGapPx) -
             Math.max(interval.start, occupied.start - laneGapPx);
           return sum + Math.max(0, overlap);
         }, 0),
@@ -382,13 +381,7 @@ function anchorCandidateScore(
 
   // Exact instants are the scarce coordinates in the chronology, so collisions
   // with them carry much more weight than collisions between flexible ranges.
-  return (
-    overflow * 20 +
-    pointPressure * 8 +
-    rangePressure * 3 +
-    centerPenalty +
-    stableSidePenalty
-  );
+  return overflow * 20 + pointPressure * 8 + rangePressure * 3 + centerPenalty + stableSidePenalty;
 }
 
 function planAnchorRatios(
@@ -442,7 +435,10 @@ function planAnchorRatios(
       (visibleTemporalSpan / Math.max(1, viewport.end - viewport.start)) * pixelLength;
     const offCenterEligible =
       projectedSpan >=
-      Math.max(RANGE_ANCHOR_MIN_PROJECTED_SPAN_PX, measurement.inlineSize * RANGE_ANCHOR_MIN_CARD_RATIO);
+      Math.max(
+        RANGE_ANCHOR_MIN_PROJECTED_SPAN_PX,
+        measurement.inlineSize * RANGE_ANCHOR_MIN_CARD_RATIO,
+      );
     const preferredSide = stableRangeSide(occurrence.id);
     const oppositeSide =
       preferredSide === RANGE_ANCHOR_START_RATIO
@@ -474,8 +470,7 @@ function planAnchorRatios(
     const previousRatio = previous?.anchorRatios?.[occurrence.id];
     const previousCandidate = scored.find(
       (candidate) =>
-        Number.isFinite(previousRatio) &&
-        Math.abs(candidate.ratio - Number(previousRatio)) < 0.01,
+        Number.isFinite(previousRatio) && Math.abs(candidate.ratio - Number(previousRatio)) < 0.01,
     );
     const selected =
       previousCandidate &&
@@ -710,8 +705,7 @@ export function planCommittedTemporalLayout(
       .map((intervals, lane) => ({ intervals, lane }))
       .filter(({ intervals }) =>
         intervals.every(
-          (interval) =>
-            endPx + laneGapPx <= interval.start || startPx >= interval.end + laneGapPx,
+          (interval) => endPx + laneGapPx <= interval.start || startPx >= interval.end + laneGapPx,
         ),
       )
       .map(({ lane }) => lane);

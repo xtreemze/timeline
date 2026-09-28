@@ -1,9 +1,4 @@
-import type {
-  OccurrenceId,
-  PlaceId,
-  SourceId,
-  StoryId,
-} from "./ids.ts";
+import type { OccurrenceId, PlaceId, SourceId, StoryId } from "./ids.ts";
 import type { CanonicalSpatialGeometry } from "./geotemporal.ts";
 
 export interface CanonicalPlace {
@@ -69,10 +64,7 @@ export function validateCategory(category: CanonicalCategory): readonly string[]
   const findings: string[] = [];
   if (!nonEmpty(category.id)) findings.push("Category ID is required.");
   if (!nonEmpty(category.name)) findings.push("Category name is required.");
-  if (
-    category.color !== undefined &&
-    !/^#[0-9a-f]{6}$/i.test(category.color)
-  ) {
+  if (category.color !== undefined && !/^#[0-9a-f]{6}$/i.test(category.color)) {
     findings.push("Category color must be a six-digit hexadecimal color.");
   }
   return Object.freeze(findings);

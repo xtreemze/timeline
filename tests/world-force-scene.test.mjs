@@ -428,11 +428,9 @@ test("force scenes keep current offsets while exposing soft DAG targets", () => 
 test("manual DAG rebuild preserves geographic anchors and keeps places out of the force graph", () => {
   const projection = dagProjection();
   const baseline = createWorldForceScene(projection);
-  const reorganized = createWorldForceScene(
-    projection,
-    DEFAULT_WORLD_FORCE_SCENE_POLICY,
-    { reorganizeDag: true },
-  );
+  const reorganized = createWorldForceScene(projection, DEFAULT_WORLD_FORCE_SCENE_POLICY, {
+    reorganizeDag: true,
+  });
 
   assert.deepEqual(reorganized.anchors, baseline.anchors);
   assert.deepEqual(
@@ -453,4 +451,3 @@ test("manual DAG rebuild preserves geographic anchors and keeps places out of th
     ),
   );
 });
-

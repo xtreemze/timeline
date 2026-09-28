@@ -123,10 +123,7 @@ const ACTOR_CONTEXT_FIELDS = new Set([
   "externalMappings",
 ]);
 
-const OCCURRENCE_PARTICIPANT_FIELDS = new Set([
-  "entityId",
-  ...ACTOR_CONTEXT_FIELDS,
-]);
+const OCCURRENCE_PARTICIPANT_FIELDS = new Set(["entityId", ...ACTOR_CONTEXT_FIELDS]);
 
 const PLACE_FIELDS = new Set([
   "id",
@@ -244,10 +241,7 @@ function inspectTemporal(value: unknown, path: string): ProjectInterchangeDiagno
   return object ? unknownFieldDiagnostics(object, TEMPORAL_FIELDS, path) : [];
 }
 
-function inspectParticipant(
-  participant: JsonRecord,
-  path: string,
-): ProjectInterchangeDiagnostic[] {
+function inspectParticipant(participant: JsonRecord, path: string): ProjectInterchangeDiagnostic[] {
   return inspectMappings(participant["externalMappings"], `${path}/externalMappings`);
 }
 
@@ -277,10 +271,7 @@ function inspectRelationship(
   return diagnostics;
 }
 
-function inspectOccurrence(
-  occurrence: JsonRecord,
-  path: string,
-): ProjectInterchangeDiagnostic[] {
+function inspectOccurrence(occurrence: JsonRecord, path: string): ProjectInterchangeDiagnostic[] {
   return [
     ...inspectTemporal(occurrence["time"], `${path}/time`),
     ...inspectMappings(occurrence["semanticMappings"], `${path}/semanticMappings`),
@@ -295,23 +286,14 @@ function inspectOccurrence(
 
 function inspectPlace(place: JsonRecord, path: string): ProjectInterchangeDiagnostic[] {
   const geometry = record(place["geometry"]);
-  return geometry
-    ? unknownFieldDiagnostics(geometry, GEOMETRY_FIELDS, `${path}/geometry`)
-    : [];
+  return geometry ? unknownFieldDiagnostics(geometry, GEOMETRY_FIELDS, `${path}/geometry`) : [];
 }
 
-function inspectTrajectory(
-  trajectory: JsonRecord,
-  path: string,
-): ProjectInterchangeDiagnostic[] {
+function inspectTrajectory(trajectory: JsonRecord, path: string): ProjectInterchangeDiagnostic[] {
   const diagnostics = [
     ...inspectTemporal(trajectory["time"], `${path}/time`),
     ...inspectMappings(trajectory["externalMappings"], `${path}/externalMappings`),
-    ...inspectRecordArray(
-      trajectory["channels"],
-      `${path}/channels`,
-      TRAJECTORY_CHANNEL_FIELDS,
-    ),
+    ...inspectRecordArray(trajectory["channels"], `${path}/channels`, TRAJECTORY_CHANNEL_FIELDS),
     ...inspectRecordArray(trajectory["levels"], `${path}/levels`, TRAJECTORY_LEVEL_FIELDS),
   ];
   const bounds = record(trajectory["bounds"]);
@@ -492,9 +474,7 @@ const CANONICAL_KEY_ORDER = Object.freeze([
   "attributes",
 ] as const);
 
-const CANONICAL_KEY_RANK = new Map(
-  CANONICAL_KEY_ORDER.map((key, index) => [key, index] as const),
-);
+const CANONICAL_KEY_RANK = new Map(CANONICAL_KEY_ORDER.map((key, index) => [key, index] as const));
 
 function compareCanonicalKeys(left: string, right: string): number {
   const leftRank = CANONICAL_KEY_RANK.get(left);
@@ -694,9 +674,7 @@ export class ProjectInterchangeValidationError extends Error {
 
   constructor(diagnostics: readonly ProjectInterchangeDiagnostic[]) {
     super(
-      diagnostics
-        .map((diagnostic) => `${diagnostic.path || "/"}: ${diagnostic.message}`)
-        .join(" "),
+      diagnostics.map((diagnostic) => `${diagnostic.path || "/"}: ${diagnostic.message}`).join(" "),
     );
     this.name = "ProjectInterchangeValidationError";
     this.diagnostics = diagnostics;

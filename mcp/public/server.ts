@@ -149,9 +149,7 @@ const PROMPT = Object.freeze({
 });
 
 function record(value: unknown): JsonRecord | null {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as JsonRecord)
-    : null;
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as JsonRecord) : null;
 }
 
 function textValue(value: unknown, max = 1000): string {
@@ -170,12 +168,7 @@ function success(id: JsonRpcId, result: unknown): JsonRecord {
   return { jsonrpc: "2.0", id, result };
 }
 
-function failure(
-  id: JsonRpcId,
-  code: number,
-  message: string,
-  data?: unknown,
-): JsonRecord {
+function failure(id: JsonRpcId, code: number, message: string, data?: unknown): JsonRecord {
   return {
     jsonrpc: "2.0",
     id,
@@ -239,10 +232,7 @@ function validateModernHeaders(request: Request, message: JsonRecord): string | 
   }
   if (method === "tools/call" || method === "prompts/get" || method === "resources/read") {
     const params = record(message.params);
-    const bodyName = textValue(
-      method === "resources/read" ? params?.uri : params?.name,
-      500,
-    );
+    const bodyName = textValue(method === "resources/read" ? params?.uri : params?.name, 500);
     const routedName = textValue(request.headers.get("Mcp-Name"), 500);
     if (!bodyName || routedName !== bodyName) {
       return "Mcp-Name must match the routed tool, prompt, or resource name.";
@@ -297,9 +287,7 @@ function listResources(modern: boolean): JsonRecord {
 function promptResult(params: JsonRecord, modern: boolean): JsonRecord {
   const args = record(params.arguments) || {};
   const goal = textValue(args.goal, 2000);
-  const content =
-    DOCUMENT_STORY_GUIDE +
-    (goal ? "\n\n## User goal for this run\n\n" + goal : "");
+  const content = DOCUMENT_STORY_GUIDE + (goal ? "\n\n## User goal for this run\n\n" + goal : "");
   const result: JsonRecord = {
     description:
       "Read the user's uploaded documents/text first, then construct and stage a complete Lūm project.",
@@ -345,9 +333,7 @@ function callTool(params: JsonRecord, modern: boolean): JsonRecord {
 
 function initialize(params: JsonRecord): JsonRecord {
   const requested = textValue(params.protocolVersion, 80);
-  const protocolVersion = LEGACY_VERSIONS.includes(
-    requested as (typeof LEGACY_VERSIONS)[number],
-  )
+  const protocolVersion = LEGACY_VERSIONS.includes(requested as (typeof LEGACY_VERSIONS)[number])
     ? requested
     : LEGACY_VERSIONS[0];
 

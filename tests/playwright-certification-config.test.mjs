@@ -244,13 +244,9 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(formalPresentation, /CI-generated product showcase media/);
 });
 
-
 test("application shell CI explicitly certifies narrow mobile screen contracts", () => {
   assert.match(workflow, /playwright\/mobile-screen\.spec\.ts/);
-  assert.match(
-    workflow,
-    /mobile-screen\.spec\.ts --project="Mobile Chrome"/,
-  );
+  assert.match(workflow, /mobile-screen\.spec\.ts --project="Mobile Chrome"/);
 });
 
 test("generated project import review has a fatal full Chromium certification lane", () => {

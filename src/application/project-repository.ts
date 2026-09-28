@@ -558,7 +558,6 @@ function assertStoryShape(
   return story;
 }
 
-
 function assertOccurrenceParticipantShape(value: unknown): CanonicalOccurrenceParticipant {
   if (!isRecord(value)) {
     throw new Error("Occurrence participant must be an object.");
@@ -834,7 +833,9 @@ export function assertCanonicalProject(value: unknown): CanonicalProject {
   if (value.stories !== undefined && !Array.isArray(value.stories)) {
     throw new Error("Canonical project stories must be an array when present.");
   }
-  const canonicalOccurrenceIds = new Set((occurrences ?? []).map((occurrence) => String(occurrence.id)));
+  const canonicalOccurrenceIds = new Set(
+    (occurrences ?? []).map((occurrence) => String(occurrence.id)),
+  );
   const stories = Array.isArray(value.stories)
     ? value.stories.map((story) => assertStoryShape(story, canonicalOccurrenceIds, placeIds))
     : undefined;

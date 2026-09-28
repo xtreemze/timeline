@@ -138,9 +138,9 @@ test("generated proposal stays staged until explicit approval and Cancel preserv
   await page.locator("#project-import-review-approve").click();
 
   await expect(review).toBeHidden();
-  await expect.poll(async () => (await currentProject(page)).title).toBe(
-    "Verified generated candidate",
-  );
+  await expect
+    .poll(async () => (await currentProject(page)).title)
+    .toBe("Verified generated candidate");
 });
 
 test("repair-state generated proposal cannot be approved or mutate canonical state", async ({
@@ -161,9 +161,7 @@ test("repair-state generated proposal cannot be approved or mutate canonical sta
 
   const review = page.locator("#project-import-review-sheet");
   await expect(review).toBeVisible();
-  await expect(page.locator("#project-import-review-status")).toContainText(
-    "cannot be approved",
-  );
+  await expect(page.locator("#project-import-review-status")).toContainText("cannot be approved");
   await expect(page.locator("#project-import-review-findings")).toContainText(
     "Evidence linkage is incomplete",
   );

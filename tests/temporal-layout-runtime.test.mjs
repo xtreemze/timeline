@@ -53,10 +53,11 @@ test("cross-axis lane offsets use measured extents and preserve nearest-first pa
   assert.ok(offsets[0] < offsets[1]);
   assert.ok(offsets[1] < offsets[2]);
 
-  const sparse = planLaneCrossOffsets(
-    [{ lane: 2, blockSize: 300 }],
-    { axisOffsetPx: 44, laneGapPx: 16, routingSlackPx: 44 },
-  );
+  const sparse = planLaneCrossOffsets([{ lane: 2, blockSize: 300 }], {
+    axisOffsetPx: 44,
+    laneGapPx: 16,
+    routingSlackPx: 44,
+  });
   assert.deepEqual(sparse, { 2: 44 });
 });
 
@@ -126,7 +127,6 @@ test("committed layout planning is deterministic and capped at three lanes by de
   assert.deepEqual(second, first);
   assert.ok(Object.values(first.lanes).every((lane) => lane >= 0 && lane <= 2));
 });
-
 
 test("long ranges move their card away from the temporal midpoint while instants keep exact positions", () => {
   const plan = planCommittedTemporalLayout({
@@ -224,7 +224,6 @@ test("exact-date events reclaim lane zero from a previously centered range when 
   assert.equal(plan.anchorRatios.instant, 0.5);
 });
 
-
 test("three nearby occurrences use lanes before a fourth forces clustering", () => {
   const common = {
     viewport: { start: 0, end: 1_000 },
@@ -300,7 +299,10 @@ test("measured two-line height is preserved in placement geometry", () => {
 });
 
 test("timeline decluttering reuses DAG-style greedy stability without importing graph topology layout", async () => {
-  const source = await readFile(new URL("../src/layout/temporal-layout.ts", import.meta.url), "utf8");
+  const source = await readFile(
+    new URL("../src/layout/temporal-layout.ts", import.meta.url),
+    "utf8",
+  );
 
   assert.match(source, /function planAnchorRatios\(/);
   assert.match(source, /collisionPressure/);
@@ -333,7 +335,10 @@ test("renderer aligns cards with padded temporal coordinates and defers geometry
   const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
 
   assert.match(source, /padding \+ scale\.coordinateFor\(time, this\.viewport, usable\)/);
-  assert.match(source, /const anchorRatio = this\.committedLayout\.anchorRatios\[item\.id\] \?\? 0\.5/);
+  assert.match(
+    source,
+    /const anchorRatio = this\.committedLayout\.anchorRatios\[item\.id\] \?\? 0\.5/,
+  );
   assert.match(source, /visibleIntervalAnchor\(item, this\.viewport, anchorRatio\)/);
   assert.match(
     source,
@@ -439,7 +444,10 @@ test("timeline event cards pack inward on measured one-sided lanes", async () =>
   assert.match(reconcileBody, /!hiddenClusterItemIds\.has\(placement\.id\)/);
   assert.doesNotMatch(reconcileBody, /clusterRepresentativeIds/);
   assert.match(reconcileBody, /record\.lane = -\(lane \+ 1\)/);
-  assert.match(reconcileBody, /planLaneCrossOffsets\([\s\S]*visiblePlacements[\s\S]*clusterCrossAxisPlacements/);
+  assert.match(
+    reconcileBody,
+    /planLaneCrossOffsets\([\s\S]*visiblePlacements[\s\S]*clusterCrossAxisPlacements/,
+  );
   assert.match(reconcileBody, /item\.connectorRouting === "orthogonal"/);
   assert.match(reconcileBody, /routingSlackPx: 0/);
 

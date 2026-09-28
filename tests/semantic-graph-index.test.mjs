@@ -162,7 +162,6 @@ test("replace rebuilds topology atomically and updates the revision", () => {
   assert.equal(index.entity(entityId("c"))?.name, "c");
 });
 
-
 test("standalone occurrences never become SemanticGraphIndex nodes", () => {
   const entities = [entity("a"), entity("b")];
   const relationships = [relationship("r-ab", "a", "b", "called")];

@@ -217,11 +217,7 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-function axisCrossFromCss(
-  value: string,
-  crossExtent: number,
-  fallbackRatio: number,
-): number {
+function axisCrossFromCss(value: string, crossExtent: number, fallbackRatio: number): number {
   const extent = Math.max(1, Number(crossExtent) || 1);
   const fallback = extent * clamp(Number(fallbackRatio) || 0, 0, 1);
   const normalized = String(value || "").trim();
@@ -444,9 +440,7 @@ function adjacentTimelineItem<T extends Pick<TimelineItem, "id" | "start">>(
     (left, right) => left.start - right.start || left.id.localeCompare(right.id),
   );
   const step = direction < 0 ? -1 : 1;
-  const currentIndex = focusedId
-    ? ordered.findIndex((item) => item.id === focusedId)
-    : -1;
+  const currentIndex = focusedId ? ordered.findIndex((item) => item.id === focusedId) : -1;
 
   if (currentIndex >= 0) {
     let nextIndex = currentIndex + step;
@@ -464,11 +458,11 @@ function adjacentTimelineItem<T extends Pick<TimelineItem, "id" | "start">>(
       const candidate = ordered[index];
       if (candidate && candidate.start < reference) return candidate;
     }
-    return options.wrap ? ordered.at(-1) ?? null : null;
+    return options.wrap ? (ordered.at(-1) ?? null) : null;
   }
 
   const candidate = ordered.find((item) => item.start > reference);
-  return candidate ?? (options.wrap ? ordered[0] ?? null : null);
+  return candidate ?? (options.wrap ? (ordered[0] ?? null) : null);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -766,8 +760,7 @@ export class TimelineViewController {
     const zoomTimelineAtClientPoint = (clientX: number, clientY: number): void => {
       const rect = this.surface.getBoundingClientRect();
       const length = Math.max(1, this.orientation === "horizontal" ? rect.width : rect.height);
-      const primary =
-        this.orientation === "horizontal" ? clientX - rect.left : clientY - rect.top;
+      const primary = this.orientation === "horizontal" ? clientX - rect.left : clientY - rect.top;
       const padding = this.axisPadding(length);
       const usable = Math.max(1, length - padding * 2);
       const ratio = clamp((primary - padding) / usable, 0, 1);
@@ -1198,12 +1191,11 @@ export class TimelineViewController {
       requestedFocusItem !== null &&
       (itemSetChanged || !itemOverlapsViewport(requestedFocusItem, this.viewport));
 
-    this.focusedId =
-      requestedFocusItem
-        ? requestedFocusItem.id
-        : this.focusedId && this.items.some((item) => item.id === this.focusedId)
-          ? this.focusedId
-          : null;
+    this.focusedId = requestedFocusItem
+      ? requestedFocusItem.id
+      : this.focusedId && this.items.some((item) => item.id === this.focusedId)
+        ? this.focusedId
+        : null;
 
     this.renderWindow = createRenderWindow(this.viewport, { overscanRatio: OVERSCAN_RATIO });
     this.retention = commitRetention(this.renderWindow);
@@ -2425,8 +2417,7 @@ export class TimelineViewController {
       this.orientation === "horizontal"
         ? TIMELINE_CARD_DEFAULT_HORIZONTAL_CROSS_SIZE_PX
         : TIMELINE_CARD_DEFAULT_VERTICAL_CROSS_SIZE_PX;
-    const routingSlack =
-      connectorRouting === "orthogonal" ? TIMELINE_CARD_ROUTING_SLACK_PX : 0;
+    const routingSlack = connectorRouting === "orthogonal" ? TIMELINE_CARD_ROUTING_SLACK_PX : 0;
     const pitch = defaultCrossSize + TIMELINE_CARD_LANE_GAP_PX + routingSlack;
     return TIMELINE_CARD_AXIS_OFFSET_PX + normalized * pitch;
   }
@@ -2582,8 +2573,7 @@ export class TimelineViewController {
     const occurrenceById = new Map(occurrences.map((item) => [item.id, item]));
     const visiblePlacements = planned.placements
       .filter(
-        (placement) =>
-          !hiddenClusterItemIds.has(placement.id) || placement.id === this.focusedId,
+        (placement) => !hiddenClusterItemIds.has(placement.id) || placement.id === this.focusedId,
       )
       .map((placement) => {
         const item = occurrenceById.get(placement.id);
@@ -2655,8 +2645,7 @@ export class TimelineViewController {
       }
       return {
         lane,
-        blockSize:
-          clusterMeasurements.get(cluster.id)?.blockSize ?? CLUSTER_DEFAULT_CROSS_SIZE_PX,
+        blockSize: clusterMeasurements.get(cluster.id)?.blockSize ?? CLUSTER_DEFAULT_CROSS_SIZE_PX,
       };
     });
 
@@ -3204,7 +3193,9 @@ export class TimelineViewController {
 
   syncFocusAttachment(): void {
     if (!this.focusedId || this.focusView.hidden) return;
-    const record = [...this.scene.values()].find((candidate) => candidate.item.id === this.focusedId);
+    const record = [...this.scene.values()].find(
+      (candidate) => candidate.item.id === this.focusedId,
+    );
     const stage = this.focusView.parentElement;
     if (!record || !stage) return;
     const anchor = record.terminal.getBoundingClientRect();
@@ -3615,7 +3606,9 @@ export class TimelineViewController {
           ? presentation.createIcon("chevron-left", { size: 20 })
           : null;
       if (previousIcon) previous.append(previousIcon);
-      previous.addEventListener("click", () => step(-1, ".timeline-focus-media-control.is-previous"));
+      previous.addEventListener("click", () =>
+        step(-1, ".timeline-focus-media-control.is-previous"),
+      );
       controls.append(previous);
 
       media.forEach((_, index) => {
@@ -3863,7 +3856,10 @@ export class TimelineViewController {
     evidenceTab.addEventListener("click", () => setFocusTab("evidence"));
     tabs.addEventListener("keydown", (event) => {
       const target = event.target;
-      if (!(target instanceof HTMLButtonElement) || !target.classList.contains("timeline-focus-tab")) {
+      if (
+        !(target instanceof HTMLButtonElement) ||
+        !target.classList.contains("timeline-focus-tab")
+      ) {
         return;
       }
       let next: "overview" | "evidence" | null = null;

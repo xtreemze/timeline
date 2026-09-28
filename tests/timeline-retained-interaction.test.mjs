@@ -264,7 +264,10 @@ test("structural axis relocation keeps the retained scene visually continuous", 
   const resolverStart = source.indexOf("  resolvedAxisCross(");
   const resolverEnd = source.indexOf("  stabilizeStructuralAxisCross(", resolverStart);
   const resolverBody = source.slice(resolverStart, resolverEnd);
-  assert.match(resolverBody, /getComputedStyle\(this\.surface\)\.getPropertyValue\("--timeline-axis-cross"\)/);
+  assert.match(
+    resolverBody,
+    /getComputedStyle\(this\.surface\)\.getPropertyValue\("--timeline-axis-cross"\)/,
+  );
   assert.match(resolverBody, /this\.retention\.active/);
   assert.match(resolverBody, /this\.lastRenderedAxisCross/);
 

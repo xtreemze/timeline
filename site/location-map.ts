@@ -695,10 +695,7 @@ function markerGlyphSizePx(markerSizePx: number): number {
 }
 
 function markerIconBoxSizePx(markerSizePx: number): number {
-  return Math.max(
-    LOCATION_MAP_MIN_ICON_BOX_PX,
-    markerSizePx + LOCATION_MAP_MARKER_BOX_PADDING_PX,
-  );
+  return Math.max(LOCATION_MAP_MIN_ICON_BOX_PX, markerSizePx + LOCATION_MAP_MARKER_BOX_PADDING_PX);
 }
 
 function leafletPathStyle(

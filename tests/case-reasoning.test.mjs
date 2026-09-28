@@ -263,7 +263,6 @@ test("reports broken or imprecise citation links without inferring truth", () =>
   assert.equal("truthScore" in model.assertions[0], false);
 });
 
-
 test("competing identity hypotheses preserve candidates, contradictions, and open-world alternatives", () => {
   const model = {
     assertions: [
@@ -333,16 +332,16 @@ test("competing identity hypotheses preserve candidates, contradictions, and ope
   const findings = reasoning.validateReasoning(model, {
     entityIds: ["unknown-person-a", "alice", "bob", "carol"],
   });
-  assert.equal(findings.some((finding) => finding.severity === "error"), false);
+  assert.equal(
+    findings.some((finding) => finding.severity === "error"),
+    false,
+  );
   assert.equal(
     findings.some((finding) => finding.code === "identity-open-world-alternative-missing"),
     false,
   );
 
-  const matrix = reasoning.competingHypothesisMatrix(
-    model,
-    "unknown-person-a-identity",
-  );
+  const matrix = reasoning.competingHypothesisMatrix(model, "unknown-person-a-identity");
   assert.deepEqual(
     matrix.hypotheses.map((hypothesis) => hypothesis.id),
     ["hyp-alice", "hyp-bob", "hyp-carol", "hyp-none-known"],
@@ -383,13 +382,8 @@ test("identity analysis warns when it forces a closed candidate set", () => {
     },
     { entityIds: ["unknown-person-a", "alice", "bob"] },
   );
-  assert.ok(
-    findings.some(
-      (finding) => finding.code === "identity-open-world-alternative-missing",
-    ),
-  );
+  assert.ok(findings.some((finding) => finding.code === "identity-open-world-alternative-missing"));
 });
-
 
 test("exposes established structured analytic methods without treating them as truth engines", () => {
   const methods = new Map(reasoning.ANALYTIC_METHODS.map((method) => [method.id, method]));
@@ -429,7 +423,8 @@ test("normalizes assumptions, questions, enquiries, indicators, and information 
         hypothesisIds: ["hyp-carol", "hyp-none-known"],
         testType: "discriminate",
         status: "active",
-        expectedDiscriminator: "A time-matched exit observation that distinguishes the alternatives.",
+        expectedDiscriminator:
+          "A time-matched exit observation that distinguishes the alternatives.",
       },
     ],
     indicators: [
@@ -582,37 +577,34 @@ test("methodology review exposes gaps and disconfirming coverage without selecti
 });
 
 test("methodology review identifies alternative groups with no discriminating or falsifying enquiry", () => {
-  const review = reasoning.methodologyReview(
-    {
-      assertions: [{ id: "fact-1" }],
-      hypotheses: [
-        {
-          id: "h1",
-          text: "Alternative one",
-          alternativeGroupId: "group-1",
-          assertionIds: ["fact-1"],
-        },
-        {
-          id: "h2",
-          text: "Alternative two",
-          alternativeGroupId: "group-1",
-          assertionIds: ["fact-1"],
-        },
-      ],
-      linesOfEnquiry: [
-        {
-          id: "loe-corroborate",
-          text: "Seek another copy of the same record.",
-          status: "active",
-          testType: "corroborate",
-          hypothesisIds: ["h1"],
-        },
-      ],
-    },
-  );
+  const review = reasoning.methodologyReview({
+    assertions: [{ id: "fact-1" }],
+    hypotheses: [
+      {
+        id: "h1",
+        text: "Alternative one",
+        alternativeGroupId: "group-1",
+        assertionIds: ["fact-1"],
+      },
+      {
+        id: "h2",
+        text: "Alternative two",
+        alternativeGroupId: "group-1",
+        assertionIds: ["fact-1"],
+      },
+    ],
+    linesOfEnquiry: [
+      {
+        id: "loe-corroborate",
+        text: "Seek another copy of the same record.",
+        status: "active",
+        testType: "corroborate",
+        hypothesisIds: ["h1"],
+      },
+    ],
+  });
   assert.deepEqual(review.alternativeGroupsWithoutDisconfirmingTest, ["group-1"]);
 });
-
 
 test("trajectory-derived observations preserve world, timeline, source, and trajectory context references", () => {
   const normalized = reasoning.normalizeReasoning({

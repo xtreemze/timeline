@@ -43,7 +43,10 @@ test("footer exposes view controls directly and keeps one primary Edit entry", a
   assert.equal((footerMarkup.match(/id="timeline-focus-next"/g) ?? []).length, 0);
   assert.equal((footerMarkup.match(/id="timeline-related-zoom"/g) ?? []).length, 0);
   assert.equal((footerMarkup.match(/id="timeline-related-fit"/g) ?? []).length, 0);
-  assert.match(footerMarkup, /<luum-occurrence-composer id="occurrence-composer"><\/luum-occurrence-composer>/);
+  assert.match(
+    footerMarkup,
+    /<luum-occurrence-composer id="occurrence-composer"><\/luum-occurrence-composer>/,
+  );
   assert.doesNotMatch(index, /id="occurrence-composer-toggle"/);
 
   assert.match(world, /element\.className = "toolbar-control world-camera-control"/);
@@ -71,7 +74,7 @@ test("footer exposes view controls directly and keeps one primary Edit entry", a
 test("all footer buttons and controls share the canonical toolbar surface", async () => {
   const [index, css] = await Promise.all([readFile(indexUrl, "utf8"), readFile(shellUrl, "utf8")]);
 
-assert.match(css, /--toolbar-control-size:\s*44px/);
+  assert.match(css, /--toolbar-control-size:\s*44px/);
   assert.match(
     css,
     /\.app-footer-bar :is\(\.toolbar-control, \.toolbar-compound-control\)\s*\{[\s\S]*block-size:\s*var\(--toolbar-control-size\)[\s\S]*border:\s*1px solid color-mix/,
@@ -80,10 +83,7 @@ assert.match(css, /--toolbar-control-size:\s*44px/);
     css,
     /:is\(\.toolbar-control, \.toolbar-compound-control\):is\(:focus-visible, :focus-within\)/,
   );
-  assert.match(
-    css,
-    /\.toolbar-control:is\(\[aria-expanded="true"\], \[aria-pressed="true"\]\)/,
-  );
+  assert.match(css, /\.toolbar-control:is\(\[aria-expanded="true"\], \[aria-pressed="true"\]\)/);
   const activeControlRule =
     css.match(
       /\.app-footer-bar \.toolbar-control:is\(\[aria-expanded="true"\], \[aria-pressed="true"\]\)\s*\{([\s\S]*?)\}/,
@@ -97,14 +97,8 @@ assert.match(css, /--toolbar-control-size:\s*44px/);
   assert.match(css, /\.app-footer-bar \.toolbar-control:disabled[\s\S]*opacity:\s*0\.42/);
   assert.match(css, /\.app-footer-bar \.toolbar-control-wide/);
   assert.match(css, /\.app-footer-bar \.toolbar-control-value/);
-  assert.match(
-    index,
-    /id="project-menu-toggle"[^>]*data-semantic-icon="folder"/,
-  );
-  assert.doesNotMatch(
-    index,
-    /id="project-menu-toggle"[\s\S]{0,420}<img\s+src="\.\/icon\.svg"/,
-  );
+  assert.match(index, /id="project-menu-toggle"[^>]*data-semantic-icon="folder"/);
+  assert.doesNotMatch(index, /id="project-menu-toggle"[\s\S]{0,420}<img\s+src="\.\/icon\.svg"/);
   assert.match(
     index,
     /class="toolbar-compound-control toolbar-control-wide toolbar-range-control"/,

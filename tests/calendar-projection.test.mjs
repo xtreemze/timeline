@@ -130,7 +130,11 @@ test("projects exact timed instants without inventing a duration", () => {
     floating: false,
   });
   assert.equal(event.metadata.timeZone, "Europe/Stockholm");
-  assert.equal(JSON.stringify(input), before, "calendar projection must not mutate canonical input");
+  assert.equal(
+    JSON.stringify(input),
+    before,
+    "calendar projection must not mutate canonical input",
+  );
 
   const ics = serializeICalendar(projectOccurrencesToCalendar(input));
   assert.match(ics, /DTSTART:20260928T103000Z\r\n/);
@@ -220,10 +224,16 @@ test("story and explicit occurrence selectors preserve canonical ordering", () =
   input.project.stories[0].occurrenceIds = ["occ-2", "occ-1"];
 
   const story = projectOccurrencesToCalendar(input, { storyId: "story-1" });
-  assert.deepEqual(story.events.map((event) => event.occurrenceId), ["occ-2", "occ-1"]);
+  assert.deepEqual(
+    story.events.map((event) => event.occurrenceId),
+    ["occ-2", "occ-1"],
+  );
 
   const selected = projectOccurrencesToCalendar(input, { occurrenceIds: ["occ-1"] });
-  assert.deepEqual(selected.events.map((event) => event.occurrenceId), ["occ-1"]);
+  assert.deepEqual(
+    selected.events.map((event) => event.occurrenceId),
+    ["occ-1"],
+  );
 });
 
 test("strict projection rejects unknown, uncertain, reduced precision, and open intervals", () => {
@@ -275,7 +285,8 @@ test("iCalendar serialization is deterministic, escaped, CRLF-delimited, and byt
       start: endpoint("2026-09-28", { precision: "day" }),
     },
     {
-      title: "A long, semicolon; backslash\\ title with Unicode åäö and enough text to require line folding in iCalendar output",
+      title:
+        "A long, semicolon; backslash\\ title with Unicode åäö and enough text to require line folding in iCalendar output",
       attributes: { description: "Line one\nLine two, with; punctuation" },
     },
   );

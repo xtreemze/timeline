@@ -66,9 +66,7 @@ const COLLECTIONS = Object.freeze([
 ] as const);
 
 function record(value: unknown): JsonRecord | null {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as JsonRecord)
-    : null;
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as JsonRecord) : null;
 }
 
 function array(value: unknown): unknown[] {
@@ -106,11 +104,7 @@ function sourceManifest(input: unknown): StorySourceManifest[] {
     });
 }
 
-function diagnostic(
-  code: string,
-  path: string,
-  message: string,
-): ProjectInterchangeDiagnostic {
+function diagnostic(code: string, path: string, message: string): ProjectInterchangeDiagnostic {
   return Object.freeze({
     severity: "error" as const,
     code,
@@ -214,8 +208,7 @@ function validationResult(
   summary: Readonly<Record<string, number>>,
 ): CanonicalValidationResult {
   const syntaxValid = !diagnostics.some((finding) => finding.code === "invalid-json");
-  const semanticValid =
-    syntaxValid && !diagnostics.some((finding) => finding.severity === "error");
+  const semanticValid = syntaxValid && !diagnostics.some((finding) => finding.severity === "error");
   return Object.freeze({
     valid: semanticValid,
     syntaxValid,
@@ -252,11 +245,7 @@ export function preflightStoryProject(projectInput: unknown): CanonicalValidatio
   }
 
   const validation = validateProjectInterchange(prepared.serialized);
-  return validationResult(
-    validation.diagnostics,
-    "whole-project",
-    summaryForProject(parsed),
-  );
+  return validationResult(validation.diagnostics, "whole-project", summaryForProject(parsed));
 }
 
 export function validateStoryFragment(fragmentInput: unknown): CanonicalValidationResult {

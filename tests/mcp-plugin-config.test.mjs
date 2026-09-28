@@ -26,10 +26,7 @@ test("portable Agent Plugins MCP config matches the local relay contract", async
   const config = await readJson("mcp.json");
   const server = config.mcpServers?.lum_browser;
 
-  assert.equal(
-    config.$schema,
-    "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
-  );
+  assert.equal(config.$schema, "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json");
   assert.equal(server?.type, "stdio");
   assert.equal(server?.command, "npx");
   assert.ok(server.args.includes("@mcp-b/webmcp-local-relay@5.1.0"));
@@ -38,16 +35,12 @@ test("portable Agent Plugins MCP config matches the local relay contract", async
 test("portable plugin manifest identifies the Lūm MCP package", async () => {
   const manifest = await readJson("plugin.json");
 
-  assert.equal(
-    manifest.$schema,
-    "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
-  );
+  assert.equal(manifest.$schema, "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json");
   assert.equal(manifest.name, "lum-continuum");
   assert.equal(manifest.version, "0.4.0");
   assert.match(manifest.description, /MCP/i);
   assert.equal(manifest.extensions?.["com.openai"]?.interface?.displayName, "Lūm Continuum");
 });
-
 
 test("public MCP template uses Streamable HTTP without inventing a deployment hostname", async () => {
   const config = await readJson("mcp.public.template.json");

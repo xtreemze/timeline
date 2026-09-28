@@ -2,12 +2,11 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import {
-  buildAssetLods,
-  validateMaquetteAsset,
-} from "../scripts/lib/storybook-maquette-glb.mjs";
+import { buildAssetLods, validateMaquetteAsset } from "../scripts/lib/storybook-maquette-glb.mjs";
 
-const source = JSON.parse(await readFile(new URL("../assets-3d/source/pigwood.json", import.meta.url)));
+const source = JSON.parse(
+  await readFile(new URL("../assets-3d/source/pigwood.json", import.meta.url)),
+);
 
 test("Pigwood models are true-scale, canonical-place-backed and deterministic", () => {
   assert.equal(source.units, "meters");
@@ -24,7 +23,11 @@ test("Pigwood models are true-scale, canonical-place-backed and deterministic", 
     const second = buildAssetLods(asset);
     assert.equal(first.length, 4);
     for (let index = 0; index < first.length; index += 1) {
-      assert.deepEqual(first[index].buffer, second[index].buffer, `${asset.assetId}: deterministic LOD${index}`);
+      assert.deepEqual(
+        first[index].buffer,
+        second[index].buffer,
+        `${asset.assetId}: deterministic LOD${index}`,
+      );
       assert.equal(first[index].buffer.readUInt32LE(0), 0x46546c67, "GLB magic");
       assert.equal(first[index].buffer.readUInt32LE(4), 2, "glTF version 2");
       assert.equal(first[index].buffer.readUInt32LE(8), first[index].buffer.length);

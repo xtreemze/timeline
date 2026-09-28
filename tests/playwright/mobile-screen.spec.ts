@@ -140,7 +140,9 @@ test.describe("Narrow mobile screen contracts", () => {
       expect(completionBox.x).toBeGreaterThanOrEqual(-1);
       expect(completionBox.x + completionBox.width).toBeLessThanOrEqual(viewport.width + 1);
       expect(completionBox.y).toBeGreaterThanOrEqual(-1);
-      expect(completionBox.height).toBeLessThanOrEqual(Math.max(112, visualViewportHeight * 0.42) + 2);
+      expect(completionBox.height).toBeLessThanOrEqual(
+        Math.max(112, visualViewportHeight * 0.42) + 2,
+      );
 
       await expect(page.locator(".app-footer-actions")).toBeVisible();
       await expect(page.locator("#timeline-view-controls")).toBeVisible();
@@ -438,7 +440,7 @@ test.describe("Narrow mobile screen contracts", () => {
         expect(worldZoomSliderBox.width).toBeGreaterThanOrEqual(64);
       }
 
-            const semanticIcons = dock.locator(".toolbar-control .semantic-icon:visible");
+      const semanticIcons = dock.locator(".toolbar-control .semantic-icon:visible");
       const semanticIconCount = await semanticIcons.count();
       expect(semanticIconCount).toBeGreaterThanOrEqual(8);
       for (let index = 0; index < semanticIconCount; index += 1) {

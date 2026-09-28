@@ -205,7 +205,8 @@ test.describe("world performance certification (issue #445 Priority 7)", () => {
           // diff construction or a full projection readback in each sample.
           const current = harness.getProjection();
           const initialMovingInstance = current.instances[0];
-          if (!initialMovingInstance) throw new Error("World performance fixture has no instances.");
+          if (!initialMovingInstance)
+            throw new Error("World performance fixture has no instances.");
           let movingInstance = initialMovingInstance;
           const singleNodeSamples: number[] = [];
           const sampleCount =
@@ -343,10 +344,7 @@ test.describe("world performance certification (issue #445 Priority 7)", () => {
         scaleReport.sustainedFrame.p95Ms,
         `p95 frame time at ${scaleReport.label} should stay under the sanity ceiling`,
       ).toBeLessThan(bound.maxSustainedFrameP95Ms);
-      if (
-        scaleReport.incrementalUpdate &&
-        bound.maxSingleNodeSyncP95Ms !== undefined
-      ) {
+      if (scaleReport.incrementalUpdate && bound.maxSingleNodeSyncP95Ms !== undefined) {
         expect(
           scaleReport.incrementalUpdate.sustainedSingleNodeSync.p95Ms,
           `single-node drag/update p95 at ${scaleReport.label} should stay under the interaction ceiling`,

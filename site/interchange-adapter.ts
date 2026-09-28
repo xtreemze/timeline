@@ -15,7 +15,6 @@ import {
 import type { CanonicalProject } from "../src/domain/project.ts";
 import type { ProjectSnapshot } from "../src/application/project-repository.ts";
 
-
 const FORMAT = "timeline.interchange";
 const SCHEMA_VERSION = 1;
 const MAX_PRESERVED_RECORD_CHARS = 64_000;
@@ -736,7 +735,6 @@ export function exportData(timeline: any): ExportResult {
   };
 }
 
-
 export interface LegacyCanonicalBridgeOptions {
   readonly projectKey: string;
   readonly savedAt: string;
@@ -797,7 +795,9 @@ function mergeCanonicalRecords(
 
 function timelineStoryItemIds(story: any): string[] {
   return Array.isArray(story?.itemIds)
-    ? story.itemIds.filter((id: unknown): id is string => typeof id === "string" && id.trim().length > 0)
+    ? story.itemIds.filter(
+        (id: unknown): id is string => typeof id === "string" && id.trim().length > 0,
+      )
     : [];
 }
 
@@ -852,7 +852,8 @@ export function timelineToLumInterchange(
 
   for (const story of stories) {
     const storyId = typeof story?.id === "string" ? story.id : "";
-    if (!storyId) throw new Error("Every legacy story needs a stable ID before canonical conversion.");
+    if (!storyId)
+      throw new Error("Every legacy story needs a stable ID before canonical conversion.");
     const compiled = compileExampleStoryProject(sample, storyId, {
       projectKey: options.projectKey,
       savedAt: options.savedAt,
@@ -941,7 +942,6 @@ export function toLumInterchange(
     warnings: Object.freeze([...imported.warnings]),
   });
 }
-
 
 // Export public API as frozen object for backward compatibility
 const TimelineInterchangeAdapterObj = {

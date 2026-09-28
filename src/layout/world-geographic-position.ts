@@ -6,10 +6,7 @@ import {
   type WorldInstanceId,
   type WorldProjection,
 } from "../projection/world-projection.ts";
-import type {
-  WorldRenderContinuitySample,
-  WorldSpatialPosition,
-} from "./world-surface.ts";
+import type { WorldRenderContinuitySample, WorldSpatialPosition } from "./world-surface.ts";
 
 export type WorldRenderPosition = readonly [longitude: number, latitude: number, altitude: number];
 

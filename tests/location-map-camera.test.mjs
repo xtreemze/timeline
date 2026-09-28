@@ -148,10 +148,7 @@ test("map touch targets match the coarse-pointer interaction floor and editing h
 test("place marker editor exposes the full runtime-supported diameter range", async () => {
   const html = await readFile(new URL("../site/index.html", import.meta.url), "utf8");
   assert.match(html, /Visual size <small>16–64 px<\/small>/);
-  assert.match(
-    html,
-    /id="graph-place-marker-size"[^>]*min="16"[^>]*max="64"[^>]*placeholder="44"/,
-  );
+  assert.match(html, /id="graph-place-marker-size"[^>]*min="16"[^>]*max="64"[^>]*placeholder="44"/);
 });
 
 test("map runtime is local and basemap failure cannot remove semantic geometry", async () => {

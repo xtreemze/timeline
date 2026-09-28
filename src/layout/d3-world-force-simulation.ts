@@ -222,10 +222,7 @@ function stateNeighborhoodRadiusMeters(state: D3WorldNodeState): number {
   return Math.max(collisionRadius * 8, precisionRadius, targetRadius);
 }
 
-function pairNeighborhoodRadiusMeters(
-  left: D3WorldNodeState,
-  right: D3WorldNodeState,
-): number {
+function pairNeighborhoodRadiusMeters(left: D3WorldNodeState, right: D3WorldNodeState): number {
   return stateNeighborhoodRadiusMeters(left) + stateNeighborhoodRadiusMeters(right);
 }
 
@@ -345,10 +342,9 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
         vy: sameGroup ? (prior.vy ?? 0) : 0,
         fx: sameGroup ? prior.fx : null,
         fy: sameGroup ? prior.fy : null,
-        z:
-          sameGroup
-            ? prior.z
-            : (node.initialVisualAltitudeMeters ?? node.targetVisualAltitudeMeters),
+        z: sameGroup
+          ? prior.z
+          : (node.initialVisualAltitudeMeters ?? node.targetVisualAltitudeMeters),
         vz: sameGroup ? prior.vz : 0,
       });
     }
@@ -361,10 +357,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       this.#interactionInstanceId = this.#pin.instanceId;
       this.#interactionGroupKey = this.#states.get(this.#pin.instanceId)?.group ?? null;
     } else {
-      if (
-        this.#interactionInstanceId !== null &&
-        !this.#states.has(this.#interactionInstanceId)
-      ) {
+      if (this.#interactionInstanceId !== null && !this.#states.has(this.#interactionInstanceId)) {
         this.#interactionInstanceId = null;
       }
       if (
@@ -731,7 +724,8 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     if (!focalPosition) return false;
 
     const partners = [...this.#states.values()].flatMap((state) => {
-      if (state.id === focalState.id || state.group === focalState.group || !state.anchor) return [];
+      if (state.id === focalState.id || state.group === focalState.group || !state.anchor)
+        return [];
       const position = geographicPosition(state);
       if (!position) return [];
       const collisionDistance =
@@ -746,10 +740,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     });
     if (partners.length === 0) return false;
 
-    const participants = [
-      { state: focalState, eastMeters: 0, northMeters: 0 },
-      ...partners,
-    ];
+    const participants = [{ state: focalState, eastMeters: 0, northMeters: 0 }, ...partners];
     const pinFocal = this.#pin?.instanceId === focalState.id;
     const probes: D3CrossPlaceInteractionProbe[] = participants.map(
       ({ state, eastMeters, northMeters }, index) => ({
@@ -770,17 +761,13 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       .alphaDecay(ALPHA_DECAY)
       .alphaTarget(0);
     const maximumInteractionDistance = Math.max(
-      ...participants.slice(1).map(({ state }) =>
-        pairNeighborhoodRadiusMeters(focalState, state),
-      ),
+      ...participants.slice(1).map(({ state }) => pairNeighborhoodRadiusMeters(focalState, state)),
     );
     interactionSimulation.force(
       "charge",
       forceManyBody<D3CrossPlaceInteractionProbe>()
         .strength(NORMAL_MANY_BODY_STRENGTH)
-        .distanceMin(
-          Math.max(1, Math.min(...probes.map((probe) => probe.collisionRadiusMeters))),
-        )
+        .distanceMin(Math.max(1, Math.min(...probes.map((probe) => probe.collisionRadiusMeters))))
         .distanceMax(maximumInteractionDistance),
     );
     interactionSimulation.force(
@@ -808,11 +795,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
         continue;
       }
 
-      const nextGeographic = geographicFromTangentOffset(
-        focalPosition,
-        nextEast,
-        nextNorth,
-      );
+      const nextGeographic = geographicFromTangentOffset(focalPosition, nextEast, nextNorth);
       const [localEast, localNorth] = localOffsetForGeographicPosition(
         probe.state.anchor,
         nextGeographic,
