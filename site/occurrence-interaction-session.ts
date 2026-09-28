@@ -94,13 +94,13 @@ const EMPTY_INVESTIGATION = Object.freeze({
 }) satisfies ComposerInvestigationState;
 
 function clampOffset(value: number | undefined, length: number): number {
-  if (!Number.isFinite(value)) return 0;
-  return Math.max(0, Math.min(length, Math.trunc(value ?? 0)));
+  if (typeof value !== "number" || !Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(length, Math.trunc(value)));
 }
 
 function normalizedMediaIndex(value: number | undefined): number {
-  if (!Number.isFinite(value)) return 0;
-  return Math.max(0, Math.trunc(value ?? 0));
+  if (typeof value !== "number" || !Number.isFinite(value)) return 0;
+  return Math.max(0, Math.trunc(value));
 }
 
 function freezeTarget(target: ComposerSectionTarget | null): ComposerSectionTarget | null {
