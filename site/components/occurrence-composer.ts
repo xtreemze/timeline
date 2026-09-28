@@ -7,6 +7,7 @@ import {
   type ComposerWorldContext,
 } from "../occurrence-composer-context.ts";
 import {
+  composerCompletionSuffix,
   composerCursorSection,
   occurrenceComposerSuggestions,
   parseOccurrenceSentence,
@@ -22,6 +23,7 @@ export interface OccurrenceComposerData {
   readonly entities: readonly ComposerEntityOption[];
   readonly places: readonly ComposerPlaceOption[];
   readonly categories: readonly ComposerCategoryOption[];
+  readonly tags?: readonly string[];
   readonly predicates?: readonly string[];
 }
 
@@ -140,6 +142,35 @@ export class LuumOccurrenceComposerElement extends LitElement {
       font-weight: 700;
       text-transform: lowercase;
       white-space: nowrap;
+    }
+
+    .input-shell {
+      position: relative;
+      min-inline-size: 0;
+    }
+
+    .ghost-completion {
+      position: absolute;
+      z-index: 2;
+      inset: 0;
+      box-sizing: border-box;
+      display: block;
+      min-inline-size: 0;
+      min-block-size: 44px;
+      padding: 0.55rem 0.7rem;
+      overflow: hidden;
+      border: 1px solid transparent;
+      pointer-events: none;
+      font: 500 0.88rem/1.3 ui-monospace, "SFMono-Regular", Consolas, monospace;
+      white-space: pre;
+    }
+
+    .ghost-base {
+      visibility: hidden;
+    }
+
+    .ghost-suffix {
+      color: color-mix(in srgb, var(--muted, #615d56) 58%, transparent);
     }
 
     input {
@@ -560,6 +591,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
       entities: this.data.entities,
       places: this.data.places,
       categories: this.data.categories,
+      tags: this.data.tags,
       timelineDefault: this.timelineContext?.value ?? null,
       locationDefault: this.selectionContext?.place?.name ?? this.worldContext?.label ?? null,
       preferredEntityIds,
@@ -679,7 +711,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
   }
 
   private onKeyDown(event: KeyboardEvent): void {
-    const suggestions = this.suggestions();
+    const suggestions = this.suggestions().slice(0, 7);
     if (event.key === "Escape") {
       event.preventDefault();
       this.requestClose();
@@ -750,38 +782,54 @@ export class LuumOccurrenceComposerElement extends LitElement {
       this.selectionContext?.place?.name ??
       this.worldContext?.label ??
       "World center";
-    const suggestions = this.suggestions();
+    const suggestions = this.suggestions().slice(0, 7);
+    const selectedIndex = Math.min(
+      this.activeSuggestion,
+      Math.max(0, suggestions.length - 1),
+    );
+    const activeSuggestion = suggestions[selectedIndex];
+    const ghostSuffix =
+      this.cursorOffset === this.value.length
+        ? composerCompletionSuffix(this.value, activeSuggestion)
+        : "";
     const diagnostic = this.externalError || parsed.diagnostics[0] || "";
     const subjectLabel = this.selectedSubjectLabel();
     const placePinned = Boolean(parsed.place || this.selectionContext?.place);
     const timePinned = Boolean(parsed.time);
+    const categoryLabel = parsed.options.category ?? null;
+    const tagLabels = parsed.options.tags;
 
     return html`
       <section class="composer" aria-label="Occurrence composer">
         <div class="input-row">
           <span class="stage" aria-hidden="true">${this.stageLabel(parsed)}</span>
-          <input
-            type="text"
-            autocomplete="off"
-            autocapitalize="sentences"
-            spellcheck="false"
-            role="combobox"
-            aria-autocomplete="list"
-            aria-expanded=${String(suggestions.length > 0)}
-            aria-controls=${suggestions.length ? "occurrence-composer-listbox" : nothing}
-            aria-activedescendant=${
-              suggestions.length ? `occurrence-composer-option-${this.activeSuggestion}` : nothing
-            }
-            aria-describedby="occurrence-composer-help occurrence-composer-diagnostic"
-            placeholder=${`Who did what to whom · at ${placeLabel} · on ${timeLabel ?? "timeline center"}`}
-            .value=${this.value}
-            @input=${(event: Event) => this.onInput(event)}
-            @focus=${(event: Event) => this.onCaretMove(event)}
-            @click=${(event: Event) => this.onCaretMove(event)}
-            @keyup=${(event: Event) => this.onCaretMove(event)}
-            @select=${(event: Event) => this.onCaretMove(event)}
-            @keydown=${(event: KeyboardEvent) => this.onKeyDown(event)}
-          />
+          <div class="input-shell">
+            <span class="ghost-completion" aria-hidden="true">
+              <span class="ghost-base">${this.value}</span><span class="ghost-suffix">${ghostSuffix}</span>
+            </span>
+            <input
+              type="text"
+              autocomplete="off"
+              autocapitalize="sentences"
+              spellcheck="false"
+              role="combobox"
+              aria-autocomplete="both"
+              aria-expanded=${String(suggestions.length > 0)}
+              aria-controls=${suggestions.length ? "occurrence-composer-listbox" : nothing}
+              aria-activedescendant=${
+                suggestions.length ? `occurrence-composer-option-${selectedIndex}` : nothing
+              }
+              aria-describedby="occurrence-composer-help occurrence-composer-diagnostic"
+              placeholder=${`Who did what to whom · at ${placeLabel} · on ${timeLabel ?? "timeline center"}`}
+              .value=${this.value}
+              @input=${(event: Event) => this.onInput(event)}
+              @focus=${(event: Event) => this.onCaretMove(event)}
+              @click=${(event: Event) => this.onCaretMove(event)}
+              @keyup=${(event: Event) => this.onCaretMove(event)}
+              @select=${(event: Event) => this.onCaretMove(event)}
+              @keydown=${(event: KeyboardEvent) => this.onKeyDown(event)}
+            />
+          </div>
           <button
             class="close"
             type="button"
@@ -812,6 +860,16 @@ export class LuumOccurrenceComposerElement extends LitElement {
             >
               <span>Time</span><strong>${timeLabel ?? "timeline center"}</strong><span class="context-state">${timePinned ? "pinned" : "live"}</span>
             </span>
+            ${categoryLabel
+              ? html`<span class="context-chip" data-context-kind="category" data-context-state="pinned">
+                  <span>Category</span><strong>${categoryLabel}</strong>
+                </span>`
+              : nothing}
+            ${tagLabels.map(
+              (tag) => html`<span class="context-chip" data-context-kind="tag" data-context-state="pinned">
+                <span>Tag</span><strong>${tag}</strong>
+              </span>`,
+            )}
           </div>
           ${diagnostic
             ? html`<p id="occurrence-composer-diagnostic" class="diagnostic" role="alert">${diagnostic}</p>`
@@ -826,7 +884,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
                         class="option"
                         type="button"
                         role="option"
-                        aria-selected=${String(index === this.activeSuggestion)}
+                        aria-selected=${String(index === selectedIndex)}
                         @pointerdown=${(event: PointerEvent) => event.preventDefault()}
                         @click=${() => this.applySuggestion(suggestion)}
                       >
