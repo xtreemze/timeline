@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { WORLD_CAMERA_MAX_ZOOM } from "../../src/layout/world-spatial-mode.ts";
 import { pinch, swipe, touchscreen } from "../support/touch-gestures.ts";
 
 /**
@@ -82,6 +83,73 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
     );
   });
 
+  test("local precision wheel zoom passes the legacy ceiling and preserves its pointer anchor", async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, "Mobile projects certify local precision pinch separately.");
+    test.skip(!(await gotoHarness(page)), "WebGL2 unavailable in this environment.");
+
+    const viewport = page.viewportSize();
+    if (!viewport) {
+      throw new Error("WorldSurface precision zoom certification requires a viewport.");
+    }
+    const point = {
+      x: Math.round(viewport.width * 0.68),
+      y: Math.round(viewport.height * 0.43),
+    };
+
+    const before = await page.evaluate(
+      async ({ point }) => {
+        const surface = window.__worldPerfHarness.surface;
+        surface.setCamera({
+          longitude: 18.0686,
+          latitude: 59.3293,
+          zoom: 19.5,
+          bearing: 0,
+          pitch: 0,
+        });
+        await new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        );
+        return surface.unproject(point, 0);
+      },
+      { point },
+    );
+    if (!before) throw new Error("WorldSurface could not resolve the pre-zoom pointer anchor.");
+
+    await page.mouse.move(point.x, point.y);
+    await page.mouse.wheel(0, -400);
+    await page.waitForTimeout(450);
+
+    const result = await page.evaluate(
+      ({ point, before }) => {
+        const surface = window.__worldPerfHarness.surface;
+        return {
+          camera: surface.getCamera(),
+          projectedAnchor: surface.project(before),
+        };
+      },
+      { point, before },
+    );
+    if (!result.projectedAnchor) {
+      throw new Error("WorldSurface could not reproject the pointer anchor after zoom.");
+    }
+
+    expect(
+      result.camera.zoom,
+      "local precision zoom must continue beyond deck.gl's old default",
+    ).toBeGreaterThan(20);
+    expect(result.camera.zoom).toBeLessThanOrEqual(WORLD_CAMERA_MAX_ZOOM);
+    expect(
+      Math.hypot(
+        result.projectedAnchor.x - point.x,
+        result.projectedAnchor.y - point.y,
+      ),
+      "the same geographic point should remain under the pointer while zooming",
+    ).toBeLessThan(1.5);
+  });
+
   test("two-finger pinch changes the camera on mobile Chromium", async ({
     page,
     browserName,
@@ -101,6 +169,46 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
         message: "two-finger pinch should change the camera zoom level",
       })
       .not.toBeCloseTo(before.zoom, 5);
+  });
+
+  test("local precision pinch continues beyond the legacy zoom-20 ceiling", async ({
+    page,
+    browserName,
+    isMobile,
+  }) => {
+    test.skip(!isMobile, "Desktop projects certify local precision wheel zoom separately.");
+    test.skip(browserName !== "chromium", "CDP multi-touch certification is Chromium-only.");
+    test.skip(!(await gotoHarness(page)), "WebGL2 unavailable in this environment.");
+
+    const viewport = page.viewportSize();
+    if (!viewport) {
+      throw new Error("WorldSurface precision pinch certification requires a viewport.");
+    }
+
+    await page.evaluate(async () => {
+      const surface = window.__worldPerfHarness.surface;
+      surface.setCamera({
+        longitude: 18.0686,
+        latitude: 59.3293,
+        zoom: 19.5,
+        bearing: 0,
+        pitch: 0,
+      });
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      );
+    });
+
+    await pinch(page, { x: viewport.width / 2, y: viewport.height / 2 }, 2);
+
+    await expect
+      .poll(() => page.evaluate(() => window.__worldPerfHarness.surface.getCamera().zoom), {
+        message: "local precision pinch should continue beyond the old default zoom ceiling",
+      })
+      .toBeGreaterThan(20);
+
+    const zoom = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera().zoom);
+    expect(zoom).toBeLessThanOrEqual(WORLD_CAMERA_MAX_ZOOM);
   });
 
   test("pinch across the globe/local threshold leaves touch panning responsive", async ({

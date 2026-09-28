@@ -8,6 +8,15 @@ export interface WorldSpatialModePolicy {
 }
 
 /**
+ * World camera detail policy. The globe hands off to the planar precision view
+ * well before this ceiling; the extra range is reserved for inspecting local
+ * entity/edge geometry rather than pushing GlobeView beyond its precision
+ * envelope.
+ */
+export const WORLD_CAMERA_MIN_ZOOM = 0;
+export const WORLD_CAMERA_MAX_ZOOM = 24;
+
+/**
  * Preserve the spherical globe through regional/city navigation and defer the
  * planar precision handoff until close local detail. deck.gl GlobeView loses
  * high-precision accuracy above roughly zoom 12, so the entry threshold stays

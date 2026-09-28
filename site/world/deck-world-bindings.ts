@@ -11,6 +11,7 @@ import {
   Deck,
   _GlobeController as GlobeController,
   _GlobeView as GlobeView,
+  MapController,
   MapView,
 } from "@deck.gl/core";
 import { CollisionFilterExtension } from "@deck.gl/extensions";
@@ -224,6 +225,9 @@ function createRealDeckWorldBindings(webgpuAdapter?: WebGpuAdapter): DeckWorldBi
     },
     globeControllerType() {
       return TimelineWeightedGlobeController;
+    },
+    mapControllerType() {
+      return MapController;
     },
     mapView(props) {
       return new MapView(props as ConstructorParameters<typeof MapView>[0]);

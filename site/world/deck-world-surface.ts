@@ -68,6 +68,8 @@ import {
 } from "../../src/layout/world-semantic-presentation.ts";
 import {
   selectWorldSpatialMode,
+  WORLD_CAMERA_MAX_ZOOM,
+  WORLD_CAMERA_MIN_ZOOM,
   type WorldSpatialMode,
 } from "../../src/layout/world-spatial-mode.ts";
 import {
@@ -128,6 +130,8 @@ interface DeckRuntimeViewState {
   readonly zoom: number;
   readonly bearing?: number;
   readonly pitch?: number;
+  readonly minZoom?: number;
+  readonly maxZoom?: number;
 }
 
 interface DeckRuntimeInteractionState {
@@ -209,6 +213,7 @@ export interface DeckRuntimeInstance {
 export interface DeckWorldRuntime {
   createGlobeView(props: Readonly<Record<string, unknown>>): unknown;
   createGlobeControllerType?(): unknown;
+  createMapControllerType?(): unknown;
   createMapView?(props: Readonly<Record<string, unknown>>): unknown;
   createScatterplotLayer(props: Readonly<Record<string, unknown>>): unknown;
   createPathLayer(props: Readonly<Record<string, unknown>>): unknown;
@@ -1279,10 +1284,14 @@ function prefersReducedMotion(): boolean {
 function deckControllerOptions(
   mode: WorldSpatialMode = "globe",
   globeControllerType?: unknown,
+  mapControllerType?: unknown,
 ): Readonly<Record<string, unknown>> {
   const reducedMotion = prefersReducedMotion();
+  const controllerType = mode === "globe" ? globeControllerType : mapControllerType;
   return Object.freeze({
-    ...(mode === "globe" && globeControllerType ? { type: globeControllerType } : {}),
+    ...(controllerType ? { type: controllerType } : {}),
+    minZoom: WORLD_CAMERA_MIN_ZOOM,
+    maxZoom: WORLD_CAMERA_MAX_ZOOM,
     dragPan: true,
     dragRotate: true,
     // Keep wheel input direct under reduced motion. Otherwise let deck
@@ -1293,10 +1302,11 @@ function deckControllerOptions(
     multiTouchDrag: "rotate",
     keyboard: true,
     doubleClickZoom: false,
-    // GlobeController has globe-only pointer-anchor math. A retained globe
-    // controller can briefly observe the local MapView during a mode swap,
-    // so local mode deliberately anchors zoom at the viewport center.
-    zoomAround: mode === "globe" ? "pointer" : "center",
+    // Production local mode supplies an explicit MapController, so precise
+    // pointer anchoring is safe after the settled globe->local handoff. Keep
+    // center anchoring only as a compatibility fallback for runtimes that can
+    // create MapView but cannot provide its controller type.
+    zoomAround: mode === "local" && !mapControllerType ? "center" : "pointer",
     // deck.gl accepts a duration here. Reuse the timeline's decay horizon so
     // a released globe/pinch gesture loses momentum on the same tactile time
     // scale instead of relying on deck.gl's unrelated default.
@@ -1452,11 +1462,25 @@ function screenPointFromPicking(info: DeckRuntimePickingInfo): ScreenPoint | nul
   return Object.freeze({ x: info.x, y: info.y });
 }
 
+function boundedWorldCamera(camera: WorldCameraState): WorldCameraState {
+  const validated = createWorldCameraState(camera);
+  if (validated.zoom <= WORLD_CAMERA_MAX_ZOOM) return validated;
+  return createWorldCameraState({ ...validated, zoom: WORLD_CAMERA_MAX_ZOOM });
+}
+
+function deckViewState(camera: WorldCameraState): DeckRuntimeViewState {
+  return Object.freeze({
+    ...camera,
+    minZoom: WORLD_CAMERA_MIN_ZOOM,
+    maxZoom: WORLD_CAMERA_MAX_ZOOM,
+  });
+}
+
 function cameraFromRuntime(value: unknown, fallback: WorldCameraState): WorldCameraState | null {
   if (!isRecord(value)) return null;
 
   try {
-    return createWorldCameraState({
+    return boundedWorldCamera({
       longitude: numberField(value, "longitude", fallback.longitude),
       latitude: numberField(value, "latitude", fallback.latitude),
       zoom: numberField(value, "zoom", fallback.zoom),
@@ -3357,18 +3381,21 @@ export class DeckWorldSurface implements WorldSurface {
     // A caller-chosen camera is authoritative; otherwise the first projected
     // content fits the camera once (see #autoFitCamera).
     this.#cameraOwned = initialCamera !== undefined;
-    this.#camera = createWorldCameraState(initialCamera ?? DEFAULT_CAMERA);
+    this.#camera = boundedWorldCamera(initialCamera ?? DEFAULT_CAMERA);
 
     this.#globeView = runtime.createGlobeView({ id: "lum-world" });
     this.#localView = runtime.createMapView?.({ id: "lum-world-local" }) ?? null;
+    this.#spatialMode =
+      this.#localView === null ? "globe" : selectWorldSpatialMode(this.#camera, "globe");
     this.#deck = runtime.createDeck({
       parent: container,
-      views: [this.#globeView],
+      views: [this.#spatialMode === "local" ? this.#localView : this.#globeView],
       controller: deckControllerOptions(
         this.#spatialMode,
         runtime.createGlobeControllerType?.(),
+        runtime.createMapControllerType?.(),
       ),
-      initialViewState: this.#camera,
+      initialViewState: deckViewState(this.#camera),
       pickingRadius: WORLD_PICKING_RADIUS_PX,
       // deck.gl is the sole cursor authority for the world surface. Application
       // hover/drag state feeds this callback, but no host element competes by
@@ -3395,7 +3422,7 @@ export class DeckWorldSurface implements WorldSurface {
         // controller inertia/orbit updates until the node drag ends so the
         // geographic frame and its place anchors stay visually locked.
         if (this.#dragCameraLock) {
-          this.#deck.setProps({ viewState: this.#dragCameraLock });
+          this.#deck.setProps({ viewState: deckViewState(this.#dragCameraLock) });
           return;
         }
         const next = cameraFromRuntime(viewState, this.#camera);
@@ -3420,7 +3447,7 @@ export class DeckWorldSurface implements WorldSurface {
           // Keep the entire owned camera gesture viewState-only; spatial mode,
           // clustering and presentation LOD are reconciled once interaction settles.
           if (!cameraInteractionActive && this.#zoomNeedsRender()) this.#render(true);
-          else this.#deck.setProps({ viewState: this.#camera });
+          else this.#deck.setProps({ viewState: deckViewState(this.#camera) });
         }
       },
       onInteractionStateChange: (interactionState: DeckRuntimeInteractionState) => {
@@ -3612,7 +3639,13 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   #zoomBy(delta: number): void {
-    this.setCamera({ ...this.#camera, zoom: this.#camera.zoom + delta });
+    this.setCamera({
+      ...this.#camera,
+      zoom: Math.min(
+        WORLD_CAMERA_MAX_ZOOM,
+        Math.max(WORLD_CAMERA_MIN_ZOOM, this.#camera.zoom + delta),
+      ),
+    });
   }
 
   /**
@@ -3629,7 +3662,9 @@ export class DeckWorldSurface implements WorldSurface {
       this.#clusterRadiusPx();
     if (readableAt(fitted.zoom)) return fitted;
     let zoom = fitted.zoom;
-    while (zoom < 18 && !readableAt(zoom)) zoom += 0.25;
+    while (zoom < WORLD_CAMERA_MAX_ZOOM && !readableAt(zoom)) {
+      zoom = Math.min(WORLD_CAMERA_MAX_ZOOM, zoom + 0.25);
+    }
     const counts = new Map<string, { count: number; longitude: number; latitude: number }>();
     for (const instance of this.#projection.instances) {
       const anchor = instance.geographicAnchors[0];
@@ -3658,7 +3693,10 @@ export class DeckWorldSurface implements WorldSurface {
   /** Fits the current projection, then advances one semantic camera step for inspection. */
   zoomToContent(): void {
     this.fitToContent();
-    this.setCamera({ ...this.#camera, zoom: Math.min(18, this.#camera.zoom + 0.85) });
+    this.setCamera({
+      ...this.#camera,
+      zoom: Math.min(WORLD_CAMERA_MAX_ZOOM, this.#camera.zoom + 0.85),
+    });
   }
 
   /** Shows the whole rotatable globe, turned towards the content. */
@@ -3966,10 +4004,10 @@ export class DeckWorldSurface implements WorldSurface {
     this.#cameraOwned = true;
     this.#autoFitted = true;
     this.#autoFitMode = mode;
-    this.#camera = fitted;
+    this.#camera = boundedWorldCamera(fitted);
     this.#publishCameraContext();
     this.#syncSpatialMode();
-    this.#deck.setProps({ viewState: this.#camera });
+    this.#deck.setProps({ viewState: deckViewState(this.#camera) });
   }
 
   setTemporalWindow(window: WorldTemporalWindow): void {
@@ -4072,7 +4110,7 @@ export class DeckWorldSurface implements WorldSurface {
     this.#discardProjectionHandoffPresentation();
     this.#cameraOwned = true;
     this.#autoFitted = false;
-    this.#camera = createWorldCameraState(camera);
+    this.#camera = boundedWorldCamera(camera);
     this.#publishCameraContext();
     this.#syncSpatialMode();
     this.#syncClusterLifecycle();
@@ -4080,7 +4118,7 @@ export class DeckWorldSurface implements WorldSurface {
     // camera go to deck in one update so no frame pairs the new camera with
     // stale positions.
     if (this.#zoomNeedsRender()) this.#render(true);
-    else this.#deck.setProps({ viewState: this.#camera });
+    else this.#deck.setProps({ viewState: deckViewState(this.#camera) });
   }
 
   focusEntity(id: EntityId): void {
@@ -4653,8 +4691,9 @@ export class DeckWorldSurface implements WorldSurface {
       controller: deckControllerOptions(
         nextMode,
         this.#runtime.createGlobeControllerType?.(),
+        this.#runtime.createMapControllerType?.(),
       ),
-      viewState: this.#camera,
+      viewState: deckViewState(this.#camera),
     });
   }
 
@@ -5815,7 +5854,7 @@ export class DeckWorldSurface implements WorldSurface {
         : []),
     ];
 
-    this.#deck.setProps(withCamera ? { layers, viewState: this.#camera } : { layers });
+    this.#deck.setProps(withCamera ? { layers, viewState: deckViewState(this.#camera) } : { layers });
     this.#warmUpPicking();
     this.#updateLiveRegion();
   }
