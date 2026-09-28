@@ -142,10 +142,7 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
     ).toBeGreaterThan(20);
     expect(result.camera.zoom).toBeLessThanOrEqual(WORLD_CAMERA_MAX_ZOOM);
     expect(
-      Math.hypot(
-        result.projectedAnchor.x - point.x,
-        result.projectedAnchor.y - point.y,
-      ),
+      Math.hypot(result.projectedAnchor.x - point.x, result.projectedAnchor.y - point.y),
       "the same geographic point should remain under the pointer while zooming",
     ).toBeLessThan(1.5);
   });
@@ -246,7 +243,7 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
       .poll(() => page.evaluate(() => window.__worldPerfHarness.surface.getCamera().zoom), {
         message: "pinch should cross into local precision zoom",
       })
-      .toBeGreaterThan(12.75);
+      .toBeGreaterThan(12);
 
     const afterPinch = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera());
     await swipe(
@@ -332,11 +329,7 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
         edges: [],
       });
       const snapshot = harness.surface.getRenderedInstanceContinuity();
-      const handoff = preserveWorldProjectionRenderContinuity(
-        initial,
-        canonicalNext,
-        snapshot,
-      );
+      const handoff = preserveWorldProjectionRenderContinuity(initial, canonicalNext, snapshot);
 
       harness.surface.setProjectionHandoffPresentation(snapshot);
       harness.surface.setProjection(handoff);
@@ -965,7 +958,7 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
       const beforeSelection = harness.surface.getAccessibleSnapshot().selection;
 
       // src/layout/world-spatial-mode.ts DEFAULT_WORLD_SPATIAL_MODE_POLICY:
-      // enterLocalAtZoom 12.75 — cross well past it, then back below
+      // enterLocalAtZoom 12 — cross well past it, then back below
       // exitLocalBelowZoom 12 to exercise both crossing directions.
       harness.surface.setCamera({ longitude: 5, latitude: 5, zoom: 14, bearing: 0, pitch: 0 });
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));

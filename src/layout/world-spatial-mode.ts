@@ -24,8 +24,8 @@ export const WORLD_CAMERA_MAX_ZOOM = 24;
  * deep. Hysteresis keeps zoom jitter from repeatedly swapping projections.
  */
 export const DEFAULT_WORLD_SPATIAL_MODE_POLICY: WorldSpatialModePolicy = Object.freeze({
-  enterLocalAtZoom: 12.75,
-  exitLocalBelowZoom: 12,
+  enterLocalAtZoom: 12,
+  exitLocalBelowZoom: 11.9,
 });
 
 function validatePolicy(policy: WorldSpatialModePolicy): WorldSpatialModePolicy {

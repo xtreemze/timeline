@@ -79,7 +79,21 @@ function optionValues(args, name) {
 }
 
 function positional(args) {
-  const withValue = new Set(["--project-key", "--project", "--output", "--instruction", "--story", "--occurrence", "--entity", "--depth", "--ids", "--adapter", "--adapter-arg", "--story-id", "--collection"]);
+  const withValue = new Set([
+    "--project-key",
+    "--project",
+    "--output",
+    "--instruction",
+    "--story",
+    "--occurrence",
+    "--entity",
+    "--depth",
+    "--ids",
+    "--adapter",
+    "--adapter-arg",
+    "--story-id",
+    "--collection",
+  ]);
   const result = [];
   for (let index = 0; index < args.length; index += 1) {
     const value = args[index];
@@ -114,11 +128,11 @@ function printDiagnostics(diagnostics) {
 }
 
 function outputValidation(valid, diagnostics, json, source = null) {
-  const locatedDiagnostics = source
-    ? attachLumDiagnosticRanges(source, diagnostics)
-    : diagnostics;
+  const locatedDiagnostics = source ? attachLumDiagnosticRanges(source, diagnostics) : diagnostics;
   if (json) {
-    process.stdout.write(`${JSON.stringify({ valid, diagnostics: locatedDiagnostics }, null, 2)}\n`);
+    process.stdout.write(
+      `${JSON.stringify({ valid, diagnostics: locatedDiagnostics }, null, 2)}\n`,
+    );
   } else if (valid) {
     process.stdout.write("Lūm project is valid.\n");
   } else {
@@ -161,13 +175,10 @@ async function commandInit(args) {
   process.stdout.write(`${filePath}\n`);
 }
 
-
 function documentFormat(source) {
   try {
     const parsed = JSON.parse(source);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
-      ? parsed.format
-      : null;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed.format : null;
   } catch {
     return null;
   }
@@ -203,9 +214,7 @@ async function commandInitModule(args) {
     );
   }
   if (!LUM_PROJECT_MODULE_COLLECTIONS.includes(collection)) {
-    throw new Error(
-      `--collection must be one of: ${LUM_PROJECT_MODULE_COLLECTIONS.join(", ")}.`,
-    );
+    throw new Error(`--collection must be one of: ${LUM_PROJECT_MODULE_COLLECTIONS.join(", ")}.`);
   }
   if (!target.endsWith(LUM_PROJECT_MODULE_FILE_EXTENSION)) {
     throw new Error(
@@ -245,11 +254,15 @@ function moduleWorkspaceReferenceDiagnostics(modules) {
   const add = (entry, index, field, collection, id) => {
     if (!id) return;
     const set =
-      collection === "entities" ? entities :
-      collection === "relationships" ? relationships :
-      collection === "occurrences" ? occurrences :
-      collection === "trajectories" ? trajectories :
-      places;
+      collection === "entities"
+        ? entities
+        : collection === "relationships"
+          ? relationships
+          : collection === "occurrences"
+            ? occurrences
+            : collection === "trajectories"
+              ? trajectories
+              : places;
     if (set.has(String(id))) return;
     diagnostics.push({
       severity: "error",
@@ -270,38 +283,38 @@ function moduleWorkspaceReferenceDiagnostics(modules) {
   const occurrenceModule = byCollection.get("occurrences");
   occurrenceModule?.module.records.forEach((record, index) => {
     if (record?.placeId) add(occurrenceModule, index, "placeId", "places", record.placeId);
-    (record?.relationshipIds ?? []).forEach((id) =>
-      add(occurrenceModule, index, "relationshipIds", "relationships", id),
-    );
-    (record?.trajectoryIds ?? []).forEach((id) =>
-      add(occurrenceModule, index, "trajectoryIds", "trajectories", id),
-    );
-    (record?.participantContexts ?? []).forEach((participant, participantIndex) =>
+    (record?.relationshipIds ?? []).forEach((id) => {
+      add(occurrenceModule, index, "relationshipIds", "relationships", id);
+    });
+    (record?.trajectoryIds ?? []).forEach((id) => {
+      add(occurrenceModule, index, "trajectoryIds", "trajectories", id);
+    });
+    (record?.participantContexts ?? []).forEach((participant, participantIndex) => {
       add(
         occurrenceModule,
         index,
         `participantContexts/${participantIndex}/entityId`,
         "entities",
         participant?.entityId,
-      ),
-    );
+      );
+    });
   });
 
   const storyModule = byCollection.get("stories");
   storyModule?.module.records.forEach((record, index) => {
-    (record?.occurrenceIds ?? []).forEach((id) =>
-      add(storyModule, index, "occurrenceIds", "occurrences", id),
-    );
-    (record?.placeIds ?? []).forEach((id) =>
-      add(storyModule, index, "placeIds", "places", id),
-    );
+    (record?.occurrenceIds ?? []).forEach((id) => {
+      add(storyModule, index, "occurrenceIds", "occurrences", id);
+    });
+    (record?.placeIds ?? []).forEach((id) => {
+      add(storyModule, index, "placeIds", "places", id);
+    });
   });
 
   const trajectoryModule = byCollection.get("trajectories");
   trajectoryModule?.module.records.forEach((record, index) => {
-    (record?.observedEntityIds ?? []).forEach((id) =>
-      add(trajectoryModule, index, "observedEntityIds", "entities", id),
-    );
+    (record?.observedEntityIds ?? []).forEach((id) => {
+      add(trajectoryModule, index, "observedEntityIds", "entities", id);
+    });
   });
 
   return diagnostics;
@@ -418,7 +431,6 @@ function commandCompose(args) {
   }
 }
 
-
 async function commandAgent(args) {
   const [subcommand, target] = positional(args);
   const json = args.includes("--json");
@@ -445,7 +457,9 @@ async function commandAgent(args) {
 
   if (subcommand === "run") {
     if (!target || target === "-") {
-      throw new Error("agent run requires a project.lum.json path; stdin is reserved for adapters.");
+      throw new Error(
+        "agent run requires a project.lum.json path; stdin is reserved for adapters.",
+      );
     }
     const projectSource = await readTarget(target);
     let context;
@@ -575,10 +589,7 @@ async function commandAgent(args) {
         `${JSON.stringify(
           {
             valid: validation.valid,
-            diagnostics: attachLumDiagnosticRanges(
-              proposalSource,
-              validation.diagnostics,
-            ),
+            diagnostics: attachLumDiagnosticRanges(proposalSource, validation.diagnostics),
             ...(validation.summary ? { summary: validation.summary } : {}),
             verificationRequired: true,
           },
@@ -589,9 +600,7 @@ async function commandAgent(args) {
     } else if (validation.valid) {
       process.stdout.write("Lūm change proposal is valid and ready for review.\n");
       for (const operation of validation.summary?.operations ?? []) {
-        process.stdout.write(
-          `  ${operation.op} ${operation.collection} ${operation.id}\n`,
-        );
+        process.stdout.write(`  ${operation.op} ${operation.collection} ${operation.id}\n`);
       }
     } else {
       printDiagnostics(validation.diagnostics);
@@ -644,9 +653,7 @@ async function commandAgent(args) {
     return;
   }
 
-  throw new Error(
-    "agent supports: context, scaffold-proposal, validate-proposal, and apply.",
-  );
+  throw new Error("agent supports: context, scaffold-proposal, validate-proposal, and apply.");
 }
 
 function commandSchema(args) {

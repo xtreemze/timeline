@@ -380,12 +380,18 @@ export function createWorldViewFactory(options: WorldViewFactoryOptions): WorldV
       const view = new WorldProjectionView(runtime);
       let layoutControls: HTMLElement | null = null;
       let removeDagOrientationListener: (() => void) | null = null;
-      const scheduledView = new ScheduledWorldProjectionView(view, runtime, scheduler, surface, () => {
-        removeDagOrientationListener?.();
-        removeDagOrientationListener = null;
-        layoutControls?.remove();
-        layoutControls = null;
-      });
+      const scheduledView = new ScheduledWorldProjectionView(
+        view,
+        runtime,
+        scheduler,
+        surface,
+        () => {
+          removeDagOrientationListener?.();
+          removeDagOrientationListener = null;
+          layoutControls?.remove();
+          layoutControls = null;
+        },
+      );
 
       const syncDagOrientation = (): void => {
         if (runtime.setDagOrientation(viewportDagOrientation(root, container))) {

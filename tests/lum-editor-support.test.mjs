@@ -9,15 +9,12 @@ test("VS Code extension associates .lum.json with the canonical schema and CLI c
 
   assert.equal(manifest.name, "lum-language-tools");
   assert.ok(
-    manifest.contributes.jsonValidation.some((entry) =>
-      entry.fileMatch.includes("*.lum.json"),
-    ),
+    manifest.contributes.jsonValidation.some((entry) => entry.fileMatch.includes("*.lum.json")),
   );
   assert.ok(
     manifest.contributes.jsonValidation.some(
       (entry) =>
-        entry.url ===
-        "https://xtreemze.github.io/timeline/schemas/lum-project-v1.schema.json",
+        entry.url === "https://xtreemze.github.io/timeline/schemas/lum-project-v1.schema.json",
     ),
   );
 
@@ -37,8 +34,8 @@ test("VS Code extension associates .lum.json with the canonical schema and CLI c
     moduleAssociation?.url,
     "https://xtreemze.github.io/timeline/schemas/lum-project-module-v1.schema.json",
   );
-  const projectAssociation = manifest.contributes.jsonValidation.find(
-    (entry) => entry.url.endsWith("/lum-project-v1.schema.json"),
+  const projectAssociation = manifest.contributes.jsonValidation.find((entry) =>
+    entry.url.endsWith("/lum-project-v1.schema.json"),
   );
   assert.ok(projectAssociation.fileMatch.includes("!*.module.lum.json"));
 
@@ -60,7 +57,8 @@ test("VS Code integration delegates diagnostics and formatting to the lum CLI", 
   assert.match(source, /fmt/);
   assert.match(source, /--json/);
   assert.match(source, /registerDocumentFormattingEditProvider/);
-  assert.match(source, /createDiagnosticCollection/);\n  assert.match(source, /finding\\?\\.range|finding\\.range/);
+  assert.match(source, /createDiagnosticCollection/);
+  assert.match(source, /finding\?\.range|finding\.range/);
   assert.doesNotMatch(source, /validateProjectInterchange|formatProjectInterchange/);
   for (const collection of ["places", "sources", "categories", "stories"]) {
     assert.match(source, new RegExp(`"${collection}"`));
@@ -81,9 +79,7 @@ test("VS Code snippets scaffold strict current-format records", async () => {
   assert.equal(snippets["Lūm project"].prefix, "lum-project");
   assert.ok(snippets["Lūm project"].body.some((line) => line.includes('"format": "lum-project"')));
   assert.ok(
-    snippets["Lūm project"].body.some((line) =>
-      line.includes("lum-project-v1.schema.json"),
-    ),
+    snippets["Lūm project"].body.some((line) => line.includes("lum-project-v1.schema.json")),
   );
   assert.equal(snippets["Lūm entity"].prefix, "lum-entity");
   assert.equal(snippets["Lūm relationship"].prefix, "lum-relationship");

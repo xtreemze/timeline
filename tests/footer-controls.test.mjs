@@ -24,10 +24,7 @@ test("footer exposes view controls directly and keeps one primary Edit entry", a
     index,
     /id="timeline-view-toolbar" class="view-control-group timeline-local-toolbar" role="group" aria-label="Timeline view controls"/,
   );
-  assert.match(
-    index,
-    /data-world-controls-slot role="group" aria-label="World view controls"/,
-  );
+  assert.match(index, /data-world-controls-slot role="group" aria-label="World view controls"/);
   assert.match(
     index,
     /id="timeline-related-zoom"[^>]*data-view-control[^>]*data-semantic-icon="zoom-in"[^>]*aria-label="Zoom to related nodes"[^>]*title="Zoom to related nodes"/,
@@ -67,12 +64,9 @@ test("footer exposes view controls directly and keeps one primary Edit entry", a
 });
 
 test("all footer buttons and controls share the canonical toolbar surface", async () => {
-  const [index, css] = await Promise.all([
-    readFile(indexUrl, "utf8"),
-    readFile(shellUrl, "utf8"),
-  ]);
+  const [index, css] = await Promise.all([readFile(indexUrl, "utf8"), readFile(shellUrl, "utf8")]);
 
-  assert.match(css, /--toolbar-control-size:\s*44px/);
+assert.match(css, /--toolbar-control-size:\s*44px/);
   assert.match(
     css,
     /\.app-footer-bar :is\(\.toolbar-control, \.toolbar-compound-control\)\s*\{[\s\S]*block-size:\s*var\(--toolbar-control-size\)[\s\S]*border:\s*1px solid color-mix/,
@@ -134,10 +128,7 @@ test("narrow toolbar scrolls horizontally instead of hiding direct controls", as
     css,
     /@media \(max-width: 699px\)[\s\S]*\.app-tool-dock\.app-footer-bar[\s\S]*justify-content:\s*flex-start/,
   );
-  assert.match(
-    css,
-    /\.app-footer-view \.world-camera-controls[\s\S]*flex-wrap:\s*nowrap/,
-  );
+  assert.match(css, /\.app-footer-view \.world-camera-controls[\s\S]*flex-wrap:\s*nowrap/);
   assert.match(
     css,
     /\.app-footer-view \.world-zoom-control[\s\S]*grid-template-columns:[\s\S]*var\(--toolbar-control-size\)[\s\S]*var\(--toolbar-control-size\)/,
@@ -149,9 +140,11 @@ test("narrow toolbar scrolls horizontally instead of hiding direct controls", as
   assert.doesNotMatch(css, /\.app-view-controls\[popover\]/);
   assert.doesNotMatch(css, /#timeline-view-controls-toggle/);
   assert.doesNotMatch(css, /\.app-footer-(?:actions|timeline|view)[\s\S]{0,120}order:\s*[123]/);
-  assert.match(css, /scroll-padding-inline:[\s\S]*safe-area-inset-left[\s\S]*safe-area-inset-right/);
+  assert.match(
+    css,
+    /scroll-padding-inline:[\s\S]*safe-area-inset-left[\s\S]*safe-area-inset-right/,
+  );
 });
-
 
 test("toolbar actions use one direct semantic icon with explicit tooltips", async () => {
   const [index, presentation, css, world, factory, timeline] = await Promise.all([
@@ -172,7 +165,9 @@ test("toolbar actions use one direct semantic icon with explicit tooltips", asyn
   ]) {
     assert.match(
       index,
-      new RegExp(`id="${id}"[^>]*data-semantic-icon="${icon}"[^>]*aria-label="${label}"[^>]*title="${label}"`),
+      new RegExp(
+        `id="${id}"[^>]*data-semantic-icon="${icon}"[^>]*aria-label="${label}"[^>]*title="${label}"`,
+      ),
     );
   }
 
@@ -184,9 +179,11 @@ test("toolbar actions use one direct semantic icon with explicit tooltips", asyn
   assert.doesNotMatch(factory, /createCompoundIcon/);
   assert.doesNotMatch(timeline, /createCompoundIcon|semanticIconSecondary/);
   assert.match(world, /element\.setAttribute\("aria-label", label\)[\s\S]*element\.title = label/);
-  assert.match(factory, /element\.setAttribute\("aria-label", label\)[\s\S]*element\.title = title/);
+  assert.match(
+    factory,
+    /element\.setAttribute\("aria-label", label\)[\s\S]*element\.title = title/,
+  );
 });
-
 
 test("every persistent toolbar button family has an executable interaction path", async () => {
   const [index, app, timeline, world, factory, investigation] = await Promise.all([
@@ -203,11 +200,20 @@ test("every persistent toolbar button family has an executable interaction path"
   assert.match(app, /browserToggle\?\.addEventListener\("click"[\s\S]*setBrowserSurfaceOpen/);
   assert.match(app, /focusPrev\.addEventListener\("click"[\s\S]*focusAdjacent\(-1/);
   assert.match(app, /focusNext\.addEventListener\("click"[\s\S]*focusAdjacent\(1/);
-  assert.match(app, /function revealFocusedToolbarNavigation\([\s\S]*max-width: 699px[\s\S]*appToolDock\.scrollLeft/);
+  assert.match(
+    app,
+    /function revealFocusedToolbarNavigation\([\s\S]*max-width: 699px[\s\S]*appToolDock\.scrollLeft/,
+  );
   assert.match(app, /relatedZoom\.addEventListener\("click"[\s\S]*zoomContext/);
   assert.match(app, /relatedFit\.addEventListener\("click"[\s\S]*fitContext/);
-  assert.match(app, /presentationFullscreenToggle\.addEventListener\("click"[\s\S]*togglePresentationFullscreen/);
-  assert.match(app, /function presentationFullscreenAvailable\([\s\S]*document\.fullscreenEnabled[\s\S]*requestFullscreen/);
+  assert.match(
+    app,
+    /presentationFullscreenToggle\.addEventListener\("click"[\s\S]*togglePresentationFullscreen/,
+  );
+  assert.match(
+    app,
+    /function presentationFullscreenAvailable\([\s\S]*document\.fullscreenEnabled[\s\S]*requestFullscreen/,
+  );
   assert.match(app, /Full-screen presentation unavailable/);
   assert.match(app, /projectMenu\?\.addEventListener\("toggle"[\s\S]*Close project actions/);
   assert.match(app, /autoToggle\.addEventListener\("click"[\s\S]*toggle-auto/);

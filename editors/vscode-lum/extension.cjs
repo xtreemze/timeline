@@ -148,7 +148,8 @@ async function initializeProject() {
   const projectKey = await vscode.window.showInputBox({
     title: "Lūm project key",
     prompt: "Stable ASCII identifier for the new project",
-    value: path.basename(folder.uri.fsPath)
+    value: path
+      .basename(folder.uri.fsPath)
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, ""),
@@ -185,7 +186,9 @@ function semanticProvider() {
               : referenceKeys.has(key)
                 ? "variable"
                 : null;
-          if (tokenType) {\n            builder.push(\n              new vscode.Range(line, offset, line, offset + length),\n              tokenType,\n              [],\n            );\n          }
+          if (tokenType) {
+            builder.push(new vscode.Range(line, offset, line, offset + length), tokenType, []);
+          }
         }
       }
       return builder.build();
@@ -222,10 +225,7 @@ function activate(context) {
         const lastLine = Math.max(0, document.lineCount - 1);
         const end = new vscode.Position(lastLine, document.lineAt(lastLine).text.length);
         return [
-          vscode.TextEdit.replace(
-            new vscode.Range(new vscode.Position(0, 0), end),
-            result.stdout,
-          ),
+          vscode.TextEdit.replace(new vscode.Range(new vscode.Position(0, 0), end), result.stdout),
         ];
       },
     }),

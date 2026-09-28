@@ -46,9 +46,7 @@ const CHANGE_OPERATION_FIELDS = new Set([
 const DELETE_OPERATION_FIELDS = new Set(["op", "collection", "id", "sourceRefs"]);
 
 function record(value) {
-  return value !== null && typeof value === "object" && !Array.isArray(value)
-    ? value
-    : null;
+  return value !== null && typeof value === "object" && !Array.isArray(value) ? value : null;
 }
 
 function cloneJson(value) {
@@ -85,9 +83,7 @@ function unknownFieldDiagnostics(value, allowed, basePath = "") {
 
 function requireNonEmptyString(value, path, label, diagnostics) {
   if (typeof value !== "string" || !value.trim()) {
-    diagnostics.push(
-      diagnostic("invalid-proposal", path, `${label} must be a non-empty string.`),
-    );
+    diagnostics.push(diagnostic("invalid-proposal", path, `${label} must be a non-empty string.`));
     return false;
   }
   return true;
@@ -101,11 +97,7 @@ function validateStringArray(value, path, diagnostics) {
   value.forEach((entry, index) => {
     if (typeof entry !== "string" || !entry.trim()) {
       diagnostics.push(
-        diagnostic(
-          "invalid-proposal",
-          `${path}/${index}`,
-          "Expected a non-empty string.",
-        ),
+        diagnostic("invalid-proposal", `${path}/${index}`, "Expected a non-empty string."),
       );
     }
   });
@@ -114,11 +106,7 @@ function validateStringArray(value, path, diagnostics) {
 function validateUnresolvedFacts(value, diagnostics) {
   if (!Array.isArray(value)) {
     diagnostics.push(
-      diagnostic(
-        "invalid-proposal",
-        "/unresolvedFacts",
-        "unresolvedFacts must be an array.",
-      ),
+      diagnostic("invalid-proposal", "/unresolvedFacts", "unresolvedFacts must be an array."),
     );
     return;
   }
@@ -127,9 +115,7 @@ function validateUnresolvedFacts(value, diagnostics) {
     const item = record(entry);
     const path = `/unresolvedFacts/${index}`;
     if (!item) {
-      diagnostics.push(
-        diagnostic("invalid-proposal", path, "Unresolved facts must be objects."),
-      );
+      diagnostics.push(diagnostic("invalid-proposal", path, "Unresolved facts must be objects."));
       return;
     }
     diagnostics.push(...unknownFieldDiagnostics(item, UNRESOLVED_FACT_FIELDS, path));
@@ -152,12 +138,7 @@ function validateGeneration(value, diagnostics) {
   diagnostics.push(...unknownFieldDiagnostics(item, GENERATION_FIELDS, "/generation"));
   for (const field of ["provider", "model", "createdAt", "requestId"]) {
     if (item[field] !== undefined) {
-      requireNonEmptyString(
-        item[field],
-        `/generation/${field}`,
-        field,
-        diagnostics,
-      );
+      requireNonEmptyString(item[field], `/generation/${field}`, field, diagnostics);
     }
   }
 }
@@ -166,9 +147,7 @@ function validateOperationShape(value, index, diagnostics) {
   const path = `/operations/${index}`;
   const operation = record(value);
   if (!operation) {
-    diagnostics.push(
-      diagnostic("invalid-operation", path, "Every operation must be an object."),
-    );
+    diagnostics.push(diagnostic("invalid-operation", path, "Every operation must be an object."));
     return;
   }
 
@@ -222,17 +201,9 @@ function validateOperationShape(value, index, diagnostics) {
     );
     return;
   }
-  requireNonEmptyString(
-    proposedRecord.id,
-    `${path}/record/id`,
-    "record.id",
-    diagnostics,
-  );
+  requireNonEmptyString(proposedRecord.id, `${path}/record/id`, "record.id", diagnostics);
 
-  if (
-    operation.composerSentence !== undefined &&
-    operation.collection !== "relationships"
-  ) {
+  if (operation.composerSentence !== undefined && operation.collection !== "relationships") {
     diagnostics.push(
       diagnostic(
         "invalid-composer-target",
@@ -279,11 +250,7 @@ function validateProposalDocument(source) {
     return {
       proposal: null,
       diagnostics: [
-        diagnostic(
-          "invalid-proposal",
-          "",
-          "Lūm change proposal must be a JSON object.",
-        ),
+        diagnostic("invalid-proposal", "", "Lūm change proposal must be a JSON object."),
       ],
     };
   }
@@ -318,16 +285,8 @@ function validateProposalDocument(source) {
     );
   }
 
-  requireNonEmptyString(
-    proposal.projectKey,
-    "/projectKey",
-    "projectKey",
-    diagnostics,
-  );
-  if (
-    !Number.isInteger(proposal.expectedRevision) ||
-    proposal.expectedRevision < 1
-  ) {
+  requireNonEmptyString(proposal.projectKey, "/projectKey", "projectKey", diagnostics);
+  if (!Number.isInteger(proposal.expectedRevision) || proposal.expectedRevision < 1) {
     diagnostics.push(
       diagnostic(
         "invalid-proposal",
@@ -345,27 +304,18 @@ function validateProposalDocument(source) {
       ),
     );
   }
-  requireNonEmptyString(
-    proposal.instruction,
-    "/instruction",
-    "instruction",
-    diagnostics,
-  );
+  requireNonEmptyString(proposal.instruction, "/instruction", "instruction", diagnostics);
   validateUnresolvedFacts(proposal.unresolvedFacts, diagnostics);
   validateGeneration(proposal.generation, diagnostics);
 
   if (!Array.isArray(proposal.operations) || proposal.operations.length === 0) {
     diagnostics.push(
-      diagnostic(
-        "invalid-proposal",
-        "/operations",
-        "operations must be a non-empty array.",
-      ),
+      diagnostic("invalid-proposal", "/operations", "operations must be a non-empty array."),
     );
   } else {
-    proposal.operations.forEach((operation, index) =>
-      validateOperationShape(operation, index, diagnostics),
-    );
+    proposal.operations.forEach((operation, index) => {
+      validateOperationShape(operation, index, diagnostics);
+    });
   }
 
   return { proposal, diagnostics };
@@ -390,9 +340,7 @@ function composerEntityMatches(reference, entity) {
 function endpointValue(endpoint) {
   const object = record(endpoint);
   if (!object) return null;
-  return object.value === undefined || object.value === null
-    ? null
-    : String(object.value);
+  return object.value === undefined || object.value === null ? null : String(object.value);
 }
 
 function composerTimeMatches(composerTime, relationshipTime) {
@@ -475,8 +423,12 @@ function validateComposerRelationship(operation, project, path) {
     );
   }
   if (
-    String(parsed.predicate ?? "").trim().toLocaleLowerCase() !==
-    String(relationship.predicate ?? "").trim().toLocaleLowerCase()
+    String(parsed.predicate ?? "")
+      .trim()
+      .toLocaleLowerCase() !==
+    String(relationship.predicate ?? "")
+      .trim()
+      .toLocaleLowerCase()
   ) {
     findings.push(
       diagnostic(
@@ -522,9 +474,7 @@ function collectionArray(project, collection) {
 }
 
 function operationId(operation) {
-  return operation.op === "delete"
-    ? String(operation.id)
-    : String(operation.record.id);
+  return operation.op === "delete" ? String(operation.id) : String(operation.record.id);
 }
 
 function includesId(values, id) {
@@ -544,13 +494,11 @@ function deletedRecordReferences(project, collection, id) {
       for (const field of ["subjectContext", "objectContext"]) {
         const context = relationship[field];
         add(
-          context?.representedEntityId !== undefined &&
-            String(context.representedEntityId) === id,
+          context?.representedEntityId !== undefined && String(context.representedEntityId) === id,
           `/project/relationships/${index}/${field}/representedEntityId`,
         );
         add(
-          context?.organizationId !== undefined &&
-            String(context.organizationId) === id,
+          context?.organizationId !== undefined && String(context.organizationId) === id,
           `/project/relationships/${index}/${field}/organizationId`,
         );
       }
@@ -567,8 +515,7 @@ function deletedRecordReferences(project, collection, id) {
           `/project/occurrences/${index}/participantContexts/${participantIndex}/representedEntityId`,
         );
         add(
-          participant.organizationId !== undefined &&
-            String(participant.organizationId) === id,
+          participant.organizationId !== undefined && String(participant.organizationId) === id,
           `/project/occurrences/${index}/participantContexts/${participantIndex}/organizationId`,
         );
       });
@@ -592,25 +539,16 @@ function deletedRecordReferences(project, collection, id) {
 
   if (collection === "occurrences") {
     (project.relationships ?? []).forEach((relationship, index) => {
-      add(
-        includesId(relationship.itemIds, id),
-        `/project/relationships/${index}/itemIds`,
-      );
+      add(includesId(relationship.itemIds, id), `/project/relationships/${index}/itemIds`);
     });
     (project.stories ?? []).forEach((story, index) => {
-      add(
-        includesId(story.occurrenceIds, id),
-        `/project/stories/${index}/occurrenceIds`,
-      );
+      add(includesId(story.occurrenceIds, id), `/project/stories/${index}/occurrenceIds`);
     });
   }
 
   if (collection === "trajectories") {
     (project.occurrences ?? []).forEach((occurrence, index) => {
-      add(
-        includesId(occurrence.trajectoryIds, id),
-        `/project/occurrences/${index}/trajectoryIds`,
-      );
+      add(includesId(occurrence.trajectoryIds, id), `/project/occurrences/${index}/trajectoryIds`);
     });
   }
 
@@ -628,10 +566,7 @@ function deletedRecordReferences(project, collection, id) {
       );
     });
     (project.stories ?? []).forEach((story, index) => {
-      add(
-        includesId(story.placeIds, id),
-        `/project/stories/${index}/placeIds`,
-      );
+      add(includesId(story.placeIds, id), `/project/stories/${index}/placeIds`);
     });
   }
 
@@ -652,10 +587,7 @@ function deletedRecordReferences(project, collection, id) {
       });
     });
     (project.relationships ?? []).forEach((relationship, index) => {
-      add(
-        includesId(relationship.sourceIds, id),
-        `/project/relationships/${index}/sourceIds`,
-      );
+      add(includesId(relationship.sourceIds, id), `/project/relationships/${index}/sourceIds`);
       for (const field of ["subjectContext", "objectContext"]) {
         add(
           includesId(relationship[field]?.authoritySourceIds, id),
@@ -664,10 +596,7 @@ function deletedRecordReferences(project, collection, id) {
       }
     });
     (project.occurrences ?? []).forEach((occurrence, index) => {
-      add(
-        includesId(occurrence.sourceIds, id),
-        `/project/occurrences/${index}/sourceIds`,
-      );
+      add(includesId(occurrence.sourceIds, id), `/project/occurrences/${index}/sourceIds`);
       (occurrence.participantContexts ?? []).forEach((participant, participantIndex) => {
         add(
           includesId(participant.authoritySourceIds, id),
@@ -676,10 +605,7 @@ function deletedRecordReferences(project, collection, id) {
       });
     });
     (project.trajectories ?? []).forEach((trajectory, index) => {
-      add(
-        includesId(trajectory.sourceIds, id),
-        `/project/trajectories/${index}/sourceIds`,
-      );
+      add(includesId(trajectory.sourceIds, id), `/project/trajectories/${index}/sourceIds`);
     });
     (project.places ?? []).forEach((place, index) => {
       add(includesId(place.sourceIds, id), `/project/places/${index}/sourceIds`);
@@ -733,9 +659,7 @@ function applyOperations(proposal, sourceSnapshot, savedAt) {
     if (!COLLECTIONS.has(collection)) return;
     const records = collectionArray(project, collection);
     const id = operationId(operation);
-    const existingIndex = records.findIndex(
-      (candidate) => String(candidate?.id) === id,
-    );
+    const existingIndex = records.findIndex((candidate) => String(candidate?.id) === id);
 
     if (operation.op === "create" && existingIndex >= 0) {
       diagnostics.push(
@@ -758,16 +682,8 @@ function applyOperations(proposal, sourceSnapshot, savedAt) {
       return;
     }
 
-    if (
-      operation.op !== "delete" &&
-      collection === "relationships" &&
-      operation.composerSentence
-    ) {
-      const composerFindings = validateComposerRelationship(
-        operation,
-        project,
-        path,
-      );
+    if (operation.op !== "delete" && collection === "relationships" && operation.composerSentence) {
+      const composerFindings = validateComposerRelationship(operation, project, path);
       diagnostics.push(...composerFindings);
       if (composerFindings.length > 0) return;
     }
@@ -824,10 +740,7 @@ function applyOperations(proposal, sourceSnapshot, savedAt) {
         valid: false,
         diagnostics: validation.diagnostics.map((finding) => ({
           ...finding,
-          code:
-            finding.code === "invalid-project"
-              ? "candidate-invalid"
-              : finding.code,
+          code: finding.code === "invalid-project" ? "candidate-invalid" : finding.code,
         })),
         candidate: null,
         summary,
@@ -915,22 +828,14 @@ function evaluateProposal(proposalSource, projectSource, options = {}) {
     };
   }
 
-  const applied = applyOperations(
-    proposal,
-    snapshot,
-    options.savedAt ?? snapshot.savedAt,
-  );
+  const applied = applyOperations(proposal, snapshot, options.savedAt ?? snapshot.savedAt);
   return {
     ...applied,
     proposal,
   };
 }
 
-export function validateLumChangeProposal(
-  proposalSource,
-  projectSource,
-  options = {},
-) {
+export function validateLumChangeProposal(proposalSource, projectSource, options = {}) {
   const result = evaluateProposal(proposalSource, projectSource, options);
   const diagnostics = [...result.diagnostics];
   if (
@@ -947,24 +852,14 @@ export function validateLumChangeProposal(
     );
   }
   return {
-    valid:
-      result.valid &&
-      !diagnostics.some((finding) => finding.severity === "error"),
+    valid: result.valid && !diagnostics.some((finding) => finding.severity === "error"),
     diagnostics,
     ...(result.summary ? { summary: result.summary } : {}),
   };
 }
 
-export function applyLumChangeProposal(
-  proposalSource,
-  projectSource,
-  options = {},
-) {
-  const validation = validateLumChangeProposal(
-    proposalSource,
-    projectSource,
-    options,
-  );
+export function applyLumChangeProposal(proposalSource, projectSource, options = {}) {
+  const validation = validateLumChangeProposal(proposalSource, projectSource, options);
   if (!validation.valid) {
     return {
       valid: false,
