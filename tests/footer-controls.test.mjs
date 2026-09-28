@@ -212,6 +212,7 @@ test("toolbar actions use one direct semantic icon with explicit tooltips", asyn
   }
 
   assert.match(presentation, /folder:\s*\[/);
+  assert.match(presentation, /refresh:\s*\[/);
   assert.doesNotMatch(index, /data-semantic-icon-secondary/);
   assert.doesNotMatch(presentation, /createCompoundIcon/);
   assert.doesNotMatch(css, /compound-semantic-icon/);
