@@ -283,7 +283,7 @@ test("force scene keeps physical collision exact while hubs reserve connectivity
   assert.equal(leafNode.connectivityClearanceMeters ?? 0, 0);
 });
 
-test("connectivity clearance grows sublinearly with distinct graph neighbors", () => {
+test("connectivity clearance grows sublinearly with graph degree", () => {
   const build = (neighborCount) => {
     const hub = worldInstanceId(`hub-${neighborCount}`, "network");
     const leaves = Array.from({ length: neighborCount }, (_, index) =>
@@ -343,6 +343,50 @@ test("connectivity clearance grows sublinearly with distinct graph neighbors", (
       (degreeFour.connectivityClearanceMeters ?? 0) * 3,
     "hub spacing must grow sublinearly instead of exploding with degree",
   );
+});
+
+test("parallel relationships contribute to hub spacing because they need routing room", () => {
+  const hub = worldInstanceId("parallel-hub", "network");
+  const peer = worldInstanceId("parallel-peer", "network");
+  const instances = [
+    createProjectedWorldInstance({
+      id: hub,
+      canonicalId: "parallel-hub",
+      occurrenceId: "network",
+      geographicAnchors: [],
+      temporalWeight: 1,
+      visualWeight: 0,
+      retained: false,
+    }),
+    createProjectedWorldInstance({
+      id: peer,
+      canonicalId: "parallel-peer",
+      occurrenceId: "network",
+      geographicAnchors: [],
+      temporalWeight: 1,
+      visualWeight: 0,
+      retained: false,
+    }),
+  ];
+  const edges = Array.from({ length: 4 }, (_, index) =>
+    createProjectedWorldEdge({
+      id: `parallel-${index}`,
+      sourceInstanceId: hub,
+      targetInstanceId: peer,
+      temporalWeight: 1,
+      visible: true,
+      retained: false,
+    }),
+  );
+  const scene = createWorldForceScene(createWorldProjection({ instances, edges }));
+  const hubNode = scene.nodes.find((node) => node.id === hub);
+  const peerNode = scene.nodes.find((node) => node.id === peer);
+
+  assert.ok(hubNode && peerNode);
+  assert.equal(hubNode.connectivityDegree, 4);
+  assert.equal(peerNode.connectivityDegree, 4);
+  assert.ok((hubNode.connectivityClearanceMeters ?? 0) > 0);
+  assert.ok((peerNode.connectivityClearanceMeters ?? 0) > 0);
 });
 
 test("D3 component collision radius uses the largest rendered footprint", () => {
