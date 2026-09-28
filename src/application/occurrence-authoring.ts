@@ -27,6 +27,10 @@ export interface OccurrenceAuthoringRequest<TExtent = unknown> {
   readonly time: OccurrenceAuthoringTime<TExtent>;
   readonly categoryName?: string;
   readonly tags: readonly string[];
+  readonly role?: string | null;
+  readonly initialState?: "active" | "inactive";
+  readonly sourceIds?: readonly string[];
+  readonly confidence?: number | null;
   readonly activeStoryId?: string | null;
 }
 
@@ -118,6 +122,13 @@ export interface OccurrenceUpdateRequest<TExtent = unknown> {
    * undefined preserves tags; an empty array explicitly clears them.
    */
   readonly tags?: readonly string[];
+  /**
+   * Optional relationship metadata. undefined preserves the existing value.
+   */
+  readonly role?: string | null;
+  readonly initialState?: "active" | "inactive";
+  readonly sourceIds?: readonly string[];
+  readonly confidence?: number | null;
 }
 
 export interface OccurrenceAuthoringDependencies<
@@ -367,6 +378,13 @@ export function authorOccurrence<TExtent, TState extends OccurrenceAuthoringStat
   if (!predicateValidation.valid) {
     throw new Error(predicateValidation.message || "The action predicate is invalid.");
   }
+  if (
+    request.confidence !== undefined &&
+    request.confidence !== null &&
+    (!Number.isFinite(request.confidence) || request.confidence < 0 || request.confidence > 1)
+  ) {
+    throw new Error("Confidence must be between 0 and 1.");
+  }
 
   const draft = dependencies.cloneState(state);
   const subject = resolveEntity(subjectReference, draft, dependencies);
@@ -408,17 +426,22 @@ export function authorOccurrence<TExtent, TState extends OccurrenceAuthoringStat
       : {}),
   };
 
+  const role = request.role?.trim().slice(0, 120) ?? "";
+  const sourceIds = [
+    ...new Set((request.sourceIds ?? []).map((sourceId) => sourceId.trim()).filter(Boolean)),
+  ];
   const relationship: AuthoringRelationship<TExtent> = {
     id: dependencies.newId("relationship"),
     subjectId: subject.id,
     objectId: object.id,
     predicate: predicate.slice(0, 120),
+    ...(role ? { role } : {}),
     placeId: place.id,
     itemIds: [itemId],
-    initialState: "active",
+    initialState: request.initialState ?? "active",
     time: request.time.extent,
-    sourceIds: [],
-    confidence: null,
+    sourceIds,
+    confidence: request.confidence ?? null,
     attributes: {},
   };
 
@@ -563,6 +586,14 @@ export function updateOccurrence<TExtent, TState extends OccurrenceAuthoringStat
     throw new Error(predicateValidation.message || "The action predicate is invalid.");
   }
 
+  if (
+    request.confidence !== undefined &&
+    request.confidence !== null &&
+    (!Number.isFinite(request.confidence) || request.confidence < 0 || request.confidence > 1)
+  ) {
+    throw new Error("Confidence must be between 0 and 1.");
+  }
+
   const draft = dependencies.cloneState(state);
   const existingIndex = draft.relationships.findIndex(
     (relationship) => relationship.id === relationshipId,
@@ -612,6 +643,22 @@ export function updateOccurrence<TExtent, TState extends OccurrenceAuthoringStat
 
   if (request.time !== undefined) {
     next.time = request.time?.extent ?? null;
+  }
+  if (request.role !== undefined) {
+    const role = request.role?.trim().slice(0, 120) ?? "";
+    if (role) next.role = role;
+    else delete next.role;
+  }
+  if (request.initialState !== undefined) {
+    next.initialState = request.initialState;
+  }
+  if (request.sourceIds !== undefined) {
+    next.sourceIds = [
+      ...new Set(request.sourceIds.map((sourceId) => sourceId.trim()).filter(Boolean)),
+    ];
+  }
+  if (request.confidence !== undefined) {
+    next.confidence = request.confidence;
   }
 
   const duplicate = dependencies.findDuplicateRelationship(
