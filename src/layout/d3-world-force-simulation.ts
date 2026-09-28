@@ -87,6 +87,16 @@ interface D3WorldGroup {
   readonly simulation: Simulation<D3WorldNodeState, SimulationLinkDatum<D3WorldNodeState>>;
 }
 
+interface D3WorldGroupBounds {
+  readonly group: D3WorldGroup;
+  readonly minX: number;
+  readonly maxX: number;
+  readonly minY: number;
+  readonly maxY: number;
+  readonly minZ: number;
+  readonly maxZ: number;
+}
+
 export interface D3WorldForcePosition {
   readonly instanceId: WorldInstanceId;
   readonly eastMeters: number;
@@ -224,6 +234,99 @@ function stateNeighborhoodRadiusMeters(state: D3WorldNodeState): number {
 
 function pairNeighborhoodRadiusMeters(left: D3WorldNodeState, right: D3WorldNodeState): number {
   return stateNeighborhoodRadiusMeters(left) + stateNeighborhoodRadiusMeters(right);
+}
+
+function surfaceCartesianMeters(
+  position: readonly [longitude: number, latitude: number],
+): readonly [x: number, y: number, z: number] {
+  const longitude = radians(position[0]);
+  const latitude = radians(position[1]);
+  const cosine = Math.cos(latitude);
+  return Object.freeze([
+    EARTH_RADIUS_METERS * cosine * Math.cos(longitude),
+    EARTH_RADIUS_METERS * cosine * Math.sin(longitude),
+    EARTH_RADIUS_METERS * Math.sin(latitude),
+  ]);
+}
+
+function crossPlaceGroupBounds(group: D3WorldGroup): D3WorldGroupBounds | null {
+  let minX = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+  let minZ = Number.POSITIVE_INFINITY;
+  let maxZ = Number.NEGATIVE_INFINITY;
+  let paddingMeters = 0;
+  let bounded = false;
+
+  for (const state of group.nodes) {
+    const position = geographicPosition(state);
+    if (!position) continue;
+    const [x, y, z] = surfaceCartesianMeters(position);
+    bounded = true;
+    minX = Math.min(minX, x);
+    maxX = Math.max(maxX, x);
+    minY = Math.min(minY, y);
+    maxY = Math.max(maxY, y);
+    minZ = Math.min(minZ, z);
+    maxZ = Math.max(maxZ, z);
+    paddingMeters = Math.max(
+      paddingMeters,
+      stateNeighborhoodRadiusMeters(state),
+      state.node.collisionRadiusMeters * 4,
+    );
+  }
+
+  if (!bounded) return null;
+  return Object.freeze({
+    group,
+    minX: minX - paddingMeters,
+    maxX: maxX + paddingMeters,
+    minY: minY - paddingMeters,
+    maxY: maxY + paddingMeters,
+    minZ: minZ - paddingMeters,
+    maxZ: maxZ + paddingMeters,
+  });
+}
+
+function crossPlaceBoundsOverlap(left: D3WorldGroupBounds, right: D3WorldGroupBounds): boolean {
+  return (
+    left.minX <= right.maxX &&
+    right.minX <= left.maxX &&
+    left.minY <= right.maxY &&
+    right.minY <= left.maxY &&
+    left.minZ <= right.maxZ &&
+    right.minZ <= left.maxZ
+  );
+}
+
+function crossPlaceGroupPairs(
+  groups: readonly D3WorldGroup[],
+): readonly (readonly [D3WorldGroup, D3WorldGroup])[] {
+  const bounds = groups
+    .flatMap((group) => {
+      const entry = crossPlaceGroupBounds(group);
+      return entry ? [entry] : [];
+    })
+    .sort((left, right) => left.minX - right.minX || left.group.key.localeCompare(right.group.key));
+  const active: D3WorldGroupBounds[] = [];
+  const pairs: Array<readonly [D3WorldGroup, D3WorldGroup]> = [];
+
+  for (const current of bounds) {
+    for (let index = active.length - 1; index >= 0; index -= 1) {
+      const candidate = active[index];
+      if (candidate && candidate.maxX < current.minX) active.splice(index, 1);
+    }
+
+    for (const other of active) {
+      if (crossPlaceBoundsOverlap(other, current)) {
+        pairs.push(Object.freeze([other.group, current.group]));
+      }
+    }
+    active.push(current);
+  }
+
+  return Object.freeze(pairs);
 }
 
 function localOffsetForGeographicPosition(
@@ -524,9 +627,10 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       if (group.simulation.alpha() > group.simulation.alphaMin()) settled = false;
     }
 
-    if (interactionReason && this.#stepCrossPlaceInteractionForces()) {
-      settled = false;
-    }
+    const crossPlaceMoved = interactionReason
+      ? this.#stepCrossPlaceInteractionForces()
+      : this.#stepCrossPlaceTopologyForces();
+    if (crossPlaceMoved) settled = false;
 
     this.#iteration += ticks;
     this.#settled = settled;
@@ -713,6 +817,126 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       const group = this.#groups.get(groupKey);
       return group ? [group] : [];
     });
+  }
+
+  #stepCrossPlaceTopologyForces(): boolean {
+    let moved = false;
+    for (const [leftGroup, rightGroup] of crossPlaceGroupPairs([...this.#groups.values()])) {
+      const alpha = Math.max(leftGroup.simulation.alpha(), rightGroup.simulation.alpha());
+      const alphaMin = Math.max(leftGroup.simulation.alphaMin(), rightGroup.simulation.alphaMin());
+      if (alpha <= alphaMin) continue;
+
+      for (const left of leftGroup.nodes) {
+        if (!left.anchor) continue;
+        for (const right of rightGroup.nodes) {
+          if (!right.anchor) continue;
+          if (this.#stepCrossPlacePairForces(left, right, alpha) === false) continue;
+          moved = true;
+        }
+      }
+    }
+    return moved;
+  }
+
+  #stepCrossPlacePairForces(
+    left: D3WorldNodeState,
+    right: D3WorldNodeState,
+    alpha: number,
+  ): boolean {
+    const leftPosition = geographicPosition(left);
+    const rightPosition = geographicPosition(right);
+    if (!leftPosition || !rightPosition) return false;
+
+    const collisionDistance =
+      left.node.collisionRadiusMeters + right.node.collisionRadiusMeters;
+    const interactionDistance = Math.max(
+      collisionDistance * 4,
+      pairNeighborhoodRadiusMeters(left, right),
+    );
+    if (surfaceDistanceMeters(leftPosition, rightPosition) > interactionDistance) return false;
+
+    const [rightEast, rightNorth] = tangentOffsetMeters(leftPosition, rightPosition);
+    const pinLeft = this.#pin?.instanceId === left.id;
+    const pinRight = this.#pin?.instanceId === right.id;
+    const probes: D3CrossPlaceInteractionProbe[] = [
+      {
+        state: left,
+        collisionRadiusMeters: left.node.collisionRadiusMeters,
+        x: 0,
+        y: 0,
+        vx: 0,
+        vy: 0,
+        ...(pinLeft ? { fx: 0, fy: 0 } : {}),
+      },
+      {
+        state: right,
+        collisionRadiusMeters: right.node.collisionRadiusMeters,
+        x: rightEast,
+        y: rightNorth,
+        vx: 0,
+        vy: 0,
+        ...(pinRight ? { fx: rightEast, fy: rightNorth } : {}),
+      },
+    ];
+
+    const pairSimulation = forceSimulation<D3CrossPlaceInteractionProbe>(probes)
+      .stop()
+      .alpha(alpha)
+      .alphaMin(ALPHA_MIN)
+      .alphaDecay(ALPHA_DECAY)
+      .alphaTarget(0);
+    pairSimulation.force(
+      "charge",
+      forceManyBody<D3CrossPlaceInteractionProbe>()
+        .strength(NORMAL_MANY_BODY_STRENGTH)
+        .distanceMin(
+          Math.max(
+            1,
+            Math.min(left.node.collisionRadiusMeters, right.node.collisionRadiusMeters),
+          ),
+        )
+        .distanceMax(interactionDistance),
+    );
+    pairSimulation.force(
+      "collision",
+      forceCollide<D3CrossPlaceInteractionProbe>()
+        .radius((probe) => probe.collisionRadiusMeters)
+        .strength(COLLISION_STRENGTH)
+        .iterations(COLLISION_ITERATIONS),
+    );
+    pairSimulation.tick(CROSS_PLACE_INTERACTION_TICKS);
+    pairSimulation.stop();
+
+    let moved = false;
+    for (let index = 0; index < probes.length; index += 1) {
+      const probe = probes[index];
+      if (!probe || (index === 0 ? pinLeft : pinRight) || !probe.state.anchor) continue;
+      const beforeEast = index === 0 ? 0 : rightEast;
+      const beforeNorth = index === 0 ? 0 : rightNorth;
+      const nextEast = probe.x ?? beforeEast;
+      const nextNorth = probe.y ?? beforeNorth;
+      if (
+        Math.abs(nextEast - beforeEast) <= Number.EPSILON &&
+        Math.abs(nextNorth - beforeNorth) <= Number.EPSILON
+      ) {
+        continue;
+      }
+
+      const nextGeographic = geographicFromTangentOffset(leftPosition, nextEast, nextNorth);
+      const [localEast, localNorth] = localOffsetForGeographicPosition(
+        probe.state.anchor,
+        nextGeographic,
+      );
+      probe.state.x = localEast;
+      probe.state.y = localNorth;
+      probe.state.vx = 0;
+      probe.state.vy = 0;
+      this.#dirtyStateIds.add(probe.state.id);
+
+      moved = true;
+    }
+
+    return moved;
   }
 
   #stepCrossPlaceInteractionForces(): boolean {
