@@ -6,7 +6,7 @@ import type { WorldForceLayoutSample } from "../../src/layout/world-force-layout
 import type { WorldCameraState } from "../../src/layout/world-surface.ts";
 import type { WorldForceSimulationBackend } from "../../src/layout/world-force-simulation.ts";
 import { LuumWorldSurfaceElement } from "../components/world-surface-element.ts";
-import { createCompoundIcon } from "../event-presentation.ts";
+import { createIcon } from "../event-presentation.ts";
 import { createDeckWorldRuntime, type DeckWorldBindings } from "./deck-world-runtime.ts";
 import { DeckWorldSurface } from "./deck-world-surface.ts";
 import { loadWorldBasemap } from "./world-basemap.ts";
@@ -110,7 +110,7 @@ function createWorldLayoutControls(
     element.dataset.viewControl = "";
     element.setAttribute("aria-label", label);
     element.title = title;
-    element.append(createCompoundIcon(icon, "world", { size: 20 }));
+    element.append(createIcon(icon, { size: 20 }));
     element.addEventListener("click", (event) => {
       event.stopPropagation();
       action();
