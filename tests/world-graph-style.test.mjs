@@ -179,7 +179,7 @@ test("node collision footprint is exactly the rendered shape radius plus authore
       attributes: { style: { radius: 10, borderWidth: 0, shape: "circle" } },
     }),
     WORLD_ENTITY_MIN_HIT_RADIUS_PX,
-    "the minimum interaction footprint is preserved by the rendered body, not hidden collision padding",
+    "the minimum footprint is preserved by the rendered body, not hidden collision padding",
   );
 });
 
@@ -373,7 +373,7 @@ test("visible, touch, and collision footprints are identical", () => {
   }
 });
 
-test("borderless nodes keep a one-pixel raster safety margin inside the same 44px footprint", () => {
+test("borderless nodes preserve the 44px footprint with rendered body radius alone", () => {
   const input = {
     type: "person",
     attributes: { style: { borderWidth: 0 } },
@@ -383,7 +383,7 @@ test("borderless nodes keep a one-pixel raster safety margin inside the same 44p
 
   assert.equal(footprint, WORLD_ENTITY_MIN_HIT_RADIUS_PX);
   assert.equal(worldNodeStyleFootprintRadiusPx(style), footprint);
-  assert.equal(style.radius + 1, footprint);
+  assert.equal(style.radius, footprint);
 });
 
 test("force footprint exactly matches rendered geometry and the mobile target", () => {
