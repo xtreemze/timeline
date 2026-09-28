@@ -29,6 +29,14 @@ export interface OccurrenceComposerData {
   readonly predicates?: readonly string[];
 }
 
+export interface OccurrenceComposerRelationshipMetadata {
+  readonly role?: string | null;
+  readonly initialState?: "active" | "inactive";
+  readonly sourceIds?: readonly string[];
+  readonly confidence?: number | null;
+  readonly attributes?: Readonly<Record<string, unknown>>;
+}
+
 export interface OccurrenceComposerSelectionContext {
   readonly selectedEntityId?: string | null;
   readonly selectedOccurrenceId?: string | null;
@@ -42,6 +50,7 @@ export interface OccurrenceComposerSelectionContext {
     readonly id: string;
     readonly name: string;
   } | null;
+  readonly metadata?: OccurrenceComposerRelationshipMetadata | null;
 }
 
 export interface OccurrenceCommitDetail {
@@ -52,6 +61,13 @@ export interface OccurrenceCommitDetail {
     readonly itemId: string | null;
     readonly initialText: string;
   } | null;
+  readonly metadata: {
+    readonly role: string | null;
+    readonly initialState: "active" | "inactive";
+    readonly sourceIds: readonly string[];
+    readonly confidence: number | null;
+    readonly attributes: Readonly<Record<string, unknown>>;
+  };
   readonly defaults: {
     readonly timeMs: number | null;
     readonly timeValue: string | null;
@@ -131,7 +147,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
     .input-row {
       display: grid;
-      grid-template-columns: auto minmax(0, 1fr) auto;
+      grid-template-columns: auto minmax(0, 1fr) auto auto;
       gap: 0.35rem;
       align-items: center;
       min-inline-size: 0;
@@ -200,7 +216,11 @@ export class LuumOccurrenceComposerElement extends LitElement {
       box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus, #315fbd) 20%, transparent);
     }
 
+    .commit,
     .close {
+      appearance: none;
+      display: grid;
+      place-items: center;
       inline-size: 44px;
       block-size: 44px;
       border: 1px solid transparent;
@@ -208,10 +228,36 @@ export class LuumOccurrenceComposerElement extends LitElement {
       background: transparent;
       color: var(--muted, #615d56);
       cursor: pointer;
-      font-size: 1.15rem;
       touch-action: manipulation;
     }
 
+    .commit {
+      border-color: color-mix(in srgb, var(--line-strong, #b8b1a5) 76%, transparent);
+      background: color-mix(in srgb, var(--paper, #fff) 92%, transparent);
+      color: var(--ink, #191714);
+    }
+
+    .commit svg {
+      inline-size: 20px;
+      block-size: 20px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .commit:disabled {
+      opacity: 0.38;
+      cursor: not-allowed;
+    }
+
+    .close {
+      font-size: 1.15rem;
+    }
+
+    .commit:not(:disabled):focus-visible,
+    .commit:not(:disabled):hover,
     .close:focus-visible,
     .close:hover {
       border-color: color-mix(in srgb, var(--line-strong, #b8b1a5) 70%, transparent);
@@ -308,7 +354,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
     @media (max-width: 480px) {
       .input-row {
-        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-columns: minmax(0, 1fr) auto auto;
       }
 
       .stage {
@@ -318,6 +364,72 @@ export class LuumOccurrenceComposerElement extends LitElement {
       .context-chip {
         max-inline-size: 72vw;
       }
+    }
+
+    .metadata-panel {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.5rem;
+      max-block-size: min(15rem, var(--composer-completion-max-height, 42dvh));
+      padding: 0.55rem;
+      overflow: auto;
+      overscroll-behavior: contain;
+      border-block-end: 1px solid var(--line, #d1ccc4);
+      background: color-mix(in srgb, var(--paper, #fff) 96%, transparent);
+    }
+
+    .metadata-field {
+      display: grid;
+      gap: 0.22rem;
+      min-inline-size: 0;
+      color: var(--muted, #615d56);
+      font-size: 0.68rem;
+      font-weight: 650;
+    }
+
+    .metadata-field-wide {
+      grid-column: 1 / -1;
+    }
+
+    .metadata-field :is(input, select, textarea) {
+      inline-size: 100%;
+      min-inline-size: 0;
+      min-block-size: 40px;
+      box-sizing: border-box;
+      padding: 0.45rem 0.55rem;
+      border: 1px solid var(--line, #d1ccc4);
+      border-radius: 0.48rem;
+      outline: none;
+      background: var(--paper, #fff);
+      color: var(--ink, #191714);
+      font: 500 0.78rem/1.35 ui-monospace, "SFMono-Regular", Consolas, monospace;
+    }
+
+    .metadata-field textarea {
+      min-block-size: 72px;
+      resize: vertical;
+    }
+
+    .metadata-field :is(input, select, textarea):focus-visible {
+      border-color: var(--focus, #315fbd);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus, #315fbd) 18%, transparent);
+    }
+
+    .metadata-actions {
+      grid-column: 1 / -1;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .metadata-actions button {
+      min-block-size: 40px;
+      padding-inline: 0.65rem;
+      border: 1px solid var(--line, #d1ccc4);
+      border-radius: 0.48rem;
+      background: var(--paper, #fff);
+      color: var(--ink, #191714);
+      cursor: pointer;
+      touch-action: manipulation;
     }
 
     .diagnostic {
@@ -433,6 +545,14 @@ export class LuumOccurrenceComposerElement extends LitElement {
   private hasPendingSelectionContext = false;
   private selectionSeeded = false;
   private sessionKey = "";
+  private activeContextKind: "place" | "time" | null = null;
+  private metadataOpen = false;
+  private metadataDirty = false;
+  private metadataRole = "";
+  private metadataInitialState: "active" | "inactive" = "active";
+  private metadataSourceIds = "";
+  private metadataConfidence = "";
+  private metadataAttributes = "{}";
 
   constructor() {
     super();
@@ -483,6 +603,21 @@ export class LuumOccurrenceComposerElement extends LitElement {
           ...(context.place
             ? { place: Object.freeze({ id: context.place.id, name: context.place.name }) }
             : {}),
+          ...(context.metadata
+            ? {
+                metadata: Object.freeze({
+                  ...(context.metadata.role !== undefined ? { role: context.metadata.role } : {}),
+                  ...(context.metadata.initialState
+                    ? { initialState: context.metadata.initialState }
+                    : {}),
+                  sourceIds: Object.freeze([...(context.metadata.sourceIds ?? [])]),
+                  ...(context.metadata.confidence !== undefined
+                    ? { confidence: context.metadata.confidence }
+                    : {}),
+                  attributes: Object.freeze({ ...(context.metadata.attributes ?? {}) }),
+                }),
+              }
+            : {}),
         })
       : null;
   }
@@ -491,7 +626,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const nextContext = this.frozenSelectionContext(context);
     const previousKey = this.selectionIdentityKey(this.selectionContext);
     const nextKey = this.selectionIdentityKey(nextContext);
-    const dirtyDraft = Boolean(this.value.trim()) && !this.selectionSeeded;
+    const dirtyDraft =
+      (Boolean(this.value.trim()) && !this.selectionSeeded) || this.metadataDirty;
 
     if (previousKey !== nextKey && dirtyDraft) {
       this.pendingSelectionContext = nextContext;
@@ -510,11 +646,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.hasPendingSelectionContext = false;
     this.selectionContext = nextContext;
     if (previousKey !== nextKey) {
-      this.value = "";
-      this.cursorOffset = 0;
-      this.selectionSeeded = false;
-      this.externalError = "";
-      this.activeSuggestion = 0;
+      this.resetDraft();
     }
     this.applySelectionSeed();
     this.requestUpdate();
@@ -564,6 +696,19 @@ export class LuumOccurrenceComposerElement extends LitElement {
     return this.data.entities.find((entity) => entity.id === id)?.name ?? id;
   }
 
+  private resetMetadataFromSelection(): void {
+    const metadata = this.selectionContext?.metadata;
+    this.metadataRole = metadata?.role?.trim() ?? "";
+    this.metadataInitialState = metadata?.initialState === "inactive" ? "inactive" : "active";
+    this.metadataSourceIds = (metadata?.sourceIds ?? []).join("\n");
+    this.metadataConfidence =
+      metadata?.confidence === null || metadata?.confidence === undefined
+        ? ""
+        : String(metadata.confidence);
+    this.metadataAttributes = JSON.stringify(metadata?.attributes ?? {}, null, 2);
+    this.metadataDirty = false;
+  }
+
   private resetDraft(): void {
     this.value = "";
     this.cursorOffset = 0;
@@ -571,6 +716,9 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.explicitPlaceContext = null;
     this.externalError = "";
     this.activeSuggestion = 0;
+    this.activeContextKind = null;
+    this.metadataOpen = false;
+    this.resetMetadataFromSelection();
   }
 
   private currentContextKey(): string {
@@ -587,7 +735,11 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
   beginSession(): void {
     const nextKey = this.currentContextKey();
-    if (this.sessionKey && this.sessionKey !== nextKey && this.value.trim()) {
+    if (
+      this.sessionKey &&
+      this.sessionKey !== nextKey &&
+      (this.value.trim() || this.metadataDirty)
+    ) {
       this.resetDraft();
     }
     this.sessionKey = nextKey;
