@@ -427,11 +427,7 @@
   align-items: center;
   flex: 0 0 auto;
   min-inline-size: calc((2 * var(--toolbar-control-size)) + 72px);
-  block-size: var(--toolbar-control-size);
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
-  border-radius: var(--toolbar-control-radius);
-  background: color-mix(in srgb, var(--paper) 82%, transparent);
 }
 
 .app-footer-view .world-zoom-control .world-zoom-endpoint-button {
@@ -494,31 +490,38 @@
   display: none;
 }
 
-.app-footer-bar .toolbar-control {
-  appearance: none;
-  display: grid;
-  place-items: center;
+.app-footer-bar :is(.toolbar-control, .toolbar-compound-control) {
   box-sizing: border-box;
-  flex: 0 0 var(--toolbar-control-size);
-  inline-size: var(--toolbar-control-size);
   block-size: var(--toolbar-control-size);
-  min-inline-size: var(--toolbar-control-size);
   min-block-size: var(--toolbar-control-size);
-  max-inline-size: var(--toolbar-control-size);
-  max-block-size: var(--toolbar-control-size);
   margin: 0;
-  padding: 0;
   border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
   border-radius: var(--toolbar-control-radius);
   background: color-mix(in srgb, var(--paper) 82%, transparent);
   color: var(--ink);
   box-shadow: none;
+}
+
+.app-footer-bar .toolbar-control {
+  appearance: none;
+  display: grid;
+  place-items: center;
+  flex: 0 0 var(--toolbar-control-size);
+  inline-size: var(--toolbar-control-size);
+  min-inline-size: var(--toolbar-control-size);
+  max-inline-size: var(--toolbar-control-size);
+  max-block-size: var(--toolbar-control-size);
+  padding: 0;
   cursor: pointer;
   touch-action: manipulation;
 }
 
-.app-footer-bar .toolbar-control :is(.semantic-icon, img),
-.app-footer-bar .toolbar-control > .semantic-icon {
+.app-footer-bar :is(.toolbar-control, .toolbar-compound-control) .semantic-icon {
+  display: block;
+  flex: 0 0 auto;
+}
+
+.app-footer-bar .toolbar-control .semantic-icon {
   inline-size: 20px;
   block-size: 20px;
 }
@@ -528,36 +531,42 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .app-footer-bar .toolbar-control:is(:hover, :focus-visible, :focus-within) {
+  .app-footer-bar
+    :is(.toolbar-control, .toolbar-compound-control):is(:hover, :focus-visible, :focus-within) {
     border-color: color-mix(in srgb, var(--line-strong) 88%, transparent);
     background: var(--paper-2);
     color: var(--ink);
   }
 }
 
-.app-footer-bar .toolbar-control:is(:focus-visible, :focus-within) {
+.app-footer-bar
+  :is(.toolbar-control, .toolbar-compound-control):is(:focus-visible, :focus-within) {
   outline: 2px solid var(--focus);
   outline-offset: -3px;
 }
 
-#app-shell[data-editor-open="true"] .app-footer-bar #editor-toggle,
-#app-shell[data-browser-open="true"] .app-footer-bar #timeline-browser-toggle,
-.app-footer-bar #project-menu-toggle[aria-expanded="true"],
-.app-footer-bar .toolbar-control[aria-pressed="true"] {
+.app-footer-bar .toolbar-control:is([aria-expanded="true"], [aria-pressed="true"]) {
   border-color: color-mix(in srgb, var(--focus) 56%, var(--line-strong));
   background: color-mix(in srgb, var(--focus) 9%, var(--paper-2));
   color: var(--ink);
 }
 
 .app-footer-bar .toolbar-control:disabled,
-.app-footer-bar .toolbar-control:has([data-view-control]:disabled) {
+.app-footer-bar .toolbar-control:has([data-view-control]:disabled),
+.app-footer-bar .toolbar-compound-control:has([data-view-control]:disabled) {
   opacity: 0.42;
   cursor: not-allowed;
 }
 
+.app-footer-bar .toolbar-compound-control .toolbar-control:disabled {
+  opacity: 1;
+}
+
 /* Compound controls keep the canonical surface; only their required width differs. */
 .app-footer-bar .toolbar-control-wide {
+  display: grid;
   grid-template-columns: 16px minmax(64px, 1fr) 16px;
+  place-items: center;
   gap: 0.22rem;
   flex-basis: 104px;
   inline-size: 104px;
@@ -569,6 +578,7 @@
 
 .app-footer-bar .toolbar-control-value {
   display: flex;
+  align-items: center;
   gap: 0.18rem;
   flex-basis: auto;
   inline-size: auto;

@@ -3705,7 +3705,7 @@ export class DeckWorldSurface implements WorldSurface {
     };
 
     const zoomControl = doc.createElement("div");
-    zoomControl.className = "world-zoom-control";
+    zoomControl.className = "toolbar-compound-control world-zoom-control";
     zoomControl.setAttribute("role", "group");
     zoomControl.setAttribute("aria-label", "World zoom");
 
@@ -3738,7 +3738,7 @@ export class DeckWorldSurface implements WorldSurface {
     bar.append(
       zoomControl,
       button("Fit to content", "fit", () => this.fitToContent()),
-      button("Show whole world", "home", () => this.showWholeGlobe()),
+      button("Show whole world", "world", () => this.showWholeGlobe()),
     );
     this.#container.appendChild?.(bar);
     return bar;

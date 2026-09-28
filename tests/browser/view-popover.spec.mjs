@@ -26,6 +26,45 @@ test("View controls are direct persistent toolbar content", async ({ page }) => 
   await expect(view.locator(".world-layout-controls")).toBeVisible();
 });
 
+test("atomic and compound toolbar controls share height, centerline, and icon sizing", async ({
+  page,
+}) => {
+  const controls = [
+    page.locator("#editor-toggle"),
+    page.locator("#timeline-orientation-toggle"),
+    page.locator(".toolbar-range-control"),
+    page.locator(".toolbar-number-control"),
+    page.locator(".world-zoom-control"),
+  ];
+
+  const boxes = await Promise.all(controls.map((control) => control.boundingBox()));
+  for (const box of boxes) {
+    expect(box).not.toBeNull();
+    if (!box) continue;
+    expect(Math.abs(box.height - 44)).toBeLessThanOrEqual(1);
+  }
+  const centerlines = boxes
+    .filter((box) => box !== null)
+    .map((box) => box.y + box.height / 2);
+  expect(Math.max(...centerlines) - Math.min(...centerlines)).toBeLessThanOrEqual(1);
+
+  const project = page.locator("#project-menu-toggle");
+  await expect(project).toHaveAttribute("data-semantic-icon", "folder");
+  await expect(project.locator(":scope > .semantic-icon")).toHaveCount(1);
+  await expect(project.locator(":scope > img")).toHaveCount(0);
+
+  const icons = page.locator(".app-footer-bar .toolbar-control > .semantic-icon:visible");
+  const count = await icons.count();
+  expect(count).toBeGreaterThanOrEqual(10);
+  for (let index = 0; index < count; index += 1) {
+    const box = await icons.nth(index).boundingBox();
+    expect(box).not.toBeNull();
+    if (!box) continue;
+    expect(Math.abs(box.width - 20)).toBeLessThanOrEqual(1);
+    expect(Math.abs(box.height - 20)).toBeLessThanOrEqual(1);
+  }
+});
+
 test("toolbar actions update state, labels, tooltips, and direct icons", async ({ page }) => {
   const edit = page.locator("#editor-toggle");
   const browse = page.locator("#timeline-browser-toggle");
@@ -92,7 +131,7 @@ test("toolbar actions update state, labels, tooltips, and direct icons", async (
     await button.click();
   }
 
-  for (const name of ["Reorganize relationship layout", "Relax graph forces"]) {
+  for (const name of ["Arrange relationships", "Settle relationships"]) {
     const button = page.getByRole("button", { name });
     await expect(button).toBeEnabled();
     await expect(button).toHaveAttribute("title", /.+/);

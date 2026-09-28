@@ -36,6 +36,7 @@ const ICON_PATHS: Record<string, string[]> = Object.freeze({
     "M21 17a2 2 0 1 1-4 0 2 2 0 0 1 4 0z",
   ],
   note: ["M5 4h14v16H5z", "M8 8h8", "M8 12h8", "M8 16h5"],
+  folder: ["M3 6h7l2 2h9v11H3z", "M3 9h18"],
   home: ["M3 11.5 12 3 9 7.5", "M5.5 10.5V21h13V10.5", "M9.5 21v-6h5v6"],
   danger: ["M12 3 2.5 20h19z", "M12 9v5", "M12 18h.01"],
   magic: [
