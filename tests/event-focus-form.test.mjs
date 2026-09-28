@@ -66,7 +66,7 @@ test("the custom calendar keeps keyboard navigation while Lit owns declarative c
   assert.match(html, /id="item-calendar-year"/);
 });
 
-test("focused detail prioritizes Context and Evidence while navigation stays on the timeline", async () => {
+test("focused detail owns Context, Evidence, and contextual navigation without mutating the footer", async () => {
   const [source, css, html] = await Promise.all([
     readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
@@ -76,10 +76,12 @@ test("focused detail prioritizes Context and Evidence while navigation stays on 
   assert.match(source, /timeline-focus-evidence/);
   assert.match(source, /overviewTab\.textContent = "Context"/);
   assert.match(source, /focusNavigationState\(\)/);
-  assert.doesNotMatch(source, /timeline-focus-nav-prev|timeline-focus-nav-next|Edit event/);
-  assert.match(html, /id="timeline-focus-prev"/);
-  assert.match(html, /id="timeline-focus-next"/);
-  assert.doesNotMatch(html, /id="timeline-focus-edit"/);
+  assert.match(source, /timeline-focus-toolbar-actions/);
+  assert.match(source, /timeline-focus-prev/);
+  assert.match(source, /timeline-focus-next/);
+  assert.match(source, /timeline-focus-related-zoom/);
+  assert.match(source, /timeline-focus-related-fit/);
+  assert.doesNotMatch(html, /timeline-focus-prev|timeline-focus-next|timeline-related-zoom|timeline-related-fit|timeline-focus-edit/);
   assert.match(html, /id="editor-toggle"/);
   assert.match(css, /data-layout="hero-split"/);
   assert.match(css, /data-layout="evidence-dossier"/);
