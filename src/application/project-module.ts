@@ -12,6 +12,7 @@ import {
 
 export const LUM_PROJECT_MODULE_FORMAT = "lum-project-module";
 export const LUM_PROJECT_MODULE_VERSION = 1;
+export const LUM_PROJECT_MODULE_FILE_EXTENSION = ".module.lum.json";
 export const LUM_PROJECT_MODULE_SCHEMA_ID =
   "https://xtreemze.github.io/timeline/schemas/lum-project-module-v1.schema.json";
 
