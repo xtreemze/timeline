@@ -1921,6 +1921,50 @@ function syncOccurrenceComposerSelection(selection = applicationSelection.curren
 
 let occurrenceComposerReturnFocus: HTMLElement | null = null;
 
+const occurrenceComposerHomeAnchor = document.createComment("occurrence-composer-home");
+els.occurrenceComposer.after(occurrenceComposerHomeAnchor);
+const occurrenceComposerProxy = document.createElement("button");
+occurrenceComposerProxy.type = "button";
+occurrenceComposerProxy.className = "occurrence-composer-proxy";
+occurrenceComposerProxy.textContent = "Editing selected occurrence";
+occurrenceComposerProxy.setAttribute(
+  "aria-label",
+  "Focus occurrence composer in selected occurrence card",
+);
+occurrenceComposerProxy.hidden = true;
+occurrenceComposerHomeAnchor.parentNode?.insertBefore(
+  occurrenceComposerProxy,
+  occurrenceComposerHomeAnchor,
+);
+occurrenceComposerProxy.addEventListener("click", () => {
+  els.occurrenceComposer.show();
+});
+
+function restoreOccurrenceComposerHome(): void {
+  const parent = occurrenceComposerHomeAnchor.parentNode;
+  if (!parent) return;
+  if (els.occurrenceComposer.parentNode !== parent) {
+    parent.insertBefore(els.occurrenceComposer, occurrenceComposerProxy);
+  }
+  els.occurrenceComposer.dataset.host = "footer";
+  occurrenceComposerProxy.hidden = true;
+  const cardHost = els.timelineViewRoot.querySelector<HTMLElement>(
+    "[data-occurrence-composer-host]",
+  );
+  if (cardHost) cardHost.hidden = true;
+}
+
+function mountOccurrenceComposerInCard(host: HTMLElement | null): boolean {
+  const composerHost =
+    host?.querySelector<HTMLElement>("[data-occurrence-composer-host]") ?? null;
+  if (!composerHost?.isConnected) return false;
+  composerHost.hidden = false;
+  composerHost.append(els.occurrenceComposer);
+  els.occurrenceComposer.dataset.host = "card";
+  occurrenceComposerProxy.hidden = false;
+  return true;
+}
+
 function composerInvoker(): HTMLElement | null {
   const active = document.activeElement;
   if (!(active instanceof HTMLElement) || active === document.body) return null;
@@ -1993,6 +2037,7 @@ function setOccurrenceComposerOpen(open: boolean): void {
   if (ui.importReviewOpen) return;
   let focusToRestore: HTMLElement | null = null;
   if (open) {
+    restoreOccurrenceComposerHome();
     if (!els.occurrenceComposer.active) {
       occurrenceComposerReturnFocus = composerInvoker();
     }
@@ -2029,6 +2074,7 @@ function setOccurrenceComposerOpen(open: boolean): void {
     els.occurrenceComposer.show();
   } else {
     els.occurrenceComposer.hide();
+    restoreOccurrenceComposerHome();
     focusToRestore = occurrenceComposerReturnFocus;
     occurrenceComposerReturnFocus = null;
   }
@@ -2543,6 +2589,11 @@ function renderTimeline() {
       [
         ...visible.map((item) => {
           const category = getCategory(item.categoryId);
+          const itemRelationships = state.relationships.filter((relationship) =>
+            (relationship.itemIds || []).some((id) => String(id) === String(item.id)),
+          );
+          const editableRelationship =
+            itemRelationships.length === 1 ? itemRelationships[0] ?? null : null;
           const itemTime = temporal.sortKey(item.time?.start || item.start);
           const eventViewport = Number.isFinite(itemTime)
             ? { start: itemTime, end: itemTime }
@@ -2552,6 +2603,10 @@ function renderTimeline() {
             kind: item.kind,
             title: item.title,
             description: item.description,
+            relationshipId: editableRelationship?.id ? String(editableRelationship.id) : undefined,
+            composition: editableRelationship
+              ? occurrenceCompositionForRelationship(editableRelationship, String(item.id))
+              : "",
             categoryName: category.name,
             color: category.color,
             start: temporal.sortKey(item.time?.start || item.start),
@@ -2573,11 +2628,7 @@ function renderTimeline() {
             evidence: (item.evidenceIds || [])
               .map((id) => state.evidence.find((record) => record.id === id))
               .filter(Boolean),
-            relations: state.relationships
-              .filter((relationship) =>
-                (relationship.itemIds || []).some((id) => String(id) === String(item.id)),
-              )
-              .map((relationship) => ({
+            relations: itemRelationships.map((relationship) => ({
                 id: relationship.id,
                 predicate: relationship.predicate,
                 role: relationship.role || "",
@@ -2622,6 +2673,10 @@ function renderTimeline() {
             id: occurrence.occurrenceId,
             kind: occurrence.end === null ? "event" : "range",
             title: occurrence.title,
+            relationshipId: relationship?.id ? String(relationship.id) : undefined,
+            composition: relationship
+              ? occurrenceCompositionForRelationship(relationship, null)
+              : "",
             description: relationship?.role
               ? `${occurrence.subjectName} ${occurrence.predicate} ${occurrence.objectName} · ${relationship.role}`
               : `${occurrence.subjectName} ${occurrence.predicate} ${occurrence.objectName}`,
@@ -6042,6 +6097,7 @@ els.timelineViewRoot.addEventListener("timelineorientationchange", (event) => {
 });
 
 els.timelineViewRoot.addEventListener("timelinefocuschange", (event) => {
+  restoreOccurrenceComposerHome();
   const focused = Boolean(event.detail?.focused);
   const cardFocused = focused && event.detail?.presentationSurface === "card";
   if (focused) {
@@ -6129,6 +6185,35 @@ els.graphViewRoot.addEventListener("worldcontextrequest", (event) => {
   els.occurrenceComposer.setWorldContext(longitude, latitude, Number.isFinite(zoom) ? zoom : null);
   els.occurrenceComposer.beginSession();
   request.preventDefault();
+});
+
+els.timelineViewRoot.addEventListener("timelineoccurrencecomposerrequest", (event) => {
+  if (!(event instanceof CustomEvent)) return;
+  const detail = event.detail as {
+    id?: string;
+    relationshipId?: string | null;
+    sectionKind?: ComposerEditableSection["kind"];
+    sectionIndex?: number;
+    host?: HTMLElement | null;
+  };
+
+  setOccurrenceComposerOpen(true);
+  if (detail.relationshipId) {
+    syncOccurrenceComposerSelection({
+      kind: "relationship",
+      id: detail.relationshipId,
+      itemId: detail.id ?? null,
+    });
+    els.occurrenceComposer.beginSession();
+  }
+  if (!mountOccurrenceComposerInCard(detail.host ?? null)) return;
+  globalThis.requestAnimationFrame(() => {
+    if (!detail.sectionKind) {
+      els.occurrenceComposer.show();
+      return;
+    }
+    els.occurrenceComposer.editSection(detail.sectionKind, detail.sectionIndex ?? 0);
+  });
 });
 
 els.occurrenceComposer.addEventListener("occurrencecomposeropenrequest", () => {
