@@ -1,7 +1,7 @@
 {
   "name": "lum-language-tools",
   "displayName": "Lūm Language Tools",
-  "description": "Strict schema validation, diagnostics, formatting, scaffolding, and semantic highlighting for Lūm projects, modules, and change proposals.",
+  "description": "Strict Lūm schemas, CLI diagnostics/formatting, scaffolding, and shared workspace language intelligence.",
   "version": "0.1.0",
   "publisher": "xtreemze",
   "license": "UNLICENSED",

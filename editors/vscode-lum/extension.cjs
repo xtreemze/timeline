@@ -3,46 +3,9 @@ const { existsSync } = require("node:fs");
 const path = require("node:path");
 const process = require("node:process");
 const vscode = require("vscode");
+const { createLumLspClient } = require("./lsp-client.cjs");
 
 const selector = { language: "json", pattern: "**/*.lum.json" };
-const envelopeKeys = new Set([
-  "$schema",
-  "format",
-  "interchangeVersion",
-  "schemaVersion",
-  "projectKey",
-  "revision",
-  "savedAt",
-  "project",
-]);
-const collectionKeys = new Set([
-  "entities",
-  "relationships",
-  "occurrences",
-  "trajectories",
-  "places",
-  "sources",
-  "categories",
-  "stories",
-  "participantContexts",
-  "relationshipIds",
-  "trajectoryIds",
-  "sourceIds",
-  "occurrenceIds",
-  "placeIds",
-]);
-const referenceKeys = new Set([
-  "id",
-  "subjectId",
-  "objectId",
-  "placeId",
-  "entityId",
-  "representedEntityId",
-  "organizationId",
-  "categoryId",
-  "storyId",
-]);
-
 function isLumDocument(document) {
   return document.languageId === "json" && document.fileName.endsWith(".lum.json");
 }
@@ -166,38 +129,7 @@ async function initializeProject() {
   await vscode.window.showTextDocument(document);
 }
 
-function semanticProvider() {
-  const legend = new vscode.SemanticTokensLegend(["keyword", "property", "variable"], []);
-  const provider = {
-    provideDocumentSemanticTokens(document) {
-      const builder = new vscode.SemanticTokensBuilder(legend);
-      for (let line = 0; line < document.lineCount; line += 1) {
-        const source = document.lineAt(line).text;
-        const pattern = /"([^"\\]+)"\s*:/g;
-        let match;
-        while ((match = pattern.exec(source))) {
-          const key = match[1];
-          const offset = match.index + 1;
-          const length = key.length;
-          const tokenType = envelopeKeys.has(key)
-            ? "keyword"
-            : collectionKeys.has(key)
-              ? "property"
-              : referenceKeys.has(key)
-                ? "variable"
-                : null;
-          if (tokenType) {
-            builder.push(new vscode.Range(line, offset, line, offset + length), tokenType, []);
-          }
-        }
-      }
-      return builder.build();
-    },
-  };
-  return { legend, provider };
-}
-
-function activate(context) {
+async function activate(context) {
   const diagnostics = vscode.languages.createDiagnosticCollection("lum");
   context.subscriptions.push(diagnostics);
 
@@ -231,14 +163,22 @@ function activate(context) {
     }),
   );
 
-  const semantic = semanticProvider();
-  context.subscriptions.push(
-    vscode.languages.registerDocumentSemanticTokensProvider(
-      selector,
-      semantic.provider,
-      semantic.legend,
-    ),
-  );
+  const lspClient = createLumLspClient(context, {
+    selector,
+    isLumDocument,
+    invocation: () => ({
+      ...invocation(),
+      cwd: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
+    }),
+  });
+  try {
+    await lspClient.start();
+    context.subscriptions.push({ dispose: () => lspClient.stop() });
+  } catch (error) {
+    vscode.window.showWarningMessage(
+      `Lūm language intelligence is unavailable: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
 
   context.subscriptions.push(
     vscode.commands.registerCommand("lum.checkCurrentFile", async () => {
