@@ -91,6 +91,9 @@ const ICON_PATHS: Record<string, string[]> = Object.freeze({
   spindle: ["M12 3v18", "M8 7c2 2 6 2 8 0", "M8 17c2-2 6-2 8 0", "M10 5h4", "M10 19h4"],
   baby: ["M12 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6z", "M7 13c1-2 3-3 5-3s4 1 5 3l2 5-3 3H8l-3-3z", "M9 15h6"],
   parent: ["M9 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6z", "M4 21a5 5 0 0 1 10 0", "M17 13a2 2 0 1 0 0-4 2 2 0 0 0 0 4z", "M14 21a3 3 0 0 1 6 0"],
+  world: ["M12 2.5a9.5 9.5 0 1 0 0 19 9.5 9.5 0 0 0 0-19z", "M2.8 12h18.4", "M12 2.7c2.8 2.6 4.2 5.7 4.2 9.3S14.8 18.7 12 21.3", "M12 2.7C9.2 5.3 7.8 8.4 7.8 12s1.4 6.7 4.2 9.3"],
+  timeline: ["M3 12h18", "M6 12a2 2 0 1 0 0 .01", "M12 12a2 2 0 1 0 0 .01", "M18 12a2 2 0 1 0 0 .01"],
+  check: ["m5 12 4 4L19 6"],
   view: ["M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z", "M12 9a3 3 0 1 1 0 6 3 3 0 0 1 0-6z"],
   landscape: ["M3 5h18v14H3z", "M8 16h8"],
   portrait: ["M6 2h12v20H6z", "M10 18h4"],
@@ -202,6 +205,32 @@ export function createIcon(name: string, options?: IconOptions): SVGSVGElement {
     svg.append(path);
   }
   return svg;
+}
+
+export function createCompoundIcon(
+  primaryName: string,
+  secondaryName: string,
+  options?: IconOptions,
+): HTMLSpanElement {
+  const size = options?.size || 16;
+  const secondarySize = Math.max(9, Math.round(size * 0.52));
+  const root = document.createElement("span");
+  root.className = "semantic-icon compound-semantic-icon";
+  root.setAttribute("aria-hidden", "true");
+
+  const primary = createIcon(primaryName, { size });
+  primary.classList.remove("semantic-icon");
+  primary.classList.add("compound-semantic-icon-primary");
+
+  const secondary = createIcon(secondaryName, { size: secondarySize });
+  secondary.classList.remove("semantic-icon");
+  secondary.classList.add("compound-semantic-icon-secondary");
+  // The secondary SVG is rendered smaller, so compensate its viewBox stroke
+  // width to preserve the same apparent outline weight as the primary icon.
+  secondary.setAttribute("stroke-width", String((1.8 * size * 0.92) / secondarySize));
+
+  root.append(primary, secondary);
+  return root;
 }
 
 export function createTag(tag: unknown): HTMLElement | null {
