@@ -1193,6 +1193,9 @@ export class TimelineViewController {
       this.lastClusterHapticAt = 0;
       this.geometryMeasurements.clear();
       this.focusedId = null;
+      this.explicitDetailOpen = false;
+      this.interactionSession = createOccurrenceInteractionSession();
+      this.lastFocusPresentation = "resting";
     }
 
     if (!this.viewportInitialized && this.items.length) {
@@ -3877,7 +3880,7 @@ export class TimelineViewController {
       (this.focusedId
         ? this.scene.get(occurrenceSceneKey(this.focusedId))?.node.detailHost ?? null
         : null) ??
-      focusHost;
+      this.focusView;
     focusHost.tabIndex = -1;
     focusHost.style.setProperty("--event-color", item.color || "var(--accent)");
     focusHost.dataset.layout = item.layoutVariant || "evidence-dossier";
@@ -4160,23 +4163,32 @@ export class TimelineViewController {
   }
 
   // Keep this signature stable while callers migrate: focusItem(id, options = {})
-  focusItem(id: string, options: { moveViewport?: boolean; direction?: number } = {}) {
+  focusItem(
+    id: string,
+    options: { moveViewport?: boolean; direction?: number; detail?: "auto" | "open" } = {},
+  ) {
     const item = this.items.find((candidate) => candidate.id === id);
     if (!item) return false;
     const moveViewport = options.moveViewport !== false;
-    if (this.focusedId !== id) {
+    const changedOccurrence = this.focusedId !== id;
+    if (changedOccurrence) {
       this.focusMediaIndex = 0;
       this.focusTab = "overview";
+      this.explicitDetailOpen = options.detail === "open";
+    } else if (options.detail === "open") {
+      this.explicitDetailOpen = true;
     }
 
     const update = () => {
       this.focusedId = id;
+      const selection = switchOccurrenceSelection(this.interactionSession, id, {
+        dirtyDraftPolicy: "preserve",
+      });
+      this.interactionSession = setPresentation(selection.session, "focused");
       this.syncSemanticChronologySelection();
       this.root.classList.add("is-event-focused");
       this.root.dataset.sceneState = "focused";
-      this.focusView.hidden = false;
-      this.focusView.dataset.presentationSurface = "sidebar";
-      this.renderFocus(item);
+      this.focusView.hidden = true;
 
       if (moveViewport) {
         const sorted = [...this.items].sort((left, right) => left.start - right.start);
@@ -4197,13 +4209,7 @@ export class TimelineViewController {
       this.root.dispatchEvent(
         new CustomEvent("timelinefocuschange", {
           bubbles: true,
-          detail: { focused: true, id },
-        }),
-      );
-      this.root.dispatchEvent(
-        new CustomEvent("timelinefocusrender", {
-          bubbles: true,
-          detail: { id },
+          detail: { focused: true, id, presentationSurface: "card" },
         }),
       );
     };
@@ -4218,18 +4224,25 @@ export class TimelineViewController {
 
   ensureFocusPopover(): void {
     if (!this.focusedId) return;
-    this.focusView.hidden = false;
-    this.focusView.dataset.presentationSurface = "sidebar";
+    this.explicitDetailOpen = true;
+    this.interactionSession = setPresentation(this.interactionSession, "expanded");
+    this.render();
   }
 
   closeFocus(): void {
     if (!this.focusedId) return;
     const previous = this.focusedId;
     const update = () => {
+      const record = this.scene.get(occurrenceSceneKey(previous));
+      record?.node.setExpanded(false);
       this.focusedId = null;
+      this.explicitDetailOpen = false;
+      this.interactionSession = createOccurrenceInteractionSession();
+      this.lastFocusPresentation = "resting";
       this.syncSemanticChronologySelection();
       this.root.classList.remove("is-event-focused");
       this.root.dataset.sceneState = this.items.length ? "populated" : "empty";
+      delete this.root.dataset.focusPresentation;
       this.focusView.hidden = true;
       this.focusView.replaceChildren();
       this.focusView.style.removeProperty("--event-color");
@@ -4242,7 +4255,7 @@ export class TimelineViewController {
       this.root.dispatchEvent(
         new CustomEvent("timelinefocuschange", {
           bubbles: true,
-          detail: { focused: false, id: previous },
+          detail: { focused: false, id: previous, presentationSurface: "card" },
         }),
       );
     };
