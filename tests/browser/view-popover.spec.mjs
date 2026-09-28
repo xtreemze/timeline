@@ -133,6 +133,34 @@ test("composer exposes live context, pins explicit context, and leaves Tab for f
   await expect(composer).toHaveAttribute("active", "");
 });
 
+test("composer keeps drafts in the same context and clears them when spatial context changes", async ({
+  page,
+}) => {
+  await page.locator("#editor-toggle").click();
+  await page.locator("#occurrence-composer-toggle").click();
+
+  const composer = page.locator("#occurrence-composer");
+  const input = composer.locator("input");
+  await input.fill("Alice meets Bob");
+
+  await page.evaluate(() => {
+    const element = document.querySelector("#occurrence-composer");
+    if (!(element instanceof HTMLElement)) throw new Error("Composer unavailable.");
+    const composerElement = element;
+    composerElement.beginSession?.();
+  });
+  await expect(input).toHaveValue("Alice meets Bob");
+
+  await page.evaluate(() => {
+    const element = document.querySelector("#occurrence-composer");
+    if (!(element instanceof HTMLElement)) throw new Error("Composer unavailable.");
+    const composerElement = element;
+    composerElement.setWorldContext?.(0, 0, 18);
+    composerElement.beginSession?.();
+  });
+  await expect(input).toHaveValue("");
+});
+
 test("opening Browse disables direct View controls without changing spatial stage geometry", async ({
   page,
 }) => {
