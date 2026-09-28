@@ -200,6 +200,23 @@ test("selected events use a shell-owned detail surface without changing footer c
   assert.match(css, /> \.timeline-focus-summary[\s\S]*grid-column:\s*1 \/ -1/);
 });
 
+test("timeline composition root outranks the non-fullscreen world without stealing background input", async () => {
+  const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
+
+  assert.match(
+    css,
+    /#presentation-stage:not\(:fullscreen\) > \.timeline-view\s*\{[\s\S]*z-index:\s*1060[\s\S]*pointer-events:\s*none/,
+  );
+  assert.match(
+    css,
+    /#presentation-stage:where\(:fullscreen\) > \.timeline-view\s*\{[\s\S]*z-index:\s*2[\s\S]*pointer-events:\s*none/,
+  );
+  assert.match(
+    css,
+    /#presentation-stage > \.timeline-view > \.timeline-project-heading,[\s\S]*pointer-events:\s*auto/,
+  );
+});
+
 test("timeline rails reserve one occurrence-card lane while later lanes may overflow inward", async () => {
   const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
 

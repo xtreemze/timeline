@@ -403,7 +403,12 @@ test("opening Browse disables direct View controls without changing spatial stag
 });
 
 test("Browse opens an example story into visible timeline context", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const timeline = page.locator("#timeline-view");
+  if ((await timeline.getAttribute("data-orientation")) !== "landscape") {
+    await page.locator("#timeline-orientation-toggle").click();
+  }
+  await expect(timeline).toHaveAttribute("data-orientation", "landscape");
   await page.locator("#timeline-browser-toggle").click();
 
   const browser = page.locator("#timeline-browser-sheet");
@@ -446,12 +451,30 @@ test("Browse opens an example story into visible timeline context", async ({ pag
     .toBeGreaterThan(0);
   await expect(page.locator(`.timeline-event[data-id="${storyItems[0].id}"]`)).toBeVisible();
 
-  const storyNextOwnsHitTarget = await page.locator("#story-next").evaluate((button) => {
+  const titlebarStack = await page.locator("#story-next").evaluate((button) => {
     const rect = button.getBoundingClientRect();
-    const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
-    return Boolean(hit?.closest("#story-next"));
+    const x = rect.left + rect.width / 2;
+    const y = rect.top + rect.height / 2;
+    const graph = document.querySelector("#presentation-stage > .graph-lens:not([hidden])");
+    const graphRect = graph?.getBoundingClientRect();
+    const stack = document.elementsFromPoint(x, y);
+    return {
+      overlapsWorld:
+        Boolean(graphRect) &&
+        x >= graphRect.left &&
+        x <= graphRect.right &&
+        y >= graphRect.top &&
+        y <= graphRect.bottom,
+      buttonOwnsHit: Boolean(stack[0]?.closest("#story-next")),
+      worldIsUnderButton: stack.some((node) => Boolean(node.closest(".graph-lens"))),
+    };
   });
-  expect(storyNextOwnsHitTarget).toBe(true);
+  expect(titlebarStack.overlapsWorld).toBe(true);
+  expect(titlebarStack.buttonOwnsHit).toBe(true);
+  expect(titlebarStack.worldIsUnderButton).toBe(true);
+
+  await page.locator("#timeline-title").click();
+  await expect(page.locator("#timeline-title")).toBeFocused();
 
   await page.locator("#story-next").click();
   await expect(page.locator("#story-focus-position")).toHaveText(`2 / ${storyItems.length}`);
