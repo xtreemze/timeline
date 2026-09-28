@@ -620,6 +620,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
           : html`<span id="occurrence-composer-diagnostic" hidden></span>`}
 
         <p id="occurrence-composer-help" class="help">
+          Arrow keys navigate suggestions · Home/End jump to the first/last suggestion ·
           Tab completes · Enter commits · Esc closes. Quote multi-word entity names.
           Defaults follow ${placeLabel} and ${timeLabel ?? "the timeline center"} until explicitly pinned.
           Move the timeline or World while this is open to change unpinned defaults.
