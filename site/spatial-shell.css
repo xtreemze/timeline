@@ -421,6 +421,14 @@
   scrollbar-width: none;
 }
 
+/* Direct view-control groups must retain their intrinsic width. If these flex
+   items shrink, their non-shrinking buttons overflow the group box and paint
+   over the next group instead of contributing to the footer scroller. */
+.app-footer-view > .view-control-group {
+  flex: 0 0 auto;
+  min-inline-size: max-content;
+}
+
 .app-footer-view::-webkit-scrollbar {
   display: none;
 }
