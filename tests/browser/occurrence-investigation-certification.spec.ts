@@ -108,7 +108,11 @@ test.describe("unified occurrence investigation certification", () => {
 
     await pending.click();
     await expect(input).not.toHaveValue(dirty);
-    await expect(input).toContainText;
+    await expect(input).toHaveValue(
+      new RegExp(
+        `@${String(second.subjectId)}\\s+${String(second.predicate)}\\s+@${String(second.objectId)}`,
+      ),
+    );
   });
 
   test("investigation typing does not create document scroll on narrow viewport", async ({ page }) => {
