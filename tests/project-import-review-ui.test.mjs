@@ -82,3 +82,20 @@ test("review makes provenance, unresolved facts, and findings visible without ex
     /if \(ui\.importReviewOpen\)[\s\S]*setProjectImportReviewOpen\(false/,
   );
 });
+
+test("review dismissal restores focus without scrolling and verified warnings are not mislabeled as conversion warnings", async () => {
+  const app = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
+
+  assert.match(
+    app,
+    /setProjectImportReviewOpen[\s\S]*projectMenuToggle\.focus\(\{ preventScroll: true \}\)/,
+  );
+  assert.match(
+    app,
+    /applyImportedTimeline\(verified, "Verified import"\)/,
+  );
+  assert.doesNotMatch(
+    app,
+    /applyImportedTimeline\(verified, "Verified import", review\.warnings\.length\)/,
+  );
+});
