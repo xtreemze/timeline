@@ -494,6 +494,18 @@ export class LuumOccurrenceComposerElement extends LitElement {
       this.requestUpdate();
       return;
     }
+    if (event.key === "Home" && suggestions.length) {
+      event.preventDefault();
+      this.activeSuggestion = 0;
+      this.requestUpdate();
+      return;
+    }
+    if (event.key === "End" && suggestions.length) {
+      event.preventDefault();
+      this.activeSuggestion = suggestions.length - 1;
+      this.requestUpdate();
+      return;
+    }
     if (event.key === "Tab" && suggestions.length) {
       event.preventDefault();
       const suggestion = suggestions[this.activeSuggestion] ?? suggestions[0];
