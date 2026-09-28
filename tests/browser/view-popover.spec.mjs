@@ -29,6 +29,26 @@ test("View controls are direct persistent toolbar content", async ({ page }) => 
 test("atomic and compound toolbar controls share height, centerline, and icon sizing", async ({
   page,
 }) => {
+  const composer = page.locator("#occurrence-composer");
+  const launcher = composer.locator("button.launcher");
+  await expect(launcher).toBeVisible();
+  const [composerBox, launcherBox, launcherIconBox] = await Promise.all([
+    composer.boundingBox(),
+    launcher.boundingBox(),
+    launcher.locator("svg").boundingBox(),
+  ]);
+  expect(composerBox).not.toBeNull();
+  expect(launcherBox).not.toBeNull();
+  expect(launcherIconBox).not.toBeNull();
+  if (composerBox && launcherBox && launcherIconBox) {
+    expect(Math.abs(composerBox.width - 44)).toBeLessThanOrEqual(1);
+    expect(Math.abs(composerBox.height - 44)).toBeLessThanOrEqual(1);
+    expect(Math.abs(launcherBox.width - 44)).toBeLessThanOrEqual(1);
+    expect(Math.abs(launcherBox.height - 44)).toBeLessThanOrEqual(1);
+    expect(Math.abs(launcherIconBox.width - 20)).toBeLessThanOrEqual(1);
+    expect(Math.abs(launcherIconBox.height - 20)).toBeLessThanOrEqual(1);
+  }
+
   const controls = [
     page.locator("#editor-toggle"),
     page.locator("#timeline-orientation-toggle"),
@@ -157,12 +177,12 @@ test("toolbar actions update state, labels, tooltips, and direct icons", async (
   await expect(investigation).toHaveAttribute("aria-label", "Investigation methodology");
 });
 
-test("composer exposes live context, pins explicit context, and leaves Tab for focus navigation", async ({ page }) => {
-  await page.locator("#editor-toggle").click();
-  const compose = page.locator("#occurrence-composer-toggle");
-  await compose.click();
-
+test("composer launcher is persistently visible and exposes live context", async ({ page }) => {
   const composer = page.locator("#occurrence-composer");
+  const compose = composer.locator("button.launcher");
+  await expect(compose).toBeVisible();
+  await expect(compose).toHaveAttribute("aria-label", "Compose occurrence");
+  await compose.click();
   const input = composer.locator("input");
   await expect(composer).toHaveAttribute("active", "");
   await expect(page.locator("#app-shell")).toHaveAttribute("data-composer-open", "true");
@@ -192,24 +212,21 @@ test("composer exposes live context, pins explicit context, and leaves Tab for f
   await expect(composer).toHaveAttribute("active", "");
   await close.click();
   await expect(composer).not.toHaveAttribute("active", "");
-  await expect(page.locator("#editor-toggle")).toBeFocused();
+  await expect(composer.locator("button.launcher")).toBeFocused();
 });
 
 test("composer keeps drafts in the same context and clears them when spatial context changes", async ({
   page,
 }) => {
-  await page.locator("#editor-toggle").click();
-  await page.locator("#occurrence-composer-toggle").click();
-
   const composer = page.locator("#occurrence-composer");
+  await composer.locator("button.launcher").click();
   const input = composer.locator("input");
   await input.fill("Alice meets Bob");
 
   await input.press("Escape");
   await expect(composer).not.toHaveAttribute("active", "");
 
-  await page.locator("#editor-toggle").click();
-  await page.locator("#occurrence-composer-toggle").click();
+  await composer.locator("button.launcher").click();
   await expect(composer).toHaveAttribute("active", "");
   await expect(input).toHaveValue("Alice meets Bob");
 
@@ -341,22 +358,25 @@ test("loading the example resets a stale shared temporal viewport on mobile", as
   expect(viewport.end).toBeLessThan(Date.UTC(1500, 0, 1));
 });
 
-test("Edit is the single toolbar authoring entry and disables direct View controls", async ({
+test("Edit stays the single mutation-sheet entry while composer remains directly reachable", async ({
   page,
 }) => {
   const footer = page.locator(".app-tool-dock");
-  await expect(footer.locator("#occurrence-composer-toggle")).toHaveCount(0);
+  const composer = footer.locator("#occurrence-composer");
+  await expect(page.locator("#occurrence-composer-toggle")).toHaveCount(0);
   await expect(footer.locator("#editor-toggle")).toHaveCount(1);
+  await expect(composer.locator("button.launcher")).toBeVisible();
 
   await page.locator("#editor-toggle").click();
   await expect(page.locator("#editor-toggle")).toHaveAttribute("aria-expanded", "true");
-  await expect(page.locator("#occurrence-composer-toggle")).toBeVisible();
+  await expect(composer).toBeHidden();
   await expect(page.locator("#timeline-orientation-toggle")).toBeDisabled();
   await expect(page.locator(".world-camera-control").first()).toBeDisabled();
 
   await page.keyboard.press("Escape");
   await expect(page.locator("#editor-toggle")).toHaveAttribute("aria-expanded", "false");
   await expect(page.locator("#timeline-orientation-toggle")).toBeEnabled();
+  await expect(composer.locator("button.launcher")).toBeVisible();
 });
 
 test("mobile dock horizontally scrolls to keep all direct controls reachable", async ({ page }) => {
