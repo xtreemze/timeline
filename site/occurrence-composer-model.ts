@@ -627,7 +627,7 @@ function readEntitySpan(
   let end = nameEnd;
   const propertyStart = skipSpaces(input, nameEnd);
   if (input[propertyStart] === "(") {
-    const close = input.indexOf(")", propertyStart + 1);
+    const close = findMarkerOutsideQuotes(input, ")", propertyStart + 1);
     end = close >= 0 ? close + 1 : input.length;
   }
 
@@ -686,12 +686,12 @@ export function composerCursorSection(input: string, cursorOffset: number): Comp
   }
 
   const lower = input.toLocaleLowerCase();
-  const optionsStart = lower.indexOf("[", object.end);
-  const onMarker = lower.indexOf(" on ", object.end);
-  const fromMarker = lower.indexOf(" from ", object.end);
+  const optionsStart = findMarkerOutsideQuotes(lower, "[", object.end);
+  const onMarker = findMarkerOutsideQuotes(lower, " on ", object.end);
+  const fromMarker = findMarkerOutsideQuotes(lower, " from ", object.end);
   const timeMarker =
     onMarker < 0 ? fromMarker : fromMarker < 0 ? onMarker : Math.min(onMarker, fromMarker);
-  const placeMarker = lower.indexOf(" at ", object.end);
+  const placeMarker = findMarkerOutsideQuotes(lower, " at ", object.end);
 
   if (placeMarker >= 0 && (timeMarker < 0 || placeMarker < timeMarker)) {
     const start = placeMarker + 4;
@@ -719,7 +719,7 @@ export function composerCursorSection(input: string, cursorOffset: number): Comp
   }
 
   if (optionsStart >= 0) {
-    const optionsEnd = input.indexOf("]", optionsStart + 1);
+    const optionsEnd = findMarkerOutsideQuotes(input, "]", optionsStart + 1);
     const end = optionsEnd >= 0 ? optionsEnd + 1 : input.length;
     if (offset >= optionsStart && offset < end) {
       return Object.freeze({
@@ -761,12 +761,12 @@ export function composerEditableSections(input: string): readonly ComposerEditab
   sections.push(Object.freeze({ kind: "object", ...object }));
 
   const lower = input.toLocaleLowerCase();
-  const optionsStart = lower.indexOf("[", object.end);
-  const onMarker = lower.indexOf(" on ", object.end);
-  const fromMarker = lower.indexOf(" from ", object.end);
+  const optionsStart = findMarkerOutsideQuotes(lower, "[", object.end);
+  const onMarker = findMarkerOutsideQuotes(lower, " on ", object.end);
+  const fromMarker = findMarkerOutsideQuotes(lower, " from ", object.end);
   const timeMarker =
     onMarker < 0 ? fromMarker : fromMarker < 0 ? onMarker : Math.min(onMarker, fromMarker);
-  const placeMarker = lower.indexOf(" at ", object.end);
+  const placeMarker = findMarkerOutsideQuotes(lower, " at ", object.end);
 
   if (placeMarker >= 0 && (timeMarker < 0 || placeMarker < timeMarker)) {
     const valueStart = placeMarker + 4;
@@ -806,42 +806,35 @@ export function composerEditableSections(input: string): readonly ComposerEditab
   }
 
   if (optionsStart >= 0) {
-    const optionsClose = input.indexOf("]", optionsStart + 1);
+    const optionsClose = findMarkerOutsideQuotes(input, "]", optionsStart + 1);
     const bodyEnd = optionsClose >= 0 ? optionsClose : input.length;
     const body = input.slice(optionsStart + 1, bodyEnd);
-    const categoryMatch = /(?:^|,)\s*category\s*:\s*([^,\]]*)/i.exec(body);
-    if (categoryMatch && categoryMatch.index >= 0) {
-      const rawValue = categoryMatch[1] ?? "";
-      const rawStart =
-        optionsStart +
-        1 +
-        categoryMatch.index +
-        categoryMatch[0].lastIndexOf(rawValue);
-      const range = trimmedValueRange(input, rawStart, rawStart + rawValue.length);
-      if (range.end > range.start) {
-        sections.push(
-          Object.freeze({
-            kind: "category",
-            start: range.start,
-            end: range.end,
-            text: unquote(input.slice(range.start, range.end)),
-          }),
-        );
-      }
+    const entries = parsePropertyEntries(body);
+    const categoryEntry = entries.find(
+      (entry) => entry.key.toLocaleLowerCase() === "category",
+    );
+    if (categoryEntry?.rawValue) {
+      const start = optionsStart + 1 + categoryEntry.valueStart;
+      const end = optionsStart + 1 + categoryEntry.valueEnd;
+      sections.push(
+        Object.freeze({
+          kind: "category",
+          start,
+          end,
+          text: unquote(input.slice(start, end)),
+        }),
+      );
     }
 
-    const tagsMatch = /(?:^|,)\s*tags\s*:\s*([^,\]]*)/i.exec(body);
-    if (tagsMatch && tagsMatch.index >= 0) {
-      const rawTags = tagsMatch[1] ?? "";
-      const rawStart =
-        optionsStart + 1 + tagsMatch.index + tagsMatch[0].lastIndexOf(rawTags);
-      let segmentOffset = 0;
+    const tagsEntry = entries.find((entry) => entry.key.toLocaleLowerCase() === "tags");
+    if (tagsEntry) {
+      const rawBase = optionsStart + 1 + tagsEntry.valueStart;
       let tagIndex = 0;
-      for (const segment of rawTags.split("|")) {
+      for (const tagRange of splitRangesOutsideQuotes(tagsEntry.rawValue, "|")) {
         const range = trimmedValueRange(
           input,
-          rawStart + segmentOffset,
-          rawStart + segmentOffset + segment.length,
+          rawBase + tagRange.start,
+          rawBase + tagRange.end,
         );
         if (range.end > range.start) {
           sections.push(
@@ -855,7 +848,6 @@ export function composerEditableSections(input: string): readonly ComposerEditab
           );
           tagIndex += 1;
         }
-        segmentOffset += segment.length + 1;
       }
     }
   }
