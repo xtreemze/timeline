@@ -3,6 +3,11 @@ name: Timeline view
 on:
   pull_request:
     paths:
+      - 'mcp/**'
+      - 'mcp.public.template.json'
+      - 'skills/document-to-lum-story/**'
+      - 'tests/public-mcp.test.mjs'
+      - 'docs/PUBLIC-MCP-STORY-GENERATION.md'
       - 'site/**/*.ts'
       - 'site/**/*.css'
       - 'src/**/*.ts'
@@ -110,6 +115,11 @@ on:
   push:
     branches: [main]
     paths:
+      - 'mcp/**'
+      - 'mcp.public.template.json'
+      - 'skills/document-to-lum-story/**'
+      - 'tests/public-mcp.test.mjs'
+      - 'docs/PUBLIC-MCP-STORY-GENERATION.md'
       - 'site/**/*.ts'
       - 'site/**/*.css'
       - 'src/**/*.ts'
