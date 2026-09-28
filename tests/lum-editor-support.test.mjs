@@ -20,6 +20,14 @@ test("VS Code extension associates .lum.json with the canonical schema and CLI c
         "https://xtreemze.github.io/timeline/schemas/lum-project-v1.schema.json",
     ),
   );
+  assert.ok(
+    manifest.contributes.jsonValidation.some(
+      (entry) =>
+        entry.fileMatch.includes("*.lum-proposal.json") &&
+        entry.url ===
+          "https://xtreemze.github.io/timeline/schemas/lum-change-proposal-v1.schema.json",
+    ),
+  );
 
   const commands = new Set(manifest.contributes.commands.map((command) => command.command));
   for (const command of ["lum.checkCurrentFile", "lum.lintCurrentFile", "lum.initProject"]) {
@@ -61,6 +69,12 @@ test("VS Code snippets scaffold strict current-format records", async () => {
   assert.equal(snippets["Lūm entity"].prefix, "lum-entity");
   assert.equal(snippets["Lūm relationship"].prefix, "lum-relationship");
   assert.equal(snippets["Lūm occurrence"].prefix, "lum-occurrence");
+  assert.equal(snippets["Lūm change proposal"].prefix, "lum-proposal");
+  assert.ok(
+    snippets["Lūm change proposal"].body.some((line) =>
+      line.includes('"verificationRequired": true'),
+    ),
+  );
 });
 
 test("Helix integration uses JSON grammar with lum LSP and formatter", async () => {
