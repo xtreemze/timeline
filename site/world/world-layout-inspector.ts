@@ -163,7 +163,7 @@ function panelShell(doc: Document, id: string, title: string): HTMLElement {
   panel.setAttribute("popover", "auto");
   panel.setAttribute("role", "dialog");
   panel.setAttribute("aria-label", title);
-  if (!(("showPopover" in panel) && typeof panel.showPopover === "function")) {
+  if (!("showPopover" in panel) || typeof panel.showPopover !== "function") {
     panel.hidden = true;
   }
 
@@ -203,7 +203,11 @@ function rangeRow(
     readonly step: number;
     readonly value: number;
   },
-): { readonly row: HTMLLabelElement; readonly input: HTMLInputElement; readonly output: HTMLOutputElement } {
+): {
+  readonly row: HTMLLabelElement;
+  readonly input: HTMLInputElement;
+  readonly output: HTMLOutputElement;
+} {
   const row = doc.createElement("label");
   row.className = "world-layout-inspector-row world-layout-inspector-range";
   const label = doc.createElement("span");
@@ -359,7 +363,8 @@ export function createWorldLayoutControls(
   const radiusNote = doc.createElement("p");
   radiusNote.className = "world-layout-inspector-note";
   radiusNote.textContent =
-    "Collision radius is fixed to the rendered node + border. Connectivity clearance reserves additional soft space for hubs.";
+    "Collision radius is fixed to the rendered node + border. " +
+    "Connectivity clearance reserves additional soft space for hubs.";
   forcePanel.append(
     forceScope.row,
     collision.row,
