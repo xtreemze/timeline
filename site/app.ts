@@ -6086,15 +6086,18 @@ els.timelineViewRoot.addEventListener("timelineorientationchange", (event) => {
 els.timelineViewRoot.addEventListener("timelinefocuschange", (event) => {
   const focused = Boolean(event.detail?.focused);
   const cardFocused = focused && event.detail?.presentationSurface === "card";
+  const selection = focused
+    ? selectionForTimelineFocus(event.detail?.id, state.relationships)
+    : null;
   if (focused) {
-    applicationSelection.select(
-      selectionForTimelineFocus(event.detail?.id, state.relationships),
-      "timeline",
-    );
+    applicationSelection.select(selection, "timeline");
   }
   if (focused && ui.mode === "edit") {
     requestAnimationFrame(() => timelineView?.closeFocus());
     return;
+  }
+  if (selection?.kind === "relationship" && ui.mode !== "edit") {
+    setOccurrenceComposerOpen(true);
   }
   if (focused) {
     closeLargeUtilitySurfaces("focus");
