@@ -344,13 +344,6 @@ export class LuumOccurrenceComposerElement extends LitElement {
         max-inline-size: 72vw;
       }
 
-      .metadata-panel {
-        grid-template-columns: minmax(0, 1fr);
-      }
-
-      .metadata-field-wide {
-        grid-column: 1;
-      }
     }
 
     .diagnostic {
@@ -392,6 +385,16 @@ export class LuumOccurrenceComposerElement extends LitElement {
       background: color-mix(in srgb, var(--paper, #fff) 94%, transparent);
       color: var(--ink, #191714);
       font: 500 0.78rem/1.25 ui-monospace, "SFMono-Regular", Consolas, monospace;
+    }
+
+    @media (max-width: 480px) {
+      .metadata-panel {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .metadata-field-wide {
+        grid-column: 1;
+      }
     }
 
     .listbox {
