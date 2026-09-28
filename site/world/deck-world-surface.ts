@@ -5184,6 +5184,15 @@ export class DeckWorldSurface implements WorldSurface {
         visualWeight: entity.visualWeight,
       });
     };
+    const renderedEntityRadiusPx = (instanceId: WorldInstanceId): number => {
+      const entity = entityResult.byId.get(instanceId);
+      if (!entity) return WORLD_ENTITY_MIN_HIT_RADIUS_PX;
+      const markerRadiusPx = worldNodeMarker(this.#entityStyle(entity)).size / 2;
+      return (
+        markerRadiusPx *
+        (this.#dragFlashInstanceId === instanceId ? WORLD_DRAG_PICKUP_FLASH_SCALE : 1)
+      );
+    };
     const edgeFallbackColor = (edge: DeckWorldRelationshipDatum): string | undefined => {
       const endpointColor = (entity: DeckWorldEntityDatum | undefined): string | undefined => {
         if (!entity) return undefined;
@@ -5215,13 +5224,13 @@ export class DeckWorldSurface implements WorldSurface {
       this.#focus,
       this.#directionDatumCache,
       (edge) => {
-        const targetRadiusPx = visibleEntityRadiusPx(edge.targetInstanceId);
+        const targetRadiusPx = renderedEntityRadiusPx(edge.targetInstanceId);
         const target = edge.path[edge.path.length - 1];
         const latitude = target?.[1] ?? this.#camera.latitude;
         return worldArrowLengthDegreesForNodeRadius(targetRadiusPx, this.#camera.zoom, latitude);
       },
       (edge) => {
-        const targetRadiusPx = visibleEntityRadiusPx(edge.targetInstanceId);
+        const targetRadiusPx = renderedEntityRadiusPx(edge.targetInstanceId);
         const target = edge.path[edge.path.length - 1];
         const latitude = target?.[1] ?? this.#camera.latitude;
         return worldNodeClearanceDegreesForRadius(targetRadiusPx + 4, this.#camera.zoom, latitude);
@@ -5713,7 +5722,7 @@ export class DeckWorldSurface implements WorldSurface {
         capRounded: true,
         getPath: (datum: DeckWorldDirectionDatum) => datum.path,
         getWidth: (datum: DeckWorldDirectionDatum) => {
-          const targetRadiusPx = visibleEntityRadiusPx(datum.targetInstanceId);
+          const targetRadiusPx = renderedEntityRadiusPx(datum.targetInstanceId);
           return (
             worldArrowStrokeWidthPxForNodeRadius(
               targetRadiusPx,
@@ -5727,7 +5736,7 @@ export class DeckWorldSurface implements WorldSurface {
             Math.round(edgeAlpha(datum.edge) * edgeExpansion(datum)),
           ),
         updateTriggers: {
-          getWidth: [this.#palette, clusterPhase],
+          getWidth: [this.#palette, clusterPhase, this.#dragPresentationRevision],
           getColor: [this.#palette, clusterPhase],
         },
         parameters: { cullMode: "none" },

@@ -1310,11 +1310,18 @@ test("direction marker length and stroke follow the target marker scale", () => 
         ],
       }),
     );
-    const directions = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.relationshipDirections);
+    const layers = h.lastLayers();
+    const directions = layer(layers, DECK_WORLD_LAYER_IDS.relationshipDirections);
     const marker = directions.props.data[0];
+    const icons = layer(layers, DECK_WORLD_LAYER_IDS.entityIcons);
+    const targetIcon = icons.props.data.find(
+      (datum) => datum.worldInstanceId === target.id,
+    );
+    assert.ok(targetIcon, "fixture renders the target marker");
     return {
       width: directions.props.getWidth(marker),
       length: marker.arrowLengthDegrees,
+      targetRadius: icons.props.getSize(targetIcon) / 2,
     };
   };
 
@@ -1329,6 +1336,20 @@ test("direction marker length and stroke follow the target marker scale", () => 
   );
   assert.ok(largeTarget.length > ordinary.length, "target-node size controls chevron length");
   assert.ok(largeTarget.width > ordinary.width, "target-node size controls chevron stroke");
+  assert.ok(
+    Math.abs(
+      largeTarget.length / ordinary.length -
+        largeTarget.targetRadius / ordinary.targetRadius,
+    ) < 1e-12,
+    "chevron length scales by the exact rendered target-marker radius",
+  );
+  assert.ok(
+    Math.abs(
+      largeTarget.width / ordinary.width -
+        largeTarget.targetRadius / ordinary.targetRadius,
+    ) < 1e-12,
+    "chevron stroke scales by the exact rendered target-marker radius",
+  );
   assert.ok(
     thinEdgeLargeTarget.width > 1,
     "a thin authored edge cannot force a large target-relative chevron into a hairline stroke",
