@@ -425,7 +425,23 @@ test.describe("Narrow mobile screen contracts", () => {
       );
       expect(visibleGeometry.length).toBeGreaterThanOrEqual(3);
 
-      const semanticIcons = dock.locator(".toolbar-control .semantic-icon:visible");
+      const worldZoom = dock.locator(".world-zoom-control");
+      const worldZoomSlider = worldZoom.locator(".world-zoom-slider");
+      await expect(worldZoom).toBeVisible();
+      await expect(worldZoomSlider).toBeVisible();
+      const [worldZoomBox, worldZoomSliderBox] = await Promise.all([
+        worldZoom.boundingBox(),
+        worldZoomSlider.boundingBox(),
+      ]);
+      expect(worldZoomBox).not.toBeNull();
+      expect(worldZoomSliderBox).not.toBeNull();
+      if (worldZoomBox && worldZoomSliderBox) {
+        expect(Math.abs(worldZoomBox.height - 44)).toBeLessThanOrEqual(1);
+        expect(Math.abs(worldZoomSliderBox.height - 44)).toBeLessThanOrEqual(1);
+        expect(worldZoomSliderBox.width).toBeGreaterThanOrEqual(64);
+      }
+
+            const semanticIcons = dock.locator(".toolbar-control .semantic-icon:visible");
       const semanticIconCount = await semanticIcons.count();
       expect(semanticIconCount).toBeGreaterThanOrEqual(8);
       for (let index = 0; index < semanticIconCount; index += 1) {
