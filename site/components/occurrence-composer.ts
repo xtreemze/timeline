@@ -227,15 +227,27 @@ export class LuumOccurrenceComposerElement extends LitElement {
     }
 
     .close {
+      display: grid;
       inline-size: 44px;
       block-size: 44px;
+      place-items: center;
       border: 1px solid transparent;
       border-radius: var(--toolbar-control-radius, 0.58rem);
       background: transparent;
       color: var(--muted, #615d56);
       cursor: pointer;
-      font-size: 1.15rem;
       touch-action: manipulation;
+    }
+
+    .close svg,
+    .approval svg {
+      inline-size: 20px;
+      block-size: 20px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
     }
 
     .close:focus-visible,
@@ -303,7 +315,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     .mini-world-pin { position: absolute; z-index: 0; inline-size: 0.6rem; block-size: 0.6rem; border-radius: 50%; background: var(--preview-accent, var(--accent)); box-shadow: 0 0 0 3px var(--paper, #fff); transform: translate(-50%, -50%); }
     .mini-world-place { position: absolute; inset-inline-start: 0.45rem; inset-block-start: 0.3rem; max-inline-size: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.64rem; }
     .preview-node { position: relative; z-index: 1; display: grid; justify-items: center; gap: 0.15rem; min-inline-size: 3.8rem; max-inline-size: 35%; font-size: 0.7rem; font-weight: 650; text-align: center; overflow-wrap: anywhere; }
-    .preview-node svg { inline-size: 32px; block-size: 32px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+    .preview-node svg { inline-size: 32px; block-size: 32px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
     .preview-edge { position: relative; z-index: 1; min-inline-size: 2rem; max-inline-size: 30%; color: var(--preview-accent, var(--accent, #315fbd)); font-size: 0.72rem; text-align: center; overflow-wrap: anywhere; }
     .preview-pending { opacity: 0.4; }
     .composer-grammar, .composer-qualifiers { display: flex; gap: 0.3rem; overflow-x: auto; scrollbar-width: thin; }
@@ -324,7 +336,6 @@ export class LuumOccurrenceComposerElement extends LitElement {
     .candidate-select:focus-visible { outline: 2px solid var(--focus, #315fbd); outline-offset: 2px; }
     .candidate-sources { grid-column: 1 / -1; color: var(--muted, #615d56); font-size: 0.68rem; }
     .approval { min-inline-size: 44px; min-block-size: 44px; border: 1px solid var(--line, #d1ccc4); border-radius: 0.58rem; background: var(--paper, #fff); color: var(--ink, #191714); cursor: pointer; }
-    .approval svg { inline-size: 20px; block-size: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
     .context-row::-webkit-scrollbar {
       display: none;
@@ -453,7 +464,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
       block-size: 20px;
       fill: none;
       stroke: currentColor;
-      stroke-width: 1.8;
+      stroke-width: 2;
       stroke-linecap: round;
       stroke-linejoin: round;
     }
@@ -1218,10 +1229,16 @@ export class LuumOccurrenceComposerElement extends LitElement {
             aria-label="Close occurrence composer"
             title="Close occurrence composer"
             @click=${() => this.requestClose()}
-          >×</button>
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              ${iconPathData("close").map((path) => html`<path d=${path}></path>`)}
+            </svg>
+          </button>
           <button class="approval" type="button" aria-label="Approve occurrence" title="Approve occurrence"
             @click=${() => this.commit()}>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 12 5 5L20 6"></path></svg>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              ${iconPathData("check").map((path) => html`<path d=${path}></path>`)}
+            </svg>
           </button>
         </div>
 
