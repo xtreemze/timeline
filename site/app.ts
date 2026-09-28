@@ -1922,6 +1922,10 @@ function syncComposerVisualViewport(): void {
     "--composer-visual-viewport-height",
     `${Math.round(height)}px`,
   );
+  els.occurrenceComposer.style.setProperty(
+    "--composer-completion-max-height",
+    `${Math.max(112, Math.round(height * 0.42))}px`,
+  );
 }
 
 function syncOccurrenceComposerData(): void {
