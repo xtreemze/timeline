@@ -19,6 +19,7 @@ test("generated proposal review is a bounded modal application sheet", async () 
     "project-import-review-findings",
     "project-import-review-notes",
     "project-import-review-instructions",
+    "project-import-review-icons",
     "project-import-review-approve",
     "project-import-review-cancel",
     "project-import-review-close",
@@ -98,4 +99,22 @@ test("review dismissal restores focus without scrolling and verified warnings ar
     app,
     /applyImportedTimeline\(verified, "Verified import", review\.warnings\.length\)/,
   );
+});
+
+test("generated project review distinguishes explicit, inferred, fallback, and unsupported semantic icon provenance", async () => {
+  const [html, app] = await Promise.all([
+    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(html, /id="project-import-review-icons"/);
+  assert.match(app, /review\.semanticIcons/);
+  assert.match(app, /origin === "explicit"/);
+  assert.match(app, /origin === "inferred"/);
+  assert.match(app, /origin === "type-fallback"/);
+  assert.match(app, /origin === "unsupported"/);
+  assert.match(app, /suggested, not applied/i);
+  assert.match(app, /authored explicitly/i);
+  assert.match(app, /type fallback/i);
+  assert.match(app, /unsupported authored icon/i);
 });
