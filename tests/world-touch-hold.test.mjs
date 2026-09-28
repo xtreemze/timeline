@@ -239,7 +239,6 @@ test("camera-owned touch release cannot become compatibility double-click focus"
   h.listeners.get("dblclick")?.({
     offsetX: 118,
     offsetY: 259,
-    sourceCapabilities: { firesTouchEvents: true },
   });
 
   assert.deepEqual(
