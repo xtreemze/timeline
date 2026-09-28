@@ -88,6 +88,33 @@ interface ValidationResult {
   readonly message?: string;
 }
 
+export interface OccurrenceUpdateRequest<TExtent = unknown> {
+  readonly relationshipId: string;
+  readonly itemId?: string | null;
+  readonly subject: OccurrenceAuthoringEndpointReference | null | undefined;
+  readonly object: OccurrenceAuthoringEndpointReference | null | undefined;
+  readonly predicate: string | null | undefined;
+  /**
+   * undefined preserves the existing place; null clears it; a string resolves or creates it.
+   */
+  readonly placeName?: string | null;
+  readonly longitude: number | null;
+  readonly latitude: number | null;
+  readonly accuracyMeters: number | null;
+  /**
+   * undefined preserves the exact canonical extent; null makes the relationship timeless.
+   */
+  readonly time?: OccurrenceAuthoringTime<TExtent> | null;
+  /**
+   * undefined preserves the linked chronology item's category.
+   */
+  readonly categoryName?: string | null;
+  /**
+   * undefined preserves tags; an empty array explicitly clears them.
+   */
+  readonly tags?: readonly string[];
+}
+
 export interface OccurrenceAuthoringDependencies<
   TExtent,
   TState extends OccurrenceAuthoringState<TExtent>,
@@ -215,7 +242,10 @@ function pointCoordinates(place: AuthoringPlace): readonly [number, number] | nu
 }
 
 function resolvePlace<TState extends OccurrenceAuthoringState<TExtent>, TExtent>(
-  request: OccurrenceAuthoringRequest<TExtent>,
+  request: Pick<
+    OccurrenceAuthoringRequest<TExtent>,
+    "placeName" | "longitude" | "latitude" | "accuracyMeters"
+  >,
   draft: TState,
   dependencies: OccurrenceAuthoringDependencies<TExtent, TState>,
 ): AuthoringPlace {
@@ -425,5 +455,227 @@ export function authorOccurrence<TExtent, TState extends OccurrenceAuthoringStat
     objectId: object.id,
     placeId: place.id,
     categoryId: category.id,
+  };
+}
+
+
+function itemRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function itemIdOf(value: unknown): string {
+  const record = itemRecord(value);
+  const id = record?.["id"];
+  return typeof id === "string" || typeof id === "number" ? String(id) : "";
+}
+
+function derivedRelationshipTitle(
+  state: Pick<OccurrenceAuthoringState, "entities">,
+  relationship: Pick<AuthoringRelationship, "subjectId" | "predicate" | "objectId">,
+): string {
+  const subject =
+    state.entities.find((entity) => entity.id === relationship.subjectId)?.name ??
+    relationship.subjectId;
+  const object =
+    state.entities.find((entity) => entity.id === relationship.objectId)?.name ??
+    relationship.objectId;
+  return `${subject} ${relationship.predicate} ${object}`.slice(0, 160);
+}
+
+export function updateOccurrence<TExtent, TState extends OccurrenceAuthoringState<TExtent>>(
+  state: TState,
+  request: OccurrenceUpdateRequest<TExtent>,
+  dependencies: OccurrenceAuthoringDependencies<TExtent, TState>,
+): OccurrenceAuthoringResult<TState> {
+  const relationshipId = request.relationshipId.trim();
+  const predicate = request.predicate?.trim() || "";
+  if (!relationshipId) throw new Error("An occurrence edit target is required.");
+  if (!request.subject || !request.object || !predicate) {
+    throw new Error("Complete subject, action, and object before committing.");
+  }
+
+  const predicateValidation = dependencies.validatePredicate(predicate);
+  if (!predicateValidation.valid) {
+    throw new Error(predicateValidation.message || "The action predicate is invalid.");
+  }
+
+  const draft = dependencies.cloneState(state);
+  const existingIndex = draft.relationships.findIndex(
+    (relationship) => relationship.id === relationshipId,
+  );
+  if (existingIndex < 0) {
+    throw new Error(`Occurrence “${relationshipId}” no longer exists.`);
+  }
+  const existing = draft.relationships[existingIndex]!;
+  const oldTitle = derivedRelationshipTitle(draft, existing);
+
+  const subject = resolveEntity(request.subject, draft, dependencies);
+  const object = resolveEntity(request.object, draft, dependencies);
+  if (subject.id === object.id) {
+    throw new Error("An occurrence must connect two different entities.");
+  }
+
+  const next: AuthoringRelationship<TExtent> = {
+    ...existing,
+    subjectId: subject.id,
+    objectId: object.id,
+    predicate: predicate.slice(0, 120),
+  };
+
+  if (request.placeName !== undefined) {
+    if (request.placeName === null) {
+      delete next.placeId;
+    } else {
+      const place = resolvePlace(
+        {
+          placeName: request.placeName,
+          longitude: request.longitude,
+          latitude: request.latitude,
+          accuracyMeters: request.accuracyMeters,
+        },
+        draft,
+        dependencies,
+      );
+      next.placeId = place.id;
+    }
+  }
+
+  if (request.time !== undefined) {
+    next.time = request.time?.extent ?? null;
+  }
+
+  const duplicate = dependencies.findDuplicateRelationship(
+    next,
+    draft.relationships,
+    relationshipId,
+  );
+  if (duplicate) {
+    throw new Error(
+      `This edit would duplicate canonical relationship “${duplicate.id}”. Keep one canonical fact and enrich it instead.`,
+    );
+  }
+  const mirrored = dependencies.findMirroredRelationship(
+    next,
+    draft.relationships,
+    relationshipId,
+  );
+  if (mirrored) {
+    throw new Error(
+      `This edit would duplicate the reverse action represented by “${mirrored.id}”.`,
+    );
+  }
+
+  draft.relationships[existingIndex] = next;
+
+  const linkedItemIds = [...new Set((existing.itemIds ?? []).map(String).filter(Boolean))];
+  const requestedItemId = request.itemId?.trim() || "";
+  if (requestedItemId && !linkedItemIds.includes(requestedItemId)) {
+    throw new Error(
+      `Chronology item “${requestedItemId}” is not linked to occurrence “${relationshipId}”.`,
+    );
+  }
+  const exactItemId =
+    requestedItemId || (linkedItemIds.length === 1 ? linkedItemIds[0]! : "");
+
+  // Relationship endpoint/action edits affect every linked chronology projection.
+  // Update only titles that are still mechanically derived from the old fact;
+  // custom editorial titles remain untouched.
+  const nextDerivedTitle = derivedRelationshipTitle(draft, next);
+  for (const linkedItemId of linkedItemIds) {
+    const linkedIndex = draft.items.findIndex((item) => itemIdOf(item) === linkedItemId);
+    if (linkedIndex < 0) continue;
+    const linkedRecord = itemRecord(draft.items[linkedIndex]);
+    if (!linkedRecord) continue;
+    const title = typeof linkedRecord["title"] === "string" ? linkedRecord["title"] : "";
+    if (!title || title === oldTitle) {
+      draft.items[linkedIndex] = { ...linkedRecord, title: nextDerivedTitle };
+    }
+  }
+
+  const itemContextChanged =
+    request.time !== undefined ||
+    request.categoryName !== undefined ||
+    request.tags !== undefined;
+  if (itemContextChanged && linkedItemIds.length > 1 && !exactItemId) {
+    throw new Error(
+      "This occurrence is linked to multiple chronology items. Focus the exact timeline item before editing time, category, or tags.",
+    );
+  }
+  if (
+    (request.categoryName !== undefined || request.tags !== undefined) &&
+    linkedItemIds.length === 0
+  ) {
+    throw new Error(
+      "This occurrence has no linked chronology item. Category and tags require an exact timeline item.",
+    );
+  }
+  if (request.time === null && exactItemId) {
+    throw new Error(
+      "A linked chronology item requires time. Unlink that timeline item before making the canonical relationship timeless.",
+    );
+  }
+
+  let categoryId = "";
+  const itemId = exactItemId;
+  if (exactItemId) {
+    const itemIndex = draft.items.findIndex((item) => itemIdOf(item) === exactItemId);
+    if (itemIndex < 0) {
+      throw new Error(`Chronology item “${exactItemId}” no longer exists.`);
+    }
+    const currentItem = itemRecord(draft.items[itemIndex]);
+    if (!currentItem) {
+      throw new Error(`Chronology item “${exactItemId}” is invalid.`);
+    }
+    const updatedItem: Record<string, unknown> = { ...currentItem };
+
+    if (request.time) {
+      updatedItem["kind"] = request.time.kind;
+      updatedItem["start"] = request.time.startValue;
+      updatedItem["end"] = request.time.endValue;
+      updatedItem["time"] = request.time.extent;
+    }
+
+    if (request.categoryName !== undefined) {
+      if (request.categoryName === null || !request.categoryName.trim()) {
+        throw new Error("Timeline items require a category. Choose another category instead.");
+      }
+      const category = resolveCategory(request.categoryName, draft, dependencies);
+      updatedItem["categoryId"] = category.id;
+      categoryId = category.id;
+    } else if (typeof currentItem["categoryId"] === "string") {
+      categoryId = currentItem["categoryId"];
+    }
+
+    if (request.tags !== undefined) {
+      updatedItem["tags"] = request.tags
+        .map((label) => label.trim())
+        .filter(Boolean)
+        .map((label) => ({ label: label.slice(0, 80) }));
+    }
+
+    draft.items[itemIndex] = updatedItem;
+  }
+
+  if (!categoryId) {
+    const linkedItem = linkedItemIds
+      .map((id) => draft.items.find((item) => itemIdOf(item) === id))
+      .map(itemRecord)
+      .find(Boolean);
+    categoryId =
+      linkedItem && typeof linkedItem["categoryId"] === "string"
+        ? linkedItem["categoryId"]
+        : draft.categories[0]?.id ?? "";
+  }
+
+  return {
+    state: dependencies.normalizeState(draft),
+    itemId,
+    relationshipId,
+    subjectId: subject.id,
+    objectId: object.id,
+    placeId: next.placeId ?? "",
+    categoryId,
   };
 }

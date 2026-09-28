@@ -4,6 +4,7 @@ export type ApplicationSelectionSource = "world" | "timeline" | "app";
 export interface ApplicationSelection {
   readonly kind: ApplicationSelectionKind;
   readonly id: string;
+  readonly itemId?: string;
 }
 
 export interface ApplicationSelectionChange {
@@ -28,7 +29,12 @@ function normalizeSelection(
   if (!selection) return null;
   const id = normalizedId(selection.id);
   if (!id) return null;
-  return Object.freeze({ kind: selection.kind, id });
+  const itemId = selection.kind === "relationship" ? normalizedId(selection.itemId) : "";
+  return Object.freeze({
+    kind: selection.kind,
+    id,
+    ...(itemId ? { itemId } : {}),
+  });
 }
 
 function sameSelection(
@@ -36,7 +42,11 @@ function sameSelection(
   right: ApplicationSelection | null,
 ): boolean {
   if (left === null || right === null) return left === right;
-  return left.kind === right.kind && left.id === right.id;
+  return (
+    left.kind === right.kind &&
+    left.id === right.id &&
+    (left.itemId ?? "") === (right.itemId ?? "")
+  );
 }
 
 /**
@@ -68,7 +78,7 @@ export function selectionForTimelineFocus(
 
   const uniqueOwners = [...new Set(owners)];
   return uniqueOwners.length === 1
-    ? Object.freeze({ kind: "relationship", id: uniqueOwners[0]! })
+    ? Object.freeze({ kind: "relationship", id: uniqueOwners[0]!, itemId: id })
     : null;
 }
 
