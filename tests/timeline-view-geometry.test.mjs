@@ -123,7 +123,7 @@ test("focused event navigation keeps chronological adjacency instead of re-evalu
   assert.equal(geometry.adjacentTimelineItem(items, 1, 500, "c"), null);
 });
 
-test("selected events use a shell-owned six-column detail surface with footer-owned controls", async () => {
+test("selected events use a shell-owned detail surface without changing footer controls", async () => {
   const [html, js, css] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
@@ -139,10 +139,14 @@ test("selected events use a shell-owned six-column detail surface with footer-ow
     html,
     /id="timeline-view-controls" class="app-footer-zone app-footer-view" role="group"/,
   );
-  assert.match(html, /id="timeline-focus-prev"/);
+  assert.match(html, /id="timeline-focus-context-controls" hidden[\s\S]*id="timeline-focus-prev"/);
   assert.match(html, /id="timeline-focus-next"/);
   assert.match(html, /id="timeline-related-zoom"/);
   assert.match(html, /id="timeline-related-fit"/);
+  const footerStart = html.indexOf('<nav class="app-tool-dock app-footer-bar"');
+  const footerEnd = html.indexOf("</nav>", footerStart);
+  const footerMarkup = html.slice(footerStart, footerEnd);
+  assert.doesNotMatch(footerMarkup, /timeline-focus-prev|timeline-related-zoom/);
   assert.doesNotMatch(html, /id="timeline-focus-edit"/);
   assert.equal((html.match(/id="editor-toggle"/g) ?? []).length, 1);
   assert.doesNotMatch(html, /id="timeline-detail"/);
@@ -153,8 +157,11 @@ test("selected events use a shell-owned six-column detail surface with footer-ow
   assert.doesNotMatch(js, /createFocusEditButton|timelinefocusedit|timeline-focus-edit/);
   assert.doesNotMatch(js, /timeline-focus-place-panel/);
   assert.match(js, /focusNavigationState\(\)/);
+  assert.match(js, /timeline-focus-header/);
+  assert.match(js, /data\.focusContextActions/);
   assert.doesNotMatch(js, /timeline-focus-nav-prev|timeline-focus-nav-next|Edit event/);
-  assert.match(css, /Persistent primary command plane/);
+  assert.match(css, /Persistent command plane/);
+  assert.match(css, /Event selection never changes this composition/);
   assert.match(
     css,
     /\.app-footer-view \.world-camera-controls[\s\S]*flex-direction:\s*row[\s\S]*flex-wrap:\s*nowrap/,
