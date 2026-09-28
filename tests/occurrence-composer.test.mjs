@@ -10,6 +10,7 @@ import {
   worldContextFromCamera,
 } from "../site/occurrence-composer-context.ts";
 import {
+  acceptComposerSuggestion,
   composerCompletionSuffix,
   composerCursorSection,
   occurrenceComposerSuggestions,
@@ -36,6 +37,99 @@ test("occurrence sentence maps grammar into canonical authoring slots", () => {
   assert.equal(parsed.options.category, "observation");
   assert.deepEqual(parsed.options.tags, ["friend", "work"]);
   assert.deepEqual(parsed.diagnostics, []);
+});
+
+test("accepted terminal action advances from predicate to object suggestions", () => {
+  const input = "Alice receives";
+  const predicateSuggestions = occurrenceComposerSuggestions(input, {
+    entities: [{ id: "bob", name: "Bob", type: "person" }],
+    places: [],
+    categories: [],
+    cursorOffset: input.length,
+  });
+  const receives = predicateSuggestions.find(
+    (suggestion) => suggestion.kind === "predicate" && suggestion.insertText === "receives",
+  );
+  assert.ok(receives);
+
+  const accepted = acceptComposerSuggestion(
+    input,
+    receives,
+    parseOccurrenceSentence(input).stage,
+  );
+
+  assert.equal(accepted.value, "Alice receives ");
+  assert.equal(accepted.cursorOffset, accepted.value.length);
+  assert.equal(parseOccurrenceSentence(accepted.value).stage, "object");
+  assert.equal(
+    composerCursorSection(accepted.value, accepted.cursorOffset).kind,
+    "tail",
+  );
+
+  const objectSuggestions = occurrenceComposerSuggestions(accepted.value, {
+    entities: [{ id: "bob", name: "Bob", type: "person" }],
+    places: [],
+    categories: [],
+    cursorOffset: accepted.cursorOffset,
+  });
+  assert.equal(objectSuggestions[0]?.kind, "entity");
+  assert.equal(objectSuggestions[0]?.label, "Bob");
+});
+
+test("accepted partial action and multi-word object advance exactly one grammar slot", () => {
+  const actionInput = "Alice rece";
+  const action = occurrenceComposerSuggestions(actionInput, {
+    entities: [],
+    places: [],
+    categories: [],
+    cursorOffset: actionInput.length,
+  }).find((suggestion) => suggestion.insertText === "receives");
+  assert.ok(action);
+
+  const acceptedAction = acceptComposerSuggestion(
+    actionInput,
+    action,
+    parseOccurrenceSentence(actionInput).stage,
+  );
+  assert.equal(acceptedAction.value, "Alice receives ");
+  assert.equal(parseOccurrenceSentence(acceptedAction.value).stage, "object");
+
+  const objectInput = `${acceptedAction.value}Big B`;
+  const object = occurrenceComposerSuggestions(objectInput, {
+    entities: [{ id: "big-bad-wolf", name: "Big Bad Wolf", type: "person" }],
+    places: [],
+    categories: [],
+    cursorOffset: objectInput.length,
+  })[0];
+  assert.equal(object?.kind, "entity");
+
+  const acceptedObject = acceptComposerSuggestion(
+    objectInput,
+    object,
+    parseOccurrenceSentence(objectInput).stage,
+  );
+  assert.equal(acceptedObject.value, 'Alice receives "Big Bad Wolf" ');
+  assert.equal(parseOccurrenceSentence(acceptedObject.value).stage, "complete");
+});
+
+test("editing an existing action replaces in place without inserting another separator", () => {
+  const input = "Alice meets Bob";
+  const cursorOffset = input.indexOf("meets") + 2;
+  const calls = occurrenceComposerSuggestions(input, {
+    entities: [],
+    places: [],
+    categories: [],
+    cursorOffset,
+  }).find((suggestion) => suggestion.insertText === "calls");
+  assert.ok(calls);
+
+  const accepted = acceptComposerSuggestion(
+    input,
+    calls,
+    parseOccurrenceSentence(input).stage,
+  );
+  assert.equal(accepted.value, "Alice calls Bob");
+  assert.equal(parseOccurrenceSentence(accepted.value).stage, "complete");
 });
 
 test("quoted endpoint names and ranges remain deterministic", () => {
