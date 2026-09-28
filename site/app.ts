@@ -1901,6 +1901,12 @@ function syncOccurrenceComposerSelection(selection = applicationSelection.curren
       subjectId: String(relationship.subjectId),
       objectId: String(relationship.objectId),
     },
+    metadata: {
+      role: relationship.role ?? null,
+      initialState: relationship.initialState ?? "active",
+      sourceIds: relationship.sourceIds ?? [],
+      confidence: relationship.confidence ?? null,
+    },
     ...(relationshipPlace
       ? {
           place: {
@@ -2103,7 +2109,10 @@ function composerTagsIdentity(tags: readonly string[]): string {
 function commitOccurrenceComposer(detail: OccurrenceCommitDetail): void {
   try {
     if (detail.editTarget) {
-      if (detail.text.trim() === detail.editTarget.initialText.trim()) {
+      if (
+        detail.text.trim() === detail.editTarget.initialText.trim() &&
+        !detail.metadataDirty
+      ) {
         els.occurrenceComposer.markCommitted();
         showStatus("Occurrence unchanged.");
         return;
@@ -2145,6 +2154,14 @@ function commitOccurrenceComposer(detail: OccurrenceCommitDetail): void {
           time,
           categoryName,
           tags,
+          ...(detail.metadataDirty
+            ? {
+                role: detail.metadata.role,
+                initialState: detail.metadata.initialState,
+                sourceIds: detail.metadata.sourceIds,
+                confidence: detail.metadata.confidence,
+              }
+            : {}),
         },
         occurrenceAuthoringDependencies(),
       );
@@ -2176,6 +2193,10 @@ function commitOccurrenceComposer(detail: OccurrenceCommitDetail): void {
         time: composerTime(detail),
         categoryName: detail.draft.options.category,
         tags: detail.draft.options.tags,
+        role: detail.metadata.role,
+        initialState: detail.metadata.initialState,
+        sourceIds: detail.metadata.sourceIds,
+        confidence: detail.metadata.confidence,
         activeStoryId: ui.activeStoryId,
       },
       occurrenceAuthoringDependencies(),
