@@ -2574,20 +2574,19 @@ function renderTimeline() {
       [
         ...visible.map((item) => {
           const category = getCategory(item.categoryId);
+          const primaryRelationship = state.relationships.find((candidate) =>
+            (candidate.itemIds || []).some((id) => String(id) === String(item.id)),
+          );
           const itemTime = temporal.sortKey(item.time?.start || item.start);
           const eventViewport = Number.isFinite(itemTime)
             ? { start: itemTime, end: itemTime }
             : timelineView?.getViewport?.();
           return {
             id: item.id,
-            composition: (() => {
-              const relationship = state.relationships.find((candidate) =>
-                (candidate.itemIds || []).some((id) => String(id) === String(item.id)),
-              );
-              return relationship
-                ? occurrenceCompositionForRelationship(relationship, String(item.id))
-                : undefined;
-            })(),
+            relationshipId: primaryRelationship ? String(primaryRelationship.id) : undefined,
+            composition: primaryRelationship
+              ? occurrenceCompositionForRelationship(primaryRelationship, String(item.id))
+              : undefined,
             kind: item.kind,
             title: item.title,
             description: item.description,
@@ -2659,6 +2658,7 @@ function renderTimeline() {
           };
           return {
             id: occurrence.occurrenceId,
+            relationshipId: occurrence.relationshipId,
             composition: relationship
               ? occurrenceCompositionForRelationship(relationship, null)
               : undefined,
@@ -6088,19 +6088,23 @@ els.timelineViewRoot.addEventListener("timelinefocuschange", (event) => {
   const cardFocused = focused && event.detail?.presentationSurface === "card";
   let focusSelection: ReturnType<typeof selectionForTimelineFocus> | null = null;
   if (focused) {
-    focusSelection = selectionForTimelineFocus(event.detail?.id, state.relationships);
+    focusSelection = selectionForTimelineFocus(
+      event.detail?.id,
+      state.relationships,
+      event.detail?.relationshipId,
+    );
     applicationSelection.select(focusSelection, "timeline");
   }
   if (focused && ui.mode === "edit") {
     requestAnimationFrame(() => timelineView?.closeFocus());
     return;
   }
-  if (focusSelection?.kind === "relationship" && ui.mode !== "edit") {
-    setOccurrenceComposerOpen(true);
-  }
   if (focused) {
     closeLargeUtilitySurfaces("focus");
     closeProjectMenu();
+  }
+  if (focusSelection?.kind === "relationship" && ui.mode !== "edit") {
+    setOccurrenceComposerOpen(true);
   }
   els.appShell.classList.toggle("is-event-focused", focused && !cardFocused);
   els.appShell.classList.toggle("is-event-card-focused", cardFocused);
@@ -6113,15 +6117,19 @@ els.timelineViewRoot.addEventListener("timelinefocuschange", (event) => {
 });
 
 els.timelineViewRoot.addEventListener("timelineoccurrenceeditrequest", (event) => {
-  const { id, field } =
+  const { id, relationshipId, field } =
     (
       event as CustomEvent<{
         id?: string;
+        relationshipId?: string;
         field?: "subject" | "predicate" | "object" | "place" | "time" | "category" | "tag";
       }>
     ).detail ?? {};
   if (!id) return;
-  applicationSelection.select(selectionForTimelineFocus(id, state.relationships), "timeline");
+  applicationSelection.select(
+    selectionForTimelineFocus(id, state.relationships, relationshipId),
+    "timeline",
+  );
   setOccurrenceComposerOpen(true);
   if (field) els.occurrenceComposer.focusSection(field);
 });
