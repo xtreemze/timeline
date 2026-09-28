@@ -594,6 +594,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
       return;
     }
     if (previousKey === nextKey && dirtyDraft) {
+      this.selectionContext = nextContext;
       this.pendingSelectionContext = null;
       this.hasPendingSelectionContext = false;
       this.requestUpdate();

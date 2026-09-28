@@ -198,3 +198,54 @@ test("IME composition cannot accept or commit investigative text before composit
   await expect(input).toHaveValue("man? calls @alice");
   await expect(composer.locator('input[role="combobox"]')).toHaveCount(1);
 });
+
+
+test("same-occurrence media and context refresh preserve a dirty investigative draft", async ({
+  page,
+}) => {
+  const composer = page.locator("#occurrence-composer");
+  await composer.locator(".compact").click();
+  const input = composer.locator('input[role="combobox"]');
+
+  await composer.evaluate((element) => {
+    const api = element as HTMLElement & {
+      setSelectionContext(context: unknown): void;
+    };
+    api.setSelectionContext({
+      selectedOccurrenceId: "occ-context-refresh",
+      composition: "@alice calls @bob",
+      title: "Initial context",
+      description: "Initial description",
+      media: {
+        src: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==",
+        alt: "Initial evidence",
+      },
+      relationship: { subjectId: "alice", objectId: "bob" },
+    });
+  });
+  await input.fill("man? calls @alice");
+  await expect(composer.locator("#occurrence-investigation-panel")).toBeVisible();
+
+  await composer.evaluate((element) => {
+    const api = element as HTMLElement & {
+      setSelectionContext(context: unknown): void;
+    };
+    api.setSelectionContext({
+      selectedOccurrenceId: "occ-context-refresh",
+      composition: "@alice calls @bob",
+      title: "Updated context",
+      description: "Updated description",
+      media: {
+        src: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==",
+        alt: "Updated evidence",
+      },
+      relationship: { subjectId: "alice", objectId: "bob" },
+    });
+  });
+
+  await expect(input).toHaveValue("man? calls @alice");
+  await expect(composer.locator("#occurrence-investigation-panel")).toBeVisible();
+  await expect(composer.locator(".composer-card-heading")).toContainText("Updated context");
+  await expect(composer.locator(".composer-card-context")).toHaveText("Updated description");
+  await expect(composer.locator(".composer-card-media")).toHaveAttribute("alt", "Updated evidence");
+});
