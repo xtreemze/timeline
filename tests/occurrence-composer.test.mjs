@@ -970,7 +970,10 @@ test("composer exposes save, live-context chips, metadata, and keyboard parity a
   );
 
   assert.match(source, /class="commit"/);
-  assert.match(source, /aria-label=\$\{this\.selectionContext\?\.selectedOccurrenceId \? "Save occurrence" : "Create occurrence"\}/);
+  assert.match(
+    source,
+    /aria-label=\$\{[\s\S]*this\.selectionContext\?\.selectedOccurrenceId\s*\?\s*"Save occurrence"\s*:\s*"Create occurrence"[\s\S]*\}/,
+  );
   assert.match(source, /@click=\$\{\(\) => this\.commit\(\)\}/);
   assert.match(source, /event\.key === "Enter" && \(event\.ctrlKey \|\| event\.metaKey\)/);
   assert.match(source, /event\.isComposing/);
