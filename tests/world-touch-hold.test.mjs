@@ -72,6 +72,7 @@ function surfaceHarness() {
     dataset,
     dispatchEvent(event) {
       dispatched.push(event);
+      if (event.type === "worldcontextrequest") event.preventDefault();
       return !event.defaultPrevented;
     },
     addEventListener(type, listener) {
