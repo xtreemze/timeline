@@ -29,6 +29,13 @@ export interface OccurrenceComposerData {
   readonly predicates?: readonly string[];
 }
 
+export interface OccurrenceComposerMetadata {
+  readonly role: string | null;
+  readonly initialState: "active" | "inactive";
+  readonly sourceIds: readonly string[];
+  readonly confidence: number | null;
+}
+
 export interface OccurrenceComposerSelectionContext {
   readonly selectedEntityId?: string | null;
   readonly selectedOccurrenceId?: string | null;
@@ -42,6 +49,7 @@ export interface OccurrenceComposerSelectionContext {
     readonly id: string;
     readonly name: string;
   } | null;
+  readonly metadata?: Partial<OccurrenceComposerMetadata> | null;
 }
 
 export interface OccurrenceCommitDetail {
@@ -52,6 +60,8 @@ export interface OccurrenceCommitDetail {
     readonly itemId: string | null;
     readonly initialText: string;
   } | null;
+  readonly metadata: OccurrenceComposerMetadata;
+  readonly metadataDirty: boolean;
   readonly defaults: {
     readonly timeMs: number | null;
     readonly timeValue: string | null;
@@ -131,7 +141,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
     .input-row {
       display: grid;
-      grid-template-columns: auto minmax(0, 1fr) auto;
+      grid-template-columns: auto minmax(0, 1fr) auto auto;
       gap: 0.35rem;
       align-items: center;
       min-inline-size: 0;
@@ -200,6 +210,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
       box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus, #315fbd) 20%, transparent);
     }
 
+    .commit,
     .close {
       inline-size: 44px;
       block-size: 44px;
@@ -212,6 +223,20 @@ export class LuumOccurrenceComposerElement extends LitElement {
       touch-action: manipulation;
     }
 
+    .commit {
+      border: 1px solid color-mix(in srgb, var(--line-strong, #b8b1a5) 78%, transparent);
+      background: color-mix(in srgb, var(--ink, #191714) 8%, var(--paper, #fff));
+      color: var(--ink, #191714);
+      font-size: 1rem;
+      font-weight: 800;
+    }
+
+    .commit:disabled {
+      opacity: 0.42;
+      cursor: not-allowed;
+    }
+
+    .commit:not(:disabled):is(:hover, :focus-visible),
     .close:focus-visible,
     .close:hover {
       border-color: color-mix(in srgb, var(--line-strong, #b8b1a5) 70%, transparent);
@@ -308,7 +333,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
     @media (max-width: 480px) {
       .input-row {
-        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-columns: minmax(0, 1fr) auto auto;
       }
 
       .stage {
@@ -318,6 +343,14 @@ export class LuumOccurrenceComposerElement extends LitElement {
       .context-chip {
         max-inline-size: 72vw;
       }
+
+      .metadata-panel {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .metadata-field-wide {
+        grid-column: 1;
+      }
     }
 
     .diagnostic {
@@ -326,6 +359,39 @@ export class LuumOccurrenceComposerElement extends LitElement {
       border-block-end: 1px solid var(--line, #d1ccc4);
       color: var(--danger, #b42318);
       font-size: 0.72rem;
+    }
+
+    .metadata-panel {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.4rem;
+      min-block-size: 0;
+      padding: 0.5rem;
+      overflow: auto;
+      overscroll-behavior: contain;
+    }
+
+    .metadata-field {
+      display: grid;
+      gap: 0.2rem;
+      min-inline-size: 0;
+      color: var(--muted, #615d56);
+      font-size: 0.66rem;
+      font-weight: 700;
+    }
+
+    .metadata-field-wide {
+      grid-column: 1 / -1;
+    }
+
+    .metadata-field :is(input, select) {
+      min-block-size: 40px;
+      padding: 0.42rem 0.5rem;
+      border: 1px solid var(--line, #d1ccc4);
+      border-radius: 0.5rem;
+      background: color-mix(in srgb, var(--paper, #fff) 94%, transparent);
+      color: var(--ink, #191714);
+      font: 500 0.78rem/1.25 ui-monospace, "SFMono-Regular", Consolas, monospace;
     }
 
     .listbox {
@@ -428,11 +494,18 @@ export class LuumOccurrenceComposerElement extends LitElement {
   private cursorOffset = 0;
   private externalError = "";
   private explicitPlaceContext: ComposerWorldContext | null = null;
+  private explicitTimeContext: ComposerTimelineContext | null = null;
   private selectionContext: OccurrenceComposerSelectionContext | null = null;
   private pendingSelectionContext: OccurrenceComposerSelectionContext | null = null;
   private hasPendingSelectionContext = false;
   private selectionSeeded = false;
   private sessionKey = "";
+  private metadataPanelOpen = false;
+  private metadataDirty = false;
+  private metadataRole = "";
+  private metadataInitialState: "active" | "inactive" = "active";
+  private metadataSourceIds = "";
+  private metadataConfidence = "";
 
   constructor() {
     super();
@@ -483,6 +556,16 @@ export class LuumOccurrenceComposerElement extends LitElement {
           ...(context.place
             ? { place: Object.freeze({ id: context.place.id, name: context.place.name }) }
             : {}),
+          ...(context.metadata
+            ? {
+                metadata: Object.freeze({
+                  role: context.metadata.role ?? null,
+                  initialState: context.metadata.initialState ?? "active",
+                  sourceIds: Object.freeze([...(context.metadata.sourceIds ?? [])]),
+                  confidence: context.metadata.confidence ?? null,
+                }),
+              }
+            : {}),
         })
       : null;
   }
@@ -491,7 +574,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const nextContext = this.frozenSelectionContext(context);
     const previousKey = this.selectionIdentityKey(this.selectionContext);
     const nextKey = this.selectionIdentityKey(nextContext);
-    const dirtyDraft = Boolean(this.value.trim()) && !this.selectionSeeded;
+    const dirtyDraft =
+      (Boolean(this.value.trim()) && !this.selectionSeeded) || this.metadataDirty;
 
     if (previousKey !== nextKey && dirtyDraft) {
       this.pendingSelectionContext = nextContext;
@@ -517,6 +601,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
       this.activeSuggestion = 0;
     }
     this.applySelectionSeed();
+    if (!this.metadataDirty) this.applySelectionMetadata();
     this.requestUpdate();
   }
 
@@ -541,6 +626,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.resetDraft();
     this.sessionKey = this.currentContextKey();
     this.applySelectionSeed();
+    this.applySelectionMetadata();
     this.requestUpdate();
     void this.updateComplete.then(() => {
       const input = this.renderRoot.querySelector<HTMLInputElement>("input");
@@ -569,8 +655,60 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.cursorOffset = 0;
     this.selectionSeeded = false;
     this.explicitPlaceContext = null;
+    this.explicitTimeContext = null;
     this.externalError = "";
     this.activeSuggestion = 0;
+    this.metadataPanelOpen = false;
+    this.metadataDirty = false;
+    this.metadataRole = "";
+    this.metadataInitialState = "active";
+    this.metadataSourceIds = "";
+    this.metadataConfidence = "";
+  }
+
+  private applySelectionMetadata(): void {
+    const metadata = this.selectionContext?.metadata;
+    this.metadataRole = metadata?.role?.trim() ?? "";
+    this.metadataInitialState = metadata?.initialState ?? "active";
+    this.metadataSourceIds = (metadata?.sourceIds ?? []).join("\n");
+    this.metadataConfidence =
+      metadata?.confidence === null || metadata?.confidence === undefined
+        ? ""
+        : String(metadata.confidence);
+    this.metadataDirty = false;
+  }
+
+  private metadataSnapshot(): OccurrenceComposerMetadata {
+    const confidenceText = this.metadataConfidence.trim();
+    const confidence = confidenceText ? Number(confidenceText) : null;
+    return Object.freeze({
+      role: this.metadataRole.trim() || null,
+      initialState: this.metadataInitialState,
+      sourceIds: Object.freeze(
+        [...new Set(
+          this.metadataSourceIds
+            .split(/[\n,]+/)
+            .map((sourceId) => sourceId.trim())
+            .filter(Boolean),
+        )],
+      ),
+      confidence:
+        confidence !== null && Number.isFinite(confidence) ? confidence : null,
+    });
+  }
+
+  private setMetadataValue(
+    field: "role" | "initialState" | "sourceIds" | "confidence",
+    value: string,
+  ): void {
+    if (field === "role") this.metadataRole = value;
+    else if (field === "initialState") {
+      this.metadataInitialState = value === "inactive" ? "inactive" : "active";
+    } else if (field === "sourceIds") this.metadataSourceIds = value;
+    else this.metadataConfidence = value;
+    this.metadataDirty = true;
+    this.externalError = "";
+    this.requestUpdate();
   }
 
   private currentContextKey(): string {
@@ -587,11 +725,12 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
   beginSession(): void {
     const nextKey = this.currentContextKey();
-    if (this.sessionKey && this.sessionKey !== nextKey && this.value.trim()) {
+    if (this.sessionKey && this.sessionKey !== nextKey && (this.value.trim() || this.metadataDirty)) {
       this.resetDraft();
     }
     this.sessionKey = nextKey;
     this.applySelectionSeed();
+    if (!this.metadataDirty) this.applySelectionMetadata();
     this.requestUpdate();
   }
 
@@ -648,6 +787,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.resetDraft();
     this.sessionKey = this.currentContextKey();
     this.applySelectionSeed();
+    this.applySelectionMetadata();
     this.requestUpdate();
     void this.updateComplete.then(() => {
       this.renderRoot.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
@@ -692,15 +832,21 @@ export class LuumOccurrenceComposerElement extends LitElement {
   }
 
   private setComposerValue(value: string, cursorOffset = value.length): void {
-    const previousPlace = this.parsed().place?.name ?? null;
+    const previousDraft = this.parsed();
+    const previousPlace = previousDraft.place?.name ?? null;
+    const previousTime = previousDraft.time;
     this.value = value;
     this.cursorOffset = Math.max(0, Math.min(value.length, cursorOffset));
     this.selectionSeeded = false;
-    const nextPlace = this.parsed().place?.name ?? null;
-    if (!nextPlace) {
+    const nextDraft = this.parsed();
+    const nextPlace = nextDraft.place?.name ?? null;
+    if (!nextPlace && previousPlace) {
       this.explicitPlaceContext = null;
-    } else if (nextPlace !== previousPlace && this.worldContext) {
+    } else if (nextPlace && nextPlace !== previousPlace && this.worldContext) {
       this.explicitPlaceContext = this.worldContext;
+    }
+    if (nextDraft.time && !previousTime) {
+      this.explicitTimeContext = null;
     }
     this.externalError = "";
     this.activeSuggestion = 0;
@@ -744,6 +890,78 @@ export class LuumOccurrenceComposerElement extends LitElement {
     return this.cursorOffset >= section.start && this.cursorOffset <= section.end;
   }
 
+  private focusComposerInput(cursorOffset = this.cursorOffset): void {
+    void this.updateComplete.then(() => {
+      const input = this.renderRoot.querySelector<HTMLInputElement>("input");
+      if (!input) return;
+      input.focus({ preventScroll: true });
+      input.setSelectionRange(cursorOffset, cursorOffset);
+    });
+  }
+
+  private activateLivePlaceContext(): void {
+    if (this.selectionContext?.place) {
+      const suffix = `at @${this.selectionContext.place.id}`;
+      const separator = this.value.trimEnd() ? " " : "";
+      const value = `${this.value.trimEnd()}${separator}${suffix} `;
+      this.setComposerValue(value, value.length);
+      this.focusComposerInput(value.length);
+      return;
+    }
+    if (!this.worldContext) return;
+    this.explicitPlaceContext = this.explicitPlaceContext ? null : this.worldContext;
+    this.externalError = "";
+    this.requestUpdate();
+  }
+
+  private activateLiveTimeContext(): void {
+    if (this.explicitTimeContext) {
+      this.explicitTimeContext = null;
+      this.externalError = "";
+      this.requestUpdate();
+      return;
+    }
+    const context = this.timelineContext;
+    if (!context?.value) return;
+    const parsed = this.parsed();
+    if (parsed.stage === "complete") {
+      const separator = this.value.trimEnd() ? " " : "";
+      const next = `${this.value.trimEnd()}${separator}on ${context.value} `;
+      this.setComposerValue(next, next.length);
+      this.focusComposerInput(next.length);
+      return;
+    }
+    this.explicitTimeContext = context;
+    this.externalError = "";
+    this.requestUpdate();
+  }
+
+  private onContextRowKeyDown(event: KeyboardEvent): void {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    const target = event.target;
+    if (!(target instanceof HTMLButtonElement) || !target.classList.contains("context-chip")) {
+      return;
+    }
+    const row = target.closest(".context-row");
+    if (!(row instanceof HTMLElement)) return;
+    const chips = [...row.querySelectorAll<HTMLButtonElement>("button.context-chip")].filter(
+      (chip) => !chip.disabled,
+    );
+    if (!chips.length) return;
+    const current = chips.indexOf(target);
+    if (current < 0) return;
+    event.preventDefault();
+    const nextIndex =
+      event.key === "Home"
+        ? 0
+        : event.key === "End"
+          ? chips.length - 1
+          : event.key === "ArrowLeft"
+            ? (current - 1 + chips.length) % chips.length
+            : (current + 1) % chips.length;
+    chips[nextIndex]?.focus({ preventScroll: true });
+  }
+
   private applySuggestion(suggestion: ComposerSuggestion): void {
     if (!suggestion.insertText) return;
     const parsed = this.parsed();
@@ -765,6 +983,15 @@ export class LuumOccurrenceComposerElement extends LitElement {
       this.requestUpdate();
       return;
     }
+    const metadata = this.metadataSnapshot();
+    if (
+      metadata.confidence !== null &&
+      (metadata.confidence < 0 || metadata.confidence > 1)
+    ) {
+      this.externalError = "Confidence must be between 0 and 1.";
+      this.requestUpdate();
+      return;
+    }
     this.dispatchEvent(
       new CustomEvent<OccurrenceCommitDetail>("occurrencecommit", {
         bubbles: true,
@@ -780,26 +1007,21 @@ export class LuumOccurrenceComposerElement extends LitElement {
                   initialText: this.selectionContext.composition.trim(),
                 }
               : null,
+          metadata,
+          metadataDirty: this.metadataDirty,
           defaults: {
-            timeMs: this.timelineContext?.centerMs ?? null,
-            timeValue: this.timelineContext?.value ?? null,
-            timePrecision: this.timelineContext?.precision ?? null,
+            timeMs: this.explicitTimeContext?.centerMs ?? this.timelineContext?.centerMs ?? null,
+            timeValue: this.explicitTimeContext?.value ?? this.timelineContext?.value ?? null,
+            timePrecision:
+              this.explicitTimeContext?.precision ?? this.timelineContext?.precision ?? null,
             longitude:
-              draft.place && this.explicitPlaceContext
-                ? this.explicitPlaceContext.longitude
-                : (this.worldContext?.longitude ?? null),
+              this.explicitPlaceContext?.longitude ?? this.worldContext?.longitude ?? null,
             latitude:
-              draft.place && this.explicitPlaceContext
-                ? this.explicitPlaceContext.latitude
-                : (this.worldContext?.latitude ?? null),
+              this.explicitPlaceContext?.latitude ?? this.worldContext?.latitude ?? null,
             worldZoom:
-              draft.place && this.explicitPlaceContext
-                ? this.explicitPlaceContext.zoom
-                : (this.worldContext?.zoom ?? null),
+              this.explicitPlaceContext?.zoom ?? this.worldContext?.zoom ?? null,
             accuracyMeters:
-              draft.place && this.explicitPlaceContext
-                ? this.explicitPlaceContext.accuracyMeters
-                : (this.worldContext?.accuracyMeters ?? null),
+              this.explicitPlaceContext?.accuracyMeters ?? this.worldContext?.accuracyMeters ?? null,
             placeReference:
               !draft.place && this.selectionContext?.place
                 ? `@${this.selectionContext.place.id}`
@@ -812,6 +1034,12 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
   private onKeyDown(event: KeyboardEvent): void {
     const suggestions = this.suggestions().slice(0, 7);
+    if (event.isComposing) return;
+    if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+      event.preventDefault();
+      this.commit();
+      return;
+    }
     if (event.key === "Escape") {
       event.preventDefault();
       this.requestClose();
@@ -891,7 +1119,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
       ? parsed.time.kind === "range"
         ? `${parsed.time.start} – ${parsed.time.end ?? parsed.time.start}`
         : parsed.time.start
-      : (this.timelineContext?.label ?? null);
+      : (this.explicitTimeContext?.label ?? this.timelineContext?.label ?? null);
     const placeLabel =
       resolvedPlaceLabel(parsed.place?.name) ??
       this.selectionContext?.place?.name ??
@@ -921,10 +1149,20 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const timeSection = sectionFor("time");
     const categorySection = sectionFor("category");
     const subjectLabel = entityLabel(parsed.subject?.name) ?? this.selectedSubjectLabel();
-    const placePinned = Boolean(parsed.place || this.selectionContext?.place);
-    const timePinned = Boolean(parsed.time);
+    const placePinned = Boolean(parsed.place || this.selectionContext?.place || this.explicitPlaceContext);
+    const timePinned = Boolean(parsed.time || this.explicitTimeContext);
     const categoryLabel = parsed.options.category ?? null;
     const tagLabels = parsed.options.tags;
+    const metadata = this.metadataSnapshot();
+    const metadataCount =
+      Number(Boolean(metadata.role)) +
+      Number(metadata.initialState !== "active") +
+      metadata.sourceIds.length +
+      Number(metadata.confidence !== null);
+    const canCommit = Boolean(
+      parsed.subject && parsed.predicate && parsed.object && parsed.diagnostics.length === 0,
+    );
+    const listboxVisible = !this.metadataPanelOpen && suggestions.length > 0;
     const editableChip = (
       label: string,
       value: string | null | undefined,
@@ -960,10 +1198,10 @@ export class LuumOccurrenceComposerElement extends LitElement {
               spellcheck="false"
               role="combobox"
               aria-autocomplete="both"
-              aria-expanded=${String(suggestions.length > 0)}
-              aria-controls=${suggestions.length ? "occurrence-composer-listbox" : nothing}
+              aria-expanded=${String(listboxVisible)}
+              aria-controls=${listboxVisible ? "occurrence-composer-listbox" : nothing}
               aria-activedescendant=${
-                suggestions.length ? `occurrence-composer-option-${selectedIndex}` : nothing
+                listboxVisible ? `occurrence-composer-option-${selectedIndex}` : nothing
               }
               aria-describedby="occurrence-composer-help occurrence-composer-diagnostic"
               placeholder=${`Who did what to whom · at ${placeLabel} · on ${timeLabel ?? "timeline center"}`}
@@ -977,6 +1215,16 @@ export class LuumOccurrenceComposerElement extends LitElement {
             />
           </div>
           <button
+            class="commit"
+            type="button"
+            ?disabled=${!canCommit}
+            aria-label=${this.selectionContext?.selectedOccurrenceId ? "Save occurrence" : "Create occurrence"}
+            title=${this.selectionContext?.selectedOccurrenceId
+              ? "Save occurrence (Ctrl/Cmd+Enter)"
+              : "Create occurrence (Ctrl/Cmd+Enter)"}
+            @click=${() => this.commit()}
+          ><span aria-hidden="true">✓</span></button>
+          <button
             class="close"
             type="button"
             aria-label="Close occurrence composer"
@@ -986,7 +1234,11 @@ export class LuumOccurrenceComposerElement extends LitElement {
         </div>
 
         <div class="completion-panel">
-          <div class="context-row" aria-label="Occurrence context">
+          <div
+            class="context-row"
+            aria-label="Occurrence context"
+            @keydown=${(event: KeyboardEvent) => this.onContextRowKeyDown(event)}
+          >
             ${this.hasPendingSelectionContext
               ? html`<button
                   class="context-chip"
@@ -1005,28 +1257,64 @@ export class LuumOccurrenceComposerElement extends LitElement {
             ${editableChip("Object", entityLabel(parsed.object?.name), objectSection)}
             ${placeSection
               ? editableChip("Place", parsed.place?.name ?? placeLabel, placeSection)
-              : html`<span
+              : html`<button
                   class="context-chip"
+                  type="button"
                   data-context-kind="place"
                   data-context-state=${placePinned ? "pinned" : "live"}
+                  aria-label=${this.explicitPlaceContext
+                    ? `Unpin place context: ${placeLabel}`
+                    : this.selectionContext?.place
+                      ? `Use place in sentence: ${placeLabel}`
+                      : `Pin current World place context: ${placeLabel}`}
+                  title=${this.explicitPlaceContext
+                    ? "Return place context to the live World center"
+                    : this.selectionContext?.place
+                      ? "Add the selected canonical place to the sentence"
+                      : "Pin the current World center for this occurrence"}
+                  @click=${() => this.activateLivePlaceContext()}
                 >
                   <span>Place</span><strong>${placeLabel}</strong
-                  ><span class="context-state">${placePinned ? "context" : "live"}</span>
-                </span>`}
+                  ><span class="context-state">${this.explicitPlaceContext ? "pinned" : placePinned ? "context" : "live"}</span>
+                </button>`}
             ${timeSection
               ? editableChip("Time", timeLabel ?? "timeline center", timeSection)
-              : html`<span
+              : html`<button
                   class="context-chip"
+                  type="button"
                   data-context-kind="time"
                   data-context-state=${timePinned ? "pinned" : "live"}
+                  aria-label=${this.explicitTimeContext
+                    ? `Unpin timeline time: ${timeLabel ?? "timeline center"}`
+                    : `Pin timeline time: ${timeLabel ?? "timeline center"}`}
+                  title=${this.explicitTimeContext
+                    ? "Return time context to the live timeline center"
+                    : "Pin the current timeline center; complete facts become an explicit on-clause"}
+                  ?disabled=${!this.timelineContext?.value && !this.explicitTimeContext}
+                  @click=${() => this.activateLiveTimeContext()}
                 >
                   <span>Time</span><strong>${timeLabel ?? "timeline center"}</strong
-                  ><span class="context-state">${timePinned ? "context" : "live"}</span>
-                </span>`}
+                  ><span class="context-state">${this.explicitTimeContext ? "pinned" : timePinned ? "context" : "live"}</span>
+                </button>`}
             ${editableChip("Category", categoryLabel, categorySection)}
             ${tagLabels.map((tag, index) =>
               editableChip("Tag", tag, sectionFor("tag", index)),
             )}
+            <button
+              class="context-chip"
+              type="button"
+              data-context-kind="metadata"
+              data-context-state=${this.metadataPanelOpen ? "editing" : metadataCount ? "pinned" : "live"}
+              aria-expanded=${String(this.metadataPanelOpen)}
+              aria-controls="occurrence-composer-metadata"
+              @click=${() => {
+                this.metadataPanelOpen = !this.metadataPanelOpen;
+                this.requestUpdate();
+              }}
+            >
+              <span>Details</span><strong>${metadataCount ? `${metadataCount} set` : "Role · support"}</strong
+              ><span class="context-state">${this.metadataPanelOpen ? "editing" : "edit"}</span>
+            </button>
           </div>
           ${
             diagnostic
@@ -1034,48 +1322,102 @@ export class LuumOccurrenceComposerElement extends LitElement {
               : html`<span id="occurrence-composer-diagnostic" hidden></span>`
           }
           ${
-            suggestions.length
+            this.metadataPanelOpen
               ? html`
-                <div id="occurrence-composer-listbox" class="listbox" role="listbox">
-                  ${suggestions.map(
-                    (suggestion, index) => html`
-                      <button
-                        id=${`occurrence-composer-option-${index}`}
-                        class="option"
-                        type="button"
-                        role="option"
-                        aria-selected=${String(index === selectedIndex)}
-                        @pointerdown=${(event: PointerEvent) => event.preventDefault()}
-                        @click=${() => this.applySuggestion(suggestion)}
-                      >
-                        <span class="option-main">
-                          ${
-                            suggestion.icon
-                              ? html`<span class="option-icon" aria-hidden="true">
-                                <svg viewBox="0 0 24 24" focusable="false">
-                                  ${iconPathData(suggestion.icon).map(
-                                    (path) => html`<path d=${path}></path>`,
-                                  )}
-                                </svg>
-                              </span>`
-                              : nothing
-                          }
-                          <span class="option-label">${suggestion.label}</span>
-                        </span>
-                        <span class="option-detail">${suggestion.detail ?? suggestion.kind}</span>
-                      </button>
-                    `,
-                  )}
+                <div id="occurrence-composer-metadata" class="metadata-panel" aria-label="Occurrence details">
+                  <label class="metadata-field">
+                    <span>Role</span>
+                    <input
+                      type="text"
+                      maxlength="120"
+                      autocomplete="off"
+                      placeholder="recipient, witness…"
+                      .value=${this.metadataRole}
+                      @input=${(event: Event) =>
+                        this.setMetadataValue("role", (event.currentTarget as HTMLInputElement).value)}
+                    />
+                  </label>
+                  <label class="metadata-field">
+                    <span>Initial state</span>
+                    <select
+                      .value=${this.metadataInitialState}
+                      @change=${(event: Event) =>
+                        this.setMetadataValue("initialState", (event.currentTarget as HTMLSelectElement).value)}
+                    >
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                    </select>
+                  </label>
+                  <label class="metadata-field">
+                    <span>Confidence · 0–1</span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      inputmode="decimal"
+                      placeholder="0.85"
+                      .value=${this.metadataConfidence}
+                      @input=${(event: Event) =>
+                        this.setMetadataValue("confidence", (event.currentTarget as HTMLInputElement).value)}
+                    />
+                  </label>
+                  <label class="metadata-field metadata-field-wide">
+                    <span>Evidence / provenance IDs · comma or line separated</span>
+                    <input
+                      type="text"
+                      autocomplete="off"
+                      placeholder="evidence-17, source-record-3"
+                      .value=${this.metadataSourceIds}
+                      @input=${(event: Event) =>
+                        this.setMetadataValue("sourceIds", (event.currentTarget as HTMLInputElement).value)}
+                    />
+                  </label>
                 </div>
               `
-              : nothing
+              : listboxVisible
+                ? html`
+                  <div id="occurrence-composer-listbox" class="listbox" role="listbox">
+                    ${suggestions.map(
+                      (suggestion, index) => html`
+                        <button
+                          id=${`occurrence-composer-option-${index}`}
+                          class="option"
+                          type="button"
+                          role="option"
+                          aria-selected=${String(index === selectedIndex)}
+                          @pointerdown=${(event: PointerEvent) => event.preventDefault()}
+                          @click=${() => this.applySuggestion(suggestion)}
+                        >
+                          <span class="option-main">
+                            ${
+                              suggestion.icon
+                                ? html`<span class="option-icon" aria-hidden="true">
+                                  <svg viewBox="0 0 24 24" focusable="false">
+                                    ${iconPathData(suggestion.icon).map(
+                                      (path) => html`<path d=${path}></path>`,
+                                    )}
+                                  </svg>
+                                </span>`
+                                : nothing
+                            }
+                            <span class="option-label">${suggestion.label}</span>
+                          </span>
+                          <span class="option-detail">${suggestion.detail ?? suggestion.kind}</span>
+                        </button>
+                      `,
+                    )}
+                  </div>
+                `
+                : nothing
           }
         </div>
 
         <p id="occurrence-composer-help" class="help">
           Arrow keys navigate suggestions · Enter accepts the active suggestion or commits ·
-          Tab moves focus · Esc closes. Activate a semantic chip to select exactly that sentence
-          section, then type or choose a suggestion. Quote multi-word entity names.
+          Ctrl/Cmd+Enter always saves · the check button saves by touch or pointer · Esc closes.
+          Left/Right/Home/End move across semantic chips. Activate a chip to edit or pin its
+          context, then type or choose a suggestion. Quote multi-word entity names.
           Defaults follow ${placeLabel} and ${timeLabel ?? "the timeline center"} until explicitly pinned.
           Move the timeline or World while this is open to change unpinned defaults.
           A changed graph selection never replaces a modified draft until its context action is chosen.
