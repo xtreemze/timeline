@@ -413,8 +413,8 @@ function assertTrajectoryShape(
   }
 
   const semanticMappings = optionalRecordArray(
-    value.semanticMappings,
-    "Trajectory semanticMappings",
+    value.externalMappings,
+    "Trajectory externalMappings",
   );
   const trajectory: TrajectoryArtifact = {
     id: trajectoryId(requireNonEmptyString(value.id, "Trajectory ID")),
