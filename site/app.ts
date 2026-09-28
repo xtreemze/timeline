@@ -30,6 +30,7 @@ import "./components/occurrence-composer.ts";
 import type {
   LuumOccurrenceComposerElement,
   OccurrenceCommitDetail,
+  OccurrenceComposerSessionSnapshot,
 } from "./components/occurrence-composer.ts";
 import {
   formatOccurrenceComposition,
@@ -1913,6 +1914,58 @@ function syncOccurrenceComposerSelection(selection = applicationSelection.curren
 }
 
 let occurrenceComposerReturnFocus: HTMLElement | null = null;
+const occurrenceComposerHome = document.createComment("occurrence-composer-home");
+els.occurrenceComposer.after(occurrenceComposerHome);
+const occurrenceComposerHostProxy = document.createElement("button");
+occurrenceComposerHostProxy.type = "button";
+occurrenceComposerHostProxy.className = "occurrence-composer-host-proxy";
+occurrenceComposerHostProxy.hidden = true;
+occurrenceComposerHostProxy.setAttribute("aria-label", "Focus occurrence composer");
+occurrenceComposerHostProxy.title = "Editing selected occurrence";
+occurrenceComposerHostProxy.textContent = "Editing selected occurrence";
+els.occurrenceComposer.before(occurrenceComposerHostProxy);
+
+function composerActiveHost(): "footer" | "card" | null {
+  if (!els.occurrenceComposer.active) return null;
+  return els.occurrenceComposer.closest("[data-occurrence-composer-slot]") ? "card" : "footer";
+}
+
+function syncSharedComposerSession(): void {
+  timelineView?.syncComposerSession(
+    els.occurrenceComposer.sessionSnapshot(),
+    composerActiveHost(),
+  );
+}
+
+function restoreOccurrenceComposerHome(): void {
+  const parent = occurrenceComposerHome.parentNode;
+  if (parent && els.occurrenceComposer.parentNode !== parent) {
+    parent.insertBefore(els.occurrenceComposer, occurrenceComposerHome);
+  }
+  for (const slot of document.querySelectorAll<HTMLElement>("[data-occurrence-composer-slot]")) {
+    slot.hidden = true;
+  }
+  occurrenceComposerHostProxy.hidden = true;
+  syncSharedComposerSession();
+}
+
+function mountOccurrenceComposerHost(): void {
+  const cardHost = timelineView?.composerHostForFocusedOccurrence?.() ?? null;
+  if (!els.occurrenceComposer.active || !cardHost) {
+    restoreOccurrenceComposerHome();
+    return;
+  }
+  cardHost.hidden = false;
+  if (els.occurrenceComposer.parentNode !== cardHost) {
+    cardHost.append(els.occurrenceComposer);
+  }
+  occurrenceComposerHostProxy.hidden = false;
+  syncSharedComposerSession();
+}
+
+occurrenceComposerHostProxy.addEventListener("click", () => {
+  els.occurrenceComposer.focusInput();
+});
 
 function composerInvoker(): HTMLElement | null {
   const active = document.activeElement;
@@ -2022,10 +2075,12 @@ function setOccurrenceComposerOpen(open: boolean): void {
     els.occurrenceComposer.show();
   } else {
     els.occurrenceComposer.hide();
+    restoreOccurrenceComposerHome();
     focusToRestore = occurrenceComposerReturnFocus;
     occurrenceComposerReturnFocus = null;
   }
   syncApplicationSurfaces();
+  if (open) mountOccurrenceComposerHost();
   if (!open && focusToRestore && !els.occurrenceComposer.contains(focusToRestore)) {
     restoreComposerFocus(focusToRestore);
   }
@@ -6020,6 +6075,7 @@ els.timelineViewRoot.addEventListener("timelinefocuschange", (event) => {
   syncContextualPresentationPanels();
   syncTimelineContextControls();
   schedulePresentationGeometryRefresh({ recenterGraph: !cardFocused });
+  mountOccurrenceComposerHost();
 });
 
 els.timelineViewRoot.addEventListener("timelinefocusrender", (event) => {
@@ -6027,6 +6083,7 @@ els.timelineViewRoot.addEventListener("timelinefocusrender", (event) => {
   syncContextualPresentationPanels();
   syncTimelineContextControls();
   schedulePresentationGeometryRefresh({ recenterGraph: !cardFocused });
+  mountOccurrenceComposerHost();
 });
 
 els.graphViewRoot.addEventListener("graphcontextchange", (event) => {
@@ -6087,6 +6144,10 @@ els.graphViewRoot.addEventListener("worldcontextrequest", (event) => {
 
 els.occurrenceComposer.addEventListener("occurrencecomposeropenrequest", () => {
   setOccurrenceComposerOpen(true);
+});
+els.occurrenceComposer.addEventListener("occurrencecomposersessionchange", (event) => {
+  const snapshot = (event as CustomEvent<OccurrenceComposerSessionSnapshot>).detail;
+  timelineView?.syncComposerSession(snapshot, composerActiveHost());
 });
 els.occurrenceComposer.addEventListener("occurrencecomposercloserequest", () => {
   setOccurrenceComposerOpen(false);
