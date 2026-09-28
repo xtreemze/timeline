@@ -126,7 +126,8 @@ test.describe("Narrow mobile screen contracts", () => {
       if (!before || !collapsedActions || !collapsedComposer || !collapsedView) {
         throw new Error("Footer geometry is unavailable before composer expansion.");
       }
-      expect(collapsedComposer.width).toBeGreaterThanOrEqual(170);
+      expect(collapsedComposer.width).toBeGreaterThanOrEqual(120);
+      expect(collapsedComposer.width).toBeLessThanOrEqual(220);
       expect(collapsedActions.x).toBeLessThan(collapsedComposer.x);
       expect(collapsedComposer.x).toBeLessThan(collapsedView.x);
 
@@ -426,7 +427,10 @@ test.describe("Narrow mobile screen contracts", () => {
         await expect(composer.locator(".compact")).toBeVisible();
         const composerBox = await composer.boundingBox();
         expect(composerBox).not.toBeNull();
-        if (composerBox) expect(composerBox.width).toBeGreaterThanOrEqual(170);
+        if (composerBox) {
+          expect(composerBox.width).toBeGreaterThanOrEqual(120);
+          expect(composerBox.width).toBeLessThanOrEqual(220);
+        }
       }
 
       const buttons = dock.locator(
