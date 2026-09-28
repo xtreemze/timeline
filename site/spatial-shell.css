@@ -707,6 +707,21 @@
   min-block-size: var(--toolbar-control-size);
 }
 
+@media (max-width: 699px) {
+  #app-shell:has(#occurrence-composer[active]) .app-footer-bar > .app-footer-view {
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: none;
+  }
+
+  #app-shell:has(#occurrence-composer[active])
+    .app-footer-bar
+    > .app-footer-view::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 .app-surface-header-actions {
   display: flex;
   align-items: center;
