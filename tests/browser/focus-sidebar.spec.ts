@@ -324,6 +324,66 @@ test("portrait preserves the right timeline rail while focused detail layers ins
   expect(overlapArea(focusBox, graphBox)).toBeGreaterThan(100);
 });
 
+test("focused detail stays compact and physically attached to its selected occurrence card", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+
+  for (const orientation of ["landscape", "portrait"] as const) {
+    await page.goto("/");
+    await ensureOrientation(page, orientation);
+    const terminal = await ensureSample(page);
+    await terminal.evaluate((button: HTMLButtonElement) => button.click());
+
+    const focus = page.locator("#timeline-focus-view");
+    await expect(focus).toBeVisible();
+    await expect(focus).toHaveAttribute("data-anchor-side", /^(above|below|left|right)$/);
+
+    const [focusBox, terminalBox, stageBox, heroBox] = await Promise.all([
+      focus.boundingBox(),
+      terminal.boundingBox(),
+      page.locator("#presentation-stage").boundingBox(),
+      focus.locator(".timeline-focus-hero").boundingBox(),
+    ]);
+    expect(focusBox).not.toBeNull();
+    expect(terminalBox).not.toBeNull();
+    expect(stageBox).not.toBeNull();
+    expect(heroBox).not.toBeNull();
+    if (!focusBox || !terminalBox || !stageBox || !heroBox) {
+      throw new Error("Focused occurrence attachment geometry is unavailable.");
+    }
+
+    expect(focusBox.width).toBeLessThanOrEqual(514);
+    expect(focusBox.height).toBeLessThanOrEqual(450);
+    expect(focusBox.width * focusBox.height).toBeLessThan(stageBox.width * stageBox.height * 0.5);
+    expect(heroBox.height).toBeLessThanOrEqual(184);
+
+    const side = await focus.getAttribute("data-anchor-side");
+    const edgeGap =
+      side === "above"
+        ? terminalBox.y - (focusBox.y + focusBox.height)
+        : side === "below"
+          ? focusBox.y - (terminalBox.y + terminalBox.height)
+          : side === "left"
+            ? terminalBox.x - (focusBox.x + focusBox.width)
+            : focusBox.x - (terminalBox.x + terminalBox.width);
+    expect(edgeGap).toBeGreaterThanOrEqual(4);
+    expect(edgeGap).toBeLessThanOrEqual(14);
+
+    const style = await focus.evaluate((element) => {
+      const computed = getComputedStyle(element);
+      return {
+        borderColor: computed.borderTopColor,
+        inlineStart: computed.insetInlineStart,
+        blockStart: computed.insetBlockStart,
+      };
+    });
+    expect(style.borderColor).not.toBe("rgba(0, 0, 0, 0)");
+    expect(style.inlineStart).not.toBe("auto");
+    expect(style.blockStart).not.toBe("auto");
+  }
+});
+
 test("Browse and persistent View controls do not discard the focused occurrence", async ({
   page,
 }) => {
