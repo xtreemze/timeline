@@ -25,7 +25,9 @@
 .timeline-project-heading {
   view-transition-name: timeline-project-heading;
   position: absolute;
-  z-index: 24;
+  /* Permanent titlebar chrome must stay above the persistent world canvas
+     (graph-lens is z-index 1050) while remaining below modal/utility sheets. */
+  z-index: 1200;
   top: max(0.5rem, env(safe-area-inset-top));
   inset-inline-start: max(0.5rem, env(safe-area-inset-left));
   display: flex;
