@@ -18,6 +18,17 @@ test("selecting an occurrence through the visible card opens its composer-owned 
   await expect(composer.locator(".composer-occurrence-card")).toBeVisible();
   await expect(composer.locator('input[role="combobox"]')).toBeVisible();
   await expect(page.locator(".timeline-event-detail:visible")).toHaveCount(0);
+
+  // Regression: once this occurrence is already selected/focused, closing the
+  // composer and activating the same card again must reopen the composer rather
+  // than falling back to the legacy detached timeline detail.
+  await composer.getByRole("button", { name: "Close occurrence composer" }).click();
+  await expect(composer.locator(".compact")).toBeVisible();
+  await occurrence.click();
+  await expect(composer).toHaveAttribute("active", "");
+  await expect(composer.locator(".composer-occurrence-card")).toBeVisible();
+  await expect(composer.locator('input[role="combobox"]')).toBeVisible();
+  await expect(page.locator(".timeline-event-detail:visible")).toHaveCount(0);
 });
 
 test("one composer card previews incomplete icons and chips select exact grammar spans", async ({
