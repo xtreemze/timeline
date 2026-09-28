@@ -527,6 +527,168 @@ function operationId(operation) {
     : String(operation.record.id);
 }
 
+function includesId(values, id) {
+  return Array.isArray(values) && values.some((value) => String(value) === id);
+}
+
+function deletedRecordReferences(project, collection, id) {
+  const references = [];
+  const add = (condition, path) => {
+    if (condition) references.push(path);
+  };
+
+  if (collection === "entities") {
+    (project.relationships ?? []).forEach((relationship, index) => {
+      add(String(relationship.subjectId) === id, `/project/relationships/${index}/subjectId`);
+      add(String(relationship.objectId) === id, `/project/relationships/${index}/objectId`);
+      for (const field of ["subjectContext", "objectContext"]) {
+        const context = relationship[field];
+        add(
+          context?.representedEntityId !== undefined &&
+            String(context.representedEntityId) === id,
+          `/project/relationships/${index}/${field}/representedEntityId`,
+        );
+        add(
+          context?.organizationId !== undefined &&
+            String(context.organizationId) === id,
+          `/project/relationships/${index}/${field}/organizationId`,
+        );
+      }
+    });
+    (project.occurrences ?? []).forEach((occurrence, index) => {
+      (occurrence.participantContexts ?? []).forEach((participant, participantIndex) => {
+        add(
+          String(participant.entityId) === id,
+          `/project/occurrences/${index}/participantContexts/${participantIndex}/entityId`,
+        );
+        add(
+          participant.representedEntityId !== undefined &&
+            String(participant.representedEntityId) === id,
+          `/project/occurrences/${index}/participantContexts/${participantIndex}/representedEntityId`,
+        );
+        add(
+          participant.organizationId !== undefined &&
+            String(participant.organizationId) === id,
+          `/project/occurrences/${index}/participantContexts/${participantIndex}/organizationId`,
+        );
+      });
+    });
+    (project.trajectories ?? []).forEach((trajectory, index) => {
+      add(
+        includesId(trajectory.observedEntityIds, id),
+        `/project/trajectories/${index}/observedEntityIds`,
+      );
+    });
+  }
+
+  if (collection === "relationships") {
+    (project.occurrences ?? []).forEach((occurrence, index) => {
+      add(
+        includesId(occurrence.relationshipIds, id),
+        `/project/occurrences/${index}/relationshipIds`,
+      );
+    });
+  }
+
+  if (collection === "occurrences") {
+    (project.relationships ?? []).forEach((relationship, index) => {
+      add(
+        includesId(relationship.itemIds, id),
+        `/project/relationships/${index}/itemIds`,
+      );
+    });
+    (project.stories ?? []).forEach((story, index) => {
+      add(
+        includesId(story.occurrenceIds, id),
+        `/project/stories/${index}/occurrenceIds`,
+      );
+    });
+  }
+
+  if (collection === "trajectories") {
+    (project.occurrences ?? []).forEach((occurrence, index) => {
+      add(
+        includesId(occurrence.trajectoryIds, id),
+        `/project/occurrences/${index}/trajectoryIds`,
+      );
+    });
+  }
+
+  if (collection === "places") {
+    (project.relationships ?? []).forEach((relationship, index) => {
+      add(
+        relationship.placeId !== undefined && String(relationship.placeId) === id,
+        `/project/relationships/${index}/placeId`,
+      );
+    });
+    (project.occurrences ?? []).forEach((occurrence, index) => {
+      add(
+        occurrence.placeId !== undefined && String(occurrence.placeId) === id,
+        `/project/occurrences/${index}/placeId`,
+      );
+    });
+    (project.stories ?? []).forEach((story, index) => {
+      add(
+        includesId(story.placeIds, id),
+        `/project/stories/${index}/placeIds`,
+      );
+    });
+  }
+
+  if (collection === "sources") {
+    (project.entities ?? []).forEach((entity, index) => {
+      add(includesId(entity.sourceIds, id), `/project/entities/${index}/sourceIds`);
+      (entity.identifiers ?? []).forEach((identifier, identifierIndex) => {
+        add(
+          includesId(identifier.sourceIds, id),
+          `/project/entities/${index}/identifiers/${identifierIndex}/sourceIds`,
+        );
+      });
+      (entity.appellations ?? []).forEach((appellation, appellationIndex) => {
+        add(
+          includesId(appellation.sourceIds, id),
+          `/project/entities/${index}/appellations/${appellationIndex}/sourceIds`,
+        );
+      });
+    });
+    (project.relationships ?? []).forEach((relationship, index) => {
+      add(
+        includesId(relationship.sourceIds, id),
+        `/project/relationships/${index}/sourceIds`,
+      );
+      for (const field of ["subjectContext", "objectContext"]) {
+        add(
+          includesId(relationship[field]?.authoritySourceIds, id),
+          `/project/relationships/${index}/${field}/authoritySourceIds`,
+        );
+      }
+    });
+    (project.occurrences ?? []).forEach((occurrence, index) => {
+      add(
+        includesId(occurrence.sourceIds, id),
+        `/project/occurrences/${index}/sourceIds`,
+      );
+      (occurrence.participantContexts ?? []).forEach((participant, participantIndex) => {
+        add(
+          includesId(participant.authoritySourceIds, id),
+          `/project/occurrences/${index}/participantContexts/${participantIndex}/authoritySourceIds`,
+        );
+      });
+    });
+    (project.trajectories ?? []).forEach((trajectory, index) => {
+      add(
+        includesId(trajectory.sourceIds, id),
+        `/project/trajectories/${index}/sourceIds`,
+      );
+    });
+    (project.places ?? []).forEach((place, index) => {
+      add(includesId(place.sourceIds, id), `/project/places/${index}/sourceIds`);
+    });
+  }
+
+  return references;
+}
+
 function applyOperations(proposal, sourceSnapshot, savedAt) {
   const diagnostics = [];
   const project = cloneJson(sourceSnapshot.project);
@@ -627,6 +789,23 @@ function applyOperations(proposal, sourceSnapshot, savedAt) {
     summary.deleted[collection] += 1;
     summary.operations.push({ op: "delete", collection, id });
   });
+
+  if (diagnostics.length === 0) {
+    proposal.operations.forEach((operation, index) => {
+      if (operation.op !== "delete") return;
+      const id = String(operation.id);
+      const references = deletedRecordReferences(project, operation.collection, id);
+      if (references.length === 0) return;
+      diagnostics.push(
+        diagnostic(
+          "record-still-referenced",
+          `/operations/${index}/id`,
+          `${operation.collection} record "${id}" is still referenced by ${references.join(", ")}.`,
+          "Delete or replace the referencing records in the same proposal before deleting this record.",
+        ),
+      );
+    });
+  }
 
   if (diagnostics.length > 0) {
     return { valid: false, diagnostics, candidate: null, summary };
