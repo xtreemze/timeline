@@ -214,8 +214,9 @@ export function applyProjectTransaction<TProject>(
   project: TProject,
   operations: readonly ProjectTransactionOperation[],
 ): TProject {
-  const input = record(project);
-  if (!input) throw new Error("Lūm project must be an object.");
+  const draft = cloneValue(project);
+  const draftRecord = record(draft);
+  if (!draftRecord) throw new Error("Lūm project must be an object.");
   if (!Array.isArray(operations) || operations.length === 0) {
     throw new Error("A non-empty operations array is required.");
   }
@@ -223,7 +224,6 @@ export function applyProjectTransaction<TProject>(
     throw new Error("A transaction is limited to 500 operations.");
   }
 
-  const draft = cloneValue(input);
-  for (const operation of operations) applyOperation(draft, operation);
+  for (const operation of operations) applyOperation(draftRecord, operation);
   return draft;
 }
