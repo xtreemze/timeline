@@ -3,13 +3,13 @@
  * Main entry point coordinating all modules, UI state, and persistence
  */
 
-import { authorOccurrence } from "../src/application/occurrence-authoring.ts";\nimport { projectTimelineOccurrences } from "../src/projection/timeline-projection.ts";
+import { authorOccurrence } from "../src/application/occurrence-authoring.ts";
+import { projectTimelineOccurrences } from "../src/projection/timeline-projection.ts";
 import "./components/occurrence-composer.ts";
 import type {
   LuumOccurrenceComposerElement,
   OccurrenceCommitDetail,
 } from "./components/occurrence-composer.ts";
-import type { ComposerEntityReference } from "./occurrence-composer-model.ts";
 import {
   canShareProjectFile,
   observeInstallAvailability,
