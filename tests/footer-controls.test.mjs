@@ -85,6 +85,23 @@ test("footer exposes view controls directly and keeps one primary Edit entry", a
   assert.doesNotMatch(factory, /"Reorganize relationship layout",[\s\S]*"dag"/);
 });
 
+test("footer zoom controls neutralize legacy timeline grid geometry", async () => {
+  const [shellCss, timelineCss] = await Promise.all([
+    readFile(shellUrl, "utf8"),
+    readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(
+    shellCss,
+    /\.app-footer-view \.toolbar-zoom-control\s*\{[\s\S]*grid-template-rows:\s*var\(--toolbar-control-size\)[\s\S]*gap:\s*0/,
+  );
+  assert.doesNotMatch(timelineCss, /(^|\n)\.timeline-zoom-control\s*\{/);
+  assert.match(
+    timelineCss,
+    /\.timeline-view\[data-orientation="landscape"\] \.timeline-zoom-control\s*\{/,
+  );
+});
+
 test("all footer buttons and controls share the canonical toolbar surface", async () => {
   const [index, css] = await Promise.all([readFile(indexUrl, "utf8"), readFile(shellUrl, "utf8")]);
   assert.match(css, /--toolbar-control-size:\s*44px/);
