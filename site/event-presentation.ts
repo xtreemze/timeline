@@ -213,21 +213,24 @@ export function createCompoundIcon(
   options?: IconOptions,
 ): HTMLSpanElement {
   const size = options?.size || 16;
+  const primarySize = Math.max(12, Math.round(size * 0.86));
   const secondarySize = Math.max(9, Math.round(size * 0.52));
   const root = document.createElement("span");
   root.className = "semantic-icon compound-semantic-icon";
   root.setAttribute("aria-hidden", "true");
+  root.style.setProperty("--compound-icon-primary-size", `${primarySize}px`);
+  root.style.setProperty("--compound-icon-secondary-size", `${secondarySize}px`);
 
-  const primary = createIcon(primaryName, { size });
+  const primary = createIcon(primaryName, { size: primarySize });
   primary.classList.remove("semantic-icon");
   primary.classList.add("compound-semantic-icon-primary");
 
   const secondary = createIcon(secondaryName, { size: secondarySize });
   secondary.classList.remove("semantic-icon");
   secondary.classList.add("compound-semantic-icon-secondary");
-  // The secondary SVG is rendered smaller, so compensate its viewBox stroke
-  // width to preserve the same apparent outline weight as the primary icon.
-  secondary.setAttribute("stroke-width", String((1.8 * size * 0.92) / secondarySize));
+  // Equalize the apparent line thickness after the secondary glyph is scaled
+  // down: stroke width × rendered scale matches the primary glyph.
+  secondary.setAttribute("stroke-width", String((1.8 * primarySize) / secondarySize));
 
   root.append(primary, secondary);
   return root;
