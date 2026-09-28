@@ -1903,6 +1903,7 @@ function setOccurrenceComposerOpen(open: boolean): void {
       occurrenceComposerReturnFocus = composerInvoker();
     }
     closeLargeUtilitySurfaces("composer");
+    ui.mode = "view";
     ui.editorOpen = false;
     closeProjectMenu();
     syncOccurrenceComposerData();
