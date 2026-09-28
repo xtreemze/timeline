@@ -544,7 +544,9 @@ export function occurrenceComposerSuggestions(
         ...(entity.icon ? { icon: entity.icon } : {}),
         insertText: `@${entity.id}`,
       }));
-    return uniqueSuggestions(entitySuggestions);
+    if (entitySuggestions.length > 0 || parsed.stage !== "complete") {
+      return uniqueSuggestions(entitySuggestions);
+    }
   }
 
   if (completionStage === "predicate") {
@@ -564,7 +566,7 @@ export function occurrenceComposerSuggestions(
   if (
     completionStage === "subject" ||
     completionStage === "predicate" ||
-    completionStage === "object"
+    (completionStage === "object" && parsed.stage !== "complete")
   ) {
     return Object.freeze([]);
   }
