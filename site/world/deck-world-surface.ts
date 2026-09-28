@@ -70,6 +70,7 @@ import {
   worldShowsOrdinaryPlaceLabels,
 } from "../../src/layout/world-semantic-presentation.ts";
 import {
+  DEFAULT_WORLD_SPATIAL_MODE_POLICY,
   selectWorldSpatialMode,
   WORLD_CAMERA_MAX_ZOOM,
   WORLD_CAMERA_MIN_ZOOM,
@@ -498,6 +499,14 @@ export function clusterZoomThresholdForPlaceDensity(
 const WORLD_CLUSTER_PANNABLE_OVERFLOW_RATIO = 1.35;
 const WORLD_CLUSTER_PANNABLE_MAX_MEMBERS = 32;
 
+/**
+ * Hard semantic ceiling for clustering. At the local-precision handoff the
+ * graph is in inspection mode: all canonical members must be directly
+ * represented and force/pan own readability from this point onward.
+ */
+export const WORLD_CLUSTER_DETAIL_ZOOM_CEILING =
+  DEFAULT_WORLD_SPATIAL_MODE_POLICY.enterLocalAtZoom;
+
 export function clusterRequiredLocalRadiusPx(
   nodeRadiusPx: number,
   memberCount: number,
@@ -533,6 +542,10 @@ export function clusterTargetPlaceIds(
   availableLocalRadiusPx: number,
   phase: WorldClusterLifecyclePhase,
 ): readonly PlaceId[] {
+  if (Number.isFinite(zoom) && zoom >= WORLD_CLUSTER_DETAIL_ZOOM_CEILING) {
+    return Object.freeze([]);
+  }
+
   type Anchor = ProjectedWorldInstance["geographicAnchors"][number];
   interface Group {
     readonly placeId: PlaceId;
@@ -716,20 +729,7 @@ export function clusterTargetPlaceIds(
       available > 0 &&
       zoom >= densityReleaseZoom &&
       requiredWithHysteresis <= available * WORLD_CLUSTER_PANNABLE_OVERFLOW_RATIO;
-    // The camera ceiling is also the semantic drill-in ceiling. A modest
-    // component must not become a permanent cluster merely because its ideal
-    // packing radius exceeds the viewport budget: at maximum zoom the user
-    // has no further camera action available, and the pannable local surface
-    // can carry the overflow. Keep genuinely large components protected by
-    // the same bounded-member safeguard used for ordinary detail overflow.
-    const terminalDetailRelease =
-      zoom >= WORLD_CAMERA_MAX_ZOOM &&
-      memberCount <= WORLD_CLUSTER_PANNABLE_MAX_MEMBERS &&
-      available > 0;
-    if (
-      !overviewClustering &&
-      (requiredWithHysteresis <= available || pannableDetailRelease || terminalDetailRelease)
-    ) {
+    if (!overviewClustering && (requiredWithHysteresis <= available || pannableDetailRelease)) {
       continue;
     }
 
@@ -5450,7 +5450,7 @@ export class DeckWorldSurface implements WorldSurface {
       : Object.freeze([] as DeckWorldRelationshipDatum[]);
     const releasingSegments = releasingRelationshipSegments(releasingRelationships);
     const placeMarkerClusters =
-      clusterPhase !== "collapsed" && this.#camera.zoom < WORLD_CAMERA_MAX_ZOOM
+      clusterPhase !== "collapsed" && this.#camera.zoom < WORLD_CLUSTER_DETAIL_ZOOM_CEILING
         ? Object.freeze(
             clusterEntityDatumsByPlace(
               entityResult.datums,
