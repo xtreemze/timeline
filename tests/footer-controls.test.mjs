@@ -88,6 +88,9 @@ test("footer exposes view controls directly and keeps one primary Edit entry", a
 test("all footer buttons and controls share the canonical toolbar surface", async () => {
   const [index, css] = await Promise.all([readFile(indexUrl, "utf8"), readFile(shellUrl, "utf8")]);
   assert.match(css, /--toolbar-control-size:\s*44px/);
+  assert.match(css, /--toolbar-icon-size:\s*20px/);
+  assert.match(css, /--toolbar-slider-track-size:\s*4px/);
+  assert.match(css, /--toolbar-slider-thumb-size:\s*18px/);
   assert.match(
     css,
     /\.app-footer-bar :is\(\.toolbar-control, \.toolbar-compound-control\)\s*\{[\s\S]*block-size:\s*var\(--toolbar-control-size\)[\s\S]*border:\s*1px solid color-mix/,
@@ -108,6 +111,14 @@ test("all footer buttons and controls share the canonical toolbar surface", asyn
   );
   assert.match(activeControlRule, /var\(--ink\)/);
   assert.match(css, /\.app-footer-bar \.toolbar-control:disabled[\s\S]*opacity:\s*0\.42/);
+  assert.match(
+    css,
+    /\.app-footer-bar \.toolbar-control\s*\{[\s\S]*grid-template:\s*1fr \/ 1fr[\s\S]*gap:\s*0/,
+  );
+  assert.match(
+    css,
+    /\.app-footer-bar \.toolbar-control > \.semantic-icon\s*\{[\s\S]*inline-size:\s*var\(--toolbar-icon-size\)[\s\S]*block-size:\s*var\(--toolbar-icon-size\)/,
+  );
   assert.doesNotMatch(css, /\.app-footer-bar \.toolbar-control-wide/);
   assert.doesNotMatch(css, /\.app-footer-bar \.toolbar-range-control/);
   assert.match(css, /\.app-footer-bar \.toolbar-control-value/);
@@ -138,34 +149,41 @@ test("all footer buttons and controls share the canonical toolbar surface", asyn
   assert.doesNotMatch(index, /id="timeline-view-controls-toggle"/);
 });
 
-test("narrow toolbar scrolls horizontally instead of hiding direct controls", async () => {
+test("narrow toolbar pins authoring and scrolls only dense View controls", async () => {
   const css = await readFile(shellUrl, "utf8");
 
   assert.match(
     css,
-    /@media \(max-width: 699px\)[\s\S]*\.app-tool-dock\.app-footer-bar[\s\S]*overflow-x:\s*auto/,
+    /@media \(max-width: 699px\)[\s\S]*\.app-tool-dock\.app-footer-bar[\s\S]*display:\s*grid[\s\S]*grid-template-columns:\s*auto clamp\(170px, 46vw, 260px\) minmax\(0, 1fr\)/,
   );
   assert.match(
     css,
-    /@media \(max-width: 699px\)[\s\S]*\.app-tool-dock\.app-footer-bar[\s\S]*justify-content:\s*flex-start/,
+    /#occurrence-composer:not\(\[active\]\)[\s\S]*order:\s*2[\s\S]*min-inline-size:\s*170px/,
+  );
+  assert.match(
+    css,
+    /\.app-footer-bar \.app-footer-view[\s\S]*order:\s*3[\s\S]*overflow-x:\s*auto[\s\S]*touch-action:\s*pan-x/,
   );
   assert.match(css, /\.app-footer-view \.world-camera-controls[\s\S]*flex-wrap:\s*nowrap/);
   assert.match(
     css,
-    /\.app-footer-view \.toolbar-zoom-control[\s\S]*grid-template-columns:[\s\S]*var\(--toolbar-control-size\)[\s\S]*var\(--toolbar-control-size\)/,
+    /\.app-footer-view \.toolbar-zoom-control[\s\S]*var\(--toolbar-zoom-track-width\)[\s\S]*max-inline-size:/,
   );
   assert.match(
     css,
-    /\.app-footer-view \.toolbar-zoom-slider[\s\S]*block-size:\s*var\(--toolbar-control-size\)/,
+    /\.app-footer-view \.toolbar-zoom-slider\s*\{[\s\S]*appearance:\s*none[\s\S]*block-size:\s*var\(--toolbar-control-size\)/,
+  );
+  assert.match(
+    css,
+    /\.toolbar-zoom-slider::-webkit-slider-runnable-track[\s\S]*var\(--toolbar-slider-track-size\)/,
+  );
+  assert.match(
+    css,
+    /\.toolbar-zoom-slider::-webkit-slider-thumb[\s\S]*var\(--toolbar-slider-thumb-size\)/,
   );
   assert.match(css, /\.app-footer-view \.toolbar-zoom-endpoint-button/);
   assert.doesNotMatch(css, /\.app-view-controls\[popover\]/);
   assert.doesNotMatch(css, /#timeline-view-controls-toggle/);
-  assert.doesNotMatch(css, /\.app-footer-(?:actions|timeline|view)[\s\S]{0,120}order:\s*[123]/);
-  assert.match(
-    css,
-    /scroll-padding-inline:[\s\S]*safe-area-inset-left[\s\S]*safe-area-inset-right/,
-  );
 });
 
 test("toolbar actions use one direct semantic icon with explicit tooltips", async () => {
