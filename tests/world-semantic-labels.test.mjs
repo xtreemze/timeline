@@ -329,6 +329,41 @@ test("place marker rendering uses the authored icon, fill, border, width, and sh
   );
 });
 
+test("selected place labels preserve the authored semantic marker color", () => {
+  const h = harness();
+  const styled = instance(0, {
+    geographicAnchors: [
+      {
+        placeId: "semantic-place",
+        label: "Semantic place",
+        longitude: 12,
+        latitude: 41,
+        influence: 1,
+        style: {
+          marker: {
+            fillColor: "#123456",
+            color: "#abcdef",
+          },
+        },
+      },
+    ],
+  });
+  const surface = new DeckWorldSurface({}, h.runtime, WORKING_CAMERA);
+  surface.setProjection(createWorldProjection({ instances: [styled], edges: [] }));
+  surface.setSelection({ kind: "place", id: "semantic-place" });
+
+  const labels = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
+  const datum = labels.props.data.find(
+    (candidate) => candidate.kind === "place-label" && candidate.placeId === "semantic-place",
+  );
+  assert.ok(datum, "selected place label must remain visible");
+  assert.deepEqual(
+    labels.props.getColor(datum).slice(0, 3),
+    [0x12, 0x34, 0x56],
+    "selection must use the place's authored semantic color rather than focus blue",
+  );
+});
+
 
 test("place acquisition radius follows the same shape-aware marker footprint", () => {
   const h = harness();
@@ -2324,10 +2359,22 @@ test("selecting a node makes every incident edge predicate visibly labeled", () 
   }
 });
 
-test("selection changes label color without changing label membership or placement", () => {
+test("selection reveals semantic label color without changing membership or placement", () => {
   const h = harness();
   const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom: 1 });
-  surface.setProjection(chainProjection(2_000));
+  const baseProjection = chainProjection(2_000);
+  const projection = createWorldProjection({
+    instances: baseProjection.instances.map((datum, index) =>
+      index === 0
+        ? createProjectedWorldInstance({
+            ...datum,
+            style: { ...(datum.style ?? {}), fillColor: "#7a3456" },
+          })
+        : datum,
+    ),
+    edges: baseProjection.edges,
+  });
+  surface.setProjection(projection);
 
   const beforeLayer = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.labels);
   const before = beforeLayer.props.data;
@@ -2371,6 +2418,22 @@ test("selection changes label color without changing label membership or placeme
   assert.equal(incidentAfter, incidentBefore, "selection reuses the same incident label datum");
   assert.notDeepEqual(afterLayer.props.getColor(selectedAfter), selectedColorBefore);
   assert.notDeepEqual(afterLayer.props.getColor(incidentAfter), incidentColorBefore);
+  assert.deepEqual(
+    afterLayer.props.getColor(selectedAfter).slice(0, 3),
+    [0x7a, 0x34, 0x56],
+    "selected entity label keeps the entity's authored semantic color",
+  );
+
+  const relationshipLayer = layer(h.lastLayers(), DECK_WORLD_LAYER_IDS.relationships);
+  const incidentEdge = relationshipLayer.props.data.find(
+    (datum) => datum.relationshipId === "edge-1",
+  );
+  assert.ok(incidentEdge);
+  assert.deepEqual(
+    afterLayer.props.getColor(incidentAfter).slice(0, 3),
+    relationshipLayer.props.getColor(incidentEdge).slice(0, 3),
+    "incident relationship label keeps the relationship's resolved semantic color",
+  );
 });
 
 test("dense direction-marker LOD is selection-stable while explicit focus may pin an edge", () => {
