@@ -1006,10 +1006,6 @@ function syncPresentationFullscreenState() {
         active ? "minimize" : "fullscreen",
         label,
       );
-      const icon = presentation.createIcon(active ? "minimize" : "fullscreen", { size: 20 });
-      const currentIcon = els.presentationFullscreenToggle.querySelector(":scope > .semantic-icon");
-      if (currentIcon) currentIcon.replaceWith(icon);
-      else els.presentationFullscreenToggle.prepend(icon);
     }
     syncContextualPresentationPanels();
     temporalGraphView?.setPresentationMode?.(presentationModeActive());
