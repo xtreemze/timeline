@@ -18,6 +18,12 @@ test("double tap zooms around the tapped temporal coordinate", async () => {
   assert.match(source, /TOUCH_DOUBLE_TAP_MS\s*=\s*320/);
   assert.match(source, /TOUCH_DOUBLE_TAP_DISTANCE_PX\s*=\s*28/);
   assert.match(source, /const registerTouchTap/);
+  assert.match(source, /zoomable:\s*!timelineInteractionTarget \|\| Boolean\(timelineOccurrenceTarget\)/);
+  assert.match(source, /tap\.cancelled \|\| !tap\.zoomable/);
+  assert.match(
+    source,
+    /addEventListener\("dblclick"[\s\S]*zoomTimelineAtClientPoint\(event\.clientX, event\.clientY\)/,
+  );
   // The tap window is measured on input timestamps, so a long task between
   // the taps cannot turn a quick double-tap into two single taps.
   assert.match(
