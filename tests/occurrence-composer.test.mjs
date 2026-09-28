@@ -315,22 +315,23 @@ test("occurrence composer is persistent footer chrome and expands in place", asy
     markup,
     /<nav class="app-tool-dock app-footer-bar"[\s\S]*<luum-occurrence-composer id="occurrence-composer"><\/luum-occurrence-composer>/,
   );
-  assert.match(
-    markup,
-    /id="occurrence-composer-toggle"[^>]*aria-controls="occurrence-composer"[^>]*aria-expanded="false"/,
-  );
+  assert.doesNotMatch(markup, /id="occurrence-composer-toggle"/);
 
   const footerStart = markup.indexOf('<nav class="app-tool-dock app-footer-bar"');
   const footerEnd = markup.indexOf("</nav>", footerStart);
-  assert.equal(
-    (markup.slice(footerStart, footerEnd).match(/id="occurrence-composer-toggle"/g) ?? []).length,
-    0,
-    "Compose is reached through the editor instead of a second toolbar authoring button",
+  const footerMarkup = markup.slice(footerStart, footerEnd);
+  assert.match(
+    footerMarkup,
+    /app-footer-actions[\s\S]*<luum-occurrence-composer id="occurrence-composer"><\/luum-occurrence-composer>[\s\S]*id="timeline-view-controls"/,
   );
 
   assert.match(
     shellStyles,
     /#app-shell:has\(#occurrence-composer\[active\]\)[\s\S]*--workspace-footer-content-block-size:\s*116px/,
+  );
+  assert.match(
+    shellStyles,
+    /app-footer-bar > #occurrence-composer\s*\{[\s\S]*grid-column:\s*2/,
   );
   assert.match(
     shellStyles,
