@@ -3219,16 +3219,6 @@
   outline-color: var(--focus-chrome-color);
 }
 
-.timeline-focus-view[popover] .timeline-focus-close.button.primary {
-  border-color: var(--focus-chrome-color);
-  background: var(--focus-chrome-color);
-  color: var(--focus-chrome-contrast);
-}
-
-.timeline-focus-view[popover] .timeline-focus-close.button.primary:is(:hover, :focus-visible) {
-  background: color-mix(in srgb, var(--focus-chrome-color) 84%, var(--paper));
-}
-
 .timeline-focus-view[popover] .button.secondary {
   border-color: color-mix(in srgb, var(--focus-chrome-color) 38%, var(--line-strong));
 }
@@ -3732,7 +3722,7 @@
   }
 
   #app-shell .timeline-focus-tab,
-  #app-shell .timeline-focus-close {
+  #app-shell .timeline-focus-icon-action {
     padding-inline: 0.42rem;
     font-size: 0.62rem;
   }
@@ -3916,7 +3906,7 @@
   }
 
   .timeline-focus-tab,
-  .timeline-focus-close,
+  .timeline-focus-icon-action,
   .timeline-focus-slideshow-controls .button,
   .timeline-focus-actions .button {
     min-height: 44px;
@@ -3987,7 +3977,7 @@
     grid-template-rows: auto minmax(0, 1fr) 104px;
   }
 
-  .timeline-focus-view[popover] > .timeline-focus-tabs {
+  .timeline-focus-view[popover] > .timeline-focus-toolbar {
     position: relative;
     z-index: 5;
     top: auto;
@@ -3998,15 +3988,18 @@
     grid-row: 1;
     align-self: start;
     justify-self: stretch;
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.28rem;
+    overflow-x: auto;
     width: auto;
     max-width: none;
     margin: 0.52rem 0.52rem 0;
     box-sizing: border-box;
   }
 
-  .timeline-focus-view[popover] > .timeline-focus-tabs > * {
+  .timeline-focus-view[popover] > .timeline-focus-toolbar > * {
     min-width: 0;
   }
 
@@ -4097,8 +4090,8 @@
     grid-template-rows: auto var(--focus-hero-block-size) minmax(120px, auto);
   }
 
-  :where(#app-shell) .timeline-focus-view[popover] > .timeline-focus-tabs,
-  .timeline-focus-view[popover] > .timeline-focus-tabs {
+  :where(#app-shell) .timeline-focus-view[popover] > .timeline-focus-toolbar,
+  .timeline-focus-view[popover] > .timeline-focus-toolbar {
     position: relative;
     z-index: 5;
     top: auto;
@@ -4107,15 +4100,18 @@
     left: auto;
     grid-column: 1;
     grid-row: 1;
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.18rem;
+    overflow-x: auto;
     width: auto;
     max-width: none;
     margin: 0.4rem 0.4rem 0;
     box-sizing: border-box;
   }
 
-  .timeline-focus-view[popover] > .timeline-focus-tabs > * {
+  .timeline-focus-view[popover] > .timeline-focus-toolbar > * {
     min-width: 0;
   }
 
@@ -5178,7 +5174,7 @@
   .timeline-focus-media-control,
   .timeline-focus-slide-dot,
   .timeline-focus-tab,
-  .timeline-focus-close {
+  .timeline-focus-icon-action {
     min-inline-size: 48px;
     min-block-size: 48px;
   }
@@ -5210,25 +5206,6 @@
   line-height: 1;
 }
 
-.timeline-focus-close.timeline-focus-icon-action {
-  position: relative;
-  z-index: 8;
-  display: grid;
-  flex: 0 0 44px;
-  inline-size: 44px;
-  block-size: 44px;
-  min-inline-size: 44px;
-  min-block-size: 44px;
-  margin-inline-start: 0.12rem;
-  padding: 0;
-  place-items: center;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--ink);
-  cursor: pointer;
-  touch-action: manipulation;
-}
 
 .timeline-focus-tab:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--event-color, var(--accent)) 72%, var(--focus));
