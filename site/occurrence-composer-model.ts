@@ -88,6 +88,23 @@ export interface ComposerCursorSection {
   readonly text: string;
 }
 
+export type ComposerEditableSectionKind =
+  | "subject"
+  | "predicate"
+  | "object"
+  | "place"
+  | "time"
+  | "category"
+  | "tag";
+
+export interface ComposerEditableSection {
+  readonly kind: ComposerEditableSectionKind;
+  readonly start: number;
+  readonly end: number;
+  readonly text: string;
+  readonly index?: number;
+}
+
 const ACTION_SUGGESTIONS = Object.freeze([
   "meets",
   "calls",
@@ -583,6 +600,135 @@ export function composerCursorSection(input: string, cursorOffset: number): Comp
   return Object.freeze({ kind: "tail", start: offset, end: offset, text: "" });
 }
 
+function trimmedValueRange(
+  input: string,
+  start: number,
+  end: number,
+): Readonly<{ start: number; end: number }> {
+  let valueStart = Math.max(0, Math.min(input.length, start));
+  let valueEnd = Math.max(valueStart, Math.min(input.length, end));
+  while (valueStart < valueEnd && /\s/.test(input[valueStart]!)) valueStart += 1;
+  while (valueEnd > valueStart && /\s/.test(input[valueEnd - 1]!)) valueEnd -= 1;
+  return Object.freeze({ start: valueStart, end: valueEnd });
+}
+
+export function composerEditableSections(input: string): readonly ComposerEditableSection[] {
+  const sections: ComposerEditableSection[] = [];
+  const subject = readEntitySpan(input, 0);
+  if (!subject) return Object.freeze(sections);
+  sections.push(Object.freeze({ kind: "subject", ...subject }));
+
+  const predicate = readTokenSpan(input, subject.end);
+  if (!predicate) return Object.freeze(sections);
+  sections.push(Object.freeze({ kind: "predicate", ...predicate }));
+
+  const object = readEntitySpan(input, predicate.end);
+  if (!object) return Object.freeze(sections);
+  sections.push(Object.freeze({ kind: "object", ...object }));
+
+  const lower = input.toLocaleLowerCase();
+  const optionsStart = lower.indexOf("[", object.end);
+  const onMarker = lower.indexOf(" on ", object.end);
+  const fromMarker = lower.indexOf(" from ", object.end);
+  const timeMarker =
+    onMarker < 0 ? fromMarker : fromMarker < 0 ? onMarker : Math.min(onMarker, fromMarker);
+  const placeMarker = lower.indexOf(" at ", object.end);
+
+  if (placeMarker >= 0 && (timeMarker < 0 || placeMarker < timeMarker)) {
+    const valueStart = placeMarker + 4;
+    const boundaryCandidates = [timeMarker, optionsStart, input.length].filter(
+      (candidate) => candidate >= valueStart,
+    );
+    const valueEnd = trimRangeEnd(input, valueStart, Math.min(...boundaryCandidates));
+    if (valueEnd > valueStart) {
+      sections.push(
+        Object.freeze({
+          kind: "place",
+          start: valueStart,
+          end: valueEnd,
+          text: unquote(input.slice(valueStart, valueEnd)),
+        }),
+      );
+    }
+  }
+
+  if (timeMarker >= 0) {
+    const clauseStart = timeMarker + 1;
+    const clauseEnd = trimRangeEnd(
+      input,
+      clauseStart,
+      optionsStart >= clauseStart ? optionsStart : input.length,
+    );
+    if (clauseEnd > clauseStart) {
+      sections.push(
+        Object.freeze({
+          kind: "time",
+          start: clauseStart,
+          end: clauseEnd,
+          text: input.slice(clauseStart, clauseEnd).trim(),
+        }),
+      );
+    }
+  }
+
+  if (optionsStart >= 0) {
+    const optionsClose = input.indexOf("]", optionsStart + 1);
+    const bodyEnd = optionsClose >= 0 ? optionsClose : input.length;
+    const body = input.slice(optionsStart + 1, bodyEnd);
+    const categoryMatch = /(?:^|,)\s*category\s*:\s*([^,\]]*)/i.exec(body);
+    if (categoryMatch && categoryMatch.index >= 0) {
+      const rawValue = categoryMatch[1] ?? "";
+      const rawStart =
+        optionsStart +
+        1 +
+        categoryMatch.index +
+        categoryMatch[0].lastIndexOf(rawValue);
+      const range = trimmedValueRange(input, rawStart, rawStart + rawValue.length);
+      if (range.end > range.start) {
+        sections.push(
+          Object.freeze({
+            kind: "category",
+            start: range.start,
+            end: range.end,
+            text: unquote(input.slice(range.start, range.end)),
+          }),
+        );
+      }
+    }
+
+    const tagsMatch = /(?:^|,)\s*tags\s*:\s*([^,\]]*)/i.exec(body);
+    if (tagsMatch && tagsMatch.index >= 0) {
+      const rawTags = tagsMatch[1] ?? "";
+      const rawStart =
+        optionsStart + 1 + tagsMatch.index + tagsMatch[0].lastIndexOf(rawTags);
+      let segmentOffset = 0;
+      let tagIndex = 0;
+      for (const segment of rawTags.split("|")) {
+        const range = trimmedValueRange(
+          input,
+          rawStart + segmentOffset,
+          rawStart + segmentOffset + segment.length,
+        );
+        if (range.end > range.start) {
+          sections.push(
+            Object.freeze({
+              kind: "tag",
+              start: range.start,
+              end: range.end,
+              text: unquote(input.slice(range.start, range.end)),
+              index: tagIndex,
+            }),
+          );
+          tagIndex += 1;
+        }
+        segmentOffset += segment.length + 1;
+      }
+    }
+  }
+
+  return Object.freeze(sections);
+}
+
 function normalizedMatchText(value: string): string {
   return value
     .trim()
@@ -775,6 +921,9 @@ export function occurrenceComposerSuggestions(
       : Math.max(0, Math.min(input.length, options.cursorOffset));
   const prefix = input.slice(0, cursorOffset);
   const token = currentToken(prefix);
+  const editableSection = composerEditableSections(input).find(
+    (section) => cursorOffset >= section.start && cursorOffset <= section.end,
+  );
 
   if (/\([^)]*$/.test(prefix)) {
     const iconValueActive = /(?:^|[,(])\s*icon\s*:\s*[^,)]*$/i.test(prefix);
@@ -818,12 +967,25 @@ export function occurrenceComposerSuggestions(
             return normalizedMatchText(tag).includes(activeTag);
           })
           .slice(0, 10)
-          .map((tag) => ({
-            kind: "tag" as const,
-            label: tag,
-            detail: "existing tag",
-            insertText: `tags: ${[...retainedTags, tag].join("|")}`,
-          })),
+          .map((tag) =>
+            editableSection?.kind === "tag"
+              ? {
+                  kind: "tag" as const,
+                  label: tag,
+                  detail: "existing tag",
+                  insertText: tag,
+                  replaceRange: Object.freeze({
+                    start: editableSection.start,
+                    end: editableSection.end,
+                  }),
+                }
+              : {
+                  kind: "tag" as const,
+                  label: tag,
+                  detail: "existing tag",
+                  insertText: `tags: ${[...retainedTags, tag].join("|")}`,
+                },
+          ),
       );
     }
 
@@ -833,12 +995,25 @@ export function occurrenceComposerSuggestions(
         return !activeCategory || normalizedMatchText(category.name).includes(activeCategory);
       })
       .slice(0, 10)
-      .map((category) => ({
-        kind: "category" as const,
-        label: category.name,
-        detail: "category",
-        insertText: `category: ${quoteComposerName(category.name)}`,
-      }));
+      .map((category) =>
+        editableSection?.kind === "category"
+          ? {
+              kind: "category" as const,
+              label: category.name,
+              detail: "category",
+              insertText: quoteComposerName(category.name),
+              replaceRange: Object.freeze({
+                start: editableSection.start,
+                end: editableSection.end,
+              }),
+            }
+          : {
+              kind: "category" as const,
+              label: category.name,
+              detail: "category",
+              insertText: `category: ${quoteComposerName(category.name)}`,
+            },
+      );
 
     if (categoryMatch) return uniqueSuggestions(categorySuggestions);
 
@@ -859,14 +1034,24 @@ export function occurrenceComposerSuggestions(
     return cursorPlaceSuggestions(cursorSection, options.places);
   }
   if (cursorSection.kind === "time" && options.timelineDefault) {
+    const editableTime =
+      editableSection?.kind === "time"
+        ? editableSection
+        : Object.freeze({
+            start: cursorSection.start,
+            end: cursorSection.end,
+          });
     return Object.freeze([
       {
         kind: "time" as const,
         label: options.timelineDefault,
         detail: "current timeline center",
         icon: "milestone",
-        insertText: options.timelineDefault,
-        replaceRange: Object.freeze({ start: cursorSection.start, end: cursorSection.end }),
+        insertText:
+          editableSection?.kind === "time"
+            ? `on ${options.timelineDefault}`
+            : options.timelineDefault,
+        replaceRange: Object.freeze({ start: editableTime.start, end: editableTime.end }),
       },
     ]);
   }
@@ -951,15 +1136,82 @@ export function occurrenceComposerSuggestions(
       insertText: `on ${options.timelineDefault}`,
     });
   }
+  const optionsOpen = input.lastIndexOf("[");
+  const optionsClose = optionsOpen >= 0 ? input.indexOf("]", optionsOpen + 1) : -1;
+  const appendClosedOptionSuggestion = (
+    kind: "category" | "tag",
+    label: string,
+    detail: string,
+    key: "category" | "tags",
+    value: string,
+  ): ComposerSuggestion => {
+    if (optionsOpen >= 0 && optionsClose >= 0) {
+      let replaceEnd = optionsClose + 1;
+      while (replaceEnd < input.length && /\s/.test(input[replaceEnd]!)) replaceEnd += 1;
+      const body = input.slice(optionsOpen + 1, optionsClose).trim();
+      return Object.freeze({
+        kind,
+        label,
+        detail,
+        insertText: `${body ? ", " : ""}${key}: ${value}] `,
+        replaceRange: Object.freeze({ start: optionsClose, end: replaceEnd }),
+      });
+    }
+    const trimmedEnd = input.trimEnd().length;
+    return Object.freeze({
+      kind,
+      label,
+      detail,
+      insertText: `${trimmedEnd ? " " : ""}[${key}: ${value}] `,
+      replaceRange: Object.freeze({ start: trimmedEnd, end: input.length }),
+    });
+  };
+
   if (!parsed.options.category) {
     contextSuggestions.push(
-      ...options.categories.slice(0, 6).map((category) => ({
-        kind: "category" as const,
-        label: category.name,
-        detail: "occurrence category",
-        insertText: `[category: ${quoteComposerName(category.name)}]`,
-      })),
+      ...options.categories.slice(0, 6).map((category) =>
+        appendClosedOptionSuggestion(
+          "category",
+          category.name,
+          "occurrence category",
+          "category",
+          quoteComposerName(category.name),
+        ),
+      ),
     );
+  }
+
+  const selectedTagKeys = new Set(parsed.options.tags.map(normalizedMatchText));
+  if (!parsed.options.tags.length) {
+    contextSuggestions.push(
+      ...(options.tags ?? [])
+        .map((tag) => tag.trim())
+        .filter(Boolean)
+        .filter((tag) => !selectedTagKeys.has(normalizedMatchText(tag)))
+        .slice(0, 6)
+        .map((tag) =>
+          appendClosedOptionSuggestion("tag", tag, "occurrence tag", "tags", quoteComposerName(tag)),
+        ),
+    );
+  } else {
+    const tagSections = composerEditableSections(input).filter((section) => section.kind === "tag");
+    const lastTag = tagSections.at(-1);
+    if (lastTag) {
+      contextSuggestions.push(
+        ...(options.tags ?? [])
+          .map((tag) => tag.trim())
+          .filter(Boolean)
+          .filter((tag) => !selectedTagKeys.has(normalizedMatchText(tag)))
+          .slice(0, 6)
+          .map((tag) => ({
+            kind: "tag" as const,
+            label: tag,
+            detail: "add occurrence tag",
+            insertText: `|${quoteComposerName(tag)}`,
+            replaceRange: Object.freeze({ start: lastTag.end, end: lastTag.end }),
+          })),
+      );
+    }
   }
   return uniqueSuggestions(contextSuggestions);
 }
