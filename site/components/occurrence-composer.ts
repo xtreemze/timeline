@@ -22,6 +22,18 @@ export interface OccurrenceComposerData {
   readonly categories: readonly ComposerCategoryOption[];
 }
 
+export interface OccurrenceComposerSelectionContext {
+  readonly selectedEntityId?: string | null;
+  readonly relationship?: {
+    readonly subjectId: string;
+    readonly objectId: string;
+  } | null;
+  readonly place?: {
+    readonly id: string;
+    readonly name: string;
+  } | null;
+}
+
 export interface OccurrenceCommitDetail {
   readonly text: string;
   readonly draft: OccurrenceSentenceDraft;
@@ -33,6 +45,7 @@ export interface OccurrenceCommitDetail {
     readonly latitude: number | null;
     readonly worldZoom: number | null;
     readonly accuracyMeters: number | null;
+    readonly placeReference: string | null;
   };
 }
 
@@ -221,6 +234,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
   private activeSuggestion = 0;
   private externalError = "";
   private explicitPlaceContext: ComposerWorldContext | null = null;
+  private selectionContext: OccurrenceComposerSelectionContext | null = null;
 
   constructor() {
     super();
@@ -245,6 +259,41 @@ export class LuumOccurrenceComposerElement extends LitElement {
   setWorldContext(longitude: number | null, latitude: number | null, zoom: number | null): void {
     this.worldContext = worldContextFromCamera({ longitude, latitude, zoom });
     this.requestUpdate();
+  }
+
+  setSelectionContext(context: OccurrenceComposerSelectionContext | null): void {
+    this.selectionContext = context
+      ? Object.freeze({
+          ...(context.selectedEntityId ? { selectedEntityId: context.selectedEntityId } : {}),
+          ...(context.relationship
+            ? {
+                relationship: Object.freeze({
+                  subjectId: context.relationship.subjectId,
+                  objectId: context.relationship.objectId,
+                }),
+              }
+            : {}),
+          ...(context.place
+            ? { place: Object.freeze({ id: context.place.id, name: context.place.name }) }
+            : {}),
+        })
+      : null;
+    this.applySelectionSeed();
+    this.requestUpdate();
+  }
+
+  private selectedSubjectId(): string | null {
+    return (
+      this.selectionContext?.selectedEntityId ??
+      this.selectionContext?.relationship?.subjectId ??
+      null
+    );
+  }
+
+  private applySelectionSeed(): void {
+    if (this.value.trim()) return;
+    const subjectId = this.selectedSubjectId();
+    if (subjectId) this.value = `@${subjectId} `;
   }
 
   setEditing(editing: boolean): void {
@@ -275,6 +324,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.explicitPlaceContext = null;
     this.externalError = "";
     this.activeSuggestion = 0;
+    this.applySelectionSeed();
     this.requestUpdate();
     void this.updateComplete.then(() => {
       this.renderRoot.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
@@ -286,12 +336,20 @@ export class LuumOccurrenceComposerElement extends LitElement {
   }
 
   private suggestions(): readonly ComposerSuggestion[] {
+    const parsed = this.parsed();
+    const preferredEntityIds =
+      parsed.stage === "object" && this.selectionContext?.relationship?.objectId
+        ? [this.selectionContext.relationship.objectId]
+        : parsed.stage === "subject" && this.selectedSubjectId()
+          ? [this.selectedSubjectId()!]
+          : [];
     return occurrenceComposerSuggestions(this.value, {
       entities: this.data.entities,
       places: this.data.places,
       categories: this.data.categories,
       timelineDefault: this.timelineContext?.value ?? null,
-      locationDefault: this.worldContext?.label ?? null,
+      locationDefault: this.selectionContext?.place?.name ?? this.worldContext?.label ?? null,
+      preferredEntityIds,
     });
   }
 
@@ -370,6 +428,10 @@ export class LuumOccurrenceComposerElement extends LitElement {
               draft.place && this.explicitPlaceContext
                 ? this.explicitPlaceContext.accuracyMeters
                 : (this.worldContext?.accuracyMeters ?? null),
+            placeReference:
+              !draft.place && this.selectionContext?.place
+                ? `@${this.selectionContext.place.id}`
+                : null,
           },
         },
       }),
@@ -426,7 +488,11 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
     const parsed = this.parsed();
     const timeLabel = parsed.time?.start ?? this.timelineContext?.label ?? null;
-    const placeLabel = parsed.place?.name ?? this.worldContext?.label ?? "World center";
+    const placeLabel =
+      parsed.place?.name ??
+      this.selectionContext?.place?.name ??
+      this.worldContext?.label ??
+      "World center";
     const suggestions = this.suggestions();
     const diagnostic = this.externalError || parsed.diagnostics[0] || "";
     const completionOpen = Boolean(diagnostic || suggestions.length);
