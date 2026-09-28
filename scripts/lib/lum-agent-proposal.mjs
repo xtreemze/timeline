@@ -372,6 +372,16 @@ function composerPlaceMatches(composerPlace, relationship) {
 function validateComposerRelationship(operation, project, path) {
   if (!operation.composerSentence) return [];
   const parsed = parseOccurrenceSentence(operation.composerSentence);
+  if (parsed.investigation.qualifiers.length > 0) {
+    return [
+      diagnostic(
+        "composer-investigative-unresolved",
+        `${path}/composerSentence`,
+        "Investigative composer qualifiers cannot be committed as canonical relationship facts.",
+        "Resolve the qualifier or persist it through the case-reasoning question/hypothesis/enquiry workflow.",
+      ),
+    ];
+  }
   if (parsed.stage !== "complete" || parsed.diagnostics.length > 0) {
     return [
       diagnostic(
