@@ -4091,13 +4091,21 @@ export class TimelineViewController {
       } else {
         apply();
       }
-      if (!evidenceActive) {
-        requestAnimationFrame(() => {
-          this.root.dispatchEvent(
-            new CustomEvent("timelinefocusrender", { bubbles: true, detail: { id: item.id } }),
-          );
-        });
-      }
+      requestAnimationFrame(() => {
+        const record = this.scene.get(occurrenceSceneKey(item.id));
+        if (record?.node.detailHost === focusHost && !focusHost.hidden) {
+          this.syncExpandedDetailGeometry(record, focusHost);
+        }
+        this.root.dispatchEvent(
+          new CustomEvent("timelinefocusrender", {
+            bubbles: true,
+            detail: {
+              id: item.id,
+              presentationSurface: focusHost === this.focusView ? "sidebar" : "card",
+            },
+          }),
+        );
+      });
     };
     overviewTab.addEventListener("click", () => setFocusTab("overview"));
     evidenceTab.addEventListener("click", () => setFocusTab("evidence"));
