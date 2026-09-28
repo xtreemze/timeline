@@ -1,6 +1,6 @@
 # Graph performance fixtures
 
-This directory contains repeatable, deterministic large-graph fixtures for the canonical Timeline graph projection layer.
+This directory contains repeatable, deterministic large-graph fixtures for the canonical Lūm graph projection layer.
 
 Run the default 1k / 5k / 10k-node fixture set:
 
