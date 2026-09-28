@@ -480,7 +480,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const nextContext = this.frozenSelectionContext(context);
     const previousKey = this.selectionIdentityKey(this.selectionContext);
     const nextKey = this.selectionIdentityKey(nextContext);
-    const dirtyDraft = this.active && Boolean(this.value.trim()) && !this.selectionSeeded;
+    const dirtyDraft = Boolean(this.value.trim()) && !this.selectionSeeded;
 
     if (previousKey !== nextKey && dirtyDraft) {
       this.pendingSelectionContext = nextContext;

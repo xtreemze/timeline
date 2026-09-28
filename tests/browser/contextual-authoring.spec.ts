@@ -408,7 +408,11 @@ test.describe("contextual world authoring certification", () => {
     const baseline = await input.inputValue();
     const dirty = `${baseline} `;
     await input.fill(dirty);
+    await input.press("Escape");
+    await expect(composer).not.toHaveAttribute("active", "");
+
     await focusRelationship(page, second!);
+    await openPersistentComposer(page);
 
     await expect(input).toHaveValue(dirty);
     const pending = composer.locator('[data-context-kind="pending-selection"]');
