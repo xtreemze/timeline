@@ -145,13 +145,80 @@ export class LuumOccurrenceComposerElement extends LitElement {
       inset-inline: 0;
       inset-block-end: calc(100% + 0.38rem);
       display: grid;
-      max-block-size: min(18rem, 42dvh);
+      max-block-size: min(
+        18rem,
+        calc(var(--composer-visual-viewport-height, 100dvh) * 0.42)
+      );
       overflow: hidden;
       border: 1px solid var(--line-strong, #b8b1a5);
       border-radius: 0.72rem;
       background: color-mix(in srgb, var(--paper, #fff) 98%, transparent);
       box-shadow: 0 -10px 30px color-mix(in srgb, #000 16%, transparent);
       backdrop-filter: blur(14px);
+    }
+
+    .context-row {
+      display: flex;
+      gap: 0.3rem;
+      min-inline-size: 0;
+      padding: 0.38rem 0.45rem;
+      overflow-x: auto;
+      overscroll-behavior-inline: contain;
+      border-block-end: 1px solid var(--line, #d1ccc4);
+      scrollbar-width: none;
+    }
+
+    .context-row::-webkit-scrollbar {
+      display: none;
+    }
+
+    .context-chip {
+      display: inline-flex;
+      flex: 0 0 auto;
+      align-items: center;
+      gap: 0.28rem;
+      min-block-size: 28px;
+      max-inline-size: min(18rem, 58vw);
+      padding-inline: 0.5rem;
+      border: 1px solid color-mix(in srgb, var(--line, #d1ccc4) 80%, transparent);
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--panel, #f5f3ef) 82%, transparent);
+      color: var(--muted, #615d56);
+      font-size: 0.68rem;
+      white-space: nowrap;
+    }
+
+    .context-chip[data-context-state="pinned"] {
+      border-color: color-mix(in srgb, var(--focus, #315fbd) 42%, var(--line, #d1ccc4));
+      color: var(--ink, #191714);
+    }
+
+    .context-chip strong {
+      max-inline-size: 12rem;
+      overflow: hidden;
+      color: inherit;
+      text-overflow: ellipsis;
+    }
+
+    .context-state {
+      font-size: 0.6rem;
+      font-weight: 760;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    @media (max-width: 480px) {
+      .input-row {
+        grid-template-columns: minmax(0, 1fr) auto;
+      }
+
+      .stage {
+        display: none;
+      }
+
+      .context-chip {
+        max-inline-size: 72vw;
+      }
     }
 
     .diagnostic {
@@ -262,6 +329,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
   private explicitPlaceContext: ComposerWorldContext | null = null;
   private selectionContext: OccurrenceComposerSelectionContext | null = null;
   private selectionSeeded = false;
+  private sessionKey = "";
 
   constructor() {
     super();
@@ -317,6 +385,40 @@ export class LuumOccurrenceComposerElement extends LitElement {
     );
   }
 
+  private selectedSubjectLabel(): string | null {
+    const id = this.selectedSubjectId();
+    if (!id) return null;
+    return this.data.entities.find((entity) => entity.id === id)?.name ?? id;
+  }
+
+  private resetDraft(): void {
+    this.value = "";
+    this.selectionSeeded = false;
+    this.explicitPlaceContext = null;
+    this.externalError = "";
+    this.activeSuggestion = 0;
+  }
+
+  private currentContextKey(): string {
+    return JSON.stringify({
+      subject: this.selectedSubjectId() ?? "",
+      object: this.selectionContext?.relationship?.objectId ?? "",
+      place: this.selectionContext?.place?.id ?? "",
+      time: this.timelineContext?.value ?? "",
+      world: this.worldContext?.label ?? "",
+    });
+  }
+
+  beginSession(): void {
+    const nextKey = this.currentContextKey();
+    if (this.sessionKey && this.sessionKey !== nextKey && this.value.trim()) {
+      this.resetDraft();
+    }
+    this.sessionKey = nextKey;
+    this.applySelectionSeed();
+    this.requestUpdate();
+  }
+
   private applySelectionSeed(): void {
     const subjectId = this.selectedSubjectId();
     if (!subjectId) {
@@ -354,11 +456,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
   }
 
   markCommitted(): void {
-    this.value = "";
-    this.selectionSeeded = false;
-    this.explicitPlaceContext = null;
-    this.externalError = "";
-    this.activeSuggestion = 0;
+    this.resetDraft();
+    this.sessionKey = this.currentContextKey();
     this.applySelectionSeed();
     this.requestUpdate();
     void this.updateComplete.then(() => {
@@ -494,24 +593,6 @@ export class LuumOccurrenceComposerElement extends LitElement {
       this.requestUpdate();
       return;
     }
-    if (event.key === "Home" && suggestions.length) {
-      event.preventDefault();
-      this.activeSuggestion = 0;
-      this.requestUpdate();
-      return;
-    }
-    if (event.key === "End" && suggestions.length) {
-      event.preventDefault();
-      this.activeSuggestion = suggestions.length - 1;
-      this.requestUpdate();
-      return;
-    }
-    if (event.key === "Tab" && suggestions.length) {
-      event.preventDefault();
-      const suggestion = suggestions[this.activeSuggestion] ?? suggestions[0];
-      if (suggestion) this.applySuggestion(suggestion);
-      return;
-    }
     if (event.key !== "Enter") return;
     event.preventDefault();
     const draft = this.parsed();
@@ -543,7 +624,9 @@ export class LuumOccurrenceComposerElement extends LitElement {
       "World center";
     const suggestions = this.suggestions();
     const diagnostic = this.externalError || parsed.diagnostics[0] || "";
-    const completionOpen = Boolean(diagnostic || suggestions.length);
+    const subjectLabel = this.selectedSubjectLabel();
+    const placePinned = Boolean(parsed.place || this.selectionContext?.place);
+    const timePinned = Boolean(parsed.time);
 
     return html`
       <section class="composer" aria-label="Occurrence composer">
@@ -576,52 +659,69 @@ export class LuumOccurrenceComposerElement extends LitElement {
           >×</button>
         </div>
 
-        ${completionOpen
-          ? html`
-              <div class="completion-panel">
-                ${diagnostic
-                  ? html`<p id="occurrence-composer-diagnostic" class="diagnostic" role="alert">${diagnostic}</p>`
-                  : html`<span id="occurrence-composer-diagnostic" hidden></span>`}
-                ${suggestions.length
-                  ? html`
-                      <div id="occurrence-composer-listbox" class="listbox" role="listbox">
-                        ${suggestions.map(
-                          (suggestion, index) => html`
-                            <button
-                              id=${`occurrence-composer-option-${index}`}
-                              class="option"
-                              type="button"
-                              role="option"
-                              aria-selected=${String(index === this.activeSuggestion)}
-                              @pointerdown=${(event: PointerEvent) => event.preventDefault()}
-                              @click=${() => this.applySuggestion(suggestion)}
-                            >
-                              <span class="option-main">
-                                ${suggestion.icon
-                                  ? html`<span class="option-icon" aria-hidden="true">
-                                      <svg viewBox="0 0 24 24" focusable="false">
-                                        ${iconPathData(suggestion.icon).map(
-                                          (path) => html`<path d=${path}></path>`,
-                                        )}
-                                      </svg>
-                                    </span>`
-                                  : nothing}
-                                <span class="option-label">${suggestion.label}</span>
-                              </span>
-                              <span class="option-detail">${suggestion.detail ?? suggestion.kind}</span>
-                            </button>
-                          `,
-                        )}
-                      </div>
-                    `
-                  : nothing}
-              </div>
-            `
-          : html`<span id="occurrence-composer-diagnostic" hidden></span>`}
+        <div class="completion-panel">
+          <div class="context-row" aria-label="Occurrence context">
+            ${subjectLabel
+              ? html`<span class="context-chip" data-context-kind="subject" data-context-state="pinned">
+                  <span>Subject</span><strong>${subjectLabel}</strong><span class="context-state">pinned</span>
+                </span>`
+              : nothing}
+            <span
+              class="context-chip"
+              data-context-kind="place"
+              data-context-state=${placePinned ? "pinned" : "live"}
+            >
+              <span>Place</span><strong>${placeLabel}</strong><span class="context-state">${placePinned ? "pinned" : "live"}</span>
+            </span>
+            <span
+              class="context-chip"
+              data-context-kind="time"
+              data-context-state=${timePinned ? "pinned" : "live"}
+            >
+              <span>Time</span><strong>${timeLabel ?? "timeline center"}</strong><span class="context-state">${timePinned ? "pinned" : "live"}</span>
+            </span>
+          </div>
+          ${diagnostic
+            ? html`<p id="occurrence-composer-diagnostic" class="diagnostic" role="alert">${diagnostic}</p>`
+            : html`<span id="occurrence-composer-diagnostic" hidden></span>`}
+          ${suggestions.length
+            ? html`
+                <div id="occurrence-composer-listbox" class="listbox" role="listbox">
+                  ${suggestions.map(
+                    (suggestion, index) => html`
+                      <button
+                        id=${`occurrence-composer-option-${index}`}
+                        class="option"
+                        type="button"
+                        role="option"
+                        aria-selected=${String(index === this.activeSuggestion)}
+                        @pointerdown=${(event: PointerEvent) => event.preventDefault()}
+                        @click=${() => this.applySuggestion(suggestion)}
+                      >
+                        <span class="option-main">
+                          ${suggestion.icon
+                            ? html`<span class="option-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" focusable="false">
+                                  ${iconPathData(suggestion.icon).map(
+                                    (path) => html`<path d=${path}></path>`,
+                                  )}
+                                </svg>
+                              </span>`
+                            : nothing}
+                          <span class="option-label">${suggestion.label}</span>
+                        </span>
+                        <span class="option-detail">${suggestion.detail ?? suggestion.kind}</span>
+                      </button>
+                    `,
+                  )}
+                </div>
+              `
+            : nothing}
+        </div>
 
         <p id="occurrence-composer-help" class="help">
-          Arrow keys navigate suggestions · Home/End jump to the first/last suggestion ·
-          Tab completes · Enter commits · Esc closes. Quote multi-word entity names.
+          Arrow keys navigate suggestions · Enter accepts the active suggestion or commits ·
+          Tab moves focus · Esc closes. Quote multi-word entity names.
           Defaults follow ${placeLabel} and ${timeLabel ?? "the timeline center"} until explicitly pinned.
           Move the timeline or World while this is open to change unpinned defaults.
         </p>
