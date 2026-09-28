@@ -61,6 +61,8 @@ test("production build generates an offline shell service worker", async () => {
 
   assert.match(pkg, /vite build && node scripts\/generate-service-worker\.mjs/);
   assert.match(generator, /\.vite\/manifest\.json/);
+  assert.match(generator, /contentRevisions/);
+  assert.match(generator, /createHash\("sha256"\)\.update\(bytes\)/);
   assert.match(generator, /cache\.addAll\(PRECACHE_URLS\)/);
   assert.match(generator, /request\.mode === "navigate"/);
   assert.match(generator, /navigationPreload/);
