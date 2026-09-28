@@ -81,7 +81,6 @@ test("D3 gives high-connectivity nodes additional soft spacing beyond hard colli
   assert.ok(hub > ordinary + 150, `hub spacing ${hub} must exceed ordinary spacing ${ordinary}`);
 });
 
-
 test(
   "place-scoped force tuning changes connected-node clearance without changing hard collision radius",
   () => {
@@ -133,6 +132,7 @@ test(
     );
   },
 );
+
 test("force tuning rejects collision settings that would violate the solver contract", () => {
   const simulation = new D3WorldForceSimulation();
   assert.throws(
