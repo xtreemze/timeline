@@ -697,17 +697,26 @@ function decorateSemanticControls() {
   for (const element of els.semanticIconTargets) {
     if (element.querySelector(":scope > .semantic-icon")) continue;
     const iconName = element.dataset.semanticIcon || "note";
-    element.prepend(presentation.createIcon(iconName, { size: 22 }));
+    const secondaryIconName = element.dataset.semanticIconSecondary || "";
+    element.prepend(
+      secondaryIconName
+        ? presentation.createCompoundIcon(iconName, secondaryIconName, { size: 22 })
+        : presentation.createIcon(iconName, { size: 22 }),
+    );
   }
 }
 
-function setSemanticControlIcon(element, iconName, label) {
+function setSemanticControlIcon(element, iconName, label, secondaryIconName = "") {
   if (!element) return;
-  const icon = presentation.createIcon(iconName, { size: 22 });
+  const icon = secondaryIconName
+    ? presentation.createCompoundIcon(iconName, secondaryIconName, { size: 22 })
+    : presentation.createIcon(iconName, { size: 22 });
   const currentIcon = element.querySelector(":scope > .semantic-icon");
   if (currentIcon) currentIcon.replaceWith(icon);
   else element.prepend(icon);
   element.dataset.semanticIcon = iconName;
+  if (secondaryIconName) element.dataset.semanticIconSecondary = secondaryIconName;
+  else delete element.dataset.semanticIconSecondary;
   element.setAttribute("aria-label", label);
   element.title = label;
   const accessibleLabel = element.querySelector(":scope > .sr-only");
@@ -992,10 +1001,11 @@ function syncPresentationFullscreenState() {
     if (els.presentationFullscreenToggle) {
       const label = active ? "Exit full screen" : "Enter full screen";
       els.presentationFullscreenToggle.setAttribute("aria-pressed", String(active));
-      els.presentationFullscreenToggle.setAttribute("aria-label", label);
-      els.presentationFullscreenToggle.title = label;
-      const srLabel = els.presentationFullscreenToggle.querySelector(".sr-only");
-      if (srLabel) srLabel.textContent = label;
+      setSemanticControlIcon(
+        els.presentationFullscreenToggle,
+        active ? "minimize" : "fullscreen",
+        label,
+      );
       const icon = presentation.createIcon(active ? "minimize" : "fullscreen", { size: 20 });
       const currentIcon = els.presentationFullscreenToggle.querySelector(":scope > .semantic-icon");
       if (currentIcon) currentIcon.replaceWith(icon);
@@ -1738,6 +1748,12 @@ function syncApplicationSurfaces() {
   if (els.browserToggle) {
     els.browserToggle.disabled = editing || ui.importReviewOpen;
     els.browserToggle.setAttribute("aria-expanded", String(ui.browserOpen));
+    setSemanticControlIcon(
+      els.browserToggle,
+      "timeline",
+      ui.browserOpen ? "Close timeline browser" : "Browse timeline",
+      ui.browserOpen ? "close" : "search",
+    );
   }
 
   temporalGraphView?.setPresentationMode?.(presentationModeActive());
@@ -1779,8 +1795,12 @@ function syncTimelineContextControls() {
         ? "Edit focused event"
         : "Edit timeline";
     els.editorToggle.disabled = ui.importReviewOpen;
-    els.editorToggle.setAttribute("aria-label", label);
-    els.editorToggle.title = label;
+    setSemanticControlIcon(
+      els.editorToggle,
+      "timeline",
+      label,
+      ui.editorOpen ? "check" : "edit",
+    );
     const accessibleLabel = els.editorToggle.querySelector(".app-tool-label");
     if (accessibleLabel) accessibleLabel.textContent = ui.editorOpen ? "Done" : "Edit";
   }
@@ -4696,8 +4716,9 @@ function renderAutoAdvanceState(autoState: AutoAdvanceState): void {
   els.autoToggle.setAttribute("aria-pressed", String(playing));
   setSemanticControlIcon(
     els.autoToggle,
-    playing ? "pause" : "play",
+    "timeline",
     playing ? "Pause slideshow" : "Play slideshow",
+    playing ? "pause" : "play",
   );
   if (!autoState.running) {
     els.autoStatus.textContent = "Slideshow stopped";
