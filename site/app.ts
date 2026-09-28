@@ -5997,6 +5997,7 @@ els.timelineViewRoot.addEventListener("timelineorientationchange", (event) => {
 
 els.timelineViewRoot.addEventListener("timelinefocuschange", (event) => {
   const focused = Boolean(event.detail?.focused);
+  const cardFocused = focused && event.detail?.presentationSurface === "card";
   if (focused) {
     applicationSelection.select(
       selectionForTimelineFocus(event.detail?.id, state.relationships),
@@ -6011,19 +6012,21 @@ els.timelineViewRoot.addEventListener("timelinefocuschange", (event) => {
     closeLargeUtilitySurfaces("focus");
     closeProjectMenu();
   }
-  els.appShell.classList.toggle("is-event-focused", focused);
+  els.appShell.classList.toggle("is-event-focused", focused && !cardFocused);
+  els.appShell.classList.toggle("is-event-card-focused", cardFocused);
   temporalGraphView?.setFocus(focused ? event.detail?.id : null);
   focusedGraphContextAvailable = focused && Boolean(temporalGraphView?.hasContext?.());
   temporalGraphView?.setPresentationMode?.(presentationModeActive());
   syncContextualPresentationPanels();
   syncTimelineContextControls();
-  schedulePresentationGeometryRefresh({ recenterGraph: true });
+  schedulePresentationGeometryRefresh({ recenterGraph: !cardFocused });
 });
 
-els.timelineViewRoot.addEventListener("timelinefocusrender", () => {
+els.timelineViewRoot.addEventListener("timelinefocusrender", (event) => {
+  const cardFocused = event.detail?.presentationSurface === "card";
   syncContextualPresentationPanels();
   syncTimelineContextControls();
-  schedulePresentationGeometryRefresh({ recenterGraph: true });
+  schedulePresentationGeometryRefresh({ recenterGraph: !cardFocused });
 });
 
 els.graphViewRoot.addEventListener("graphcontextchange", (event) => {
