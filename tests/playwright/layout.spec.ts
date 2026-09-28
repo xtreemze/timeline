@@ -205,7 +205,8 @@ test.describe("Mobile-first Timeline layout contracts", () => {
       await expect(actions).toHaveCount(3);
       await expect(view).toBeVisible();
       await expect(dock.locator("#timeline-view-controls-toggle")).toHaveCount(0);
-      await expect(dock.locator("#occurrence-composer-toggle")).toHaveCount(0);
+      await expect(page.locator("#occurrence-composer-toggle")).toHaveCount(0);
+      await expect(dock.locator("#occurrence-composer").getByRole("button", { name: "Compose occurrence" })).toBeVisible();
 
       const dockBox = await expectInsideViewport(dock, viewport);
       const titleBox = await expectInsideViewport(titleBar, viewport);
@@ -223,7 +224,7 @@ test.describe("Mobile-first Timeline layout contracts", () => {
       }
 
       const visibleFooterButtons = dock.locator(
-        ":scope > .app-footer-actions > button:visible, :scope > .app-footer-view button:visible, :scope > .app-footer-timeline > button:visible",
+        ":scope > .app-footer-actions > button:visible, :scope > .app-footer-view button:visible",
       );
       const visibleFooterButtonCount = await visibleFooterButtons.count();
       expect(visibleFooterButtonCount).toBeGreaterThanOrEqual(8);
@@ -351,7 +352,8 @@ test.describe("Mobile-first Timeline layout contracts", () => {
 
     await expect(actions.locator(":scope > .app-tool")).toHaveCount(3);
     await expect(dock.locator("#timeline-view-controls-toggle")).toHaveCount(0);
-    await expect(dock.locator(".app-footer-timeline")).toBeHidden();
+    await expect(dock.locator(".app-footer-timeline")).toHaveCount(0);
+    await expect(dock.locator("#occurrence-composer").getByRole("button", { name: "Compose occurrence" })).toBeVisible();
     await expect(view).toBeVisible();
     await expect(view.locator(".world-camera-controls")).toBeVisible();
     await expect(view.locator("#timeline-view-toolbar")).toBeVisible();
@@ -442,7 +444,7 @@ test.describe("Mobile-first Timeline layout contracts", () => {
     await expect(page.locator("#app-shell")).toHaveAttribute("data-mode", "view");
   });
 
-  test("Project stays reachable while Edit is the single toolbar authoring entry", async ({ page }) => {
+  test("Project stays reachable while Edit remains the single mutation-sheet entry", async ({ page }) => {
     const viewport = { width: 390, height: 844 };
     await page.setViewportSize(viewport);
     await page.goto("/");
@@ -453,13 +455,15 @@ test.describe("Mobile-first Timeline layout contracts", () => {
     const editorButton = toolDock.locator("#editor-toggle");
     const browseButton = toolDock.locator("#timeline-browser-toggle");
     const viewControls = toolDock.locator("#timeline-view-controls");
+    const composer = toolDock.locator("#occurrence-composer");
 
-    await expect(toolDock.locator("#occurrence-composer-toggle")).toHaveCount(0);
+    await expect(page.locator("#occurrence-composer-toggle")).toHaveCount(0);
+    await expect(composer.getByRole("button", { name: "Compose occurrence" })).toBeVisible();
     await editorButton.click();
     await expect(page.locator("#control-panel")).toBeVisible();
     await expect(page.locator("#app-shell")).toHaveAttribute("data-mode", "edit");
     await expect(editorButton).toHaveAttribute("aria-label", "Done editing");
-    await expect(page.locator("#occurrence-composer-toggle")).toBeVisible();
+    await expect(composer).toBeHidden();
 
     await expect(projectButton).toBeVisible();
     await expect(browseButton).toBeVisible();
@@ -593,39 +597,33 @@ test.describe("Persistent footer and focus geometry", () => {
         .first();
       await expect(terminal).toBeVisible();
 
+      const dock = page.locator(".app-tool-dock");
       const beforeTimeline = await timeline.boundingBox();
       const beforeSurface = await surface.boundingBox();
+      const beforeDock = await dock.boundingBox();
+      const beforeEditor = await page.locator("#editor-toggle").boundingBox();
       expect(beforeTimeline).not.toBeNull();
       expect(beforeSurface).not.toBeNull();
+      expect(beforeDock).not.toBeNull();
+      expect(beforeEditor).not.toBeNull();
 
       await terminal.evaluate((button: HTMLButtonElement) => button.click());
       await expect(page.locator("#app-shell")).toHaveClass(/is-event-focused/);
       await expect(page.locator("#timeline-focus-view")).toBeVisible();
 
-      const focusedTimelineZone = page.locator(".app-footer-timeline");
-      await expect(focusedTimelineZone).toBeVisible();
-      await expect(focusedTimelineZone.locator("#timeline-focus-prev")).toBeVisible();
-      await expect(focusedTimelineZone.locator("#timeline-focus-next")).toBeVisible();
-      const focusedTimelineZoneBox = await focusedTimelineZone.boundingBox();
-      expect(focusedTimelineZoneBox).not.toBeNull();
-      if (!focusedTimelineZoneBox) {
-        throw new Error("Focused chronology navigation lost its layout bounds.");
-      }
-
-      await expect(page.locator("#timeline-related-zoom")).toBeVisible();
-      await expect(page.locator("#timeline-related-fit")).toBeVisible();
-      await expect(page.locator("#timeline-focus-edit")).toHaveCount(0);
+      await expect(page.locator(".app-footer-timeline")).toHaveCount(0);
+      const focus = page.locator("#timeline-focus-view");
+      const contextActions = focus.locator(".timeline-focus-toolbar-actions .timeline-focus-icon-action");
+      await expect(contextActions).toHaveCount(5);
+      await expect(focus.locator(".timeline-focus-prev")).toBeVisible();
+      await expect(focus.locator(".timeline-focus-next")).toBeVisible();
+      await expect(focus.locator(".timeline-focus-related-zoom")).toBeVisible();
+      await expect(focus.locator(".timeline-focus-related-fit")).toBeVisible();
       await expect(page.locator("#editor-toggle")).toHaveAttribute(
         "aria-label",
         "Edit focused event",
       );
-
-      const contextActions = page.locator(
-        ".app-footer-context-actions .timeline-context-action:visible",
-      );
-      const contextActionCount = await contextActions.count();
-      expect(contextActionCount).toBeGreaterThan(0);
-      for (let index = 0; index < contextActionCount; index += 1) {
+      for (let index = 0; index < (await contextActions.count()); index += 1) {
         const actionBox = await contextActions.nth(index).boundingBox();
         expect(actionBox).not.toBeNull();
         if (!actionBox) throw new Error("Focused event action has no bounds.");
@@ -635,11 +633,21 @@ test.describe("Persistent footer and focus geometry", () => {
 
       const afterTimeline = await timeline.boundingBox();
       const afterSurface = await surface.boundingBox();
+      const afterDock = await dock.boundingBox();
+      const afterEditor = await page.locator("#editor-toggle").boundingBox();
       expect(afterTimeline).not.toBeNull();
       expect(afterSurface).not.toBeNull();
-      if (!beforeTimeline || !beforeSurface || !afterTimeline || !afterSurface) {
-        throw new Error("Timeline geometry disappeared while focusing an event.");
+      expect(afterDock).not.toBeNull();
+      expect(afterEditor).not.toBeNull();
+      if (!beforeTimeline || !beforeSurface || !afterTimeline || !afterSurface || !beforeDock || !afterDock || !beforeEditor || !afterEditor) {
+        throw new Error("Timeline or toolbar geometry disappeared while focusing an event.");
       }
+      expect(Math.abs(afterDock.x - beforeDock.x)).toBeLessThanOrEqual(1);
+      expect(Math.abs(afterDock.y - beforeDock.y)).toBeLessThanOrEqual(1);
+      expect(Math.abs(afterDock.width - beforeDock.width)).toBeLessThanOrEqual(1);
+      expect(Math.abs(afterDock.height - beforeDock.height)).toBeLessThanOrEqual(1);
+      expect(Math.abs(afterEditor.x - beforeEditor.x)).toBeLessThanOrEqual(1);
+      expect(Math.abs(afterEditor.y - beforeEditor.y)).toBeLessThanOrEqual(1);
 
       for (const [before, after] of [
         [beforeTimeline, afterTimeline] as const,
