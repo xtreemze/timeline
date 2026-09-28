@@ -87,9 +87,17 @@ lum lsp
 The zero-dependency stdio LSP supports:
 - full-document synchronization;
 - strict diagnostics;
-- deterministic document formatting.
+- deterministic document formatting;
+- semantic tokens for Lūm envelope, collection, ID declaration, and reference roles;
+- completion of compatible canonical IDs already declared in the document;
+- hover documentation for canonical fields and resolved references;
+- document symbols for canonical collections and records;
+- go-to-definition from canonical references to their ID declarations;
+- find-references for canonical IDs.
 
-VS Code and Helix integrations should consume this server rather than reimplement Lūm validation.
+The language-intelligence layer is deliberately document-local and deterministic. It can keep highlighting and navigation useful while JSON is temporarily incomplete, but it never repairs semantics or invents IDs.
+
+VS Code and Helix integrations should consume the shared schema/CLI/LSP contracts rather than reimplement Lūm validation.
 
 ## CI
 
@@ -97,6 +105,7 @@ Focused contract:
 
 ```sh
 pnpm test:lum-tooling
+pnpm test:lum-language-intelligence
 ```
 
 The broader architecture suite also includes the tooling contract.
