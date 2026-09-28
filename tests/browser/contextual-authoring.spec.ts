@@ -325,7 +325,7 @@ test.describe("contextual world authoring certification", () => {
           }
         ).TimelineAgentAPI?.getProject?.()?.relationships?.length ?? 0,
     );
-    const replacementPredicate = relationship!.predicate === "calls" ? "warns" : "calls";
+    const replacementPredicate = relationship!.predicate === "reframes" ? "recounts" : "reframes";
     const edited = initial.replace(
       `@${relationship!.subjectId} ${relationship!.predicate} @${relationship!.objectId}`,
       `@${relationship!.subjectId} ${replacementPredicate} @${relationship!.objectId}`,
