@@ -488,6 +488,26 @@ test("storybook scenes remain recognizable through distributed media and semanti
   }
 });
 
+test("every storybook graph entity has a representative supported icon", () => {
+  const genericTypeIcons = new Set(["person", "group", "object"]);
+  for (const entity of sample.entities) {
+    const icon = entity.attributes?.style?.icon;
+    assert.equal(typeof icon, "string", `${entity.id}: authored entity icon`);
+    assert.ok(presentation.ICON_NAMES.includes(icon), `${entity.id}: supported icon ${icon}`);
+    assert.equal(genericTypeIcons.has(icon), false, `${entity.id}: avoid generic type icon`);
+  }
+
+  for (const story of sample.stories) {
+    const storyIcons = new Set(
+      sample.entities
+        .filter((entity) => entity.attributes?.storyId === story.id)
+        .map((entity) => entity.attributes?.style?.icon)
+        .filter(Boolean),
+    );
+    assert.ok(storyIcons.size >= 3, `${story.title}: varied entity silhouettes`);
+  }
+});
+
 test("categories classify event semantics independently from story membership", () => {
   const categoryIds = new Set(sample.categories.map((category) => category.id));
   const categoryNames = new Set(sample.categories.map((category) => category.name));
