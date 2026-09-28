@@ -401,6 +401,8 @@ const els = {
   semanticIconTargets: requiredElements<HTMLElement>("[data-semantic-icon]"),
   projectMenu: requiredElement<HTMLElement>("#project-menu"),
   projectMenuToggle: requiredElement<HTMLButtonElement>("#project-menu-toggle"),
+  viewControls: requiredElement<HTMLElement>("#timeline-view-controls"),
+  viewControlsToggle: requiredElement<HTMLButtonElement>("#timeline-view-controls-toggle"),
   importJsonTrigger: requiredElement<HTMLButtonElement>("#import-json-trigger"),
   importInterchangeTrigger: requiredElement<HTMLButtonElement>("#import-interchange-trigger"),
   installApp: requiredElement<HTMLButtonElement>("#install-app"),
@@ -1673,6 +1675,10 @@ function syncApplicationSurfaces() {
   )) {
     control.disabled = ui.editorOpen;
   }
+  els.viewControlsToggle.setAttribute(
+    "aria-expanded",
+    String(els.viewControls.matches(":popover-open")),
+  );
   for (const opener of els.panelOpeners) {
     opener.setAttribute("aria-expanded", String(ui.editorOpen));
   }
@@ -1703,10 +1709,10 @@ function closeFocusedEventForUtility() {
 function syncTimelineContextControls() {
   const focused = Boolean(timelineView?.hasFocusedItem?.());
   const navigation = focused ? timelineView?.focusNavigationState?.() : null;
-  els.focusPrev.hidden = false;
-  els.focusNext.hidden = false;
-  els.focusPrev.disabled = false;
-  els.focusNext.disabled = false;
+  els.focusPrev.hidden = !focused;
+  els.focusNext.hidden = !focused;
+  els.focusPrev.disabled = !focused;
+  els.focusNext.disabled = !focused;
   els.relatedZoom.hidden = !focused;
   els.relatedFit.hidden = !focused;
   els.relatedZoom.disabled = !focusedGraphContextAvailable;
@@ -2094,6 +2100,7 @@ function setEditorSurfaceOpen(open) {
     els.occurrenceComposer.hide();
     closeLargeUtilitySurfaces("editor");
     closeProjectMenu();
+    closeViewControls();
     closeFocusedEventForUtility();
   }
   syncApplicationSurfaces();
@@ -2105,6 +2112,7 @@ function setBrowserSurfaceOpen(open) {
   if (ui.browserOpen) {
     closeLargeUtilitySurfaces("browser");
     closeProjectMenu();
+    closeViewControls();
   }
   syncApplicationSurfaces();
   if (ui.browserOpen) {
@@ -2122,6 +2130,7 @@ function setInvestigationSurfaceOpen(open) {
   if (ui.investigationOpen) {
     closeLargeUtilitySurfaces("investigation");
     closeProjectMenu();
+    closeViewControls();
     closeFocusedEventForUtility();
   }
   investigationWorkspace?.setOpen(ui.investigationOpen);
@@ -4757,6 +4766,10 @@ function closeProjectMenu() {
   if (els.projectMenu?.matches?.(":popover-open")) els.projectMenu.hidePopover();
 }
 
+function closeViewControls() {
+  if (els.viewControls?.matches?.(":popover-open")) els.viewControls.hidePopover();
+}
+
 els.importJsonTrigger?.addEventListener("click", async () => {
   if (!supportsNativeProjectOpen()) {
     els.importJson?.click();
@@ -4868,6 +4881,19 @@ els.projectMenu?.addEventListener("click", (event) => {
   queueMicrotask(closeProjectMenu);
 });
 
+els.viewControls?.addEventListener("toggle", (event) => {
+  els.viewControlsToggle.setAttribute("aria-expanded", String(event.newState === "open"));
+});
+els.viewControlsToggle?.addEventListener("click", () => {
+  const opening = !els.viewControls.matches(":popover-open");
+  if (!opening) return;
+  if (ui.editorOpen) setEditorSurfaceOpen(false);
+  if (ui.browserOpen) setBrowserSurfaceOpen(false);
+  if (ui.investigationOpen) setInvestigationSurfaceOpen(false);
+  if (els.occurrenceComposer.active) setOccurrenceComposerOpen(false);
+  closeProjectMenu();
+});
+
 els.editorToggle?.addEventListener("click", () => {
   if (ui.editorOpen) {
     setEditorSurfaceOpen(false);
@@ -4918,6 +4944,10 @@ document.addEventListener("keydown", (event) => {
     event.preventDefault();
     setBrowserSurfaceOpen(false);
     return;
+  }
+  if (els.viewControls.matches(":popover-open")) {
+    event.preventDefault();
+    closeViewControls();
   }
 });
 
@@ -6128,7 +6158,7 @@ function applyInvestigationReasoning(nextReasoning: Record<string, unknown>, sta
 
 investigationWorkspace = createInvestigationWorkspace({
   shell: els.appShell,
-  footerActions: requiredElement<HTMLElement>(".app-footer-actions"),
+  footerActions: requiredElement<HTMLElement>(".app-view-utility-actions"),
   reasoningApi: caseReasoning,
   createIcon: (name, options) => presentation.createIcon(name, options),
   getReasoning: () => state.reasoning,
