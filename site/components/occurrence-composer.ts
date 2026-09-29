@@ -274,14 +274,14 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
     .stage {
       justify-content: center;
-      min-inline-size: 4.6rem;
+      min-inline-size: max-content;
       min-block-size: 32px;
-      text-transform: lowercase;
+      text-transform: none;
     }
 
     .input-shell {
       position: relative;
-      block-size: 54px;
+      block-size: 44px;
       min-inline-size: 0;
       box-sizing: border-box;
       overflow: hidden;
@@ -296,7 +296,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
       z-index: 2;
       inset: 0;
       box-sizing: border-box;
-      padding: 1.35rem 0.7rem 0.35rem;
+      padding: 0.55rem 0.7rem;
       overflow: hidden;
       pointer-events: none;
       color: transparent;
@@ -329,21 +329,31 @@ export class LuumOccurrenceComposerElement extends LitElement {
       -webkit-box-decoration-break: clone;
     }
 
-    .input-token-label {
+    .input-token-icon {
       position: absolute;
+      z-index: 1;
       inset-inline-start: 0;
-      inset-block-end: calc(100% + 0.08rem);
-      max-inline-size: 8rem;
-      padding-inline: 0.12rem;
-      overflow: hidden;
-      border-radius: 0.2rem;
-      background: color-mix(in srgb, var(--paper, #fff) 96%, transparent);
+      inset-block-start: 50%;
+      display: grid;
+      inline-size: 0.72rem;
+      block-size: 0.72rem;
+      place-items: center;
+      border: 1px solid color-mix(in srgb, var(--line-strong, #b8b1a5) 70%, transparent);
+      border-radius: 50%;
+      background: var(--paper, #fff);
       color: var(--muted, #615d56);
-      font: 720 0.5rem/1 ui-monospace, "SFMono-Regular", Consolas, monospace;
-      letter-spacing: 0.025em;
-      text-overflow: ellipsis;
-      text-transform: lowercase;
-      white-space: nowrap;
+      transform: translate(-45%, -50%);
+      pointer-events: none;
+    }
+
+    .input-token-icon svg {
+      inline-size: 0.52rem;
+      block-size: 0.52rem;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2.2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
     }
 
     .input-token-text {
@@ -357,7 +367,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
         0 1px 2px color-mix(in srgb, #000 8%, transparent);
     }
 
-    .input-token[data-active="true"] .input-token-label {
+    .input-token[data-active="true"] .input-token-icon {
+      border-color: color-mix(in srgb, var(--focus, #315fbd) 70%, transparent);
       color: var(--focus, #315fbd);
     }
 
@@ -372,7 +383,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
         0 1px 2px color-mix(in srgb, #000 8%, transparent);
     }
 
-    .composer[data-semantic-color="true"] .input-token[data-active="true"] .input-token-label {
+    .composer[data-semantic-color="true"] .input-token[data-active="true"] .input-token-icon {
+      border-color: color-mix(in srgb, var(--composer-semantic-accent) 70%, transparent);
       color: var(--composer-semantic-accent);
     }
 
@@ -383,7 +395,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
         inset 0 -2px 0 color-mix(in srgb, var(--accent, #b7472a) 88%, transparent);
     }
 
-    .input-token[data-investigative="true"] .input-token-label {
+    .input-token[data-investigative="true"] .input-token-icon {
+      border-color: color-mix(in srgb, var(--accent, #b7472a) 70%, transparent);
       color: var(--accent, #b7472a);
     }
 
@@ -407,7 +420,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
       box-sizing: border-box;
       border: 0;
       border-radius: inherit;
-      padding: 1.35rem 0.7rem 0.35rem;
+      padding: 0.55rem 0.7rem;
       outline: none;
       background: transparent;
       color: transparent;
@@ -1393,6 +1406,30 @@ export class LuumOccurrenceComposerElement extends LitElement {
     }
   }
 
+  private inputTokenIcon(
+    segment: Readonly<{ kind: string | null; investigative: boolean }>,
+  ): string {
+    if (segment.investigative) return "search";
+    switch (segment.kind) {
+      case "subject":
+        return "person";
+      case "predicate":
+        return "relation";
+      case "object":
+        return "object";
+      case "place":
+        return "place";
+      case "time":
+        return "timeline";
+      case "category":
+        return "folder";
+      case "tag":
+        return "note";
+      default:
+        return "note";
+    }
+  }
+
   private inputDecorationSegments(
     sections: ReturnType<typeof composerEditableSections>,
     qualifiers: ReturnType<typeof projectInvestigativeQualifiers>,
@@ -1941,33 +1978,44 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.commit();
   }
 
-  private stageLabel(
+  private stageGuidance(
     parsed: OccurrenceSentenceDraft,
-    sections: ReturnType<typeof composerEditableSections>,
     qualifiers: ReturnType<typeof projectInvestigativeQualifiers>,
+    suggestions: readonly ComposerSuggestion[],
+    activeSuggestion: ComposerSuggestion | undefined,
   ): string {
-    const withinCursor = (candidate: { start: number; end: number }) =>
-      this.cursorOffset >= candidate.start && this.cursorOffset <= candidate.end;
-    if (qualifiers.some(withinCursor)) return "investigate";
-
-    const activeSection = sections.find(withinCursor);
-    if (activeSection) {
-      return activeSection.kind === "predicate" ? "action" : activeSection.kind;
-    }
+    if (qualifiers.length) return "Resolve clue";
 
     const cursor = composerCursorSection(this.value, this.cursorOffset);
-    if (cursor.kind !== "tail") {
-      if (cursor.kind === "predicate") return "action";
-      if (cursor.kind === "place" || cursor.kind === "time") return cursor.kind;
-      if (cursor.kind === "options") return "context";
-      return cursor.kind;
+    const editableSection = composerEditableSections(this.value).find(
+      (section) => this.cursorOffset >= section.start && this.cursorOffset <= section.end,
+    );
+    const selectingOptions =
+      Boolean(activeSuggestion?.multiSelect) &&
+      (cursor.kind === "options" ||
+        editableSection?.kind === "category" ||
+        editableSection?.kind === "tag");
+
+    if (selectingOptions) return "Space toggle · Enter next";
+    if (suggestions.length && cursor.kind !== "tail") return "↑↓ choose · Enter accept";
+    if (parsed.stage === "complete" && parsed.diagnostics.length === 0) return "Enter save";
+    if (suggestions.length) return "↑↓ choose · Enter accept";
+    if (parsed.diagnostics.length) return "Fix highlighted text";
+
+    switch (parsed.stage) {
+      case "subject":
+        return "Choose who";
+      case "predicate":
+        return "Choose action";
+      case "object":
+        return "Choose target";
+      case "place":
+      case "time":
+      case "options":
+        return "Add context";
+      default:
+        return "Continue";
     }
-    if (parsed.stage === "predicate") return "action";
-    if (parsed.stage === "place" || parsed.stage === "time" || parsed.stage === "options") {
-      return "context";
-    }
-    if (parsed.stage === "complete") return "ready";
-    return parsed.stage;
   }
 
   private previewPalette(): WorldGraphPalette {
@@ -2166,7 +2214,12 @@ export class LuumOccurrenceComposerElement extends LitElement {
         style=${deckAccent ? `--composer-semantic-accent: ${deckAccent}` : nothing}
       >
         <div class="input-row">
-          <span class="stage composer-chip" data-chip-kind="stage" aria-hidden="true">${this.stageLabel(parsed, sections, qualifiers)}</span>
+          <span
+            class="stage composer-chip"
+            data-chip-kind="guidance"
+            role="status"
+            aria-live="polite"
+          >${this.stageGuidance(parsed, qualifiers, suggestions, activeSuggestion)}</span>
           <div class="input-shell">
             <span class="input-decoration" aria-hidden="true">
               <span class="input-decoration-content">
@@ -2179,7 +2232,17 @@ export class LuumOccurrenceComposerElement extends LitElement {
                         data-investigative=${String(segment.investigative)}
                         data-active=${String(segment.active)}
                       >
-                        <span class="input-token-label">${this.inputTokenLabel(segment)}</span>
+                        <span
+                          class="input-token-icon"
+                          data-icon=${this.inputTokenIcon(segment)}
+                          aria-hidden="true"
+                        >
+                          <svg viewBox="0 0 24 24" focusable="false">
+                            ${iconPathData(this.inputTokenIcon(segment)).map(
+                              (path) => svg`<path d=${path}></path>`,
+                            )}
+                          </svg>
+                        </span>
                         <span class="input-token-text">${segment.text}</span>
                       </span>`
                     : html`<span class="input-decoration-text">${segment.text}</span>`,
