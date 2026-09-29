@@ -64,6 +64,69 @@ async function gotoHarness(page: import("@playwright/test").Page) {
 }
 
 test.describe("world interaction coverage (issue #445 Priority 8)", () => {
+  test("globe drag is weighted during direct manipulation and carries release inertia", async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, "Mobile projects exercise the same controller through trusted touch swipes.");
+    test.skip(!(await gotoHarness(page)), "WebGL2 unavailable in this environment.");
+
+    const viewport = page.viewportSize();
+    if (!viewport) throw new Error("WorldSurface drag certification requires a viewport.");
+
+    const camera = { longitude: 0, latitude: 20, zoom: 5, bearing: 0, pitch: 0 };
+    const start = {
+      x: Math.round(viewport.width * 0.42),
+      y: Math.round(viewport.height * 0.5),
+    };
+    const distance = Math.min(180, Math.round(viewport.width * 0.22));
+
+    const resetCamera = async () => {
+      await page.evaluate(async (nextCamera) => {
+        window.__worldPerfHarness.surface.setCamera(nextCamera);
+        await new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        );
+      }, camera);
+    };
+
+    const drag = async (steps: number, delayMs: number) => {
+      await resetCamera();
+      await page.mouse.move(start.x, start.y);
+      await page.mouse.down();
+      for (let step = 1; step <= steps; step += 1) {
+        await page.mouse.move(start.x + (distance * step) / steps, start.y);
+        if (delayMs > 0) await page.waitForTimeout(delayMs);
+      }
+      const held = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera());
+      await page.mouse.up();
+      await page.waitForTimeout(120);
+      const inertial = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera());
+      await page.waitForTimeout(350);
+      return { held, inertial };
+    };
+
+    const fast = await drag(3, 4);
+    const slow = await drag(8, 24);
+    const cameraDistance = (sample: typeof camera) =>
+      Math.hypot(
+        (sample.longitude - camera.longitude) * Math.cos((camera.latitude * Math.PI) / 180),
+        sample.latitude - camera.latitude,
+      );
+    const fastHeldDistance = cameraDistance(fast.held);
+    const slowHeldDistance = cameraDistance(slow.held);
+
+    expect(fastHeldDistance, "a fast drag must still move the globe").toBeGreaterThan(0);
+    expect(
+      slowHeldDistance,
+      "the same pointer distance over more elapsed time should approach the pointer farther",
+    ).toBeGreaterThan(fastHeldDistance * 1.25);
+    expect(
+      cameraDistance(slow.inertial),
+      "release inertia should continue the weighted globe path after pointer-up",
+    ).toBeGreaterThan(slowHeldDistance);
+  });
+
   test("mouse-wheel zoom changes the camera on the desktop controller path", async ({
     page,
     isMobile,
