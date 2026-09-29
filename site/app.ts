@@ -28,6 +28,7 @@ import { suggestSemanticIconForPlace } from "../src/presentation/semantic-icon-i
 import {
   canonicalSemanticHueColor,
   semanticColorCss,
+  semanticColorHex,
   semanticHue,
 } from "../src/presentation/semantic-color.ts";
 import { projectTimelineOccurrences } from "../src/projection/timeline-projection.ts";
@@ -911,7 +912,11 @@ function renderPresentationMap() {
     mapApi.createReadOnly?.({
       container: els.presentationMap,
       location: place,
-      color: category?.color || "#315fbd",
+      color: semanticColorHex(
+        category?.color || "#315fbd",
+        window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light",
+        "active",
+      ),
       iconName: place.icon || "place",
       markerShape: place.markerShape || "pin",
       label: name,
