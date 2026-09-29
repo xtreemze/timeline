@@ -29,7 +29,9 @@ export interface ComposerTimeReference {
 }
 
 export interface ComposerOccurrenceOptions {
+  /** First selected category retained for compatibility with singular consumers. */
   readonly category?: string;
+  readonly categories: readonly string[];
   readonly tags: readonly string[];
 }
 
@@ -93,6 +95,8 @@ export interface ComposerSuggestion {
   readonly icon?: string;
   readonly insertText: string;
   readonly replaceRange?: Readonly<{ start: number; end: number }>;
+  readonly multiSelect?: boolean;
+  readonly selected?: boolean;
 }
 
 export type ComposerCursorSectionKind =
@@ -223,6 +227,80 @@ export function quoteComposerName(value: string): string {
   return `"${trimmed.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 }
 
+function composerDelimitedSpans(
+  value: string,
+  delimiter: string,
+): readonly Readonly<{ text: string; start: number; end: number }>[] {
+  const segments: Array<Readonly<{ text: string; start: number; end: number }>> = [];
+  let start = 0;
+  let quoted = false;
+  let escaped = false;
+  const push = (end: number) => {
+    segments.push(Object.freeze({ text: value.slice(start, end), start, end }));
+  };
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index]!;
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (character === "\\") {
+      escaped = true;
+      continue;
+    }
+    if (character === '"') {
+      quoted = !quoted;
+      continue;
+    }
+    if (!quoted && character === delimiter) {
+      push(index);
+      start = index + 1;
+    }
+  }
+  push(value.length);
+  return Object.freeze(segments);
+}
+
+function splitComposerDelimited(value: string, delimiter: string): readonly string[] {
+  return Object.freeze(composerDelimitedSpans(value, delimiter).map((segment) => segment.text));
+}
+
+function composerPropertyEntries(
+  value: string,
+): readonly Readonly<{ key: string; rawValue: string; valueStart: number }>[] {
+  const entries: Array<Readonly<{ key: string; rawValue: string; valueStart: number }>> = [];
+  for (const segment of composerDelimitedSpans(value, ",")) {
+    const separator = segment.text.indexOf(":");
+    if (separator < 1) continue;
+    const key = segment.text.slice(0, separator).trim();
+    const rawTail = segment.text.slice(separator + 1);
+    const leading = rawTail.length - rawTail.trimStart().length;
+    const rawValue = rawTail.trim();
+    if (!key || !rawValue) continue;
+    entries.push(
+      Object.freeze({
+        key,
+        rawValue,
+        valueStart: segment.start + separator + 1 + leading,
+      }),
+    );
+  }
+  return Object.freeze(entries);
+}
+
+function composerListValues(value: string): readonly string[] {
+  return Object.freeze(
+    splitComposerDelimited(value, "|")
+      .map((entry) => unquote(entry))
+      .map((entry) => entry.trim())
+      .filter(Boolean),
+  );
+}
+
+function composerListSyntax(values: readonly string[]): string {
+  return values.map((value) => quoteComposerName(value)).join("|");
+}
+
 export interface OccurrenceCompositionInput {
   readonly subjectId: string;
   readonly predicate: string;
@@ -231,6 +309,7 @@ export interface OccurrenceCompositionInput {
   readonly start?: string | null;
   readonly end?: string | null;
   readonly category?: string | null;
+  readonly categories?: readonly string[];
   readonly tags?: readonly string[];
 }
 
@@ -247,25 +326,30 @@ export function formatOccurrenceComposition(input: OccurrenceCompositionInput): 
   if (start && end) sentence += ` from ${start} to ${end}`;
   else if (start) sentence += ` on ${start}`;
   const options: string[] = [];
-  const category = input.category?.trim() ?? "";
-  if (category) options.push(`category: ${quoteComposerName(category)}`);
-  const tags = (input.tags ?? []).map((tag) => tag.trim()).filter(Boolean);
-  if (tags.length) options.push(`tags: ${tags.join("|")}`);
+  const categories = [
+    ...new Set(
+      (input.categories ?? (input.category ? [input.category] : []))
+        .map((category) => category.trim())
+        .filter(Boolean),
+    ),
+  ];
+  if (categories.length) {
+    options.push(
+      `${categories.length > 1 ? "categories" : "category"}: ${composerListSyntax(categories)}`,
+    );
+  }
+  const tags = [...new Set((input.tags ?? []).map((tag) => tag.trim()).filter(Boolean))];
+  if (tags.length) options.push(`tags: ${composerListSyntax(tags)}`);
   if (options.length) sentence += ` [${options.join(", ")}]`;
   return sentence;
 }
 
 function parseProperties(value: string): Readonly<Record<string, string>> {
-  const result: Record<string, string> = {};
-  for (const segment of value.split(",")) {
-    const separator = segment.indexOf(":");
-    if (separator < 1) continue;
-    const key = segment.slice(0, separator).trim();
-    const rawValue = segment.slice(separator + 1).trim();
-    if (!key || !rawValue) continue;
-    result[key] = unquote(rawValue);
-  }
-  return Object.freeze(result);
+  return Object.freeze(
+    Object.fromEntries(
+      composerPropertyEntries(value).map((entry) => [entry.key, entry.rawValue]),
+    ),
+  );
 }
 
 function parseEntityAtStart(input: string): {
@@ -310,7 +394,11 @@ function parseEntityAtStart(input: string): {
   if (rest.startsWith("(")) {
     const close = rest.indexOf(")");
     if (close < 0) return { entity: null, rest: source };
-    properties = parseProperties(rest.slice(1, close));
+    properties = Object.freeze(
+      Object.fromEntries(
+        Object.entries(parseProperties(rest.slice(1, close))).map(([key, value]) => [key, unquote(value)]),
+      ),
+    );
     rest = rest.slice(close + 1).trimStart();
   }
 
@@ -329,7 +417,7 @@ function stripOptions(input: string): {
   if (!trimmed.endsWith("]")) {
     return {
       source: trimmed,
-      options: Object.freeze({ tags: Object.freeze([]) }),
+      options: Object.freeze({ categories: Object.freeze([]), tags: Object.freeze([]) }),
       malformed: false,
     };
   }
@@ -337,20 +425,19 @@ function stripOptions(input: string): {
   if (open < 0) {
     return {
       source: trimmed,
-      options: Object.freeze({ tags: Object.freeze([]) }),
+      options: Object.freeze({ categories: Object.freeze([]), tags: Object.freeze([]) }),
       malformed: true,
     };
   }
   const properties = parseProperties(trimmed.slice(open + 1, -1));
-  const tags = (properties.tags ?? "")
-    .split("|")
-    .map((tag) => tag.trim())
-    .filter(Boolean);
+  const categories = composerListValues(properties.categories ?? properties.category ?? "");
+  const tags = composerListValues(properties.tags ?? "");
   return {
     source: trimmed.slice(0, open).trimEnd(),
     options: Object.freeze({
-      ...(properties.category ? { category: properties.category } : {}),
-      tags: Object.freeze(tags),
+      ...(categories[0] ? { category: categories[0] } : {}),
+      categories,
+      tags,
     }),
     malformed: false,
   };
@@ -666,6 +753,50 @@ function trimmedValueRange(
   return Object.freeze({ start: valueStart, end: valueEnd });
 }
 
+function composerDelimitedRanges(
+  input: string,
+  rawStart: number,
+  rawValue: string,
+): readonly Readonly<{ start: number; end: number; index: number }>[] {
+  const ranges: Array<Readonly<{ start: number; end: number; index: number }>> = [];
+  let segmentStart = 0;
+  let quoted = false;
+  let escaped = false;
+  let itemIndex = 0;
+  const push = (segmentEnd: number) => {
+    const range = trimmedValueRange(
+      input,
+      rawStart + segmentStart,
+      rawStart + segmentEnd,
+    );
+    if (range.end > range.start) {
+      ranges.push(Object.freeze({ ...range, index: itemIndex }));
+      itemIndex += 1;
+    }
+  };
+  for (let index = 0; index < rawValue.length; index += 1) {
+    const character = rawValue[index]!;
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (character === "\\") {
+      escaped = true;
+      continue;
+    }
+    if (character === '"') {
+      quoted = !quoted;
+      continue;
+    }
+    if (!quoted && character === "|") {
+      push(index);
+      segmentStart = index + 1;
+    }
+  }
+  push(rawValue.length);
+  return Object.freeze(ranges);
+}
+
 function questionMarkIsEscaped(input: string, index: number): boolean {
   if (index <= 0 || input[index] !== "?") return false;
   let slashCount = 0;
@@ -770,49 +901,38 @@ export function composerEditableSections(input: string): readonly ComposerEditab
     const optionsClose = input.indexOf("]", optionsStart + 1);
     const bodyEnd = optionsClose >= 0 ? optionsClose : input.length;
     const body = input.slice(optionsStart + 1, bodyEnd);
-    const categoryMatch = /(?:^|,)\s*category\s*:\s*([^,\]]*)/i.exec(body);
-    if (categoryMatch && categoryMatch.index >= 0) {
-      const rawValue = categoryMatch[1] ?? "";
-      const rawStart =
-        optionsStart + 1 + categoryMatch.index + categoryMatch[0].lastIndexOf(rawValue);
-      const range = trimmedValueRange(input, rawStart, rawStart + rawValue.length);
-      if (range.end > range.start) {
+    const optionEntries = composerPropertyEntries(body);
+    const categoryEntry = optionEntries.find((entry) =>
+      /^(?:category|categories)$/i.test(entry.key),
+    );
+    if (categoryEntry) {
+      const rawStart = optionsStart + 1 + categoryEntry.valueStart;
+      for (const range of composerDelimitedRanges(input, rawStart, categoryEntry.rawValue)) {
         sections.push(
           Object.freeze({
             kind: "category",
             start: range.start,
             end: semanticEnd(input, range.start, range.end),
             text: sectionText(input, range.start, range.end, true),
+            index: range.index,
           }),
         );
       }
     }
 
-    const tagsMatch = /(?:^|,)\s*tags\s*:\s*([^,\]]*)/i.exec(body);
-    if (tagsMatch && tagsMatch.index >= 0) {
-      const rawTags = tagsMatch[1] ?? "";
-      const rawStart = optionsStart + 1 + tagsMatch.index + tagsMatch[0].lastIndexOf(rawTags);
-      let segmentOffset = 0;
-      let tagIndex = 0;
-      for (const segment of rawTags.split("|")) {
-        const range = trimmedValueRange(
-          input,
-          rawStart + segmentOffset,
-          rawStart + segmentOffset + segment.length,
+    const tagsEntry = optionEntries.find((entry) => /^tags$/i.test(entry.key));
+    if (tagsEntry) {
+      const rawStart = optionsStart + 1 + tagsEntry.valueStart;
+      for (const range of composerDelimitedRanges(input, rawStart, tagsEntry.rawValue)) {
+        sections.push(
+          Object.freeze({
+            kind: "tag",
+            start: range.start,
+            end: semanticEnd(input, range.start, range.end),
+            text: sectionText(input, range.start, range.end, true),
+            index: range.index,
+          }),
         );
-        if (range.end > range.start) {
-          sections.push(
-            Object.freeze({
-              kind: "tag",
-              start: range.start,
-              end: semanticEnd(input, range.start, range.end),
-              text: sectionText(input, range.start, range.end, true),
-              index: tagIndex,
-            }),
-          );
-          tagIndex += 1;
-        }
-        segmentOffset += segment.length + 1;
       }
     }
   }
@@ -1133,83 +1253,66 @@ export function occurrenceComposerSuggestions(
   if (/\[[^\]]*$/.test(prefix)) {
     const optionStart = prefix.lastIndexOf("[");
     const optionText = prefix.slice(optionStart + 1);
-    const categoryMatch = optionText.match(/(?:^|,)\s*category\s*:\s*([^,\]]*)$/i);
+    const categoryMatch = optionText.match(/(?:^|,)\s*categor(?:y|ies)\s*:\s*([^,\]]*)$/i);
     const tagMatch = optionText.match(/(?:^|,)\s*tags\s*:\s*([^,\]]*)$/i);
 
     if (tagMatch) {
       const rawTags = tagMatch[1] ?? "";
-      const segments = rawTags.split("|");
-      const activeTag = normalizedMatchText(segments.at(-1) ?? "");
-      const retainedTags = segments
-        .slice(0, -1)
-        .map((tag) => tag.trim())
-        .filter(Boolean);
-      const retainedKeys = new Set(retainedTags.map(normalizedMatchText));
+      const selectedTags = composerListValues(rawTags);
+      const selectedKeys = new Set(selectedTags.map(normalizedMatchText));
+      const activeTag = normalizedMatchText(
+        splitComposerDelimited(rawTags, "|").at(-1) ?? "",
+      );
       return uniqueSuggestions(
         (options.tags ?? [])
           .map((tag) => tag.trim())
           .filter(Boolean)
-          .filter((tag) => !retainedKeys.has(normalizedMatchText(tag)))
-          .filter((tag) => {
-            if (editableSection?.kind === "tag" || !activeTag) return true;
-            return normalizedMatchText(tag).includes(activeTag);
-          })
+          .filter(
+            (tag) =>
+              !activeTag ||
+              selectedKeys.has(normalizedMatchText(tag)) ||
+              normalizedMatchText(tag).includes(activeTag),
+          )
           .slice(0, 10)
-          .map((tag) =>
-            editableSection?.kind === "tag"
-              ? {
-                  kind: "tag" as const,
-                  label: tag,
-                  detail: "existing tag",
-                  insertText: tag,
-                  replaceRange: Object.freeze({
-                    start: editableSection.start,
-                    end: editableSection.end,
-                  }),
-                }
-              : {
-                  kind: "tag" as const,
-                  label: tag,
-                  detail: "existing tag",
-                  insertText: `tags: ${[...retainedTags, tag].join("|")}`,
-                },
-          ),
+          .map((tag) => ({
+            kind: "tag" as const,
+            label: tag,
+            detail: selectedKeys.has(normalizedMatchText(tag)) ? "selected tag" : "tag",
+            insertText: quoteComposerName(tag),
+            multiSelect: true,
+            selected: selectedKeys.has(normalizedMatchText(tag)),
+          })),
       );
     }
 
+    const rawCategories = categoryMatch?.[1] ?? "";
+    const selectedCategories = composerListValues(rawCategories);
+    const selectedKeys = new Set(selectedCategories.map(normalizedMatchText));
+    const activeCategory = normalizedMatchText(
+      splitComposerDelimited(rawCategories, "|").at(-1) ?? "",
+    );
     const categorySuggestions = options.categories
-      .filter((category) => {
-        const activeCategory =
-          editableSection?.kind === "category" ? "" : normalizedMatchText(categoryMatch?.[1] ?? "");
-        return !activeCategory || normalizedMatchText(category.name).includes(activeCategory);
-      })
+      .filter(
+        (category) =>
+          !activeCategory ||
+          selectedKeys.has(normalizedMatchText(category.name)) ||
+          normalizedMatchText(category.name).includes(activeCategory),
+      )
       .slice(0, 10)
-      .map((category) =>
-        editableSection?.kind === "category"
-          ? {
-              kind: "category" as const,
-              label: category.name,
-              detail: "category",
-              insertText: quoteComposerName(category.name),
-              replaceRange: Object.freeze({
-                start: editableSection.start,
-                end: editableSection.end,
-              }),
-            }
-          : {
-              kind: "category" as const,
-              label: category.name,
-              detail: "category",
-              insertText: `category: ${quoteComposerName(category.name)}`,
-            },
-      );
+      .map((category) => ({
+        kind: "category" as const,
+        label: category.name,
+        detail: selectedKeys.has(normalizedMatchText(category.name))
+          ? "selected category"
+          : "category",
+        insertText: quoteComposerName(category.name),
+        multiSelect: true,
+        selected: selectedKeys.has(normalizedMatchText(category.name)),
+      }));
 
     if (categoryMatch) return uniqueSuggestions(categorySuggestions);
 
-    return uniqueSuggestions([
-      ...categorySuggestions,
-      { kind: "tag", label: "tags", detail: "separate tags with |", insertText: "tags: " },
-    ]);
+    return uniqueSuggestions(categorySuggestions);
   }
 
   const cursorSection = composerCursorSection(input, cursorOffset);
@@ -1361,92 +1464,125 @@ export function occurrenceComposerSuggestions(
       insertText: `on ${options.timelineDefault}`,
     });
   }
-  const optionsOpen = input.lastIndexOf("[");
-  const optionsClose = optionsOpen >= 0 ? input.indexOf("]", optionsOpen + 1) : -1;
-  const appendClosedOptionSuggestion = (
-    kind: "category" | "tag",
-    label: string,
-    detail: string,
-    key: "category" | "tags",
-    value: string,
-  ): ComposerSuggestion => {
-    if (optionsOpen >= 0 && optionsClose >= 0) {
-      let replaceEnd = optionsClose + 1;
-      while (replaceEnd < input.length && /\s/.test(input[replaceEnd]!)) replaceEnd += 1;
-      const body = input.slice(optionsOpen + 1, optionsClose).trim();
-      return Object.freeze({
-        kind,
-        label,
-        detail,
-        insertText: `${body ? ", " : ""}${key}: ${value}] `,
-        replaceRange: Object.freeze({ start: optionsClose, end: replaceEnd }),
-      });
-    }
-    const trimmedEnd = input.trimEnd().length;
-    return Object.freeze({
-      kind,
-      label,
-      detail,
-      insertText: `${trimmedEnd ? " " : ""}[${key}: ${value}] `,
-      replaceRange: Object.freeze({ start: trimmedEnd, end: input.length }),
-    });
-  };
-
-  if (!parsed.options.category) {
-    contextSuggestions.push(
-      ...options.categories
-        .slice(0, 6)
-        .map((category) =>
-          appendClosedOptionSuggestion(
-            "category",
-            category.name,
-            "occurrence category",
-            "category",
-            quoteComposerName(category.name),
-          ),
-        ),
-    );
-  }
+  const selectedCategoryKeys = new Set(parsed.options.categories.map(normalizedMatchText));
+  contextSuggestions.push(
+    ...options.categories.slice(0, 8).map((category) => ({
+      kind: "category" as const,
+      label: category.name,
+      detail: selectedCategoryKeys.has(normalizedMatchText(category.name))
+        ? "selected category"
+        : "occurrence category",
+      insertText: quoteComposerName(category.name),
+      multiSelect: true,
+      selected: selectedCategoryKeys.has(normalizedMatchText(category.name)),
+    })),
+  );
 
   const selectedTagKeys = new Set(parsed.options.tags.map(normalizedMatchText));
-  if (!parsed.options.tags.length) {
-    contextSuggestions.push(
-      ...(options.tags ?? [])
-        .map((tag) => tag.trim())
-        .filter(Boolean)
-        .filter((tag) => !selectedTagKeys.has(normalizedMatchText(tag)))
-        .slice(0, 6)
-        .map((tag) =>
-          appendClosedOptionSuggestion(
-            "tag",
-            tag,
-            "occurrence tag",
-            "tags",
-            quoteComposerName(tag),
-          ),
-        ),
-    );
-  } else {
-    const tagSections = composerEditableSections(input).filter((section) => section.kind === "tag");
-    const lastTag = tagSections.at(-1);
-    if (lastTag) {
-      contextSuggestions.push(
-        ...(options.tags ?? [])
-          .map((tag) => tag.trim())
-          .filter(Boolean)
-          .filter((tag) => !selectedTagKeys.has(normalizedMatchText(tag)))
-          .slice(0, 6)
-          .map((tag) => ({
-            kind: "tag" as const,
-            label: tag,
-            detail: "add occurrence tag",
-            insertText: `|${quoteComposerName(tag)}`,
-            replaceRange: Object.freeze({ start: lastTag.end, end: lastTag.end }),
-          })),
-      );
-    }
-  }
+  contextSuggestions.push(
+    ...(options.tags ?? [])
+      .map((tag) => tag.trim())
+      .filter(Boolean)
+      .slice(0, 8)
+      .map((tag) => ({
+        kind: "tag" as const,
+        label: tag,
+        detail: selectedTagKeys.has(normalizedMatchText(tag)) ? "selected tag" : "occurrence tag",
+        insertText: quoteComposerName(tag),
+        multiSelect: true,
+        selected: selectedTagKeys.has(normalizedMatchText(tag)),
+      })),
+  );
   return uniqueSuggestions(contextSuggestions);
+}
+
+function composerOptionSentence(
+  input: string,
+  categories: readonly string[],
+  tags: readonly string[],
+  options: { readonly includeEmptyTags?: boolean } = {},
+): { readonly value: string; readonly categoryEnd: number; readonly tagEnd: number } {
+  const open = input.lastIndexOf("[");
+  const close = open >= 0 ? input.indexOf("]", open + 1) : -1;
+  const base = (open >= 0 ? input.slice(0, open) : input).trimEnd();
+  const parts: string[] = [];
+  let categoryEnd = -1;
+  let tagEnd = -1;
+  const normalizedCategories = [...new Set(categories.map((value) => value.trim()).filter(Boolean))];
+  const normalizedTags = [...new Set(tags.map((value) => value.trim()).filter(Boolean))];
+
+  if (normalizedCategories.length) {
+    const key = normalizedCategories.length > 1 ? "categories" : "category";
+    parts.push(`${key}: ${composerListSyntax(normalizedCategories)}`);
+  }
+  if (normalizedTags.length || options.includeEmptyTags) {
+    parts.push(`tags: ${composerListSyntax(normalizedTags)}`);
+  }
+
+  if (!parts.length) {
+    return Object.freeze({ value: base, categoryEnd: base.length, tagEnd: base.length });
+  }
+
+  const block = `[${parts.join(", ")}]`;
+  const value = `${base}${base ? " " : ""}${block}`;
+  const blockStart = value.lastIndexOf("[") + 1;
+  const categoryPart = parts.find((part) => /^categor(?:y|ies):/i.test(part));
+  const tagPart = parts.find((part) => /^tags:/i.test(part));
+  if (categoryPart) {
+    const offset = value.indexOf(categoryPart, blockStart);
+    categoryEnd = offset + categoryPart.length;
+  }
+  if (tagPart) {
+    const offset = value.indexOf(tagPart, blockStart);
+    tagEnd = offset + tagPart.length;
+  }
+
+  // Preserve trailing non-option text only when a caller supplied it intentionally.
+  // Canonical composer options are terminal, so text after a closed option block is discarded.
+  void close;
+  return Object.freeze({
+    value,
+    categoryEnd: categoryEnd >= 0 ? categoryEnd : value.length,
+    tagEnd: tagEnd >= 0 ? tagEnd : value.length,
+  });
+}
+
+export function toggleComposerMultiOption(
+  input: string,
+  kind: "category" | "tag",
+  value: string,
+): ComposerSuggestionApplication {
+  const normalized = value.trim();
+  if (!normalized) return Object.freeze({ value: input, cursorOffset: input.length });
+  const parsed = parseOccurrenceSentence(input);
+  const current = kind === "category" ? [...parsed.options.categories] : [...parsed.options.tags];
+  const key = normalizedMatchText(normalized);
+  const existingIndex = current.findIndex((entry) => normalizedMatchText(entry) === key);
+  if (existingIndex >= 0) current.splice(existingIndex, 1);
+  else current.push(normalized);
+
+  const categories = kind === "category" ? current : [...parsed.options.categories];
+  const tags = kind === "tag" ? current : [...parsed.options.tags];
+  const result = composerOptionSentence(input, categories, tags);
+  return Object.freeze({
+    value: result.value,
+    cursorOffset: kind === "category" ? result.categoryEnd : result.tagEnd,
+  });
+}
+
+export function advanceComposerMultiOption(
+  input: string,
+  kind: "category" | "tag",
+): ComposerSuggestionApplication {
+  const parsed = parseOccurrenceSentence(input);
+  if (kind === "category") {
+    const result = composerOptionSentence(input, parsed.options.categories, parsed.options.tags, {
+      includeEmptyTags: true,
+    });
+    return Object.freeze({ value: result.value, cursorOffset: result.tagEnd });
+  }
+  const result = composerOptionSentence(input, parsed.options.categories, parsed.options.tags);
+  return Object.freeze({ value: result.value, cursorOffset: result.value.length });
 }
 
 export function composerCompletionSuffix(
