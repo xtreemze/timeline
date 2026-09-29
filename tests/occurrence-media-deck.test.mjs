@@ -92,8 +92,45 @@ test("occurrence deck component owns media navigation without autoplay or parent
   assert.match(source, /aria-label="Zoom image out"/);
   assert.match(source, /aria-label="Zoom image in"/);
   assert.match(source, /--occurrence-image-zoom/);
-  assert.match(source, /this\.imageZoomIndex = 0/);
+  assert.match(source, /timeline-occurrence-deck-image-viewport/);
+  assert.match(source, /@pointerdown=/);
+  assert.match(source, /@pointermove=/);
+  assert.match(source, /@pointerup=/);
+  assert.match(source, /@pointercancel=/);
+  assert.match(source, /setPointerCapture/);
+  assert.match(source, /releasePointerCapture/);
+  assert.match(source, /@wheel=/);
+  assert.match(source, /@dblclick=/);
+  assert.match(source, /gestureWasPinch/);
+  assert.match(source, /SWIPE_THRESHOLD_PX/);
+  assert.match(source, /this\.imageZoomValue = 1/);
   assert.doesNotMatch(source, /setInterval|setTimeout\([^)]*next|autoplay/i);
+});
+
+test("occurrence deck surfaces use theme tokens and expose touch-safe image manipulation", async () => {
+  const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
+  const composer = await readFile(
+    new URL("../site/components/occurrence-composer.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(
+    css,
+    /\.timeline-occurrence-deck-image-viewport\s*\{[\s\S]*touch-action:\s*none[\s\S]*background:\s*var\(--paper/,
+  );
+  assert.match(
+    css,
+    /\.timeline-focus-hero\s*\{[\s\S]*background:\s*var\(--paper\)[\s\S]*color:\s*var\(--ink\)/,
+  );
+  assert.match(css, /\.timeline-focus-hero-fallback\s*\{[\s\S]*var\(--paper\)[\s\S]*var\(--panel\)/);
+  assert.match(
+    composer,
+    /\.composer-context-deck \.timeline-occurrence-deck-image-viewport\s*\{[\s\S]*touch-action:\s*none/,
+  );
+  assert.match(
+    composer,
+    /transform:\s*translate3d\(var\(--occurrence-image-pan-x, 0px\), var\(--occurrence-image-pan-y, 0px\), 0\)\s*scale\(var\(--occurrence-image-zoom, 1\)\)/,
+  );
 });
 
 test("timeline focus delegates media presentation to the occurrence deck", async () => {
