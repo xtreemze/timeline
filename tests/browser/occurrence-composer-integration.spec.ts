@@ -370,6 +370,53 @@ test("one native composer input decorates semantic ranges inline and keeps exact
   await expect(composer.locator('.input-token[data-kind="time"]')).toContainText("2026-09-29");
   await expect(composer.locator('.input-token[data-kind="category"]')).toHaveText("Family");
   await expect(composer.locator('.input-token[data-kind="tag"]')).toHaveText("important");
+  await expect(composer.locator('.input-token[data-kind="subject"]')).toHaveAttribute(
+    "data-label",
+    "subject",
+  );
+  await expect(composer.locator('.input-token[data-kind="predicate"]')).toHaveAttribute(
+    "data-label",
+    "action",
+  );
+  await expect(composer.locator('.input-token[data-kind="object"]')).toHaveAttribute(
+    "data-label",
+    "object",
+  );
+  await expect(composer.locator('.input-token[data-kind="place"]')).toHaveAttribute(
+    "data-label",
+    "place",
+  );
+  await expect(composer.locator('.input-token[data-kind="time"]')).toHaveAttribute(
+    "data-label",
+    "time",
+  );
+  await expect(composer.locator('.input-token[data-kind="category"]')).toHaveAttribute(
+    "data-label",
+    "category",
+  );
+  await expect(composer.locator('.input-token[data-kind="tag"]')).toHaveAttribute(
+    "data-label",
+    "tag",
+  );
+
+  const labelLayout = await composer.locator(".input-shell").evaluate((shell) => {
+    const input = shell.querySelector("input");
+    const token = shell.querySelector<HTMLElement>(".input-token");
+    if (!(input instanceof HTMLInputElement) || !token) throw new Error("Labeled token missing");
+    const shellStyle = getComputedStyle(shell);
+    const inputStyle = getComputedStyle(input);
+    const tokenBefore = getComputedStyle(token, "::before");
+    return {
+      shellHeight: Number.parseFloat(shellStyle.height),
+      inputPaddingTop: Number.parseFloat(inputStyle.paddingTop),
+      labelContent: tokenBefore.content.replace(/^["']|["']$/g, ""),
+      labelPosition: tokenBefore.position,
+    };
+  });
+  expect(labelLayout.shellHeight).toBeGreaterThanOrEqual(54);
+  expect(labelLayout.inputPaddingTop).toBeGreaterThan(16);
+  expect(labelLayout.labelContent).toBe("subject");
+  expect(labelLayout.labelPosition).toBe("absolute");
 
   const setCaretIn = async (needle: string) => {
     await input.evaluate((element: HTMLInputElement, text) => {
@@ -560,6 +607,7 @@ test("unresolved clue remains editable and cannot be approved as a fact", async 
   const clue = composer.locator('.input-token[data-investigative="true"]');
   await expect(clue).toHaveCount(1);
   await expect(clue).toHaveText("man?");
+  await expect(clue).toHaveAttribute("data-label", "investigate");
   const coarsePointer = await page.evaluate(() => matchMedia("(pointer: coarse)").matches);
   await input.evaluate((element: HTMLInputElement) => {
     const offset = element.value.indexOf("man?") + 1;
