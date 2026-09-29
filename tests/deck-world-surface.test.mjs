@@ -1079,6 +1079,30 @@ test("real globe keyboard transition reuses the timeline weighted motion horizon
   assert.match(source, /1 - Math\.exp\(-WEIGHTED_GLOBE_DECAY \* t\)/);
 });
 
+test("real globe direct pan applies the shared timeline-weighted response", async () => {
+  const source = await readFile(
+    new URL("../site/world/deck-world-bindings.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /override getCenter\(event: GlobeControllerCenterEvent\)/);
+  assert.match(source, /#weightedPanCenter/);
+  assert.match(
+    source,
+    /directPan = !candidate\.rightButton && !this\.isFunctionKeyPressed\(event\)/,
+  );
+  assert.match(
+    source,
+    /TimelineMotion\.responseForElapsed\(now - this\.#weightedPanLastTime\)/,
+  );
+  assert.match(source, /current\[0\] \+ \(raw\[0\] - current\[0\]\) \* response/);
+  assert.match(source, /current\[1\] \+ \(raw\[1\] - current\[1\]\) \* response/);
+  assert.match(source, /event\.type === "panend"\) this\.#clearWeightedPan\(\)/);
+  assert.match(
+    source,
+    /event\.type === "pinchstart" \|\| event\.type === "multipanstart"/,
+  );
+});
+
 test("world surface advertises and releases focused keyboard camera ownership", () => {
   const { runtime } = harness();
   const container = { dataset: {} };

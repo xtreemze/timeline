@@ -59,6 +59,17 @@ function weightedGlobeEasing(progress: number): number {
 }
 
 type GlobeControllerEvent = Parameters<InstanceType<typeof GlobeController>["handleEvent"]>[0];
+type GlobeControllerCenterEvent = Parameters<InstanceType<typeof GlobeController>["getCenter"]>[0];
+
+function globeEventTimestamp(event: GlobeControllerCenterEvent): number {
+  const candidate = event as GlobeControllerCenterEvent & {
+    readonly timeStamp?: unknown;
+    readonly srcEvent?: { readonly timeStamp?: unknown };
+  };
+  const timestamp = Number(candidate.srcEvent?.timeStamp ?? candidate.timeStamp);
+  if (Number.isFinite(timestamp)) return timestamp;
+  return globalThis.performance?.now?.() ?? Date.now();
+}
 
 interface TouchBearingConstraintState {
   bearing: number | null;
@@ -88,6 +99,8 @@ function pointerTypeForGlobeEvent(event: GlobeControllerEvent): string | undefin
  */
 class TimelineWeightedGlobeController extends GlobeController {
   readonly #touchBearing: TouchBearingConstraintState;
+  #weightedPanCenter: [number, number] | null = null;
+  #weightedPanLastTime = 0;
 
   constructor(options: ConstructorParameters<typeof GlobeController>[0]) {
     const touchBearing: TouchBearingConstraintState = {
@@ -134,6 +147,49 @@ class TimelineWeightedGlobeController extends GlobeController {
     });
   }
 
+  #clearWeightedPan(): void {
+    this.#weightedPanCenter = null;
+    this.#weightedPanLastTime = 0;
+  }
+
+  /**
+   * deck.gl 9.4 applies the pointer center directly during globe pan. Filter
+   * only ordinary one-pointer pan through Lūm's shared response curve. Its
+   * globe controller records the resulting camera states for release inertia,
+   * so the fling naturally continues from the weighted path without a second
+   * inertia implementation. Rotation and multi-touch remain deck-native.
+   */
+  override getCenter(event: GlobeControllerCenterEvent): [number, number] {
+    const raw = super.getCenter(event);
+
+    if (event.type === "panstart") {
+      const candidate = event as GlobeControllerCenterEvent & {
+        readonly rightButton?: boolean;
+      };
+      const directPan = !candidate.rightButton && !this.isFunctionKeyPressed(event);
+      if (!directPan) {
+        this.#clearWeightedPan();
+        return raw;
+      }
+
+      this.#weightedPanCenter = raw;
+      this.#weightedPanLastTime = globeEventTimestamp(event);
+      return raw;
+    }
+
+    const current = this.#weightedPanCenter;
+    if (event.type !== "panmove" || !current) return raw;
+    const now = globeEventTimestamp(event);
+    const response = TimelineMotion.responseForElapsed(now - this.#weightedPanLastTime);
+    this.#weightedPanLastTime = now;
+    const weighted: [number, number] = [
+      current[0] + (raw[0] - current[0]) * response,
+      current[1] + (raw[1] - current[1]) * response,
+    ];
+    this.#weightedPanCenter = weighted;
+    return weighted;
+  }
+
   override handleEvent(event: GlobeControllerEvent): boolean {
     if (event.type === "panstart") {
       if (pointerTypeForGlobeEvent(event) === "touch") {
@@ -153,7 +209,13 @@ class TimelineWeightedGlobeController extends GlobeController {
       this.#touchBearing.awaitingTransitionEnd = true;
     }
 
+    if (event.type === "pinchstart" || event.type === "multipanstart") {
+      this.#clearWeightedPan();
+    }
+
     const handled = super.handleEvent(event);
+
+    if (event.type === "panend") this.#clearWeightedPan();
 
     if (endsSingleTouchPan) {
       this.#touchBearing.singleTouchPan = false;
