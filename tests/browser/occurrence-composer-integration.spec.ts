@@ -377,13 +377,13 @@ test("one native composer input decorates semantic ranges inline and keeps exact
   await expect(composer.locator(".context-row")).toHaveCount(0);
   const tokens = composer.locator(".input-token");
   await expect(tokens).not.toHaveCount(0);
-  await expect(composer.locator('.input-token[data-kind="subject"]')).toHaveText("@alice");
-  await expect(composer.locator('.input-token[data-kind="predicate"]')).toHaveText("meets");
-  await expect(composer.locator('.input-token[data-kind="object"]')).toHaveText("@bob");
-  await expect(composer.locator('.input-token[data-kind="place"]')).toHaveText("Stockholm");
-  await expect(composer.locator('.input-token[data-kind="time"]')).toContainText("2026-09-29");
-  await expect(composer.locator('.input-token[data-kind="category"]')).toHaveText("Family");
-  await expect(composer.locator('.input-token[data-kind="tag"]')).toHaveText("important");
+  await expect(composer.locator('.input-token[data-kind="subject"] .input-token-text')).toHaveText("@alice");
+  await expect(composer.locator('.input-token[data-kind="predicate"] .input-token-text')).toHaveText("meets");
+  await expect(composer.locator('.input-token[data-kind="object"] .input-token-text')).toHaveText("@bob");
+  await expect(composer.locator('.input-token[data-kind="place"] .input-token-text')).toHaveText("Stockholm");
+  await expect(composer.locator('.input-token[data-kind="time"] .input-token-text')).toContainText("2026-09-29");
+  await expect(composer.locator('.input-token[data-kind="category"] .input-token-text')).toHaveText("Family");
+  await expect(composer.locator('.input-token[data-kind="tag"] .input-token-text')).toHaveText("important");
   await expect(composer.locator('.input-token[data-kind="subject"]')).toHaveAttribute(
     "data-label",
     "subject",
@@ -412,25 +412,50 @@ test("one native composer input decorates semantic ranges inline and keeps exact
     "data-label",
     "tag",
   );
+  await expect(composer.locator('.input-token[data-kind="subject"] .input-token-icon')).toHaveAttribute("data-icon", "person");
+  await expect(composer.locator('.input-token[data-kind="predicate"] .input-token-icon')).toHaveAttribute("data-icon", "relation");
+  await expect(composer.locator('.input-token[data-kind="object"] .input-token-icon')).toHaveAttribute("data-icon", "object");
+  await expect(composer.locator('.input-token[data-kind="place"] .input-token-icon')).toHaveAttribute("data-icon", "place");
+  await expect(composer.locator('.input-token[data-kind="time"] .input-token-icon')).toHaveAttribute("data-icon", "timeline");
+  await expect(composer.locator('.input-token[data-kind="category"] .input-token-icon')).toHaveAttribute("data-icon", "folder");
+  await expect(composer.locator('.input-token[data-kind="tag"] .input-token-icon')).toHaveAttribute("data-icon", "note");
 
-  const labelLayout = await composer.locator(".input-shell").evaluate((shell) => {
+  const iconLayout = await composer.locator(".input-shell").evaluate((shell) => {
     const input = shell.querySelector("input");
+    const decoration = shell.querySelector<HTMLElement>(".input-decoration");
     const token = shell.querySelector<HTMLElement>(".input-token");
-    if (!(input instanceof HTMLInputElement) || !token) throw new Error("Labeled token missing");
+    const icon = token?.querySelector<HTMLElement>(".input-token-icon");
+    const text = token?.querySelector<HTMLElement>(".input-token-text");
+    if (!(input instanceof HTMLInputElement) || !decoration || !token || !icon || !text) {
+      throw new Error("Visible semantic icon token missing");
+    }
     const shellStyle = getComputedStyle(shell);
     const inputStyle = getComputedStyle(input);
-    const tokenBefore = getComputedStyle(token, "::before");
+    const decorationStyle = getComputedStyle(decoration);
+    const tokenStyle = getComputedStyle(token);
+    const iconStyle = getComputedStyle(icon);
+    const textStyle = getComputedStyle(text);
     return {
       shellHeight: Number.parseFloat(shellStyle.height),
       inputPaddingTop: Number.parseFloat(inputStyle.paddingTop),
-      labelContent: tokenBefore.content.replace(/^["']|["']$/g, ""),
-      labelPosition: tokenBefore.position,
+      inputColor: inputStyle.color,
+      inputZ: Number.parseInt(inputStyle.zIndex || "0", 10),
+      decorationZ: Number.parseInt(decorationStyle.zIndex || "0", 10),
+      tokenColor: tokenStyle.color,
+      textColor: textStyle.color,
+      iconPosition: iconStyle.position,
+      iconWidth: Number.parseFloat(iconStyle.width),
     };
   });
-  expect(labelLayout.shellHeight).toBeGreaterThanOrEqual(54);
-  expect(labelLayout.inputPaddingTop).toBeGreaterThan(16);
-  expect(labelLayout.labelContent).toBe("subject");
-  expect(labelLayout.labelPosition).toBe("absolute");
+  expect(iconLayout.shellHeight).toBeGreaterThanOrEqual(44);
+  expect(iconLayout.shellHeight).toBeLessThan(50);
+  expect(iconLayout.inputPaddingTop).toBeLessThan(12);
+  expect(iconLayout.inputColor).toBe("rgba(0, 0, 0, 0)");
+  expect(iconLayout.decorationZ).toBeGreaterThan(iconLayout.inputZ);
+  expect(iconLayout.tokenColor).not.toBe("rgba(0, 0, 0, 0)");
+  expect(iconLayout.textColor).not.toBe("rgba(0, 0, 0, 0)");
+  expect(iconLayout.iconPosition).toBe("absolute");
+  expect(iconLayout.iconWidth).toBeGreaterThan(0);
 
   const setCaretIn = async (needle: string) => {
     await input.evaluate((element: HTMLInputElement, text) => {
@@ -447,14 +472,14 @@ test("one native composer input decorates semantic ranges inline and keeps exact
     "data-active",
     "true",
   );
-  await expect(composer.locator(".stage")).toHaveText("place");
+  await expect(composer.locator(".stage")).toHaveText("↑↓ choose · Enter accept");
 
   await setCaretIn("meets");
   await expect(composer.locator('.input-token[data-kind="predicate"]')).toHaveAttribute(
     "data-active",
     "true",
   );
-  await expect(composer.locator(".stage")).toHaveText("action");
+  await expect(composer.locator(".stage")).toHaveText("↑↓ choose · Enter accept");
 
   const typography = await composer.locator(".input-shell").evaluate((shell) => {
     const input = shell.querySelector("input");
@@ -540,6 +565,7 @@ test("Space toggles multiple categories and tags while Enter advances option par
     "true",
   );
   await expect(categoryOptions.filter({ hasText: "Observation" })).toBeVisible();
+  await expect(composer.locator(".stage")).toHaveText("Space toggle · Enter next");
   await input.press(" ");
   await expect(input).toHaveValue(/\[category: Observation\]$/);
   await expect(categoryOptions.filter({ hasText: "Observation" })).toHaveAttribute(
@@ -569,7 +595,7 @@ test("Space toggles multiple categories and tags while Enter advances option par
   await expect(input).toHaveValue(
     "@alice meets @bob [categories: Observation|Conflict, tags: work|urgent]",
   );
-  await expect(composer.locator(".stage")).toHaveText("ready");
+  await expect(composer.locator(".stage")).toHaveText("Enter save");
 });
 test("composer uses chips for atomic metadata and live defaults without duplicating sentence text", async ({
   page,
@@ -627,7 +653,7 @@ test("unresolved clue remains editable and cannot be approved as a fact", async 
     element.dispatchEvent(new Event("select", { bubbles: true }));
   });
   await expect(clue).toHaveAttribute("data-active", "true");
-  await expect(composer.locator(".stage")).toHaveText("investigate");
+  await expect(composer.locator(".stage")).toHaveText("Resolve clue");
   if (!coarsePointer) {
     await input.evaluate((element: HTMLInputElement) => {
       element.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
