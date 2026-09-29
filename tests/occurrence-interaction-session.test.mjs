@@ -46,46 +46,29 @@ test("occurrence interaction session keeps presentation, content, media and auth
   });
 });
 
-test("committed logical viewport controls density expansion while explicit open remains an override", () => {
+test("timeline presentation never promotes occurrence detail outside the composer", () => {
   let session = createOccurrenceInteractionSession({ occurrenceId: "occ-1" });
   session = setPresentation(session, "focused");
 
   session = resolveOccurrencePresentation(session, {
+    logicalOccurrenceIds: ["occ-1"],
+    focused: true,
+  });
+  assert.equal(session.presentation, "focused");
+
+  session = resolveOccurrencePresentation(session, {
     logicalOccurrenceIds: ["occ-1", "occ-2"],
+    demotionOccurrenceIds: ["occ-1"],
+    explicitDetailOpen: true,
     focused: true,
   });
   assert.equal(session.presentation, "focused");
 
   session = resolveOccurrencePresentation(session, {
     logicalOccurrenceIds: ["occ-1"],
-    focused: true,
+    focused: false,
   });
-  assert.equal(session.presentation, "expanded");
-
-  session = resolveOccurrencePresentation(session, {
-    logicalOccurrenceIds: ["occ-1", "occ-2"],
-    demotionOccurrenceIds: ["occ-1"],
-    focused: true,
-  });
-  assert.equal(
-    session.presentation,
-    "expanded",
-    "hysteresis keeps an already-expanded card open while a neighbor only touches the outer boundary",
-  );
-
-  session = resolveOccurrencePresentation(session, {
-    logicalOccurrenceIds: ["occ-1", "occ-2"],
-    demotionOccurrenceIds: ["occ-1", "occ-2"],
-    focused: true,
-  });
-  assert.equal(session.presentation, "focused");
-
-  session = resolveOccurrencePresentation(session, {
-    logicalOccurrenceIds: ["occ-1", "occ-2"],
-    explicitDetailOpen: true,
-    focused: true,
-  });
-  assert.equal(session.presentation, "expanded");
+  assert.equal(session.presentation, "selected");
 });
 
 test("coincident occurrences never qualify as density-isolated", () => {
