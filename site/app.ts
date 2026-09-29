@@ -6185,9 +6185,6 @@ els.graphViewRoot.addEventListener("worldselectionchange", (event) => {
       };
       const changed = applicationSelection.select(worldSelection, "world");
       if (!changed) {
-        // Re-activating an already-selected edge is still an explicit request
-        // for that occurrence context. Reopen the composer even though the
-        // canonical selection controller correctly suppresses duplicate state.
         timelineView?.setSelection(worldSelection);
         syncOccurrenceComposerSelection(worldSelection);
         setOccurrenceComposerOpen(true);
