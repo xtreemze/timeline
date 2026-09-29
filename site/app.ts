@@ -1908,7 +1908,7 @@ function syncOccurrenceComposerSelection(selection = applicationSelection.curren
         (candidate) => String(candidate.id) === String(selectedItem.categoryId),
       )
     : null;
-  const selectedCategoryVisual = selectedCategory
+  const selectedCategoryVisual: Readonly<{ color?: string; icon?: string }> = selectedCategory
     ? composerSemanticVisual(selectedCategory.attributes)
     : {};
   const selectedOccurrenceColor = selectedCategory?.color ?? selectedCategoryVisual.color ?? null;
