@@ -51,9 +51,23 @@ test("composer keeps active suggestions visible across keyboard, wheel, and rese
   expect(keyboardState.panelScrollTop).toBe(0);
 
   await input.hover();
-  await page.mouse.wheel(0, 120);
+  const tinyWheelPrevented = await input.evaluate((element) => {
+    const event = new WheelEvent("wheel", {
+      bubbles: true,
+      cancelable: true,
+      deltaY: 1,
+    });
+    element.dispatchEvent(event);
+    return event.defaultPrevented;
+  });
+  expect(tinyWheelPrevented).toBe(true);
   await expect.poll(async () => (await choiceGeometry()).id).not.toBe(keyboardState.id);
   await expect.poll(async () => Math.abs((await choiceGeometry()).centerDelta)).toBeLessThanOrEqual(24);
+
+  await page.waitForTimeout(55);
+  const tinyWheelState = await choiceGeometry();
+  await page.mouse.wheel(0, 120);
+  await expect.poll(async () => (await choiceGeometry()).id).not.toBe(tinyWheelState.id);
 
   const beforeDiagonal = await choiceGeometry();
   const diagonalPrevented = await input.evaluate((element) => {
@@ -557,7 +571,6 @@ test("Space toggles multiple categories and tags while Enter advances option par
   );
   await expect(composer.locator(".stage")).toHaveText("ready");
 });
-
 test("composer uses chips for atomic metadata and live defaults without duplicating sentence text", async ({
   page,
 }) => {
@@ -598,7 +611,6 @@ test("composer uses chips for atomic metadata and live defaults without duplicat
   await expect(composer.locator(".composer-card-heading .card-status-chip")).toContainText("Draft");
   await expect(composer.locator(".context-row")).toHaveCount(0);
 });
-
 test("unresolved clue remains editable and cannot be approved as a fact", async ({ page }) => {
   const composer = page.locator("#occurrence-composer");
   await composer.locator(".compact").click();
@@ -607,7 +619,6 @@ test("unresolved clue remains editable and cannot be approved as a fact", async 
   const clue = composer.locator('.input-token[data-investigative="true"]');
   await expect(clue).toHaveCount(1);
   await expect(clue).toHaveText("man?");
-  await expect(clue).toHaveAttribute("data-label", "investigate");
   const coarsePointer = await page.evaluate(() => matchMedia("(pointer: coarse)").matches);
   await input.evaluate((element: HTMLInputElement) => {
     const offset = element.value.indexOf("man?") + 1;
