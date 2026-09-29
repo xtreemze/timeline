@@ -358,8 +358,9 @@ export class LuumOccurrenceComposerElement extends LitElement {
       overflow: hidden;
       border: 1px solid color-mix(in srgb, var(--line, #d1ccc4) 78%, transparent);
       border-radius: 0.6rem;
-      background: #171716;
-      color: #f1ede7;
+      background: var(--paper, #fff);
+      color: var(--ink, #191714);
+      color-scheme: light dark;
       isolation: isolate;
     }
     .composer-card-media {
@@ -367,7 +368,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
       min-inline-size: 0;
       min-block-size: clamp(9rem, 22vh, 14rem);
       overflow: hidden;
-      background: #171716;
+      background: color-mix(in srgb, var(--panel, #f5f3ef) 78%, var(--paper, #fff));
       isolation: isolate;
     }
     .composer-card-context {
@@ -377,16 +378,20 @@ export class LuumOccurrenceComposerElement extends LitElement {
       gap: 0.5rem;
       box-sizing: border-box;
       padding: 1rem;
-      border-block-start: 1px solid color-mix(in srgb, var(--line, #d1ccc4) 55%, transparent);
-      background: linear-gradient(145deg, #252321, #171716);
-      color: #f1ede7;
+      border-block-start: 1px solid color-mix(in srgb, var(--line, #d1ccc4) 70%, transparent);
+      background: linear-gradient(
+        145deg,
+        color-mix(in srgb, var(--panel, #f5f3ef) 88%, var(--paper, #fff)),
+        var(--paper, #fff)
+      );
+      color: var(--ink, #191714);
     }
     .composer-card-context-label,
     .composer-card-context-body {
       margin: 0;
     }
     .composer-card-context-label {
-      color: color-mix(in srgb, #f1ede7 68%, transparent);
+      color: var(--muted, #615d56);
       font-size: 0.68rem;
       font-weight: 760;
       letter-spacing: 0.05em;
@@ -412,12 +417,16 @@ export class LuumOccurrenceComposerElement extends LitElement {
       block-size: 100%;
     }
     .composer-context-deck .timeline-focus-hero-image {
-      object-fit: cover;
+      object-fit: contain;
+      object-position: center;
+      transform: scale(var(--occurrence-image-zoom, 1));
+      transform-origin: center;
+      transition: transform 160ms ease;
     }
     .composer-context-deck .timeline-focus-hero-fallback {
       background:
-        radial-gradient(circle at 18% 20%, color-mix(in srgb, var(--preview-accent, #315fbd) 62%, transparent), transparent 42%),
-        linear-gradient(135deg, #141414, #39332f 58%, #111);
+        radial-gradient(circle at 18% 20%, color-mix(in srgb, var(--preview-accent, var(--focus, #315fbd)) 32%, transparent), transparent 42%),
+        linear-gradient(135deg, var(--paper, #fff), var(--panel, #f5f3ef));
     }
     .composer-context-deck .timeline-occurrence-deck-caption {
       position: absolute;
@@ -429,8 +438,9 @@ export class LuumOccurrenceComposerElement extends LitElement {
       margin: 0;
       padding: 0.3rem 0.46rem;
       border-radius: 0.42rem;
-      background: color-mix(in srgb, black 54%, transparent);
-      color: white;
+      border: 1px solid color-mix(in srgb, var(--line, #d1ccc4) 72%, transparent);
+      background: color-mix(in srgb, var(--paper, #fff) 88%, transparent);
+      color: var(--ink, #191714);
       font-size: 0.7rem;
       line-height: 1.35;
     }
@@ -441,7 +451,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
       gap: 0.45rem;
       box-sizing: border-box;
       padding: 1rem;
-      color: white;
+      color: var(--ink, #191714);
     }
     .composer-context-deck .timeline-occurrence-deck-context-label,
     .composer-context-deck .timeline-occurrence-deck-context-body {
@@ -474,33 +484,64 @@ export class LuumOccurrenceComposerElement extends LitElement {
       block-size: 44px;
       padding: 0;
       place-items: center;
-      border: 0;
+      border: 1px solid color-mix(in srgb, var(--line, #d1ccc4) 72%, transparent);
       border-radius: 50%;
-      background: color-mix(in srgb, black 42%, transparent);
-      color: white;
+      background: color-mix(in srgb, var(--paper, #fff) 82%, transparent);
+      color: var(--ink, #191714);
       cursor: pointer;
+      backdrop-filter: blur(10px);
+    }
+    .composer-context-deck .timeline-focus-media-control:disabled {
+      cursor: default;
+      opacity: 0.42;
     }
     .composer-context-deck .timeline-focus-slide-dot {
+      border-color: transparent;
       background: transparent;
     }
     .composer-context-deck .timeline-focus-slide-dot::before {
       inline-size: 0.5rem;
       block-size: 0.5rem;
-      border: 1px solid rgba(255, 255, 255, 0.78);
+      border: 1px solid color-mix(in srgb, var(--ink, #191714) 68%, transparent);
       border-radius: 50%;
-      background: rgba(0, 0, 0, 0.28);
+      background: color-mix(in srgb, var(--paper, #fff) 72%, transparent);
       content: "";
     }
     .composer-context-deck .timeline-focus-slide-dot.is-active::before {
-      background: white;
+      background: var(--ink, #191714);
     }
     .composer-context-deck .timeline-focus-slide-count {
       display: grid;
       min-inline-size: 3rem;
       min-block-size: 44px;
       place-items: center;
-      color: white;
+      color: var(--ink, #191714);
       font: 700 0.68rem/1 ui-monospace, "SFMono-Regular", Consolas, monospace;
+    }
+    .composer-context-deck .timeline-occurrence-deck-zoom-controls {
+      position: absolute;
+      z-index: 5;
+      inset-inline-end: 0.4rem;
+      inset-block-end: 0.4rem;
+      display: flex;
+      align-items: center;
+      border: 1px solid color-mix(in srgb, var(--line, #d1ccc4) 72%, transparent);
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--paper, #fff) 86%, transparent);
+      box-shadow: 0 4px 16px color-mix(in srgb, #000 12%, transparent);
+      backdrop-filter: blur(10px);
+    }
+    .composer-context-deck .timeline-occurrence-deck-zoom-controls .timeline-focus-media-control {
+      border: 0;
+      background: transparent;
+      backdrop-filter: none;
+    }
+    .composer-context-deck .timeline-occurrence-deck-zoom-level {
+      min-inline-size: 3.2rem;
+      color: var(--ink, #191714);
+      font: 700 0.66rem/1 ui-monospace, "SFMono-Regular", Consolas, monospace;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
     }
     .composer-context-deck .timeline-occurrence-deck-icon {
       display: grid;
@@ -517,11 +558,13 @@ export class LuumOccurrenceComposerElement extends LitElement {
       overflow: hidden;
       border: 1px solid var(--preview-accent, var(--line, #d1ccc4));
       border-radius: 0.65rem;
-      background: radial-gradient(ellipse at 50% 100%, #4b5f8640, transparent 65%), #171716;
-      color: #f1ede7;
+      background:
+        radial-gradient(ellipse at 50% 100%, color-mix(in srgb, var(--preview-accent, var(--focus, #315fbd)) 16%, transparent), transparent 65%),
+        var(--paper, #fff);
+      color: var(--ink, #191714);
     }
-    .mini-world-pin { position: absolute; inset-inline-start: 50%; inset-block-end: 0.45rem; inline-size: 0.4rem; block-size: 0.4rem; border-radius: 50%; background: #3e6d5b; box-shadow: 0 0 0 2px #f1ede7; transform: translateX(-50%); }
-    .mini-world-place { position: absolute; inset-inline-start: 0.5rem; inset-block-start: 0.3rem; max-inline-size: calc(100% - 1rem); overflow: hidden; color: #9bbbaa; text-overflow: ellipsis; white-space: nowrap; font-size: 0.66rem; }
+    .mini-world-pin { position: absolute; inset-inline-start: 50%; inset-block-end: 0.45rem; inline-size: 0.4rem; block-size: 0.4rem; border-radius: 50%; background: color-mix(in srgb, var(--success, #3e6d5b) 78%, var(--ink, #191714)); box-shadow: 0 0 0 2px var(--paper, #fff); transform: translateX(-50%); }
+    .mini-world-place { position: absolute; inset-inline-start: 0.5rem; inset-block-start: 0.3rem; max-inline-size: calc(100% - 1rem); overflow: hidden; color: var(--muted, #615d56); text-overflow: ellipsis; white-space: nowrap; font-size: 0.66rem; }
     .preview-node { position: relative; z-index: 1; display: grid; justify-items: center; gap: 0.3rem; min-inline-size: 0; font-size: 0.72rem; font-weight: 650; text-align: center; }
     .preview-node img { inline-size: 44px; block-size: 44px; object-fit: contain; }
     .preview-node span { max-inline-size: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -563,6 +606,12 @@ export class LuumOccurrenceComposerElement extends LitElement {
     .pending-selection-action:is(:hover, :focus-visible) {
       outline: 2px solid var(--focus, #315fbd);
       outline-offset: -2px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .composer-context-deck .timeline-focus-hero-image {
+        transition: none;
+      }
     }
 
     @media (min-width: 721px) {
