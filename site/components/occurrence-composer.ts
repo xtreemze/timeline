@@ -878,8 +878,6 @@ export class LuumOccurrenceComposerElement extends LitElement {
   private previewSuggestion: ComposerSuggestion | null = null;
   private activeInterpretation = "";
   private activeCandidate = 0;
-  private choiceWheelDelta = 0;
-  private choiceWheelLastAt = 0;
   private choiceWheelLastStepAt = 0;
   private composing = false;
   private cursorOffset = 0;
@@ -1378,31 +1376,16 @@ export class LuumOccurrenceComposerElement extends LitElement {
     if (event.ctrlKey || vertical === 0 || vertical <= horizontal * 1.25) return null;
 
     event.preventDefault();
-    const unit =
-      event.deltaMode === WheelEvent.DOM_DELTA_LINE
-        ? 16
-        : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
-          ? Math.max(240, window.innerHeight)
-          : 1;
-    const delta = event.deltaY * unit;
     const now = event.timeStamp;
-    const direction = Math.sign(delta);
-
     if (
-      now - this.choiceWheelLastAt > 180 ||
-      Math.sign(this.choiceWheelDelta) !== direction
+      this.choiceWheelLastStepAt > 0 &&
+      now - this.choiceWheelLastStepAt < 48
     ) {
-      this.choiceWheelDelta = 0;
+      return 0;
     }
-    this.choiceWheelLastAt = now;
-    this.choiceWheelDelta += delta;
 
-    if (Math.abs(this.choiceWheelDelta) < 72) return 0;
-    if (now - this.choiceWheelLastStepAt < 90) return 0;
-
-    this.choiceWheelDelta = 0;
     this.choiceWheelLastStepAt = now;
-    return direction > 0 ? 1 : -1;
+    return event.deltaY > 0 ? 1 : -1;
   }
 
   private onSuggestionWheel(event: WheelEvent): void {

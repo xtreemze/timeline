@@ -160,7 +160,9 @@ test("composer keeps active suggestions and investigation candidates visibly cen
   assert.match(composer, /private resetCandidateSelection\(\)[\s\S]*centerActiveChoice\("candidate"\)/);
   assert.match(composer, /@wheel=\$\{\(event: WheelEvent\) => this\.onSuggestionWheel\(event\)\}/);
   assert.match(composer, /vertical <= horizontal \* 1\.25/);
-  assert.match(composer, /Math\.abs\(this\.choiceWheelDelta\) < 72/);
+  assert.doesNotMatch(composer, /choiceWheelDelta|choiceWheelLastAt/);
+  assert.match(composer, /choiceWheelLastStepAt > 0[\s\S]*< 48/);
+  assert.match(composer, /return event\.deltaY > 0 \? 1 : -1/);
   assert.match(composer, /selectSuggestion\(this\.activeSuggestion \+ step, suggestions, false\)/);
   assert.match(composer, /selectCandidate\(this\.activeCandidate \+ step, candidates, false\)/);
   assert.match(composer, /occurrence-composer-candidate-\$\{index\}/);
