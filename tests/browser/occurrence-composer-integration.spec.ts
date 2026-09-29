@@ -474,6 +474,10 @@ test("Space toggles multiple categories and tags while Enter advances option par
   await input.fill("@alice meets @bob [categories: ]");
 
   const categoryOptions = composer.locator('.option[data-multiselect="true"]');
+  await expect(composer.locator("#occurrence-composer-listbox")).toHaveAttribute(
+    "aria-multiselectable",
+    "true",
+  );
   await expect(categoryOptions.filter({ hasText: "Observation" })).toBeVisible();
   await input.press(" ");
   await expect(input).toHaveValue(/\[category: Observation\]$/);
