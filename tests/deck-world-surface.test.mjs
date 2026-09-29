@@ -1079,6 +1079,19 @@ test("real globe keyboard transition reuses the timeline weighted motion horizon
   assert.match(source, /1 - Math\.exp\(-WEIGHTED_GLOBE_DECAY \* t\)/);
 });
 
+test("real globe direct pan cancels latitude gain and applies timeline-weighted response", async () => {
+  const source = await readFile(
+    new URL("../site/world/deck-world-bindings.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /override getCenter\(event: GlobeControllerCenterEvent\)/);
+  assert.match(source, /GLOBE_HORIZONTAL_LATITUDE_GAIN_FLOOR = 0\.25/);
+  assert.match(source, /Math\.cos\(latitude \* DEGREES_TO_RADIANS\)/);
+  assert.match(source, /#weightedPanHorizontalScale/);
+  assert.match(source, /TimelineMotion\.responseForElapsed\(now - this\.#weightedPanLastTime\)/);
+  assert.match(source, /event\.type === "panend"\) this\.#clearWeightedPan\(\)/);
+});
+
 test("world surface advertises and releases focused keyboard camera ownership", () => {
   const { runtime } = harness();
   const container = { dataset: {} };
