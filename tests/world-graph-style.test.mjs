@@ -17,13 +17,14 @@ import {
   worldPlaceStyle,
   worldPlaceVisualFootprintRadiusPx,
 } from "../src/layout/world-graph-style.ts";
+import { semanticColorHex, semanticHue } from "../src/presentation/semantic-color.ts";
 
 test("node defaults follow the Orb type language", () => {
   const person = worldNodeStyle({ type: "person" }, WORLD_LIGHT_PALETTE);
-  assert.equal(person.fill, "#4b5f86");
+  assert.equal(person.fill, semanticColorHex("#4b5f86", "light", "ambient"));
   assert.equal(person.shape, "circle");
   assert.equal(person.icon, "person");
-  assert.equal(person.border, WORLD_LIGHT_PALETTE.paper);
+  assert.equal(person.border, semanticColorHex("#4b5f86", "light", "subdued"));
   assert.equal(worldNodeStyle({ type: "event" }, WORLD_LIGHT_PALETTE).shape, "diamond");
   assert.equal(worldNodeStyle({ type: "organization" }, WORLD_LIGHT_PALETTE).shape, "square");
   assert.equal(worldNodeStyle({ type: "story" }, WORLD_LIGHT_PALETTE).shape, "hexagon");
@@ -46,8 +47,8 @@ test("an entity's own style overrides the defaults; invalid values fall back", (
     },
     WORLD_LIGHT_PALETTE,
   );
-  assert.equal(styled.fill, "#ff0000");
-  assert.equal(styled.border, "#00ff00");
+  assert.equal(styled.fill, semanticColorHex("#ff0000", "light", "ambient"));
+  assert.equal(styled.border, semanticColorHex("#00ff00", "light", "subdued"));
   assert.equal(styled.shape, "square");
   assert.equal(styled.icon, "object");
   assert.equal(styled.image, "https://example.test/a.png");
@@ -57,15 +58,17 @@ test("an entity's own style overrides the defaults; invalid values fall back", (
     { type: "person", attributes: { style: { fillColor: "red; x", shape: "star" } } },
     WORLD_LIGHT_PALETTE,
   );
-  assert.equal(invalid.fill, "#4b5f86");
+  assert.equal(invalid.fill, semanticColorHex("#4b5f86", "light", "ambient"));
   assert.equal(invalid.shape, "circle");
 });
 
 test("selection preserves semantic colours without changing node geometry", () => {
   const normal = worldNodeStyle({ type: "person" }, WORLD_LIGHT_PALETTE);
   const selected = worldNodeStyle({ type: "person", selected: true }, WORLD_LIGHT_PALETTE);
-  assert.equal(selected.fill, normal.fill);
-  assert.equal(selected.border, normal.border);
+  assert.notEqual(selected.fill, normal.fill);
+  assert.equal(Math.round(semanticHue(selected.fill)), Math.round(semanticHue(normal.fill)));
+  assert.notEqual(selected.border, normal.border);
+  assert.equal(Math.round(semanticHue(selected.border)), Math.round(semanticHue(normal.border)));
   assert.equal(selected.borderWidth, normal.borderWidth);
   assert.equal(selected.radius, normal.radius);
 
@@ -77,8 +80,8 @@ test("selection preserves semantic colours without changing node geometry", () =
     },
     WORLD_LIGHT_PALETTE,
   );
-  assert.equal(authored.fill, "#123456");
-  assert.equal(authored.border, "#abcdef");
+  assert.equal(authored.fill, semanticColorHex("#123456", "light", "active"));
+  assert.equal(authored.border, semanticColorHex("#abcdef", "light", "active"));
   assert.equal(
     worldNodeStyle({ type: "thing" }, WORLD_DARK_PALETTE).fill !== WORLD_DARK_PALETTE.ink,
     true,
@@ -94,12 +97,13 @@ test("selection and connected-neighborhood emphasis preserve graph geometry", ()
     WORLD_LIGHT_PALETTE,
   );
 
-  assert.equal(neighbor.fill, ordinary.fill);
-  assert.equal(neighbor.border, ordinary.border);
+  assert.notEqual(neighbor.fill, ordinary.fill);
+  assert.equal(Math.round(semanticHue(neighbor.fill)), Math.round(semanticHue(ordinary.fill)));
+  assert.notEqual(neighbor.border, ordinary.border);
   assert.equal(neighbor.borderWidth, ordinary.borderWidth);
   assert.equal(neighbor.radius, ordinary.radius);
-  assert.equal(selected.fill, ordinary.fill);
-  assert.equal(selected.border, ordinary.border);
+  assert.equal(selected.fill, neighbor.fill);
+  assert.equal(selected.border, neighbor.border);
   assert.equal(selected.borderWidth, ordinary.borderWidth);
   assert.equal(selected.radius, ordinary.radius);
   assert.equal(
@@ -116,9 +120,10 @@ test("selection and connected-neighborhood emphasis preserve graph geometry", ()
     { predicate: "met", selected: true, emphasized: true },
     WORLD_LIGHT_PALETTE,
   );
-  assert.equal(emphasizedEdge.color, ordinaryEdge.color);
+  assert.notEqual(emphasizedEdge.color, ordinaryEdge.color);
+  assert.equal(Math.round(semanticHue(emphasizedEdge.color)), Math.round(semanticHue(ordinaryEdge.color)));
   assert.equal(emphasizedEdge.width, ordinaryEdge.width);
-  assert.equal(selectedEdge.color, ordinaryEdge.color);
+  assert.equal(selectedEdge.color, emphasizedEdge.color);
   assert.equal(selectedEdge.width, ordinaryEdge.width);
 
   const ordinaryPlace = worldPlaceStyle(
@@ -132,8 +137,9 @@ test("selection and connected-neighborhood emphasis preserve graph geometry", ()
     WORLD_LIGHT_PALETTE,
     true,
   );
-  assert.equal(emphasizedPlace.fill, ordinaryPlace.fill);
-  assert.equal(emphasizedPlace.border, ordinaryPlace.border);
+  assert.notEqual(emphasizedPlace.fill, ordinaryPlace.fill);
+  assert.equal(Math.round(semanticHue(emphasizedPlace.fill)), Math.round(semanticHue(ordinaryPlace.fill)));
+  assert.notEqual(emphasizedPlace.border, ordinaryPlace.border);
   assert.equal(emphasizedPlace.borderWidth, ordinaryPlace.borderWidth);
   assert.equal(emphasizedPlace.radius, ordinaryPlace.radius);
 });
@@ -153,8 +159,8 @@ test("portable fill, border, stroke, and radius aliases override defaults", () =
     },
     WORLD_LIGHT_PALETTE,
   );
-  assert.equal(styled.fill, "#112233");
-  assert.equal(styled.border, "#445566");
+  assert.equal(styled.fill, semanticColorHex("#112233", "light", "ambient"));
+  assert.equal(styled.border, semanticColorHex("#445566", "light", "subdued"));
   assert.equal(styled.borderWidth, 3);
   assert.equal(styled.radius, 19);
 });
@@ -198,8 +204,8 @@ test("places use node-like shape, icon, border, fill, and readable footprint", (
     false,
     WORLD_LIGHT_PALETTE,
   );
-  assert.equal(place.fill, "#123456");
-  assert.equal(place.border, "#abcdef");
+  assert.equal(place.fill, semanticColorHex("#123456", "light", "ambient"));
+  assert.equal(place.border, semanticColorHex("#abcdef", "light", "subdued"));
   assert.equal(place.borderWidth, 3);
   assert.equal(place.shape, "square");
   assert.equal(place.icon, "crown");
@@ -259,11 +265,17 @@ test("entity and place authored size share diameter semantics above the minimum 
 });
 
 test("edges colour by relationship type unless they carry their own style, including style aliases", () => {
-  assert.equal(worldEdgeStyle({ predicate: "visits" }, WORLD_LIGHT_PALETTE).color, "#3e6d5b");
-  assert.equal(worldEdgeStyle({ predicate: "calls" }, WORLD_LIGHT_PALETTE).color, "#496f8c");
+  assert.equal(
+    worldEdgeStyle({ predicate: "visits" }, WORLD_LIGHT_PALETTE).color,
+    semanticColorHex("#3e6d5b", "light", "ambient"),
+  );
+  assert.equal(
+    worldEdgeStyle({ predicate: "calls" }, WORLD_LIGHT_PALETTE).color,
+    semanticColorHex("#496f8c", "light", "ambient"),
+  );
   assert.equal(
     worldEdgeStyle({ predicate: "anything" }, WORLD_LIGHT_PALETTE).color,
-    WORLD_LIGHT_PALETTE.focus,
+    semanticColorHex(WORLD_LIGHT_PALETTE.focus, "light", "ambient"),
   );
   const own = worldEdgeStyle(
     {
@@ -272,7 +284,10 @@ test("edges colour by relationship type unless they carry their own style, inclu
     },
     WORLD_LIGHT_PALETTE,
   );
-  assert.deepEqual([own.color, own.width, own.dashed, own.arrow], ["#010203", 5, true, false]);
+  assert.deepEqual(
+    [own.color, own.width, own.dashed, own.arrow],
+    [semanticColorHex("#010203", "light", "ambient"), 5, true, false],
+  );
 
   const aliased = worldEdgeStyle(
     {
@@ -282,7 +297,7 @@ test("edges colour by relationship type unless they carry their own style, inclu
     },
     WORLD_LIGHT_PALETTE,
   );
-  assert.equal(aliased.color, "#abcdef");
+  assert.equal(aliased.color, semanticColorHex("#abcdef", "light", "active"));
   assert.equal(aliased.width, 3);
 });
 
@@ -291,7 +306,7 @@ test("subdued edges mute while emphasis restores category or endpoint colour", (
     { predicate: "calls", fallbackColor: "#123456", subdued: true },
     WORLD_LIGHT_PALETTE,
   );
-  assert.equal(subdued.color, WORLD_LIGHT_PALETTE.muted);
+  assert.equal(subdued.color, semanticColorHex("#123456", "light", "subdued"));
   assert.equal(subdued.dashed, false);
 
   const inactive = worldEdgeStyle(
@@ -304,7 +319,7 @@ test("subdued edges mute while emphasis restores category or endpoint colour", (
     { predicate: "calls", fallbackColor: "#123456", emphasized: true },
     WORLD_LIGHT_PALETTE,
   );
-  assert.equal(emphasized.color, "#123456");
+  assert.equal(emphasized.color, semanticColorHex("#123456", "light", "active"));
   assert.equal(emphasized.dashed, false);
   assert.equal(emphasized.width, 1);
 
@@ -317,7 +332,7 @@ test("subdued edges mute while emphasis restores category or endpoint colour", (
     },
     WORLD_LIGHT_PALETTE,
   );
-  assert.equal(endpoint.color, "#123456");
+  assert.equal(endpoint.color, semanticColorHex("#123456", "light", "active"));
 
   const category = worldEdgeStyle(
     {
@@ -328,7 +343,7 @@ test("subdued edges mute while emphasis restores category or endpoint colour", (
     },
     WORLD_LIGHT_PALETTE,
   );
-  assert.equal(category.color, "#aabbcc");
+  assert.equal(category.color, semanticColorHex("#aabbcc", "light", "active"));
   assert.equal(category.width, 1);
 });
 
