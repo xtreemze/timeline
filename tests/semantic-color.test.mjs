@@ -57,12 +57,13 @@ test("canonical persistence stores a hue carrier rather than authored display co
 });
 
 test("category authoring exposes hue only and semantic surfaces derive presentation colors", async () => {
-  const [html, app, styles, composer, worldSurface] = await Promise.all([
+  const [html, app, styles, composer, worldSurface, locationMap] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
     readFile(new URL("../site/components/occurrence-composer.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/world/deck-world-surface.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/location-map.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(html, /id="category-hue" type="range" min="0" max="359"/);
@@ -80,4 +81,13 @@ test("category authoring exposes hue only and semantic surfaces derive presentat
     worldSurface,
     /\(emphasized \|\| directlyInteracted\) && entity[\s\S]*?: this\.#theme\.labelPlace/,
   );
+  assert.match(locationMap, /color: mapSemanticColor\(semanticSource, fallbackHue, "ambient"\)/);
+  assert.match(
+    locationMap,
+    /fillColor: mapSemanticColor\(marker\.fillColor \|\| semanticSource, markerHue, "subdued"\)/,
+  );
+  assert.match(locationMap, /color: mapSemanticColor\(pathSource, fallbackHue, "subdued"\)/);
+  assert.match(html, /Stroke \/ icon hue source/);
+  assert.match(html, /Fill hue source/);
+  assert.match(html, /Path hue source/);
 });
