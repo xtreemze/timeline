@@ -17,8 +17,9 @@ test("composer owns the card and incremental world preview with interactive gram
   assert.match(source, /class="composer-world-preview"/);
   assert.match(source, /class="mini-world-pin"/);
   assert.match(source, /composerEditableSections\(this\.value\)/);
-  assert.match(source, /selectSection\(section\.start, section\.end\)/);
-  assert.match(source, /input\.setSelectionRange\(start, end\)/);
+  assert.match(source, /focusSection\([\s\S]*input\.setSelectionRange\(section\.start, section\.end\)/);
+  assert.match(source, /onInputDoubleClick\(event: MouseEvent\)/);
+  assert.match(source, /target\.setSelectionRange\(range\.start, range\.end\)/);
   assert.match(source, /aria-label="Approve occurrence"/);
   assert.match(source, /import \{ LitElement, css, html, nothing, svg \} from "lit"/);
   assert.match(source, /iconPathData\("close"\)\.map\(\(path\) => svg`<path d=\$\{path\}><\/path>`\)/);
@@ -44,6 +45,8 @@ test("composer owns the card and incremental world preview with interactive gram
   assert.match(source, /class="input-decoration"/);
   assert.match(source, /class="input-decoration-content"/);
   assert.match(source, /class="input-token"/);
+  assert.doesNotMatch(source, /qualifier-chip/);
+  assert.doesNotMatch(source, /composer-qualifiers/);
   assert.match(source, /aria-hidden="true"[\s\S]*class="input-decoration-content"/);
   assert.match(source, /inputDecorationSegments\(sections, qualifiers\)/);
   assert.match(source, /syncInputDecorationScroll\(target\)/);
