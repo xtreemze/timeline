@@ -1239,6 +1239,23 @@ export class LuumOccurrenceComposerElement extends LitElement {
         Math.min(maximum, choiceCenter - container.clientHeight / 2),
       );
       container.scrollTo({ top: target, behavior: "auto" });
+
+      const panel = this.renderRoot.querySelector<HTMLElement>(".completion-panel");
+      if (!panel || panel === container) return;
+      const panelRect = panel.getBoundingClientRect();
+      const visibleChoiceRect = choice.getBoundingClientRect();
+      const delta =
+        visibleChoiceRect.top < panelRect.top
+          ? visibleChoiceRect.top - panelRect.top
+          : visibleChoiceRect.bottom > panelRect.bottom
+            ? visibleChoiceRect.bottom - panelRect.bottom
+            : 0;
+      if (delta === 0) return;
+      const panelMaximum = Math.max(0, panel.scrollHeight - panel.clientHeight);
+      panel.scrollTo({
+        top: Math.max(0, Math.min(panelMaximum, panel.scrollTop + delta)),
+        behavior: "auto",
+      });
     });
   }
 
@@ -1344,7 +1361,6 @@ export class LuumOccurrenceComposerElement extends LitElement {
     }
     this.externalError = "";
     this.resetSuggestionSelection();
-    this.previewSuggestion = null;
     this.activeInterpretation = "";
     this.resetCandidateSelection();
     this.requestUpdate();
@@ -1621,11 +1637,6 @@ export class LuumOccurrenceComposerElement extends LitElement {
     if (event.key === "ArrowUp" && suggestions.length) {
       event.preventDefault();
       this.selectSuggestion(this.activeSuggestion - 1, suggestions);
-      return;
-    }
-    if ((event.key === "Home" || event.key === "End") && suggestions.length) {
-      event.preventDefault();
-      this.selectSuggestion(event.key === "Home" ? 0 : suggestions.length - 1, suggestions, false);
       return;
     }
     if (event.key !== "Enter") return;
