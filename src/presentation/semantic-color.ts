@@ -23,7 +23,9 @@ const PROFILES: Readonly<
 
 const HEX_COLOR = /^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 const HSL_COLOR =
-  /^hsla?\(\s*(-?\d+(?:\.\d+)?)\s*(?:deg)?(?:\s+|\s*,\s*)\d+(?:\.\d+)?%?(?:\s+|\s*,\s*)\d+(?:\.\d+)?%?/i;
+  /^hsla?\(\s*(-?\d+(?:\.\d+)?)\s*(?:deg)?(?:\s+|\s*,\s*)(\d+(?:\.\d+)?)%?(?:\s+|\s*,\s*)\d+(?:\.\d+)?%?/i;
+const ACHROMATIC_RGB_DELTA = 10 / 255;
+const ACHROMATIC_HSL_SATURATION = 4;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -50,14 +52,14 @@ function hexRgb(value: string): readonly [number, number, number] | null {
   return rgb.every(Number.isFinite) ? rgb : null;
 }
 
-function rgbHue(red: number, green: number, blue: number): number {
+function rgbHue(red: number, green: number, blue: number): number | null {
   const r = clamp(red, 0, 255) / 255;
   const g = clamp(green, 0, 255) / 255;
   const b = clamp(blue, 0, 255) / 255;
   const max = Math.max(r, g, b);
   const min = Math.min(r, g, b);
   const delta = max - min;
-  if (delta === 0) return 0;
+  if (delta <= ACHROMATIC_RGB_DELTA) return null;
   let hue = 0;
   if (max === r) hue = 60 * (((g - b) / delta) % 6);
   else if (max === g) hue = 60 * ((b - r) / delta + 2);
@@ -70,9 +72,15 @@ export function semanticHue(value: unknown, fallback = 30): number {
   if (typeof value !== "string") return normalizeSemanticHue(fallback);
   const color = value.trim();
   const hsl = color.match(HSL_COLOR);
-  if (hsl?.[1] !== undefined) return normalizeSemanticHue(Number(hsl[1]), fallback);
+  if (hsl?.[1] !== undefined) {
+    const saturation = Number(hsl[2]);
+    return Number.isFinite(saturation) && saturation > ACHROMATIC_HSL_SATURATION
+      ? normalizeSemanticHue(Number(hsl[1]), fallback)
+      : normalizeSemanticHue(fallback);
+  }
   const rgb = hexRgb(color);
-  return rgb ? rgbHue(rgb[0], rgb[1], rgb[2]) : normalizeSemanticHue(fallback);
+  const hue = rgb ? rgbHue(rgb[0], rgb[1], rgb[2]) : null;
+  return hue ?? normalizeSemanticHue(fallback);
 }
 
 function hslToHex(hue: number, saturation: number, lightness: number): string {
