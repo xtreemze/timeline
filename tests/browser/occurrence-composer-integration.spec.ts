@@ -471,8 +471,7 @@ test("Space toggles multiple categories and tags while Enter advances option par
   });
 
   const input = composer.locator('input[role="combobox"]');
-  await input.fill("@alice meets @bob");
-  await input.press("End");
+  await input.fill("@alice meets @bob [categories: ]");
 
   const categoryOptions = composer.locator('.option[data-multiselect="true"]');
   await expect(categoryOptions.filter({ hasText: "Observation" })).toBeVisible();
