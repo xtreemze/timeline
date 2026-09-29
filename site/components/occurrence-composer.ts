@@ -293,7 +293,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
     .input-decoration {
       position: absolute;
-      z-index: 0;
+      z-index: 2;
       inset: 0;
       box-sizing: border-box;
       padding: 1.35rem 0.7rem 0.35rem;
@@ -313,20 +313,23 @@ export class LuumOccurrenceComposerElement extends LitElement {
     }
 
     .input-decoration-text {
-      color: transparent;
+      color: var(--ink, #191714);
     }
 
     .input-token {
       position: relative;
-      border-radius: 0.28rem;
-      background: color-mix(in srgb, var(--ink, #191714) 6%, transparent);
-      box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink, #191714) 18%, transparent);
-      color: transparent;
+      display: inline-block;
+      border-radius: 0.34rem;
+      background: color-mix(in srgb, var(--ink, #191714) 12%, var(--paper, #fff));
+      box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--ink, #191714) 34%, transparent),
+        0 1px 2px color-mix(in srgb, #000 8%, transparent);
+      color: var(--ink, #191714);
       box-decoration-break: clone;
       -webkit-box-decoration-break: clone;
     }
 
-    .input-token::before {
+    .input-token-label {
       position: absolute;
       inset-inline-start: 0;
       inset-block-end: calc(100% + 0.08rem);
@@ -334,9 +337,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
       padding-inline: 0.12rem;
       overflow: hidden;
       border-radius: 0.2rem;
-      background: color-mix(in srgb, var(--paper, #fff) 92%, transparent);
-      color: color-mix(in srgb, var(--muted, #615d56) 84%, transparent);
-      content: attr(data-label);
+      background: color-mix(in srgb, var(--paper, #fff) 96%, transparent);
+      color: var(--muted, #615d56);
       font: 720 0.5rem/1 ui-monospace, "SFMono-Regular", Consolas, monospace;
       letter-spacing: 0.025em;
       text-overflow: ellipsis;
@@ -344,37 +346,51 @@ export class LuumOccurrenceComposerElement extends LitElement {
       white-space: nowrap;
     }
 
-    .input-token[data-active="true"] {
-      background: color-mix(in srgb, var(--focus, #315fbd) 10%, transparent);
-      box-shadow: 0 0 0 1px color-mix(in srgb, var(--focus, #315fbd) 52%, transparent);
+    .input-token-text {
+      color: inherit;
     }
 
-    .input-token[data-active="true"]::before {
+    .input-token[data-active="true"] {
+      background: color-mix(in srgb, var(--focus, #315fbd) 16%, var(--paper, #fff));
+      box-shadow:
+        0 0 0 2px color-mix(in srgb, var(--focus, #315fbd) 58%, transparent),
+        0 1px 2px color-mix(in srgb, #000 8%, transparent);
+    }
+
+    .input-token[data-active="true"] .input-token-label {
       color: var(--focus, #315fbd);
     }
 
     .composer[data-semantic-color="true"] .input-token[data-active="true"] {
-      background: color-mix(in srgb, var(--composer-semantic-accent) 10%, transparent);
-      box-shadow: 0 0 0 1px color-mix(in srgb, var(--composer-semantic-accent) 52%, transparent);
+      background: color-mix(
+        in srgb,
+        var(--composer-semantic-accent) 16%,
+        var(--paper, #fff)
+      );
+      box-shadow:
+        0 0 0 2px color-mix(in srgb, var(--composer-semantic-accent) 58%, transparent),
+        0 1px 2px color-mix(in srgb, #000 8%, transparent);
     }
 
-    .composer[data-semantic-color="true"] .input-token[data-active="true"]::before {
+    .composer[data-semantic-color="true"] .input-token[data-active="true"] .input-token-label {
       color: var(--composer-semantic-accent);
     }
 
     .input-token[data-investigative="true"] {
-      background: color-mix(in srgb, var(--accent, #b7472a) 9%, transparent);
-      box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--accent, #b7472a) 82%, transparent);
+      background: color-mix(in srgb, var(--accent, #b7472a) 14%, var(--paper, #fff));
+      box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--accent, #b7472a) 48%, transparent),
+        inset 0 -2px 0 color-mix(in srgb, var(--accent, #b7472a) 88%, transparent);
     }
 
-    .input-token[data-investigative="true"]::before {
+    .input-token[data-investigative="true"] .input-token-label {
       color: var(--accent, #b7472a);
     }
 
     .input-token[data-investigative="true"][data-active="true"] {
-      background: color-mix(in srgb, var(--accent, #b7472a) 14%, transparent);
+      background: color-mix(in srgb, var(--accent, #b7472a) 20%, var(--paper, #fff));
       box-shadow:
-        0 0 0 1px color-mix(in srgb, var(--accent, #b7472a) 76%, transparent),
+        0 0 0 2px color-mix(in srgb, var(--accent, #b7472a) 72%, transparent),
         inset 0 -2px 0 var(--accent, #b7472a);
     }
 
@@ -394,9 +410,19 @@ export class LuumOccurrenceComposerElement extends LitElement {
       padding: 1.35rem 0.7rem 0.35rem;
       outline: none;
       background: transparent;
-      color: var(--ink, #191714);
+      color: transparent;
       caret-color: var(--ink, #191714);
       font: 500 0.88rem/1.3 ui-monospace, "SFMono-Regular", Consolas, monospace;
+    }
+
+    input::placeholder {
+      color: var(--muted, #615d56);
+      opacity: 0.72;
+    }
+
+    input::selection {
+      background: color-mix(in srgb, var(--focus, #315fbd) 24%, transparent);
+      color: transparent;
     }
 
     input:focus-visible {
@@ -1597,6 +1623,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
       this.cursorOffset = target.selectionStart ?? target.value.length;
       this.selectionSeeded = false;
       this.syncInputDecorationScroll(target);
+      this.requestUpdate();
       return;
     }
     this.setComposerValue(target.value, target.selectionStart ?? target.value.length);
@@ -2151,7 +2178,10 @@ export class LuumOccurrenceComposerElement extends LitElement {
                         data-label=${this.inputTokenLabel(segment)}
                         data-investigative=${String(segment.investigative)}
                         data-active=${String(segment.active)}
-                      >${segment.text}</span>`
+                      >
+                        <span class="input-token-label">${this.inputTokenLabel(segment)}</span>
+                        <span class="input-token-text">${segment.text}</span>
+                      </span>`
                     : html`<span class="input-decoration-text">${segment.text}</span>`,
                 )}<span class="ghost-suffix">${ghostSuffix}</span>
               </span>
