@@ -235,34 +235,29 @@ export class LuumOccurrenceComposerElement extends LitElement {
     }
 
     .input-token {
-      border-radius: 0.24rem;
-      background: color-mix(in srgb, var(--focus, #315fbd) 10%, transparent);
-      box-shadow: 0 0 0 1px color-mix(in srgb, var(--focus, #315fbd) 24%, transparent);
+      border-radius: 0.18rem;
+      background: color-mix(in srgb, var(--ink, #191714) 5%, transparent);
+      box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--ink, #191714) 18%, transparent);
       color: transparent;
       box-decoration-break: clone;
       -webkit-box-decoration-break: clone;
     }
 
-    .input-token[data-kind="predicate"] {
-      background: color-mix(in srgb, var(--muted, #615d56) 11%, transparent);
-      box-shadow: 0 0 0 1px color-mix(in srgb, var(--muted, #615d56) 22%, transparent);
-    }
-
-    .input-token[data-kind="place"],
-    .input-token[data-kind="time"] {
-      background: color-mix(in srgb, var(--story, #7b5ea7) 10%, transparent);
-      box-shadow: 0 0 0 1px color-mix(in srgb, var(--story, #7b5ea7) 24%, transparent);
-    }
-
-    .input-token[data-kind="category"],
-    .input-token[data-kind="tag"] {
-      background: color-mix(in srgb, var(--accent, #315fbd) 8%, transparent);
-      box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent, #315fbd) 20%, transparent);
+    .input-token[data-active="true"] {
+      background: color-mix(in srgb, var(--focus, #315fbd) 10%, transparent);
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--focus, #315fbd) 52%, transparent);
     }
 
     .input-token[data-investigative="true"] {
-      background: color-mix(in srgb, var(--accent, #315fbd) 16%, transparent);
-      box-shadow: 0 0 0 1px var(--accent, #315fbd);
+      background: color-mix(in srgb, var(--accent, #b7472a) 9%, transparent);
+      box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--accent, #b7472a) 82%, transparent);
+    }
+
+    .input-token[data-investigative="true"][data-active="true"] {
+      background: color-mix(in srgb, var(--accent, #b7472a) 14%, transparent);
+      box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--accent, #b7472a) 76%, transparent),
+        inset 0 -2px 0 var(--accent, #b7472a);
     }
 
     .ghost-suffix {
@@ -329,7 +324,9 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
     .completion-panel {
       position: absolute;
-      z-index: 20;
+      z-index: 2400;
+      pointer-events: auto;
+      isolation: isolate;
       inset-inline: 0;
       inset-block-end: calc(100% + 0.38rem);
       display: grid;
@@ -920,22 +917,21 @@ export class LuumOccurrenceComposerElement extends LitElement {
     field: "subject" | "predicate" | "object" | "place" | "time" | "category" | "tag",
   ): void {
     this.beginSession();
+    const section = composerEditableSections(this.value).find(
+      (candidate) => candidate.kind === field,
+    );
+    this.cursorOffset = section?.start ?? this.value.length;
+    this.activeSuggestion = 0;
+    this.requestUpdate();
     void this.updateComplete.then(() => {
       const input = this.renderRoot.querySelector<HTMLInputElement>("input");
       if (!input) return;
-      const section = composerEditableSections(this.value).find(
-        (candidate) => candidate.kind === field,
-      );
       input.focus({ preventScroll: true });
       if (section) {
-        this.cursorOffset = section.start;
         input.setSelectionRange(section.start, section.end);
       } else {
-        this.cursorOffset = this.value.length;
         input.setSelectionRange(this.value.length, this.value.length);
       }
-      this.activeSuggestion = 0;
-      this.requestUpdate();
     });
   }
 
@@ -1049,23 +1045,41 @@ export class LuumOccurrenceComposerElement extends LitElement {
     text: string;
     kind: string | null;
     investigative: boolean;
+    active: boolean;
   }>[] {
     if (!this.value) return Object.freeze([]);
+
+    const cursorWithin = (candidate: { start: number; end: number }) =>
+      this.cursorOffset >= candidate.start && this.cursorOffset <= candidate.end;
+    const activeQualifier = qualifiers.find(cursorWithin) ?? null;
+    const activeSection = activeQualifier ? null : (sections.find(cursorWithin) ?? null);
 
     const markerAt = (offset: number) => {
       const qualifier = qualifiers.find(
         (candidate) => offset >= candidate.start && offset < candidate.end,
       );
-      if (qualifier) return { kind: qualifier.kind, investigative: true };
+      if (qualifier) {
+        return {
+          kind: qualifier.kind,
+          investigative: true,
+          active: qualifier === activeQualifier,
+        };
+      }
       const section = sections.find(
         (candidate) => offset >= candidate.start && offset < candidate.end,
       );
       return section
-        ? { kind: section.kind, investigative: false }
-        : { kind: null, investigative: false };
+        ? {
+            kind: section.kind,
+            investigative: false,
+            active: section === activeSection,
+          }
+        : { kind: null, investigative: false, active: false };
     };
 
-    const result: Array<Readonly<{ text: string; kind: string | null; investigative: boolean }>> = [];
+    const result: Array<
+      Readonly<{ text: string; kind: string | null; investigative: boolean; active: boolean }>
+    > = [];
     let start = 0;
     let marker = markerAt(0);
     for (let offset = 1; offset <= this.value.length; offset += 1) {
@@ -1073,13 +1087,17 @@ export class LuumOccurrenceComposerElement extends LitElement {
       if (
         offset === this.value.length ||
         next?.kind !== marker.kind ||
-        next?.investigative !== marker.investigative
+        next?.investigative !== marker.investigative ||
+        next?.active !== marker.active
       ) {
-        result.push(Object.freeze({
-          text: this.value.slice(start, offset),
-          kind: marker.kind,
-          investigative: marker.investigative,
-        }));
+        result.push(
+          Object.freeze({
+            text: this.value.slice(start, offset),
+            kind: marker.kind,
+            investigative: marker.investigative,
+            active: marker.active,
+          }),
+        );
         start = offset;
         if (next) marker = next;
       }
@@ -1158,6 +1176,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
   }
 
   private onInputDoubleClick(event: MouseEvent): void {
+    if (typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches) return;
     const target = event.currentTarget;
     if (!(target instanceof HTMLInputElement)) return;
     const offset = target.selectionStart ?? this.cursorOffset;
@@ -1405,13 +1424,25 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.commit();
   }
 
-  private stageLabel(parsed: OccurrenceSentenceDraft): string {
+  private stageLabel(
+    parsed: OccurrenceSentenceDraft,
+    sections: ReturnType<typeof composerEditableSections>,
+    qualifiers: ReturnType<typeof projectInvestigativeQualifiers>,
+  ): string {
+    const withinCursor = (candidate: { start: number; end: number }) =>
+      this.cursorOffset >= candidate.start && this.cursorOffset <= candidate.end;
+    if (qualifiers.some(withinCursor)) return "investigate";
+
+    const activeSection = sections.find(withinCursor);
+    if (activeSection) {
+      return activeSection.kind === "predicate" ? "action" : activeSection.kind;
+    }
+
     const cursor = composerCursorSection(this.value, this.cursorOffset);
     if (cursor.kind !== "tail") {
       if (cursor.kind === "predicate") return "action";
-      if (cursor.kind === "place" || cursor.kind === "time" || cursor.kind === "options") {
-        return cursor.kind;
-      }
+      if (cursor.kind === "place" || cursor.kind === "time") return cursor.kind;
+      if (cursor.kind === "options") return "context";
       return cursor.kind;
     }
     if (parsed.stage === "predicate") return "action";
@@ -1522,7 +1553,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     return html`
       <section class="composer" aria-label="Occurrence composer">
         <div class="input-row">
-          <span class="stage" aria-hidden="true">${this.stageLabel(parsed)}</span>
+          <span class="stage" aria-hidden="true">${this.stageLabel(parsed, sections, qualifiers)}</span>
           <div class="input-shell">
             <span class="input-decoration" aria-hidden="true">
               <span class="input-decoration-content">
@@ -1532,6 +1563,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
                         class="input-token"
                         data-kind=${segment.kind}
                         data-investigative=${String(segment.investigative)}
+                        data-active=${String(segment.active)}
                       >${segment.text}</span>`
                     : html`<span class="input-decoration-text">${segment.text}</span>`,
                 )}<span class="ghost-suffix">${ghostSuffix}</span>
@@ -1658,6 +1690,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
               ? html`<button
                   class="pending-selection-action"
                   type="button"
+                  data-context-kind="pending-selection"
+                  data-context-state="pending"
                   title="Replace this draft with the newly selected graph context"
                   @click=${() => this.acceptPendingSelectionContext()}
                 >${this.pendingSelectionContext ? "Use selected context" : "Use no selection"}</button>`
@@ -1666,7 +1700,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
           ${
             qualifiers.length
               ? html`<section id="occurrence-investigation-panel" class="investigation-panel" aria-label="Investigative clues">
-            <strong>Unresolved clue highlighted in composer · no fact will be created</strong>
+            <strong class="investigation-heading">Investigating “${activeQualifier?.text ?? "unresolved clue"}”</strong>
             <div class="interpretation-row" aria-label="Possible interpretations">
               ${activeInterpretations.map(
                 (interpretation) => html`<button
