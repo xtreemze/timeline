@@ -531,10 +531,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
     .preview-edge { position: relative; z-index: 1; display: grid; gap: 0.3rem; min-inline-size: 0; color: var(--preview-accent, #a79bf4); font-size: 0.72rem; text-align: center; overflow-wrap: anywhere; }
     .preview-edge svg { inline-size: 100%; block-size: 14px; overflow: visible; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
     .preview-pending { opacity: 0.4; }
-    .composer-qualifiers { display: flex; gap: 0.3rem; overflow-x: auto; scrollbar-width: thin; }
-    .qualifier-chip, .interpretation-chip { flex: 0 0 auto; min-block-size: 44px; padding: 0.2rem 0.5rem; border: 1px solid var(--line, #d1ccc4); border-radius: 0.5rem; background: var(--paper, #fff); color: inherit; font: inherit; cursor: pointer; }
-    .qualifier-chip { border-color: var(--accent, #315fbd); }
-    .qualifier-chip:focus-visible, .interpretation-chip:focus-visible { outline: 2px solid var(--accent, #315fbd); outline-offset: -2px; }
+    .interpretation-chip { flex: 0 0 auto; min-block-size: 44px; padding: 0.2rem 0.5rem; border: 1px solid var(--line, #d1ccc4); border-radius: 0.5rem; background: var(--paper, #fff); color: inherit; font: inherit; cursor: pointer; }
+    .interpretation-chip:focus-visible { outline: 2px solid var(--accent, #315fbd); outline-offset: -2px; }
     .investigation-panel { display: grid; gap: 0.3rem; padding: 0.45rem 0.65rem; border-block-end: 1px solid var(--line, #d1ccc4); font-size: 0.75rem; }
     .interpretation-row { display: flex; gap: 0.25rem; overflow-x: auto; }
     .candidate-matrix { display: grid; gap: 0.3rem; max-block-size: 12rem; overflow: auto; overscroll-behavior: contain; }
@@ -885,12 +883,6 @@ export class LuumOccurrenceComposerElement extends LitElement {
     );
   }
 
-  private selectedSubjectLabel(): string | null {
-    const id = this.selectedSubjectId();
-    if (!id) return null;
-    return this.data.entities.find((entity) => entity.id === id)?.name ?? id;
-  }
-
   private resetDraft(): void {
     this.value = "";
     this.cursorOffset = 0;
@@ -942,18 +934,6 @@ export class LuumOccurrenceComposerElement extends LitElement {
       }
       this.activeSuggestion = 0;
       this.requestUpdate();
-    });
-  }
-
-  private selectSection(start: number, end: number): void {
-    this.cursorOffset = start;
-    this.activeSuggestion = 0;
-    this.requestUpdate();
-    void this.updateComplete.then(() => {
-      const input = this.renderRoot.querySelector<HTMLInputElement>("input");
-      if (!input) return;
-      input.focus({ preventScroll: true });
-      input.setSelectionRange(start, end);
     });
   }
 
@@ -1174,6 +1154,25 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const target = event.currentTarget;
     if (!(target instanceof HTMLInputElement)) return;
     this.syncCursorFromInput(target);
+  }
+
+  private onInputDoubleClick(event: MouseEvent): void {
+    const target = event.currentTarget;
+    if (!(target instanceof HTMLInputElement)) return;
+    const offset = target.selectionStart ?? this.cursorOffset;
+    const qualifier = projectInvestigativeQualifiers(this.value).find(
+      (candidate) => offset >= candidate.start && offset <= candidate.end,
+    );
+    const section = composerEditableSections(this.value).find(
+      (candidate) => offset >= candidate.start && offset <= candidate.end,
+    );
+    const range = qualifier ?? section;
+    if (!range) return;
+    event.preventDefault();
+    target.setSelectionRange(range.start, range.end);
+    this.cursorOffset = range.start;
+    this.activeSuggestion = 0;
+    this.requestUpdate();
   }
 
   private applySuggestion(suggestion: ComposerSuggestion): void {
@@ -1565,6 +1564,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
               @click=${(event: Event) => this.onCaretMove(event)}
               @keyup=${(event: Event) => this.onCaretMove(event)}
               @select=${(event: Event) => this.onCaretMove(event)}
+              @dblclick=${(event: MouseEvent) => this.onInputDoubleClick(event)}
               @scroll=${(event: Event) => this.onInputScroll(event)}
               @keydown=${(event: KeyboardEvent) => this.onKeyDown(event)}
             />
@@ -1665,13 +1665,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
           ${
             qualifiers.length
               ? html`<section id="occurrence-investigation-panel" class="investigation-panel" aria-label="Investigative clues">
-            <strong>Unresolved · no fact will be created</strong>
-            <div class="composer-qualifiers">${qualifiers.map(
-              (qualifier) => html`<button
-              class="qualifier-chip" type="button" aria-label=${`Investigate ${qualifier.kind}: ${qualifier.normalizedText}${qualifier.scope === "ambiguous" ? " (ambiguous terminal question)" : ""}`}
-              @pointerdown=${(event: PointerEvent) => event.preventDefault()}
-              @click=${() => this.selectSection(qualifier.start, qualifier.end)}>${qualifier.text}</button>`,
-            )}</div>
+            <strong>Unresolved clue highlighted in composer · no fact will be created</strong>
             <div class="interpretation-row" aria-label="Possible interpretations">
               ${activeInterpretations.map(
                 (interpretation) => html`<button
