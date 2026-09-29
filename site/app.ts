@@ -1836,6 +1836,7 @@ function composerItemIdForRelationship(
 ): string | null {
   return timelineItemIdForRelationshipSelection(relationship, state.items, requestedItemId);
 }
+
 function occurrenceCompositionForRelationship(
   relationship: RelationshipRecord,
   itemId: string | null,
