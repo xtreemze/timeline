@@ -1184,6 +1184,51 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.syncInputDecorationScroll(target);
   }
 
+  private centerActiveSuggestion(): void {
+    void this.updateComplete.then(() => {
+      const panel = this.renderRoot.querySelector<HTMLElement>(".completion-panel");
+      const option = this.renderRoot.querySelector<HTMLElement>(
+        `#occurrence-composer-option-${this.activeSuggestion}`,
+      );
+      if (!panel || !option) return;
+
+      const panelRect = panel.getBoundingClientRect();
+      const optionRect = option.getBoundingClientRect();
+      const optionCenter =
+        optionRect.top - panelRect.top + panel.scrollTop + optionRect.height / 2;
+      const maximum = Math.max(0, panel.scrollHeight - panel.clientHeight);
+      const target = Math.max(
+        0,
+        Math.min(maximum, optionCenter - panel.clientHeight / 2),
+      );
+      panel.scrollTo({ top: target, behavior: "auto" });
+    });
+  }
+
+  private selectSuggestion(
+    index: number,
+    suggestions: readonly ComposerSuggestion[],
+  ): void {
+    if (!suggestions.length) return;
+    this.activeSuggestion = (index + suggestions.length) % suggestions.length;
+    this.previewSuggestion = suggestions[this.activeSuggestion] ?? null;
+    this.requestUpdate();
+    this.centerActiveSuggestion();
+  }
+
+  private onSuggestionWheel(event: WheelEvent): void {
+    if (event.ctrlKey || event.deltaY === 0 || Math.abs(event.deltaY) < Math.abs(event.deltaX)) {
+      return;
+    }
+    if (this.investigationProjection().qualifiers.length) return;
+    const suggestions = this.suggestions().slice(0, 7);
+    if (!suggestions.length) return;
+
+    event.preventDefault();
+    const delta = event.deltaY > 0 ? 1 : -1;
+    this.selectSuggestion(this.activeSuggestion + delta, suggestions);
+  }
+
   private setComposerValue(value: string, cursorOffset = value.length): void {
     const previousPlace = this.parsed().place?.name ?? null;
     this.value = value;
@@ -1471,16 +1516,12 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const suggestions = this.suggestions().slice(0, 7);
     if (event.key === "ArrowDown" && suggestions.length) {
       event.preventDefault();
-      this.activeSuggestion = (this.activeSuggestion + 1) % suggestions.length;
-      this.previewSuggestion = suggestions[this.activeSuggestion] ?? null;
-      this.requestUpdate();
+      this.selectSuggestion(this.activeSuggestion + 1, suggestions);
       return;
     }
     if (event.key === "ArrowUp" && suggestions.length) {
       event.preventDefault();
-      this.activeSuggestion = (this.activeSuggestion - 1 + suggestions.length) % suggestions.length;
-      this.previewSuggestion = suggestions[this.activeSuggestion] ?? null;
-      this.requestUpdate();
+      this.selectSuggestion(this.activeSuggestion - 1, suggestions);
       return;
     }
     if (event.key !== "Enter") return;
@@ -1671,6 +1712,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
               @select=${(event: Event) => this.onCaretMove(event)}
               @dblclick=${(event: MouseEvent) => this.onInputDoubleClick(event)}
               @scroll=${(event: Event) => this.onInputScroll(event)}
+              @wheel=${(event: WheelEvent) => this.onSuggestionWheel(event)}
               @keydown=${(event: KeyboardEvent) => this.onKeyDown(event)}
             />
           </div>
