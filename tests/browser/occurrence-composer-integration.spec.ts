@@ -119,6 +119,56 @@ test("multi-owned chronology item opens the exact rendered occurrence in the com
   await expect(page.locator("#timeline-focus-view:visible")).toHaveCount(0);
 });
 
+test("selecting a World edge selects its timeline event and opens that event context", async ({ page }) => {
+  await page.locator("#temporal-graph-view").evaluate((root) => {
+    root.dispatchEvent(
+      new CustomEvent("worldselectionchange", {
+        bubbles: true,
+        detail: {
+          selection: {
+            kind: "relationship",
+            id: "rel-event-pigs-brick-build-action",
+          },
+        },
+      }),
+    );
+  });
+
+  const composer = page.locator("#occurrence-composer");
+  await expect(composer).toHaveAttribute("active", "");
+  await expect(composer.locator(".composer-card-heading")).toContainText(
+    "Third Pig builds the brick house",
+  );
+  await expect(composer.locator("luum-occurrence-deck.composer-context-deck")).toHaveAttribute(
+    "data-frame-count",
+    "2",
+  );
+  await expect(
+    page.locator('.timeline-semantic-occurrence[data-id="pigs-brick-build"]'),
+  ).toHaveAttribute("data-selected", "");
+  const renderedCard = page.locator('.timeline-event[data-id="pigs-brick-build"]');
+  if (await renderedCard.count()) await expect(renderedCard).toHaveClass(/is-selected/);
+
+  await composer.getByRole("button", { name: "Close occurrence composer" }).click();
+  await page.locator("#temporal-graph-view").evaluate((root) => {
+    root.dispatchEvent(
+      new CustomEvent("worldselectionchange", {
+        bubbles: true,
+        detail: {
+          selection: {
+            kind: "relationship",
+            id: "rel-event-pigs-brick-build-action",
+          },
+        },
+      }),
+    );
+  });
+  await expect(composer).toHaveAttribute("active", "");
+  await expect(composer.locator(".composer-card-heading")).toContainText(
+    "Third Pig builds the brick house",
+  );
+});
+
 test("mobile composer fills one viewport lane, follows pan, and snaps centered", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const footer = page.locator(".app-footer-bar");
