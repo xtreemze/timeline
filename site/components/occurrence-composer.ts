@@ -983,18 +983,36 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.editing = editing;
   }
 
+  inputHasFocus(): boolean {
+    return this.renderRoot.activeElement instanceof HTMLInputElement;
+  }
+
+  revealMobileInputLane(): void {
+    if (!this.active) return;
+    if (typeof matchMedia === "function" && !matchMedia("(max-width: 699px)").matches) return;
+    const footer = this.closest<HTMLElement>(".app-footer-bar");
+    const shell = this.renderRoot.querySelector<HTMLElement>(".input-shell");
+    if (!footer || !shell) return;
+    const visualViewport = window.visualViewport;
+    const viewportLeft = visualViewport?.offsetLeft ?? 0;
+    const viewportWidth = visualViewport?.width ?? window.innerWidth;
+    const shellRect = shell.getBoundingClientRect();
+    const delta =
+      shellRect.left + shellRect.width / 2 - (viewportLeft + viewportWidth / 2);
+    const maximum = Math.max(0, footer.scrollWidth - footer.clientWidth);
+    footer.scrollTo({
+      left: Math.max(0, Math.min(maximum, footer.scrollLeft + delta)),
+      behavior: "auto",
+    });
+  }
+
   show(): void {
     this.active = true;
     this.externalError = "";
     void this.updateComplete.then(() => {
-      if (typeof matchMedia === "function" && matchMedia("(max-width: 699px)").matches) {
-        this.renderRoot.querySelector<HTMLElement>(".input-shell")?.scrollIntoView({
-          block: "nearest",
-          inline: "center",
-          behavior: "auto",
-        });
-      }
+      this.revealMobileInputLane();
       this.renderRoot.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
+      requestAnimationFrame(() => this.revealMobileInputLane());
     });
   }
 
