@@ -35,6 +35,7 @@ const dataset = {
       id: "o1",
       relationshipId: "r1",
       categoryId: "communication",
+      categoryIds: ["communication", "priority"],
       placeId: "stockholm",
       entityIds: ["alice", "bob"],
       start: day("2026-09-20"),
@@ -111,6 +112,7 @@ test("cross-filter projection derives chart data from the same analytical evalua
   assert.deepEqual(projection.places, [{ value: "stockholm", count: 2 }]);
   assert.deepEqual(projection.categories, [
     { value: "communication", count: 1 },
+    { value: "priority", count: 1 },
     { value: "transaction", count: 1 },
   ]);
 });
