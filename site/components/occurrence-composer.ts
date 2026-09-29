@@ -2346,6 +2346,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
         </div>
 
         <div class="completion-panel">
+          <div class="completion-context-scroll">
           <section class="composer-occurrence-card" aria-label="Occurrence card in composer">
             <div class="composer-card-heading">
               <span class="composer-card-heading-main">
@@ -2580,6 +2581,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
               ? html`<p id="occurrence-composer-diagnostic" class="diagnostic" role="alert">${diagnostic}</p>`
               : html`<span id="occurrence-composer-diagnostic" hidden></span>`
           }
+          </div>
           ${
             suggestions.length
               ? html`
