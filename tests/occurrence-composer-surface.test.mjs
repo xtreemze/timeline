@@ -51,6 +51,19 @@ test("composer owns the card and incremental world preview with interactive gram
     source,
     /@media \(min-width: 721px\)[\s\S]*?\.composer-card-details[\s\S]*?grid-template-columns:/,
   );
+  assert.match(source, /anchor-name:\s*--occurrence-composer-input/);
+  assert.match(
+    source,
+    /@media \(max-width: 699px\)[\s\S]*?\.input-row[\s\S]*?grid-template-columns:\s*100dvi auto auto/,
+  );
+  assert.match(
+    source,
+    /@media \(max-width: 699px\)[\s\S]*?\.completion-panel[\s\S]*?position:\s*fixed[\s\S]*?position-anchor:\s*--occurrence-composer-input[\s\S]*?inline-size:\s*anchor-size\(width\)[\s\S]*?max-inline-size:\s*100dvi/,
+  );
+  assert.match(
+    source,
+    /matchMedia\("\(max-width: 699px\)"\)[\s\S]*?scrollIntoView\(\{[\s\S]*?inline:\s*"start"/,
+  );
 });
 
 test("investigative question travels to application reasoning authority", async () => {
