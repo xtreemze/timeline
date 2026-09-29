@@ -184,9 +184,15 @@ test("unresolved clue remains editable and cannot be approved as a fact", async 
   await composer.locator(".compact").click();
   const input = composer.locator('input[role="combobox"]');
   await input.fill("man? calls @alice");
-  const clue = composer.locator(".qualifier-chip");
+  const clue = composer.locator('.input-token[data-investigative="true"]');
   await expect(clue).toHaveCount(1);
-  await clue.click();
+  await expect(clue).toHaveText("man?");
+  await input.evaluate((element: HTMLInputElement) => {
+    const offset = element.value.indexOf("man?") + 1;
+    element.focus();
+    element.setSelectionRange(offset, offset);
+    element.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+  });
   await expect
     .poll(() =>
       input.evaluate((element: HTMLInputElement) =>
@@ -238,11 +244,16 @@ test("multiple investigative qualifiers retain exact ranges and exit without dam
   const sentence = 'man? observes "red jacket"? at "Central Station"? on 2026-09-14';
   await input.fill(sentence);
 
-  const clues = composer.locator(".qualifier-chip");
+  const clues = composer.locator('.input-token[data-investigative="true"]');
   await expect(clues).toHaveCount(3);
   for (const expected of ["man?", '"red jacket"?', '"Central Station"?']) {
-    const clue = clues.filter({ hasText: expected });
-    await clue.click();
+    await expect(clues.filter({ hasText: expected })).toHaveCount(1);
+    await input.evaluate((element: HTMLInputElement, clueText) => {
+      const offset = element.value.indexOf(clueText) + Math.max(1, Math.floor(clueText.length / 2));
+      element.focus();
+      element.setSelectionRange(offset, offset);
+      element.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+    }, expected);
     await expect
       .poll(() =>
         input.evaluate((element: HTMLInputElement) =>
