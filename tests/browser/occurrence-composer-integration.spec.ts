@@ -5,53 +5,99 @@ test.beforeEach(async ({ page }) => {
   await expect(page.locator("#occurrence-composer .compact")).toBeVisible();
 });
 
-test("keyboard and wheel suggestion navigation keeps the active option centered", async ({ page }) => {
+test("composer keeps active suggestions visible across keyboard, wheel, reset, and Home/End", async ({
+  page,
+}) => {
   const composer = page.locator("#occurrence-composer");
   await composer.locator(".compact").click();
   const input = composer.locator('input[role="combobox"]');
   const panel = composer.locator(".completion-panel");
+  const listbox = composer.locator(".listbox");
   const options = composer.locator(".option");
 
   await expect(input).toBeVisible();
-  await expect.poll(async () => options.count()).toBeGreaterThan(2);
-  await panel.evaluate((element: HTMLElement) => {
-    element.style.maxBlockSize = "10rem";
+  await expect.poll(async () => options.count()).toBeGreaterThan(4);
+  await listbox.evaluate((element: HTMLElement) => {
+    element.style.maxBlockSize = "6rem";
   });
 
-  const activeGeometry = async () =>
+  const choiceGeometry = async () =>
     composer.evaluate((element) => {
       const root = element.shadowRoot;
       const panel = root?.querySelector<HTMLElement>(".completion-panel");
+      const listbox = root?.querySelector<HTMLElement>(".listbox");
       const active = root?.querySelector<HTMLElement>('.option[aria-selected="true"]');
-      if (!panel || !active) throw new Error("active composer suggestion unavailable");
-      const panelRect = panel.getBoundingClientRect();
+      if (!panel || !listbox || !active) {
+        throw new Error("active composer suggestion unavailable");
+      }
+      const listboxRect = listbox.getBoundingClientRect();
       const activeRect = active.getBoundingClientRect();
       return {
         id: active.id,
-        scrollTop: panel.scrollTop,
+        panelScrollTop: panel.scrollTop,
+        listboxScrollTop: listbox.scrollTop,
         centerDelta:
           activeRect.top + activeRect.height / 2 -
-          (panelRect.top + panelRect.height / 2),
+          (listboxRect.top + listboxRect.height / 2),
       };
     });
 
   await input.press("ArrowDown");
-  await expect.poll(async () => Math.abs((await activeGeometry()).centerDelta)).toBeLessThanOrEqual(24);
-  const keyboardState = await activeGeometry();
-  expect(keyboardState.scrollTop).toBeGreaterThan(0);
+  await input.press("ArrowDown");
+  await input.press("ArrowDown");
+  await expect.poll(async () => Math.abs((await choiceGeometry()).centerDelta)).toBeLessThanOrEqual(24);
+  const keyboardState = await choiceGeometry();
+  expect(keyboardState.listboxScrollTop).toBeGreaterThan(0);
+  expect(keyboardState.panelScrollTop).toBe(0);
 
   await input.hover();
-  await input.evaluate((element) => {
-    element.dispatchEvent(
-      new WheelEvent("wheel", {
-        bubbles: true,
-        cancelable: true,
-        deltaY: 120,
-      }),
-    );
+  await page.mouse.wheel(0, 120);
+  await expect.poll(async () => (await choiceGeometry()).id).not.toBe(keyboardState.id);
+  await expect.poll(async () => Math.abs((await choiceGeometry()).centerDelta)).toBeLessThanOrEqual(24);
+
+  const beforeDiagonal = await choiceGeometry();
+  const diagonalPrevented = await input.evaluate((element) => {
+    const event = new WheelEvent("wheel", {
+      bubbles: true,
+      cancelable: true,
+      deltaX: 120,
+      deltaY: 100,
+    });
+    element.dispatchEvent(event);
+    return event.defaultPrevented;
   });
-  await expect.poll(async () => (await activeGeometry()).id).not.toBe(keyboardState.id);
-  await expect.poll(async () => Math.abs((await activeGeometry()).centerDelta)).toBeLessThanOrEqual(24);
+  expect(diagonalPrevented).toBe(false);
+  await expect.poll(async () => (await choiceGeometry()).id).toBe(beforeDiagonal.id);
+
+  for (let index = 0; index < 8; index += 1) {
+    await page.mouse.wheel(0, 120);
+    await page.waitForTimeout(95);
+  }
+  const lastIndex = (await options.count()) - 1;
+  await expect(input).toHaveAttribute(
+    "aria-activedescendant",
+    `occurrence-composer-option-${lastIndex}`,
+  );
+  await page.mouse.wheel(0, 120);
+  await page.waitForTimeout(95);
+  await expect(input).toHaveAttribute(
+    "aria-activedescendant",
+    `occurrence-composer-option-${lastIndex}`,
+  );
+
+  await input.fill("");
+  await expect.poll(async () => options.count()).toBeGreaterThan(4);
+  await expect(input).toHaveAttribute("aria-activedescendant", "occurrence-composer-option-0");
+  await expect.poll(async () => (await choiceGeometry()).listboxScrollTop).toBe(0);
+
+  await input.press("End");
+  const endIndex = (await options.count()) - 1;
+  await expect(input).toHaveAttribute(
+    "aria-activedescendant",
+    `occurrence-composer-option-${endIndex}`,
+  );
+  await input.press("Home");
+  await expect(input).toHaveAttribute("aria-activedescendant", "occurrence-composer-option-0");
 });
 
 test("selecting an occurrence through the visible card opens its composer-owned context", async ({ page }) => {
