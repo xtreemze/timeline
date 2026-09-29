@@ -310,7 +310,9 @@ test.describe("Narrow mobile screen contracts", () => {
     await expectNoPageScroll(page, NARROW_PORTRAIT);
   });
 
-  test("focused occurrence keeps the mobile toolbar composition stable", async ({ page }) => {
+  test("composer-owned occurrence detail keeps the mobile toolbar composition stable", async ({
+    page,
+  }) => {
     const viewport = { width: 320, height: 568 };
     await page.setViewportSize(viewport);
     await page.goto("/");
@@ -328,17 +330,13 @@ test.describe("Narrow mobile screen contracts", () => {
       )
       .first();
     await expect(terminal).toBeVisible();
-    const card = terminal.locator("xpath=ancestor::luum-event-card[1]");
-    await terminal.click();
     await terminal.click();
 
-    const focus = card.locator(".timeline-event-detail");
-    await expect(focus).toBeVisible();
-    await expect(page.locator("#timeline-focus-view")).toBeHidden();
-    const actions = focus.locator(".timeline-focus-context-actions");
-    await expect(actions).toBeVisible();
-    await expect(actions.locator("#timeline-focus-prev")).toBeVisible();
-    await expect(actions.locator("#timeline-focus-next")).toBeVisible();
+    const composer = page.locator("#occurrence-composer");
+    await expect(composer).toHaveAttribute("active", "");
+    await expect(composer.locator(".composer-occurrence-card")).toBeVisible();
+    await expect(page.locator(".timeline-event-detail:visible")).toHaveCount(0);
+    await expect(page.locator("#timeline-focus-view:visible")).toHaveCount(0);
     await expect(page.locator(".app-footer-bar #timeline-focus-prev")).toHaveCount(0);
     await expect(page.locator(".app-footer-bar #timeline-related-zoom")).toHaveCount(0);
 
@@ -348,21 +346,6 @@ test.describe("Narrow mobile screen contracts", () => {
     const afterWidth = await dock.evaluate((element) => element.scrollWidth);
     expect(afterChildren).toEqual(beforeChildren);
     expect(Math.abs(afterWidth - beforeWidth)).toBeLessThanOrEqual(2);
-
-    for (const selector of ["#timeline-focus-prev", "#timeline-focus-next"]) {
-      const action = actions.locator(selector);
-      const [buttonBox, iconBox] = await Promise.all([
-        action.boundingBox(),
-        action.locator(":scope > .semantic-icon").boundingBox(),
-      ]);
-      expect(buttonBox).not.toBeNull();
-      expect(iconBox).not.toBeNull();
-      if (!buttonBox || !iconBox) continue;
-      expect(Math.abs(buttonBox.width - 44)).toBeLessThanOrEqual(1);
-      expect(Math.abs(buttonBox.height - 44)).toBeLessThanOrEqual(1);
-      expect(Math.abs(iconBox.width - 20)).toBeLessThanOrEqual(1);
-      expect(Math.abs(iconBox.height - 20)).toBeLessThanOrEqual(1);
-    }
 
     await expectNoPageScroll(page, viewport);
   });

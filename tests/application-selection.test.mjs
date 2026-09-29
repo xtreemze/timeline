@@ -84,6 +84,17 @@ test("timeline focus resolves only deterministic relationship ownership", () => 
     itemId: "item-a",
   });
   assert.equal(selectionForTimelineFocus("item-c", relationships), null);
+  assert.deepEqual(selectionForTimelineFocus("item-c", relationships, "r2"), {
+    kind: "relationship",
+    id: "r2",
+    itemId: "item-c",
+  });
+  assert.deepEqual(selectionForTimelineFocus("item-c", relationships, "r3"), {
+    kind: "relationship",
+    id: "r3",
+    itemId: "item-c",
+  });
+  assert.equal(selectionForTimelineFocus("item-c", relationships, "missing"), null);
   assert.equal(selectionForTimelineFocus("missing", relationships), null);
 });
 

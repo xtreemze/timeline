@@ -588,8 +588,11 @@ test("overflowing occurrence cards stay interactive above the world while world 
   const focusedCard = page.locator("#timeline-view luum-event-card[data-focused]").first();
   await expect(focusedCard).toBeVisible();
   await focusedCard.locator(".timeline-event-terminal").click();
-  await expect(focusedCard.locator(".timeline-event-detail")).toBeVisible();
-  await expect(page.locator("#timeline-focus-view")).toBeHidden();
+  const composer = page.locator("#occurrence-composer");
+  await expect(composer).toHaveAttribute("active", "");
+  await expect(composer.locator(".composer-occurrence-card")).toBeVisible();
+  await expect(page.locator(".timeline-event-detail:visible")).toHaveCount(0);
+  await expect(page.locator("#timeline-focus-view:visible")).toHaveCount(0);
 });
 
 test("stale bundled demo storage refreshes the current example stories", async ({ page }) => {
