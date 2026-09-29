@@ -1086,12 +1086,21 @@ test("real globe direct pan applies the shared timeline-weighted response", asyn
   );
   assert.match(source, /override getCenter\(event: GlobeControllerCenterEvent\)/);
   assert.match(source, /#weightedPanCenter/);
-  assert.match(source, /directPan = !candidate\.rightButton && !this\.isFunctionKeyPressed\(event\)/);
-  assert.match(source, /TimelineMotion\.responseForElapsed\(now - this\.#weightedPanLastTime\)/);
+  assert.match(
+    source,
+    /directPan = !candidate\.rightButton && !this\.isFunctionKeyPressed\(event\)/,
+  );
+  assert.match(
+    source,
+    /TimelineMotion\.responseForElapsed\(now - this\.#weightedPanLastTime\)/,
+  );
   assert.match(source, /current\[0\] \+ \(raw\[0\] - current\[0\]\) \* response/);
   assert.match(source, /current\[1\] \+ \(raw\[1\] - current\[1\]\) \* response/);
   assert.match(source, /event\.type === "panend"\) this\.#clearWeightedPan\(\)/);
-  assert.match(source, /event\.type === "pinchstart" \|\| event\.type === "multipanstart"/);
+  assert.match(
+    source,
+    /event\.type === "pinchstart" \|\| event\.type === "multipanstart"/,
+  );
 });
 
 test("world surface advertises and releases focused keyboard camera ownership", () => {
