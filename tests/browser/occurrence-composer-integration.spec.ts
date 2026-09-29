@@ -33,6 +33,60 @@ test("selecting an occurrence through the visible card opens its composer-owned 
   await expect(page.locator(".timeline-event-detail:visible")).toHaveCount(0);
 });
 
+test("mobile composer fills one viewport lane and follows horizontal footer pan", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const footer = page.locator(".app-footer-bar");
+  const composer = page.locator("#occurrence-composer");
+  await composer.locator(".compact").click();
+  await expect(composer).toHaveAttribute("active", "");
+  await expect(composer.locator('input[role="combobox"]')).toBeVisible();
+  await expect(composer.locator(".completion-panel")).toBeVisible();
+
+  const geometry = async () =>
+    page.evaluate(() => {
+      const footer = document.querySelector<HTMLElement>(".app-footer-bar");
+      const composer = document.querySelector<HTMLElement>("#occurrence-composer");
+      const shell = composer?.shadowRoot?.querySelector<HTMLElement>(".input-shell");
+      const panel = composer?.shadowRoot?.querySelector<HTMLElement>(".completion-panel");
+      if (!footer || !shell || !panel) throw new Error("mobile composer geometry unavailable");
+      const shellRect = shell.getBoundingClientRect();
+      const panelRect = panel.getBoundingClientRect();
+      return {
+        viewportWidth: window.visualViewport?.width ?? window.innerWidth,
+        footerOverflowX: getComputedStyle(footer).overflowX,
+        footerClientWidth: footer.clientWidth,
+        footerScrollWidth: footer.scrollWidth,
+        footerScrollLeft: footer.scrollLeft,
+        shellLeft: shellRect.left,
+        shellWidth: shellRect.width,
+        panelLeft: panelRect.left,
+        panelWidth: panelRect.width,
+      };
+    });
+
+  const initial = await geometry();
+  expect(initial.footerOverflowX).toMatch(/auto|scroll/);
+  expect(initial.footerScrollWidth).toBeGreaterThan(initial.footerClientWidth);
+  expect(Math.abs(initial.shellWidth - initial.viewportWidth)).toBeLessThanOrEqual(2);
+  expect(Math.abs(initial.panelWidth - initial.viewportWidth)).toBeLessThanOrEqual(2);
+  expect(Math.abs(initial.panelLeft - initial.shellLeft)).toBeLessThanOrEqual(2);
+
+  await footer.evaluate((element: HTMLElement) => {
+    const available = element.scrollWidth - element.clientWidth;
+    element.scrollLeft = Math.min(96, Math.max(1, available));
+  });
+  await expect.poll(async () => (await geometry()).footerScrollLeft).toBeGreaterThan(0);
+
+  const panned = await geometry();
+  expect(panned.shellLeft).toBeLessThan(initial.shellLeft - 1);
+  expect(panned.panelLeft).toBeLessThan(initial.panelLeft - 1);
+  expect(Math.abs(panned.panelLeft - panned.shellLeft)).toBeLessThanOrEqual(2);
+
+  const approve = composer.getByRole("button", { name: "Approve occurrence" });
+  await approve.scrollIntoViewIfNeeded();
+  await expect(approve).toBeVisible();
+});
+
 test("one composer card previews incomplete icons and chips select exact grammar spans", async ({
   page,
 }) => {
@@ -78,6 +132,9 @@ test("one composer card previews incomplete icons and chips select exact grammar
   await expect.poll(() => input.evaluate((element: HTMLInputElement) =>
     element.value.slice(element.selectionStart ?? 0, element.selectionEnd ?? 0),
   )).toBe("important");
+  await expect(composer.locator(".context-row")).toHaveCount(1);
+  await expect(composer.locator(".composer-occurrence-card > .context-row")).toHaveCount(1);
+  await expect(composer.locator(".completion-panel > .context-row")).toHaveCount(0);
 });
 
 test("unresolved clue remains editable and cannot be approved as a fact", async ({ page }) => {
@@ -298,12 +355,34 @@ test("same-occurrence media and context refresh preserve a dirty investigative d
   await expect(composer.locator("#occurrence-investigation-panel")).toBeVisible();
   await expect(composer.locator(".composer-card-heading")).toContainText("Updated context");
   const deck = composer.locator("luum-occurrence-deck.composer-context-deck");
-  await expect(deck).toHaveAttribute("data-frame-count", "3");
+  await expect(deck).toHaveAttribute("data-frame-count", "2");
   await expect(deck.locator(".timeline-focus-hero-image")).toHaveAttribute("alt", "Updated evidence A");
+  const context = composer.locator(".composer-card-context");
+  await expect(context).toContainText("Updated description");
+  const layout = await composer.locator(".composer-card-details").evaluate((details) => {
+    const media = details.querySelector(".composer-card-media")?.getBoundingClientRect();
+    const contextPane = details.querySelector(".composer-card-context")?.getBoundingClientRect();
+    return {
+      width: window.innerWidth,
+      media: media ? { x: media.x, y: media.y, right: media.right, bottom: media.bottom } : null,
+      context: contextPane
+        ? { x: contextPane.x, y: contextPane.y, right: contextPane.right, bottom: contextPane.bottom }
+        : null,
+    };
+  });
+  expect(layout.media).not.toBeNull();
+  expect(layout.context).not.toBeNull();
+  if (layout.width >= 721) {
+    expect(layout.context!.x).toBeGreaterThanOrEqual(layout.media!.right - 2);
+    expect(Math.abs(layout.context!.y - layout.media!.y)).toBeLessThanOrEqual(2);
+  } else {
+    expect(layout.context!.y).toBeGreaterThanOrEqual(layout.media!.bottom - 2);
+  }
   await deck.getByRole("button", { name: "Next frame" }).click();
   await expect(deck.locator(".timeline-focus-hero-image")).toHaveAttribute("alt", "Updated evidence B");
   await deck.getByRole("button", { name: "Next frame" }).click();
-  await expect(deck.locator(".timeline-occurrence-deck-context-body")).toHaveText("Updated description");
+  await expect(deck.locator(".timeline-focus-hero-image")).toHaveAttribute("alt", "Updated evidence A");
+  await expect(context).toContainText("Updated description");
 });
 
 

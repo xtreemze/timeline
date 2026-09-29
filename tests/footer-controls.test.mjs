@@ -261,20 +261,24 @@ test("all footer buttons and controls share the canonical toolbar surface", asyn
   assert.doesNotMatch(index, /id="timeline-view-controls-toggle"/);
 });
 
-test("narrow toolbar pins authoring and scrolls only dense View controls", async () => {
+test("narrow toolbar keeps the composer and controls in one horizontal command strip", async () => {
   const css = await readFile(shellUrl, "utf8");
 
   assert.match(
     css,
-    /@media \(max-width: 699px\)[\s\S]*\.app-tool-dock\.app-footer-bar[\s\S]*display:\s*grid[\s\S]*grid-template-columns:\s*auto clamp\(120px, 38vw, 220px\) minmax\(0, 1fr\)/,
+    /@media \(max-width: 699px\)[\s\S]*\.app-tool-dock\.app-footer-bar[\s\S]*display:\s*flex[\s\S]*overflow-x:\s*auto[\s\S]*touch-action:\s*pan-x/,
   );
   assert.match(
     css,
-    /#occurrence-composer:not\(\[active\]\)[\s\S]*order:\s*2[\s\S]*min-inline-size:\s*120px/,
+    /#occurrence-composer:not\(\[active\]\)[\s\S]*order:\s*2[\s\S]*flex:\s*0 0 260px/,
   );
   assert.match(
     css,
-    /\.app-footer-bar \.app-footer-view[\s\S]*order:\s*3[\s\S]*overflow-x:\s*auto[\s\S]*touch-action:\s*pan-x/,
+    /#occurrence-composer\[active\][\s\S]*order:\s*2[\s\S]*flex:\s*0 0 auto[\s\S]*inline-size:\s*max-content[\s\S]*min-inline-size:\s*100dvi/,
+  );
+  assert.match(
+    css,
+    /#app-shell:has\(#occurrence-composer\[active\]\)[\s\S]*\.app-footer-view[\s\S]*order:\s*3[\s\S]*flex:\s*0 0 auto[\s\S]*overflow:\s*visible/,
   );
   assert.match(css, /\.app-footer-view \.world-camera-controls[\s\S]*flex-wrap:\s*nowrap/);
   assert.match(
