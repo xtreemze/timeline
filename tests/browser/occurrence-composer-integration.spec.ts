@@ -377,13 +377,13 @@ test("one native composer input decorates semantic ranges inline and keeps exact
   await expect(composer.locator(".context-row")).toHaveCount(0);
   const tokens = composer.locator(".input-token");
   await expect(tokens).not.toHaveCount(0);
-  await expect(composer.locator('.input-token[data-kind="subject"]')).toHaveText("@alice");
-  await expect(composer.locator('.input-token[data-kind="predicate"]')).toHaveText("meets");
-  await expect(composer.locator('.input-token[data-kind="object"]')).toHaveText("@bob");
-  await expect(composer.locator('.input-token[data-kind="place"]')).toHaveText("Stockholm");
-  await expect(composer.locator('.input-token[data-kind="time"]')).toContainText("2026-09-29");
-  await expect(composer.locator('.input-token[data-kind="category"]')).toHaveText("Family");
-  await expect(composer.locator('.input-token[data-kind="tag"]')).toHaveText("important");
+  await expect(composer.locator('.input-token[data-kind="subject"] .input-token-text')).toHaveText("@alice");
+  await expect(composer.locator('.input-token[data-kind="predicate"] .input-token-text')).toHaveText("meets");
+  await expect(composer.locator('.input-token[data-kind="object"] .input-token-text')).toHaveText("@bob");
+  await expect(composer.locator('.input-token[data-kind="place"] .input-token-text')).toHaveText("Stockholm");
+  await expect(composer.locator('.input-token[data-kind="time"] .input-token-text')).toContainText("2026-09-29");
+  await expect(composer.locator('.input-token[data-kind="category"] .input-token-text')).toHaveText("Family");
+  await expect(composer.locator('.input-token[data-kind="tag"] .input-token-text')).toHaveText("important");
   await expect(composer.locator('.input-token[data-kind="subject"]')).toHaveAttribute(
     "data-label",
     "subject",
@@ -415,22 +415,47 @@ test("one native composer input decorates semantic ranges inline and keeps exact
 
   const labelLayout = await composer.locator(".input-shell").evaluate((shell) => {
     const input = shell.querySelector("input");
+    const decoration = shell.querySelector<HTMLElement>(".input-decoration");
     const token = shell.querySelector<HTMLElement>(".input-token");
-    if (!(input instanceof HTMLInputElement) || !token) throw new Error("Labeled token missing");
+    const label = token?.querySelector<HTMLElement>(".input-token-label");
+    const text = token?.querySelector<HTMLElement>(".input-token-text");
+    if (!(input instanceof HTMLInputElement) || !decoration || !token || !label || !text) {
+      throw new Error("Visible labeled token missing");
+    }
     const shellStyle = getComputedStyle(shell);
     const inputStyle = getComputedStyle(input);
-    const tokenBefore = getComputedStyle(token, "::before");
+    const decorationStyle = getComputedStyle(decoration);
+    const tokenStyle = getComputedStyle(token);
+    const labelStyle = getComputedStyle(label);
+    const textStyle = getComputedStyle(text);
+    const tokenRect = token.getBoundingClientRect();
+    const shellRect = shell.getBoundingClientRect();
     return {
       shellHeight: Number.parseFloat(shellStyle.height),
       inputPaddingTop: Number.parseFloat(inputStyle.paddingTop),
-      labelContent: tokenBefore.content.replace(/^["']|["']$/g, ""),
-      labelPosition: tokenBefore.position,
+      inputColor: inputStyle.color,
+      inputZ: Number.parseInt(inputStyle.zIndex || "0", 10),
+      decorationZ: Number.parseInt(decorationStyle.zIndex || "0", 10),
+      tokenColor: tokenStyle.color,
+      textColor: textStyle.color,
+      labelText: label.textContent ?? "",
+      labelPosition: labelStyle.position,
+      labelColor: labelStyle.color,
+      tokenInsideShell:
+        tokenRect.top >= shellRect.top - 1 &&
+        tokenRect.bottom <= shellRect.bottom + 1,
     };
   });
   expect(labelLayout.shellHeight).toBeGreaterThanOrEqual(54);
   expect(labelLayout.inputPaddingTop).toBeGreaterThan(16);
-  expect(labelLayout.labelContent).toBe("subject");
+  expect(labelLayout.inputColor).toBe("rgba(0, 0, 0, 0)");
+  expect(labelLayout.decorationZ).toBeGreaterThan(labelLayout.inputZ);
+  expect(labelLayout.tokenColor).not.toBe("rgba(0, 0, 0, 0)");
+  expect(labelLayout.textColor).not.toBe("rgba(0, 0, 0, 0)");
+  expect(labelLayout.labelText).toBe("subject");
   expect(labelLayout.labelPosition).toBe("absolute");
+  expect(labelLayout.labelColor).not.toBe("rgba(0, 0, 0, 0)");
+  expect(labelLayout.tokenInsideShell).toBe(true);
 
   const setCaretIn = async (needle: string) => {
     await input.evaluate((element: HTMLInputElement, text) => {
