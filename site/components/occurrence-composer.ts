@@ -2147,7 +2147,12 @@ export class LuumOccurrenceComposerElement extends LitElement {
           ${
             suggestions.length
               ? html`
-                <div id="occurrence-composer-listbox" class="listbox" role="listbox">
+                <div
+                  id="occurrence-composer-listbox"
+                  class="listbox"
+                  role="listbox"
+                  aria-multiselectable=${suggestions.some((suggestion) => suggestion.multiSelect) ? "true" : nothing}
+                >
                   ${suggestions.map(
                     (suggestion, index) => html`
                       <button
