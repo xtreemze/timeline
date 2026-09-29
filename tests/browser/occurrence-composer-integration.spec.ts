@@ -442,7 +442,9 @@ test("one native composer input decorates semantic ranges inline and keeps exact
       inputZ: Number.parseInt(inputStyle.zIndex || "0", 10),
       decorationZ: Number.parseInt(decorationStyle.zIndex || "0", 10),
       tokenColor: tokenStyle.color,
+      tokenBackground: tokenStyle.backgroundColor,
       textColor: textStyle.color,
+      iconColor: iconStyle.color,
       iconPosition: iconStyle.position,
       iconWidth: Number.parseFloat(iconStyle.width),
     };
@@ -450,10 +452,12 @@ test("one native composer input decorates semantic ranges inline and keeps exact
   expect(iconLayout.shellHeight).toBeGreaterThanOrEqual(44);
   expect(iconLayout.shellHeight).toBeLessThan(50);
   expect(iconLayout.inputPaddingTop).toBeLessThan(12);
-  expect(iconLayout.inputColor).toBe("rgba(0, 0, 0, 0)");
-  expect(iconLayout.decorationZ).toBeGreaterThan(iconLayout.inputZ);
-  expect(iconLayout.tokenColor).not.toBe("rgba(0, 0, 0, 0)");
-  expect(iconLayout.textColor).not.toBe("rgba(0, 0, 0, 0)");
+  expect(iconLayout.inputColor).not.toBe("rgba(0, 0, 0, 0)");
+  expect(iconLayout.inputZ).toBeGreaterThan(iconLayout.decorationZ);
+  expect(iconLayout.tokenColor).toBe("rgba(0, 0, 0, 0)");
+  expect(iconLayout.textColor).toBe("rgba(0, 0, 0, 0)");
+  expect(iconLayout.tokenBackground).not.toBe("rgba(0, 0, 0, 0)");
+  expect(iconLayout.iconColor).not.toBe("rgba(0, 0, 0, 0)");
   expect(iconLayout.iconPosition).toBe("absolute");
   expect(iconLayout.iconWidth).toBeGreaterThan(0);
 
@@ -500,6 +504,20 @@ test("one native composer input decorates semantic ranges inline and keeps exact
   expect(typography.decorationFont).toBe(typography.inputFont);
   expect(typography.decorationPaddingLeft).toBe(typography.inputPaddingLeft);
   expect(typography.decorationAriaHidden).toBe("true");
+
+  const visibleFallback = await composer.locator(".input-shell").evaluate((shell) => {
+    const input = shell.querySelector<HTMLInputElement>("input");
+    const decoration = shell.querySelector<HTMLElement>(".input-decoration");
+    if (!input || !decoration) throw new Error("composer input layers missing");
+    const previous = decoration.style.display;
+    decoration.style.display = "none";
+    const color = getComputedStyle(input).color;
+    const value = input.value;
+    decoration.style.display = previous;
+    return { color, value };
+  });
+  expect(visibleFallback.value).toContain("@alice meets @bob");
+  expect(visibleFallback.color).not.toBe("rgba(0, 0, 0, 0)");
 
   await composer.evaluate((element) => {
     (element as HTMLElement & { focusSection(field: "place"): void }).focusSection("place");
