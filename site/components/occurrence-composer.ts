@@ -705,7 +705,10 @@ export class LuumOccurrenceComposerElement extends LitElement {
     .listbox {
       display: grid;
       min-block-size: 0;
-      overflow: visible;
+      max-block-size: min(18rem, 40dvh);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      scrollbar-gutter: stable;
     }
 
     .option {
@@ -802,6 +805,9 @@ export class LuumOccurrenceComposerElement extends LitElement {
   private previewSuggestion: ComposerSuggestion | null = null;
   private activeInterpretation = "";
   private activeCandidate = 0;
+  private choiceWheelDelta = 0;
+  private choiceWheelLastAt = 0;
+  private choiceWheelLastStepAt = 0;
   private composing = false;
   private cursorOffset = 0;
   private externalError = "";
@@ -916,7 +922,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
       this.cursorOffset = 0;
       this.selectionSeeded = false;
       this.externalError = "";
-      this.activeSuggestion = 0;
+      this.resetSuggestionSelection();
     }
     this.applySelectionSeed();
     this.requestUpdate();
@@ -964,7 +970,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.selectionSeeded = false;
     this.explicitPlaceContext = null;
     this.externalError = "";
-    this.activeSuggestion = 0;
+    this.resetSuggestionSelection();
   }
 
   private currentContextKey(): string {
@@ -997,7 +1003,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
       (candidate) => candidate.kind === field,
     );
     this.cursorOffset = section?.start ?? this.value.length;
-    this.activeSuggestion = 0;
+    this.resetSuggestionSelection();
     this.requestUpdate();
     void this.updateComplete.then(() => {
       const input = this.renderRoot.querySelector<HTMLInputElement>("input");
@@ -1211,49 +1217,135 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.syncInputDecorationScroll(target);
   }
 
-  private centerActiveSuggestion(): void {
+  private centerActiveChoice(kind: "suggestion" | "candidate"): void {
     void this.updateComplete.then(() => {
-      const panel = this.renderRoot.querySelector<HTMLElement>(".completion-panel");
-      const option = this.renderRoot.querySelector<HTMLElement>(
-        `#occurrence-composer-option-${this.activeSuggestion}`,
+      const container = this.renderRoot.querySelector<HTMLElement>(
+        kind === "suggestion" ? ".listbox" : ".candidate-matrix",
       );
-      if (!panel || !option) return;
+      const choice = this.renderRoot.querySelector<HTMLElement>(
+        kind === "suggestion"
+          ? '.option[aria-selected="true"]'
+          : '.candidate-row[data-active="true"]',
+      );
+      if (!container || !choice) return;
 
-      const panelRect = panel.getBoundingClientRect();
-      const optionRect = option.getBoundingClientRect();
-      const optionCenter =
-        optionRect.top - panelRect.top + panel.scrollTop + optionRect.height / 2;
-      const maximum = Math.max(0, panel.scrollHeight - panel.clientHeight);
+      const containerRect = container.getBoundingClientRect();
+      const choiceRect = choice.getBoundingClientRect();
+      const choiceCenter =
+        choiceRect.top - containerRect.top + container.scrollTop + choiceRect.height / 2;
+      const maximum = Math.max(0, container.scrollHeight - container.clientHeight);
       const target = Math.max(
         0,
-        Math.min(maximum, optionCenter - panel.clientHeight / 2),
+        Math.min(maximum, choiceCenter - container.clientHeight / 2),
       );
-      panel.scrollTo({ top: target, behavior: "auto" });
+      container.scrollTo({ top: target, behavior: "auto" });
+
+      const panel = this.renderRoot.querySelector<HTMLElement>(".completion-panel");
+      if (!panel || panel === container) return;
+      const panelRect = panel.getBoundingClientRect();
+      const visibleChoiceRect = choice.getBoundingClientRect();
+      const delta =
+        visibleChoiceRect.top < panelRect.top
+          ? visibleChoiceRect.top - panelRect.top
+          : visibleChoiceRect.bottom > panelRect.bottom
+            ? visibleChoiceRect.bottom - panelRect.bottom
+            : 0;
+      if (delta === 0) return;
+      const panelMaximum = Math.max(0, panel.scrollHeight - panel.clientHeight);
+      panel.scrollTo({
+        top: Math.max(0, Math.min(panelMaximum, panel.scrollTop + delta)),
+        behavior: "auto",
+      });
     });
+  }
+
+  private resetSuggestionSelection(): void {
+    this.activeSuggestion = 0;
+    this.previewSuggestion = null;
+    this.requestUpdate();
+    this.centerActiveChoice("suggestion");
+  }
+
+  private resetCandidateSelection(): void {
+    this.activeCandidate = 0;
+    this.requestUpdate();
+    this.centerActiveChoice("candidate");
   }
 
   private selectSuggestion(
     index: number,
     suggestions: readonly ComposerSuggestion[],
+    wrap = true,
   ): void {
     if (!suggestions.length) return;
-    this.activeSuggestion = (index + suggestions.length) % suggestions.length;
+    this.activeSuggestion = wrap
+      ? (index + suggestions.length) % suggestions.length
+      : Math.max(0, Math.min(suggestions.length - 1, index));
     this.previewSuggestion = suggestions[this.activeSuggestion] ?? null;
     this.requestUpdate();
-    this.centerActiveSuggestion();
+    this.centerActiveChoice("suggestion");
+  }
+
+  private selectCandidate(
+    index: number,
+    candidates: readonly unknown[],
+    wrap = true,
+  ): void {
+    if (!candidates.length) return;
+    this.activeCandidate = wrap
+      ? (index + candidates.length) % candidates.length
+      : Math.max(0, Math.min(candidates.length - 1, index));
+    this.requestUpdate();
+    this.centerActiveChoice("candidate");
+  }
+
+  private wheelNavigationStep(event: WheelEvent): -1 | 0 | 1 | null {
+    const vertical = Math.abs(event.deltaY);
+    const horizontal = Math.abs(event.deltaX);
+    if (event.ctrlKey || vertical === 0 || vertical <= horizontal * 1.25) return null;
+
+    event.preventDefault();
+    const unit =
+      event.deltaMode === WheelEvent.DOM_DELTA_LINE
+        ? 16
+        : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
+          ? Math.max(240, window.innerHeight)
+          : 1;
+    const delta = event.deltaY * unit;
+    const now = event.timeStamp;
+    const direction = Math.sign(delta);
+
+    if (
+      now - this.choiceWheelLastAt > 180 ||
+      Math.sign(this.choiceWheelDelta) !== direction
+    ) {
+      this.choiceWheelDelta = 0;
+    }
+    this.choiceWheelLastAt = now;
+    this.choiceWheelDelta += delta;
+
+    if (Math.abs(this.choiceWheelDelta) < 72) return 0;
+    if (now - this.choiceWheelLastStepAt < 90) return 0;
+
+    this.choiceWheelDelta = 0;
+    this.choiceWheelLastStepAt = now;
+    return direction > 0 ? 1 : -1;
   }
 
   private onSuggestionWheel(event: WheelEvent): void {
-    if (event.ctrlKey || event.deltaY === 0 || Math.abs(event.deltaY) < Math.abs(event.deltaX)) {
+    const investigation = this.investigationProjection();
+    const candidates = investigation.candidateMatrix?.candidates ?? [];
+    const suggestions = investigation.qualifiers.length ? [] : this.suggestions().slice(0, 7);
+    if (!candidates.length && !suggestions.length) return;
+
+    const step = this.wheelNavigationStep(event);
+    if (step === null || step === 0) return;
+
+    if (candidates.length) {
+      this.selectCandidate(this.activeCandidate + step, candidates, false);
       return;
     }
-    if (this.investigationProjection().qualifiers.length) return;
-    const suggestions = this.suggestions().slice(0, 7);
-    if (!suggestions.length) return;
-
-    event.preventDefault();
-    const delta = event.deltaY > 0 ? 1 : -1;
-    this.selectSuggestion(this.activeSuggestion + delta, suggestions);
+    this.selectSuggestion(this.activeSuggestion + step, suggestions, false);
   }
 
   private setComposerValue(value: string, cursorOffset = value.length): void {
@@ -1268,10 +1360,9 @@ export class LuumOccurrenceComposerElement extends LitElement {
       this.explicitPlaceContext = this.worldContext;
     }
     this.externalError = "";
-    this.activeSuggestion = 0;
-    this.previewSuggestion = null;
+    this.resetSuggestionSelection();
     this.activeInterpretation = "";
-    this.activeCandidate = 0;
+    this.resetCandidateSelection();
     this.requestUpdate();
   }
 
@@ -1280,7 +1371,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const next = target.selectionStart ?? target.value.length;
     if (next === this.cursorOffset) return;
     this.cursorOffset = next;
-    this.activeSuggestion = 0;
+    this.resetSuggestionSelection();
     this.requestUpdate();
   }
 
@@ -1329,7 +1420,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     if (!range) return;
     event.preventDefault();
     this.cursorOffset = range.start;
-    this.activeSuggestion = 0;
+    this.resetSuggestionSelection();
     this.requestUpdate();
     void this.updateComplete.then(() => {
       const input = this.renderRoot.querySelector<HTMLInputElement>("input");
@@ -1516,22 +1607,19 @@ export class LuumOccurrenceComposerElement extends LitElement {
         const delta = event.key === "ArrowRight" ? 1 : -1;
         const next = (currentInterpretation + delta + interpretations.length) % interpretations.length;
         this.activeInterpretation = interpretations[next]?.id ?? "";
-        this.activeCandidate = 0;
+        this.resetCandidateSelection();
         this.requestUpdate();
         return;
       }
       if ((event.key === "ArrowDown" || event.key === "ArrowUp") && candidates.length) {
         event.preventDefault();
         const delta = event.key === "ArrowDown" ? 1 : -1;
-        this.activeCandidate =
-          (this.activeCandidate + delta + candidates.length) % candidates.length;
-        this.requestUpdate();
+        this.selectCandidate(this.activeCandidate + delta, candidates);
         return;
       }
       if ((event.key === "Home" || event.key === "End") && candidates.length) {
         event.preventDefault();
-        this.activeCandidate = event.key === "Home" ? 0 : candidates.length - 1;
-        this.requestUpdate();
+        this.selectCandidate(event.key === "Home" ? 0 : candidates.length - 1, candidates, false);
         return;
       }
       if (event.key === "Enter") {
@@ -1725,7 +1813,14 @@ export class LuumOccurrenceComposerElement extends LitElement {
                     : nothing
               }
               aria-activedescendant=${
-                suggestions.length ? `occurrence-composer-option-${selectedIndex}` : nothing
+                qualifiers.length && candidateMatrix?.candidates.length
+                  ? `occurrence-composer-candidate-${Math.min(
+                      this.activeCandidate,
+                      candidateMatrix.candidates.length - 1,
+                    )}`
+                  : suggestions.length
+                    ? `occurrence-composer-option-${selectedIndex}`
+                    : nothing
               }
               aria-describedby="occurrence-composer-help occurrence-composer-diagnostic occurrence-investigation-status"
               placeholder=${`Who did what to whom · at ${placeLabel} · on ${timeLabel ?? "timeline center"}`}
@@ -1849,7 +1944,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
                 aria-pressed=${String(chosenInterpretation?.id === interpretation.id)}
                 @click=${() => {
                   this.activeInterpretation = interpretation.id;
-                  this.activeCandidate = 0;
+                  this.resetCandidateSelection();
                   this.requestUpdate();
                 }}>${interpretation.label}</button>`,
               )}
@@ -1859,16 +1954,15 @@ export class LuumOccurrenceComposerElement extends LitElement {
                   ${candidateMatrix.candidates.map((candidate, index) => {
                     const cell = candidate.cells[0];
                     const active = index === Math.min(this.activeCandidate, candidateMatrix.candidates.length - 1);
-                    return html`<div class="candidate-row" role="row" data-scope=${candidate.candidateScope}
+                    return html`<div id=${`occurrence-composer-candidate-${index}`} class="candidate-row" role="row" data-scope=${candidate.candidateScope}
                       data-active=${String(active)} aria-current=${active ? "true" : nothing}
                       aria-label=${`${candidate.label}: ${cell?.assessment ?? "unknown"}. ${cell?.reason ?? "No comparison available."}`}>
                       <div role="cell"><button class="candidate-select" type="button"
                         aria-pressed=${String(active)}
                         @pointerdown=${(event: PointerEvent) => event.preventDefault()}
-                        @click=${() => {
-                          this.activeCandidate = index;
-                          this.requestUpdate();
-                        }}>${candidate.label}</button></div>
+                        @click=${() =>
+                          this.selectCandidate(index, candidateMatrix.candidates, false)
+                        }>${candidate.label}</button></div>
                       <span class="candidate-assessment" role="cell"
                         data-assessment=${cell?.assessment ?? "unknown"}>${cell?.assessment ?? "unknown"}</span>
                       <span class="candidate-reason" role="cell">${cell?.reason ?? "No comparison available."}</span>
