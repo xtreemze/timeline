@@ -199,28 +199,70 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
     .input-shell {
       position: relative;
+      block-size: 44px;
       min-inline-size: 0;
+      box-sizing: border-box;
+      overflow: hidden;
+      border: 1px solid var(--line, #d1ccc4);
+      border-radius: var(--toolbar-control-radius, 0.58rem);
+      background: color-mix(in srgb, var(--paper, #fff) 92%, transparent);
       anchor-name: --occurrence-composer-input;
     }
 
-    .ghost-completion {
+    .input-decoration {
       position: absolute;
-      z-index: 2;
+      z-index: 0;
       inset: 0;
       box-sizing: border-box;
-      display: block;
-      min-inline-size: 0;
-      min-block-size: 44px;
       padding: 0.55rem 0.7rem;
       overflow: hidden;
-      border: 1px solid transparent;
       pointer-events: none;
+      color: transparent;
       font: 500 0.88rem/1.3 ui-monospace, "SFMono-Regular", Consolas, monospace;
       white-space: pre;
     }
 
-    .ghost-base {
-      visibility: hidden;
+    .input-decoration-content {
+      display: inline-block;
+      min-inline-size: max-content;
+      transform: translateX(0);
+      transform-origin: left center;
+      will-change: transform;
+    }
+
+    .input-decoration-text {
+      color: transparent;
+    }
+
+    .input-token {
+      border-radius: 0.24rem;
+      background: color-mix(in srgb, var(--focus, #315fbd) 10%, transparent);
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--focus, #315fbd) 24%, transparent);
+      color: transparent;
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
+    }
+
+    .input-token[data-kind="predicate"] {
+      background: color-mix(in srgb, var(--muted, #615d56) 11%, transparent);
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--muted, #615d56) 22%, transparent);
+    }
+
+    .input-token[data-kind="place"],
+    .input-token[data-kind="time"] {
+      background: color-mix(in srgb, var(--story, #7b5ea7) 10%, transparent);
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--story, #7b5ea7) 24%, transparent);
+    }
+
+    .input-token[data-kind="category"],
+    .input-token[data-kind="tag"] {
+      background: color-mix(in srgb, var(--accent, #315fbd) 8%, transparent);
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent, #315fbd) 20%, transparent);
+    }
+
+    .input-token[data-investigative="true"] {
+      background: color-mix(in srgb, var(--accent, #315fbd) 16%, transparent);
+      box-shadow: 0 0 0 1px var(--accent, #315fbd);
     }
 
     .ghost-suffix {
@@ -228,20 +270,27 @@ export class LuumOccurrenceComposerElement extends LitElement {
     }
 
     input {
+      position: relative;
+      z-index: 1;
       inline-size: 100%;
+      block-size: 100%;
       min-inline-size: 0;
-      min-block-size: 44px;
       box-sizing: border-box;
-      border: 1px solid var(--line, #d1ccc4);
-      border-radius: var(--toolbar-control-radius, 0.58rem);
+      border: 0;
+      border-radius: inherit;
       padding: 0.55rem 0.7rem;
       outline: none;
-      background: color-mix(in srgb, var(--paper, #fff) 92%, transparent);
+      background: transparent;
       color: var(--ink, #191714);
+      caret-color: var(--ink, #191714);
       font: 500 0.88rem/1.3 ui-monospace, "SFMono-Regular", Consolas, monospace;
     }
 
     input:focus-visible {
+      outline: none;
+    }
+
+    .input-shell:focus-within {
       border-color: var(--focus, #315fbd);
       box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus, #315fbd) 20%, transparent);
     }
@@ -292,16 +341,6 @@ export class LuumOccurrenceComposerElement extends LitElement {
       background: color-mix(in srgb, var(--paper, #fff) 98%, transparent);
       box-shadow: 0 -10px 30px color-mix(in srgb, #000 16%, transparent);
       backdrop-filter: blur(14px);
-    }
-
-    .context-row {
-      display: flex;
-      gap: 0.3rem;
-      min-inline-size: 0;
-      padding: 0;
-      overflow-x: auto;
-      overscroll-behavior-inline: contain;
-      scrollbar-width: none;
     }
 
     .composer-occurrence-card {
@@ -492,10 +531,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
     .preview-edge { position: relative; z-index: 1; display: grid; gap: 0.3rem; min-inline-size: 0; color: var(--preview-accent, #a79bf4); font-size: 0.72rem; text-align: center; overflow-wrap: anywhere; }
     .preview-edge svg { inline-size: 100%; block-size: 14px; overflow: visible; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
     .preview-pending { opacity: 0.4; }
-    .composer-grammar, .composer-qualifiers { display: flex; gap: 0.3rem; overflow-x: auto; scrollbar-width: thin; }
-    .grammar-chip, .qualifier-chip, .interpretation-chip { flex: 0 0 auto; min-block-size: 44px; padding: 0.2rem 0.5rem; border: 1px solid var(--line, #d1ccc4); border-radius: 0.5rem; background: var(--paper, #fff); color: inherit; font: inherit; cursor: pointer; }
-    .qualifier-chip { border-color: var(--accent, #315fbd); }
-    .grammar-chip:focus-visible, .qualifier-chip:focus-visible, .interpretation-chip:focus-visible { outline: 2px solid var(--accent, #315fbd); outline-offset: -2px; }
+    .interpretation-chip { flex: 0 0 auto; min-block-size: 44px; padding: 0.2rem 0.5rem; border: 1px solid var(--line, #d1ccc4); border-radius: 0.5rem; background: var(--paper, #fff); color: inherit; font: inherit; cursor: pointer; }
+    .interpretation-chip:focus-visible { outline: 2px solid var(--accent, #315fbd); outline-offset: -2px; }
     .investigation-panel { display: grid; gap: 0.3rem; padding: 0.45rem 0.65rem; border-block-end: 1px solid var(--line, #d1ccc4); font-size: 0.75rem; }
     .interpretation-row { display: flex; gap: 0.25rem; overflow-x: auto; }
     .candidate-matrix { display: grid; gap: 0.3rem; max-block-size: 12rem; overflow: auto; overscroll-behavior: contain; }
@@ -511,56 +548,24 @@ export class LuumOccurrenceComposerElement extends LitElement {
     .candidate-sources { grid-column: 1 / -1; color: var(--muted, #615d56); font-size: 0.68rem; }
     .approval { min-inline-size: 44px; min-block-size: 44px; border: 1px solid var(--line, #d1ccc4); border-radius: 0.58rem; background: var(--paper, #fff); color: var(--ink, #191714); cursor: pointer; }
 
-    .context-row::-webkit-scrollbar {
-      display: none;
-    }
-
-    .context-chip {
-      display: inline-flex;
-      flex: 0 0 auto;
-      align-items: center;
-      gap: 0.28rem;
-      min-block-size: 28px;
-      max-inline-size: min(18rem, 58vw);
-      padding-inline: 0.5rem;
-      border: 1px solid color-mix(in srgb, var(--line, #d1ccc4) 80%, transparent);
-      border-radius: 999px;
-      background: color-mix(in srgb, var(--panel, #f5f3ef) 82%, transparent);
-      color: var(--muted, #615d56);
-      font-size: 0.68rem;
-      white-space: nowrap;
-    }
-
-    .context-chip[data-context-state="pinned"] {
-      border-color: color-mix(in srgb, var(--focus, #315fbd) 42%, var(--line, #d1ccc4));
-      color: var(--ink, #191714);
-    }
-
-    button.context-chip {
+    .pending-selection-action {
       appearance: none;
+      justify-self: start;
+      min-block-size: 36px;
+      padding: 0.32rem 0.55rem;
+      border: 1px solid color-mix(in srgb, var(--focus, #315fbd) 42%, var(--line, #d1ccc4));
+      border-radius: 0.45rem;
+      background: var(--paper, #fff);
+      color: var(--ink, #191714);
       font: inherit;
+      font-size: 0.72rem;
+      font-weight: 600;
       cursor: pointer;
     }
 
-    button.context-chip:hover,
-    button.context-chip:focus-visible {
-      border-color: var(--line-strong, #b8b1a5);
-      color: var(--ink, #191714);
-      outline: none;
-    }
-
-    .context-chip strong {
-      max-inline-size: 12rem;
-      overflow: hidden;
-      color: inherit;
-      text-overflow: ellipsis;
-    }
-
-    .context-state {
-      font-size: 0.6rem;
-      font-weight: 760;
-      letter-spacing: 0.03em;
-      text-transform: uppercase;
+    .pending-selection-action:is(:hover, :focus-visible) {
+      outline: 2px solid var(--focus, #315fbd);
+      outline-offset: -2px;
     }
 
     @media (min-width: 721px) {
@@ -614,9 +619,6 @@ export class LuumOccurrenceComposerElement extends LitElement {
         box-sizing: border-box;
       }
 
-      .context-chip {
-        max-inline-size: 72vw;
-      }
     }
 
     .diagnostic {
