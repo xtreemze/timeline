@@ -25,6 +25,7 @@ test("node defaults follow the Orb type language", () => {
   assert.equal(person.shape, "circle");
   assert.equal(person.icon, "person");
   assert.equal(person.border, semanticColorHex("#4b5f86", "light", "subdued"));
+  assert.equal(person.foreground, WORLD_LIGHT_PALETTE.line);
   assert.equal(worldNodeStyle({ type: "event" }, WORLD_LIGHT_PALETTE).shape, "diamond");
   assert.equal(worldNodeStyle({ type: "organization" }, WORLD_LIGHT_PALETTE).shape, "square");
   assert.equal(worldNodeStyle({ type: "story" }, WORLD_LIGHT_PALETTE).shape, "hexagon");
@@ -69,6 +70,8 @@ test("selection preserves semantic colours without changing node geometry", () =
   assert.equal(Math.round(semanticHue(selected.fill)), Math.round(semanticHue(normal.fill)));
   assert.notEqual(selected.border, normal.border);
   assert.equal(Math.round(semanticHue(selected.border)), Math.round(semanticHue(normal.border)));
+  assert.equal(normal.foreground, WORLD_LIGHT_PALETTE.line);
+  assert.equal(selected.foreground, WORLD_LIGHT_PALETTE.paper);
   assert.equal(selected.borderWidth, normal.borderWidth);
   assert.equal(selected.radius, normal.radius);
 
