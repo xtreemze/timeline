@@ -33,6 +33,60 @@ test("selecting an occurrence through the visible card opens its composer-owned 
   await expect(page.locator(".timeline-event-detail:visible")).toHaveCount(0);
 });
 
+test("mobile composer fills one viewport lane and follows horizontal footer pan", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const footer = page.locator(".app-footer-bar");
+  const composer = page.locator("#occurrence-composer");
+  await composer.locator(".compact").click();
+  await expect(composer).toHaveAttribute("active", "");
+  await expect(composer.locator('input[role="combobox"]')).toBeVisible();
+  await expect(composer.locator(".completion-panel")).toBeVisible();
+
+  const geometry = async () =>
+    page.evaluate(() => {
+      const footer = document.querySelector<HTMLElement>(".app-footer-bar");
+      const composer = document.querySelector<HTMLElement>("#occurrence-composer");
+      const shell = composer?.shadowRoot?.querySelector<HTMLElement>(".input-shell");
+      const panel = composer?.shadowRoot?.querySelector<HTMLElement>(".completion-panel");
+      if (!footer || !shell || !panel) throw new Error("mobile composer geometry unavailable");
+      const shellRect = shell.getBoundingClientRect();
+      const panelRect = panel.getBoundingClientRect();
+      return {
+        viewportWidth: window.visualViewport?.width ?? window.innerWidth,
+        footerOverflowX: getComputedStyle(footer).overflowX,
+        footerClientWidth: footer.clientWidth,
+        footerScrollWidth: footer.scrollWidth,
+        footerScrollLeft: footer.scrollLeft,
+        shellLeft: shellRect.left,
+        shellWidth: shellRect.width,
+        panelLeft: panelRect.left,
+        panelWidth: panelRect.width,
+      };
+    });
+
+  const initial = await geometry();
+  expect(initial.footerOverflowX).toMatch(/auto|scroll/);
+  expect(initial.footerScrollWidth).toBeGreaterThan(initial.footerClientWidth);
+  expect(Math.abs(initial.shellWidth - initial.viewportWidth)).toBeLessThanOrEqual(2);
+  expect(Math.abs(initial.panelWidth - initial.viewportWidth)).toBeLessThanOrEqual(2);
+  expect(Math.abs(initial.panelLeft - initial.shellLeft)).toBeLessThanOrEqual(2);
+
+  await footer.evaluate((element: HTMLElement) => {
+    const available = element.scrollWidth - element.clientWidth;
+    element.scrollLeft = Math.min(96, Math.max(1, available));
+  });
+  await expect.poll(async () => (await geometry()).footerScrollLeft).toBeGreaterThan(0);
+
+  const panned = await geometry();
+  expect(panned.shellLeft).toBeLessThan(initial.shellLeft - 1);
+  expect(panned.panelLeft).toBeLessThan(initial.panelLeft - 1);
+  expect(Math.abs(panned.panelLeft - panned.shellLeft)).toBeLessThanOrEqual(2);
+
+  const approve = composer.getByRole("button", { name: "Approve occurrence" });
+  await approve.scrollIntoViewIfNeeded();
+  await expect(approve).toBeVisible();
+});
+
 test("one composer card previews incomplete icons and chips select exact grammar spans", async ({
   page,
 }) => {
