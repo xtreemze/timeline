@@ -926,12 +926,12 @@ export class LuumOccurrenceComposerElement extends LitElement {
     void this.updateComplete.then(() => {
       const input = this.renderRoot.querySelector<HTMLInputElement>("input");
       if (!input) return;
-      input.focus({ preventScroll: true });
       if (section) {
         input.setSelectionRange(section.start, section.end);
       } else {
         input.setSelectionRange(this.value.length, this.value.length);
       }
+      input.focus({ preventScroll: true });
     });
   }
 
@@ -1189,10 +1189,15 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const range = qualifier ?? section;
     if (!range) return;
     event.preventDefault();
-    target.setSelectionRange(range.start, range.end);
     this.cursorOffset = range.start;
     this.activeSuggestion = 0;
     this.requestUpdate();
+    void this.updateComplete.then(() => {
+      const input = this.renderRoot.querySelector<HTMLInputElement>("input");
+      if (!input || input.value !== this.value) return;
+      input.setSelectionRange(range.start, range.end);
+      input.focus({ preventScroll: true });
+    });
   }
 
   private applySuggestion(suggestion: ComposerSuggestion): void {
