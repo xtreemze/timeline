@@ -8,7 +8,7 @@ import { worldEntityIconName } from "./world-entity-icon.ts";
 
 /**
  * Composes a node marker (shape filled with the node colour, a border, and
- * either the node's own image or a white glyph from the shared icon set) as
+ * either the node's own image or a state-aware neutral glyph from the shared icon set) as
  * an SVG icon for deck.gl's IconLayer. Rendered at 2x for crisp edges and
  * cached per distinct style, so a scene only uploads one texture per look.
  */
@@ -64,6 +64,7 @@ export function worldNodeMarker(style: WorldNodeStyle): WorldNodeMarker {
     style.fill,
     style.border,
     style.borderWidth,
+    style.foreground,
     style.radius,
     style.icon ?? "",
     style.image ?? "",
@@ -88,7 +89,7 @@ export function worldNodeMarker(style: WorldNodeStyle): WorldNodeMarker {
   const inner = style.image
     ? `<clipPath id="c">${shapePath(style.shape, center, Math.max(0, bodyRadius - 0.5))}</clipPath><image href="${escapeAttribute(style.image)}" x="${center - bodyRadius}" y="${center - bodyRadius}" width="${bodyRadius * 2}" height="${bodyRadius * 2}" preserveAspectRatio="xMidYMid slice" clip-path="url(#c)"/>`
     : iconName
-      ? `<g transform="translate(${glyphOrigin} ${glyphOrigin}) scale(${glyphSize / 24})" fill="none" color="#ffffff" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${iconPathData(
+      ? `<g transform="translate(${glyphOrigin} ${glyphOrigin}) scale(${glyphSize / 24})" fill="none" color="${style.foreground}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${iconPathData(
           iconName,
         )
           .map((d) => `<path d="${d}"/>`)

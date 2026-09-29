@@ -25,6 +25,12 @@ import {
   semanticIconLabel,
 } from "../src/presentation/semantic-icons.ts";
 import { suggestSemanticIconForPlace } from "../src/presentation/semantic-icon-inference.ts";
+import {
+  canonicalSemanticHueColor,
+  semanticColorCss,
+  semanticColorHex,
+  semanticHue,
+} from "../src/presentation/semantic-color.ts";
 import { projectTimelineOccurrences } from "../src/projection/timeline-projection.ts";
 import "./components/occurrence-composer.ts";
 import {
@@ -566,7 +572,8 @@ const els = {
   categoryForm: requiredElement<HTMLFormElement>("#category-form"),
   categoryId: requiredElement<HTMLInputElement>("#category-id"),
   categoryName: requiredElement<HTMLInputElement>("#category-name"),
-  categoryColor: requiredElement<HTMLInputElement>("#category-color"),
+  categoryHue: requiredElement<HTMLInputElement>("#category-hue"),
+  categoryHueOutput: requiredElement<HTMLOutputElement>("#category-hue-output"),
   categoryFormError: requiredElement<HTMLParagraphElement>("#category-form-error"),
   saveCategory: requiredElement<HTMLButtonElement>("#save-category"),
   cancelCategoryEdit: requiredElement<HTMLButtonElement>("#cancel-category-edit"),
@@ -905,7 +912,11 @@ function renderPresentationMap() {
     mapApi.createReadOnly?.({
       container: els.presentationMap,
       location: place,
-      color: category?.color || "#315fbd",
+      color: semanticColorHex(
+        category?.color || "#315fbd",
+        window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light",
+        "active",
+      ),
       iconName: place.icon || "place",
       markerShape: place.markerShape || "pin",
       label: name,
@@ -2067,7 +2078,7 @@ function composerTagOptions() {
       }
       const icon = normalizeSemanticIconName(tag.icon) ?? current?.icon;
       const hue = presentation.normalizeHue(tag.hue);
-      const color = `hsl(${hue} 64% 44%)`;
+      const color = canonicalSemanticHueColor(hue);
       options.set(label, {
         label,
         ...(current?.color || color ? { color: current?.color ?? color } : {}),
@@ -2551,13 +2562,13 @@ function renderTimelineList(visible: TimelineItemRecord[], activeStory: StoryRec
     const shell = document.createElement("div");
     shell.className = "timeline-category-shell";
     shell.dataset.categoryId = category.id;
-    shell.style.setProperty("--category-color", category.color);
+    shell.style.setProperty("--category-color", semanticColorCss(category.color, "ambient"));
 
     const details = document.createElement("details");
     details.className = "timeline-category-group";
     details.dataset.categoryId = category.id;
     details.open = !ui.collapsedCategoryIds.has(category.id);
-    details.style.setProperty("--category-color", category.color);
+    details.style.setProperty("--category-color", semanticColorCss(category.color, "ambient"));
 
     const summary = document.createElement("summary");
     summary.className = "timeline-category-summary";
@@ -2690,7 +2701,7 @@ function renderTimeline() {
             title: item.title,
             description: item.description,
             categoryName: category.name,
-            color: category.color,
+            color: semanticColorCss(category.color, "active"),
             start: temporal.sortKey(item.time?.start || item.start),
             end: item.end ? temporal.sortKey(item.time?.end || item.end) : null,
             startLabel: formatDateInline(item.start),
@@ -2839,7 +2850,7 @@ function renderItem(item, activeStory) {
   const li = document.createElement("li");
   li.className = `timeline-item${item.kind === "range" ? " is-range" : ""}`;
   li.dataset.id = item.id;
-  li.style.setProperty("--category-color", category.color);
+  li.style.setProperty("--category-color", semanticColorCss(category.color, "ambient"));
 
   let storyIndex = -1;
   if (activeStory) {
@@ -2907,7 +2918,7 @@ function renderItem(item, activeStory) {
   meta.className = "card-meta";
   const categoryBadge = document.createElement("span");
   categoryBadge.className = "category";
-  categoryBadge.style.setProperty("--category-color", category.color);
+  categoryBadge.style.setProperty("--category-color", semanticColorCss(category.color, "ambient"));
   categoryBadge.textContent = category.name;
   const kindBadge = document.createElement("span");
   kindBadge.className = "kind-badge";
@@ -4225,10 +4236,18 @@ function exitStoryFocus(render = true) {
   if (render) renderTimeline();
 }
 
+function syncCategoryHuePreview(): void {
+  const hue = semanticHue(els.categoryHue.value, 220);
+  els.categoryHue.value = String(Math.round(hue));
+  els.categoryHue.style.setProperty("--category-hue", String(hue));
+  els.categoryHueOutput.value = `${Math.round(hue)}°`;
+}
+
 function resetCategoryForm() {
   els.categoryForm.reset();
   els.categoryId.value = "";
-  els.categoryColor.value = "#667085";
+  els.categoryHue.value = "220";
+  syncCategoryHuePreview();
   els.saveCategory.textContent = "Add category";
   els.cancelCategoryEdit.hidden = true;
   setError(els.categoryFormError);
@@ -4240,7 +4259,8 @@ function beginCategoryEdit(id) {
   setActivePanel("categories");
   els.categoryId.value = category.id;
   els.categoryName.value = category.name;
-  els.categoryColor.value = category.color;
+  els.categoryHue.value = String(Math.round(semanticHue(category.color, 220)));
+  syncCategoryHuePreview();
   els.saveCategory.textContent = "Save category";
   els.cancelCategoryEdit.hidden = false;
   setError(els.categoryFormError);
@@ -4279,7 +4299,7 @@ function renderCategories() {
     const row = document.createElement("div");
     row.className = "category-row";
     row.dataset.id = category.id;
-    row.style.setProperty("--category-color", category.color);
+    row.style.setProperty("--category-color", semanticColorCss(category.color, "ambient"));
     const identity = document.createElement("div");
     identity.className = "category-identity";
     const dot = document.createElement("span");
@@ -6112,7 +6132,7 @@ els.categoryForm.addEventListener("submit", (event) => {
   const category = {
     id: editingId || newId("category"),
     name: name.slice(0, 60),
-    color: normalizeColor(els.categoryColor.value),
+    color: canonicalSemanticHueColor(els.categoryHue.value, 220),
   };
   const index = state.categories.findIndex((candidate) => candidate.id === category.id);
   state = applyProjectTransaction(state, [
@@ -6125,6 +6145,7 @@ els.categoryForm.addEventListener("submit", (event) => {
   renderAll();
 });
 
+els.categoryHue.addEventListener("input", syncCategoryHuePreview);
 els.cancelCategoryEdit.addEventListener("click", resetCategoryForm);
 
 els.categoryList.addEventListener("click", (event) => {

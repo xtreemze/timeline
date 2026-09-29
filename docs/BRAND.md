@@ -65,6 +65,8 @@ The application tokens in `site/styles.css` are the canonical implementation ref
 
 Semantic colors retain their meaning. The brand accent must not replace focus, danger, category, evidence, confidence, or other domain colors. Selection, hover, active occurrence context, and other emphasis states must preserve the object's semantic category/tag color; emphasis may change visibility, opacity, border weight, or contrast, but must not substitute the Focus blue. Controls without a semantic domain color use neutral ink for active/pressed state.
 
+For user-selectable semantic colors, **hue is authored; saturation and lightness are presentation-owned**. Lūm derives chroma/lightness from the OS light/dark color scheme and from interaction state. Ambient and subdued nodes, edges, tags, labels, and rules must remain restrained and must not use pure black or white as their semantic presentation color. Selected, hovered, keyboard-active, and active-occurrence elements may use the higher-contrast state while retaining the same hue. Persisted legacy hex/HSL colors remain valid interchange values, but renderers interpret them as hue sources rather than as authoritative display contrast.
+
 ## Typography
 
 The application currently uses Inter with a system sans-serif fallback. Brand documentation should follow the product UI rather than introduce a separate display-font dependency.
