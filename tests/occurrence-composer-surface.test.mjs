@@ -54,13 +54,14 @@ test("composer owns one sentence-first inline semantic editor and contextual pre
   assert.match(source, /class="input-token-icon"/);
   assert.match(source, /class="input-token-text"/);
   assert.doesNotMatch(source, /class="input-token-label"/);
-  assert.match(source, /\.input-decoration\s*\{[\s\S]*z-index:\s*2/);
-  assert.match(source, /\.input-decoration-text\s*\{[\s\S]*color:\s*var\(--ink/);
-  assert.match(source, /\.input-token\s*\{[\s\S]*color:\s*var\(--ink/);
+  assert.match(source, /\.input-decoration\s*\{[\s\S]*z-index:\s*0/);
+  assert.match(source, /\.input-decoration-text\s*\{[\s\S]*color:\s*transparent/);
+  assert.match(source, /\.input-token\s*\{[\s\S]*color:\s*transparent/);
   assert.match(source, /\.input-token-icon\s*\{[\s\S]*position:\s*absolute/);
   assert.match(source, /\.input-shell\s*\{[\s\S]*block-size:\s*44px/);
-  assert.match(source, /input\s*\{[\s\S]*z-index:\s*1[\s\S]*color:\s*transparent/);
+  assert.match(source, /input\s*\{[\s\S]*z-index:\s*1[\s\S]*color:\s*var\(--ink/);
   assert.match(source, /input\s*\{[\s\S]*padding:\s*0\.55rem 0\.7rem/);
+  assert.match(source, /input::selection\s*\{[\s\S]*color:\s*var\(--ink/);
   assert.doesNotMatch(source, /qualifier-chip/);
   assert.doesNotMatch(source, /composer-qualifiers/);
   assert.match(source, /aria-hidden="true"[\s\S]*class="input-decoration-content"/);
