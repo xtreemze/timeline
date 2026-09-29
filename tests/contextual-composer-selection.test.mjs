@@ -140,6 +140,26 @@ test("composer owns Home/End suggestion navigation while active", async () => {
   assert.match(composer, /event\.key === "End"[\s\S]*activeSuggestion = suggestions\.length - 1/);
 });
 
+test("composer centers active suggestions for keyboard and wheel navigation", async () => {
+  const composer = await readFile(
+    new URL("../site/components/occurrence-composer.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(composer, /private centerActiveSuggestion\(\)/);
+  assert.match(composer, /optionCenter[\s\S]*panel\.clientHeight \/ 2/);
+  assert.match(composer, /panel\.scrollTo\(\{ top: target, behavior: "auto" \}\)/);
+  assert.match(composer, /@wheel=\$\{\(event: WheelEvent\) => this\.onSuggestionWheel\(event\)\}/);
+  assert.match(
+    composer,
+    /event\.key === "ArrowDown"[\s\S]*selectSuggestion\(this\.activeSuggestion \+ 1, suggestions\)/,
+  );
+  assert.match(
+    composer,
+    /event\.key === "ArrowUp"[\s\S]*selectSuggestion\(this\.activeSuggestion - 1, suggestions\)/,
+  );
+});
+
 test("contextual composer returns focus to its connected invoker on close", async () => {
   const app = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
 
@@ -164,7 +184,10 @@ test("focused occurrence opens the composer directly and suppresses legacy detai
   ]);
   const focusHandler = app.match(/timelinefocuschange"[\s\S]*?\n\}\);/)?.[0] ?? "";
 
-  assert.match(focusHandler, /focusSelection = selectionForTimelineFocus/);
+  assert.match(
+    focusHandler,
+    /selectionForTimelineFocus\([\s\S]*event\.detail\?\.id,[\s\S]*state\.relationships,[\s\S]*event\.detail\?\.relationshipId/,
+  );
   assert.match(
     focusHandler,
     /focusSelection\?\.kind === "relationship"[\s\S]*setOccurrenceComposerOpen\(true\)/,
@@ -172,5 +195,9 @@ test("focused occurrence opens the composer directly and suppresses legacy detai
   assert.match(
     css,
     /#app-shell:has\(#occurrence-composer\[active\]\) #timeline-focus-view,[\s\S]*\.timeline-event-detail[\s\S]*display:\s*none\s*!important/,
+  );
+  assert.match(
+    app,
+    /timelineoccurrenceeditrequest[\s\S]*relationshipId\?: string[\s\S]*selectionForTimelineFocus\(id, state\.relationships, relationshipId\)/,
   );
 });
