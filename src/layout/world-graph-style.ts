@@ -143,8 +143,14 @@ function semanticPresentationColor(
   value: string,
   palette: WorldGraphPalette,
   state: SemanticColorState,
+  fallbackHue = 30,
 ): string {
-  return semanticColorHex(value, semanticThemeForSurface(palette.paper), state);
+  return semanticColorHex(
+    value,
+    semanticThemeForSurface(palette.paper),
+    state,
+    fallbackHue,
+  );
 }
 
 function defaultNodeFill(type: string, palette: WorldGraphPalette): string {
@@ -162,7 +168,7 @@ function defaultNodeFill(type: string, palette: WorldGraphPalette): string {
     case "organization":
       return "#6b526f";
     default:
-      return palette.ink === WORLD_DARK_PALETTE.ink ? "#5d6b82" : palette.ink;
+      return "#5d6b82";
   }
 }
 
@@ -255,12 +261,15 @@ export function worldNodeStyle(
   const type = (input.type ?? "").toLowerCase();
   const own = styleOf(input.attributes);
   const metrics = worldNodeDisplayMetrics(input);
+  const fallbackSource = defaultNodeFill(type, palette);
+  const fallbackHue = semanticHue(fallbackSource, 220);
   const fillSource =
     color(own["fillColor"]) ??
     color(own["fill"]) ??
     color(own["backgroundColor"]) ??
     color(own["color"]) ??
-    defaultNodeFill(type, palette);
+    fallbackSource;
+  const fillHue = semanticHue(fillSource, fallbackHue);
   const borderSource =
     color(own["borderColor"]) ??
     color(own["border"]) ??
@@ -268,11 +277,12 @@ export function worldNodeStyle(
     color(own["strokeColor"]) ??
     fillSource;
   const state = semanticState(input.selected, input.emphasized);
-  const fill = semanticPresentationColor(fillSource, palette, state);
+  const fill = semanticPresentationColor(fillSource, palette, state, fallbackHue);
   const border = semanticPresentationColor(
     borderSource,
     palette,
     state === "active" ? "active" : "subdued",
+    fillHue,
   );
   return Object.freeze({
     // Interaction changes only chroma/lightness; semantic hue and geometry stay invariant.
@@ -347,27 +357,32 @@ export function worldPlaceStyle(
   const own = record(placeStyle) ?? {};
   const marker = record(own["marker"]) ?? {};
   const metrics = worldPlaceMarkerMetrics(placeStyle);
+  const semanticSource =
+    color(marker["color"]) ??
+    color(own["color"]) ??
+    defaultNodeFill("place", palette);
+  const fallbackHue = semanticHue(semanticSource, 145);
   const fillSource =
     color(marker["fillColor"]) ??
     color(marker["fill"]) ??
     color(own["fillColor"]) ??
     color(own["fill"]) ??
-    color(marker["color"]) ??
-    defaultNodeFill("place", palette);
+    semanticSource;
+  const fillHue = semanticHue(fillSource, fallbackHue);
   const borderSource =
     color(marker["borderColor"]) ??
     color(marker["stroke"]) ??
     color(own["borderColor"]) ??
     color(own["stroke"]) ??
-    color(marker["color"]) ??
-    fillSource;
+    semanticSource;
   const state = semanticState(selected, emphasized);
   return Object.freeze({
-    fill: semanticPresentationColor(fillSource, palette, state),
+    fill: semanticPresentationColor(fillSource, palette, state, fallbackHue),
     border: semanticPresentationColor(
       borderSource,
       palette,
       state === "active" ? "active" : "subdued",
+      fillHue,
     ),
     foreground: state === "active" ? palette.paper : palette.line,
     borderWidth: metrics.borderWidth,
@@ -430,7 +445,12 @@ export function worldEdgeStyle(
   );
   return Object.freeze({
     // Interaction changes contrast only; routing and semantic hue stay invariant.
-    color: semanticPresentationColor(semanticColor, palette, state),
+    color: semanticPresentationColor(
+      semanticColor,
+      palette,
+      state,
+      semanticHue(semanticEdgeColor(input.predicate ?? "", palette), 212),
+    ),
     width: authoredWidth,
     dashed:
       lineStyle === "dashed" ||
