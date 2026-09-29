@@ -2863,13 +2863,10 @@ body {
 
 #workspace {
   position: fixed;
-  inset-inline: 0;
-  inset-block-start: var(--app-visual-viewport-offset-top, 0px);
+  inset: 0;
   display: block;
   inline-size: 100%;
-  height: calc(
-    var(--app-visual-viewport-height, 100dvh) + var(--app-visual-viewport-offset-top, 0px)
-  );
+  height: 100dvh;
   overflow: hidden;
 }
 
@@ -3069,13 +3066,10 @@ body {
 #app-shell {
   position: fixed;
   z-index: 1;
-  inset-inline: 0;
-  inset-block-start: var(--app-visual-viewport-offset-top, 0px);
+  inset: 0;
   display: block;
   inline-size: 100%;
-  height: calc(
-    var(--app-visual-viewport-height, 100dvh) + var(--app-visual-viewport-offset-top, 0px)
-  );
+  height: 100dvh;
   min-width: 0;
   min-height: 0;
   padding: 0;
@@ -3119,7 +3113,7 @@ body {
   position: fixed;
   z-index: 1200;
   inset-inline-start: 50%;
-  inset-block-end: max(0.45rem, env(safe-area-inset-bottom));
+  inset-block-end: calc(max(0.45rem, env(safe-area-inset-bottom)) + var(--app-visual-viewport-bottom, 0px));
   display: flex;
   align-items: stretch;
   justify-content: stretch;
@@ -4256,7 +4250,7 @@ body {
   inset-block-start: auto;
   inset-inline-start: 0;
   inset-inline-end: 0;
-  inset-block-end: 0;
+  inset-block-end: var(--app-visual-viewport-bottom, 0px);
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   align-items: stretch;
@@ -4298,7 +4292,7 @@ body {
   inset-block-start: auto;
   inset-inline-start: 0;
   inset-inline-end: 0;
-  inset-block-end: 0;
+  inset-block-end: var(--app-visual-viewport-bottom, 0px);
   inline-size: 100%;
   max-inline-size: none;
   block-size: var(--workspace-footer-block-size);

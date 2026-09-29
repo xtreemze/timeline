@@ -1964,18 +1964,23 @@ function restoreComposerFocus(target: HTMLElement | null): void {
 function syncComposerVisualViewport(): void {
   const visualViewport = window.visualViewport;
   const height = Math.max(1, visualViewport?.height || window.innerHeight || 1);
-  const offsetTop = Math.max(0, visualViewport?.offsetTop || 0);
+  const composerFocused = els.occurrenceComposer.inputHasFocus();
+  const bottomInset = composerFocused
+    ? Math.max(0, window.innerHeight - ((visualViewport?.offsetTop ?? 0) + height))
+    : 0;
   const heightPx = `${Math.round(height)}px`;
-  document.documentElement.style.setProperty("--app-visual-viewport-height", heightPx);
   document.documentElement.style.setProperty(
-    "--app-visual-viewport-offset-top",
-    `${Math.round(offsetTop)}px`,
+    "--app-visual-viewport-bottom",
+    `${Math.round(bottomInset)}px`,
   );
   els.occurrenceComposer.style.setProperty("--composer-visual-viewport-height", heightPx);
   els.occurrenceComposer.style.setProperty(
     "--composer-completion-max-height",
     `${Math.max(112, Math.round(height * 0.65))}px`,
   );
+  if (composerFocused) {
+    requestAnimationFrame(() => els.occurrenceComposer.revealMobileInputLane());
+  }
 }
 
 function syncOccurrenceComposerData(): void {
@@ -6354,6 +6359,10 @@ els.occurrenceComposer.addEventListener("occurrencecommit", (event) => {
 window.addEventListener("resize", syncComposerVisualViewport);
 window.visualViewport?.addEventListener("resize", syncComposerVisualViewport);
 window.visualViewport?.addEventListener("scroll", syncComposerVisualViewport);
+els.occurrenceComposer.addEventListener("focusin", syncComposerVisualViewport);
+els.occurrenceComposer.addEventListener("focusout", () => {
+  requestAnimationFrame(syncComposerVisualViewport);
+});
 
 async function openEvidenceRecord(id: string) {
   const record = state.evidence.find((candidate) => candidate.id === id);

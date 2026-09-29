@@ -88,10 +88,10 @@ test("composer owns one sentence-first inline semantic editor and contextual pre
     source,
     /@media \(max-width: 699px\)[\s\S]*?\.completion-panel[\s\S]*?position:\s*fixed[\s\S]*?position-anchor:\s*--occurrence-composer-input[\s\S]*?inline-size:\s*anchor-size\(width\)[\s\S]*?max-inline-size:\s*100dvi/,
   );
-  assert.match(
-    source,
-    /matchMedia\("\(max-width: 699px\)"\)[\s\S]*?\.input-shell[\s\S]*?scrollIntoView\(\{[\s\S]*?inline:\s*"center"/,
-  );
+  assert.match(source, /revealMobileInputLane\(\): void/);
+  assert.match(source, /footer\.scrollTo\(\{[\s\S]*?left:/);
+  assert.match(source, /show\(\): void[\s\S]*?revealMobileInputLane\(\)[\s\S]*?focus\(\{ preventScroll: true \}\)[\s\S]*?requestAnimationFrame/);
+  assert.doesNotMatch(source, /\.input-shell"\)\?\.scrollIntoView/);
 });
 
 test("investigative question travels to application reasoning authority", async () => {
