@@ -58,6 +58,17 @@ function weightedGlobeEasing(progress: number): number {
   return (1 - Math.exp(-WEIGHTED_GLOBE_DECAY * t)) * WEIGHTED_GLOBE_NORMALIZATION;
 }
 
+/**
+ * deck.gl computes globe fling distance as releaseVelocity * duration / 2.
+ * A quadratic ease-out has derivative 2 at release and 0 at completion, so
+ * that distance begins at exactly the measured drag velocity and decelerates
+ * continuously to rest instead of accelerating on pointer-up.
+ */
+function velocityContinuousGlobeInertiaEasing(progress: number): number {
+  const t = Math.max(0, Math.min(1, progress));
+  return t * (2 - t);
+}
+
 type GlobeControllerEvent = Parameters<InstanceType<typeof GlobeController>["handleEvent"]>[0];
 type GlobeControllerCenterEvent = Parameters<InstanceType<typeof GlobeController>["getCenter"]>[0];
 
@@ -188,6 +199,26 @@ class TimelineWeightedGlobeController extends GlobeController {
     ];
     this.#weightedPanCenter = weighted;
     return weighted;
+  }
+
+  protected override updateViewport(
+    newControllerState: unknown,
+    extraProps: Record<string, unknown> | null = null,
+    interactionState: { isDragging?: boolean; isPanning?: boolean } = {},
+  ): void {
+    const isPanRelease =
+      interactionState.isDragging === false &&
+      interactionState.isPanning === true &&
+      extraProps !== null &&
+      Number(extraProps.transitionDuration) > 0;
+
+    super.updateViewport(
+      newControllerState as never,
+      isPanRelease
+        ? ({ ...extraProps, transitionEasing: velocityContinuousGlobeInertiaEasing } as never)
+        : (extraProps as never),
+      interactionState as never,
+    );
   }
 
   override handleEvent(event: GlobeControllerEvent): boolean {
