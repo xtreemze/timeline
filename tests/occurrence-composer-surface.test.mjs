@@ -39,7 +39,16 @@ test("composer owns the card and incremental world preview with interactive gram
   assert.match(source, /event\.key === "Home"/);
   assert.match(source, /qualifiers\.length \? \[\] : this\.suggestions/);
   assert.match(source, /previewCategory\?\.color/);
-  assert.equal((source.match(/class="context-row composer-grammar"/g) ?? []).length, 1);
+  assert.doesNotMatch(source, /class="context-row composer-grammar"/);
+  assert.doesNotMatch(source, /class="grammar-chip context-chip"/);
+  assert.match(source, /class="input-decoration"/);
+  assert.match(source, /class="input-decoration-content"/);
+  assert.match(source, /class="input-token"/);
+  assert.match(source, /aria-hidden="true"[\s\S]*class="input-decoration-content"/);
+  assert.match(source, /inputDecorationSegments\(sections, qualifiers\)/);
+  assert.match(source, /syncInputDecorationScroll\(target\)/);
+  assert.match(source, /@scroll=\$\{\(event: Event\) => this\.onInputScroll\(event\)\}/);
+  assert.match(source, /transform = `translateX\(\$\{-target\.scrollLeft\}px\)`/);
   assert.doesNotMatch(source, /preview\.tags\.map/);
   assert.match(source, /class="composer-card-media"/);
   assert.match(source, /class="composer-card-context"/);
