@@ -755,14 +755,45 @@
   #app-shell:has(#occurrence-composer[active])
     #presentation-stage:fullscreen
     > .app-tool-dock.app-footer-bar {
-    grid-template-columns: auto minmax(120px, 1fr) 44px;
-    overflow: visible;
-    touch-action: auto;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: var(--toolbar-control-gap);
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-inline: contain;
+    touch-action: pan-x;
+    scrollbar-width: none;
+    scroll-snap-type: x proximity;
+  }
+
+  #app-shell:has(#occurrence-composer[active]) > .app-tool-dock.app-footer-bar::-webkit-scrollbar,
+  #app-shell:has(#occurrence-composer[active])
+    #presentation-stage:fullscreen
+    > .app-tool-dock.app-footer-bar::-webkit-scrollbar {
+    display: none;
+  }
+
+  #app-shell:has(#occurrence-composer[active]) .app-footer-bar > .app-footer-actions {
+    order: 1;
+    flex: 0 0 auto;
+  }
+
+  #app-shell:has(#occurrence-composer[active]) .app-footer-bar > #occurrence-composer[active] {
+    order: 2;
+    flex: 0 0 auto;
+    inline-size: max-content;
+    min-inline-size: 100dvi;
+    max-inline-size: none;
+    scroll-snap-align: start;
   }
 
   #app-shell:has(#occurrence-composer[active]) .app-footer-bar > .app-footer-view {
-    inline-size: 44px;
-    max-inline-size: 44px;
+    order: 3;
+    flex: 0 0 auto;
+    inline-size: auto;
+    max-inline-size: none;
+    overflow: visible;
   }
 }
 
