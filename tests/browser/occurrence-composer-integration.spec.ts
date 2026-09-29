@@ -485,7 +485,20 @@ test("same-occurrence media and context refresh preserve a dirty investigative d
   await expect(composer.locator(".composer-card-heading")).toContainText("Updated context");
   const deck = composer.locator("luum-occurrence-deck.composer-context-deck");
   await expect(deck).toHaveAttribute("data-frame-count", "2");
-  await expect(deck.locator(".timeline-focus-hero-image")).toHaveAttribute("alt", "Updated evidence A");
+  const mediaImage = deck.locator(".timeline-focus-hero-image");
+  await expect(mediaImage).toHaveAttribute("alt", "Updated evidence A");
+  await expect
+    .poll(() => mediaImage.evaluate((element) => getComputedStyle(element).objectFit))
+    .toBe("contain");
+  const zoomIn = deck.getByRole("button", { name: "Zoom image in" });
+  const zoomOut = deck.getByRole("button", { name: "Zoom image out" });
+  await expect(zoomIn).toBeVisible();
+  await expect(zoomOut).toBeDisabled();
+  await expect(deck.locator(".timeline-occurrence-deck-zoom-level")).toHaveText("100%");
+  await zoomIn.click();
+  await expect(deck.locator(".timeline-occurrence-deck-zoom-level")).toHaveText("125%");
+  await expect(zoomOut).toBeEnabled();
+  await expect(mediaImage).toHaveAttribute("style", /--occurrence-image-zoom:\s*1\.25/);
   const context = composer.locator(".composer-card-context");
   await expect(context).toContainText("Updated description");
   const layout = await composer.locator(".composer-card-details").evaluate((details) => {
