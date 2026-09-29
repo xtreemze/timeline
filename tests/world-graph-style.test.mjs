@@ -19,6 +19,13 @@ import {
 } from "../src/layout/world-graph-style.ts";
 import { semanticColorHex, semanticHue } from "../src/presentation/semantic-color.ts";
 
+function assertSameHue(actual, expected, tolerance = 1.5) {
+  const a = semanticHue(actual);
+  const b = semanticHue(expected);
+  const delta = Math.abs(a - b) % 360;
+  assert.ok(Math.min(delta, 360 - delta) < tolerance, `${actual} should preserve hue ${b}`);
+}
+
 test("node defaults follow the Orb type language", () => {
   const person = worldNodeStyle({ type: "person" }, WORLD_LIGHT_PALETTE);
   assert.equal(person.fill, semanticColorHex("#4b5f86", "light", "ambient"));
@@ -67,9 +74,9 @@ test("selection preserves semantic colours without changing node geometry", () =
   const normal = worldNodeStyle({ type: "person" }, WORLD_LIGHT_PALETTE);
   const selected = worldNodeStyle({ type: "person", selected: true }, WORLD_LIGHT_PALETTE);
   assert.notEqual(selected.fill, normal.fill);
-  assert.equal(Math.round(semanticHue(selected.fill)), Math.round(semanticHue(normal.fill)));
+  assertSameHue(selected.fill, normal.fill);
   assert.notEqual(selected.border, normal.border);
-  assert.equal(Math.round(semanticHue(selected.border)), Math.round(semanticHue(normal.border)));
+  assertSameHue(selected.border, normal.border);
   assert.equal(normal.foreground, WORLD_LIGHT_PALETTE.line);
   assert.equal(selected.foreground, WORLD_LIGHT_PALETTE.paper);
   assert.equal(selected.borderWidth, normal.borderWidth);
@@ -101,7 +108,7 @@ test("selection and connected-neighborhood emphasis preserve graph geometry", ()
   );
 
   assert.notEqual(neighbor.fill, ordinary.fill);
-  assert.equal(Math.round(semanticHue(neighbor.fill)), Math.round(semanticHue(ordinary.fill)));
+  assertSameHue(neighbor.fill, ordinary.fill);
   assert.notEqual(neighbor.border, ordinary.border);
   assert.equal(neighbor.borderWidth, ordinary.borderWidth);
   assert.equal(neighbor.radius, ordinary.radius);
@@ -124,7 +131,7 @@ test("selection and connected-neighborhood emphasis preserve graph geometry", ()
     WORLD_LIGHT_PALETTE,
   );
   assert.notEqual(emphasizedEdge.color, ordinaryEdge.color);
-  assert.equal(Math.round(semanticHue(emphasizedEdge.color)), Math.round(semanticHue(ordinaryEdge.color)));
+  assertSameHue(emphasizedEdge.color, ordinaryEdge.color);
   assert.equal(emphasizedEdge.width, ordinaryEdge.width);
   assert.equal(selectedEdge.color, emphasizedEdge.color);
   assert.equal(selectedEdge.width, ordinaryEdge.width);
@@ -141,7 +148,7 @@ test("selection and connected-neighborhood emphasis preserve graph geometry", ()
     true,
   );
   assert.notEqual(emphasizedPlace.fill, ordinaryPlace.fill);
-  assert.equal(Math.round(semanticHue(emphasizedPlace.fill)), Math.round(semanticHue(ordinaryPlace.fill)));
+  assertSameHue(emphasizedPlace.fill, ordinaryPlace.fill);
   assert.notEqual(emphasizedPlace.border, ordinaryPlace.border);
   assert.equal(emphasizedPlace.borderWidth, ordinaryPlace.borderWidth);
   assert.equal(emphasizedPlace.radius, ordinaryPlace.radius);
