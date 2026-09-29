@@ -487,14 +487,20 @@ export class LuumOccurrenceComposerElement extends LitElement {
       inset-inline: 0;
       inset-block-end: calc(100% + 0.38rem);
       display: grid;
+      grid-template-rows: minmax(0, 1fr) auto;
       max-block-size: min(32rem, var(--composer-completion-max-height, 65dvh));
-      overflow-y: auto;
-      overscroll-behavior: contain;
+      overflow: hidden;
       border: 1px solid var(--line-strong, #b8b1a5);
       border-radius: 0.72rem;
       background: color-mix(in srgb, var(--paper, #fff) 98%, transparent);
       box-shadow: 0 -10px 30px color-mix(in srgb, #000 16%, transparent);
       backdrop-filter: blur(14px);
+    }
+
+    .completion-context-scroll {
+      min-block-size: 0;
+      overflow-y: auto;
+      overscroll-behavior: contain;
     }
 
     .composer-occurrence-card {
@@ -913,9 +919,12 @@ export class LuumOccurrenceComposerElement extends LitElement {
     .listbox {
       display: grid;
       min-block-size: 0;
-      max-block-size: min(18rem, 40dvh);
+      max-block-size: min(14rem, 34dvh);
       overflow-y: auto;
       overscroll-behavior: contain;
+      border-block-start: 1px solid var(--line-strong, #b8b1a5);
+      background: color-mix(in srgb, var(--paper, #fff) 99%, transparent);
+      box-shadow: 0 -8px 18px color-mix(in srgb, #000 8%, transparent);
       scrollbar-gutter: stable;
     }
 
@@ -1532,7 +1541,10 @@ export class LuumOccurrenceComposerElement extends LitElement {
       );
       container.scrollTo({ top: target, behavior: "auto" });
 
-      const panel = this.renderRoot.querySelector<HTMLElement>(".completion-panel");
+      const panel =
+        kind === "candidate"
+          ? this.renderRoot.querySelector<HTMLElement>(".completion-context-scroll")
+          : null;
       if (!panel || panel === container) return;
       const panelRect = panel.getBoundingClientRect();
       const visibleChoiceRect = choice.getBoundingClientRect();
