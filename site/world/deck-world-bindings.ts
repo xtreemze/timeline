@@ -61,7 +61,6 @@ function weightedGlobeEasing(progress: number): number {
 type GlobeControllerEvent = Parameters<InstanceType<typeof GlobeController>["handleEvent"]>[0];
 type GlobeControllerCenterEvent = Parameters<InstanceType<typeof GlobeController>["getCenter"]>[0];
 
-
 function globeEventTimestamp(event: GlobeControllerCenterEvent): number {
   const candidate = event as GlobeControllerCenterEvent & {
     readonly timeStamp?: unknown;
@@ -153,6 +152,13 @@ class TimelineWeightedGlobeController extends GlobeController {
     this.#weightedPanLastTime = 0;
   }
 
+  /**
+   * deck.gl 9.4 applies the pointer center directly during globe pan. Filter
+   * only ordinary one-pointer pan through Lūm's shared response curve. Its
+   * globe controller records the resulting camera states for release inertia,
+   * so the fling naturally continues from the weighted path without a second
+   * inertia implementation. Rotation and multi-touch remain deck-native.
+   */
   override getCenter(event: GlobeControllerCenterEvent): [number, number] {
     const raw = super.getCenter(event);
 
