@@ -51,14 +51,35 @@ function sameSelection(
  * Resolve timeline focus to canonical relationship identity without guessing.
  *
  * A projected relationship occurrence uses the relationship id directly.
- * Ordinary chronology items map only when exactly one relationship owns them.
+ * Ordinary chronology items map only when exactly one relationship owns them,
+ * unless the rendered occurrence already carries the canonical relationship
+ * identity that produced its sentence/context.
  */
 export function selectionForTimelineFocus(
   focusId: unknown,
   relationships: readonly TimelineSelectionRelationship[],
+  preferredRelationshipId?: unknown,
 ): ApplicationSelection | null {
   const id = normalizedId(focusId);
   if (!id) return null;
+
+  const preferredId = normalizedId(preferredRelationshipId);
+  if (preferredId) {
+    const preferred = relationships.find(
+      (relationship) => normalizedId(relationship.id) === preferredId,
+    );
+    if (preferred) {
+      if (preferredId === id) {
+        return Object.freeze({ kind: "relationship", id: preferredId });
+      }
+      const ownsItem =
+        Array.isArray(preferred.itemIds) &&
+        preferred.itemIds.some((itemId) => normalizedId(itemId) === id);
+      if (ownsItem) {
+        return Object.freeze({ kind: "relationship", id: preferredId, itemId: id });
+      }
+    }
+  }
 
   const exact = relationships.find((relationship) => normalizedId(relationship.id) === id);
   if (exact) {
