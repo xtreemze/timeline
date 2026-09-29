@@ -257,7 +257,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
     .input-shell {
       position: relative;
-      block-size: 44px;
+      block-size: 54px;
       min-inline-size: 0;
       box-sizing: border-box;
       overflow: hidden;
@@ -272,7 +272,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
       z-index: 0;
       inset: 0;
       box-sizing: border-box;
-      padding: 0.55rem 0.7rem;
+      padding: 1.35rem 0.7rem 0.35rem;
       overflow: hidden;
       pointer-events: none;
       color: transparent;
@@ -293,12 +293,31 @@ export class LuumOccurrenceComposerElement extends LitElement {
     }
 
     .input-token {
-      border-radius: 0.18rem;
-      background: color-mix(in srgb, var(--ink, #191714) 5%, transparent);
-      box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--ink, #191714) 18%, transparent);
+      position: relative;
+      border-radius: 0.28rem;
+      background: color-mix(in srgb, var(--ink, #191714) 6%, transparent);
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink, #191714) 18%, transparent);
       color: transparent;
       box-decoration-break: clone;
       -webkit-box-decoration-break: clone;
+    }
+
+    .input-token::before {
+      position: absolute;
+      inset-inline-start: 0;
+      inset-block-end: calc(100% + 0.08rem);
+      max-inline-size: 8rem;
+      padding-inline: 0.12rem;
+      overflow: hidden;
+      border-radius: 0.2rem;
+      background: color-mix(in srgb, var(--paper, #fff) 92%, transparent);
+      color: color-mix(in srgb, var(--muted, #615d56) 84%, transparent);
+      content: attr(data-label);
+      font: 720 0.5rem/1 ui-monospace, "SFMono-Regular", Consolas, monospace;
+      letter-spacing: 0.025em;
+      text-overflow: ellipsis;
+      text-transform: lowercase;
+      white-space: nowrap;
     }
 
     .input-token[data-active="true"] {
@@ -306,9 +325,17 @@ export class LuumOccurrenceComposerElement extends LitElement {
       box-shadow: 0 0 0 1px color-mix(in srgb, var(--focus, #315fbd) 52%, transparent);
     }
 
+    .input-token[data-active="true"]::before {
+      color: var(--focus, #315fbd);
+    }
+
     .input-token[data-investigative="true"] {
       background: color-mix(in srgb, var(--accent, #b7472a) 9%, transparent);
       box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--accent, #b7472a) 82%, transparent);
+    }
+
+    .input-token[data-investigative="true"]::before {
+      color: var(--accent, #b7472a);
     }
 
     .input-token[data-investigative="true"][data-active="true"] {
@@ -331,7 +358,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
       box-sizing: border-box;
       border: 0;
       border-radius: inherit;
-      padding: 0.55rem 0.7rem;
+      padding: 1.35rem 0.7rem 0.35rem;
       outline: none;
       background: transparent;
       color: var(--ink, #191714);
@@ -1207,6 +1234,28 @@ export class LuumOccurrenceComposerElement extends LitElement {
     );
   }
 
+  private inputTokenLabel(segment: Readonly<{ kind: string | null; investigative: boolean }>): string {
+    if (segment.investigative) return "investigate";
+    switch (segment.kind) {
+      case "subject":
+        return "subject";
+      case "predicate":
+        return "action";
+      case "object":
+        return "object";
+      case "place":
+        return "place";
+      case "time":
+        return "time";
+      case "category":
+        return "category";
+      case "tag":
+        return "tag";
+      default:
+        return segment.kind ?? "context";
+    }
+  }
+
   private inputDecorationSegments(
     sections: ReturnType<typeof composerEditableSections>,
     qualifiers: ReturnType<typeof projectInvestigativeQualifiers>,
@@ -1834,6 +1883,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
                     ? html`<span
                         class="input-token"
                         data-kind=${segment.kind}
+                        data-label=${this.inputTokenLabel(segment)}
                         data-investigative=${String(segment.investigative)}
                         data-active=${String(segment.active)}
                       >${segment.text}</span>`
