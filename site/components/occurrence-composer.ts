@@ -75,6 +75,10 @@ export interface OccurrenceComposerSelectionContext {
     readonly confidence?: number | null;
     readonly attributes?: Readonly<Record<string, unknown>>;
   } | null;
+  readonly appearance?: {
+    readonly color?: string | null;
+    readonly icon?: string | null;
+  } | null;
   readonly relationship?: {
     readonly subjectId: string;
     readonly objectId: string;
@@ -947,6 +951,14 @@ export class LuumOccurrenceComposerElement extends LitElement {
                   ...context.metadata,
                   sourceIds: Object.freeze([...(context.metadata.sourceIds ?? [])]),
                   attributes: Object.freeze({ ...(context.metadata.attributes ?? {}) }),
+                }),
+              }
+            : {}),
+          ...(context.appearance
+            ? {
+                appearance: Object.freeze({
+                  color: context.appearance.color ?? null,
+                  icon: context.appearance.icon ?? null,
                 }),
               }
             : {}),
@@ -1831,7 +1843,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const previewCategory = this.data.categories.find(
       (category) => category.name === preview.category,
     );
-    const semanticSuggestion = this.previewSuggestion ?? activeSuggestion ?? null;
+    const semanticSuggestion = this.previewSuggestion ?? null;
     const relationshipAttributes = this.selectionContext?.metadata?.attributes;
     const relationshipStyle =
       relationshipAttributes?.["style"] &&
@@ -1847,6 +1859,10 @@ export class LuumOccurrenceComposerElement extends LitElement {
     );
     const relationshipIcon =
       typeof relationshipStyle?.["icon"] === "string" ? relationshipStyle["icon"] : null;
+    const occurrenceAccent = normalizeComposerSemanticColor(
+      this.selectionContext?.appearance?.color,
+    );
+    const occurrenceIcon = this.selectionContext?.appearance?.icon ?? null;
     const predicateVisual = (this.data.predicates ?? [])
       .map((predicate): ComposerPredicateOption =>
         typeof predicate === "string"
@@ -1892,16 +1908,18 @@ export class LuumOccurrenceComposerElement extends LitElement {
       .find((tag) => Boolean(tag?.color || tag?.icon));
     const deckAccent =
       normalizeComposerSemanticColor(semanticSuggestion?.color) ??
-      normalizeComposerSemanticColor(predicateVisual?.color) ??
+      occurrenceAccent ??
       relationshipAccent ??
+      normalizeComposerSemanticColor(predicateVisual?.color) ??
       subjectVisual.color ??
       objectVisual.color ??
       normalizeComposerSemanticColor(previewCategory?.color) ??
       normalizeComposerSemanticColor(activeTagVisual?.color);
     const deckIcon =
       semanticSuggestion?.icon ??
-      predicateVisual?.icon ??
+      occurrenceIcon ??
       relationshipIcon ??
+      predicateVisual?.icon ??
       subjectVisual.icon ??
       objectVisual.icon ??
       previewCategory?.icon ??
