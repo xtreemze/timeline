@@ -67,6 +67,11 @@ test("composer owns one sentence-first inline semantic editor and contextual pre
   assert.doesNotMatch(source, /preview\.tags\.map/);
   assert.match(source, /class="composer-card-media"/);
   assert.match(source, /class="composer-card-context"/);
+  assert.match(source, /\.composer-context-deck \.timeline-focus-hero-image \{[\s\S]*object-fit:\s*contain/);
+  assert.match(source, /transform:\s*scale\(var\(--occurrence-image-zoom, 1\)\)/);
+  assert.match(source, /timeline-occurrence-deck-zoom-controls/);
+  assert.match(source, /\.composer-card-details \{[\s\S]*background:\s*var\(--paper[\s\S]*color:\s*var\(--ink[\s\S]*color-scheme:\s*light dark/);
+  assert.doesNotMatch(source, /\.composer-card-details \{[\s\S]{0,420}background:\s*#171716/);
   assert.match(
     source,
     /occurrenceContextDeckFrames\(\s*this\.selectionContext\?\.media,\s*null\s*\)/,

@@ -1191,8 +1191,11 @@ luum-occurrence-deck {
   font-variant-numeric: tabular-nums;
 }
 .timeline-focus-hero-image {
-  object-fit: cover;
-  transform: scale(1.005);
+  object-fit: contain;
+  object-position: center;
+  transform: scale(var(--occurrence-image-zoom, 1));
+  transform-origin: center;
+  transition: transform 160ms ease;
 }
 .timeline-focus-hero-fallback {
   background:
@@ -1255,6 +1258,41 @@ luum-occurrence-deck {
   gap: 0.38rem;
   margin-top: 0.25rem;
 }
+.timeline-occurrence-deck-zoom-controls {
+  position: absolute;
+  z-index: 5;
+  inset-inline-end: 0.55rem;
+  inset-block-end: 0.55rem;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--paper) 86%, transparent);
+  color: var(--ink);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14);
+  backdrop-filter: blur(10px);
+}
+.timeline-occurrence-deck-zoom-controls .timeline-focus-media-control {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  backdrop-filter: none;
+}
+.timeline-occurrence-deck-zoom-controls .timeline-focus-media-control:disabled {
+  cursor: default;
+  opacity: 0.42;
+}
+.timeline-occurrence-deck-zoom-level {
+  min-inline-size: 3.2rem;
+  color: inherit;
+  font:
+    700 0.68rem / 1 ui-monospace,
+    monospace;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
 .timeline-focus-slideshow-controls {
   position: absolute;
   z-index: 4;
@@ -5569,4 +5607,11 @@ luum-occurrence-deck {
   > #timeline-view:is([data-orientation="portrait"], [data-orientation="landscape"])
   .story-focus-controls {
   flex-direction: row;
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+  .timeline-focus-hero-image {
+    transition: none;
+  }
 }

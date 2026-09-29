@@ -87,6 +87,12 @@ test("occurrence deck component owns media navigation without autoplay or parent
   assert.match(source, /timeline-focus-media-control/);
   assert.match(source, /timeline-focus-slide-dot/);
   assert.match(source, /timeline-focus-slide-count/);
+  assert.match(source, /IMAGE_ZOOM_STEPS/);
+  assert.match(source, /timeline-occurrence-deck-zoom-controls/);
+  assert.match(source, /aria-label="Zoom image out"/);
+  assert.match(source, /aria-label="Zoom image in"/);
+  assert.match(source, /--occurrence-image-zoom/);
+  assert.match(source, /this\.imageZoomIndex = 0/);
   assert.doesNotMatch(source, /setInterval|setTimeout\([^)]*next|autoplay/i);
 });
 
