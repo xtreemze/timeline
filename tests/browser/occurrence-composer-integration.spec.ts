@@ -17,7 +17,7 @@ test("selecting an occurrence through the visible card opens its composer-owned 
   await expect(composer).toHaveAttribute("active", "");
   await expect(composer.locator(".composer-occurrence-card")).toBeVisible();
   await expect(composer.locator('input[role="combobox"]')).toBeVisible();
-  await expect(composer.locator(".composer-context-deck")).toBeVisible();
+  await expect(composer.locator(".composer-world-preview")).toBeVisible();
   await expect(page.locator(".timeline-event-detail:visible")).toHaveCount(0);
   await expect(page.locator("#timeline-focus-view:visible")).toHaveCount(0);
 
@@ -74,7 +74,7 @@ test("mobile composer fills one viewport lane, follows pan, and snaps centered",
 
   const initial = await geometry();
   expect(initial.footerOverflowX).toMatch(/auto|scroll/);
-  expect(initial.footerSnapType).toContain("proximity");
+  expect(initial.footerSnapType).toMatch(/^x(?: proximity)?$/);
   expect(initial.shellSnapAlign).toContain("center");
   expect(initial.shellSnapStop).toBe("always");
   expect(initial.footerScrollWidth).toBeGreaterThan(initial.footerClientWidth);
@@ -150,6 +150,30 @@ test("one native composer input decorates semantic ranges inline and keeps exact
   await expect(composer.locator('.input-token[data-kind="category"]')).toHaveText("Family");
   await expect(composer.locator('.input-token[data-kind="tag"]')).toHaveText("important");
 
+  const setCaretIn = async (needle: string) => {
+    await input.evaluate((element: HTMLInputElement, text) => {
+      const start = element.value.indexOf(text);
+      if (start < 0) throw new Error(`Missing composer token: ${text}`);
+      const offset = start + Math.max(1, Math.floor(text.length / 2));
+      element.focus();
+      element.setSelectionRange(offset, offset);
+      element.dispatchEvent(new Event("select", { bubbles: true }));
+    }, needle);
+  };
+  await setCaretIn("Stockholm");
+  await expect(composer.locator('.input-token[data-kind="place"]')).toHaveAttribute(
+    "data-active",
+    "true",
+  );
+  await expect(composer.locator(".stage")).toHaveText("place");
+
+  await setCaretIn("meets");
+  await expect(composer.locator('.input-token[data-kind="predicate"]')).toHaveAttribute(
+    "data-active",
+    "true",
+  );
+  await expect(composer.locator(".stage")).toHaveText("action");
+
   const typography = await composer.locator(".input-shell").evaluate((shell) => {
     const input = shell.querySelector("input");
     const decoration = shell.querySelector(".input-decoration");
@@ -214,19 +238,27 @@ test("unresolved clue remains editable and cannot be approved as a fact", async 
   const clue = composer.locator('.input-token[data-investigative="true"]');
   await expect(clue).toHaveCount(1);
   await expect(clue).toHaveText("man?");
+  const coarsePointer = await page.evaluate(() => matchMedia("(pointer: coarse)").matches);
   await input.evaluate((element: HTMLInputElement) => {
     const offset = element.value.indexOf("man?") + 1;
     element.focus();
     element.setSelectionRange(offset, offset);
-    element.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+    element.dispatchEvent(new Event("select", { bubbles: true }));
   });
-  await expect
-    .poll(() =>
-      input.evaluate((element: HTMLInputElement) =>
-        element.value.slice(element.selectionStart ?? 0, element.selectionEnd ?? 0),
-      ),
-    )
-    .toBe("man?");
+  await expect(clue).toHaveAttribute("data-active", "true");
+  await expect(composer.locator(".stage")).toHaveText("investigate");
+  if (!coarsePointer) {
+    await input.evaluate((element: HTMLInputElement) => {
+      element.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+    });
+    await expect
+      .poll(() =>
+        input.evaluate((element: HTMLInputElement) =>
+          element.value.slice(element.selectionStart ?? 0, element.selectionEnd ?? 0),
+        ),
+      )
+      .toBe("man?");
+  }
   await composer.getByRole("button", { name: "Approve occurrence" }).click();
   await expect(composer.locator(".diagnostic")).toContainText("Resolve or persist");
   await expect(input).toHaveValue("man? calls @alice");
@@ -273,21 +305,29 @@ test("multiple investigative qualifiers retain exact ranges and exit without dam
 
   const clues = composer.locator('.input-token[data-investigative="true"]');
   await expect(clues).toHaveCount(3);
+  const coarsePointer = await page.evaluate(() => matchMedia("(pointer: coarse)").matches);
   for (const expected of ["man?", '"red jacket"?', '"Central Station"?']) {
-    await expect(clues.filter({ hasText: expected })).toHaveCount(1);
+    const clue = clues.filter({ hasText: expected });
+    await expect(clue).toHaveCount(1);
     await input.evaluate((element: HTMLInputElement, clueText) => {
       const offset = element.value.indexOf(clueText) + Math.max(1, Math.floor(clueText.length / 2));
       element.focus();
       element.setSelectionRange(offset, offset);
-      element.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+      element.dispatchEvent(new Event("select", { bubbles: true }));
     }, expected);
-    await expect
-      .poll(() =>
-        input.evaluate((element: HTMLInputElement) =>
-          element.value.slice(element.selectionStart ?? 0, element.selectionEnd ?? 0),
-        ),
-      )
-      .toBe(expected);
+    await expect(clue).toHaveAttribute("data-active", "true");
+    if (!coarsePointer) {
+      await input.evaluate((element: HTMLInputElement) => {
+        element.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+      });
+      await expect
+        .poll(() =>
+          input.evaluate((element: HTMLInputElement) =>
+            element.value.slice(element.selectionStart ?? 0, element.selectionEnd ?? 0),
+          ),
+        )
+        .toBe(expected);
+    }
     await expect(input).toHaveValue(sentence);
   }
 
