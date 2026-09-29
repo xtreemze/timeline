@@ -30,11 +30,14 @@ import {
   composerCursorSection,
   occurrenceComposerSuggestions,
   parseOccurrenceSentence,
+  normalizeComposerSemanticColor,
   toggleComposerMultiOption,
   type ComposerCategoryOption,
   type ComposerEntityOption,
   type ComposerPlaceOption,
+  type ComposerPredicateOption,
   type ComposerSuggestion,
+  type ComposerTagOption,
   type OccurrenceSentenceDraft,
 } from "../occurrence-composer-model.ts";
 
@@ -50,8 +53,8 @@ export interface OccurrenceComposerData {
   readonly entities: readonly ComposerEntityOption[];
   readonly places: readonly ComposerPlaceOption[];
   readonly categories: readonly ComposerCategoryOption[];
-  readonly tags?: readonly string[];
-  readonly predicates?: readonly string[];
+  readonly tags?: readonly (string | ComposerTagOption)[];
+  readonly predicates?: readonly (string | ComposerPredicateOption)[];
   readonly identityEvidence?: readonly ComposerIdentityEvidenceAssessment[];
 }
 
@@ -174,6 +177,23 @@ export class LuumOccurrenceComposerElement extends LitElement {
       inline-size: 100%;
       min-inline-size: 0;
       pointer-events: auto;
+      --composer-semantic-accent: var(--ink, #191714);
+    }
+
+    .composer[data-semantic-color="true"] .input-shell {
+      border-color: color-mix(
+        in srgb,
+        var(--composer-semantic-accent) 34%,
+        var(--line, #d1ccc4)
+      );
+    }
+
+    .composer[data-semantic-color="true"] .completion-panel {
+      border-color: color-mix(
+        in srgb,
+        var(--composer-semantic-accent) 48%,
+        var(--line-strong, #b8b1a5)
+      );
     }
 
     .input-row {
@@ -329,6 +349,15 @@ export class LuumOccurrenceComposerElement extends LitElement {
       color: var(--focus, #315fbd);
     }
 
+    .composer[data-semantic-color="true"] .input-token[data-active="true"] {
+      background: color-mix(in srgb, var(--composer-semantic-accent) 10%, transparent);
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--composer-semantic-accent) 52%, transparent);
+    }
+
+    .composer[data-semantic-color="true"] .input-token[data-active="true"]::before {
+      color: var(--composer-semantic-accent);
+    }
+
     .input-token[data-investigative="true"] {
       background: color-mix(in srgb, var(--accent, #b7472a) 9%, transparent);
       box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--accent, #b7472a) 82%, transparent);
@@ -431,10 +460,28 @@ export class LuumOccurrenceComposerElement extends LitElement {
       min-inline-size: 0;
       padding: 0.65rem;
       border-block-end: 1px solid var(--line, #d1ccc4);
+      border-inline-start: 3px solid transparent;
       background: var(--panel, #f5f3ef);
     }
 
+    .composer[data-semantic-color="true"] .composer-occurrence-card {
+      border-inline-start-color: color-mix(
+        in srgb,
+        var(--composer-semantic-accent) 72%,
+        transparent
+      );
+      background: linear-gradient(
+        112deg,
+        color-mix(in srgb, var(--composer-semantic-accent) 7%, var(--panel, #f5f3ef)),
+        var(--panel, #f5f3ef) 42%
+      );
+    }
+
     .composer-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; font-size: 0.8rem; }
+    .composer-card-heading-main { display: inline-flex; min-inline-size: 0; align-items: center; gap: 0.42rem; }
+    .composer-heading-icon { display: inline-grid; flex: 0 0 auto; inline-size: 20px; block-size: 20px; place-items: center; color: var(--muted, #615d56); }
+    .composer[data-semantic-color="true"] .composer-heading-icon { color: var(--composer-semantic-accent); }
+    .composer-heading-icon svg { inline-size: 20px; block-size: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
     .composer-card-heading strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .composer-card-meta-chips,
     .composer-context-hints {
@@ -818,11 +865,17 @@ export class LuumOccurrenceComposerElement extends LitElement {
       min-block-size: 44px;
       padding: 0.48rem 0.65rem;
       border: 0;
+      border-inline-start: 3px solid transparent;
       border-block-end: 1px solid var(--line, #d1ccc4);
       background: transparent;
       color: inherit;
       text-align: start;
       cursor: pointer;
+      --suggestion-accent: currentColor;
+    }
+
+    .option[data-semantic-color="true"] {
+      border-inline-start-color: var(--suggestion-accent);
     }
 
     .option:last-child {
@@ -833,6 +886,16 @@ export class LuumOccurrenceComposerElement extends LitElement {
     .option:focus-visible,
     .option:hover {
       background: color-mix(in srgb, var(--panel, #f5f3ef) 88%, transparent);
+    }
+
+    .option[data-semantic-color="true"][data-active="true"],
+    .option[data-semantic-color="true"]:focus-visible,
+    .option[data-semantic-color="true"]:hover {
+      background: color-mix(
+        in srgb,
+        var(--suggestion-accent) 10%,
+        var(--panel, #f5f3ef)
+      );
     }
 
     .option-main {
@@ -848,6 +911,21 @@ export class LuumOccurrenceComposerElement extends LitElement {
       inline-size: 20px;
       block-size: 20px;
       place-items: center;
+    }
+
+    .option[data-semantic-color="true"] .option-icon {
+      color: var(--suggestion-accent);
+    }
+
+    .option-color {
+      display: inline-block;
+      flex: 0 0 auto;
+      inline-size: 0.62rem;
+      block-size: 0.62rem;
+      border: 1px solid color-mix(in srgb, var(--ink, #191714) 24%, transparent);
+      border-radius: 50%;
+      background: var(--suggestion-accent);
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--paper, #fff) 68%, transparent);
     }
 
     .option-icon svg {
@@ -1859,6 +1937,80 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const previewCategory = this.data.categories.find(
       (category) => category.name === preview.category,
     );
+    const semanticSuggestion = this.previewSuggestion ?? activeSuggestion ?? null;
+    const relationshipAttributes = this.selectionContext?.metadata?.attributes;
+    const relationshipStyle =
+      relationshipAttributes?.["style"] &&
+      typeof relationshipAttributes["style"] === "object" &&
+      !Array.isArray(relationshipAttributes["style"])
+        ? (relationshipAttributes["style"] as Readonly<Record<string, unknown>>)
+        : relationshipAttributes;
+    const relationshipAccent = normalizeComposerSemanticColor(
+      relationshipStyle?.["categoryColor"] ??
+        relationshipStyle?.["color"] ??
+        relationshipStyle?.["stroke"] ??
+        relationshipStyle?.["lineColor"],
+    );
+    const relationshipIcon =
+      typeof relationshipStyle?.["icon"] === "string" ? relationshipStyle["icon"] : null;
+    const predicateVisual = (this.data.predicates ?? [])
+      .map((predicate): ComposerPredicateOption =>
+        typeof predicate === "string" ? { name: predicate } : predicate,
+      )
+      .find((predicate) => predicate.name === preview.edge?.label);
+    const subjectEntity = preview.subject
+      ? this.data.entities.find(
+          (entity) =>
+            entity.id === preview.subject?.entityId || entity.name === preview.subject?.label,
+        )
+      : null;
+    const objectEntity = preview.object
+      ? this.data.entities.find(
+          (entity) =>
+            entity.id === preview.object?.entityId || entity.name === preview.object?.label,
+        )
+      : null;
+    const entityVisual = (entity: ComposerEntityOption | null | undefined) => {
+      const attributes = entity?.attributes;
+      const style =
+        attributes?.["style"] &&
+        typeof attributes["style"] === "object" &&
+        !Array.isArray(attributes["style"])
+          ? (attributes["style"] as Readonly<Record<string, unknown>>)
+          : attributes;
+      return {
+        color: normalizeComposerSemanticColor(
+          style?.["color"] ?? style?.["fill"] ?? style?.["fillColor"] ?? style?.["border"],
+        ),
+        icon: entity?.icon ?? null,
+      };
+    };
+    const subjectVisual = entityVisual(subjectEntity);
+    const objectVisual = entityVisual(objectEntity);
+    const activeTagVisual = preview.tags
+      .map((label) =>
+        (this.data.tags ?? [])
+          .map((tag): ComposerTagOption => (typeof tag === "string" ? { label: tag } : tag))
+          .find((tag) => tag.label === label),
+      )
+      .find((tag) => Boolean(tag?.color || tag?.icon));
+    const deckAccent =
+      normalizeComposerSemanticColor(semanticSuggestion?.color) ??
+      normalizeComposerSemanticColor(predicateVisual?.color) ??
+      relationshipAccent ??
+      subjectVisual.color ??
+      objectVisual.color ??
+      normalizeComposerSemanticColor(previewCategory?.color) ??
+      normalizeComposerSemanticColor(activeTagVisual?.color);
+    const deckIcon =
+      semanticSuggestion?.icon ??
+      predicateVisual?.icon ??
+      relationshipIcon ??
+      subjectVisual.icon ??
+      objectVisual.icon ??
+      previewCategory?.icon ??
+      activeTagVisual?.icon ??
+      null;
     const previewPalette = this.previewPalette();
     const inputSegments = this.inputDecorationSegments(sections, qualifiers);
     const metadata = this.selectionContext?.metadata ?? null;
@@ -1872,7 +2024,12 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const cardStatus = qualifiers.length ? "Investigating" : preview.category || "Draft";
 
     return html`
-      <section class="composer" aria-label="Occurrence composer">
+      <section
+        class="composer"
+        aria-label="Occurrence composer"
+        data-semantic-color=${String(Boolean(deckAccent))}
+        style=${deckAccent ? `--composer-semantic-accent: ${deckAccent}` : nothing}
+      >
         <div class="input-row">
           <span class="stage composer-chip" data-chip-kind="stage" aria-hidden="true">${this.stageLabel(parsed, sections, qualifiers)}</span>
           <div class="input-shell">
@@ -1970,12 +2127,23 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
         <div class="completion-panel">
           <section class="composer-occurrence-card" aria-label="Occurrence card in composer">
-            <div class="composer-card-heading"><strong>${this.selectionContext?.title || "New occurrence"}</strong>
+            <div class="composer-card-heading">
+              <span class="composer-card-heading-main">
+                ${deckIcon
+                  ? html`<span class="composer-heading-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" focusable="false">
+                        ${iconPathData(deckIcon).map((path) => html`<path d=${path}></path>`)}
+                      </svg>
+                    </span>`
+                  : nothing}
+                <strong>${this.selectionContext?.title || "New occurrence"}</strong>
+              </span>
               <span
                 class="composer-chip card-status-chip"
                 data-chip-kind="status"
                 data-chip-tone=${qualifiers.length ? "investigative" : preview.category ? "strong" : "neutral"}
-              >${cardStatus}</span></div>
+              >${cardStatus}</span>
+            </div>
             ${metadata
               ? html`<div class="composer-card-meta-chips" aria-label="Occurrence metadata">
                   ${metadata.role?.trim()
@@ -2020,7 +2188,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
                 </div>`
               : nothing}
             <div class="composer-world-preview" role="img"
-              style=${`--preview-accent: ${previewCategory?.color ?? "var(--accent, #315fbd)"}`}
+              style=${`--preview-accent: ${deckAccent ?? "var(--accent, #315fbd)"}`}
               aria-label=${`World preview: ${preview.subject?.label ?? "subject pending"}, ${preview.edge?.label ?? "action pending"}, ${preview.object?.label ?? "target pending"}${preview.place ? ` at ${preview.place.label}${preview.place.longitude === null ? " (coordinates unknown)" : ""}` : ""}`}>
               ${preview.place ? html`<span class="mini-world-place">${preview.place.label}</span>` : nothing}
               ${
@@ -2214,6 +2382,12 @@ export class LuumOccurrenceComposerElement extends LitElement {
                         data-active=${String(index === selectedIndex)}
                         data-multiselect=${String(Boolean(suggestion.multiSelect))}
                         data-selected=${String(Boolean(suggestion.selected))}
+                        data-semantic-color=${String(Boolean(normalizeComposerSemanticColor(suggestion.color)))}
+                        style=${
+                          normalizeComposerSemanticColor(suggestion.color)
+                            ? `--suggestion-accent: ${normalizeComposerSemanticColor(suggestion.color)}`
+                            : nothing
+                        }
                         @pointerdown=${(event: PointerEvent) => event.preventDefault()}
                         @pointerenter=${() => {
                           this.previewSuggestion = suggestion;
@@ -2239,7 +2413,9 @@ export class LuumOccurrenceComposerElement extends LitElement {
                                   )}
                                 </svg>
                               </span>`
-                              : nothing
+                              : normalizeComposerSemanticColor(suggestion.color)
+                                ? html`<span class="option-color" aria-hidden="true"></span>`
+                                : nothing
                           }
                           <span class="option-label">${suggestion.label}</span>
                         </span>
