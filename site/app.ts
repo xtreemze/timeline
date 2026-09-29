@@ -2009,9 +2009,15 @@ function syncComposerVisualViewport(): void {
   const visualViewport = window.visualViewport;
   const height = Math.max(1, visualViewport?.height || window.innerHeight || 1);
   const composerFocused = els.occurrenceComposer.inputHasFocus();
-  const bottomInset = composerFocused
-    ? Math.max(0, window.innerHeight - ((visualViewport?.offsetTop ?? 0) + height))
-    : 0;
+  const layoutHeight = Math.max(
+    height,
+    window.innerHeight || 0,
+    document.documentElement.clientHeight || 0,
+  );
+  // visualViewport.offsetTop is viewport panning, not keyboard height. Chromium can pan the
+  // visual viewport by nearly the IME height to keep a focused field visible; subtracting that
+  // offset cancels the keyboard occlusion and leaves the composer underneath the keyboard.
+  const bottomInset = composerFocused ? Math.max(0, layoutHeight - height) : 0;
   const heightPx = `${Math.round(height)}px`;
   document.documentElement.style.setProperty(
     "--app-visual-viewport-bottom",
