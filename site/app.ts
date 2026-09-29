@@ -1962,8 +1962,17 @@ function restoreComposerFocus(target: HTMLElement | null): void {
 }
 
 function syncComposerVisualViewport(): void {
-  const height = Math.max(1, window.visualViewport?.height || window.innerHeight || 1);
+  const visualViewport = window.visualViewport;
+  const height = Math.max(1, visualViewport?.height || window.innerHeight || 1);
+  const bottomInset = Math.max(
+    0,
+    window.innerHeight - ((visualViewport?.offsetTop ?? 0) + height),
+  );
   const heightPx = `${Math.round(height)}px`;
+  document.documentElement.style.setProperty(
+    "--app-visual-viewport-bottom",
+    `${Math.round(bottomInset)}px`,
+  );
   els.occurrenceComposer.style.setProperty("--composer-visual-viewport-height", heightPx);
   els.occurrenceComposer.style.setProperty(
     "--composer-completion-max-height",
