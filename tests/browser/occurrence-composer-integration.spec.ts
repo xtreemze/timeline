@@ -104,8 +104,8 @@ test("mobile composer fills one viewport lane, follows pan, and snaps centered",
   await footer.evaluate((element: HTMLElement) => {
     element.style.removeProperty("scroll-snap-type");
   });
-  await composer.locator(".input-shell").evaluate((element: HTMLElement) => {
-    element.scrollIntoView({ block: "nearest", inline: "center", behavior: "auto" });
+  await composer.evaluate((element: HTMLElement & { revealMobileInputLane?: () => void }) => {
+    element.revealMobileInputLane?.();
   });
   await expect
     .poll(async () => {
@@ -117,6 +117,29 @@ test("mobile composer fills one viewport lane, follows pan, and snaps centered",
   const snapped = await geometry();
   expect(Math.abs(snapped.panelCenter - snapped.viewportCenter)).toBeLessThanOrEqual(2);
   expect(Math.abs(snapped.panelLeft - snapped.shellLeft)).toBeLessThanOrEqual(2);
+
+  // Android keyboard geometry may change after focus. Lifting the footer must not
+  // lose the horizontally centered composer lane.
+  await page.evaluate(() => {
+    document.documentElement.style.setProperty("--app-visual-viewport-bottom", "128px");
+  });
+  await composer.evaluate((element: HTMLElement & { revealMobileInputLane?: () => void }) => {
+    element.revealMobileInputLane?.();
+  });
+  await expect
+    .poll(async () => {
+      const box = await footer.boundingBox();
+      return box ? Math.round(844 - (box.y + box.height)) : -1;
+    })
+    .toBe(128);
+  const lifted = await geometry();
+  expect(Math.abs(lifted.shellCenter - lifted.viewportCenter)).toBeLessThanOrEqual(2);
+  expect(Math.abs(lifted.panelCenter - lifted.viewportCenter)).toBeLessThanOrEqual(2);
+  await expect(composer.locator('input[role="combobox"]')).toBeFocused();
+  await expect(composer.locator('input[role="combobox"]')).toBeVisible();
+  await page.evaluate(() => {
+    document.documentElement.style.removeProperty("--app-visual-viewport-bottom");
+  });
 
   const approve = composer.getByRole("button", { name: "Approve occurrence" });
   await approve.scrollIntoViewIfNeeded();
