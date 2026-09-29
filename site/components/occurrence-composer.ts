@@ -1858,12 +1858,66 @@ export class LuumOccurrenceComposerElement extends LitElement {
     );
     const relationshipIcon =
       typeof relationshipStyle?.["icon"] === "string" ? relationshipStyle["icon"] : null;
+    const predicateVisual = (this.data.predicates ?? [])
+      .map((predicate) =>
+        typeof predicate === "string"
+          ? { name: predicate }
+          : predicate,
+      )
+      .find((predicate) => predicate.name === preview.edge?.label);
+    const subjectEntity = preview.subject
+      ? this.data.entities.find(
+          (entity) =>
+            entity.id === preview.subject?.entityId || entity.name === preview.subject?.label,
+        )
+      : null;
+    const objectEntity = preview.object
+      ? this.data.entities.find(
+          (entity) =>
+            entity.id === preview.object?.entityId || entity.name === preview.object?.label,
+        )
+      : null;
+    const entityVisual = (entity: ComposerEntityOption | null | undefined) => {
+      const attributes = entity?.attributes;
+      const style =
+        attributes?.["style"] &&
+        typeof attributes["style"] === "object" &&
+        !Array.isArray(attributes["style"])
+          ? (attributes["style"] as Readonly<Record<string, unknown>>)
+          : attributes;
+      return {
+        color: normalizeComposerSemanticColor(
+          style?.["color"] ?? style?.["fill"] ?? style?.["fillColor"] ?? style?.["border"],
+        ),
+        icon: entity?.icon ?? null,
+      };
+    };
+    const subjectVisual = entityVisual(subjectEntity);
+    const objectVisual = entityVisual(objectEntity);
+    const activeTagVisual = preview.tags
+      .map((label) =>
+        (this.data.tags ?? [])
+          .map((tag) => (typeof tag === "string" ? { label: tag } : tag))
+          .find((tag) => tag.label === label),
+      )
+      .find((tag) => Boolean(tag?.color || tag?.icon));
     const deckAccent =
       normalizeComposerSemanticColor(semanticSuggestion?.color) ??
+      normalizeComposerSemanticColor(predicateVisual?.color) ??
+      relationshipAccent ??
+      subjectVisual.color ??
+      objectVisual.color ??
       normalizeComposerSemanticColor(previewCategory?.color) ??
-      relationshipAccent;
+      normalizeComposerSemanticColor(activeTagVisual?.color);
     const deckIcon =
-      semanticSuggestion?.icon ?? previewCategory?.icon ?? relationshipIcon ?? null;
+      semanticSuggestion?.icon ??
+      predicateVisual?.icon ??
+      relationshipIcon ??
+      subjectVisual.icon ??
+      objectVisual.icon ??
+      previewCategory?.icon ??
+      activeTagVisual?.icon ??
+      null;
     const previewPalette = this.previewPalette();
     const inputSegments = this.inputDecorationSegments(sections, qualifiers);
 
