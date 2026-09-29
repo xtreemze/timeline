@@ -200,6 +200,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     .input-shell {
       position: relative;
       min-inline-size: 0;
+      anchor-name: --occurrence-composer-input;
     }
 
     .ghost-completion {
@@ -578,13 +579,37 @@ export class LuumOccurrenceComposerElement extends LitElement {
       }
     }
 
-    @media (max-width: 480px) {
+    @media (max-width: 699px) {
+      .composer {
+        inline-size: max-content;
+        min-inline-size: 100dvi;
+        max-inline-size: none;
+      }
+
       .input-row {
-        grid-template-columns: minmax(0, 1fr) auto auto;
+        grid-template-columns: 100dvi auto auto;
+        inline-size: max-content;
+        max-inline-size: none;
+      }
+
+      .input-shell {
+        inline-size: 100dvi;
+        max-inline-size: 100dvi;
       }
 
       .stage {
         display: none;
+      }
+
+      .completion-panel {
+        position: fixed;
+        position-anchor: --occurrence-composer-input;
+        inset-inline-start: anchor(start);
+        inset-inline-end: auto;
+        inset-block-end: calc(anchor(top) + 0.38rem);
+        inline-size: anchor-size(width);
+        max-inline-size: 100dvi;
+        box-sizing: border-box;
       }
 
       .context-chip {
@@ -960,6 +985,9 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.active = true;
     this.externalError = "";
     void this.updateComplete.then(() => {
+      if (typeof matchMedia === "function" && matchMedia("(max-width: 699px)").matches) {
+        this.scrollIntoView({ block: "nearest", inline: "start", behavior: "auto" });
+      }
       this.renderRoot.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
     });
   }
