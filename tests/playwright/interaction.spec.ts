@@ -182,23 +182,23 @@ test.describe("Timeline interaction contracts", () => {
     await expect(page.locator("#timeline-focus-view")).toBeHidden();
   });
 
-  test("event cards expose focused-detail expansion state", async ({ page }) => {
+  test("event card activation exposes composer-owned occurrence detail", async ({ page }) => {
     const terminal = page
       .locator(
         ".timeline-event:not(.timeline-cluster):not(.is-buffered) .timeline-event-terminal:visible",
       )
       .first();
-    await expect(terminal).toHaveAttribute("aria-controls", /timeline-event-detail-/);
-    await expect(terminal).toHaveAttribute("aria-expanded", "false");
+    await expect(terminal).toBeVisible();
 
-    const card = terminal.locator("xpath=ancestor::luum-event-card[1]");
     await terminal.focus();
     await page.keyboard.press("Enter");
-    await page.keyboard.press("Enter");
 
-    await expect(page.locator("#timeline-focus-view")).toBeHidden();
-    await expect(card.locator(".timeline-event-detail")).toBeVisible();
-    await expect(terminal).toHaveAttribute("aria-expanded", "true");
+    const composer = page.locator("#occurrence-composer");
+    await expect(composer).toHaveAttribute("active", "");
+    await expect(composer.locator(".composer-occurrence-card")).toBeVisible();
+    await expect(composer.locator('input[role="combobox"]')).toBeVisible();
+    await expect(page.locator(".timeline-event-detail:visible")).toHaveCount(0);
+    await expect(page.locator("#timeline-focus-view:visible")).toHaveCount(0);
   });
 
   test("viewport events publish the logical active relationship set shown by the timeline", async ({
