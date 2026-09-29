@@ -61,8 +61,6 @@ function weightedGlobeEasing(progress: number): number {
 type GlobeControllerEvent = Parameters<InstanceType<typeof GlobeController>["handleEvent"]>[0];
 type GlobeControllerCenterEvent = Parameters<InstanceType<typeof GlobeController>["getCenter"]>[0];
 
-const DEGREES_TO_RADIANS = Math.PI / 180;
-const GLOBE_HORIZONTAL_LATITUDE_GAIN_FLOOR = 0.25;
 
 function globeEventTimestamp(event: GlobeControllerCenterEvent): number {
   const candidate = event as GlobeControllerCenterEvent & {
@@ -102,10 +100,8 @@ function pointerTypeForGlobeEvent(event: GlobeControllerEvent): string | undefin
  */
 class TimelineWeightedGlobeController extends GlobeController {
   readonly #touchBearing: TouchBearingConstraintState;
-  #weightedPanStart: [number, number] | null = null;
   #weightedPanCenter: [number, number] | null = null;
   #weightedPanLastTime = 0;
-  #weightedPanHorizontalScale = 1;
 
   constructor(options: ConstructorParameters<typeof GlobeController>[0]) {
     const touchBearing: TouchBearingConstraintState = {
@@ -153,10 +149,8 @@ class TimelineWeightedGlobeController extends GlobeController {
   }
 
   #clearWeightedPan(): void {
-    this.#weightedPanStart = null;
     this.#weightedPanCenter = null;
     this.#weightedPanLastTime = 0;
-    this.#weightedPanHorizontalScale = 1;
   }
 
   override getCenter(event: GlobeControllerCenterEvent): [number, number] {
@@ -170,39 +164,19 @@ class TimelineWeightedGlobeController extends GlobeController {
         return raw;
       }
 
-      const { latitude = 0, bearing = 0 } = this.controllerState.getViewportProps();
-      this.#weightedPanStart = raw;
       this.#weightedPanCenter = raw;
       this.#weightedPanLastTime = globeEventTimestamp(event);
-      // deck.gl's north-up GlobeState intentionally multiplies horizontal
-      // drag by 1/cos(latitude), capped at 4x. That geographic compensation
-      // feels like pointer acceleration in Lūm (already ~1.9x around 59° N).
-      // Pre-scale the pointer delta by the reciprocal factor so screen-space
-      // drag sensitivity stays stable across latitude.
-      this.#weightedPanHorizontalScale =
-        Math.abs(bearing) < 1
-          ? Math.max(
-              Math.cos(latitude * DEGREES_TO_RADIANS),
-              GLOBE_HORIZONTAL_LATITUDE_GAIN_FLOOR,
-            )
-          : 1;
       return raw;
     }
 
-    const start = this.#weightedPanStart;
     const current = this.#weightedPanCenter;
-    if (event.type !== "panmove" || !start || !current) return raw;
-
-    const target: [number, number] = [
-      start[0] + (raw[0] - start[0]) * this.#weightedPanHorizontalScale,
-      raw[1],
-    ];
+    if (event.type !== "panmove" || !current) return raw;
     const now = globeEventTimestamp(event);
     const response = TimelineMotion.responseForElapsed(now - this.#weightedPanLastTime);
     this.#weightedPanLastTime = now;
     const weighted: [number, number] = [
-      current[0] + (target[0] - current[0]) * response,
-      current[1] + (target[1] - current[1]) * response,
+      current[0] + (raw[0] - current[0]) * response,
+      current[1] + (raw[1] - current[1]) * response,
     ];
     this.#weightedPanCenter = weighted;
     return weighted;
