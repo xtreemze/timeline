@@ -72,6 +72,18 @@ export interface ComposerEntityOption {
   readonly sourceIds?: readonly string[];
 }
 
+export interface ComposerPredicateOption {
+  readonly name: string;
+  readonly icon?: string;
+  readonly color?: string;
+}
+
+export interface ComposerTagOption {
+  readonly label: string;
+  readonly icon?: string;
+  readonly color?: string;
+}
+
 export interface ComposerPlaceOption {
   readonly id: string;
   readonly name: string;
@@ -84,6 +96,7 @@ export interface ComposerCategoryOption {
   readonly id: string;
   readonly name: string;
   readonly color?: string;
+  readonly icon?: string;
 }
 
 export interface ComposerSuggestion {
@@ -91,6 +104,7 @@ export interface ComposerSuggestion {
   readonly label: string;
   readonly detail?: string;
   readonly icon?: string;
+  readonly color?: string;
   readonly insertText: string;
   readonly replaceRange?: Readonly<{ start: number; end: number }>;
 }
@@ -183,15 +197,85 @@ function actionIconHint(action: string): SemanticIconName {
   return "relation";
 }
 
-function availableActions(projectPredicates: readonly string[] = []): readonly string[] {
-  return Object.freeze(
-    [
-      ...new Set([
-        ...ACTION_SUGGESTIONS,
-        ...projectPredicates.map((predicate) => predicate.trim()),
-      ]),
-    ].filter(Boolean),
+export function normalizeComposerSemanticColor(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const color = value.trim();
+  if (/^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(color)) return color;
+  const hsl = color.match(/^hsl\(\s*(\d{1,3})\s+(\d{1,3})%\s+(\d{1,3})%\s*\)$/i);
+  if (!hsl) return undefined;
+  const hue = Number(hsl[1]);
+  const saturation = Number(hsl[2]);
+  const lightness = Number(hsl[3]);
+  if (hue > 360 || saturation > 100 || lightness > 100) return undefined;
+  return `hsl(${hue} ${saturation}% ${lightness}%)`;
+}
+
+function composerEntityColor(entity: ComposerEntityOption): string | undefined {
+  const attributes = entity.attributes;
+  const style =
+    attributes?.["style"] && typeof attributes["style"] === "object"
+      ? (attributes["style"] as Readonly<Record<string, unknown>>)
+      : attributes;
+  return normalizeComposerSemanticColor(
+    style?.["color"] ?? style?.["fill"] ?? style?.["fillColor"] ?? style?.["border"],
   );
+}
+
+function normalizePredicateOption(
+  predicate: string | ComposerPredicateOption,
+): ComposerPredicateOption | null {
+  if (typeof predicate === "string") {
+    const name = predicate.trim();
+    return name ? Object.freeze({ name, icon: actionIconHint(name) }) : null;
+  }
+  const name = predicate.name.trim();
+  if (!name) return null;
+  return Object.freeze({
+    name,
+    icon: predicate.icon || actionIconHint(name),
+    ...(normalizeComposerSemanticColor(predicate.color)
+      ? { color: normalizeComposerSemanticColor(predicate.color) }
+      : {}),
+  });
+}
+
+function normalizeTagOption(tag: string | ComposerTagOption): ComposerTagOption | null {
+  if (typeof tag === "string") {
+    const label = tag.trim();
+    return label ? Object.freeze({ label }) : null;
+  }
+  const label = tag.label.trim();
+  if (!label) return null;
+  const color = normalizeComposerSemanticColor(tag.color);
+  return Object.freeze({
+    label,
+    ...(tag.icon ? { icon: tag.icon } : {}),
+    ...(color ? { color } : {}),
+  });
+}
+
+function availableActions(
+  projectPredicates: readonly (string | ComposerPredicateOption)[] = [],
+): readonly ComposerPredicateOption[] {
+  const actions = new Map<string, ComposerPredicateOption>();
+  for (const name of ACTION_SUGGESTIONS) {
+    actions.set(name.toLocaleLowerCase(), Object.freeze({ name, icon: actionIconHint(name) }));
+  }
+  for (const raw of projectPredicates) {
+    const option = normalizePredicateOption(raw);
+    if (!option) continue;
+    const key = option.name.toLocaleLowerCase();
+    const previous = actions.get(key);
+    actions.set(
+      key,
+      Object.freeze({
+        name: option.name,
+        icon: option.icon ?? previous?.icon ?? actionIconHint(option.name),
+        ...(option.color ?? previous?.color ? { color: option.color ?? previous?.color } : {}),
+      }),
+    );
+  }
+  return Object.freeze([...actions.values()]);
 }
 
 const PRIMARY_ENTITY_ICONS = Object.freeze(["person", "group", "object", "evidence"] as const);
@@ -990,6 +1074,7 @@ function cursorEntitySuggestions(
           ? `nearest ${section.kind} · ${entity.type || "entity"} · ${entity.id}`
           : `nearest ${section.kind} · ${entity.type || "entity"}`,
         ...(entity.icon ? { icon: entity.icon } : {}),
+        ...(composerEntityColor(entity) ? { color: composerEntityColor(entity) } : {}),
         insertText: canonicalReferenceRequired ? `@${entity.id}` : quoteComposerName(entity.name),
         replaceRange: Object.freeze({ start: section.start, end: section.end }),
       };
@@ -1019,22 +1104,24 @@ function cursorEntitySuggestions(
 
 function cursorPredicateSuggestions(
   section: ComposerCursorSection,
-  projectPredicates: readonly string[] = [],
+  projectPredicates: readonly (string | ComposerPredicateOption)[] = [],
 ): readonly ComposerSuggestion[] {
   return Object.freeze(
     [...availableActions(projectPredicates)]
       .sort(
         (left, right) =>
-          nearestMatchScore(section.text, [left]) - nearestMatchScore(section.text, [right]) ||
-          left.localeCompare(right),
+          nearestMatchScore(section.text, [left.name]) -
+            nearestMatchScore(section.text, [right.name]) ||
+          left.name.localeCompare(right.name),
       )
       .slice(0, 8)
       .map((action) => ({
         kind: "predicate" as const,
-        label: action,
+        label: action.name,
         detail: "nearest action",
-        icon: actionIconHint(action),
-        insertText: action,
+        icon: action.icon ?? actionIconHint(action.name),
+        ...(action.color ? { color: action.color } : {}),
+        insertText: action.name,
         replaceRange: Object.freeze({ start: section.start, end: section.end }),
       })),
   );
@@ -1096,8 +1183,8 @@ export function occurrenceComposerSuggestions(
     readonly timelineDefault?: string | null;
     readonly locationDefault?: string | null;
     readonly preferredEntityIds?: readonly string[];
-    readonly predicates?: readonly string[];
-    readonly tags?: readonly string[];
+    readonly predicates?: readonly (string | ComposerPredicateOption)[];
+    readonly tags?: readonly (string | ComposerTagOption)[];
     readonly cursorOffset?: number | null;
   },
 ): readonly ComposerSuggestion[] {
@@ -1147,21 +1234,23 @@ export function occurrenceComposerSuggestions(
       const retainedKeys = new Set(retainedTags.map(normalizedMatchText));
       return uniqueSuggestions(
         (options.tags ?? [])
-          .map((tag) => tag.trim())
-          .filter(Boolean)
-          .filter((tag) => !retainedKeys.has(normalizedMatchText(tag)))
+          .map(normalizeTagOption)
+          .filter((tag): tag is ComposerTagOption => Boolean(tag))
+          .filter((tag) => !retainedKeys.has(normalizedMatchText(tag.label)))
           .filter((tag) => {
             if (editableSection?.kind === "tag" || !activeTag) return true;
-            return normalizedMatchText(tag).includes(activeTag);
+            return normalizedMatchText(tag.label).includes(activeTag);
           })
           .slice(0, 10)
           .map((tag) =>
             editableSection?.kind === "tag"
               ? {
                   kind: "tag" as const,
-                  label: tag,
+                  label: tag.label,
                   detail: "existing tag",
-                  insertText: tag,
+                  ...(tag.icon ? { icon: tag.icon } : {}),
+                  ...(tag.color ? { color: tag.color } : {}),
+                  insertText: tag.label,
                   replaceRange: Object.freeze({
                     start: editableSection.start,
                     end: editableSection.end,
@@ -1169,9 +1258,11 @@ export function occurrenceComposerSuggestions(
                 }
               : {
                   kind: "tag" as const,
-                  label: tag,
+                  label: tag.label,
                   detail: "existing tag",
-                  insertText: `tags: ${[...retainedTags, tag].join("|")}`,
+                  ...(tag.icon ? { icon: tag.icon } : {}),
+                  ...(tag.color ? { color: tag.color } : {}),
+                  insertText: `tags: ${[...retainedTags, tag.label].join("|")}`,
                 },
           ),
       );
@@ -1190,6 +1281,10 @@ export function occurrenceComposerSuggestions(
               kind: "category" as const,
               label: category.name,
               detail: "category",
+              ...(category.icon ? { icon: category.icon } : {}),
+              ...(normalizeComposerSemanticColor(category.color)
+                ? { color: normalizeComposerSemanticColor(category.color) }
+                : {}),
               insertText: quoteComposerName(category.name),
               replaceRange: Object.freeze({
                 start: editableSection.start,
@@ -1200,6 +1295,10 @@ export function occurrenceComposerSuggestions(
               kind: "category" as const,
               label: category.name,
               detail: "category",
+              ...(category.icon ? { icon: category.icon } : {}),
+              ...(normalizeComposerSemanticColor(category.color)
+                ? { color: normalizeComposerSemanticColor(category.color) }
+                : {}),
               insertText: `category: ${quoteComposerName(category.name)}`,
             },
       );
@@ -1309,6 +1408,7 @@ export function occurrenceComposerSuggestions(
             ? `${entity.type || "entity"} · ${entity.id}`
             : entity.type || "entity",
           ...(entity.icon ? { icon: entity.icon } : {}),
+          ...(composerEntityColor(entity) ? { color: composerEntityColor(entity) } : {}),
           insertText: canonicalReferenceRequired ? `@${entity.id}` : quoteComposerName(entity.name),
         };
       });
@@ -1318,14 +1418,15 @@ export function occurrenceComposerSuggestions(
   if (parsed.stage === "predicate") {
     return Object.freeze(
       availableActions(options.predicates)
-        .filter((action) => !token || action.toLocaleLowerCase().includes(token))
+        .filter((action) => !token || action.name.toLocaleLowerCase().includes(token))
         .slice(0, 12)
         .map((action) => ({
           kind: "predicate" as const,
-          label: action,
+          label: action.name,
           detail: "action",
-          icon: actionIconHint(action),
-          insertText: action,
+          icon: action.icon ?? actionIconHint(action.name),
+          ...(action.color ? { color: action.color } : {}),
+          insertText: action.name,
         })),
     );
   }
@@ -1369,6 +1470,7 @@ export function occurrenceComposerSuggestions(
     detail: string,
     key: "category" | "tags",
     value: string,
+    visual?: Readonly<{ icon?: string; color?: string }>,
   ): ComposerSuggestion => {
     if (optionsOpen >= 0 && optionsClose >= 0) {
       let replaceEnd = optionsClose + 1;
@@ -1378,6 +1480,10 @@ export function occurrenceComposerSuggestions(
         kind,
         label,
         detail,
+        ...(visual?.icon ? { icon: visual.icon } : {}),
+        ...(normalizeComposerSemanticColor(visual?.color)
+          ? { color: normalizeComposerSemanticColor(visual?.color) }
+          : {}),
         insertText: `${body ? ", " : ""}${key}: ${value}] `,
         replaceRange: Object.freeze({ start: optionsClose, end: replaceEnd }),
       });
@@ -1387,6 +1493,10 @@ export function occurrenceComposerSuggestions(
       kind,
       label,
       detail,
+      ...(visual?.icon ? { icon: visual.icon } : {}),
+      ...(normalizeComposerSemanticColor(visual?.color)
+        ? { color: normalizeComposerSemanticColor(visual?.color) }
+        : {}),
       insertText: `${trimmedEnd ? " " : ""}[${key}: ${value}] `,
       replaceRange: Object.freeze({ start: trimmedEnd, end: input.length }),
     });
@@ -1403,6 +1513,7 @@ export function occurrenceComposerSuggestions(
             "occurrence category",
             "category",
             quoteComposerName(category.name),
+            { icon: category.icon, color: category.color },
           ),
         ),
     );
@@ -1412,17 +1523,18 @@ export function occurrenceComposerSuggestions(
   if (!parsed.options.tags.length) {
     contextSuggestions.push(
       ...(options.tags ?? [])
-        .map((tag) => tag.trim())
-        .filter(Boolean)
-        .filter((tag) => !selectedTagKeys.has(normalizedMatchText(tag)))
+        .map(normalizeTagOption)
+        .filter((tag): tag is ComposerTagOption => Boolean(tag))
+        .filter((tag) => !selectedTagKeys.has(normalizedMatchText(tag.label)))
         .slice(0, 6)
         .map((tag) =>
           appendClosedOptionSuggestion(
             "tag",
-            tag,
+            tag.label,
             "occurrence tag",
             "tags",
-            quoteComposerName(tag),
+            quoteComposerName(tag.label),
+            tag,
           ),
         ),
     );
@@ -1432,15 +1544,17 @@ export function occurrenceComposerSuggestions(
     if (lastTag) {
       contextSuggestions.push(
         ...(options.tags ?? [])
-          .map((tag) => tag.trim())
-          .filter(Boolean)
-          .filter((tag) => !selectedTagKeys.has(normalizedMatchText(tag)))
+          .map(normalizeTagOption)
+          .filter((tag): tag is ComposerTagOption => Boolean(tag))
+          .filter((tag) => !selectedTagKeys.has(normalizedMatchText(tag.label)))
           .slice(0, 6)
           .map((tag) => ({
             kind: "tag" as const,
-            label: tag,
+            label: tag.label,
             detail: "add occurrence tag",
-            insertText: `|${quoteComposerName(tag)}`,
+            ...(tag.icon ? { icon: tag.icon } : {}),
+            ...(tag.color ? { color: tag.color } : {}),
+            insertText: `|${quoteComposerName(tag.label)}`,
             replaceRange: Object.freeze({ start: lastTag.end, end: lastTag.end }),
           })),
       );

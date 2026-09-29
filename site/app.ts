@@ -1977,6 +1977,68 @@ function syncComposerVisualViewport(): void {
   }
 }
 
+function composerSemanticVisual(attributes: unknown): Readonly<{ color?: string; icon?: string }> {
+  const record =
+    attributes && typeof attributes === "object" && !Array.isArray(attributes)
+      ? (attributes as Readonly<Record<string, unknown>>)
+      : {};
+  const style =
+    record["style"] && typeof record["style"] === "object" && !Array.isArray(record["style"])
+      ? (record["style"] as Readonly<Record<string, unknown>>)
+      : record;
+  const rawColor =
+    style["categoryColor"] ?? style["color"] ?? style["stroke"] ?? style["lineColor"] ?? style["fill"];
+  const color =
+    typeof rawColor === "string" && /^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(rawColor.trim())
+      ? rawColor.trim()
+      : undefined;
+  const icon = normalizeSemanticIconName(style["icon"] ?? record["icon"]) ?? undefined;
+  return Object.freeze({
+    ...(color ? { color } : {}),
+    ...(icon ? { icon } : {}),
+  });
+}
+
+function composerPredicateOptions() {
+  const options = new Map<string, { name: string; color?: string; icon?: string }>();
+  for (const relationship of state.relationships) {
+    const name = relationship.predicate.trim();
+    if (!name) continue;
+    const visual = composerSemanticVisual(relationship.attributes);
+    const current = options.get(name);
+    options.set(name, {
+      name,
+      ...(current?.color || visual.color ? { color: current?.color ?? visual.color } : {}),
+      ...(current?.icon || visual.icon ? { icon: current?.icon ?? visual.icon } : {}),
+    });
+  }
+  return [...options.values()];
+}
+
+function composerTagOptions() {
+  const options = new Map<string, { label: string; color?: string; icon?: string }>();
+  for (const item of state.items) {
+    for (const tag of item.tags ?? []) {
+      const label = (typeof tag === "string" ? tag : tag.label)?.trim();
+      if (!label) continue;
+      const current = options.get(label);
+      if (typeof tag === "string") {
+        if (!current) options.set(label, { label });
+        continue;
+      }
+      const icon = normalizeSemanticIconName(tag.icon) ?? current?.icon;
+      const hue = presentation.normalizeHue(tag.hue);
+      const color = `hsl(${hue} 64% 44%)`;
+      options.set(label, {
+        label,
+        ...(current?.color || color ? { color: current?.color ?? color } : {}),
+        ...(icon ? { icon } : {}),
+      });
+    }
+  }
+  return [...options.values()];
+}
+
 function syncOccurrenceComposerData(): void {
   els.occurrenceComposer.setData({
     entities: state.entities.map((entity) => ({
@@ -2002,22 +2064,17 @@ function syncOccurrenceComposerData(): void {
         suggestSemanticIconForPlace({ name: place.name })?.icon ??
         "place",
     })),
-    categories: state.categories.map((category) => ({
-      id: category.id,
-      name: category.name,
-      color: category.color,
-    })),
-    tags: [
-      ...new Set(
-        state.items.flatMap((item) =>
-          (item.tags ?? [])
-            .map((tag) => (typeof tag === "string" ? tag : tag.label))
-            .filter((tag): tag is string => Boolean(tag?.trim()))
-            .map((tag) => tag.trim()),
-        ),
-      ),
-    ],
-    predicates: [...new Set(state.relationships.map((relationship) => relationship.predicate))],
+    categories: state.categories.map((category) => {
+      const visual = composerSemanticVisual(category.attributes);
+      return {
+        id: category.id,
+        name: category.name,
+        color: category.color,
+        ...(visual.icon ? { icon: visual.icon } : {}),
+      };
+    }),
+    tags: composerTagOptions(),
+    predicates: composerPredicateOptions(),
     identityEvidence: caseReasoning.identityCandidateEvidenceAssessments(state.reasoning),
   });
   syncOccurrenceComposerSelection(applicationSelection.current);

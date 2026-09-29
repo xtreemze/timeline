@@ -1289,6 +1289,71 @@ test("composer-local glyphs preserve the shared Lucide construction contract", a
 });
 
 
+test("composer suggestions preserve authored semantic icon and color metadata", () => {
+  const options = {
+    entities: [
+      {
+        id: "alice",
+        name: "Alice",
+        type: "person",
+        icon: "person",
+        attributes: { style: { color: "#42658a" } },
+      },
+      { id: "bob", name: "Bob", type: "person", icon: "child" },
+    ],
+    places: [],
+    categories: [
+      { id: "incident", name: "Incident", color: "#b42318", icon: "evidence" },
+    ],
+    predicates: [{ name: "warns", icon: "danger", color: "#b54708" }],
+    tags: [{ label: "urgent", icon: "danger", color: "hsl(28 64% 44%)" }],
+  };
+
+  const entity = occurrenceComposerSuggestions("", options).find(
+    (suggestion) => suggestion.kind === "entity" && suggestion.label === "Alice",
+  );
+  assert.equal(entity?.icon, "person");
+  assert.equal(entity?.color, "#42658a");
+
+  const predicate = occurrenceComposerSuggestions("@alice ", options).find(
+    (suggestion) => suggestion.kind === "predicate" && suggestion.label === "warns",
+  );
+  assert.equal(predicate?.icon, "danger");
+  assert.equal(predicate?.color, "#b54708");
+
+  const category = occurrenceComposerSuggestions(
+    "@alice warns @bob [category: ",
+    options,
+  ).find((suggestion) => suggestion.kind === "category" && suggestion.label === "Incident");
+  assert.equal(category?.icon, "evidence");
+  assert.equal(category?.color, "#b42318");
+
+  const tag = occurrenceComposerSuggestions(
+    "@alice warns @bob [tags: ",
+    options,
+  ).find((suggestion) => suggestion.kind === "tag" && suggestion.label === "urgent");
+  assert.equal(tag?.icon, "danger");
+  assert.equal(tag?.color, "hsl(28 64% 44%)");
+});
+
+test("composer suggestion rows and deck consume semantic styling", async () => {
+  const [source, app] = await Promise.all([
+    readFile(new URL("../site/components/occurrence-composer.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(source, /data-semantic-color=\$\{String\(Boolean\(deckAccent\)\)\}/);
+  assert.match(source, /--composer-semantic-accent/);
+  assert.match(source, /class="composer-heading-icon"/);
+  assert.match(source, /--suggestion-accent/);
+  assert.match(source, /class="option-color"/);
+  assert.match(source, /normalizeComposerSemanticColor\(suggestion\.color\)/);
+  assert.match(app, /function composerPredicateOptions\(\)/);
+  assert.match(app, /function composerTagOptions\(\)/);
+  assert.match(app, /tags: composerTagOptions\(\)/);
+  assert.match(app, /predicates: composerPredicateOptions\(\)/);
+});
+
 test("composer-local suggestion glyphs preserve the shared Lucide construction contract", async () => {
   const source = await readFile(
     new URL("../site/components/occurrence-composer.ts", import.meta.url),
