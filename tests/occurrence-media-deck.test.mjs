@@ -136,6 +136,18 @@ test("occurrence deck surfaces use theme tokens and expose touch-safe image mani
     composer,
     /transform:\s*translate3d\(var\(--occurrence-image-pan-x, 0px\), var\(--occurrence-image-pan-y, 0px\), 0\)\s*scale\(var\(--occurrence-image-zoom, 1\)\)/,
   );
+  assert.match(
+    css,
+    /#app-shell\s+luum-occurrence-deck\[data-frame-count\]:not\(\[data-frame-count="1"\]\)\s+\.timeline-occurrence-deck-zoom-controls\s*\{[\s\S]*inset-block-end:\s*3\.75rem/,
+  );
+  assert.match(
+    css,
+    /#app-shell\s+luum-occurrence-deck\s+\.timeline-focus-slideshow-controls\s*\{[\s\S]*bottom:\s*0\.45rem[\s\S]*left:\s*50%/,
+  );
+  assert.match(
+    composer,
+    /\.composer-context-deck\[data-frame-count\]:not\(\[data-frame-count="1"\]\)\s+\.timeline-occurrence-deck-zoom-controls\s*\{[\s\S]*inset-block-end:\s*3\.6rem/,
+  );
 });
 
 test("timeline focus delegates media presentation to the occurrence deck", async () => {

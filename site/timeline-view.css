@@ -5475,8 +5475,23 @@ luum-occurrence-deck {
   backdrop-filter: blur(10px);
 }
 
-.timeline-focus-slideshow-controls {
+/* Media navigation and image zoom are separate control rows.
+   This intentionally outranks legacy compact-focus offsets so a growing
+   slideshow cluster can never occupy the zoom controls' hit area. */
+#app-shell luum-occurrence-deck .timeline-focus-slideshow-controls {
+  top: auto;
+  right: auto;
+  bottom: 0.45rem;
+  left: 50%;
+  max-inline-size: calc(100% - 1rem);
   gap: 0.1rem;
+  transform: translateX(-50%);
+}
+
+#app-shell
+  luum-occurrence-deck[data-frame-count]:not([data-frame-count="1"])
+  .timeline-occurrence-deck-zoom-controls {
+  inset-block-end: 3.75rem;
 }
 
 .timeline-focus-slide-dot,

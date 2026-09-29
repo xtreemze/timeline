@@ -558,6 +558,10 @@ export class LuumOccurrenceComposerElement extends LitElement {
       box-shadow: 0 4px 16px color-mix(in srgb, #000 12%, transparent);
       backdrop-filter: blur(10px);
     }
+    .composer-context-deck[data-frame-count]:not([data-frame-count="1"])
+      .timeline-occurrence-deck-zoom-controls {
+      inset-block-end: 3.6rem;
+    }
     .composer-context-deck .timeline-occurrence-deck-zoom-controls .timeline-focus-media-control {
       border: 0;
       background: transparent;
