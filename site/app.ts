@@ -1924,6 +1924,16 @@ function syncOccurrenceComposerSelection(selection = applicationSelection.curren
   const selectedItem = selectedItemId
     ? state.items.find((item) => String(item.id) === selectedItemId)
     : null;
+  const selectedCategory = selectedItem
+    ? state.categories.find(
+        (candidate) => String(candidate.id) === String(selectedItem.categoryId),
+      )
+    : null;
+  const selectedCategoryVisual: Readonly<{ color?: string; icon?: string }> = selectedCategory
+    ? composerSemanticVisual(selectedCategory.attributes)
+    : {};
+  const selectedOccurrenceColor = selectedCategory?.color ?? selectedCategoryVisual.color ?? null;
+  const selectedOccurrenceIcon = selectedCategoryVisual.icon ?? null;
   els.occurrenceComposer.setSelectionContext({
     selectedOccurrenceId: String(relationship.id),
     ...(selectedItemId ? { selectedItemId } : {}),
@@ -1948,6 +1958,14 @@ function syncOccurrenceComposerSelection(selection = applicationSelection.curren
       confidence: relationship.confidence ?? null,
       attributes: relationship.attributes ?? {},
     },
+    ...(selectedOccurrenceColor || selectedOccurrenceIcon
+      ? {
+          appearance: {
+            color: selectedOccurrenceColor,
+            icon: selectedOccurrenceIcon,
+          },
+        }
+      : {}),
     ...(relationshipPlace
       ? {
           place: {
