@@ -130,7 +130,7 @@ test("selection does not change the persistent Edit control presentation", async
   assert.doesNotMatch(sync, /Edit focused event|composerActive \? "Open editor"/);
 });
 
-test("composer owns real Home/End suggestion navigation while active", async () => {
+test("investigation owns Home/End candidate navigation without stealing native suggestion editing", async () => {
   const composer = await readFile(
     new URL("../site/components/occurrence-composer.ts", import.meta.url),
     "utf8",
@@ -138,8 +138,11 @@ test("composer owns real Home/End suggestion navigation while active", async () 
 
   assert.match(
     composer,
-    /\(event\.key === "Home" \|\| event\.key === "End"\) && suggestions\.length[\s\S]*selectSuggestion\(event\.key === "Home" \? 0 : suggestions\.length - 1, suggestions, false\)/,
+    /if \(investigation\.qualifiers\.length\)[\s\S]*\(event\.key === "Home" \|\| event\.key === "End"\) && candidates\.length[\s\S]*selectCandidate\(event\.key === "Home" \? 0 : candidates\.length - 1, candidates, false\)/,
   );
+  const suggestionNavigation =
+    composer.match(/const suggestions = this\.suggestions\(\)\.slice\(0, 7\);[\s\S]*?if \(event\.key !== "Enter"\) return;/)?.[0] ?? "";
+  assert.doesNotMatch(suggestionNavigation, /event\.key === "Home"|event\.key === "End"/);
 });
 
 test("composer keeps active suggestions and investigation candidates visibly centered", async () => {
@@ -152,6 +155,7 @@ test("composer keeps active suggestions and investigation candidates visibly cen
   assert.match(composer, /kind === "suggestion" \? "\.listbox" : "\.candidate-matrix"/);
   assert.match(composer, /choiceCenter[\s\S]*container\.clientHeight \/ 2/);
   assert.match(composer, /container\.scrollTo\(\{ top: target, behavior: "auto" \}\)/);
+  assert.match(composer, /visibleChoiceRect[\s\S]*panel\.scrollTo\(\{/);
   assert.match(composer, /private resetSuggestionSelection\(\)[\s\S]*centerActiveChoice\("suggestion"\)/);
   assert.match(composer, /private resetCandidateSelection\(\)[\s\S]*centerActiveChoice\("candidate"\)/);
   assert.match(composer, /@wheel=\$\{\(event: WheelEvent\) => this\.onSuggestionWheel\(event\)\}/);
@@ -159,7 +163,7 @@ test("composer keeps active suggestions and investigation candidates visibly cen
   assert.match(composer, /Math\.abs\(this\.choiceWheelDelta\) < 72/);
   assert.match(composer, /selectSuggestion\(this\.activeSuggestion \+ step, suggestions, false\)/);
   assert.match(composer, /selectCandidate\(this\.activeCandidate \+ step, candidates, false\)/);
-  assert.match(composer, /id=\$\{\`occurrence-composer-candidate-\$\{index\}\`\}/);
+  assert.match(composer, /occurrence-composer-candidate-\$\{index\}/);
 });
 
 test("contextual composer returns focus to its connected invoker on close", async () => {
