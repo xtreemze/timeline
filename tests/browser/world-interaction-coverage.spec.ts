@@ -130,6 +130,80 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
     ).toBeGreaterThan(slowHeldDistance);
   });
 
+  test("globe release inertia does not accelerate beyond the held drag velocity", async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(
+      isMobile,
+      "Mobile projects exercise the same controller through trusted touch swipes.",
+    );
+    test.skip(!(await gotoHarness(page)), "WebGL2 unavailable in this environment.");
+
+    const viewport = page.viewportSize();
+    if (!viewport) throw new Error("WorldSurface drag certification requires a viewport.");
+
+    const startCamera = { longitude: 0, latitude: 20, zoom: 5, bearing: 0, pitch: 0 };
+    await page.evaluate(async (nextCamera) => {
+      window.__worldPerfHarness.surface.setCamera(nextCamera);
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      );
+    }, startCamera);
+
+    const start = {
+      x: Math.round(viewport.width * 0.42),
+      y: Math.round(viewport.height * 0.5),
+    };
+    const distance = Math.min(180, Math.round(viewport.width * 0.22));
+    const sample = () =>
+      page.evaluate(() => ({
+        camera: window.__worldPerfHarness.surface.getCamera(),
+        time: performance.now(),
+      }));
+    const cameraDistance = (
+      from: typeof startCamera,
+      to: typeof startCamera,
+    ) =>
+      Math.hypot(
+        (to.longitude - from.longitude) *
+          Math.cos((((from.latitude + to.latitude) / 2) * Math.PI) / 180),
+        to.latitude - from.latitude,
+      );
+
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    const heldSamples: Array<Awaited<ReturnType<typeof sample>>> = [];
+    for (let step = 1; step <= 12; step += 1) {
+      await page.mouse.move(start.x + (distance * step) / 12, start.y);
+      heldSamples.push(await sample());
+      if (step < 12) await page.waitForTimeout(20);
+    }
+
+    const recent = heldSamples.slice(-5);
+    const recentFirst = recent[0];
+    const held = recent.at(-1);
+    if (!recentFirst || !held) throw new Error("Expected direct-manipulation camera samples.");
+    const directElapsed = Math.max(1, held.time - recentFirst.time);
+    const directVelocity = cameraDistance(recentFirst.camera, held.camera) / directElapsed;
+
+    await page.mouse.up();
+    await page.waitForTimeout(32);
+    const released = await sample();
+    const releaseElapsed = Math.max(1, released.time - held.time);
+    const releaseVelocity = cameraDistance(held.camera, released.camera) / releaseElapsed;
+
+    expect(directVelocity, "the held drag must have measurable camera velocity").toBeGreaterThan(0);
+    expect(
+      releaseVelocity,
+      "release inertia should continue rather than stall immediately",
+    ).toBeGreaterThan(directVelocity * 0.35);
+    expect(
+      releaseVelocity,
+      "pointer-up must not accelerate the globe above the held drag velocity",
+    ).toBeLessThan(directVelocity * 1.35);
+  });
+
   test("mouse-wheel zoom changes the camera on the desktop controller path", async ({
     page,
     isMobile,

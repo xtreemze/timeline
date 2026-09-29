@@ -1101,6 +1101,11 @@ test("real globe direct pan applies the shared timeline-weighted response", asyn
     source,
     /event\.type === "pinchstart" \|\| event\.type === "multipanstart"/,
   );
+  assert.match(source, /function velocityContinuousGlobeInertiaEasing\(progress: number\)/);
+  assert.match(source, /return t \* \(2 - t\)/);
+  assert.match(source, /interactionState\.isDragging === false/);
+  assert.match(source, /interactionState\.isPanning === true/);
+  assert.match(source, /transitionEasing: velocityContinuousGlobeInertiaEasing/);
 });
 
 test("world surface advertises and releases focused keyboard camera ownership", () => {
