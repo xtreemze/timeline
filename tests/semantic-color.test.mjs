@@ -50,11 +50,12 @@ test("canonical persistence stores a hue carrier rather than authored display co
 });
 
 test("category authoring exposes hue only and semantic surfaces derive presentation colors", async () => {
-  const [html, app, styles, composer] = await Promise.all([
+  const [html, app, styles, composer, worldSurface] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/styles.css", import.meta.url), "utf8"),
     readFile(new URL("../site/components/occurrence-composer.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/world/deck-world-surface.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(html, /id="category-hue" type="range" min="0" max="359"/);
@@ -67,4 +68,9 @@ test("category authoring exposes hue only and semantic surfaces derive presentat
   assert.match(styles, /--tag-color:\s*light-dark/);
   assert.match(composer, /semanticColorCss\(deckAccentSource, "active"\)/);
   assert.match(composer, /--suggestion-accent: \$\{semanticColorCss/);
+  assert.match(worldSurface, /labelHalo: worldColorBytes\(palette\.paper, 160\)/);
+  assert.match(
+    worldSurface,
+    /\(emphasized \|\| directlyInteracted\) && entity[\s\S]*?: this\.#theme\.labelPlace/,
+  );
 });
