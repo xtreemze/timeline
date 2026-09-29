@@ -708,6 +708,9 @@
   > .app-tool-dock.app-footer-bar {
   z-index: 2300;
   isolation: isolate;
+  inset-inline: 0;
+  transform: none;
+  backdrop-filter: none;
   display: grid;
   grid-template-columns: auto minmax(220px, 1fr) minmax(44px, 44vw);
   grid-template-rows: minmax(0, 1fr);
