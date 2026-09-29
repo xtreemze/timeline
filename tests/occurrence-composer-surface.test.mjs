@@ -111,7 +111,7 @@ test("composer owns one sentence-first inline semantic editor and contextual pre
   assert.match(source, /data-selected=\$\{String\(Boolean\(suggestion\.selected\)\)\}/);
   assert.match(source, /Space toggles choices and Enter advances to the next part/);
   assert.match(source, /syncInputDecorationScroll\(target\)/);
-  assert.match(source, /kind === "candidate" \? "\.completion-context-scroll" : null/);
+  assert.match(source, /kind === "candidate"[\s\S]*?\.completion-context-scroll[\s\S]*?: null/);
   assert.match(source, /@scroll=\$\{\(event: Event\) => this\.onInputScroll\(event\)\}/);
   assert.match(source, /transform = `translateX\(\$\{-target\.scrollLeft\}px\)`/);
   assert.doesNotMatch(source, /preview\.tags\.map/);
