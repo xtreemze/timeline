@@ -104,6 +104,7 @@ type Orientation = "horizontal" | "vertical";
 
 interface TimelineItem {
   id: string;
+  relationshipId?: string;
   composition?: string;
   kind?: string;
   title?: string;
@@ -1327,7 +1328,7 @@ export class TimelineViewController {
         this.root.dispatchEvent(
           new CustomEvent("timelineoccurrenceeditrequest", {
             bubbles: true,
-            detail: { id: item.id },
+            detail: { id: item.id, relationshipId: item.relationshipId },
           }),
         );
       });
@@ -2965,7 +2966,10 @@ export class TimelineViewController {
     this.root.dispatchEvent(
       new CustomEvent("timelineoccurrenceeditrequest", {
         bubbles: true,
-        detail: { id: selectedId },
+        detail: {
+          id: selectedId,
+          relationshipId: this.items.find((item) => item.id === selectedId)?.relationshipId,
+        },
       }),
     );
     void motion.pulseHaptic("selection");
@@ -3144,7 +3148,7 @@ export class TimelineViewController {
       this.root.dispatchEvent(
         new CustomEvent("timelineoccurrenceeditrequest", {
           bubbles: true,
-          detail: { id: item.id },
+          detail: { id: item.id, relationshipId: item.relationshipId },
         }),
       );
     };
@@ -3353,7 +3357,7 @@ export class TimelineViewController {
 
     const focusedId = this.focusedId;
     for (const candidate of this.scene.values()) {
-      if (candidate.item.id !== focusedId) candidate.node.setExpanded(false);
+      candidate.node.setExpanded(false);
     }
 
     if (!focusedId) {
@@ -3366,25 +3370,11 @@ export class TimelineViewController {
     const record = this.scene.get(occurrenceSceneKey(focusedId));
     if (!record) return;
     const presentationState = this.resolveFocusedPresentation();
-    const expanded = presentationState === "expanded";
-    record.node.setExpanded(expanded);
     this.root.dataset.focusPresentation = presentationState;
 
-    // The old shell-owned focus surface stays mounted only as a migration
-    // boundary. The normal occurrence-detail path is now the retained card.
+    // The timeline retains only the temporal anchor. Occurrence detail,
+    // context/media and authoring are owned by the persistent composer deck.
     this.hideLegacyFocusView(true);
-
-    const detailHost = record.node.detailHost;
-    if (detailHost) detailHost.dataset.presentationSurface = "card";
-    if (expanded && detailHost) {
-      const needsRender =
-        detailHost.dataset.occurrenceId !== record.item.id || detailHost.childElementCount === 0;
-      if (needsRender) {
-        this.renderFocus(record.item, detailHost);
-        detailHost.dataset.occurrenceId = record.item.id;
-      }
-      this.syncExpandedDetailGeometry(record, detailHost);
-    }
 
     if (presentationState !== this.lastFocusPresentation) {
       this.lastFocusPresentation = presentationState;
@@ -3878,7 +3868,7 @@ export class TimelineViewController {
         this.root.dispatchEvent(
           new CustomEvent("timelineoccurrenceeditrequest", {
             bubbles: true,
-            detail: { id: item.id, field },
+            detail: { id: item.id, relationshipId: item.relationshipId, field },
           }),
         );
       });
@@ -3893,7 +3883,7 @@ export class TimelineViewController {
       this.root.dispatchEvent(
         new CustomEvent("timelineoccurrenceeditrequest", {
           bubbles: true,
-          detail: { id: item.id },
+          detail: { id: item.id, relationshipId: item.relationshipId },
         }),
       );
     });
@@ -4229,7 +4219,12 @@ export class TimelineViewController {
       this.root.dispatchEvent(
         new CustomEvent("timelinefocuschange", {
           bubbles: true,
-          detail: { focused: true, id, presentationSurface: "card" },
+          detail: {
+            focused: true,
+            id,
+            relationshipId: item.relationshipId,
+            presentationSurface: "card",
+          },
         }),
       );
     };
@@ -4244,9 +4239,14 @@ export class TimelineViewController {
 
   ensureFocusPopover(): void {
     if (!this.focusedId) return;
-    this.explicitDetailOpen = true;
-    this.interactionSession = setPresentation(this.interactionSession, "expanded");
-    this.render();
+    const item = this.items.find((candidate) => candidate.id === this.focusedId);
+    this.explicitDetailOpen = false;
+    this.root.dispatchEvent(
+      new CustomEvent("timelineoccurrenceeditrequest", {
+        bubbles: true,
+        detail: { id: this.focusedId, relationshipId: item?.relationshipId },
+      }),
+    );
   }
 
   closeFocus(): void {
