@@ -293,7 +293,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
     .input-decoration {
       position: absolute;
-      z-index: 2;
+      z-index: 0;
       inset: 0;
       box-sizing: border-box;
       padding: 0.55rem 0.7rem;
@@ -313,7 +313,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     }
 
     .input-decoration-text {
-      color: var(--ink, #191714);
+      color: transparent;
     }
 
     .input-token {
@@ -324,7 +324,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
       box-shadow:
         0 0 0 1px color-mix(in srgb, var(--ink, #191714) 34%, transparent),
         0 1px 2px color-mix(in srgb, #000 8%, transparent);
-      color: var(--ink, #191714);
+      color: transparent;
       box-decoration-break: clone;
       -webkit-box-decoration-break: clone;
     }
@@ -423,7 +423,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
       padding: 0.55rem 0.7rem;
       outline: none;
       background: transparent;
-      color: transparent;
+      color: var(--ink, #191714);
       caret-color: var(--ink, #191714);
       font: 500 0.88rem/1.3 ui-monospace, "SFMono-Regular", Consolas, monospace;
     }
@@ -435,7 +435,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
     input::selection {
       background: color-mix(in srgb, var(--focus, #315fbd) 24%, transparent);
-      color: transparent;
+      color: var(--ink, #191714);
     }
 
     input:focus-visible {
