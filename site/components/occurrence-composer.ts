@@ -409,6 +409,25 @@ export class LuumOccurrenceComposerElement extends LitElement {
       min-inline-size: 0;
       min-block-size: 0;
     }
+    .composer-context-deck .timeline-occurrence-deck-image-viewport {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      outline: none;
+      background: var(--paper, #fff);
+      cursor: grab;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      overscroll-behavior: contain;
+    }
+    .composer-context-deck .timeline-occurrence-deck-image-viewport:active {
+      cursor: grabbing;
+    }
+    .composer-context-deck .timeline-occurrence-deck-image-viewport:focus-visible {
+      box-shadow: inset 0 0 0 2px var(--focus, #315fbd);
+    }
     .composer-context-deck .timeline-focus-hero-image,
     .composer-context-deck .timeline-focus-hero-fallback {
       position: absolute;
@@ -419,9 +438,17 @@ export class LuumOccurrenceComposerElement extends LitElement {
     .composer-context-deck .timeline-focus-hero-image {
       object-fit: contain;
       object-position: center;
-      transform: scale(var(--occurrence-image-zoom, 1));
+      pointer-events: none;
+      transform:
+        translate3d(
+          var(--occurrence-image-pan-x, 0px),
+          var(--occurrence-image-pan-y, 0px),
+          0
+        )
+        scale(var(--occurrence-image-zoom, 1));
       transform-origin: center;
       transition: transform 160ms ease;
+      will-change: transform;
     }
     .composer-context-deck .timeline-focus-hero-fallback {
       background:
