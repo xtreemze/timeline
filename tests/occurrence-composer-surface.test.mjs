@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("composer owns the card and incremental world preview with interactive grammar chips", async () => {
+test("composer owns one sentence-first inline semantic editor and contextual preview", async () => {
   const source = await readFile(
     new URL("../site/components/occurrence-composer.ts", import.meta.url),
     "utf8",
@@ -17,8 +17,13 @@ test("composer owns the card and incremental world preview with interactive gram
   assert.match(source, /class="composer-world-preview"/);
   assert.match(source, /class="mini-world-pin"/);
   assert.match(source, /composerEditableSections\(this\.value\)/);
-  assert.match(source, /selectSection\(section\.start, section\.end\)/);
-  assert.match(source, /input\.setSelectionRange\(start, end\)/);
+  assert.match(source, /focusSection\([\s\S]*input\.setSelectionRange\(section\.start, section\.end\)/);
+  assert.match(source, /onInputDoubleClick\(event: MouseEvent\)/);
+  assert.match(source, /target\.setSelectionRange\(range\.start, range\.end\)/);
+  assert.match(
+    source,
+    /focusSection\([\s\S]*this\.cursorOffset = section\?\.start[\s\S]*this\.requestUpdate\(\)[\s\S]*this\.updateComplete\.then[\s\S]*input\.setSelectionRange/,
+  );
   assert.match(source, /aria-label="Approve occurrence"/);
   assert.match(source, /import \{ LitElement, css, html, nothing, svg \} from "lit"/);
   assert.match(source, /iconPathData\("close"\)\.map\(\(path\) => svg`<path d=\$\{path\}><\/path>`\)/);
@@ -39,7 +44,26 @@ test("composer owns the card and incremental world preview with interactive gram
   assert.match(source, /event\.key === "Home"/);
   assert.match(source, /qualifiers\.length \? \[\] : this\.suggestions/);
   assert.match(source, /previewCategory\?\.color/);
-  assert.equal((source.match(/class="context-row composer-grammar"/g) ?? []).length, 1);
+  assert.doesNotMatch(source, /class="context-row composer-grammar"/);
+  assert.doesNotMatch(source, /class="grammar-chip context-chip"/);
+  assert.match(source, /class="input-decoration"/);
+  assert.match(source, /class="input-decoration-content"/);
+  assert.match(source, /class="input-token"/);
+  assert.doesNotMatch(source, /qualifier-chip/);
+  assert.doesNotMatch(source, /composer-qualifiers/);
+  assert.match(source, /aria-hidden="true"[\s\S]*class="input-decoration-content"/);
+  assert.match(source, /inputDecorationSegments\(sections, qualifiers\)/);
+  assert.match(source, /data-active=\$\{String\(segment\.active\)\}/);
+  assert.match(source, /\.input-token\[data-active="true"\]/);
+  assert.match(source, /\.input-token\[data-investigative="true"\]/);
+  assert.doesNotMatch(source, /\.input-token\[data-kind="predicate"\]/);
+  assert.doesNotMatch(source, /\.input-token\[data-kind="place"\]/);
+  assert.match(source, /stageLabel\(parsed, sections, qualifiers\)/);
+  assert.match(source, /matchMedia\("\(pointer: coarse\)"\)\.matches/);
+  assert.match(source, /data-context-kind="pending-selection"/);
+  assert.match(source, /syncInputDecorationScroll\(target\)/);
+  assert.match(source, /@scroll=\$\{\(event: Event\) => this\.onInputScroll\(event\)\}/);
+  assert.match(source, /transform = `translateX\(\$\{-target\.scrollLeft\}px\)`/);
   assert.doesNotMatch(source, /preview\.tags\.map/);
   assert.match(source, /class="composer-card-media"/);
   assert.match(source, /class="composer-card-context"/);

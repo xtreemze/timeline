@@ -17,7 +17,7 @@ test("selecting an occurrence through the visible card opens its composer-owned 
   await expect(composer).toHaveAttribute("active", "");
   await expect(composer.locator(".composer-occurrence-card")).toBeVisible();
   await expect(composer.locator('input[role="combobox"]')).toBeVisible();
-  await expect(composer.locator(".composer-context-deck")).toBeVisible();
+  await expect(composer.locator(".composer-world-preview")).toBeVisible();
   await expect(page.locator(".timeline-event-detail:visible")).toHaveCount(0);
   await expect(page.locator("#timeline-focus-view:visible")).toHaveCount(0);
 
@@ -74,7 +74,7 @@ test("mobile composer fills one viewport lane, follows pan, and snaps centered",
 
   const initial = await geometry();
   expect(initial.footerOverflowX).toMatch(/auto|scroll/);
-  expect(initial.footerSnapType).toContain("proximity");
+  expect(initial.footerSnapType).toMatch(/^x(?: proximity)?$/);
   expect(initial.shellSnapAlign).toContain("center");
   expect(initial.shellSnapStop).toBe("always");
   expect(initial.footerScrollWidth).toBeGreaterThan(initial.footerClientWidth);
@@ -85,16 +85,25 @@ test("mobile composer fills one viewport lane, follows pan, and snaps centered",
   expect(Math.abs(initial.panelCenter - initial.viewportCenter)).toBeLessThanOrEqual(2);
 
   await footer.evaluate((element: HTMLElement) => {
+    // Programmatic scrollLeft is immediately snapped by Chromium when a
+    // mandatory target is already centered. Disable snapping only while
+    // sampling the in-progress pan geometry, then restore the authored rule.
+    element.style.scrollSnapType = "none";
     const available = element.scrollWidth - element.clientWidth;
     element.scrollLeft = Math.min(96, Math.max(1, available));
   });
-  await expect.poll(async () => (await geometry()).footerScrollLeft).toBeGreaterThan(0);
+  await expect
+    .poll(async () => (await geometry()).shellLeft)
+    .toBeLessThan(initial.shellLeft - 1);
 
   const panned = await geometry();
-  expect(panned.shellLeft).toBeLessThan(initial.shellLeft - 1);
+  expect(panned.footerScrollLeft).toBeGreaterThan(0);
   expect(panned.panelLeft).toBeLessThan(initial.panelLeft - 1);
   expect(Math.abs(panned.panelLeft - panned.shellLeft)).toBeLessThanOrEqual(2);
 
+  await footer.evaluate((element: HTMLElement) => {
+    element.style.removeProperty("scroll-snap-type");
+  });
   await composer.locator(".input-shell").evaluate((element: HTMLElement) => {
     element.scrollIntoView({ block: "nearest", inline: "center", behavior: "auto" });
   });
@@ -114,7 +123,7 @@ test("mobile composer fills one viewport lane, follows pan, and snaps centered",
   await expect(approve).toBeVisible();
 });
 
-test("one composer card previews incomplete icons and chips select exact grammar spans", async ({
+test("one native composer input decorates semantic ranges inline and keeps exact editing spans", async ({
   page,
 }) => {
   const composer = page.locator("#occurrence-composer");
@@ -137,31 +146,97 @@ test("one composer card previews incomplete icons and chips select exact grammar
     .getAttribute("src");
   expect(after).not.toBe(before);
   expect(decodeURIComponent(after ?? "")).toContain("<svg");
-  await input.fill("@alice meets @bob [category: Dec");
-  const categoryOption = composer.locator(".option").filter({ hasText: "Decision / Choice" }).first();
-  await categoryOption.hover();
-  await expect(composer.locator(".composer-world-preview")).toHaveAttribute(
-    "style", /--preview-accent:\s*#[0-9a-f]{3,8}/i,
+
+  await input.fill("@alice meets @bob at Stockholm on 2026-09-29 [category: Family, tags: important]");
+  await expect(composer.locator(".context-row")).toHaveCount(0);
+  const tokens = composer.locator(".input-token");
+  await expect(tokens).not.toHaveCount(0);
+  await expect(composer.locator('.input-token[data-kind="subject"]')).toHaveText("@alice");
+  await expect(composer.locator('.input-token[data-kind="predicate"]')).toHaveText("meets");
+  await expect(composer.locator('.input-token[data-kind="object"]')).toHaveText("@bob");
+  await expect(composer.locator('.input-token[data-kind="place"]')).toHaveText("Stockholm");
+  await expect(composer.locator('.input-token[data-kind="time"]')).toContainText("2026-09-29");
+  await expect(composer.locator('.input-token[data-kind="category"]')).toHaveText("Family");
+  await expect(composer.locator('.input-token[data-kind="tag"]')).toHaveText("important");
+
+  const setCaretIn = async (needle: string) => {
+    await input.evaluate((element: HTMLInputElement, text) => {
+      const start = element.value.indexOf(text);
+      if (start < 0) throw new Error(`Missing composer token: ${text}`);
+      const offset = start + Math.max(1, Math.floor(text.length / 2));
+      element.focus();
+      element.setSelectionRange(offset, offset);
+      element.dispatchEvent(new Event("select", { bubbles: true }));
+    }, needle);
+  };
+  await setCaretIn("Stockholm");
+  await expect(composer.locator('.input-token[data-kind="place"]')).toHaveAttribute(
+    "data-active",
+    "true",
   );
-  await input.fill("@alice meets @bob at Stockholm");
-  const place = composer.locator('.grammar-chip[aria-label^="Edit place:"]');
-  await place.click();
-  await expect
-    .poll(() =>
-      input.evaluate((element: HTMLInputElement) =>
-        element.value.slice(element.selectionStart ?? 0, element.selectionEnd ?? 0),
-      ),
-    )
-    .toBe("Stockholm");
+  await expect(composer.locator(".stage")).toHaveText("place");
+
+  await setCaretIn("meets");
+  await expect(composer.locator('.input-token[data-kind="predicate"]')).toHaveAttribute(
+    "data-active",
+    "true",
+  );
+  await expect(composer.locator(".stage")).toHaveText("action");
+
+  const typography = await composer.locator(".input-shell").evaluate((shell) => {
+    const input = shell.querySelector("input");
+    const decoration = shell.querySelector(".input-decoration");
+    if (!(input instanceof HTMLInputElement) || !(decoration instanceof HTMLElement)) {
+      throw new Error("composer input decoration missing");
+    }
+    const inputStyle = getComputedStyle(input);
+    const decorationStyle = getComputedStyle(decoration);
+    return {
+      inputFont: inputStyle.font,
+      decorationFont: decorationStyle.font,
+      inputPaddingLeft: inputStyle.paddingLeft,
+      decorationPaddingLeft: decorationStyle.paddingLeft,
+      decorationAriaHidden: decoration.getAttribute("aria-hidden"),
+    };
+  });
+  expect(typography.decorationFont).toBe(typography.inputFont);
+  expect(typography.decorationPaddingLeft).toBe(typography.inputPaddingLeft);
+  expect(typography.decorationAriaHidden).toBe("true");
+
+  await composer.evaluate((element) => {
+    (element as HTMLElement & { focusSection(field: "place"): void }).focusSection("place");
+  });
+  await expect.poll(() =>
+    input.evaluate((element: HTMLInputElement) =>
+      element.value.slice(element.selectionStart ?? 0, element.selectionEnd ?? 0),
+    ),
+  ).toBe("Stockholm");
+  await composer.evaluate((element) => {
+    (element as HTMLElement & { focusSection(field: "tag"): void }).focusSection("tag");
+  });
+  await expect.poll(() =>
+    input.evaluate((element: HTMLInputElement) =>
+      element.value.slice(element.selectionStart ?? 0, element.selectionEnd ?? 0),
+    ),
+  ).toBe("important");
+
+  await input.fill(
+    "@alice meets @bob at Stockholm on 2026-09-29 [category: Family, tags: important|investigation|long-context-token]",
+  );
+  const scrollState = await input.evaluate((element: HTMLInputElement) => {
+    element.focus();
+    element.setSelectionRange(element.value.length, element.value.length);
+    element.scrollLeft = element.scrollWidth;
+    element.dispatchEvent(new Event("scroll", { bubbles: true }));
+    const content = element.parentElement?.querySelector<HTMLElement>(".input-decoration-content");
+    return {
+      scrollLeft: element.scrollLeft,
+      transform: content?.style.transform ?? "",
+    };
+  });
+  expect(scrollState.scrollLeft).toBeGreaterThan(0);
+  expect(scrollState.transform).toBe(`translateX(-${scrollState.scrollLeft}px)`);
   await expect(composer.locator('input[role="combobox"]')).toHaveCount(1);
-  await input.fill("@alice meets @bob [category: Family, tags: important]");
-  await composer.getByRole("button", { name: "Edit tag: important" }).last().click();
-  await expect.poll(() => input.evaluate((element: HTMLInputElement) =>
-    element.value.slice(element.selectionStart ?? 0, element.selectionEnd ?? 0),
-  )).toBe("important");
-  await expect(composer.locator(".context-row")).toHaveCount(1);
-  await expect(composer.locator(".composer-occurrence-card > .context-row")).toHaveCount(1);
-  await expect(composer.locator(".completion-panel > .context-row")).toHaveCount(0);
 });
 
 test("unresolved clue remains editable and cannot be approved as a fact", async ({ page }) => {
@@ -169,16 +244,30 @@ test("unresolved clue remains editable and cannot be approved as a fact", async 
   await composer.locator(".compact").click();
   const input = composer.locator('input[role="combobox"]');
   await input.fill("man? calls @alice");
-  const clue = composer.locator(".qualifier-chip");
+  const clue = composer.locator('.input-token[data-investigative="true"]');
   await expect(clue).toHaveCount(1);
-  await clue.click();
-  await expect
-    .poll(() =>
-      input.evaluate((element: HTMLInputElement) =>
-        element.value.slice(element.selectionStart ?? 0, element.selectionEnd ?? 0),
-      ),
-    )
-    .toBe("man?");
+  await expect(clue).toHaveText("man?");
+  const coarsePointer = await page.evaluate(() => matchMedia("(pointer: coarse)").matches);
+  await input.evaluate((element: HTMLInputElement) => {
+    const offset = element.value.indexOf("man?") + 1;
+    element.focus();
+    element.setSelectionRange(offset, offset);
+    element.dispatchEvent(new Event("select", { bubbles: true }));
+  });
+  await expect(clue).toHaveAttribute("data-active", "true");
+  await expect(composer.locator(".stage")).toHaveText("investigate");
+  if (!coarsePointer) {
+    await input.evaluate((element: HTMLInputElement) => {
+      element.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+    });
+    await expect
+      .poll(() =>
+        input.evaluate((element: HTMLInputElement) =>
+          element.value.slice(element.selectionStart ?? 0, element.selectionEnd ?? 0),
+        ),
+      )
+      .toBe("man?");
+  }
   await composer.getByRole("button", { name: "Approve occurrence" }).click();
   await expect(composer.locator(".diagnostic")).toContainText("Resolve or persist");
   await expect(input).toHaveValue("man? calls @alice");
@@ -223,18 +312,31 @@ test("multiple investigative qualifiers retain exact ranges and exit without dam
   const sentence = 'man? observes "red jacket"? at "Central Station"? on 2026-09-14';
   await input.fill(sentence);
 
-  const clues = composer.locator(".qualifier-chip");
+  const clues = composer.locator('.input-token[data-investigative="true"]');
   await expect(clues).toHaveCount(3);
+  const coarsePointer = await page.evaluate(() => matchMedia("(pointer: coarse)").matches);
   for (const expected of ["man?", '"red jacket"?', '"Central Station"?']) {
     const clue = clues.filter({ hasText: expected });
-    await clue.click();
-    await expect
-      .poll(() =>
-        input.evaluate((element: HTMLInputElement) =>
-          element.value.slice(element.selectionStart ?? 0, element.selectionEnd ?? 0),
-        ),
-      )
-      .toBe(expected);
+    await expect(clue).toHaveCount(1);
+    await input.evaluate((element: HTMLInputElement, clueText) => {
+      const offset = element.value.indexOf(clueText) + Math.max(1, Math.floor(clueText.length / 2));
+      element.focus();
+      element.setSelectionRange(offset, offset);
+      element.dispatchEvent(new Event("select", { bubbles: true }));
+    }, expected);
+    await expect(clue).toHaveAttribute("data-active", "true");
+    if (!coarsePointer) {
+      await input.evaluate((element: HTMLInputElement) => {
+        element.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+      });
+      await expect
+        .poll(() =>
+          input.evaluate((element: HTMLInputElement) =>
+            element.value.slice(element.selectionStart ?? 0, element.selectionEnd ?? 0),
+          ),
+        )
+        .toBe(expected);
+    }
     await expect(input).toHaveValue(sentence);
   }
 

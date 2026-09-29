@@ -280,6 +280,11 @@ test("narrow toolbar keeps the composer and controls in one horizontal command s
     css,
     /#app-shell:has\(#occurrence-composer\[active\]\)[\s\S]*\.app-footer-view[\s\S]*order:\s*3[\s\S]*flex:\s*0 0 auto[\s\S]*overflow:\s*visible/,
   );
+  assert.match(
+    css,
+    /#app-shell:has\(#occurrence-composer\[active\]\)[\s\S]*\.app-tool-dock\.app-footer-bar[\s\S]*z-index:\s*2300[\s\S]*isolation:\s*isolate[\s\S]*inset-inline:\s*0[\s\S]*transform:\s*none[\s\S]*backdrop-filter:\s*none/,
+  );
+
   assert.match(css, /\.app-footer-view \.world-camera-controls[\s\S]*flex-wrap:\s*nowrap/);
   assert.match(
     css,
