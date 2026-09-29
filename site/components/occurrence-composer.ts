@@ -1056,6 +1056,68 @@ export class LuumOccurrenceComposerElement extends LitElement {
     );
   }
 
+  private inputDecorationSegments(
+    sections: ReturnType<typeof composerEditableSections>,
+    qualifiers: ReturnType<typeof projectInvestigativeQualifiers>,
+  ): readonly Readonly<{
+    text: string;
+    kind: string | null;
+    investigative: boolean;
+  }>[] {
+    if (!this.value) return Object.freeze([]);
+
+    const markerAt = (offset: number) => {
+      const qualifier = qualifiers.find(
+        (candidate) => offset >= candidate.start && offset < candidate.end,
+      );
+      if (qualifier) {
+        return { kind: qualifier.kind, investigative: true };
+      }
+      const section = sections.find(
+        (candidate) => offset >= candidate.start && offset < candidate.end,
+      );
+      return section
+        ? { kind: section.kind, investigative: false }
+        : { kind: null, investigative: false };
+    };
+
+    const result: Array<Readonly<{ text: string; kind: string | null; investigative: boolean }>> = [];
+    let start = 0;
+    let marker = markerAt(0);
+    for (let offset = 1; offset <= this.value.length; offset += 1) {
+      const next = offset < this.value.length ? markerAt(offset) : null;
+      if (
+        offset === this.value.length ||
+        next?.kind !== marker.kind ||
+        next?.investigative !== marker.investigative
+      ) {
+        result.push(
+          Object.freeze({
+            text: this.value.slice(start, offset),
+            kind: marker.kind,
+            investigative: marker.investigative,
+          }),
+        );
+        start = offset;
+        if (next) marker = next;
+      }
+    }
+    return Object.freeze(result);
+  }
+
+  private syncInputDecorationScroll(target: HTMLInputElement): void {
+    const content =
+      this.renderRoot.querySelector<HTMLElement>(".input-decoration-content");
+    if (!content) return;
+    content.style.transform = `translateX(${-target.scrollLeft}px)`;
+  }
+
+  private onInputScroll(event: Event): void {
+    const target = event.currentTarget;
+    if (!(target instanceof HTMLInputElement)) return;
+    this.syncInputDecorationScroll(target);
+  }
+
   private setComposerValue(value: string, cursorOffset = value.length): void {
     const previousPlace = this.parsed().place?.name ?? null;
     this.value = value;
@@ -1076,6 +1138,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
   }
 
   private syncCursorFromInput(target: HTMLInputElement): void {
+    this.syncInputDecorationScroll(target);
     const next = target.selectionStart ?? target.value.length;
     if (next === this.cursorOffset) return;
     this.cursorOffset = next;
@@ -1090,6 +1153,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
       this.value = target.value;
       this.cursorOffset = target.selectionStart ?? target.value.length;
       this.selectionSeeded = false;
+      this.syncInputDecorationScroll(target);
       return;
     }
     this.setComposerValue(target.value, target.selectionStart ?? target.value.length);
@@ -1398,6 +1462,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
   override updated(): void {
     this.syncContextDeck();
+    const input = this.renderRoot.querySelector<HTMLInputElement>("input");
+    if (input) this.syncInputDecorationScroll(input);
   }
 
   override render() {
@@ -1440,10 +1506,6 @@ export class LuumOccurrenceComposerElement extends LitElement {
         ? composerCompletionSuffix(this.value, activeSuggestion)
         : "";
     const diagnostic = this.externalError || parsed.diagnostics[0] || "";
-    const subjectLabel = this.selectedSubjectLabel();
-    const placePinned = Boolean(parsed.place || this.selectionContext?.place);
-    const timePinned = Boolean(parsed.time);
-    const categoryLabel = parsed.options.category ?? null;
     const sections = composerEditableSections(this.value);
     const preview = projectComposerPreview(
       this.value,
@@ -1455,14 +1517,25 @@ export class LuumOccurrenceComposerElement extends LitElement {
       (category) => category.name === preview.category,
     );
     const previewPalette = this.previewPalette();
+    const inputSegments = this.inputDecorationSegments(sections, qualifiers);
 
     return html`
       <section class="composer" aria-label="Occurrence composer">
         <div class="input-row">
           <span class="stage" aria-hidden="true">${this.stageLabel(parsed)}</span>
           <div class="input-shell">
-            <span class="ghost-completion" aria-hidden="true">
-              <span class="ghost-base">${this.value}</span><span class="ghost-suffix">${ghostSuffix}</span>
+            <span class="input-decoration" aria-hidden="true">
+              <span class="input-decoration-content">
+                ${inputSegments.map((segment) =>
+                  segment.kind
+                    ? html`<span
+                        class="input-token"
+                        data-kind=${segment.kind}
+                        data-investigative=${String(segment.investigative)}
+                      >${segment.text}</span>`
+                    : html`<span class="input-decoration-text">${segment.text}</span>`,
+                )}<span class="ghost-suffix">${ghostSuffix}</span>
+              </span>
             </span>
             <input
               type="text"
@@ -1492,6 +1565,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
               @click=${(event: Event) => this.onCaretMove(event)}
               @keyup=${(event: Event) => this.onCaretMove(event)}
               @select=${(event: Event) => this.onCaretMove(event)}
+              @scroll=${(event: Event) => this.onInputScroll(event)}
               @keydown=${(event: KeyboardEvent) => this.onKeyDown(event)}
             />
           </div>
@@ -1579,67 +1653,14 @@ export class LuumOccurrenceComposerElement extends LitElement {
               </span>
               ${this.previewNode(preview.object, "Target", previewPalette)}
             </div>
-            <div class="context-row composer-grammar" aria-label="Editable occurrence context">
-              ${this.hasPendingSelectionContext
-                ? html`<button
-                    class="context-chip"
-                    type="button"
-                    data-context-kind="pending-selection"
-                    data-context-state="pending"
-                    title="Replace this draft with the newly selected graph context"
-                    @click=${() => this.acceptPendingSelectionContext()}
-                  >
-                    <span>Selection changed</span><strong>${this.pendingSelectionContext ? "Use selected context" : "Use no selection"}</strong>
-                  </button>`
-                : nothing}
-              ${sections.map(
-                (section) => html`<button
-                  class="grammar-chip context-chip"
+            ${this.hasPendingSelectionContext
+              ? html`<button
+                  class="pending-selection-action"
                   type="button"
-                  data-context-kind=${section.kind}
-                  data-context-state="pinned"
-                  aria-label=${`Edit ${section.kind}: ${section.text}`}
-                  @pointerdown=${(event: PointerEvent) => event.preventDefault()}
-                  @click=${() => this.selectSection(section.start, section.end)}
-                >${section.text}</button>`,
-              )}
-              ${subjectLabel && !sections.some((section) => section.kind === "subject")
-                ? html`<button
-                    class="context-chip"
-                    type="button"
-                    data-context-kind="subject"
-                    data-context-state="pinned"
-                    @click=${() => this.focusSection("subject")}
-                  ><span>Subject</span><strong>${subjectLabel}</strong><span class="context-state">pinned</span></button>`
-                : nothing}
-              ${!sections.some((section) => section.kind === "place")
-                ? html`<button
-                    type="button"
-                    @click=${() => this.focusSection("place")}
-                    class="context-chip"
-                    data-context-kind="place"
-                    data-context-state=${placePinned ? "pinned" : "live"}
-                  ><span>Place</span><strong>${placeLabel}</strong><span class="context-state">${placePinned ? "pinned" : "live"}</span></button>`
-                : nothing}
-              ${!sections.some((section) => section.kind === "time")
-                ? html`<button
-                    type="button"
-                    @click=${() => this.focusSection("time")}
-                    class="context-chip"
-                    data-context-kind="time"
-                    data-context-state=${timePinned ? "pinned" : "live"}
-                  ><span>Time</span><strong>${timeLabel ?? "timeline center"}</strong><span class="context-state">${timePinned ? "pinned" : "live"}</span></button>`
-                : nothing}
-              ${categoryLabel && !sections.some((section) => section.kind === "category")
-                ? html`<button
-                    class="context-chip"
-                    type="button"
-                    data-context-kind="category"
-                    data-context-state="pinned"
-                    @click=${() => this.focusSection("category")}
-                  ><span>Category</span><strong>${categoryLabel}</strong></button>`
-                : nothing}
-            </div>
+                  title="Replace this draft with the newly selected graph context"
+                  @click=${() => this.acceptPendingSelectionContext()}
+                >${this.pendingSelectionContext ? "Use selected context" : "Use no selection"}</button>`
+              : nothing}
           </section>
           ${
             qualifiers.length
