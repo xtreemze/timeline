@@ -85,16 +85,25 @@ test("mobile composer fills one viewport lane, follows pan, and snaps centered",
   expect(Math.abs(initial.panelCenter - initial.viewportCenter)).toBeLessThanOrEqual(2);
 
   await footer.evaluate((element: HTMLElement) => {
+    // Programmatic scrollLeft is immediately snapped by Chromium when a
+    // mandatory target is already centered. Disable snapping only while
+    // sampling the in-progress pan geometry, then restore the authored rule.
+    element.style.scrollSnapType = "none";
     const available = element.scrollWidth - element.clientWidth;
     element.scrollLeft = Math.min(96, Math.max(1, available));
   });
-  await expect.poll(async () => (await geometry()).footerScrollLeft).toBeGreaterThan(0);
+  await expect
+    .poll(async () => (await geometry()).shellLeft)
+    .toBeLessThan(initial.shellLeft - 1);
 
   const panned = await geometry();
-  expect(panned.shellLeft).toBeLessThan(initial.shellLeft - 1);
+  expect(panned.footerScrollLeft).toBeGreaterThan(0);
   expect(panned.panelLeft).toBeLessThan(initial.panelLeft - 1);
   expect(Math.abs(panned.panelLeft - panned.shellLeft)).toBeLessThanOrEqual(2);
 
+  await footer.evaluate((element: HTMLElement) => {
+    element.style.removeProperty("scroll-snap-type");
+  });
   await composer.locator(".input-shell").evaluate((element: HTMLElement) => {
     element.scrollIntoView({ block: "nearest", inline: "center", behavior: "auto" });
   });
