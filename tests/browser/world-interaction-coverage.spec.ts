@@ -68,7 +68,10 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
     page,
     isMobile,
   }) => {
-    test.skip(isMobile, "Mobile projects exercise the same controller through trusted touch swipes.");
+    test.skip(
+      isMobile,
+      "Mobile projects exercise the same controller through trusted touch swipes.",
+    );
     test.skip(!(await gotoHarness(page)), "WebGL2 unavailable in this environment.");
 
     const viewport = page.viewportSize();
