@@ -5,6 +5,55 @@ test.beforeEach(async ({ page }) => {
   await expect(page.locator("#occurrence-composer .compact")).toBeVisible();
 });
 
+test("keyboard and wheel suggestion navigation keeps the active option centered", async ({ page }) => {
+  const composer = page.locator("#occurrence-composer");
+  await composer.locator(".compact").click();
+  const input = composer.locator('input[role="combobox"]');
+  const panel = composer.locator(".completion-panel");
+  const options = composer.locator(".option");
+
+  await expect(input).toBeVisible();
+  await expect.poll(async () => options.count()).toBeGreaterThan(2);
+  await panel.evaluate((element: HTMLElement) => {
+    element.style.maxBlockSize = "10rem";
+  });
+
+  const activeGeometry = async () =>
+    composer.evaluate((element) => {
+      const root = element.shadowRoot;
+      const panel = root?.querySelector<HTMLElement>(".completion-panel");
+      const active = root?.querySelector<HTMLElement>('.option[aria-selected="true"]');
+      if (!panel || !active) throw new Error("active composer suggestion unavailable");
+      const panelRect = panel.getBoundingClientRect();
+      const activeRect = active.getBoundingClientRect();
+      return {
+        id: active.id,
+        scrollTop: panel.scrollTop,
+        centerDelta:
+          activeRect.top + activeRect.height / 2 -
+          (panelRect.top + panelRect.height / 2),
+      };
+    });
+
+  await input.press("ArrowDown");
+  await expect.poll(async () => Math.abs((await activeGeometry()).centerDelta)).toBeLessThanOrEqual(24);
+  const keyboardState = await activeGeometry();
+  expect(keyboardState.scrollTop).toBeGreaterThan(0);
+
+  await input.hover();
+  await input.evaluate((element) => {
+    element.dispatchEvent(
+      new WheelEvent("wheel", {
+        bubbles: true,
+        cancelable: true,
+        deltaY: 120,
+      }),
+    );
+  });
+  await expect.poll(async () => (await activeGeometry()).id).not.toBe(keyboardState.id);
+  await expect.poll(async () => Math.abs((await activeGeometry()).centerDelta)).toBeLessThanOrEqual(24);
+});
+
 test("selecting an occurrence through the visible card opens its composer-owned context", async ({ page }) => {
   const occurrence = page
     .locator(
