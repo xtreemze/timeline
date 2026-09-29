@@ -1243,11 +1243,16 @@ export class TimelineViewController {
       selection === null
         ? this.applicationSelection === null
         : this.applicationSelection?.kind === selection.kind &&
-          this.applicationSelection.id === selection.id;
+          this.applicationSelection.id === selection.id &&
+          (this.applicationSelection.itemId ?? "") === (selection.itemId ?? "");
     if (same) return;
 
     this.applicationSelection = selection
-      ? Object.freeze({ kind: selection.kind, id: selection.id })
+      ? Object.freeze({
+          kind: selection.kind,
+          id: selection.id,
+          ...(selection.itemId ? { itemId: selection.itemId } : {}),
+        })
       : null;
     this.refreshCanonicalSelectionProjection();
 
