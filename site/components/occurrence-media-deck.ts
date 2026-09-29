@@ -22,8 +22,9 @@ export interface OccurrenceDeckInput {
   readonly activeIndex?: number;
 }
 
-const IMAGE_ZOOM_STEPS = Object.freeze([1, 1.25, 1.5, 2, 3] as const);
+const IMAGE_ZOOM_STEPS = Object.freeze([0.5, 0.75, 1, 1.25, 1.5, 2, 3] as const);
 const IMAGE_MIN_ZOOM = IMAGE_ZOOM_STEPS[0];
+const IMAGE_RESET_ZOOM = 1;
 const IMAGE_MAX_ZOOM = IMAGE_ZOOM_STEPS[IMAGE_ZOOM_STEPS.length - 1];
 const SWIPE_THRESHOLD_PX = 52;
 const SWIPE_MAX_DURATION_MS = 700;
@@ -44,7 +45,7 @@ export class LuumOccurrenceDeckElement extends LitElement {
 
   private frames: readonly OccurrenceDeckFrame[] = Object.freeze([]);
   private readonly failedImageIndexes = new Set<number>();
-  private imageZoomValue = 1;
+  private imageZoomValue = IMAGE_RESET_ZOOM;
   private imagePanX = 0;
   private imagePanY = 0;
   private readonly activePointers = new Map<number, PointerPoint>();
@@ -171,7 +172,7 @@ export class LuumOccurrenceDeckElement extends LitElement {
     }
     const viewport = this.imageViewport();
     if (viewport) {
-      viewport.dataset.zoomed = String(this.imageZoomValue > IMAGE_MIN_ZOOM + 0.001);
+      viewport.dataset.zoomed = String(this.imageZoomValue > IMAGE_RESET_ZOOM + 0.001);
     }
   }
 
@@ -184,7 +185,7 @@ export class LuumOccurrenceDeckElement extends LitElement {
   }
 
   private resetImageTransform(request = true): void {
-    this.imageZoomValue = IMAGE_MIN_ZOOM;
+    this.imageZoomValue = IMAGE_RESET_ZOOM;
     this.imagePanX = 0;
     this.imagePanY = 0;
     this.resetGestureState();
@@ -192,7 +193,7 @@ export class LuumOccurrenceDeckElement extends LitElement {
   }
 
   private clampImagePan(viewport: HTMLElement | null = this.imageViewport()): void {
-    if (this.imageZoomValue <= IMAGE_MIN_ZOOM + 0.001 || !viewport) {
+    if (this.imageZoomValue <= IMAGE_RESET_ZOOM + 0.001 || !viewport) {
       this.imagePanX = 0;
       this.imagePanY = 0;
       return;
@@ -314,7 +315,7 @@ export class LuumOccurrenceDeckElement extends LitElement {
       return;
     }
 
-    if (this.imageZoomValue > IMAGE_MIN_ZOOM + 0.001) {
+    if (this.imageZoomValue > IMAGE_RESET_ZOOM + 0.001) {
       event.preventDefault();
       this.setImagePan(
         this.imagePanX + event.clientX - previous.x,
@@ -343,7 +344,7 @@ export class LuumOccurrenceDeckElement extends LitElement {
     ) {
       this.lastTouchTap = null;
       this.setImageZoom(
-        this.imageZoomValue > IMAGE_MIN_ZOOM + 0.001 ? IMAGE_MIN_ZOOM : 2,
+        this.imageZoomValue > IMAGE_RESET_ZOOM + 0.001 ? IMAGE_RESET_ZOOM : 2,
         this.imageViewport(),
         Object.freeze({ x: event.clientX, y: event.clientY }),
       );
@@ -375,7 +376,7 @@ export class LuumOccurrenceDeckElement extends LitElement {
 
     if (
       !wasPinch &&
-      this.imageZoomValue <= IMAGE_MIN_ZOOM + 0.001 &&
+      this.imageZoomValue <= IMAGE_RESET_ZOOM + 0.001 &&
       this.frames.length > 1 &&
       elapsed <= SWIPE_MAX_DURATION_MS &&
       Math.abs(dx) >= SWIPE_THRESHOLD_PX &&
@@ -431,7 +432,7 @@ export class LuumOccurrenceDeckElement extends LitElement {
     if (!this.hasInteractiveImage()) return;
     event.preventDefault();
     this.setImageZoom(
-      this.imageZoomValue > IMAGE_MIN_ZOOM + 0.001 ? IMAGE_MIN_ZOOM : 2,
+      this.imageZoomValue > IMAGE_RESET_ZOOM + 0.001 ? IMAGE_RESET_ZOOM : 2,
       this.imageViewport(),
       Object.freeze({ x: event.clientX, y: event.clientY }),
     );
@@ -456,7 +457,7 @@ export class LuumOccurrenceDeckElement extends LitElement {
       return;
     }
 
-    if (this.imageZoomValue > IMAGE_MIN_ZOOM + 0.001) {
+    if (this.imageZoomValue > IMAGE_RESET_ZOOM + 0.001) {
       if (event.key === "ArrowLeft") {
         event.preventDefault();
         this.setImagePan(this.imagePanX + KEYBOARD_PAN_PX, this.imagePanY, viewport);
@@ -538,10 +539,10 @@ export class LuumOccurrenceDeckElement extends LitElement {
     return html`
       <div
         class="timeline-occurrence-deck-image-viewport"
-        data-zoomed=${String(this.imageZoomValue > IMAGE_MIN_ZOOM + 0.001)}
+        data-zoomed=${String(this.imageZoomValue > IMAGE_RESET_ZOOM + 0.001)}
         tabindex="0"
         role="group"
-        aria-label="Image viewer. Drag to pan when zoomed; swipe to change frame; pinch, wheel, plus or minus to zoom; zero resets."
+        aria-label="Image viewer. Drag to pan above 100%; swipe to change frame at 100% or below; pinch, wheel, plus or minus to zoom from 50% to 300%; zero resets to 100%."
         aria-keyshortcuts="+ - 0 ArrowLeft ArrowRight ArrowUp ArrowDown"
         @pointerdown=${(event: PointerEvent) => this.onImagePointerDown(event)}
         @pointermove=${(event: PointerEvent) => this.onImagePointerMove(event)}
