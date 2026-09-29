@@ -170,6 +170,7 @@ interface TimelineItemRecord {
   title: string;
   description: string;
   categoryId: string;
+  categoryIds?: string[];
   media?: MediaRecord[];
   tags?: TagRecord[];
   presentation: ItemPresentationRecord;
@@ -288,6 +289,7 @@ interface TimelineItemInputRecord {
   title?: unknown;
   description?: unknown;
   categoryId?: unknown;
+  categoryIds?: unknown;
   category?: unknown;
   media?: unknown;
   tags?: unknown;
@@ -1345,6 +1347,17 @@ function normalizeTimeline(
       title,
       description: typeof raw.description === "string" ? raw.description.slice(0, 2000) : "",
       categoryId: ensureCategory(raw.categoryId || ("category" in raw ? raw.category : undefined)),
+      categoryIds: [
+        ...new Set(
+          (
+            Array.isArray(raw.categoryIds)
+              ? raw.categoryIds
+              : [raw.categoryId || ("category" in raw ? raw.category : undefined)]
+          )
+            .filter((value): value is string | number => typeof value === "string" || typeof value === "number")
+            .map((value) => ensureCategory(value)),
+        ),
+      ],
       presentation: {
         variant: "hero-split",
         terminalShape: "rounded",
@@ -1844,9 +1857,17 @@ function occurrenceCompositionForRelationship(
   const linkedItem = itemId
     ? (state.items.find((item) => String(item.id) === itemId) ?? null)
     : null;
-  const category = linkedItem
-    ? state.categories.find((candidate) => String(candidate.id) === String(linkedItem.categoryId))
-    : null;
+  const categoryIds = linkedItem
+    ? linkedItem.categoryIds?.length
+      ? linkedItem.categoryIds
+      : [linkedItem.categoryId]
+    : [];
+  const categoryNames = categoryIds
+    .map(
+      (id) =>
+        state.categories.find((candidate) => String(candidate.id) === String(id))?.name ?? "",
+    )
+    .filter(Boolean);
   const extent = relationship.time ?? linkedItem?.time ?? null;
   return formatOccurrenceComposition({
     subjectId: String(relationship.subjectId),
@@ -1855,7 +1876,7 @@ function occurrenceCompositionForRelationship(
     placeId: relationship.placeId ? String(relationship.placeId) : null,
     start: extent?.start?.value ?? linkedItem?.start ?? null,
     end: extent?.end?.value ?? linkedItem?.end ?? null,
-    category: category?.name ?? null,
+    categories: categoryNames,
     tags: linkedItem?.tags?.map((tag) => tag.label) ?? [],
   });
 }
@@ -2187,9 +2208,11 @@ function commitOccurrenceComposer(detail: OccurrenceCommitDetail): void {
       const nextTime = composerTimeIdentity(detail.draft.time);
       const time =
         initialTime === nextTime ? undefined : detail.draft.time ? composerTime(detail) : null;
-      const initialCategory = initialDraft.options.category ?? null;
-      const nextCategory = detail.draft.options.category ?? null;
-      const categoryName = initialCategory === nextCategory ? undefined : nextCategory;
+      const categoryNames =
+        composerTagsIdentity(initialDraft.options.categories) ===
+        composerTagsIdentity(detail.draft.options.categories)
+          ? undefined
+          : detail.draft.options.categories;
       const tags =
         composerTagsIdentity(initialDraft.options.tags) ===
         composerTagsIdentity(detail.draft.options.tags)
@@ -2209,7 +2232,7 @@ function commitOccurrenceComposer(detail: OccurrenceCommitDetail): void {
           latitude: detail.defaults.latitude,
           accuracyMeters: detail.defaults.accuracyMeters,
           time,
-          categoryName,
+          categoryNames,
           tags,
           role: detail.metadata.role,
           initialState: detail.metadata.initialState,
@@ -2245,7 +2268,7 @@ function commitOccurrenceComposer(detail: OccurrenceCommitDetail): void {
         latitude: detail.defaults.latitude,
         accuracyMeters: detail.defaults.accuracyMeters,
         time: composerTime(detail),
-        categoryName: detail.draft.options.category,
+        categoryNames: detail.draft.options.categories,
         tags: detail.draft.options.tags,
         activeStoryId: ui.activeStoryId,
         role: detail.metadata.role,
