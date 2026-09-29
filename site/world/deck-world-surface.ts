@@ -1220,7 +1220,7 @@ function worldThemeColors(palette: WorldGraphPalette): WorldThemeColors {
     labelText: worldColorBytes(palette.ink),
     labelPlace: worldColorBytes(palette.muted),
     labelRelationship: worldColorBytes(palette.muted),
-    labelHalo: worldColorBytes(palette.paper, 230),
+    labelHalo: worldColorBytes(palette.paper, 160),
   });
 }
 
@@ -6115,9 +6115,9 @@ export class DeckWorldSurface implements WorldSurface {
                     this.#hoverSelection.id === datum.entityId) ||
                   (this.#focus?.kind === "entity" && this.#focus.id === datum.entityId);
                 const semanticBase =
-                  emphasized && entity
+                  (emphasized || directlyInteracted) && entity
                     ? worldColorBytes(this.#entityStyle(entity).fill)
-                    : this.#theme.labelText;
+                    : this.#theme.labelPlace;
                 const entityBase =
                   muteMembers && memberIds.has(datum.worldInstanceId) && !directlyInteracted
                     ? this.#theme.labelPlace
