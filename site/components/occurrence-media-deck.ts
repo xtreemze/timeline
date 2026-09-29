@@ -22,6 +22,8 @@ export interface OccurrenceDeckInput {
   readonly activeIndex?: number;
 }
 
+const IMAGE_ZOOM_STEPS = Object.freeze([1, 1.25, 1.5, 2, 3] as const);
+
 export class LuumOccurrenceDeckElement extends LitElement {
   static override properties = {
     occurrenceId: { type: String, attribute: "occurrence-id" },
@@ -33,6 +35,7 @@ export class LuumOccurrenceDeckElement extends LitElement {
 
   private frames: readonly OccurrenceDeckFrame[] = Object.freeze([]);
   private readonly failedImageIndexes = new Set<number>();
+  private imageZoomIndex = 0;
 
   constructor() {
     super();
@@ -55,7 +58,10 @@ export class LuumOccurrenceDeckElement extends LitElement {
       frameCount: nextFrames.length,
     });
 
-    if (nextOccurrenceId !== this.occurrenceId) this.failedImageIndexes.clear();
+    if (nextOccurrenceId !== this.occurrenceId) {
+      this.failedImageIndexes.clear();
+      this.imageZoomIndex = 0;
+    }
     this.occurrenceId = nextOccurrenceId;
     this.frames = nextFrames;
     this.activeIndex = nextIndex;
@@ -78,6 +84,7 @@ export class LuumOccurrenceDeckElement extends LitElement {
     }
 
     this.activeIndex = next;
+    this.imageZoomIndex = 0;
     this.requestUpdate();
     this.dispatchEvent(
       new CustomEvent<OccurrenceDeckChangeDetail>("occurrencedeckchange", {
@@ -107,6 +114,20 @@ export class LuumOccurrenceDeckElement extends LitElement {
 
   private onImageError(index: number): void {
     this.failedImageIndexes.add(index);
+    this.requestUpdate();
+  }
+
+  private imageZoom(): number {
+    return IMAGE_ZOOM_STEPS[this.imageZoomIndex] ?? IMAGE_ZOOM_STEPS[0];
+  }
+
+  private stepImageZoom(delta: number): void {
+    const next = Math.max(
+      0,
+      Math.min(IMAGE_ZOOM_STEPS.length - 1, this.imageZoomIndex + Math.sign(delta)),
+    );
+    if (next === this.imageZoomIndex) return;
+    this.imageZoomIndex = next;
     this.requestUpdate();
   }
 
@@ -161,6 +182,7 @@ export class LuumOccurrenceDeckElement extends LitElement {
         alt=${frame.alt}
         decoding="async"
         draggable="false"
+        style=${`--occurrence-image-zoom: ${this.imageZoom()}`}
         @error=${() => this.onImageError(this.activeIndex)}
       />
       ${
@@ -171,8 +193,45 @@ export class LuumOccurrenceDeckElement extends LitElement {
     `;
   }
 
-  private renderControlIcon(name: "chevron-left" | "chevron-right") {
+  private renderControlIcon(name: "chevron-left" | "chevron-right" | "zoom-in" | "zoom-out") {
     return html`<span class="timeline-occurrence-deck-icon" data-deck-icon=${name}></span>`;
+  }
+
+  private renderZoomControls() {
+    const frame = this.frames[this.activeIndex];
+    if (frame?.kind !== "image" || this.failedImageIndexes.has(this.activeIndex)) return nothing;
+    const zoom = this.imageZoom();
+    return html`
+      <div
+        class="timeline-occurrence-deck-zoom-controls"
+        role="group"
+        aria-label="Image zoom"
+      >
+        <button
+          type="button"
+          class="timeline-focus-media-control timeline-focus-media-zoom is-zoom-out"
+          aria-label="Zoom image out"
+          title="Zoom image out"
+          ?disabled=${this.imageZoomIndex === 0}
+          @click=${() => this.stepImageZoom(-1)}
+        >
+          ${this.renderControlIcon("zoom-out")}
+        </button>
+        <span class="timeline-occurrence-deck-zoom-level" aria-live="polite">
+          ${Math.round(zoom * 100)}%
+        </span>
+        <button
+          type="button"
+          class="timeline-focus-media-control timeline-focus-media-zoom is-zoom-in"
+          aria-label="Zoom image in"
+          title="Zoom image in"
+          ?disabled=${this.imageZoomIndex === IMAGE_ZOOM_STEPS.length - 1}
+          @click=${() => this.stepImageZoom(1)}
+        >
+          ${this.renderControlIcon("zoom-in")}
+        </button>
+      </div>
+    `;
   }
 
   private renderControls() {
@@ -228,13 +287,18 @@ export class LuumOccurrenceDeckElement extends LitElement {
 
   override render() {
     if (!this.frames.length) return nothing;
-    return html`${this.renderActiveFrame()}${this.renderControls()}`;
+    return html`${this.renderActiveFrame()}${this.renderZoomControls()}${this.renderControls()}`;
   }
 
   override updated(): void {
     for (const slot of this.querySelectorAll<HTMLElement>("[data-deck-icon]")) {
       const name = slot.dataset.deckIcon;
-      if (name !== "chevron-left" && name !== "chevron-right") continue;
+      if (
+        name !== "chevron-left" &&
+        name !== "chevron-right" &&
+        name !== "zoom-in" &&
+        name !== "zoom-out"
+      ) continue;
       slot.replaceChildren(createIcon(name, { size: 20 }));
     }
   }
