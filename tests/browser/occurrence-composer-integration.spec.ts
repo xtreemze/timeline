@@ -33,7 +33,7 @@ test("selecting an occurrence through the visible card opens its composer-owned 
   await expect(page.locator(".timeline-event-detail:visible")).toHaveCount(0);
 });
 
-test("mobile composer fills one viewport lane and follows horizontal footer pan", async ({ page }) => {
+test("mobile composer fills one viewport lane, follows pan, and snaps centered", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const footer = page.locator(".app-footer-bar");
   const composer = page.locator("#occurrence-composer");
@@ -51,25 +51,38 @@ test("mobile composer fills one viewport lane and follows horizontal footer pan"
       if (!footer || !shell || !panel) throw new Error("mobile composer geometry unavailable");
       const shellRect = shell.getBoundingClientRect();
       const panelRect = panel.getBoundingClientRect();
+      const viewportLeft = window.visualViewport?.offsetLeft ?? 0;
+      const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
       return {
-        viewportWidth: window.visualViewport?.width ?? window.innerWidth,
+        viewportWidth,
+        viewportCenter: viewportLeft + viewportWidth / 2,
         footerOverflowX: getComputedStyle(footer).overflowX,
+        footerSnapType: getComputedStyle(footer).scrollSnapType,
         footerClientWidth: footer.clientWidth,
         footerScrollWidth: footer.scrollWidth,
         footerScrollLeft: footer.scrollLeft,
         shellLeft: shellRect.left,
+        shellCenter: shellRect.left + shellRect.width / 2,
         shellWidth: shellRect.width,
+        shellSnapAlign: getComputedStyle(shell).scrollSnapAlign,
+        shellSnapStop: getComputedStyle(shell).scrollSnapStop,
         panelLeft: panelRect.left,
+        panelCenter: panelRect.left + panelRect.width / 2,
         panelWidth: panelRect.width,
       };
     });
 
   const initial = await geometry();
   expect(initial.footerOverflowX).toMatch(/auto|scroll/);
+  expect(initial.footerSnapType).toContain("proximity");
+  expect(initial.shellSnapAlign).toContain("center");
+  expect(initial.shellSnapStop).toBe("always");
   expect(initial.footerScrollWidth).toBeGreaterThan(initial.footerClientWidth);
   expect(Math.abs(initial.shellWidth - initial.viewportWidth)).toBeLessThanOrEqual(2);
   expect(Math.abs(initial.panelWidth - initial.viewportWidth)).toBeLessThanOrEqual(2);
   expect(Math.abs(initial.panelLeft - initial.shellLeft)).toBeLessThanOrEqual(2);
+  expect(Math.abs(initial.shellCenter - initial.viewportCenter)).toBeLessThanOrEqual(2);
+  expect(Math.abs(initial.panelCenter - initial.viewportCenter)).toBeLessThanOrEqual(2);
 
   await footer.evaluate((element: HTMLElement) => {
     const available = element.scrollWidth - element.clientWidth;
@@ -81,6 +94,20 @@ test("mobile composer fills one viewport lane and follows horizontal footer pan"
   expect(panned.shellLeft).toBeLessThan(initial.shellLeft - 1);
   expect(panned.panelLeft).toBeLessThan(initial.panelLeft - 1);
   expect(Math.abs(panned.panelLeft - panned.shellLeft)).toBeLessThanOrEqual(2);
+
+  await composer.locator(".input-shell").evaluate((element: HTMLElement) => {
+    element.scrollIntoView({ block: "nearest", inline: "center", behavior: "auto" });
+  });
+  await expect
+    .poll(async () => {
+      const centered = await geometry();
+      return Math.abs(centered.shellCenter - centered.viewportCenter);
+    })
+    .toBeLessThanOrEqual(2);
+
+  const snapped = await geometry();
+  expect(Math.abs(snapped.panelCenter - snapped.viewportCenter)).toBeLessThanOrEqual(2);
+  expect(Math.abs(snapped.panelLeft - snapped.shellLeft)).toBeLessThanOrEqual(2);
 
   const approve = composer.getByRole("button", { name: "Approve occurrence" });
   await approve.scrollIntoViewIfNeeded();
