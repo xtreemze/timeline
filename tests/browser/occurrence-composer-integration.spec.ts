@@ -350,6 +350,7 @@ test("one native composer input decorates semantic ranges inline and keeps exact
     .getAttribute("src");
   const iconOption = composer.locator(".option").filter({ hasText: "icon: pig" });
   await expect(iconOption).toBeVisible();
+  await expect(iconOption.locator(".option-detail")).toHaveClass(/composer-chip/);
   await iconOption.hover();
   const after = await composer
     .locator(".composer-world-preview .preview-node img")
@@ -450,6 +451,104 @@ test("one native composer input decorates semantic ranges inline and keeps exact
   await expect(composer.locator('input[role="combobox"]')).toHaveCount(1);
 });
 
+test("Space toggles multiple categories and tags while Enter advances option parts", async ({ page }) => {
+  const composer = page.locator("#occurrence-composer");
+  await composer.locator(".compact").click();
+  await composer.evaluate((element) => {
+    const api = element as HTMLElement & {
+      setData(data: unknown): void;
+    };
+    api.setData({
+      entities: [],
+      places: [],
+      categories: [
+        { id: "observation", name: "Observation" },
+        { id: "conflict", name: "Conflict" },
+      ],
+      tags: ["work", "urgent"],
+      predicates: ["meets"],
+    });
+  });
+
+  const input = composer.locator('input[role="combobox"]');
+  await input.fill("@alice meets @bob");
+  await input.press("End");
+
+  const categoryOptions = composer.locator('.option[data-multiselect="true"]');
+  await expect(categoryOptions.filter({ hasText: "Observation" })).toBeVisible();
+  await input.press(" ");
+  await expect(input).toHaveValue(/\[category: Observation\]$/);
+  await expect(categoryOptions.filter({ hasText: "Observation" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+
+  await input.press("ArrowDown");
+  await input.press(" ");
+  await expect(input).toHaveValue(/\[categories: Observation\|Conflict\]$/);
+  await expect(categoryOptions.filter({ hasText: "Conflict" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+
+  await input.press("Enter");
+  await expect(input).toHaveValue(/\[categories: Observation\|Conflict, tags: \]$/);
+  await expect(composer.locator('.option[data-multiselect="true"]').filter({ hasText: "work" })).toBeVisible();
+
+  await input.press(" ");
+  await expect(input).toHaveValue(/tags: work\]$/);
+  await input.press("ArrowDown");
+  await input.press(" ");
+  await expect(input).toHaveValue(/tags: work\|urgent\]$/);
+
+  await input.press("Enter");
+  await expect(input).toHaveValue(
+    "@alice meets @bob [categories: Observation|Conflict, tags: work|urgent]",
+  );
+  await expect(composer.locator(".stage")).toHaveText("ready");
+});
+
+test("composer uses chips for atomic metadata and live defaults without duplicating sentence text", async ({
+  page,
+}) => {
+  const composer = page.locator("#occurrence-composer");
+  await composer.locator(".compact").click();
+  await composer.evaluate((element) => {
+    const api = element as HTMLElement & { setSelectionContext(context: unknown): void };
+    api.setSelectionContext({
+      selectedOccurrenceId: "occ-chip-context",
+      composition: "@alice meets @bob",
+      title: "Chip context",
+      metadata: {
+        role: "witness",
+        initialState: "inactive",
+        sourceIds: ["source-a", "source-b"],
+        confidence: 0.82,
+      },
+      relationship: { subjectId: "alice", objectId: "bob" },
+    });
+  });
+
+  const input = composer.locator('input[role="combobox"]');
+  await expect(input).toHaveValue("@alice meets @bob");
+  await expect(composer.locator(".composer-card-meta-chips")).toBeVisible();
+  await expect(composer.locator('[data-chip-kind="role"]')).toHaveText("witness");
+  await expect(composer.locator('[data-chip-kind="state"]')).toHaveText("inactive");
+  await expect(composer.locator('[data-chip-kind="confidence"]')).toContainText("82%");
+  await expect(composer.locator('[data-chip-kind="source"]')).toHaveCount(2);
+  await expect(composer.locator('[data-chip-kind="source"]').nth(0)).toContainText("source-a");
+  await expect(composer.locator('[data-chip-kind="source"]').nth(1)).toContainText("source-b");
+
+  const hints = composer.locator(".composer-context-hints");
+  await expect(hints).toBeVisible();
+  await expect(hints.locator('[data-chip-kind="live-place"]')).toContainText("live place");
+  await expect(hints.locator('[data-chip-kind="live-time"]')).toContainText("live time");
+
+  await expect(composer.locator(".composer-card-heading .card-status-chip")).toBeVisible();
+  await expect(composer.locator(".composer-card-heading .card-status-chip")).toContainText("Draft");
+  await expect(composer.locator(".context-row")).toHaveCount(0);
+});
+
 test("unresolved clue remains editable and cannot be approved as a fact", async ({ page }) => {
   const composer = page.locator("#occurrence-composer");
   await composer.locator(".compact").click();
@@ -482,7 +581,10 @@ test("unresolved clue remains editable and cannot be approved as a fact", async 
   await composer.getByRole("button", { name: "Approve occurrence" }).click();
   await expect(composer.locator(".diagnostic")).toContainText("Resolve or persist");
   await expect(input).toHaveValue("man? calls @alice");
-  await expect(composer.getByRole("button", { name: "Ask this question" })).toBeVisible();
+  const askQuestion = composer.getByRole("button", { name: "Ask this question" });
+  await expect(askQuestion).toBeVisible();
+  await expect(askQuestion).toHaveClass(/composer-chip/);
+  await expect(composer.locator(".candidate-assessment").first()).toHaveClass(/composer-chip/);
   await expect(composer.getByRole("table", { name: "Candidate comparison" })).toBeVisible();
   await expect(composer.locator(".candidate-row")).not.toHaveCount(0);
   await expect(composer.getByRole("button", { name: "Compare candidates" })).toBeVisible();
@@ -882,6 +984,7 @@ test("different occurrence selection cannot overwrite a dirty investigative draf
   await expect(composer.locator("#occurrence-investigation-panel")).toBeVisible();
   const pending = composer.locator('[data-context-kind="pending-selection"]');
   await expect(pending).toBeVisible();
+  await expect(pending).toHaveClass(/composer-chip/);
   await expect(pending).toContainText("Use selected context");
 
   await pending.click();
