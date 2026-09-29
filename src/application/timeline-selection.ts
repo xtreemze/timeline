@@ -57,6 +57,21 @@ export function projectTimelineSelection(
 
   const selected = new Set<string>();
   if (selection.kind === "relationship") {
+    const requestedItemId = text(selection.itemId);
+    if (requestedItemId) {
+      const requestedItem = items.find((item) => item.id === requestedItemId);
+      const matchesRelationship =
+        requestedItem &&
+        (requestedItem.id === selection.id ||
+          relations(requestedItem).some((relation) => text(relation.id) === selection.id));
+      if (matchesRelationship) {
+        return Object.freeze({
+          itemIds: Object.freeze([requestedItemId]),
+          relationshipId: selection.id,
+        });
+      }
+    }
+
     for (const item of items) {
       if (item.id === selection.id) {
         selected.add(item.id);
