@@ -1421,6 +1421,11 @@ test("composer suggestion rows and deck consume semantic styling", async () => {
   assert.match(app, /function composerTagOptions\(\)/);
   assert.match(app, /tags: composerTagOptions\(\)/);
   assert.match(app, /predicates: composerPredicateOptions\(\)/);
+  assert.match(source, /const semanticSuggestion = this\.previewSuggestion \?\? null;/);
+  assert.match(source, /this\.selectionContext\?\.appearance\?\.color/);
+  assert.match(source, /occurrenceAccent \?\?/);
+  assert.match(app, /const selectedCategory = selectedItem/);
+  assert.match(app, /appearance: \{/);
 });
 
 test("composer-local suggestion glyphs preserve the shared Lucide construction contract", async () => {
