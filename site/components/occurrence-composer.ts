@@ -175,7 +175,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
       inline-size: 100%;
       min-inline-size: 0;
       pointer-events: auto;
-      --composer-semantic-accent: var(--accent, #315fbd);
+      --composer-semantic-accent: var(--ink, #191714);
     }
 
     .composer[data-semantic-color="true"] .input-shell {
@@ -366,7 +366,12 @@ export class LuumOccurrenceComposerElement extends LitElement {
       min-inline-size: 0;
       padding: 0.65rem;
       border-block-end: 1px solid var(--line, #d1ccc4);
-      border-inline-start: 3px solid color-mix(
+      border-inline-start: 3px solid transparent;
+      background: var(--panel, #f5f3ef);
+    }
+
+    .composer[data-semantic-color="true"] .composer-occurrence-card {
+      border-inline-start-color: color-mix(
         in srgb,
         var(--composer-semantic-accent) 72%,
         transparent
@@ -380,7 +385,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
     .composer-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; font-size: 0.8rem; }
     .composer-card-heading-main { display: inline-flex; min-inline-size: 0; align-items: center; gap: 0.42rem; }
-    .composer-heading-icon { display: inline-grid; flex: 0 0 auto; inline-size: 20px; block-size: 20px; place-items: center; color: var(--composer-semantic-accent); }
+    .composer-heading-icon { display: inline-grid; flex: 0 0 auto; inline-size: 20px; block-size: 20px; place-items: center; color: var(--muted, #615d56); }
+    .composer[data-semantic-color="true"] .composer-heading-icon { color: var(--composer-semantic-accent); }
     .composer-heading-icon svg { inline-size: 20px; block-size: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
     .composer-card-heading strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .composer-card-details {
