@@ -43,6 +43,13 @@ test("semantic css adapts to OS color scheme without changing hue identity", () 
   assert.equal(semanticThemeForSurface("#171716"), "dark");
 });
 
+test("achromatic legacy colors do not invent a red semantic hue", () => {
+  assert.equal(semanticHue("#ffffff", 212), 212);
+  assert.equal(semanticHue("#171717", 145), 145);
+  assert.equal(semanticHue("#fffdf9", 278), 278);
+  assert.equal(semanticHue("hsl(0 0% 50%)", 330), 330);
+});
+
 test("canonical persistence stores a hue carrier rather than authored display contrast", () => {
   const canonical = canonicalSemanticHueColor(278);
   assert.match(canonical, /^#[0-9a-f]{6}$/);
