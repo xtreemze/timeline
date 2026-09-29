@@ -885,12 +885,6 @@ export class LuumOccurrenceComposerElement extends LitElement {
     );
   }
 
-  private selectedSubjectLabel(): string | null {
-    const id = this.selectedSubjectId();
-    if (!id) return null;
-    return this.data.entities.find((entity) => entity.id === id)?.name ?? id;
-  }
-
   private resetDraft(): void {
     this.value = "";
     this.cursorOffset = 0;
@@ -942,18 +936,6 @@ export class LuumOccurrenceComposerElement extends LitElement {
       }
       this.activeSuggestion = 0;
       this.requestUpdate();
-    });
-  }
-
-  private selectSection(start: number, end: number): void {
-    this.cursorOffset = start;
-    this.activeSuggestion = 0;
-    this.requestUpdate();
-    void this.updateComplete.then(() => {
-      const input = this.renderRoot.querySelector<HTMLInputElement>("input");
-      if (!input) return;
-      input.focus({ preventScroll: true });
-      input.setSelectionRange(start, end);
     });
   }
 
@@ -1684,13 +1666,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
           ${
             qualifiers.length
               ? html`<section id="occurrence-investigation-panel" class="investigation-panel" aria-label="Investigative clues">
-            <strong>Unresolved · no fact will be created</strong>
-            <div class="composer-qualifiers">${qualifiers.map(
-              (qualifier) => html`<button
-              class="qualifier-chip" type="button" aria-label=${`Investigate ${qualifier.kind}: ${qualifier.normalizedText}${qualifier.scope === "ambiguous" ? " (ambiguous terminal question)" : ""}`}
-              @pointerdown=${(event: PointerEvent) => event.preventDefault()}
-              @click=${() => this.selectSection(qualifier.start, qualifier.end)}>${qualifier.text}</button>`,
-            )}</div>
+            <strong>Unresolved clue highlighted in composer · no fact will be created</strong>
             <div class="interpretation-row" aria-label="Possible interpretations">
               ${activeInterpretations.map(
                 (interpretation) => html`<button
