@@ -516,7 +516,17 @@ test("same-occurrence media and context refresh preserve a dirty investigative d
   const zoomIn = deck.getByRole("button", { name: "Zoom image in" });
   const zoomOut = deck.getByRole("button", { name: "Zoom image out" });
   await expect(zoomIn).toBeVisible();
+  await expect(zoomOut).toBeEnabled();
+  await expect(deck.locator(".timeline-occurrence-deck-zoom-level")).toHaveText("100%");
+  await zoomOut.click();
+  await expect(deck.locator(".timeline-occurrence-deck-zoom-level")).toHaveText("75%");
+  await zoomOut.click();
+  await expect(deck.locator(".timeline-occurrence-deck-zoom-level")).toHaveText("50%");
   await expect(zoomOut).toBeDisabled();
+  await expect(mediaImage).toHaveAttribute("style", /--occurrence-image-zoom:\s*0\.5/);
+  await zoomIn.click();
+  await expect(deck.locator(".timeline-occurrence-deck-zoom-level")).toHaveText("75%");
+  await zoomIn.click();
   await expect(deck.locator(".timeline-occurrence-deck-zoom-level")).toHaveText("100%");
   await zoomIn.click();
   await expect(deck.locator(".timeline-occurrence-deck-zoom-level")).toHaveText("125%");
@@ -565,6 +575,12 @@ test("same-occurrence media and context refresh preserve a dirty investigative d
   await imageViewport.focus();
   await imageViewport.press("0");
   await expect(mediaImage).toHaveAttribute("style", /--occurrence-image-zoom:\s*1(?:;|$)/);
+  await imageViewport.press("-");
+  await expect(deck.locator(".timeline-occurrence-deck-zoom-level")).toHaveText("75%");
+  await imageViewport.press("-");
+  await expect(deck.locator(".timeline-occurrence-deck-zoom-level")).toHaveText("50%");
+  await imageViewport.press("0");
+  await expect(deck.locator(".timeline-occurrence-deck-zoom-level")).toHaveText("100%");
 
   await imageViewport.evaluate((viewport) => {
     const emit = (type: string, init: PointerEventInit) =>
