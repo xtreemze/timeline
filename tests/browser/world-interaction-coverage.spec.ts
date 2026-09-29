@@ -204,6 +204,68 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
     ).toBeLessThan(directVelocity * 1.35);
   });
 
+  test("globe release does not fling after the pointer has already come to rest", async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(
+      isMobile,
+      "Mobile projects exercise the same controller through trusted touch swipes.",
+    );
+    test.skip(!(await gotoHarness(page)), "WebGL2 unavailable in this environment.");
+
+    const viewport = page.viewportSize();
+    if (!viewport) throw new Error("WorldSurface drag certification requires a viewport.");
+
+    const startCamera = { longitude: 0, latitude: 20, zoom: 5, bearing: 0, pitch: 0 };
+    await page.evaluate(async (nextCamera) => {
+      window.__worldPerfHarness.surface.setCamera(nextCamera);
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      );
+    }, startCamera);
+
+    const start = {
+      x: Math.round(viewport.width * 0.42),
+      y: Math.round(viewport.height * 0.5),
+    };
+    const distance = Math.min(180, Math.round(viewport.width * 0.22));
+    const cameraDistance = (
+      from: typeof startCamera,
+      to: typeof startCamera,
+    ) =>
+      Math.hypot(
+        (to.longitude - from.longitude) *
+          Math.cos((((from.latitude + to.latitude) / 2) * Math.PI) / 180),
+        to.latitude - from.latitude,
+      );
+
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    for (let step = 1; step <= 8; step += 1) {
+      await page.mouse.move(start.x + (distance * step) / 8, start.y);
+      if (step < 8) await page.waitForTimeout(20);
+    }
+
+    const held = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera());
+    await page.waitForTimeout(120);
+    const rested = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera());
+    await page.mouse.up();
+    await page.waitForTimeout(80);
+    const released = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera());
+
+    const moved = cameraDistance(startCamera, held);
+    expect(moved, "the drag must move the globe before the hold").toBeGreaterThan(0);
+    expect(
+      cameraDistance(held, rested),
+      "holding the pointer still must keep the weighted globe stationary",
+    ).toBeLessThan(moved * 0.01 + 0.002);
+    expect(
+      cameraDistance(rested, released),
+      "lifting after the pointer has rested must not resurrect stale fling velocity",
+    ).toBeLessThan(moved * 0.03 + 0.004);
+  });
+
   test("mouse-wheel zoom changes the camera on the desktop controller path", async ({
     page,
     isMobile,
