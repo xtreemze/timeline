@@ -15,7 +15,16 @@ test("mobile keyboard occlusion moves only the focused composer footer", async (
   assert.match(styles, /#workspace\s*\{[\s\S]*inset:\s*0[\s\S]*height:\s*100dvh/);
   assert.match(styles, /#app-shell\s*\{[\s\S]*inset:\s*0[\s\S]*height:\s*100dvh/);
   assert.match(app, /const composerFocused = els\.occurrenceComposer\.inputHasFocus\(\)/);
-  assert.match(app, /const bottomInset = composerFocused[\s\S]*window\.innerHeight/);
+  assert.match(
+    app,
+    /const layoutHeight = Math\.max\([\s\S]*window\.innerHeight[\s\S]*document\.documentElement\.clientHeight/,
+  );
+  assert.match(app, /const bottomInset = composerFocused \? Math\.max\(0, layoutHeight - height\) : 0/);
+  const viewportSync = app.slice(
+    app.indexOf("function syncComposerVisualViewport"),
+    app.indexOf("function composerSemanticVisual"),
+  );
+  assert.doesNotMatch(viewportSync, /visualViewport\?\.offsetTop/);
   assert.match(app, /--app-visual-viewport-bottom/);
   assert.match(app, /composerFocused[\s\S]*revealMobileInputLane\(\)/);
   assert.match(app, /occurrenceComposer\.addEventListener\("focusin", syncComposerVisualViewport\)/);
