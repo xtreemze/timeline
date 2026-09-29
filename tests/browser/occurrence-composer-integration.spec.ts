@@ -412,13 +412,13 @@ test("one native composer input decorates semantic ranges inline and keeps exact
     "data-label",
     "tag",
   );
-  await expect(composer.locator('.input-token[data-kind="subject"] .input-token-icon')).toHaveCount(1);
-  await expect(composer.locator('.input-token[data-kind="predicate"] .input-token-icon')).toHaveCount(1);
-  await expect(composer.locator('.input-token[data-kind="object"] .input-token-icon')).toHaveCount(1);
-  await expect(composer.locator('.input-token[data-kind="place"] .input-token-icon')).toHaveCount(1);
-  await expect(composer.locator('.input-token[data-kind="time"] .input-token-icon')).toHaveCount(1);
-  await expect(composer.locator('.input-token[data-kind="category"] .input-token-icon')).toHaveCount(1);
-  await expect(composer.locator('.input-token[data-kind="tag"] .input-token-icon')).toHaveCount(1);
+  await expect(composer.locator('.input-token[data-kind="subject"] .input-token-icon')).toHaveAttribute("data-icon", "person");
+  await expect(composer.locator('.input-token[data-kind="predicate"] .input-token-icon')).toHaveAttribute("data-icon", "relation");
+  await expect(composer.locator('.input-token[data-kind="object"] .input-token-icon')).toHaveAttribute("data-icon", "object");
+  await expect(composer.locator('.input-token[data-kind="place"] .input-token-icon')).toHaveAttribute("data-icon", "place");
+  await expect(composer.locator('.input-token[data-kind="time"] .input-token-icon')).toHaveAttribute("data-icon", "timeline");
+  await expect(composer.locator('.input-token[data-kind="category"] .input-token-icon')).toHaveAttribute("data-icon", "folder");
+  await expect(composer.locator('.input-token[data-kind="tag"] .input-token-icon')).toHaveAttribute("data-icon", "note");
 
   const iconLayout = await composer.locator(".input-shell").evaluate((shell) => {
     const input = shell.querySelector("input");
@@ -595,7 +595,7 @@ test("Space toggles multiple categories and tags while Enter advances option par
   await expect(input).toHaveValue(
     "@alice meets @bob [categories: Observation|Conflict, tags: work|urgent]",
   );
-  await expect(composer.locator(".stage")).toHaveText("ready");
+  await expect(composer.locator(".stage")).toHaveText("Enter save");
 });
 test("composer uses chips for atomic metadata and live defaults without duplicating sentence text", async ({
   page,
