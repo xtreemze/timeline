@@ -699,9 +699,7 @@ function markerAppearance(style: MapStyle = {}, fallbackColor = "#315fbd") {
   const markerHue = semanticHue(semanticSource, fallbackHue);
   return {
     color: mapSemanticColor(semanticSource, fallbackHue, "ambient"),
-    fillColor: marker.fillColor
-      ? mapSemanticColor(marker.fillColor, markerHue, "subdued")
-      : "",
+    fillColor: mapSemanticColor(marker.fillColor || semanticSource, markerHue, "subdued"),
     opacity: styleNumber(marker.opacity, 1, 0, 1),
     size: styleNumber(
       marker.size,
