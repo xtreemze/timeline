@@ -95,8 +95,8 @@ test("mobile composer fills one viewport lane, follows pan, and snaps centered",
   expect(panned.panelLeft).toBeLessThan(initial.panelLeft - 1);
   expect(Math.abs(panned.panelLeft - panned.shellLeft)).toBeLessThanOrEqual(2);
 
-  await composer.locator(".input-shell").evaluate((element: HTMLElement) => {
-    element.scrollIntoView({ block: "nearest", inline: "center", behavior: "auto" });
+  await composer.evaluate((element: HTMLElement & { revealMobileInputLane?: () => void }) => {
+    element.revealMobileInputLane?.();
   });
   await expect
     .poll(async () => {
@@ -109,10 +109,13 @@ test("mobile composer fills one viewport lane, follows pan, and snaps centered",
   expect(Math.abs(snapped.panelCenter - snapped.viewportCenter)).toBeLessThanOrEqual(2);
   expect(Math.abs(snapped.panelLeft - snapped.shellLeft)).toBeLessThanOrEqual(2);
 
-  // Fallback for Android/WebView builds that do not honor interactive-widget=resizes-content:
-  // a measured keyboard occlusion must lift the entire footer, keeping the focused composer visible.
+  // Android keyboard geometry may change after focus. Lifting the footer must not
+  // lose the horizontally centered composer lane.
   await page.evaluate(() => {
     document.documentElement.style.setProperty("--app-visual-viewport-bottom", "128px");
+  });
+  await composer.evaluate((element: HTMLElement & { revealMobileInputLane?: () => void }) => {
+    element.revealMobileInputLane?.();
   });
   await expect
     .poll(async () => {
@@ -120,6 +123,10 @@ test("mobile composer fills one viewport lane, follows pan, and snaps centered",
       return box ? Math.round(844 - (box.y + box.height)) : -1;
     })
     .toBe(128);
+  const lifted = await geometry();
+  expect(Math.abs(lifted.shellCenter - lifted.viewportCenter)).toBeLessThanOrEqual(2);
+  expect(Math.abs(lifted.panelCenter - lifted.viewportCenter)).toBeLessThanOrEqual(2);
+  await expect(composer.locator('input[role="combobox"]')).toBeFocused();
   await expect(composer.locator('input[role="combobox"]')).toBeVisible();
   await page.evaluate(() => {
     document.documentElement.style.removeProperty("--app-visual-viewport-bottom");
