@@ -9,6 +9,14 @@ test("composer owns one sentence-first inline semantic editor and contextual pre
   );
   assert.match(source, /projectComposerPreview\(\s*this\.value/);
   assert.match(source, /class="composer-occurrence-card"/);
+  assert.match(source, /class="completion-context-scroll"/);
+  assert.match(source, /\.completion-panel\s*\{[\s\S]*grid-template-rows:\s*minmax\(0, 1fr\) auto[\s\S]*overflow:\s*hidden/);
+  assert.match(source, /\.completion-context-scroll\s*\{[\s\S]*overflow-y:\s*auto/);
+  assert.match(source, /\.listbox\s*\{[\s\S]*border-block-start:/);
+  assert.match(
+    source,
+    /<div class="completion-context-scroll">[\s\S]*<\/div>[\s\S]*suggestions\.length[\s\S]*id="occurrence-composer-listbox"/,
+  );
   assert.match(source, /selectionContext\?\.description/);
   assert.match(source, /selectionContext\?\.media/);
   assert.match(source, /occurrenceContextDeckFrames/);
@@ -103,6 +111,7 @@ test("composer owns one sentence-first inline semantic editor and contextual pre
   assert.match(source, /data-selected=\$\{String\(Boolean\(suggestion\.selected\)\)\}/);
   assert.match(source, /Space toggles choices and Enter advances to the next part/);
   assert.match(source, /syncInputDecorationScroll\(target\)/);
+  assert.match(source, /kind === "candidate"[\s\S]*?\.completion-context-scroll[\s\S]*?: null/);
   assert.match(source, /@scroll=\$\{\(event: Event\) => this\.onInputScroll\(event\)\}/);
   assert.match(source, /transform = `translateX\(\$\{-target\.scrollLeft\}px\)`/);
   assert.doesNotMatch(source, /preview\.tags\.map/);

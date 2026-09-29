@@ -133,6 +133,36 @@ test("selecting an occurrence through the visible card opens its composer-owned 
   await expect(composer.locator(".composer-occurrence-card")).toBeVisible();
   await expect(composer.locator('input[role="combobox"]')).toBeVisible();
   await expect(composer.locator(".composer-world-preview")).toBeVisible();
+  const input = composer.locator('input[role="combobox"]');
+  const listbox = composer.locator("#occurrence-composer-listbox");
+  await expect(listbox).toBeVisible();
+  await expect.poll(async () => composer.locator(".option").count()).toBeGreaterThan(1);
+
+  const dockGeometry = await composer.evaluate((element) => {
+    const root = element.shadowRoot;
+    const inputShell = root?.querySelector<HTMLElement>(".input-shell");
+    const listbox = root?.querySelector<HTMLElement>("#occurrence-composer-listbox");
+    const contextScroll = root?.querySelector<HTMLElement>(".completion-context-scroll");
+    if (!inputShell || !listbox || !contextScroll) {
+      throw new Error("composer suggestion dock geometry unavailable");
+    }
+    const inputRect = inputShell.getBoundingClientRect();
+    const listRect = listbox.getBoundingClientRect();
+    return {
+      gap: Math.abs(inputRect.top - listRect.bottom),
+      contextOverflowY: getComputedStyle(contextScroll).overflowY,
+    };
+  });
+  expect(dockGeometry.gap).toBeLessThanOrEqual(12);
+  expect(dockGeometry.contextOverflowY).toMatch(/auto|scroll/);
+
+  await input.focus();
+  const beforeActive = await input.getAttribute("aria-activedescendant");
+  await input.press("ArrowDown");
+  await expect.poll(() => input.getAttribute("aria-activedescendant")).not.toBe(beforeActive);
+  const activeOption = composer.locator('.option[data-active="true"]');
+  await expect(activeOption).toBeVisible();
+
   await expect(page.locator(".timeline-event-detail:visible")).toHaveCount(0);
   await expect(page.locator("#timeline-focus-view:visible")).toHaveCount(0);
 
