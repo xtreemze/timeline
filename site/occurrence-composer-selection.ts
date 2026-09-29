@@ -5,7 +5,6 @@ export function shouldOpenComposerForSelection(change: ApplicationSelectionChang
   return change.selection?.kind === "relationship" && change.source !== "app";
 }
 
-
 interface RelationshipSelectionRecord {
   readonly itemIds?: readonly unknown[];
   readonly time?: unknown;
