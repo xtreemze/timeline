@@ -36,6 +36,30 @@ test("timeline selection projection maps canonical relationship identity without
   });
 });
 
+test("relationship item identity selects only the corresponding timeline card", () => {
+  const shared = [
+    {
+      id: "item-a",
+      relations: [{ id: "shared", subjectId: "alice", objectId: "bob" }],
+    },
+    {
+      id: "item-c",
+      relations: [{ id: "shared", subjectId: "alice", objectId: "bob" }],
+    },
+  ];
+
+  assert.deepEqual(
+    projectTimelineSelection(
+      { kind: "relationship", id: "shared", itemId: "item-c" },
+      shared,
+    ),
+    {
+      itemIds: ["item-c"],
+      relationshipId: "shared",
+    },
+  );
+});
+
 test("timeline selection projection maps entity and place context across chronology items", () => {
   assert.deepEqual(projectTimelineSelection({ kind: "entity", id: "alice" }, items), {
     itemIds: ["item-a"],
@@ -71,6 +95,7 @@ test("timeline controller keeps canonical selection separate from focus semantic
     timeline.match(
       /setSelection\(selection: ApplicationSelection \| null\): void \{[\s\S]*?\n  \}/,
     )?.[0] ?? "";
+  assert.match(selectionMethod, /itemId/);
   assert.doesNotMatch(selectionMethod, /focusItem|emitViewport|timelinefocuschange|dispatchEvent/);
 
   assert.match(card, /setFocused\(focused: boolean\)/);
