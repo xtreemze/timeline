@@ -140,6 +140,26 @@ test("composer owns Home/End suggestion navigation while active", async () => {
   assert.match(composer, /event\.key === "End"[\s\S]*activeSuggestion = suggestions\.length - 1/);
 });
 
+test("composer centers active suggestions for keyboard and wheel navigation", async () => {
+  const composer = await readFile(
+    new URL("../site/components/occurrence-composer.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(composer, /private centerActiveSuggestion\(\)/);
+  assert.match(composer, /optionCenter[\s\S]*panel\.clientHeight \/ 2/);
+  assert.match(composer, /panel\.scrollTo\(\{ top: target, behavior: "auto" \}\)/);
+  assert.match(composer, /@wheel=\$\{\(event: WheelEvent\) => this\.onSuggestionWheel\(event\)\}/);
+  assert.match(
+    composer,
+    /event\.key === "ArrowDown"[\s\S]*selectSuggestion\(this\.activeSuggestion \+ 1, suggestions\)/,
+  );
+  assert.match(
+    composer,
+    /event\.key === "ArrowUp"[\s\S]*selectSuggestion\(this\.activeSuggestion - 1, suggestions\)/,
+  );
+});
+
 test("contextual composer returns focus to its connected invoker on close", async () => {
   const app = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
 
