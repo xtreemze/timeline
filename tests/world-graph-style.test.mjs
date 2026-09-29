@@ -228,6 +228,16 @@ test("places use node-like shape, icon, border, fill, and readable footprint", (
   assert.ok(fallback.radius < WORLD_ENTITY_MIN_HIT_RADIUS_PX);
 });
 
+test("neutral legacy place fills inherit the marker hue instead of becoming an arbitrary hue", () => {
+  const place = worldPlaceStyle(
+    { marker: { color: "#315fbd", fillColor: "#fffdf9" } },
+    false,
+    WORLD_LIGHT_PALETTE,
+  );
+  assertSameHue(place.fill, "#315fbd");
+  assertSameHue(place.border, "#315fbd");
+});
+
 test("place footprint reserves rendered geometry and the mobile interaction minimum", () => {
   const compact = { marker: { radius: 12, borderWidth: 2 } };
   assert.equal(worldPlaceVisualFootprintRadiusPx(compact), 14);
