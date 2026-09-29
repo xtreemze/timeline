@@ -24,12 +24,14 @@ import {
 } from "../occurrence-composer-context.ts";
 import {
   acceptComposerSuggestion,
+  advanceComposerMultiOption,
   composerEditableSections,
   composerCompletionSuffix,
   composerCursorSection,
   occurrenceComposerSuggestions,
   parseOccurrenceSentence,
   normalizeComposerSemanticColor,
+  toggleComposerMultiOption,
   type ComposerCategoryOption,
   type ComposerEntityOption,
   type ComposerPlaceOption,
@@ -202,24 +204,80 @@ export class LuumOccurrenceComposerElement extends LitElement {
       min-inline-size: 0;
     }
 
+    .composer-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.26rem;
+      min-block-size: 24px;
+      max-inline-size: 100%;
+      box-sizing: border-box;
+      padding: 0.18rem 0.46rem;
+      overflow: hidden;
+      border: 1px solid color-mix(in srgb, var(--line, #d1ccc4) 82%, transparent);
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--paper, #fff) 78%, transparent);
+      color: var(--muted, #615d56);
+      font-size: 0.66rem;
+      font-weight: 720;
+      line-height: 1.15;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .composer-chip[data-chip-tone="strong"],
+    .composer-chip[data-chip-tone="active"] {
+      border-color: color-mix(in srgb, var(--focus, #315fbd) 44%, var(--line, #d1ccc4));
+      background: color-mix(in srgb, var(--focus, #315fbd) 8%, var(--paper, #fff));
+      color: var(--ink, #191714);
+    }
+
+    .composer-chip[data-chip-tone="investigative"] {
+      border-color: color-mix(in srgb, var(--accent, #b7472a) 58%, var(--line, #d1ccc4));
+      background: color-mix(in srgb, var(--accent, #b7472a) 9%, var(--paper, #fff));
+      color: var(--ink, #191714);
+    }
+
+    .composer-chip[data-chip-variant="ghost"] {
+      border-style: dashed;
+      background: color-mix(in srgb, var(--paper, #fff) 50%, transparent);
+      color: var(--muted, #615d56);
+      font-weight: 620;
+    }
+
+    .composer-chip-button {
+      appearance: none;
+      min-block-size: 44px;
+      padding-inline: 0.58rem;
+      background: var(--paper, #fff);
+      color: var(--ink, #191714);
+      font: inherit;
+      font-size: 0.7rem;
+      font-weight: 700;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    .composer-chip-button:is(:hover, :focus-visible) {
+      border-color: var(--focus, #315fbd);
+      outline: 2px solid color-mix(in srgb, var(--focus, #315fbd) 42%, transparent);
+      outline-offset: -2px;
+    }
+
+    .composer-chip-button:disabled {
+      opacity: 0.42;
+      cursor: not-allowed;
+    }
+
     .stage {
-      display: grid;
-      place-items: center;
+      justify-content: center;
       min-inline-size: 4.6rem;
       min-block-size: 32px;
-      padding-inline: 0.45rem;
-      border-radius: 999px;
-      background: color-mix(in srgb, var(--panel, #f5f3ef) 82%, transparent);
-      color: var(--muted, #615d56);
-      font-size: 0.68rem;
-      font-weight: 700;
       text-transform: lowercase;
-      white-space: nowrap;
     }
 
     .input-shell {
       position: relative;
-      block-size: 44px;
+      block-size: 54px;
       min-inline-size: 0;
       box-sizing: border-box;
       overflow: hidden;
@@ -234,7 +292,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
       z-index: 0;
       inset: 0;
       box-sizing: border-box;
-      padding: 0.55rem 0.7rem;
+      padding: 1.35rem 0.7rem 0.35rem;
       overflow: hidden;
       pointer-events: none;
       color: transparent;
@@ -255,12 +313,31 @@ export class LuumOccurrenceComposerElement extends LitElement {
     }
 
     .input-token {
-      border-radius: 0.18rem;
-      background: color-mix(in srgb, var(--ink, #191714) 5%, transparent);
-      box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--ink, #191714) 18%, transparent);
+      position: relative;
+      border-radius: 0.28rem;
+      background: color-mix(in srgb, var(--ink, #191714) 6%, transparent);
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink, #191714) 18%, transparent);
       color: transparent;
       box-decoration-break: clone;
       -webkit-box-decoration-break: clone;
+    }
+
+    .input-token::before {
+      position: absolute;
+      inset-inline-start: 0;
+      inset-block-end: calc(100% + 0.08rem);
+      max-inline-size: 8rem;
+      padding-inline: 0.12rem;
+      overflow: hidden;
+      border-radius: 0.2rem;
+      background: color-mix(in srgb, var(--paper, #fff) 92%, transparent);
+      color: color-mix(in srgb, var(--muted, #615d56) 84%, transparent);
+      content: attr(data-label);
+      font: 720 0.5rem/1 ui-monospace, "SFMono-Regular", Consolas, monospace;
+      letter-spacing: 0.025em;
+      text-overflow: ellipsis;
+      text-transform: lowercase;
+      white-space: nowrap;
     }
 
     .input-token[data-active="true"] {
@@ -268,9 +345,26 @@ export class LuumOccurrenceComposerElement extends LitElement {
       box-shadow: 0 0 0 1px color-mix(in srgb, var(--focus, #315fbd) 52%, transparent);
     }
 
+    .input-token[data-active="true"]::before {
+      color: var(--focus, #315fbd);
+    }
+
+    .composer[data-semantic-color="true"] .input-token[data-active="true"] {
+      background: color-mix(in srgb, var(--composer-semantic-accent) 10%, transparent);
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--composer-semantic-accent) 52%, transparent);
+    }
+
+    .composer[data-semantic-color="true"] .input-token[data-active="true"]::before {
+      color: var(--composer-semantic-accent);
+    }
+
     .input-token[data-investigative="true"] {
       background: color-mix(in srgb, var(--accent, #b7472a) 9%, transparent);
       box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--accent, #b7472a) 82%, transparent);
+    }
+
+    .input-token[data-investigative="true"]::before {
+      color: var(--accent, #b7472a);
     }
 
     .input-token[data-investigative="true"][data-active="true"] {
@@ -293,7 +387,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
       box-sizing: border-box;
       border: 0;
       border-radius: inherit;
-      padding: 0.55rem 0.7rem;
+      padding: 1.35rem 0.7rem 0.35rem;
       outline: none;
       background: transparent;
       color: var(--ink, #191714);
@@ -389,6 +483,22 @@ export class LuumOccurrenceComposerElement extends LitElement {
     .composer[data-semantic-color="true"] .composer-heading-icon { color: var(--composer-semantic-accent); }
     .composer-heading-icon svg { inline-size: 20px; block-size: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
     .composer-card-heading strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .composer-card-meta-chips,
+    .composer-context-hints {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.3rem;
+      min-inline-size: 0;
+    }
+    .metadata-chip[data-chip-kind="source"],
+    .source-chip {
+      font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+      font-weight: 620;
+    }
+    .card-status-chip {
+      flex: 0 0 auto;
+    }
     .composer-card-details {
       display: grid;
       grid-template-columns: minmax(0, 1fr);
@@ -648,13 +758,26 @@ export class LuumOccurrenceComposerElement extends LitElement {
     .candidate-row { display: grid; grid-template-columns: minmax(6rem, 0.8fr) auto minmax(10rem, 1.8fr); gap: 0.4rem; align-items: start; padding: 0.35rem 0.4rem; border: 1px solid var(--line, #d1ccc4); border-radius: 0.45rem; background: color-mix(in srgb, var(--paper, #fff) 92%, transparent); }
     .candidate-row[data-scope="none-known"] { border-style: dashed; }
     .candidate-row[data-active="true"] { outline: 2px solid var(--focus, #315fbd); outline-offset: -2px; }
-    .candidate-assessment { font-weight: 760; text-transform: lowercase; }
-    .candidate-assessment[data-assessment="consistent"] { color: var(--success, #18794e); }
-    .candidate-assessment[data-assessment="contradicts"] { color: var(--danger, #b42318); }
+    .candidate-assessment { justify-self: start; font-weight: 760; text-transform: lowercase; }
+    .candidate-assessment[data-assessment="consistent"] {
+      border-color: color-mix(in srgb, var(--success, #18794e) 46%, var(--line, #d1ccc4));
+      color: var(--success, #18794e);
+    }
+    .candidate-assessment[data-assessment="contradicts"] {
+      border-color: color-mix(in srgb, var(--danger, #b42318) 46%, var(--line, #d1ccc4));
+      color: var(--danger, #b42318);
+    }
     .candidate-reason { color: var(--muted, #615d56); line-height: 1.3; }
     .candidate-select { appearance: none; inline-size: 100%; min-block-size: 44px; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; font-weight: 700; text-align: start; cursor: pointer; touch-action: manipulation; }
     .candidate-select:focus-visible { outline: 2px solid var(--focus, #315fbd); outline-offset: 2px; }
-    .candidate-sources { grid-column: 1 / -1; color: var(--muted, #615d56); font-size: 0.68rem; }
+    .candidate-sources {
+      grid-column: 1 / -1;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+      align-items: center;
+      min-inline-size: 0;
+    }
     .approval { min-inline-size: 44px; min-block-size: 44px; border: 1px solid var(--line, #d1ccc4); border-radius: 0.58rem; background: var(--paper, #fff); color: var(--ink, #191714); cursor: pointer; }
 
     .pending-selection-action {
@@ -779,13 +902,13 @@ export class LuumOccurrenceComposerElement extends LitElement {
       border-block-end: 0;
     }
 
-    .option[aria-selected="true"],
+    .option[data-active="true"],
     .option:focus-visible,
     .option:hover {
       background: color-mix(in srgb, var(--panel, #f5f3ef) 88%, transparent);
     }
 
-    .option[data-semantic-color="true"][aria-selected="true"],
+    .option[data-semantic-color="true"][data-active="true"],
     .option[data-semantic-color="true"]:focus-visible,
     .option[data-semantic-color="true"]:hover {
       background: color-mix(
@@ -843,9 +966,10 @@ export class LuumOccurrenceComposerElement extends LitElement {
     }
 
     .option-detail {
-      color: var(--muted, #615d56);
-      font-size: 0.7rem;
-      white-space: nowrap;
+      justify-self: end;
+      min-block-size: 22px;
+      max-inline-size: min(14rem, 42vw);
+      font-size: 0.64rem;
     }
 
     .help {
@@ -1209,6 +1333,28 @@ export class LuumOccurrenceComposerElement extends LitElement {
     );
   }
 
+  private inputTokenLabel(segment: Readonly<{ kind: string | null; investigative: boolean }>): string {
+    if (segment.investigative) return "investigate";
+    switch (segment.kind) {
+      case "subject":
+        return "subject";
+      case "predicate":
+        return "action";
+      case "object":
+        return "object";
+      case "place":
+        return "place";
+      case "time":
+        return "time";
+      case "category":
+        return "category";
+      case "tag":
+        return "tag";
+      default:
+        return segment.kind ?? "context";
+    }
+  }
+
   private inputDecorationSegments(
     sections: ReturnType<typeof composerEditableSections>,
     qualifiers: ReturnType<typeof projectInvestigativeQualifiers>,
@@ -1295,7 +1441,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
       );
       const choice = this.renderRoot.querySelector<HTMLElement>(
         kind === "suggestion"
-          ? '.option[aria-selected="true"]'
+          ? '.option[data-active="true"]'
           : '.candidate-row[data-active="true"]',
       );
       if (!container || !choice) return;
@@ -1486,17 +1632,54 @@ export class LuumOccurrenceComposerElement extends LitElement {
     });
   }
 
-  private applySuggestion(suggestion: ComposerSuggestion): void {
-    if (!suggestion.insertText) return;
-    const parsed = this.parsed();
-    const accepted = acceptComposerSuggestion(this.value, suggestion, parsed.stage);
-    this.setComposerValue(accepted.value, accepted.cursorOffset);
+  private focusComposerOffset(cursorOffset: number): void {
     void this.updateComplete.then(() => {
       const input = this.renderRoot.querySelector<HTMLInputElement>("input");
       if (!input) return;
       input.focus({ preventScroll: true });
-      input.setSelectionRange(accepted.cursorOffset, accepted.cursorOffset);
+      input.setSelectionRange(cursorOffset, cursorOffset);
     });
+  }
+
+  private toggleMultiSelectSuggestion(suggestion: ComposerSuggestion): void {
+    if (!suggestion.multiSelect || (suggestion.kind !== "category" && suggestion.kind !== "tag")) {
+      return;
+    }
+    const activeLabel = suggestion.label;
+    const accepted = toggleComposerMultiOption(this.value, suggestion.kind, suggestion.label);
+    this.setComposerValue(accepted.value, accepted.cursorOffset);
+    void this.updateComplete.then(() => {
+      const suggestions = this.suggestions().slice(0, 7);
+      const matching = suggestions.findIndex(
+        (candidate) => candidate.kind === suggestion.kind && candidate.label === activeLabel,
+      );
+      this.activeSuggestion = matching >= 0 ? matching : 0;
+      this.previewSuggestion = suggestions[this.activeSuggestion] ?? null;
+      this.requestUpdate();
+      this.centerActiveChoice("suggestion");
+      this.focusComposerOffset(accepted.cursorOffset);
+    });
+  }
+
+  private advanceMultiSelectSuggestion(suggestion: ComposerSuggestion): void {
+    if (!suggestion.multiSelect || (suggestion.kind !== "category" && suggestion.kind !== "tag")) {
+      return;
+    }
+    const accepted = advanceComposerMultiOption(this.value, suggestion.kind);
+    this.setComposerValue(accepted.value, accepted.cursorOffset);
+    this.focusComposerOffset(accepted.cursorOffset);
+  }
+
+  private applySuggestion(suggestion: ComposerSuggestion): void {
+    if (suggestion.multiSelect) {
+      this.toggleMultiSelectSuggestion(suggestion);
+      return;
+    }
+    if (!suggestion.insertText) return;
+    const parsed = this.parsed();
+    const accepted = acceptComposerSuggestion(this.value, suggestion, parsed.stage);
+    this.setComposerValue(accepted.value, accepted.cursorOffset);
+    this.focusComposerOffset(accepted.cursorOffset);
   }
 
   private commit(): void {
@@ -1693,6 +1876,17 @@ export class LuumOccurrenceComposerElement extends LitElement {
     if (event.key === "ArrowUp" && suggestions.length) {
       event.preventDefault();
       this.selectSuggestion(this.activeSuggestion - 1, suggestions);
+      return;
+    }
+    const activeSuggestion = suggestions[this.activeSuggestion] ?? suggestions[0];
+    if (event.key === " " && activeSuggestion?.multiSelect) {
+      event.preventDefault();
+      this.toggleMultiSelectSuggestion(activeSuggestion);
+      return;
+    }
+    if (event.key === "Enter" && activeSuggestion?.multiSelect) {
+      event.preventDefault();
+      this.advanceMultiSelectSuggestion(activeSuggestion);
       return;
     }
     if (event.key !== "Enter") return;
@@ -1909,6 +2103,15 @@ export class LuumOccurrenceComposerElement extends LitElement {
       null;
     const previewPalette = this.previewPalette();
     const inputSegments = this.inputDecorationSegments(sections, qualifiers);
+    const metadata = this.selectionContext?.metadata ?? null;
+    const metadataSourceIds = metadata?.sourceIds ?? [];
+    const metadataConfidence =
+      typeof metadata?.confidence === "number"
+        ? `${Math.round(metadata.confidence * 100)}% confidence`
+        : null;
+    const hasExplicitPlace = sections.some((section) => section.kind === "place");
+    const hasExplicitTime = sections.some((section) => section.kind === "time");
+    const cardStatus = qualifiers.length ? "Investigating" : preview.category || "Draft";
 
     return html`
       <section
@@ -1918,7 +2121,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
         style=${deckAccent ? `--composer-semantic-accent: ${deckAccent}` : nothing}
       >
         <div class="input-row">
-          <span class="stage" aria-hidden="true">${this.stageLabel(parsed, sections, qualifiers)}</span>
+          <span class="stage composer-chip" data-chip-kind="stage" aria-hidden="true">${this.stageLabel(parsed, sections, qualifiers)}</span>
           <div class="input-shell">
             <span class="input-decoration" aria-hidden="true">
               <span class="input-decoration-content">
@@ -1927,6 +2130,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
                     ? html`<span
                         class="input-token"
                         data-kind=${segment.kind}
+                        data-label=${this.inputTokenLabel(segment)}
                         data-investigative=${String(segment.investigative)}
                         data-active=${String(segment.active)}
                       >${segment.text}</span>`
@@ -2031,8 +2235,36 @@ export class LuumOccurrenceComposerElement extends LitElement {
                   : nothing}
                 <strong>${this.selectionContext?.title || "New occurrence"}</strong>
               </span>
-              <span>${qualifiers.length ? "Investigating" : preview.category || "Draft"}</span>
+              <span
+                class="composer-chip card-status-chip"
+                data-chip-kind="status"
+                data-chip-tone=${qualifiers.length ? "investigative" : preview.category ? "strong" : "neutral"}
+              >${cardStatus}</span>
             </div>
+            ${metadata
+              ? html`<div class="composer-card-meta-chips" aria-label="Occurrence metadata">
+                  ${metadata.role?.trim()
+                    ? html`<span class="composer-chip metadata-chip" data-chip-kind="role">${metadata.role.trim()}</span>`
+                    : nothing}
+                  <span class="composer-chip metadata-chip" data-chip-kind="state">${metadata.initialState ?? "active"}</span>
+                  ${metadataConfidence
+                    ? html`<span class="composer-chip metadata-chip" data-chip-kind="confidence">${metadataConfidence}</span>`
+                    : nothing}
+                  ${metadataSourceIds.map(
+                    (sourceId) => html`<span class="composer-chip metadata-chip" data-chip-kind="source">source · ${sourceId}</span>`,
+                  )}
+                </div>`
+              : nothing}
+            ${!hasExplicitPlace || !hasExplicitTime
+              ? html`<div class="composer-context-hints" aria-label="Live composer defaults">
+                  ${!hasExplicitPlace
+                    ? html`<span class="composer-chip" data-chip-kind="live-place" data-chip-variant="ghost">live place · ${placeLabel}</span>`
+                    : nothing}
+                  ${!hasExplicitTime
+                    ? html`<span class="composer-chip" data-chip-kind="live-time" data-chip-variant="ghost">live time · ${timeLabel ?? "timeline center"}</span>`
+                    : nothing}
+                </div>`
+              : nothing}
             ${this.contextDeckFrames().length || this.selectionContext?.description?.trim()
               ? html`<div
                   class="composer-card-details"
@@ -2072,7 +2304,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
             </div>
             ${this.hasPendingSelectionContext
               ? html`<button
-                  class="pending-selection-action"
+                  class="composer-chip composer-chip-button pending-selection-action"
                   type="button"
                   data-context-kind="pending-selection"
                   data-context-state="pending"
@@ -2088,7 +2320,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
             <div class="interpretation-row" aria-label="Possible interpretations">
               ${activeInterpretations.map(
                 (interpretation) => html`<button
-                class="interpretation-chip" type="button"
+                class="composer-chip composer-chip-button interpretation-chip" type="button"
                 aria-pressed=${String(chosenInterpretation?.id === interpretation.id)}
                 @click=${() => {
                   this.activeInterpretation = interpretation.id;
@@ -2111,11 +2343,15 @@ export class LuumOccurrenceComposerElement extends LitElement {
                         @click=${() =>
                           this.selectCandidate(index, candidateMatrix.candidates, false)
                         }>${candidate.label}</button></div>
-                      <span class="candidate-assessment" role="cell"
+                      <span class="composer-chip candidate-assessment" role="cell" data-chip-kind="assessment"
                         data-assessment=${cell?.assessment ?? "unknown"}>${cell?.assessment ?? "unknown"}</span>
                       <span class="candidate-reason" role="cell">${cell?.reason ?? "No comparison available."}</span>
                       ${cell?.recordIds.length
-                        ? html`<span class="candidate-sources">Sources: ${cell.recordIds.join(", ")}</span>`
+                        ? html`<div class="candidate-sources" aria-label="Sources">
+                            ${cell.recordIds.map(
+                              (recordId) => html`<span class="composer-chip source-chip" data-chip-kind="source">${recordId}</span>`,
+                            )}
+                          </div>`
                         : nothing}
                     </div>`;
                   })}
@@ -2163,7 +2399,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
                     : activeQualifier?.kind === "object"
                       ? this.selectionContext?.relationship?.objectId ?? null
                       : null;
-                  return html`<button class="interpretation-chip"
+                  return html`<button class="composer-chip composer-chip-button interpretation-chip"
                     type="button"
                     ?disabled=${disabled}
                     title=${title}
@@ -2224,7 +2460,12 @@ export class LuumOccurrenceComposerElement extends LitElement {
           ${
             suggestions.length
               ? html`
-                <div id="occurrence-composer-listbox" class="listbox" role="listbox">
+                <div
+                  id="occurrence-composer-listbox"
+                  class="listbox"
+                  role="listbox"
+                  aria-multiselectable=${suggestions.some((suggestion) => suggestion.multiSelect) ? "true" : nothing}
+                >
                   ${suggestions.map(
                     (suggestion, index) => html`
                       <button
@@ -2232,7 +2473,10 @@ export class LuumOccurrenceComposerElement extends LitElement {
                         class="option"
                         type="button"
                         role="option"
-                        aria-selected=${String(index === selectedIndex)}
+                        aria-selected=${String(suggestion.multiSelect ? Boolean(suggestion.selected) : index === selectedIndex)}
+                        data-active=${String(index === selectedIndex)}
+                        data-multiselect=${String(Boolean(suggestion.multiSelect))}
+                        data-selected=${String(Boolean(suggestion.selected))}
                         data-semantic-color=${String(Boolean(normalizeComposerSemanticColor(suggestion.color)))}
                         style=${
                           normalizeComposerSemanticColor(suggestion.color)
@@ -2270,7 +2514,11 @@ export class LuumOccurrenceComposerElement extends LitElement {
                           }
                           <span class="option-label">${suggestion.label}</span>
                         </span>
-                        <span class="option-detail">${suggestion.detail ?? suggestion.kind}</span>
+                        <span
+                          class="composer-chip option-detail"
+                          data-chip-kind="suggestion"
+                          data-chip-tone=${suggestion.selected ? "active" : "neutral"}
+                        >${suggestion.detail ?? suggestion.kind}</span>
                       </button>
                     `,
                   )}
@@ -2281,7 +2529,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
         </div>
 
         <p id="occurrence-composer-help" class="help">
-          Without unresolved clues, Arrow keys navigate suggestions and Enter accepts or commits.
+          Without unresolved clues, Arrow keys navigate suggestions. In category/tag lists, Space toggles choices and Enter advances to the next part; otherwise Enter accepts or commits.
           In investigation mode, Left/Right changes interpretation, Up/Down and Home/End navigate candidates, and Enter never commits a candidate.
           Tab moves focus · Esc closes. Quote multi-word entity names.
           Defaults follow ${placeLabel} and ${timeLabel ?? "the timeline center"} until explicitly pinned.

@@ -197,6 +197,9 @@ function canonicalOccurrence(
   const attributes: JsonRecord = {
     description: typeof item.description === "string" ? item.description : "",
     ...(typeof item.categoryId === "string" ? { categoryId: item.categoryId } : {}),
+    ...(Array.isArray(item.categoryIds)
+      ? { categoryIds: strings(item.categoryIds) }
+      : {}),
     ...(Array.isArray(item.tags) ? { tags: structuredClone(item.tags) } : {}),
     ...(item.presentation && typeof item.presentation === "object"
       ? { presentation: structuredClone(item.presentation) }
@@ -348,9 +351,10 @@ export function compileExampleStoryProject(
   const sources = sourceIds.map((id) => canonicalSource(evidenceById.get(id) ?? {}, id));
 
   const categoryIds = new Set(
-    items.flatMap((item) =>
-      typeof item.categoryId === "string" && item.categoryId.trim() ? [item.categoryId] : [],
-    ),
+    items.flatMap((item) => [
+      ...(typeof item.categoryId === "string" && item.categoryId.trim() ? [item.categoryId] : []),
+      ...strings(item.categoryIds),
+    ]),
   );
   const categories = sample.categories
     .filter((category) => categoryIds.has(String(category.id)))

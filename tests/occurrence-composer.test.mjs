@@ -41,6 +41,77 @@ test("occurrence sentence maps grammar into canonical authoring slots", () => {
   assert.deepEqual(parsed.diagnostics, []);
 });
 
+test("occurrence options preserve multiple categories and tags with a primary compatibility category", () => {
+  const sentence = formatOccurrenceComposition({
+    subjectId: "alice",
+    predicate: "meets",
+    objectId: "bob",
+    categories: ["Observation", "Conflict"],
+    tags: ["work", "urgent"],
+  });
+  assert.equal(
+    sentence,
+    "@alice meets @bob [categories: Observation|Conflict, tags: work|urgent]",
+  );
+
+  const parsed = parseOccurrenceSentence(sentence);
+  assert.deepEqual(parsed.options.categories, ["Observation", "Conflict"]);
+  assert.equal(parsed.options.category, "Observation");
+  assert.deepEqual(parsed.options.tags, ["work", "urgent"]);
+
+  assert.deepEqual(
+    composerEditableSections(sentence)
+      .filter((section) => section.kind === "category")
+      .map((section) => [section.index, sentence.slice(section.start, section.end)]),
+    [
+      [0, "Observation"],
+      [1, "Conflict"],
+    ],
+  );
+});
+
+test("category and tag suggestion lists expose selected values for keyboard multi-select", () => {
+  const categories = [
+    { id: "observation", name: "Observation" },
+    { id: "conflict", name: "Conflict" },
+    { id: "decision", name: "Decision" },
+  ];
+  const tags = ["work", "urgent", "travel"];
+
+  const categorySentence = "@alice meets @bob [categories: Observation|Conflict]";
+  const categorySuggestions = occurrenceComposerSuggestions(categorySentence, {
+    entities: [],
+    places: [],
+    categories,
+    tags,
+    cursorOffset: categorySentence.indexOf("Conflict") + "Conflict".length,
+  }).filter((suggestion) => suggestion.kind === "category");
+  assert.equal(
+    categorySuggestions.find((suggestion) => suggestion.label === "Observation")?.selected,
+    true,
+  );
+  assert.equal(
+    categorySuggestions.find((suggestion) => suggestion.label === "Conflict")?.selected,
+    true,
+  );
+  assert.equal(
+    categorySuggestions.find((suggestion) => suggestion.label === "Decision")?.selected,
+    false,
+  );
+
+  const tagSentence = "@alice meets @bob [categories: Observation|Conflict, tags: work|urgent]";
+  const tagSuggestions = occurrenceComposerSuggestions(tagSentence, {
+    entities: [],
+    places: [],
+    categories,
+    tags,
+    cursorOffset: tagSentence.indexOf("urgent") + "urgent".length,
+  }).filter((suggestion) => suggestion.kind === "tag");
+  assert.equal(tagSuggestions.find((suggestion) => suggestion.label === "work")?.selected, true);
+  assert.equal(tagSuggestions.find((suggestion) => suggestion.label === "urgent")?.selected, true);
+  assert.equal(tagSuggestions.find((suggestion) => suggestion.label === "travel")?.selected, false);
+});
+
 test("quoted grammar words remain entity and place text instead of structural clauses", () => {
   const noContext = parseOccurrenceSentence('Alice reads "Meeting at Dawn"');
   assert.equal(noContext.stage, "complete");
@@ -1288,7 +1359,6 @@ test("composer-local glyphs preserve the shared Lucide construction contract", a
   assert.doesNotMatch(source, />×<\/button>/);
 });
 
-
 test("composer suggestions preserve authored semantic icon and color metadata", () => {
   const options = {
     entities: [
@@ -1335,7 +1405,6 @@ test("composer suggestions preserve authored semantic icon and color metadata", 
   assert.equal(tag?.icon, "danger");
   assert.equal(tag?.color, "hsl(28 64% 44%)");
 });
-
 test("composer suggestion rows and deck consume semantic styling", async () => {
   const [source, app] = await Promise.all([
     readFile(new URL("../site/components/occurrence-composer.ts", import.meta.url), "utf8"),

@@ -282,7 +282,15 @@ export function createCrossFilterProjection(
       relationships.map((relationship) => relationship.predicate),
     ),
     places: buildCategoryCounts(placeValues),
-    categories: buildCategoryCounts(occurrences.map((occurrence) => occurrence.categoryId)),
+    categories: buildCategoryCounts(
+      occurrences.flatMap((occurrence) =>
+        occurrence.categoryIds?.length
+          ? occurrence.categoryIds
+          : occurrence.categoryId
+            ? [occurrence.categoryId]
+            : [],
+      ),
+    ),
     temporalDensity: buildTemporalHistogram(occurrences, temporalOptions),
   });
 }

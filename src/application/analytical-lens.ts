@@ -49,6 +49,7 @@ export interface AnalyticalLensOccurrence {
   readonly id: string;
   readonly relationshipId?: string;
   readonly categoryId?: string;
+  readonly categoryIds?: readonly string[];
   readonly placeId?: string;
   readonly entityIds?: readonly string[];
   readonly start?: number | null;
@@ -271,7 +272,11 @@ function occurrenceMatches(
   }
 
   const categories = new Set(filters.categoryIds ?? []);
-  if (categories.size > 0 && !(occurrence.categoryId && categories.has(occurrence.categoryId))) {
+  const occurrenceCategories = [
+    ...(occurrence.categoryIds ?? []),
+    ...(occurrence.categoryId ? [occurrence.categoryId] : []),
+  ];
+  if (categories.size > 0 && !occurrenceCategories.some((categoryId) => categories.has(categoryId))) {
     return false;
   }
 
