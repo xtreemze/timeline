@@ -50,6 +50,8 @@ export const WORLD_MIN_VISIBLE_STROKE_PX = 1;
 export interface WorldNodeStyle {
   readonly fill: string;
   readonly border: string;
+  /** Theme-neutral glyph colour; quiet normally and high-contrast only when active. */
+  readonly foreground: string;
   readonly borderWidth: number;
   readonly shape: WorldNodeShape;
   /** Icon name from the shared icon set, or null for no glyph. */
@@ -276,6 +278,7 @@ export function worldNodeStyle(
     // Interaction changes only chroma/lightness; semantic hue and geometry stay invariant.
     fill,
     border,
+    foreground: state === "active" ? palette.paper : palette.line,
     borderWidth: metrics.borderWidth,
     shape: metrics.shape,
     icon: text(own["icon"], 48) ?? (type || null),
@@ -366,6 +369,7 @@ export function worldPlaceStyle(
       palette,
       state === "active" ? "active" : "subdued",
     ),
+    foreground: state === "active" ? palette.paper : palette.line,
     borderWidth: metrics.borderWidth,
     shape: metrics.shape,
     icon: text(marker["icon"] ?? own["icon"], 48) ?? "place",
