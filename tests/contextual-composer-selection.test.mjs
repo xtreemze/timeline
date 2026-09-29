@@ -184,7 +184,10 @@ test("focused occurrence opens the composer directly and suppresses legacy detai
   ]);
   const focusHandler = app.match(/timelinefocuschange"[\s\S]*?\n\}\);/)?.[0] ?? "";
 
-  assert.match(focusHandler, /focusSelection = selectionForTimelineFocus/);
+  assert.match(
+    focusHandler,
+    /selectionForTimelineFocus\([\s\S]*event\.detail\?\.id,[\s\S]*state\.relationships,[\s\S]*event\.detail\?\.relationshipId/,
+  );
   assert.match(
     focusHandler,
     /focusSelection\?\.kind === "relationship"[\s\S]*setOccurrenceComposerOpen\(true\)/,
@@ -192,5 +195,9 @@ test("focused occurrence opens the composer directly and suppresses legacy detai
   assert.match(
     css,
     /#app-shell:has\(#occurrence-composer\[active\]\) #timeline-focus-view,[\s\S]*\.timeline-event-detail[\s\S]*display:\s*none\s*!important/,
+  );
+  assert.match(
+    app,
+    /timelineoccurrenceeditrequest[\s\S]*relationshipId\?: string[\s\S]*selectionForTimelineFocus\(id, state\.relationships, relationshipId\)/,
   );
 });

@@ -610,9 +610,8 @@
   background: color-mix(in srgb, var(--paper) 91%, var(--event-color));
 }
 
-/* A focused occurrence expands inside its retained event-card identity. The zero-size
-   retained anchor never changes; only this absolutely positioned child occupies visual
-   space over the world. */
+/* Deprecated compatibility host. The retained timeline keeps only the temporal anchor;
+   occurrence context/media/editing is rendered by the persistent composer deck. */
 .timeline-event.is-expanded {
   z-index: 120;
 }
@@ -622,7 +621,7 @@
   z-index: 20;
   inset-inline-start: 0;
   top: 0;
-  display: grid;
+  display: none;
   grid-template-columns: minmax(0, 1fr);
   grid-auto-rows: auto;
   align-content: start;
@@ -649,7 +648,7 @@
   display: none;
 }
 
-/* The composer owns the expanded occurrence while editing; the timeline anchor stays retained. */
+/* Defense in depth for stale markup retained during migration. */
 .app-shell:has(#occurrence-composer[active]) .timeline-event-detail {
   display: none;
 }

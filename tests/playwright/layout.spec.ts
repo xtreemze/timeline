@@ -683,27 +683,21 @@ test.describe("Persistent footer and focus geometry", () => {
       );
       const beforeScroll = await footer.evaluate((element) => element.scrollLeft);
 
-      const card = terminal.locator("xpath=ancestor::luum-event-card[1]");
-      await terminal.evaluate((button: HTMLButtonElement) => button.click());
       await terminal.evaluate((button: HTMLButtonElement) => button.click());
       await expect(page.locator("#app-shell")).toHaveClass(/is-event-card-focused/);
       await expect(page.locator("#timeline-focus-view")).toBeHidden();
 
-      const detail = card.locator(".timeline-event-detail");
-      await expect(detail).toBeVisible();
-      const focusActions = detail.locator(".timeline-focus-context-actions");
-      await expect(focusActions).toBeVisible();
-      await expect(focusActions.locator("#timeline-focus-prev")).toBeVisible();
-      await expect(focusActions.locator("#timeline-focus-next")).toBeVisible();
-      await expect(focusActions.locator("#timeline-related-zoom")).toBeVisible();
-      await expect(focusActions.locator("#timeline-related-fit")).toBeVisible();
+      const composer = page.locator("#occurrence-composer");
+      await expect(composer).toHaveAttribute("active", "");
+      await expect(composer.locator(".composer-occurrence-card")).toBeVisible();
+      await expect(composer.locator('input[role="combobox"]')).toBeVisible();
+      await expect(page.locator(".timeline-event-detail:visible")).toHaveCount(0);
       await expect(page.locator(".app-footer-bar #timeline-focus-prev")).toHaveCount(0);
       await expect(page.locator(".app-footer-bar #timeline-related-zoom")).toHaveCount(0);
       await expect(page.locator("#timeline-focus-edit")).toHaveCount(0);
       await expect(page.locator("#editor-toggle")).toHaveAttribute("aria-label", "Edit timeline");
       await expect(page.locator("#editor-toggle")).toHaveAttribute("data-semantic-icon", "edit");
       await expect(page.locator("#editor-toggle")).toHaveAttribute("aria-pressed", "false");
-      await expect(page.locator("#occurrence-composer .compact")).toBeVisible();
 
       const afterFooter = await footer.boundingBox();
       const afterPersistentBoxes = await Promise.all(
@@ -729,25 +723,6 @@ test.describe("Persistent footer and focus geometry", () => {
         expect(Math.abs(afterBox.y - beforeBox.y)).toBeLessThanOrEqual(1);
         expect(Math.abs(afterBox.width - beforeBox.width)).toBeLessThanOrEqual(1);
         expect(Math.abs(afterBox.height - beforeBox.height)).toBeLessThanOrEqual(1);
-      }
-
-      const contextActionCount = await focusActions
-        .locator(".timeline-focus-context-action")
-        .count();
-      expect(contextActionCount).toBe(4);
-      for (let index = 0; index < contextActionCount; index += 1) {
-        const action = focusActions.locator(".timeline-focus-context-action").nth(index);
-        const [actionBox, iconBox] = await Promise.all([
-          action.boundingBox(),
-          action.locator(":scope > .semantic-icon").boundingBox(),
-        ]);
-        expect(actionBox).not.toBeNull();
-        expect(iconBox).not.toBeNull();
-        if (!actionBox || !iconBox) throw new Error("Focused event action has no bounds.");
-        expect(Math.abs(actionBox.width - 44)).toBeLessThanOrEqual(1);
-        expect(Math.abs(actionBox.height - 44)).toBeLessThanOrEqual(1);
-        expect(Math.abs(iconBox.width - 20)).toBeLessThanOrEqual(1);
-        expect(Math.abs(iconBox.height - 20)).toBeLessThanOrEqual(1);
       }
 
       const afterTimeline = await timeline.boundingBox();
