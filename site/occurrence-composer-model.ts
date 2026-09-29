@@ -298,7 +298,15 @@ function composerListValues(value: string): readonly string[] {
 }
 
 function composerListSyntax(values: readonly string[]): string {
-  return values.map((value) => quoteComposerName(value)).join("|");
+  return values
+    .map((value) => {
+      const trimmed = value.trim();
+      if (/[|,]/.test(trimmed)) {
+        return `"${trimmed.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+      }
+      return quoteComposerName(trimmed);
+    })
+    .join("|");
 }
 
 export interface OccurrenceCompositionInput {
