@@ -33,6 +33,43 @@ test("selecting an occurrence through the visible card opens its composer-owned 
   await expect(page.locator(".timeline-event-detail:visible")).toHaveCount(0);
 });
 
+test("multi-owned chronology item opens the exact rendered occurrence in the composer", async ({
+  page,
+}) => {
+  const owners = await page.evaluate(() => {
+    const project = (
+      globalThis as typeof globalThis & {
+        TimelineAgentAPI?: {
+          getProject?: () => {
+            relationships?: Array<{ id: string; itemIds?: string[] }>;
+          };
+        };
+      }
+    ).TimelineAgentAPI?.getProject?.();
+    return (project?.relationships ?? [])
+      .filter((relationship) => relationship.itemIds?.includes("pigs-childhood"))
+      .map((relationship) => relationship.id);
+  });
+  expect(owners.length).toBeGreaterThan(1);
+
+  await page.evaluate(() => {
+    const root = document.querySelector("#timeline-view");
+    if (!(root instanceof HTMLElement)) throw new Error("Timeline root unavailable.");
+    const view = globalThis.TimelineView?.create(root);
+    if (!view) throw new Error("Timeline controller unavailable.");
+    view.focusItem("pigs-childhood", { moveViewport: false });
+  });
+
+  const composer = page.locator("#occurrence-composer");
+  const input = composer.locator('input[role="combobox"]');
+  await expect(composer).toHaveAttribute("active", "");
+  await expect(composer.locator(".composer-occurrence-card")).toBeVisible();
+  await expect(input).toHaveValue(/@pigs-mother raises @pigs-brothers/);
+  await expect(composer.locator(".composer-context-deck")).toBeVisible();
+  await expect(page.locator(".timeline-event-detail:visible")).toHaveCount(0);
+  await expect(page.locator("#timeline-focus-view:visible")).toHaveCount(0);
+});
+
 test("mobile composer fills one viewport lane, follows pan, and snaps centered", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const footer = page.locator(".app-footer-bar");
