@@ -785,7 +785,6 @@
     inline-size: max-content;
     min-inline-size: 100dvi;
     max-inline-size: none;
-    scroll-snap-align: start;
   }
 
   #app-shell:has(#occurrence-composer[active]) .app-footer-bar > .app-footer-view {

@@ -595,6 +595,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
       .input-shell {
         inline-size: 100dvi;
         max-inline-size: 100dvi;
+        scroll-snap-align: center;
+        scroll-snap-stop: always;
       }
 
       .stage {
@@ -986,7 +988,11 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.externalError = "";
     void this.updateComplete.then(() => {
       if (typeof matchMedia === "function" && matchMedia("(max-width: 699px)").matches) {
-        this.scrollIntoView({ block: "nearest", inline: "start", behavior: "auto" });
+        this.renderRoot.querySelector<HTMLElement>(".input-shell")?.scrollIntoView({
+          block: "nearest",
+          inline: "center",
+          behavior: "auto",
+        });
       }
       this.renderRoot.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
     });

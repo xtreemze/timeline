@@ -54,6 +54,10 @@ test("composer owns the card and incremental world preview with interactive gram
   assert.match(source, /anchor-name:\s*--occurrence-composer-input/);
   assert.match(
     source,
+    /@media \(max-width: 699px\)[\s\S]*?\.input-shell[\s\S]*?scroll-snap-align:\s*center[\s\S]*?scroll-snap-stop:\s*always/,
+  );
+  assert.match(
+    source,
     /@media \(max-width: 699px\)[\s\S]*?\.input-row[\s\S]*?grid-template-columns:\s*100dvi auto auto/,
   );
   assert.match(
@@ -62,7 +66,7 @@ test("composer owns the card and incremental world preview with interactive gram
   );
   assert.match(
     source,
-    /matchMedia\("\(max-width: 699px\)"\)[\s\S]*?scrollIntoView\(\{[\s\S]*?inline:\s*"start"/,
+    /matchMedia\("\(max-width: 699px\)"\)[\s\S]*?\.input-shell[\s\S]*?scrollIntoView\(\{[\s\S]*?inline:\s*"center"/,
   );
 });
 
