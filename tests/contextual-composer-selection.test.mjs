@@ -130,34 +130,36 @@ test("selection does not change the persistent Edit control presentation", async
   assert.doesNotMatch(sync, /Edit focused event|composerActive \? "Open editor"/);
 });
 
-test("composer owns Home/End suggestion navigation while active", async () => {
+test("composer owns real Home/End suggestion navigation while active", async () => {
   const composer = await readFile(
     new URL("../site/components/occurrence-composer.ts", import.meta.url),
     "utf8",
   );
 
-  assert.match(composer, /event\.key === "Home"[\s\S]*activeSuggestion = 0/);
-  assert.match(composer, /event\.key === "End"[\s\S]*activeSuggestion = suggestions\.length - 1/);
+  assert.match(
+    composer,
+    /\(event\.key === "Home" \|\| event\.key === "End"\) && suggestions\.length[\s\S]*selectSuggestion\(event\.key === "Home" \? 0 : suggestions\.length - 1, suggestions, false\)/,
+  );
 });
 
-test("composer centers active suggestions for keyboard and wheel navigation", async () => {
+test("composer keeps active suggestions and investigation candidates visibly centered", async () => {
   const composer = await readFile(
     new URL("../site/components/occurrence-composer.ts", import.meta.url),
     "utf8",
   );
 
-  assert.match(composer, /private centerActiveSuggestion\(\)/);
-  assert.match(composer, /optionCenter[\s\S]*panel\.clientHeight \/ 2/);
-  assert.match(composer, /panel\.scrollTo\(\{ top: target, behavior: "auto" \}\)/);
+  assert.match(composer, /private centerActiveChoice\(kind: "suggestion" \| "candidate"\)/);
+  assert.match(composer, /kind === "suggestion" \? "\.listbox" : "\.candidate-matrix"/);
+  assert.match(composer, /choiceCenter[\s\S]*container\.clientHeight \/ 2/);
+  assert.match(composer, /container\.scrollTo\(\{ top: target, behavior: "auto" \}\)/);
+  assert.match(composer, /private resetSuggestionSelection\(\)[\s\S]*centerActiveChoice\("suggestion"\)/);
+  assert.match(composer, /private resetCandidateSelection\(\)[\s\S]*centerActiveChoice\("candidate"\)/);
   assert.match(composer, /@wheel=\$\{\(event: WheelEvent\) => this\.onSuggestionWheel\(event\)\}/);
-  assert.match(
-    composer,
-    /event\.key === "ArrowDown"[\s\S]*selectSuggestion\(this\.activeSuggestion \+ 1, suggestions\)/,
-  );
-  assert.match(
-    composer,
-    /event\.key === "ArrowUp"[\s\S]*selectSuggestion\(this\.activeSuggestion - 1, suggestions\)/,
-  );
+  assert.match(composer, /vertical <= horizontal \* 1\.25/);
+  assert.match(composer, /Math\.abs\(this\.choiceWheelDelta\) < 72/);
+  assert.match(composer, /selectSuggestion\(this\.activeSuggestion \+ step, suggestions, false\)/);
+  assert.match(composer, /selectCandidate\(this\.activeCandidate \+ step, candidates, false\)/);
+  assert.match(composer, /id=\$\{\`occurrence-composer-candidate-\$\{index\}\`\}/);
 });
 
 test("contextual composer returns focus to its connected invoker on close", async () => {
