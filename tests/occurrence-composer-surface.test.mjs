@@ -51,8 +51,14 @@ test("composer owns one sentence-first inline semantic editor and contextual pre
   assert.match(source, /class="input-token"/);
   assert.match(source, /data-label=\$\{this\.inputTokenLabel\(segment\)\}/);
   assert.match(source, /inputTokenLabel\(/);
-  assert.match(source, /\.input-token::before[\s\S]*content:\s*attr\(data-label\)/);
+  assert.match(source, /class="input-token-label"/);
+  assert.match(source, /class="input-token-text"/);
+  assert.match(source, /\.input-decoration\s*\{[\s\S]*z-index:\s*2/);
+  assert.match(source, /\.input-decoration-text\s*\{[\s\S]*color:\s*var\(--ink/);
+  assert.match(source, /\.input-token\s*\{[\s\S]*color:\s*var\(--ink/);
+  assert.match(source, /\.input-token-label\s*\{[\s\S]*position:\s*absolute/);
   assert.match(source, /\.input-shell\s*\{[\s\S]*block-size:\s*54px/);
+  assert.match(source, /input\s*\{[\s\S]*z-index:\s*1[\s\S]*color:\s*transparent/);
   assert.match(source, /input\s*\{[\s\S]*padding:\s*1\.35rem 0\.7rem 0\.35rem/);
   assert.doesNotMatch(source, /qualifier-chip/);
   assert.doesNotMatch(source, /composer-qualifiers/);
