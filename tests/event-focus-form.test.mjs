@@ -281,13 +281,18 @@ test("graph exploration is chrome-free and selection-only", async () => {
   assert.doesNotMatch(graphView, /renderDetail|temporal-graph-detail-list/);
 });
 
-test("fullscreen restores the focused event popover after the browser changes top-layer state", async () => {
+test("fullscreen restores focused occurrence context through the persistent composer", async () => {
   const [app, view] = await Promise.all([
     readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
   ]);
   assert.match(view, /ensureFocusPopover\(\)/);
   assert.match(app, /active && timelineView\?\.hasFocusedItem\?\.\(\)[\s\S]*ensureFocusPopover/);
+  const ensureStart = view.indexOf("  ensureFocusPopover(): void");
+  const ensureEnd = view.indexOf("\n  closeFocus(): void", ensureStart);
+  const ensureBody = view.slice(ensureStart, ensureEnd);
+  assert.match(ensureBody, /timelineoccurrenceeditrequest/);
+  assert.doesNotMatch(ensureBody, /"expanded"|explicitDetailOpen = true/);
 });
 
 test("utility surfaces stay coordinated with persistent View controls and one Edit action", async () => {
