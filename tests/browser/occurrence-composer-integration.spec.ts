@@ -109,6 +109,22 @@ test("mobile composer fills one viewport lane, follows pan, and snaps centered",
   expect(Math.abs(snapped.panelCenter - snapped.viewportCenter)).toBeLessThanOrEqual(2);
   expect(Math.abs(snapped.panelLeft - snapped.shellLeft)).toBeLessThanOrEqual(2);
 
+  // Fallback for Android/WebView builds that do not honor interactive-widget=resizes-content:
+  // a measured keyboard occlusion must lift the entire footer, keeping the focused composer visible.
+  await page.evaluate(() => {
+    document.documentElement.style.setProperty("--app-visual-viewport-bottom", "128px");
+  });
+  await expect
+    .poll(async () => {
+      const box = await footer.boundingBox();
+      return box ? Math.round(844 - (box.y + box.height)) : -1;
+    })
+    .toBe(128);
+  await expect(composer.locator('input[role="combobox"]')).toBeVisible();
+  await page.evaluate(() => {
+    document.documentElement.style.removeProperty("--app-visual-viewport-bottom");
+  });
+
   const approve = composer.getByRole("button", { name: "Approve occurrence" });
   await approve.scrollIntoViewIfNeeded();
   await expect(approve).toBeVisible();
