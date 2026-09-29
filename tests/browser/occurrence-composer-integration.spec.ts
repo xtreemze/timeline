@@ -522,6 +522,88 @@ test("same-occurrence media and context refresh preserve a dirty investigative d
   await expect(deck.locator(".timeline-occurrence-deck-zoom-level")).toHaveText("125%");
   await expect(zoomOut).toBeEnabled();
   await expect(mediaImage).toHaveAttribute("style", /--occurrence-image-zoom:\s*1\.25/);
+
+  const imageViewport = deck.locator(".timeline-occurrence-deck-image-viewport");
+  await expect(imageViewport).toBeVisible();
+  await expect(imageViewport).toHaveAttribute("tabindex", "0");
+
+  await imageViewport.evaluate((viewport) => {
+    const emit = (type: string, init: PointerEventInit) =>
+      viewport.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, ...init }));
+    emit("pointerdown", { pointerId: 11, pointerType: "mouse", button: 0, clientX: 120, clientY: 90 });
+    emit("pointermove", { pointerId: 11, pointerType: "mouse", button: 0, clientX: 154, clientY: 112 });
+    emit("pointerup", { pointerId: 11, pointerType: "mouse", button: 0, clientX: 154, clientY: 112 });
+  });
+  await expect
+    .poll(() =>
+      mediaImage.evaluate((element) => ({
+        x: element.style.getPropertyValue("--occurrence-image-pan-x"),
+        y: element.style.getPropertyValue("--occurrence-image-pan-y"),
+      })),
+    )
+    .not.toEqual({ x: "0px", y: "0px" });
+
+  await imageViewport.evaluate((viewport) => {
+    viewport.dispatchEvent(
+      new WheelEvent("wheel", {
+        bubbles: true,
+        cancelable: true,
+        deltaY: -120,
+        clientX: 150,
+        clientY: 100,
+      }),
+    );
+  });
+  await expect
+    .poll(() =>
+      mediaImage.evaluate((element) =>
+        Number(element.style.getPropertyValue("--occurrence-image-zoom") || "1"),
+      ),
+    )
+    .toBeGreaterThan(1.25);
+
+  await imageViewport.focus();
+  await imageViewport.press("0");
+  await expect(mediaImage).toHaveAttribute("style", /--occurrence-image-zoom:\s*1(?:;|$)/);
+
+  await imageViewport.evaluate((viewport) => {
+    const emit = (type: string, init: PointerEventInit) =>
+      viewport.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, ...init }));
+    emit("pointerdown", { pointerId: 21, pointerType: "touch", clientX: 100, clientY: 100 });
+    emit("pointerdown", { pointerId: 22, pointerType: "touch", clientX: 200, clientY: 100 });
+    emit("pointermove", { pointerId: 22, pointerType: "touch", clientX: 260, clientY: 100 });
+    emit("pointerup", { pointerId: 22, pointerType: "touch", clientX: 260, clientY: 100 });
+    emit("pointerup", { pointerId: 21, pointerType: "touch", clientX: 100, clientY: 100 });
+  });
+  await expect
+    .poll(() =>
+      mediaImage.evaluate((element) =>
+        Number(element.style.getPropertyValue("--occurrence-image-zoom") || "1"),
+      ),
+    )
+    .toBeGreaterThan(1);
+  await imageViewport.press("0");
+
+  await imageViewport.evaluate((viewport) => {
+    const emit = (type: string, x: number) =>
+      viewport.dispatchEvent(
+        new PointerEvent(type, {
+          bubbles: true,
+          cancelable: true,
+          pointerId: 31,
+          pointerType: "touch",
+          clientX: x,
+          clientY: 100,
+        }),
+      );
+    emit("pointerdown", 190);
+    emit("pointermove", 90);
+    emit("pointerup", 90);
+  });
+  await expect(deck.locator(".timeline-focus-hero-image")).toHaveAttribute("alt", "Updated evidence B");
+  await deck.getByRole("button", { name: "Previous frame" }).click();
+  await expect(deck.locator(".timeline-focus-hero-image")).toHaveAttribute("alt", "Updated evidence A");
+
   const context = composer.locator(".composer-card-context");
   await expect(context).toContainText("Updated description");
   const layout = await composer.locator(".composer-card-details").evaluate((details) => {
