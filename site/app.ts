@@ -27,7 +27,10 @@ import {
 import { suggestSemanticIconForPlace } from "../src/presentation/semantic-icon-inference.ts";
 import { projectTimelineOccurrences } from "../src/projection/timeline-projection.ts";
 import "./components/occurrence-composer.ts";
-import { shouldOpenComposerForSelection } from "./occurrence-composer-selection.ts";
+import {
+  shouldOpenComposerForSelection,
+  timelineItemIdForRelationshipSelection,
+} from "./occurrence-composer-selection.ts";
 import type {
   LuumOccurrenceComposerElement,
   OccurrenceCommitDetail,
@@ -1831,16 +1834,7 @@ function composerItemIdForRelationship(
   relationship: RelationshipRecord,
   requestedItemId: string | null | undefined,
 ): string | null {
-  const linkedItemIds = [
-    ...new Set(
-      (relationship.itemIds ?? [])
-        .map(String)
-        .filter((itemId) => state.items.some((item) => String(item.id) === itemId)),
-    ),
-  ];
-  const requested = requestedItemId ? String(requestedItemId) : "";
-  if (requested && linkedItemIds.includes(requested)) return requested;
-  return linkedItemIds.length === 1 ? linkedItemIds[0]! : null;
+  return timelineItemIdForRelationshipSelection(relationship, state.items, requestedItemId);
 }
 
 function occurrenceCompositionForRelationship(
@@ -6159,7 +6153,41 @@ els.graphViewRoot.addEventListener("worldselectionchange", (event) => {
       selection.kind === "place") &&
     (typeof selection.id === "string" || typeof selection.id === "number")
   ) {
-    applicationSelection.select({ kind: selection.kind, id: String(selection.id) }, "world");
+    const id = String(selection.id);
+    if (selection.kind === "relationship") {
+      const relationship = state.relationships.find((candidate) => String(candidate.id) === id);
+      const retainedItemId =
+        applicationSelection.current?.kind === "relationship" &&
+        applicationSelection.current.id === id
+          ? applicationSelection.current.itemId
+          : null;
+      let selectedItemId = relationship
+        ? composerItemIdForRelationship(relationship, retainedItemId)
+        : null;
+      if (!selectedItemId && relationship) {
+        selectedItemId = composerItemIdForRelationship(
+          relationship,
+          timelineView?.focusedItemId?.() ?? null,
+        );
+      }
+      const worldSelection = {
+        kind: "relationship" as const,
+        id,
+        ...(selectedItemId ? { itemId: selectedItemId } : {}),
+      };
+      const changed = applicationSelection.select(worldSelection, "world");
+      if (!changed) {
+        // Re-activating an already-selected edge is still an explicit request
+        // for that occurrence context. Reopen the composer even though the
+        // canonical selection controller correctly suppresses duplicate state.
+        timelineView?.setSelection(worldSelection);
+        syncOccurrenceComposerSelection(worldSelection);
+        setOccurrenceComposerOpen(true);
+      }
+      return;
+    }
+
+    applicationSelection.select({ kind: selection.kind, id }, "world");
     return;
   }
   applicationSelection.clear("world");
