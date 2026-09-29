@@ -89,6 +89,12 @@ interface TouchBearingConstraintState {
   inTransition: boolean;
 }
 
+interface WeightedPanSample {
+  x: number;
+  y: number;
+  time: number;
+}
+
 function pointerTypeForGlobeEvent(event: GlobeControllerEvent): string | undefined {
   const candidate = event as GlobeControllerEvent & {
     readonly pointerType?: unknown;
@@ -101,17 +107,18 @@ function pointerTypeForGlobeEvent(event: GlobeControllerEvent): string | undefin
 }
 
 /**
- * deck.gl owns globe gesture recognition and weighted fling physics. Lūm adds
- * one mobile geographic convention: a one-finger touch pan may change
- * longitude/latitude, but it must not introduce camera roll. Preserve the
- * bearing present at touch-down through direct manipulation and any resulting
- * inertia transition. Explicit two-finger rotation, mouse rotation and
- * keyboard rotation remain untouched.
+ * deck.gl owns globe gesture recognition and globe projection. Lūm filters
+ * ordinary direct pan through the shared weighted response, then derives its
+ * release velocity from that same rendered path including the lift timestamp.
+ * This avoids handing a slowed/stationary pointer to deck.gl's older five-move
+ * history. A one-finger touch pan may change longitude/latitude but must not
+ * introduce camera roll. Explicit rotation and multi-touch remain deck-native.
  */
 class TimelineWeightedGlobeController extends GlobeController {
   readonly #touchBearing: TouchBearingConstraintState;
   #weightedPanCenter: [number, number] | null = null;
   #weightedPanLastTime = 0;
+  #weightedPanSamples: WeightedPanSample[] = [];
 
   constructor(options: ConstructorParameters<typeof GlobeController>[0]) {
     const touchBearing: TouchBearingConstraintState = {
@@ -161,6 +168,14 @@ class TimelineWeightedGlobeController extends GlobeController {
   #clearWeightedPan(): void {
     this.#weightedPanCenter = null;
     this.#weightedPanLastTime = 0;
+    this.#weightedPanSamples = [];
+  }
+
+  #appendWeightedPanSample(center: [number, number], time: number): void {
+    this.#weightedPanSamples.push({ x: center[0], y: center[1], time });
+    if (this.#weightedPanSamples.length > 24) {
+      this.#weightedPanSamples.splice(0, this.#weightedPanSamples.length - 24);
+    }
   }
 
   /**
@@ -183,8 +198,11 @@ class TimelineWeightedGlobeController extends GlobeController {
         return raw;
       }
 
+      const now = globeEventTimestamp(event);
       this.#weightedPanCenter = raw;
-      this.#weightedPanLastTime = globeEventTimestamp(event);
+      this.#weightedPanLastTime = now;
+      this.#weightedPanSamples = [];
+      this.#appendWeightedPanSample(raw, now);
       return raw;
     }
 
@@ -199,6 +217,60 @@ class TimelineWeightedGlobeController extends GlobeController {
     ];
     this.#weightedPanCenter = weighted;
     return weighted;
+  }
+
+  protected override _onPanMove(event: GlobeControllerCenterEvent): boolean {
+    if (!this.dragPan || !this.#weightedPanCenter) {
+      return super._onPanMove(event as never);
+    }
+
+    const pos = this.getCenter(event);
+    const newControllerState = this.controllerState.pan({ pos } as never);
+    this.updateViewport(
+      newControllerState,
+      { transitionDuration: 0 },
+      { isDragging: true, isPanning: true },
+    );
+    this.#appendWeightedPanSample(pos, globeEventTimestamp(event));
+    return true;
+  }
+
+  protected override _onPanMoveEnd(event: GlobeControllerCenterEvent): boolean {
+    const center = this.#weightedPanCenter;
+    if (!center) return super._onPanMoveEnd(event as never);
+
+    const releaseTime = globeEventTimestamp(event);
+    this.#appendWeightedPanSample(center, releaseTime);
+    const velocity = TimelineMotion.estimatePointerVectorVelocity(this.#weightedPanSamples);
+
+    if (
+      this.dragPan &&
+      this.inertia > 0 &&
+      velocity.magnitude >= TimelineMotion.STOP_VELOCITY_PX_PER_MS
+    ) {
+      const endPos: [number, number] = [
+        center[0] + (velocity.x * this.inertia) / 2,
+        center[1] + (velocity.y * this.inertia) / 2,
+      ];
+      const newControllerState = this.controllerState.pan({ pos: endPos } as never).panEnd();
+      this.updateViewport(
+        newControllerState,
+        {
+          ...this._getTransitionProps(),
+          transitionDuration: this.inertia,
+          transitionEasing: velocityContinuousGlobeInertiaEasing,
+        },
+        { isDragging: false, isPanning: true },
+      );
+      return true;
+    }
+
+    const newControllerState = this.controllerState.panEnd();
+    this.updateViewport(newControllerState, null, {
+      isDragging: false,
+      isPanning: false,
+    });
+    return true;
   }
 
   protected override updateViewport(

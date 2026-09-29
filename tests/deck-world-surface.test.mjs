@@ -1106,6 +1106,15 @@ test("real globe direct pan applies the shared timeline-weighted response", asyn
   assert.match(source, /interactionState\.isDragging === false/);
   assert.match(source, /interactionState\.isPanning === true/);
   assert.match(source, /transitionEasing: velocityContinuousGlobeInertiaEasing/);
+  assert.match(source, /override _onPanMoveEnd\(event: GlobeControllerCenterEvent\)/);
+  assert.match(source, /#appendWeightedPanSample\(center, releaseTime\)/);
+  assert.match(
+    source,
+    /TimelineMotion\.estimatePointerVectorVelocity\(this\.#weightedPanSamples\)/,
+  );
+  assert.match(source, /velocity\.magnitude >= TimelineMotion\.STOP_VELOCITY_PX_PER_MS/);
+  assert.match(source, /center\[0\] \+ \(velocity\.x \* this\.inertia\) \/ 2/);
+  assert.match(source, /center\[1\] \+ \(velocity\.y \* this\.inertia\) \/ 2/);
 });
 
 test("world surface advertises and releases focused keyboard camera ownership", () => {
