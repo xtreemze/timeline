@@ -1859,7 +1859,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const relationshipIcon =
       typeof relationshipStyle?.["icon"] === "string" ? relationshipStyle["icon"] : null;
     const predicateVisual = (this.data.predicates ?? [])
-      .map((predicate) =>
+      .map((predicate): ComposerPredicateOption =>
         typeof predicate === "string"
           ? { name: predicate }
           : predicate,
@@ -1897,7 +1897,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const activeTagVisual = preview.tags
       .map((label) =>
         (this.data.tags ?? [])
-          .map((tag) => (typeof tag === "string" ? { label: tag } : tag))
+          .map((tag): ComposerTagOption => (typeof tag === "string" ? { label: tag } : tag))
           .find((tag) => tag.label === label),
       )
       .find((tag) => Boolean(tag?.color || tag?.icon));
