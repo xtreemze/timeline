@@ -5,7 +5,7 @@ test.beforeEach(async ({ page }) => {
   await expect(page.locator("#occurrence-composer .compact")).toBeVisible();
 });
 
-test("composer keeps active suggestions visible across keyboard, wheel, reset, and Home/End", async ({
+test("composer keeps active suggestions visible across keyboard, wheel, and reset", async ({
   page,
 }) => {
   const composer = page.locator("#occurrence-composer");
@@ -90,14 +90,20 @@ test("composer keeps active suggestions visible across keyboard, wheel, reset, a
   await expect(input).toHaveAttribute("aria-activedescendant", "occurrence-composer-option-0");
   await expect.poll(async () => (await choiceGeometry()).listboxScrollTop).toBe(0);
 
-  await input.press("End");
-  const endIndex = (await options.count()) - 1;
-  await expect(input).toHaveAttribute(
-    "aria-activedescendant",
-    `occurrence-composer-option-${endIndex}`,
-  );
+  await input.fill("Alice");
   await input.press("Home");
-  await expect(input).toHaveAttribute("aria-activedescendant", "occurrence-composer-option-0");
+  await expect
+    .poll(() => input.evaluate((element: HTMLInputElement) => element.selectionStart))
+    .toBe(0);
+  await input.press("End");
+  await expect
+    .poll(() =>
+      input.evaluate((element: HTMLInputElement) => ({
+        selectionStart: element.selectionStart,
+        length: element.value.length,
+      })),
+    )
+    .toEqual({ selectionStart: 5, length: 5 });
 });
 
 test("selecting an occurrence through the visible card opens its composer-owned context", async ({ page }) => {
@@ -446,16 +452,14 @@ test("unresolved clue remains editable and cannot be approved as a fact", async 
   await expect
     .poll(() => candidateMatrix.evaluate((element: HTMLElement) => element.scrollTop))
     .toBeGreaterThan(0);
-  await expect(input).toHaveAttribute(
-    "aria-activedescendant",
-    await activeCandidate.getAttribute("id"),
-  );
+  const activeCandidateId = await activeCandidate.getAttribute("id");
+  expect(activeCandidateId).toBeTruthy();
+  await expect(input).toHaveAttribute("aria-activedescendant", activeCandidateId ?? "");
 
+  const lastCandidateId = await composer.locator(".candidate-row").last().getAttribute("id");
   await input.hover();
   await page.mouse.wheel(0, -120);
-  await expect.poll(async () => activeCandidate.getAttribute("id")).not.toBe(
-    await composer.locator(".candidate-row").last().getAttribute("id"),
-  );
+  await expect.poll(async () => activeCandidate.getAttribute("id")).not.toBe(lastCandidateId);
   const interpretationBefore = await composer
     .locator('.interpretation-chip[aria-pressed="true"]')
     .textContent();
