@@ -776,9 +776,10 @@
               <span>Name</span>
               <input id="category-name" type="text" maxlength="60" autocomplete="off" placeholder="Research" required>
             </label>
-            <label class="field color-field">
-              <span>Accent</span>
-              <input id="category-color" type="color" value="#667085">
+            <label class="field hue-field category-hue-field">
+              <span>Hue <small>the app controls saturation and lightness</small></span>
+              <input id="category-hue" type="range" min="0" max="359" step="1" value="220" aria-describedby="category-hue-output">
+              <output id="category-hue-output" for="category-hue">220°</output>
             </label>
             <div class="form-actions category-actions">
               <button id="save-category" class="button primary" type="submit">Add category</button>
