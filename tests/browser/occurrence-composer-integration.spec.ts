@@ -432,13 +432,29 @@ test("unresolved clue remains editable and cannot be approved as a fact", async 
   await expect(composer.getByRole("button", { name: "Compare candidates" })).toBeVisible();
   await expect(composer.locator(".option")).toHaveCount(0);
   await expect(composer.locator('.candidate-row[data-active="true"]')).toHaveCount(1);
+  const candidateMatrix = composer.locator(".candidate-matrix");
+  await candidateMatrix.evaluate((element: HTMLElement) => {
+    element.style.maxBlockSize = "5rem";
+  });
   const firstCandidate = await composer.locator('.candidate-row[data-active="true"]').textContent();
   await input.press("ArrowDown");
   const secondCandidate = await composer.locator('.candidate-row[data-active="true"]').textContent();
   expect(secondCandidate).not.toBe(firstCandidate);
   await input.press("End");
-  await expect(composer.locator('.candidate-row[data-active="true"]')).toContainText(
-    "None of the currently known candidates",
+  const activeCandidate = composer.locator('.candidate-row[data-active="true"]');
+  await expect(activeCandidate).toContainText("None of the currently known candidates");
+  await expect
+    .poll(() => candidateMatrix.evaluate((element: HTMLElement) => element.scrollTop))
+    .toBeGreaterThan(0);
+  await expect(input).toHaveAttribute(
+    "aria-activedescendant",
+    await activeCandidate.getAttribute("id"),
+  );
+
+  await input.hover();
+  await page.mouse.wheel(0, -120);
+  await expect.poll(async () => activeCandidate.getAttribute("id")).not.toBe(
+    await composer.locator(".candidate-row").last().getAttribute("id"),
   );
   const interpretationBefore = await composer
     .locator('.interpretation-chip[aria-pressed="true"]')
