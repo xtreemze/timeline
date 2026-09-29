@@ -4,6 +4,7 @@ import {
   projectInvestigativeCandidateMatrix,
 } from "../../src/application/investigative-query.ts";
 import { iconPathData } from "../event-presentation.ts";
+import { semanticColorCss } from "../../src/presentation/semantic-color.ts";
 import { LuumOccurrenceDeckElement } from "./occurrence-media-deck.ts";
 import { occurrenceContextDeckFrames } from "../occurrence-context-deck.ts";
 import {
@@ -947,7 +948,11 @@ export class LuumOccurrenceComposerElement extends LitElement {
     }
 
     .option[data-semantic-color="true"] {
-      border-inline-start-color: var(--suggestion-accent);
+      border-inline-start-color: color-mix(
+        in srgb,
+        var(--suggestion-accent) 42%,
+        var(--line, #d1ccc4)
+      );
     }
 
     .option:last-child {
@@ -963,6 +968,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     .option[data-semantic-color="true"][data-active="true"],
     .option[data-semantic-color="true"]:focus-visible,
     .option[data-semantic-color="true"]:hover {
+      border-inline-start-color: var(--suggestion-accent);
       background: color-mix(
         in srgb,
         var(--suggestion-accent) 10%,
@@ -986,6 +992,10 @@ export class LuumOccurrenceComposerElement extends LitElement {
     }
 
     .option[data-semantic-color="true"] .option-icon {
+      color: color-mix(in srgb, var(--suggestion-accent) 58%, var(--muted, #6b6965));
+    }
+
+    .option[data-semantic-color="true"]:is([data-active="true"], :focus-visible, :hover) .option-icon {
       color: var(--suggestion-accent);
     }
 
@@ -996,8 +1006,12 @@ export class LuumOccurrenceComposerElement extends LitElement {
       block-size: 0.62rem;
       border: 1px solid color-mix(in srgb, var(--ink, #191714) 24%, transparent);
       border-radius: 50%;
+      background: color-mix(in srgb, var(--suggestion-accent) 54%, var(--paper, #fff));
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--line, #d1ccc4) 76%, transparent);
+    }
+
+    .option:is([data-active="true"], :focus-visible, :hover) .option-color {
       background: var(--suggestion-accent);
-      box-shadow: 0 0 0 1px color-mix(in srgb, var(--paper, #fff) 68%, transparent);
     }
 
     .option-icon svg {
@@ -2187,7 +2201,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
           .find((tag) => tag.label === label),
       )
       .find((tag) => Boolean(tag?.color || tag?.icon));
-    const deckAccent =
+    const deckAccentSource =
       normalizeComposerSemanticColor(semanticSuggestion?.color) ??
       occurrenceAccent ??
       relationshipAccent ??
@@ -2196,6 +2210,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
       objectVisual.color ??
       normalizeComposerSemanticColor(previewCategory?.color) ??
       normalizeComposerSemanticColor(activeTagVisual?.color);
+    const deckAccent = deckAccentSource ? semanticColorCss(deckAccentSource, "active") : null;
     const deckIcon =
       semanticSuggestion?.icon ??
       occurrenceIcon ??
@@ -2605,7 +2620,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
                         data-semantic-color=${String(Boolean(normalizeComposerSemanticColor(suggestion.color)))}
                         style=${
                           normalizeComposerSemanticColor(suggestion.color)
-                            ? `--suggestion-accent: ${normalizeComposerSemanticColor(suggestion.color)}`
+                            ? `--suggestion-accent: ${semanticColorCss(normalizeComposerSemanticColor(suggestion.color), "active")}`
                             : nothing
                         }
                         @pointerdown=${(event: PointerEvent) => event.preventDefault()}
