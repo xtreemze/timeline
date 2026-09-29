@@ -163,7 +163,9 @@ class TimelineWeightedGlobeController extends GlobeController {
     const raw = super.getCenter(event);
 
     if (event.type === "panstart") {
-      const candidate = event as GlobeControllerCenterEvent & { readonly rightButton?: boolean };
+      const candidate = event as GlobeControllerCenterEvent & {
+        readonly rightButton?: boolean;
+      };
       const directPan = !candidate.rightButton && !this.isFunctionKeyPressed(event);
       if (!directPan) {
         this.#clearWeightedPan();
