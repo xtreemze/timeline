@@ -1,5 +1,6 @@
-const SOURCE_TEXT = "Fictional narrative ordering coordinate; not a real-world date.";
 import { canonicalSemanticHueColor } from "../src/presentation/semantic-color.ts";
+
+const SOURCE_TEXT = "Fictional narrative ordering coordinate; not a real-world date.";
 
 const MEDIA_CAPTION =
   "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction.";
