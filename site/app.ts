@@ -490,6 +490,9 @@ const els = {
   itemId: requiredElement<HTMLInputElement>("#item-id"),
   itemKind: requiredElement<HTMLSelectElement>("#item-kind"),
   itemCategory: requiredElement<HTMLSelectElement>("#item-category"),
+  itemCategoryHue: requiredElement<HTMLInputElement>("#item-category-hue"),
+  itemCategoryHueNumber: requiredElement<HTMLInputElement>("#item-category-hue-number"),
+  itemCategoryHueOutput: requiredElement<HTMLOutputElement>("#item-category-hue-output"),
   itemStoryContext: requiredElement<HTMLSelectElement>("#item-story-context"),
   itemLayoutVariant: requiredElement<HTMLSelectElement>("#item-layout-variant"),
   itemTerminalShape: requiredElement<HTMLSelectElement>("#item-terminal-shape"),
@@ -573,6 +576,7 @@ const els = {
   categoryId: requiredElement<HTMLInputElement>("#category-id"),
   categoryName: requiredElement<HTMLInputElement>("#category-name"),
   categoryHue: requiredElement<HTMLInputElement>("#category-hue"),
+  categoryHueNumber: requiredElement<HTMLInputElement>("#category-hue-number"),
   categoryHueOutput: requiredElement<HTMLOutputElement>("#category-hue-output"),
   categoryFormError: requiredElement<HTMLParagraphElement>("#category-form-error"),
   saveCategory: requiredElement<HTMLButtonElement>("#save-category"),
@@ -3039,6 +3043,7 @@ function tagRowParts(row: HTMLElement) {
     label: requiredDescendant<HTMLInputElement>(row, 'input[id$="-label"]'),
     icon: requiredDescendant<HTMLInputElement>(row, 'input[id$="-icon"]'),
     hue: requiredDescendant<HTMLInputElement>(row, 'input[type="range"]'),
+    hueNumber: requiredDescendant<HTMLInputElement>(row, 'input[id$="-hue-number"]'),
     output: requiredDescendant<HTMLOutputElement>(row, "output"),
   };
 }
@@ -3093,9 +3098,15 @@ function collectTagForm() {
   return presentation.normalizeTags(tags);
 }
 
-function updateTagHuePreview(row) {
+function updateTagHuePreview(
+  row: HTMLElement,
+  source: HTMLInputElement = tagRowParts(row).hue,
+): void {
   const parts = tagRowParts(row);
-  const hue = presentation.normalizeHue(parts.hue.value);
+  if (source === parts.hueNumber && !parts.hueNumber.value.trim()) return;
+  const hue = presentation.normalizeHue(source.value);
+  parts.hue.value = String(hue);
+  parts.hueNumber.value = String(hue);
   parts.output.value = `${hue}°`;
   row.style.setProperty("--tag-hue", String(hue));
 }
@@ -3108,6 +3119,7 @@ function fillTagForm(tags) {
     parts.label.value = entry?.label || "";
     parts.icon.value = entry?.icon || "note";
     parts.hue.value = String(entry?.hue ?? Number(parts.hue.defaultValue || 30));
+    parts.hueNumber.value = parts.hue.value;
     updateTagHuePreview(row);
   });
   els.itemTagsDetails.open = normalized.length > 0;
@@ -3845,6 +3857,49 @@ function fillLocationForm(location) {
   if (location) locationMap?.refresh();
 }
 
+function syncItemCategoryHuePreview(
+  source: HTMLInputElement = els.itemCategoryHue,
+): void {
+  if (source === els.itemCategoryHueNumber && !els.itemCategoryHueNumber.value.trim()) return;
+  const category = getCategory(els.itemCategory.value);
+  const fallbackHue = category ? semanticHue(category.color, 220) : 220;
+  const hue = Math.round(semanticHue(source.value, fallbackHue));
+  els.itemCategoryHue.value = String(hue);
+  els.itemCategoryHueNumber.value = String(hue);
+  els.itemCategoryHue.style.setProperty("--category-hue", String(hue));
+  els.itemCategoryHueOutput.value = `${hue}°`;
+}
+
+function fillItemCategoryHue(categoryId = els.itemCategory.value): void {
+  const category = getCategory(categoryId);
+  const hue = Math.round(semanticHue(category?.color, 220));
+  els.itemCategoryHue.value = String(hue);
+  els.itemCategoryHueNumber.value = String(hue);
+  syncItemCategoryHuePreview();
+}
+
+function editableItemIdFromSelection(): string | null {
+  const selection = applicationSelection.current;
+  if (selection?.kind === "relationship") {
+    if (selection.itemId && getItem(selection.itemId)) return selection.itemId;
+    const relationship = state.relationships.find(
+      (candidate) => String(candidate.id) === selection.id,
+    );
+    if (relationship) {
+      const resolved = timelineItemIdForRelationshipSelection(
+        relationship,
+        state.items,
+        selection.itemId ?? null,
+      );
+      if (resolved && getItem(resolved)) return resolved;
+    }
+  }
+
+  const focusedId = timelineView?.focusedItemId?.() || null;
+  const navigation = focusedId ? timelineView?.focusNavigationState?.() : null;
+  return focusedId && navigation?.editable === true && getItem(focusedId) ? focusedId : null;
+}
+
 function resetItemForm() {
   clearInferenceDraft();
   els.itemForm.reset();
@@ -3874,6 +3929,7 @@ function resetItemForm() {
   els.itemLane.value = "";
   resetLocationForm();
   fillCategorySelect(els.itemCategory, false, state.categories[0]?.id || "");
+  fillItemCategoryHue();
   fillItemStoryContext(ui.activeStoryId || "");
   els.saveItem.textContent = "Add item";
   els.cancelItemEdit.hidden = true;
@@ -3896,6 +3952,7 @@ function beginItemEdit(id) {
   dateRangePicker.setRange(startParts.date, item.kind === "range" ? endParts.date : "");
   els.endField.hidden = item.kind !== "range";
   fillCategorySelect(els.itemCategory, false, item.categoryId);
+  fillItemCategoryHue(item.categoryId);
   const storyIds = storyIdsForItem(state.stories, item.id);
   const preferredStoryId =
     ui.activeStoryId && storyIds.includes(ui.activeStoryId)
@@ -4236,11 +4293,15 @@ function exitStoryFocus(render = true) {
   if (render) renderTimeline();
 }
 
-function syncCategoryHuePreview(): void {
-  const hue = semanticHue(els.categoryHue.value, 220);
-  els.categoryHue.value = String(Math.round(hue));
+function syncCategoryHuePreview(
+  source: HTMLInputElement = els.categoryHue,
+): void {
+  if (source === els.categoryHueNumber && !els.categoryHueNumber.value.trim()) return;
+  const hue = Math.round(semanticHue(source.value, 220));
+  els.categoryHue.value = String(hue);
+  els.categoryHueNumber.value = String(hue);
   els.categoryHue.style.setProperty("--category-hue", String(hue));
-  els.categoryHueOutput.value = `${Math.round(hue)}°`;
+  els.categoryHueOutput.value = `${hue}°`;
 }
 
 function resetCategoryForm() {
@@ -5324,11 +5385,9 @@ els.editorToggle?.addEventListener("click", () => {
     setEditorSurfaceOpen(false);
     return;
   }
-  const focusedId = timelineView?.focusedItemId?.() || null;
-  const navigation = focusedId ? timelineView?.focusNavigationState?.() : null;
-  const focusedEditableId = focusedId && navigation?.editable === true ? focusedId : null;
+  const editableItemId = editableItemIdFromSelection();
   setEditorSurfaceOpen(true);
-  if (focusedEditableId) beginItemEdit(focusedEditableId);
+  if (editableItemId) beginItemEdit(editableItemId);
 });
 els.panelOpeners.forEach((button) => {
   button.addEventListener("click", () => setActivePanel(button.dataset.openPanel));
@@ -5756,9 +5815,18 @@ els.itemKind.addEventListener("change", () => {
 
 for (const row of els.itemTagRows) {
   const parts = tagRowParts(row);
-  parts.hue.addEventListener("input", () => updateTagHuePreview(row));
+  parts.hue.addEventListener("input", () => updateTagHuePreview(row, parts.hue));
+  parts.hueNumber.addEventListener("input", () => updateTagHuePreview(row, parts.hueNumber));
   updateTagHuePreview(row);
 }
+
+els.itemCategory.addEventListener("change", () => fillItemCategoryHue());
+els.itemCategoryHue.addEventListener("input", () =>
+  syncItemCategoryHuePreview(els.itemCategoryHue),
+);
+els.itemCategoryHueNumber.addEventListener("input", () =>
+  syncItemCategoryHuePreview(els.itemCategoryHueNumber),
+);
 
 for (const row of els.itemEvidenceRows) {
   const parts = evidenceRowParts(row);
@@ -5880,9 +5948,21 @@ els.itemForm.addEventListener("submit", async (event) => {
   if (media.length) item.media = media;
   if (tags.length) item.tags = tags;
   const existingItem = state.items.find((candidate) => candidate.id === item.id);
+  const retainedSecondaryCategoryIds = (existingItem?.categoryIds ?? [])
+    .filter(
+      (categoryId) =>
+        categoryId !== existingItem?.categoryId &&
+        categoryId !== item.categoryId &&
+        state.categories.some((category) => category.id === categoryId),
+    );
+  item.categoryIds = [item.categoryId, ...retainedSecondaryCategoryIds];
   if (existingItem?.extensions) item.extensions = clone(existingItem.extensions);
 
   let draft = clone(state);
+  const editedCategory = draft.categories.find((category) => category.id === item.categoryId);
+  if (editedCategory) {
+    editedCategory.color = canonicalSemanticHueColor(els.itemCategoryHue.value, 220);
+  }
   const evidenceMap = new Map(draft.evidence.map((record) => [record.id, record]));
   for (const record of evidenceRecords) evidenceMap.set(record.id, record);
   draft.evidence = [...evidenceMap.values()];
@@ -6145,7 +6225,10 @@ els.categoryForm.addEventListener("submit", (event) => {
   renderAll();
 });
 
-els.categoryHue.addEventListener("input", syncCategoryHuePreview);
+els.categoryHue.addEventListener("input", () => syncCategoryHuePreview(els.categoryHue));
+els.categoryHueNumber.addEventListener("input", () =>
+  syncCategoryHuePreview(els.categoryHueNumber),
+);
 els.cancelCategoryEdit.addEventListener("click", resetCategoryForm);
 
 els.categoryList.addEventListener("click", (event) => {
