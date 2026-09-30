@@ -32,6 +32,8 @@ Storybook is not currently a project dependency. The first extraction uses the e
 
 Storybook remains compatible with these components because they expose normal custom elements, properties, events, slots, CSS custom properties, and CSS parts. Add Storybook when the component catalog needs cross-project documentation, visual regression matrices, or many independently owned stories; it is not required for the component boundary itself.
 
+Run the isolated browser contracts with `pnpm test:reusable-components-browser`. For interactive development, run `pnpm dev` and open `/component-lab.html`.
+
 ## Reuse rule
 
 A reusable component must not import from Lūm domain/application modules. Lūm-specific adapters may import a reusable component, never the other way around.
