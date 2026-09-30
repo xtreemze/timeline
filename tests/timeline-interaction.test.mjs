@@ -425,7 +425,10 @@ test("release momentum is bounded and comes to rest without a release-speed jump
 test("timeline drag release uses the shared brief momentum horizon", async () => {
   const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
   assert.match(source, /const duration = motion\.INERTIA_TAU_MS/);
-  assert.match(source, /const travelPixels = \(releaseVelocity \* duration\) \/ 2/);
+  assert.match(
+    source,
+    /const travelPixels = motion\.releaseMomentumDistance\(releaseVelocity, duration\)/,
+  );
   assert.match(source, /const eased = motion\.releaseMomentumEasing\(progress\)/);
   assert.match(source, /const remainingVelocity = releaseVelocity \* \(1 - progress\)/);
   assert.doesNotMatch(source, /velocity = motion\.decayVelocity\(velocity, elapsed\)/);
