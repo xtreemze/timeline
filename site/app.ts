@@ -3863,7 +3863,7 @@ function syncItemCategoryHuePreview(
   if (source === els.itemCategoryHueNumber && !els.itemCategoryHueNumber.value.trim()) return;
   const category = getCategory(els.itemCategory.value);
   const fallbackHue = category ? semanticHue(category.color, 220) : 220;
-  const hue = Math.round(semanticHue(source.value, fallbackHue));
+  const hue = Math.round(semanticHue(Number(source.value), fallbackHue));
   els.itemCategoryHue.value = String(hue);
   els.itemCategoryHueNumber.value = String(hue);
   els.itemCategoryHue.style.setProperty("--category-hue", String(hue));
@@ -4297,7 +4297,7 @@ function syncCategoryHuePreview(
   source: HTMLInputElement = els.categoryHue,
 ): void {
   if (source === els.categoryHueNumber && !els.categoryHueNumber.value.trim()) return;
-  const hue = Math.round(semanticHue(source.value, 220));
+  const hue = Math.round(semanticHue(Number(source.value), 220));
   els.categoryHue.value = String(hue);
   els.categoryHueNumber.value = String(hue);
   els.categoryHue.style.setProperty("--category-hue", String(hue));
@@ -5961,7 +5961,7 @@ els.itemForm.addEventListener("submit", async (event) => {
   let draft = clone(state);
   const editedCategory = draft.categories.find((category) => category.id === item.categoryId);
   if (editedCategory) {
-    editedCategory.color = canonicalSemanticHueColor(els.itemCategoryHue.value, 220);
+    editedCategory.color = canonicalSemanticHueColor(Number(els.itemCategoryHue.value), 220);
   }
   const evidenceMap = new Map(draft.evidence.map((record) => [record.id, record]));
   for (const record of evidenceRecords) evidenceMap.set(record.id, record);
@@ -6212,7 +6212,7 @@ els.categoryForm.addEventListener("submit", (event) => {
   const category = {
     id: editingId || newId("category"),
     name: name.slice(0, 60),
-    color: canonicalSemanticHueColor(els.categoryHue.value, 220),
+    color: canonicalSemanticHueColor(Number(els.categoryHue.value), 220),
   };
   const index = state.categories.findIndex((candidate) => candidate.id === category.id);
   state = applyProjectTransaction(state, [
