@@ -99,6 +99,7 @@
     "test:local-llm-agent": "node --test tests/local-llm-agent.test.mjs",
     "test:mcp-relay": "node --test tests/mcp-relay.test.mjs tests/mcp-plugin-config.test.mjs",
     "mcp:relay": "npx -y @mcp-b/webmcp-local-relay@5.1.0 --widget-origin http://localhost:5173,http://localhost:4173,https://xtreemze.github.io",
+    "test:reusable-components-browser": "playwright test --config=playwright.config.ts tests/browser/reusable-lit-components.spec.ts --project=\"Desktop Chrome\" --project=\"Mobile Chrome\" --project=\"Tablet Touch\"",
     "test:project-persistence-browser": "playwright test --config=playwright.config.ts tests/browser/project-repository-indexeddb.spec.ts --project=\"Desktop Chrome\"",
     "test:contextual-authoring-browser": "playwright test --config=playwright.config.ts tests/browser/contextual-authoring.spec.ts --project=\"Desktop Chrome\" --project=\"Mobile Chrome\" --project=\"Mobile Chrome Landscape\" --project=\"Tablet Touch\" --project=\"Reduced Motion\"",
     "test:project-import-review": "node --test tests/project-import-review.test.mjs tests/project-import-review-ui.test.mjs",

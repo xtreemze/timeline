@@ -81,11 +81,13 @@ test("timeline uses a Lit custom-element ownership boundary without reactive sce
 
   assert.match(html, /<luum-timeline id="timeline-view"/);
   assert.match(html, /<\/luum-timeline>/);
-  assert.match(view, /import \{ LitElement, noChange \} from "lit"/);
-  assert.match(view, /class LuumTimelineElement extends LitElement/);
-  assert.match(view, /createRenderRoot\(\): HTMLElement[\s\S]*return this/);
-  assert.match(view, /render\(\)[\s\S]*return noChange/);
-  assert.match(view, /ensureTimelineController\(\): TimelineViewController/);
+  assert.match(view, /import \{ RetainedTimelineElement \} from "\.\/reusable\/retained-timeline\.ts"/);
+  assert.match(
+    view,
+    /class LuumTimelineElement extends RetainedTimelineElement<TimelineViewController>/,
+  );
+  assert.match(view, /protected override createTimelineController\(\): TimelineViewController/);
+  assert.match(view, /return new TimelineViewController\(this\)/);
   assert.match(view, /customElements\.define\("luum-timeline", LuumTimelineElement\)/);
 });
 

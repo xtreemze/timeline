@@ -424,6 +424,20 @@ jobs:
         continue-on-error: true
         run: pnpm exec playwright test --config=playwright.config.ts tests/playwright/mobile-screen.spec.ts --project="Mobile Chrome"
 
+
+  reusable-components-browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Certify reusable Lit component lab
+        run: pnpm test:reusable-components-browser
+
   interaction-browser:
     continue-on-error: true
     runs-on: ubuntu-latest
