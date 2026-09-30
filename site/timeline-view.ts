@@ -2176,32 +2176,36 @@ export class TimelineViewController {
     }
     this.cancelInertia();
     this.beginInteraction();
+
     const usable = Math.max(1, usableLength);
-    let velocity = Number(initialVelocityPxPerMs) || 0;
-    let lastFrame = 0;
+    const duration = motion.INERTIA_TAU_MS;
+    const releaseVelocity = Number(initialVelocityPxPerMs) || 0;
+    const span = this.viewport.end - this.viewport.start;
+    const startViewport = { ...this.viewport };
+    // Match the globe's bounded quadratic release: distance = v0 * duration / 2.
+    // With releaseMomentumEasing(), the first derivative starts at v0 and ends
+    // at zero, so pointer-up does not introduce a speed discontinuity.
+    const travelPixels = motion.releaseMomentumDistance(releaseVelocity, duration);
+    const travelTemporal = -((travelPixels / usable) * span);
+    const startedAt = performance.now();
 
     const step = (now: number): void => {
       this.inertiaAnimationFrame = 0;
-      if (Math.abs(velocity) < motion.STOP_VELOCITY_PX_PER_MS) {
-        this.interactionVelocity = 0;
-        this.commitInteraction();
-        return;
-      }
+      const progress = clamp((now - startedAt) / duration, 0, 1);
+      const eased = motion.releaseMomentumEasing(progress);
+      const remainingVelocity = releaseVelocity * (1 - progress);
 
-      const elapsed = lastFrame ? clamp(now - lastFrame, 1, 48) : 16;
-      lastFrame = now;
-      velocity = motion.decayVelocity(velocity, elapsed);
-      const span = this.viewport.end - this.viewport.start;
-      const deltaPixels = velocity * elapsed;
-      const deltaTemporal = -(deltaPixels / usable) * span;
-      this.interactionVelocity = deltaTemporal / elapsed;
+      this.interactionVelocity = -((remainingVelocity / usable) * span);
       this.viewport = {
-        start: this.viewport.start + deltaTemporal,
-        end: this.viewport.end + deltaTemporal,
+        start: startViewport.start + travelTemporal * eased,
+        end: startViewport.end + travelTemporal * eased,
       };
       this.scheduleInteractionRender();
 
-      if (Math.abs(velocity) >= motion.STOP_VELOCITY_PX_PER_MS) {
+      if (
+        progress < 1 &&
+        Math.abs(remainingVelocity) >= motion.STOP_VELOCITY_PX_PER_MS
+      ) {
         this.inertiaAnimationFrame = requestAnimationFrame(step);
       } else {
         this.interactionVelocity = 0;

@@ -58,17 +58,6 @@ function weightedGlobeEasing(progress: number): number {
   return (1 - Math.exp(-WEIGHTED_GLOBE_DECAY * t)) * WEIGHTED_GLOBE_NORMALIZATION;
 }
 
-/**
- * deck.gl computes globe fling distance as releaseVelocity * duration / 2.
- * A quadratic ease-out has derivative 2 at release and 0 at completion, so
- * that distance begins at exactly the measured drag velocity and decelerates
- * continuously to rest instead of accelerating on pointer-up.
- */
-function velocityContinuousGlobeInertiaEasing(progress: number): number {
-  const t = Math.max(0, Math.min(1, progress));
-  return t * (2 - t);
-}
-
 type GlobeControllerEvent = Parameters<InstanceType<typeof GlobeController>["handleEvent"]>[0];
 type GlobeControllerCenterEvent = Parameters<InstanceType<typeof GlobeController>["getCenter"]>[0];
 
@@ -249,8 +238,8 @@ class TimelineWeightedGlobeController extends GlobeController {
       velocity.magnitude >= TimelineMotion.STOP_VELOCITY_PX_PER_MS
     ) {
       const endPos: [number, number] = [
-        center[0] + (velocity.x * this.inertia) / 2,
-        center[1] + (velocity.y * this.inertia) / 2,
+        center[0] + TimelineMotion.releaseMomentumDistance(velocity.x, this.inertia),
+        center[1] + TimelineMotion.releaseMomentumDistance(velocity.y, this.inertia),
       ];
       const newControllerState = this.controllerState.pan({ pos: endPos } as never).panEnd();
       this.updateViewport(
@@ -258,7 +247,7 @@ class TimelineWeightedGlobeController extends GlobeController {
         {
           ...this._getTransitionProps(),
           transitionDuration: this.inertia,
-          transitionEasing: velocityContinuousGlobeInertiaEasing,
+          transitionEasing: TimelineMotion.releaseMomentumEasing,
         },
         { isDragging: false, isPanning: true },
       );
@@ -287,7 +276,7 @@ class TimelineWeightedGlobeController extends GlobeController {
     super.updateViewport(
       newControllerState as never,
       isPanRelease
-        ? ({ ...extraProps, transitionEasing: velocityContinuousGlobeInertiaEasing } as never)
+        ? ({ ...extraProps, transitionEasing: TimelineMotion.releaseMomentumEasing } as never)
         : (extraProps as never),
       interactionState as never,
     );
