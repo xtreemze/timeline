@@ -19,6 +19,10 @@ import {
   selectionForTimelineFocus,
 } from "../src/application/selection.ts";
 import {
+  composerKeyboardInsetPx,
+  mobileKeyboardOcclusionPx,
+} from "../src/layout/mobile-viewport-occlusion.ts";
+import {
   defaultSemanticIconForEntityType,
   normalizeEntityPresentationAttributes,
   normalizeSemanticIconName,
@@ -1989,6 +1993,7 @@ function syncOccurrenceComposerSelection(selection = applicationSelection.curren
 }
 
 let occurrenceComposerReturnFocus: HTMLElement | null = null;
+let occurrenceComposerKeyboardInset = 0;
 
 function composerInvoker(): HTMLElement | null {
   const active = document.activeElement;
@@ -2008,20 +2013,30 @@ function restoreComposerFocus(target: HTMLElement | null): void {
 function syncComposerVisualViewport(): void {
   const visualViewport = window.visualViewport;
   const height = Math.max(1, visualViewport?.height || window.innerHeight || 1);
+  const scale =
+    typeof visualViewport?.scale === "number" && Number.isFinite(visualViewport.scale)
+      ? visualViewport.scale
+      : 1;
   const composerFocused = els.occurrenceComposer.inputHasFocus();
   const layoutHeight = Math.max(
     height,
     window.innerHeight || 0,
     document.documentElement.clientHeight || 0,
   );
-  // visualViewport.offsetTop is viewport panning, not keyboard height. Chromium can pan the
-  // visual viewport by nearly the IME height to keep a focused field visible; subtracting that
-  // offset cancels the keyboard occlusion and leaves the composer underneath the keyboard.
-  const bottomInset = composerFocused ? Math.max(0, layoutHeight - height) : 0;
+  const measuredOcclusion = mobileKeyboardOcclusionPx({
+    layoutHeight,
+    visualHeight: height,
+    scale,
+  });
+  occurrenceComposerKeyboardInset = composerKeyboardInsetPx(
+    measuredOcclusion,
+    composerFocused,
+    occurrenceComposerKeyboardInset,
+  );
   const heightPx = `${Math.round(height)}px`;
   document.documentElement.style.setProperty(
     "--app-visual-viewport-bottom",
-    `${Math.round(bottomInset)}px`,
+    `${Math.round(occurrenceComposerKeyboardInset)}px`,
   );
   els.occurrenceComposer.style.setProperty("--composer-visual-viewport-height", heightPx);
   els.occurrenceComposer.style.setProperty(
