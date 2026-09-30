@@ -10,6 +10,8 @@ export interface ComposerOption {
   readonly keywords?: readonly string[];
 }
 
+let composerInstanceSequence = 0;
+
 export class ReusableComposerElement extends LitElement {
   static override properties = {
     value: { type: String },
@@ -76,6 +78,8 @@ export class ReusableComposerElement extends LitElement {
   declare selected: readonly ComposerOption[];
   declare activeIndex: number;
 
+  private readonly instanceId = `composer-${++composerInstanceSequence}`;
+
   constructor() {
     super();
     this.value = "";
@@ -97,13 +101,33 @@ export class ReusableComposerElement extends LitElement {
     );
   }
 
+  private get enabledOptions(): readonly ComposerOption[] {
+    return this.options.filter((option) => !option.disabled);
+  }
+
+  private optionDomId(index: number): string {
+    return `${this.instanceId}-option-${index}`;
+  }
+
+  private get listboxDomId(): string {
+    return `${this.instanceId}-listbox`;
+  }
+
   private isSelected(id: string): boolean {
     return this.selected.some((option) => option.id === id);
   }
 
   private move(delta: number): void {
-    const count = this.options.length;
-    if (count) this.activeIndex = (this.activeIndex + delta + count) % count;
+    const options = this.options;
+    if (!options.length) return;
+
+    for (let offset = 1; offset <= options.length; offset += 1) {
+      const candidate = (this.activeIndex + delta * offset + options.length * 2) % options.length;
+      if (!options[candidate]?.disabled) {
+        this.activeIndex = candidate;
+        return;
+      }
+    }
   }
 
   private choose(option: ComposerOption): void {
@@ -132,10 +156,20 @@ export class ReusableComposerElement extends LitElement {
   }
 
   private onKeyDown(event: KeyboardEvent): void {
+    if (event.isComposing) return;
+
     const options = this.options;
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
       this.move(event.key === "ArrowDown" ? 1 : -1);
+    } else if (event.key === "Home" && options.length) {
+      event.preventDefault();
+      this.activeIndex = options.findIndex((option) => !option.disabled);
+      if (this.activeIndex < 0) this.activeIndex = 0;
+    } else if (event.key === "End" && options.length) {
+      event.preventDefault();
+      const reverseIndex = [...options].reverse().findIndex((option) => !option.disabled);
+      this.activeIndex = reverseIndex < 0 ? 0 : options.length - 1 - reverseIndex;
     } else if (event.key === " " && this.multiple && this.selectOnSpace && this.value.trim() && options[this.activeIndex]) {
       event.preventDefault();
       this.choose(options[this.activeIndex]);
@@ -153,21 +187,24 @@ export class ReusableComposerElement extends LitElement {
   }
 
   private onWheel(event: WheelEvent): void {
-    if (!this.wheelSelection || this.options.length < 2 || event.deltaY === 0) return;
+    if (!this.wheelSelection || this.enabledOptions.length < 2 || event.deltaY === 0) return;
     event.preventDefault();
     this.move(event.deltaY > 0 ? 1 : -1);
   }
 
   protected override updated(): void {
-    const count = this.options.length;
+    const options = this.options;
+    const count = options.length;
     this.activeIndex = count ? Math.max(0, Math.min(this.activeIndex, count - 1)) : 0;
+    if (options[this.activeIndex]?.disabled) this.move(1);
     this.renderRoot.querySelector<HTMLElement>('.option[data-active="true"]')
       ?.scrollIntoView({ block:"center", inline:"nearest" });
   }
 
   override render() {
     const options = this.options;
-    const activeId = options[this.activeIndex] ? `composer-option-${this.activeIndex}` : nothing;
+    const active = options[this.activeIndex];
+    const activeId = active && !active.disabled ? this.optionDomId(this.activeIndex) : nothing;
     return html`
       <div class="control" part="control">
         <div class="field" part="field" @wheel=${this.onWheel}>
@@ -181,19 +218,19 @@ export class ReusableComposerElement extends LitElement {
           <input
             part="input" .value=${this.value} placeholder=${this.placeholder} ?disabled=${this.disabled}
             role="combobox" aria-autocomplete="list" aria-expanded=${String(!this.disabled && options.length > 0)}
-            aria-controls="composer-listbox" aria-activedescendant=${activeId}
+            aria-controls=${this.listboxDomId} aria-activedescendant=${activeId}
             @input=${this.onInput} @keydown=${this.onKeyDown}
           />
           <slot name="suffix"></slot>
         </div>
         ${!this.disabled && (this.value.length > 0 || options.length > 0) ? html`
-          <div id="composer-listbox" class="listbox" part="listbox" role="listbox">
+          <div id=${this.listboxDomId} class="listbox" part="listbox" role="listbox" aria-multiselectable=${String(this.multiple)}>
             ${options.length ? options.map((option,index) => html`
               <button
-                id=${`composer-option-${index}`} class="option" part="option" type="button" role="option"
-                data-active=${String(index === this.activeIndex)} aria-selected=${String(this.isSelected(option.id))}
+                id=${this.optionDomId(index)} class="option" part="option" type="button" role="option"
+                data-active=${String(index === this.activeIndex && !option.disabled)} aria-selected=${String(this.isSelected(option.id))}
                 ?disabled=${option.disabled} style=${option.color ? `--item-accent:${option.color}` : nothing}
-                @pointerenter=${() => { this.activeIndex = index; }} @click=${() => this.choose(option)}
+                @pointerenter=${() => { if (!option.disabled) this.activeIndex = index; }} @click=${() => this.choose(option)}
               >
                 <span aria-hidden="true">${option.iconLabel ?? (option.color ? html`<span class="swatch"></span>` : "")}</span>
                 <span class="copy"><span class="label">${option.label}</span>${option.detail ? html`<span class="detail">${option.detail}</span>` : nothing}</span>
