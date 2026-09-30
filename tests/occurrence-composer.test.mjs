@@ -171,7 +171,7 @@ test("quoted entity property delimiters do not terminate properties or trigger f
   const entitySentence = '"Research (Beta)" meets Bob';
   const suggestions = occurrenceComposerSuggestions(entitySentence, {
     entities: [{ id: "research-beta", name: "Research (Beta)", type: "group" }],
-    places: [{ id: "office", name: "Office", icon: "place", color: "#2f6f5f" }],
+    places: [],
     categories: [],
     cursorOffset: entitySentence.indexOf("Beta"),
   });
@@ -1371,7 +1371,7 @@ test("composer suggestions preserve authored semantic icon and color metadata", 
       },
       { id: "bob", name: "Bob", type: "person", icon: "child" },
     ],
-    places: [],
+    places: [{ id: "office", name: "Office", icon: "place", color: "#2f6f5f" }],
     categories: [
       { id: "incident", name: "Incident", color: "#b42318", icon: "evidence" },
     ],
