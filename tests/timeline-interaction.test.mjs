@@ -431,6 +431,15 @@ test("timeline drag release uses the shared brief momentum horizon", async () =>
   assert.doesNotMatch(source, /velocity = motion\.decayVelocity\(velocity, elapsed\)/);
 });
 
+test("maximum release continuation stays within the brief momentum travel budget", () => {
+  const distance = motion.releaseMomentumDistance(
+    motion.MAX_RELEASE_VELOCITY_PX_PER_MS,
+    motion.INERTIA_TAU_MS,
+  );
+  assert.equal(distance, 672);
+  assert.ok(distance <= 700, "a maximum-speed flick must remain a brief continuation, not a throw");
+});
+
 test("pointer velocity uses recent samples and clamps extreme release speed", () => {
   const velocity = motion.estimatePointerVelocity([
     { coordinate: 0, time: 0 },
