@@ -304,7 +304,7 @@ test("utility surfaces stay coordinated with persistent View controls and one Ed
   assert.doesNotMatch(app, /viewControlsToggle|closeViewControls|viewControlsAreOpen/);
   assert.match(
     app,
-    /editorToggle\?\.addEventListener\("click"[\s\S]*focusedId[\s\S]*beginItemEdit\(focusedEditableId\)/,
+    /editorToggle\?\.addEventListener\("click"[\s\S]*editableItemIdFromSelection\(\)[\s\S]*beginItemEdit\(editableItemId\)/,
   );
   assert.match(app, /timelinefocuschange[\s\S]*closeLargeUtilitySurfaces\("focus"\)/);
   assert.match(app, /function syncTimelineContextControls\(\)/);
