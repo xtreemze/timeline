@@ -7,7 +7,9 @@
  */
 
 import {
+  type SemanticColorSource,
   type SemanticColorState,
+  normalizeSemanticColorSource,
   semanticColorHex,
   semanticHue,
   semanticThemeForSurface,
@@ -76,7 +78,6 @@ export interface WorldEdgeStyle {
   readonly arrow: boolean;
 }
 
-const HEX_COLOR = /^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 const SHAPES: readonly WorldNodeShape[] = ["circle", "square", "diamond", "hexagon", "pin"];
 
 /**
@@ -119,8 +120,8 @@ function record(value: unknown): Readonly<Record<string, unknown>> | null {
     : null;
 }
 
-function color(value: unknown): string | null {
-  return typeof value === "string" && HEX_COLOR.test(value.trim()) ? value.trim() : null;
+function color(value: unknown): SemanticColorSource | null {
+  return normalizeSemanticColorSource(value);
 }
 
 function number(value: unknown, min: number, max: number): number | null {
@@ -147,7 +148,7 @@ function semanticState(
 }
 
 function semanticPresentationColor(
-  value: string,
+  value: SemanticColorSource,
   palette: WorldGraphPalette,
   state: SemanticColorState,
   fallbackHue = 30,

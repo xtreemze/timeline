@@ -175,6 +175,40 @@ test("portable fill, border, stroke, and radius aliases override defaults", () =
   assert.equal(styled.radius, 19);
 });
 
+test("World styles accept portable HSL and numeric semantic hue carriers", () => {
+  const node = worldNodeStyle(
+    {
+      type: "person",
+      attributes: {
+        style: {
+          fillColor: "hsl(118 64% 50%)",
+          borderColor: 282,
+        },
+      },
+    },
+    WORLD_LIGHT_PALETTE,
+  );
+  assertSameHue(node.fill, 118);
+  assertSameHue(node.border, 282);
+
+  const place = worldPlaceStyle(
+    { marker: { fillColor: "hsl(38 64% 50%)", color: 145 } },
+    false,
+    WORLD_DARK_PALETTE,
+  );
+  assertSameHue(place.fill, 38);
+  assertSameHue(place.border, 145);
+
+  const edge = worldEdgeStyle(
+    {
+      predicate: "met",
+      attributes: { style: { categoryColor: "hsl(325 64% 50%)" } },
+    },
+    WORLD_LIGHT_PALETTE,
+  );
+  assertSameHue(edge.color, 325);
+});
+
 test("node collision footprint is exactly the rendered shape radius plus authored border", () => {
   const borderless = {
     type: "person",

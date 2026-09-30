@@ -2134,6 +2134,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
       this.data.entities,
       this.previewSuggestion,
       this.data.places,
+      this.data.categories,
+      this.data.tags ?? [],
     );
     const previewCategory = this.data.categories.find(
       (category) => category.name === preview.category,
