@@ -6,6 +6,13 @@
  * defaults; anything invalid or missing falls back to them.
  */
 
+import {
+  type SemanticColorState,
+  semanticColorHex,
+  semanticHue,
+  semanticThemeForSurface,
+} from "../presentation/semantic-color.ts";
+
 export type WorldNodeShape = "circle" | "square" | "diamond" | "hexagon" | "pin";
 
 /** Theme colours, resolved by the host from its light/dark tokens. */
