@@ -160,17 +160,24 @@ function itemNodeSemanticStyle(
   return occurrenceNodeSemanticStyle(categorySemanticColors, tagSemanticColors);
 }
 
-function semanticStyleConsensus(
-  styles: readonly OccurrenceNodeSemanticStyle[],
-): OccurrenceNodeSemanticStyle | null {
-  const first = styles[0];
-  if (!first) return null;
-  return styles.every(
-    (style) =>
-      style.fillColor === first.fillColor && style.borderColor === first.borderColor,
-  )
-    ? first
-    : null;
+function addSemanticStyleConsensus(
+  target: Map<EntityId, OccurrenceNodeSemanticStyle | null>,
+  entity: EntityId,
+  incoming: OccurrenceNodeSemanticStyle,
+): void {
+  if (!target.has(entity)) {
+    target.set(entity, incoming);
+    return;
+  }
+  const current = target.get(entity);
+  if (
+    current &&
+    current.fillColor === incoming.fillColor &&
+    current.borderColor === incoming.borderColor
+  ) {
+    return;
+  }
+  target.set(entity, null);
 }
 
 function canonicalGeometry(value: unknown): CanonicalSpatialGeometry | null {
@@ -645,8 +652,8 @@ export class WorldProjectionView {
     contextualIds: readonly RelationshipId[] | undefined,
   ): ReadonlyMap<EntityId, WorldEntityPresentation> {
     const contextualSet = new Set(contextualIds ?? []);
-    const contextualStyles = new Map<EntityId, OccurrenceNodeSemanticStyle[]>();
-    const ambientStyles = new Map<EntityId, OccurrenceNodeSemanticStyle[]>();
+    const contextualStyles = new Map<EntityId, OccurrenceNodeSemanticStyle | null>();
+    const ambientStyles = new Map<EntityId, OccurrenceNodeSemanticStyle | null>();
 
     for (const id of activeIds) {
       const semanticStyle = this.#nodeSemanticStyleByRelationshipId.get(id);
@@ -655,9 +662,7 @@ export class WorldProjectionView {
       if (!relationship) continue;
       const target = contextualSet.has(id) ? contextualStyles : ambientStyles;
       for (const entity of [relationship.subjectId, relationship.objectId]) {
-        const styles = target.get(entity) ?? [];
-        styles.push(semanticStyle);
-        target.set(entity, styles);
+        addSemanticStyleConsensus(target, entity, semanticStyle);
       }
     }
 
@@ -667,12 +672,12 @@ export class WorldProjectionView {
 
     const result = new Map<EntityId, WorldEntityPresentation>();
     for (const [id, presentation] of this.#entityPresentation) {
-      const contextual = semanticStyleConsensus(contextualStyles.get(id) ?? []);
-      const ambient = semanticStyleConsensus(ambientStyles.get(id) ?? []);
-      // Focused occurrence semantics outrank ambient context. Ambient conflicts
-      // deliberately fall back to the entity's authored/type semantics instead
-      // of choosing an arbitrary active occurrence hue.
-      const inherited = contextual ?? ambient;
+      // Focused occurrence semantics outrank ambient context. Conflicts
+      // deliberately resolve to null so the entity falls back to authored/type
+      // presentation instead of choosing an arbitrary active occurrence hue.
+      const inherited = contextualStyles.has(id)
+        ? contextualStyles.get(id)
+        : ambientStyles.get(id);
       if (!inherited) {
         result.set(id, presentation);
         continue;
