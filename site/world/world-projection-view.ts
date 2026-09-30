@@ -149,8 +149,14 @@ function itemNodeSemanticStyle(
     .map((id) => categoryColors.get(id) ?? "")
     .filter(Boolean);
   const tagSemanticColors = (Array.isArray(item.tags) ? item.tags : [])
-    .map((tag) => (isRecord(tag) ? (tag["color"] ?? tag["hue"]) : null))
-    .filter((value) => value !== null && value !== undefined);
+    .map((tag) => {
+      if (!isRecord(tag)) return null;
+      const color = normalizeSemanticColorSource(tag["color"]);
+      if (color !== null) return color;
+      const hue = Number(tag["hue"]);
+      return Number.isFinite(hue) ? hue : null;
+    })
+    .filter((value) => value !== null);
   return occurrenceNodeSemanticStyle(categorySemanticColors, tagSemanticColors);
 }
 
