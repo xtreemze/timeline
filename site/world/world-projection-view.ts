@@ -154,6 +154,19 @@ function itemNodeSemanticStyle(
   return occurrenceNodeSemanticStyle(categorySemanticColors, tagSemanticColors);
 }
 
+function semanticStyleConsensus(
+  styles: readonly OccurrenceNodeSemanticStyle[],
+): OccurrenceNodeSemanticStyle | null {
+  const first = styles[0];
+  if (!first) return null;
+  return styles.every(
+    (style) =>
+      style.fillColor === first.fillColor && style.borderColor === first.borderColor,
+  )
+    ? first
+    : null;
+}
+
 function canonicalGeometry(value: unknown): CanonicalSpatialGeometry | null {
   if (validateSpatialGeometry(value).length > 0) return null;
   return value as CanonicalSpatialGeometry;
@@ -626,27 +639,34 @@ export class WorldProjectionView {
     contextualIds: readonly RelationshipId[] | undefined,
   ): ReadonlyMap<EntityId, WorldEntityPresentation> {
     const contextualSet = new Set(contextualIds ?? []);
-    const orderedIds = [
-      ...(contextualIds ?? []),
-      ...activeIds.filter((id) => !contextualSet.has(id)),
-    ];
-    const inheritedByEntity = new Map<EntityId, OccurrenceNodeSemanticStyle>();
+    const contextualStyles = new Map<EntityId, OccurrenceNodeSemanticStyle[]>();
+    const ambientStyles = new Map<EntityId, OccurrenceNodeSemanticStyle[]>();
 
-    for (const id of orderedIds) {
+    for (const id of activeIds) {
       const semanticStyle = this.#nodeSemanticStyleByRelationshipId.get(id);
       if (!semanticStyle) continue;
       const relationship = this.#relationshipById.get(id);
       if (!relationship) continue;
+      const target = contextualSet.has(id) ? contextualStyles : ambientStyles;
       for (const entity of [relationship.subjectId, relationship.objectId]) {
-        if (!inheritedByEntity.has(entity)) inheritedByEntity.set(entity, semanticStyle);
+        const styles = target.get(entity) ?? [];
+        styles.push(semanticStyle);
+        target.set(entity, styles);
       }
     }
 
-    if (inheritedByEntity.size === 0) return this.#entityPresentation;
+    if (contextualStyles.size === 0 && ambientStyles.size === 0) {
+      return this.#entityPresentation;
+    }
 
     const result = new Map<EntityId, WorldEntityPresentation>();
     for (const [id, presentation] of this.#entityPresentation) {
-      const inherited = inheritedByEntity.get(id);
+      const contextual = semanticStyleConsensus(contextualStyles.get(id) ?? []);
+      const ambient = semanticStyleConsensus(ambientStyles.get(id) ?? []);
+      // Focused occurrence semantics outrank ambient context. Ambient conflicts
+      // deliberately fall back to the entity's authored/type semantics instead
+      // of choosing an arbitrary active occurrence hue.
+      const inherited = contextual ?? ambient;
       if (!inherited) {
         result.set(id, presentation);
         continue;
