@@ -97,6 +97,21 @@ test("Edit hydrates the selected item's category and tag hues and round-trips ch
   page,
 }) => {
   await page.locator("#load-sample").evaluate((button: HTMLButtonElement) => button.click());
+  await page.evaluate(() => {
+    const api = (
+      globalThis as typeof globalThis & {
+        TimelineAgentAPI?: {
+          getProject?: () => { items?: Array<{ id: string; categoryIds?: string[] }> };
+          replaceProject?: (project: unknown) => unknown;
+        };
+      }
+    ).TimelineAgentAPI;
+    const project = api?.getProject?.();
+    const item = project?.items?.find((candidate) => candidate.id === "pigs-brick-build");
+    if (!api?.replaceProject || !project || !item) throw new Error("Sample project unavailable.");
+    item.categoryIds = ["creation", "conflict"];
+    api.replaceProject(project);
+  });
 
   const selectBrickOccurrence = async () => {
     await page.locator("#temporal-graph-view").evaluate((root) => {
@@ -122,6 +137,12 @@ test("Edit hydrates the selected item's category and tag hues and round-trips ch
   await expect(page.locator("#item-category")).toHaveValue("creation");
   await expect(page.locator("#item-category-hue")).toHaveValue("22");
   await expect(page.locator("#item-category-hue-number")).toHaveValue("22");
+  const secondaryCategory = page.locator(
+    '#item-secondary-category-hues [data-category-hue-id="conflict"]',
+  );
+  await expect(secondaryCategory).toBeVisible();
+  await expect(secondaryCategory.locator('input[type="range"]')).toHaveValue("4");
+  await expect(secondaryCategory.locator('input[type="number"]')).toHaveValue("4");
   await expect(page.locator("#item-tags-details")).toHaveAttribute("open", "");
   await expect(page.locator("#item-tag-1-label")).toHaveValue("Place");
   await expect(page.locator("#item-tag-1-icon")).toHaveValue("home");
@@ -136,6 +157,10 @@ test("Edit hydrates the selected item's category and tag hues and round-trips ch
   await expect(page.locator("#item-tag-1-hue")).toHaveValue("155");
   await expect(page.locator("#item-tag-1-hue-output")).toHaveText("155°");
 
+  await secondaryCategory.locator('input[type="number"]').fill("275");
+  await expect(secondaryCategory.locator('input[type="range"]')).toHaveValue("275");
+  await expect(secondaryCategory.locator("output")).toHaveText("275°");
+
   await page.locator("#save-item").click();
   await expect(page.locator("#item-id")).toHaveValue("");
 
@@ -148,6 +173,10 @@ test("Edit hydrates the selected item's category and tag hues and round-trips ch
   await expect(page.locator("#item-id")).toHaveValue("pigs-brick-build");
   await expect(page.locator("#item-category-hue-number")).toHaveValue("42");
   await expect(page.locator("#item-tag-1-hue-number")).toHaveValue("155");
+  const hydratedSecondary = page.locator(
+    '#item-secondary-category-hues [data-category-hue-id="conflict"]',
+  );
+  await expect(hydratedSecondary.locator('input[type="number"]')).toHaveValue("275");
 });
 
 test("reactivating the selected card reopens the same composer-owned context", async ({ page }) => {
