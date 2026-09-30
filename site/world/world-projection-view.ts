@@ -24,6 +24,7 @@ import {
   type WorldEntityPresentation,
 } from "../../src/projection/world-occurrence-projection.ts";
 import type { WorldProjection } from "../../src/projection/world-projection.ts";
+import { canonicalSemanticHueColor } from "../../src/presentation/semantic-color.ts";
 import { TimelineTemporal } from "../temporal-standards.ts";
 
 export interface WorldProjectionRuntime {
@@ -76,11 +77,19 @@ interface InputRelationship {
 interface InputCategory {
   readonly id?: unknown;
   readonly color?: unknown;
+  readonly hue?: unknown;
 }
 
 interface InputItem {
   readonly id?: unknown;
   readonly categoryId?: unknown;
+  readonly categoryIds?: unknown;
+  readonly tags?: unknown;
+}
+
+interface NodeSemanticStyle {
+  readonly fillColor: string;
+  readonly borderColor: string;
 }
 
 export interface WorldViewModel {
@@ -118,6 +127,47 @@ function text(value: unknown): string {
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function stringList(value: unknown): readonly string[] {
+  if (!Array.isArray(value)) return Object.freeze([]);
+  return Object.freeze(value.map(text).filter(Boolean));
+}
+
+function semanticTagColor(value: unknown): string {
+  if (!isRecord(value)) return "";
+  const authoredColor = text(value["color"]);
+  if (authoredColor) return canonicalSemanticHueColor(authoredColor);
+  const hue = Number(value["hue"]);
+  return Number.isFinite(hue) ? canonicalSemanticHueColor(hue) : "";
+}
+
+function itemNodeSemanticStyle(
+  item: InputItem,
+  categoryColors: ReadonlyMap<string, string>,
+): NodeSemanticStyle | null {
+  const categoryIds = [
+    text(item.categoryId),
+    ...stringList(item.categoryIds),
+  ].filter((id, index, values) => Boolean(id) && values.indexOf(id) === index);
+  const categorySemanticColors = categoryIds
+    .map((id) => categoryColors.get(id) ?? "")
+    .filter(Boolean);
+  const tagSemanticColors = (Array.isArray(item.tags) ? item.tags : [])
+    .map(semanticTagColor)
+    .filter(Boolean);
+
+  const fillColor = categorySemanticColors[0] ?? tagSemanticColors[0] ?? "";
+  if (!fillColor) return null;
+  const borderColor = tagSemanticColors[0] ?? categorySemanticColors[1] ?? fillColor;
+  return Object.freeze({ fillColor, borderColor });
+}
+
+function styleHasAny(
+  style: Readonly<Record<string, unknown>>,
+  keys: readonly string[],
+): boolean {
+  return keys.some((key) => style[key] !== undefined && style[key] !== null && style[key] !== "");
 }
 
 function canonicalGeometry(value: unknown): CanonicalSpatialGeometry | null {
@@ -309,6 +359,7 @@ export class WorldProjectionView {
   #presentationMode = false;
   #entityIds = new Set<string>();
   #entityPresentation = new Map<EntityId, WorldEntityPresentation>();
+  #nodeSemanticStyleByRelationshipId = new Map<RelationshipId, NodeSemanticStyle>();
   #placeIds = new Set<string>();
   #relationshipIdsByItem = new Map<string, readonly RelationshipId[]>();
 
@@ -342,31 +393,63 @@ export class WorldProjectionView {
     );
     this.#placeIds = new Set(places.map((place) => String(place.id)));
 
+    const categories = Array.isArray(model.categories) ? model.categories : [];
+    const items = Array.isArray(model.items) ? model.items : [];
     const categoryColors = new Map(
-      (Array.isArray(model.categories) ? model.categories : [])
-        .map((category) => [text(category.id), text(category.color)] as const)
+      categories
+        .map((category) => {
+          const id = text(category.id);
+          const authoredColor = text(category.color);
+          const hue = Number(category.hue);
+          const color =
+            authoredColor || (Number.isFinite(hue) ? canonicalSemanticHueColor(hue) : "");
+          return [id, color] as const;
+        })
         .filter(([id, color]) => Boolean(id && color)),
     );
     const itemCategoryColors = new Map(
-      (Array.isArray(model.items) ? model.items : [])
+      items
         .map((item) => {
           const id = text(item.id);
-          const categoryColor = categoryColors.get(text(item.categoryId)) ?? "";
+          const categoryId = text(item.categoryId) || stringList(item.categoryIds)[0] || "";
+          const categoryColor = categoryColors.get(categoryId) ?? "";
           return [id, categoryColor] as const;
         })
         .filter(([id, color]) => Boolean(id && color)),
     );
+    const itemNodeSemanticStyles = new Map(
+      items
+        .map((item) => {
+          const id = text(item.id);
+          const style = itemNodeSemanticStyle(item, categoryColors);
+          return style && id ? ([id, style] as const) : null;
+        })
+        .filter((entry): entry is readonly [string, NodeSemanticStyle] => entry !== null),
+    );
     const categoryColorByRelationshipId = new Map<string, string>();
+    const nodeSemanticStyleByRelationshipId = new Map<RelationshipId, NodeSemanticStyle>();
     for (const relationship of Array.isArray(model.relationships) ? model.relationships : []) {
       const id = text(relationship.id);
       if (!id || !Array.isArray(relationship.itemIds)) continue;
-      for (const itemId of relationship.itemIds) {
-        const categoryColor = itemCategoryColors.get(text(itemId));
-        if (!categoryColor) continue;
-        categoryColorByRelationshipId.set(id, categoryColor);
-        break;
+      for (const itemIdValue of relationship.itemIds) {
+        const itemId = text(itemIdValue);
+        const categoryColor = itemCategoryColors.get(itemId);
+        if (categoryColor && !categoryColorByRelationshipId.has(id)) {
+          categoryColorByRelationshipId.set(id, categoryColor);
+        }
+        const semanticStyle = itemNodeSemanticStyles.get(itemId);
+        if (semanticStyle && !nodeSemanticStyleByRelationshipId.has(relationshipId(id))) {
+          nodeSemanticStyleByRelationshipId.set(relationshipId(id), semanticStyle);
+        }
+        if (
+          categoryColorByRelationshipId.has(id) &&
+          nodeSemanticStyleByRelationshipId.has(relationshipId(id))
+        ) {
+          break;
+        }
       }
     }
+    this.#nodeSemanticStyleByRelationshipId = nodeSemanticStyleByRelationshipId;
 
     const relationshipIdsByItem = new Map<string, RelationshipId[]>();
     for (const raw of Array.isArray(model.relationships) ? model.relationships : []) {
@@ -535,7 +618,7 @@ export class WorldProjectionView {
       activeIds,
       this.#spatialAnchors,
       {
-        entityPresentation: this.#entityPresentation,
+        entityPresentation: this.#entityPresentationFor(activeIds, contextualIds),
         temporalWeights: weights,
       },
     );
@@ -544,6 +627,59 @@ export class WorldProjectionView {
     this.#runtime.setContextRelationships?.(contextualIds ?? Object.freeze([]));
     if (this.#viewport) this.#runtime.setTemporalWindow(this.#viewport);
     this.#focusCurrent();
+  }
+
+  #entityPresentationFor(
+    activeIds: readonly RelationshipId[],
+    contextualIds: readonly RelationshipId[] | undefined,
+  ): ReadonlyMap<EntityId, WorldEntityPresentation> {
+    const contextualSet = new Set(contextualIds ?? []);
+    const orderedIds = [
+      ...(contextualIds ?? []),
+      ...activeIds.filter((id) => !contextualSet.has(id)),
+    ];
+    const inheritedByEntity = new Map<EntityId, NodeSemanticStyle>();
+
+    for (const id of orderedIds) {
+      const semanticStyle = this.#nodeSemanticStyleByRelationshipId.get(id);
+      if (!semanticStyle) continue;
+      const relationship = this.#relationships.find((candidate) => candidate.id === id);
+      if (!relationship) continue;
+      for (const entity of [relationship.subjectId, relationship.objectId]) {
+        if (!inheritedByEntity.has(entity)) inheritedByEntity.set(entity, semanticStyle);
+      }
+    }
+
+    if (inheritedByEntity.size === 0) return this.#entityPresentation;
+
+    const result = new Map<EntityId, WorldEntityPresentation>();
+    for (const [id, presentation] of this.#entityPresentation) {
+      const inherited = inheritedByEntity.get(id);
+      if (!inherited) {
+        result.set(id, presentation);
+        continue;
+      }
+      const authored = presentation.style ?? {};
+      const hasAuthoredFill = styleHasAny(authored, [
+        "fillColor",
+        "fill",
+        "backgroundColor",
+        "color",
+      ]);
+      const hasAuthoredBorder = styleHasAny(authored, [
+        "borderColor",
+        "border",
+        "stroke",
+        "strokeColor",
+      ]);
+      const style = Object.freeze({
+        ...(!hasAuthoredFill ? { fillColor: inherited.fillColor } : {}),
+        ...(!hasAuthoredBorder ? { borderColor: inherited.borderColor } : {}),
+        ...authored,
+      });
+      result.set(id, Object.freeze({ ...presentation, style }));
+    }
+    return result;
   }
 
   #sharedActivation(ids: readonly string[]): {
