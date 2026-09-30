@@ -25,14 +25,14 @@ import {
 } from "../../src/projection/world-occurrence-projection.ts";
 import type { WorldProjection } from "../../src/projection/world-projection.ts";
 import {
-  canonicalSemanticHueColor,
-  normalizeSemanticColorSource,
-} from "../../src/presentation/semantic-color.ts";
-import {
   mergeOccurrenceNodeSemanticStyle,
   occurrenceNodeSemanticStyle,
   type OccurrenceNodeSemanticStyle,
 } from "../../src/presentation/occurrence-semantic-color.ts";
+import {
+  canonicalSemanticHueColor,
+  normalizeSemanticColorSource,
+} from "../../src/presentation/semantic-color.ts";
 import { TimelineTemporal } from "../temporal-standards.ts";
 
 export interface WorldProjectionRuntime {
@@ -149,9 +149,7 @@ function itemNodeSemanticStyle(
     .map((id) => categoryColors.get(id) ?? "")
     .filter(Boolean);
   const tagSemanticColors = (Array.isArray(item.tags) ? item.tags : [])
-    .map((tag) =>
-      isRecord(tag) ? (tag["color"] ?? tag["hue"]) : null,
-    )
+    .map((tag) => (isRecord(tag) ? (tag["color"] ?? tag["hue"]) : null))
     .filter((value) => value !== null && value !== undefined);
   return occurrenceNodeSemanticStyle(categorySemanticColors, tagSemanticColors);
 }
@@ -417,7 +415,9 @@ export class WorldProjectionView {
           const style = itemNodeSemanticStyle(item, categoryColors);
           return style && id ? ([id, style] as const) : null;
         })
-        .filter((entry): entry is readonly [string, NodeSemanticStyle] => entry !== null),
+        .filter(
+          (entry): entry is readonly [string, OccurrenceNodeSemanticStyle] => entry !== null,
+        ),
     );
     const categoryColorByRelationshipId = new Map<string, string>();
     const nodeSemanticStyleByRelationshipId = new Map<RelationshipId, OccurrenceNodeSemanticStyle>();
@@ -599,9 +599,7 @@ export class WorldProjectionView {
       ? this.#relationshipIdsByItem.get(this.#focusId)
       : undefined;
     const activeIds = contextualIds?.length
-      ? Object.freeze(
-          contextualIds.filter((id) => this.#relationshipById.has(id)),
-        )
+      ? Object.freeze(contextualIds.filter((id) => this.#relationshipById.has(id)))
       : base.activeIds;
     const weights = contextualIds?.length
       ? new Map(activeIds.map((id) => [id, base.weights.get(id) ?? 1] as const))
@@ -632,7 +630,7 @@ export class WorldProjectionView {
       ...(contextualIds ?? []),
       ...activeIds.filter((id) => !contextualSet.has(id)),
     ];
-    const inheritedByEntity = new Map<EntityId, NodeSemanticStyle>();
+    const inheritedByEntity = new Map<EntityId, OccurrenceNodeSemanticStyle>();
 
     for (const id of orderedIds) {
       const semanticStyle = this.#nodeSemanticStyleByRelationshipId.get(id);
