@@ -173,7 +173,7 @@ test("linked timeline category and tag colors carry into world edge and node sem
       {
         id: "meeting-item",
         categoryId: "meeting-category",
-        tags: [{ label: "kinship", hue: 118 }],
+        tags: [{ label: "kinship", color: "not-a-color", hue: 118 }],
       },
     ],
     relationships: model.relationships.map((relationship) =>
