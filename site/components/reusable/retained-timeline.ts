@@ -1,0 +1,52 @@
+import { LitElement, noChange } from "lit";
+
+export interface RetainedTimelineController {
+  destroy?(): void;
+}
+
+/**
+ * Reusable Lit lifecycle boundary for a retained/imperative timeline renderer.
+ *
+ * The component deliberately does not reconcile scene children. A project
+ * supplies the controller factory while Lit owns connection lifecycle and a
+ * stable custom-element boundary. This keeps high-frequency geometry and
+ * pointer physics outside reactive rendering.
+ */
+export abstract class RetainedTimelineElement<
+  TController extends RetainedTimelineController,
+> extends LitElement {
+  private controllerInstance: TController | null = null;
+
+  override createRenderRoot(): HTMLElement {
+    return this;
+  }
+
+  override render() {
+    return noChange;
+  }
+
+  protected abstract createTimelineController(): TController;
+
+  ensureTimelineController(): TController {
+    if (!this.controllerInstance) {
+      this.controllerInstance = this.createTimelineController();
+    }
+    return this.controllerInstance;
+  }
+
+  get controller(): TController | null {
+    return this.controllerInstance;
+  }
+
+  releaseTimelineController(): void {
+    this.controllerInstance?.destroy?.();
+    this.controllerInstance = null;
+  }
+
+  override connectedCallback(): void {
+    super.connectedCallback();
+    queueMicrotask(() => {
+      if (this.isConnected) this.ensureTimelineController();
+    });
+  }
+}
