@@ -444,15 +444,22 @@ export function worldPresentationOffsetScale(
   ) {
     return 1;
   }
-  // entityCount/maxRadiusPx remain in the public renderer contract because
-  // callers use them for LOD policy, but they cannot override collision
-  // geometry. A uniform tangent-space scale has exactly one value that keeps
-  // every force body's metre radius equal to its authored pixel radius.
+  // Dense scenes may skip expensive/readability-oriented LOD work, but that
+  // cannot disable collision normalization: a fixed metre force body would
+  // otherwise grow beyond its fixed-pixel marker as the camera zooms in.
   void entityCount;
-  void maxRadiusPx;
   const cosine = Math.max(0.05, Math.cos((latitude * Math.PI) / 180));
   const metersPerPixel = (WORLD_METERS_PER_PIXEL_AT_ZOOM_0 * cosine) / 2 ** zoom;
-  return metersPerPixel / WORLD_FORCE_COLLISION_METERS_PER_PX;
+  const viewportRadius =
+    Number.isFinite(maxRadiusPx) && maxRadiusPx > 0 ? maxRadiusPx : Number.POSITIVE_INFINITY;
+  const collisionMatchedRadiusPx =
+    typicalOffsetMeters / WORLD_FORCE_COLLISION_METERS_PER_PX;
+  const targetRadiusPx = Math.min(
+    worldFloatingGraphRadiusPx(zoom),
+    viewportRadius,
+    collisionMatchedRadiusPx,
+  );
+  return (targetRadiusPx * metersPerPixel) / typicalOffsetMeters;
 }
 
 /** 90th-percentile distance of local offsets from their anchors, in metres. */
