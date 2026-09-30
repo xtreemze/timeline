@@ -6,6 +6,13 @@
  * defaults; anything invalid or missing falls back to them.
  */
 
+import {
+  type SemanticColorState,
+  semanticColorHex,
+  semanticHue,
+  semanticThemeForSurface,
+} from "../presentation/semantic-color.ts";
+
 export type WorldNodeShape = "circle" | "square" | "diamond" | "hexagon" | "pin";
 
 /** Theme colours, resolved by the host from its light/dark tokens. */
@@ -145,12 +152,7 @@ function semanticPresentationColor(
   state: SemanticColorState,
   fallbackHue = 30,
 ): string {
-  return semanticColorHex(
-    value,
-    semanticThemeForSurface(palette.paper),
-    state,
-    fallbackHue,
-  );
+  return semanticColorHex(value, semanticThemeForSurface(palette.paper), state, fallbackHue);
 }
 
 function defaultNodeFill(type: string, palette: WorldGraphPalette): string {
@@ -358,9 +360,7 @@ export function worldPlaceStyle(
   const marker = record(own["marker"]) ?? {};
   const metrics = worldPlaceMarkerMetrics(placeStyle);
   const semanticSource =
-    color(marker["color"]) ??
-    color(own["color"]) ??
-    defaultNodeFill("place", palette);
+    color(marker["color"]) ?? color(own["color"]) ?? defaultNodeFill("place", palette);
   const fallbackHue = semanticHue(semanticSource, 145);
   const fillSource =
     color(marker["fillColor"]) ??

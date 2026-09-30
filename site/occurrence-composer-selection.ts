@@ -47,9 +47,7 @@ export function timelineItemIdForRelationshipSelection(
   requestedItemId?: string | null,
 ): string | null {
   const itemsById = new Map(
-    items
-      .map((item) => [selectionText(item.id), item] as const)
-      .filter(([id]) => Boolean(id)),
+    items.map((item) => [selectionText(item.id), item] as const).filter(([id]) => Boolean(id)),
   );
   const linkedItemIds = [
     ...new Set(
@@ -70,7 +68,8 @@ export function timelineItemIdForRelationshipSelection(
         temporalEndpoint(item, "end") === relationshipEnd
       );
     });
-    if (exactTemporalMatches.length === 1) return exactTemporalMatches[0]!;
+    const [exactTemporalMatch] = exactTemporalMatches;
+    if (exactTemporalMatches.length === 1 && exactTemporalMatch) return exactTemporalMatch;
   }
 
   const requested = selectionText(requestedItemId);

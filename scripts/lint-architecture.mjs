@@ -495,14 +495,14 @@ function lintInputEventPolicy(file, source) {
   );
 
   if (/\.setPointerCapture(?:\?\.)?\s*\(/.test(source)) {
-    if (!/["']pointercancel["']/.test(source)) {
+    if (!/["']pointercancel["']|@pointercancel=/.test(source)) {
       report(
         file,
         "pointer-capture-needs-cancel",
         "code that captures pointers must handle pointercancel",
       );
     }
-    if (!/["']lostpointercapture["']/.test(source)) {
+    if (!/["']lostpointercapture["']|@lostpointercapture=/.test(source)) {
       report(
         file,
         "pointer-capture-needs-lost-capture",

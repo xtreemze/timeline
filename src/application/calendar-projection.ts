@@ -170,15 +170,17 @@ function endpointRecord(value: unknown): Readonly<Record<string, unknown>> | nul
 }
 
 function exactCertainty(record: Readonly<Record<string, unknown>>): string {
-  return typeof record.certainty === "string" && record.certainty ? record.certainty : "exact";
+  return typeof record["certainty"] === "string" && record["certainty"]
+    ? record["certainty"]
+    : "exact";
 }
 
 function endpointPrecision(
   record: Readonly<Record<string, unknown>>,
   parsed: ParsedIsoDateTime,
 ): string {
-  return typeof record.precision === "string" && record.precision
-    ? record.precision
+  return typeof record["precision"] === "string" && record["precision"]
+    ? record["precision"]
     : parsed.precision;
 }
 
@@ -251,7 +253,7 @@ function projectEndpoint(raw: unknown, occurrenceId: string): EndpointProjection
     );
   }
 
-  const value = typeof record.value === "string" ? record.value.trim() : "";
+  const value = typeof record["value"] === "string" ? record["value"].trim() : "";
   const certainty = exactCertainty(record);
   if (!value) {
     throw new CalendarProjectionError(
@@ -271,10 +273,14 @@ function projectEndpoint(raw: unknown, occurrenceId: string): EndpointProjection
     );
   }
 
-  if (typeof record.calendar === "string" && record.calendar && record.calendar !== "gregorian") {
+  if (
+    typeof record["calendar"] === "string" &&
+    record["calendar"] &&
+    record["calendar"] !== "gregorian"
+  ) {
     throw new CalendarProjectionError(
       "calendar-temporal-calendar",
-      `Calendar export currently supports Gregorian endpoints, not "${record.calendar}".`,
+      `Calendar export currently supports Gregorian endpoints, not "${record["calendar"]}".`,
       occurrenceId,
     );
   }
@@ -298,8 +304,8 @@ function projectEndpoint(raw: unknown, occurrenceId: string): EndpointProjection
   }
 
   const timeZone =
-    typeof record.timeZone === "string" && record.timeZone.trim()
-      ? record.timeZone.trim()
+    typeof record["timeZone"] === "string" && record["timeZone"].trim()
+      ? record["timeZone"].trim()
       : undefined;
 
   if (precision === "day") {
@@ -368,8 +374,8 @@ function eventDescription(
   occurrence: CanonicalOccurrence,
 ): string | undefined {
   const authored =
-    typeof occurrence.attributes.description === "string"
-      ? occurrence.attributes.description.trim()
+    typeof occurrence.attributes["description"] === "string"
+      ? occurrence.attributes["description"].trim()
       : "";
   const facts = relationshipText(project, occurrence);
   const lines = [

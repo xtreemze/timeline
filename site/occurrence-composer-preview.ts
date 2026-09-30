@@ -1,13 +1,13 @@
+import { type WorldGraphPalette, worldNodeStyle } from "../src/layout/world-graph-style.ts";
 import { normalizeSemanticIconName } from "../src/presentation/semantic-icons.ts";
-import { worldNodeStyle, type WorldGraphPalette } from "../src/layout/world-graph-style.ts";
-import { worldNodeMarker } from "./world/world-node-marker.ts";
 import {
-  composerEditableSections,
-  parseOccurrenceSentence,
   type ComposerEntityOption,
   type ComposerPlaceOption,
   type ComposerSuggestion,
+  composerEditableSections,
+  parseOccurrenceSentence,
 } from "./occurrence-composer-model.ts";
+import { worldNodeMarker } from "./world/world-node-marker.ts";
 
 export interface ComposerPreviewNode {
   readonly label: string;
@@ -26,13 +26,19 @@ export function composerWorldNodeMarker(
     node.entityId ? candidate.id === node.entityId : candidate.name === node.label,
   );
   const authoredStyle = entity?.attributes?.style;
-  const style = typeof authoredStyle === "object" && authoredStyle !== null && !Array.isArray(authoredStyle)
-    ? authoredStyle as Readonly<Record<string, unknown>>
-    : {};
-  return worldNodeMarker(worldNodeStyle({
-    type: entity?.type ?? "person",
-    attributes: { style: { ...style, ...node.style, icon: node.icon } },
-  }, palette));
+  const style =
+    typeof authoredStyle === "object" && authoredStyle !== null && !Array.isArray(authoredStyle)
+      ? (authoredStyle as Readonly<Record<string, unknown>>)
+      : {};
+  return worldNodeMarker(
+    worldNodeStyle(
+      {
+        type: entity?.type ?? "person",
+        attributes: { style: { ...style, ...node.style, icon: node.icon } },
+      },
+      palette,
+    ),
+  );
 }
 
 export interface ComposerPreview {
@@ -65,9 +71,12 @@ function previewNode(
     normalizeSemanticIconName(matched?.icon) ||
     "person";
   const style: Record<string, string> = Object.fromEntries(
-    ["shape", "color", "fill", "border", "borderWidth", "image", "size", "radius"]
-      .filter((key) => Boolean(properties?.[key]))
-      .map((key) => [key, properties![key]!] as const),
+    ["shape", "color", "fill", "border", "borderWidth", "image", "size", "radius"].flatMap(
+      (key) => {
+        const value = properties?.[key];
+        return value ? [[key, value] as const] : [];
+      },
+    ),
   );
   return Object.freeze({
     label: matched?.name ?? name.replace(/^@/, ""),
@@ -124,15 +133,18 @@ export function projectComposerPreview(
       entities,
       previewObjectIcon,
     ),
-    category: suggestion?.kind === "category"
-      ? suggestion.insertText
-      : parsed.options.category ?? sections.find((section) => section.kind === "category")?.text ?? null,
+    category:
+      suggestion?.kind === "category"
+        ? suggestion.insertText
+        : (parsed.options.category ??
+          sections.find((section) => section.kind === "category")?.text ??
+          null),
     tags: Object.freeze(previewTags),
     place: parsed.place
       ? Object.freeze({
           label: place?.name ?? parsed.place.name,
-          longitude: Number.isFinite(place?.longitude) ? place!.longitude! : null,
-          latitude: Number.isFinite(place?.latitude) ? place!.latitude! : null,
+          longitude: place && Number.isFinite(place.longitude) ? (place.longitude ?? null) : null,
+          latitude: place && Number.isFinite(place.latitude) ? (place.latitude ?? null) : null,
         })
       : null,
   });

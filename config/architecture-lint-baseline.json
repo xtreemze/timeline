@@ -78,7 +78,7 @@
     "site/occurrence-composer-model.ts": {
       "any": 0,
       "asAny": 0,
-      "nonNull": 3
+      "nonNull": 0
     },
     "site/ui/investigation-workspace.ts": {
       "any": 0,
@@ -91,7 +91,7 @@
       "nonNull": 0
     },
     "site/world/deck-world-bindings.ts": {
-      "any": 1,
+      "any": 0,
       "asAny": 0,
       "nonNull": 0
     },
@@ -243,7 +243,7 @@
     "site/components/occurrence-composer.ts": {
       "any": 0,
       "asAny": 0,
-      "nonNull": 1
+      "nonNull": 0
     }
   },
   "css": {
@@ -372,16 +372,12 @@
       },
       "hoverOnlySelectors": {},
       "physicalInlineProperties": {},
-      "viewportWidthSizing": {
-        "inline-size: clamp(104px, 12vw, 148px);": 1
-      },
+      "viewportWidthSizing": {},
       "overflowXHidden": {},
       "rootMinWidth": {},
       "legacy100vh": 0,
       "maxWidthContainer": {},
-      "primarySurfaceOverflow": {
-        "#app-shell:has(#occurrence-composer[active]) > .app-tool-dock.app-footer-bar, #app-shell:has(#occurrence-composer[active]) #presentation-stage:fullscreen > .app-tool-dock.app-footer-bar => overflow: hidden;": 1
-      }
+      "primarySurfaceOverflow": {}
     }
   },
   "architecture": {

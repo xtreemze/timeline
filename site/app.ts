@@ -5,8 +5,8 @@
 
 import {
   authorOccurrence,
-  updateOccurrence,
   type OccurrenceAuthoringDependencies,
+  updateOccurrence,
 } from "../src/application/occurrence-authoring.ts";
 import {
   type StagedProjectImport,
@@ -19,45 +19,45 @@ import {
   selectionForTimelineFocus,
 } from "../src/application/selection.ts";
 import {
-  defaultSemanticIconForEntityType,
-  normalizeEntityPresentationAttributes,
-  normalizeSemanticIconName,
-  semanticIconLabel,
-} from "../src/presentation/semantic-icons.ts";
-import { suggestSemanticIconForPlace } from "../src/presentation/semantic-icon-inference.ts";
-import {
   canonicalSemanticHueColor,
   semanticColorCss,
   semanticColorHex,
   semanticHue,
 } from "../src/presentation/semantic-color.ts";
+import { suggestSemanticIconForPlace } from "../src/presentation/semantic-icon-inference.ts";
+import {
+  defaultSemanticIconForEntityType,
+  normalizeEntityPresentationAttributes,
+  normalizeSemanticIconName,
+  semanticIconLabel,
+} from "../src/presentation/semantic-icons.ts";
 import { projectTimelineOccurrences } from "../src/projection/timeline-projection.ts";
 import "./components/occurrence-composer.ts";
-import {
-  shouldOpenComposerForSelection,
-  timelineItemIdForRelationshipSelection,
-} from "./occurrence-composer-selection.ts";
-import type {
-  LuumOccurrenceComposerElement,
-  OccurrenceCommitDetail,
-} from "./components/occurrence-composer.ts";
-import {
-  formatOccurrenceComposition,
-  parseOccurrenceSentence,
-  type ComposerTimeReference,
-} from "./occurrence-composer-model.ts";
 import {
   buildAssertionDraft,
   buildIdentityHypothesisDrafts,
   buildObservationDraft,
 } from "../src/application/investigative-query.ts";
-import { proposeInvestigationAction } from "./occurrence-composer-preview.ts";
+import type {
+  LuumOccurrenceComposerElement,
+  OccurrenceCommitDetail,
+} from "./components/occurrence-composer.ts";
+import { createIcon } from "./event-presentation.ts";
 import { TimelineEvidence } from "./evidence-store.ts";
 import { TimelineGraphInference } from "./graph-inference.ts";
 import { TimelineInterchangeAdapter } from "./interchange-adapter.ts";
-import { createIcon } from "./event-presentation.ts";
 import { createLocalLlmAgent } from "./local-llm-agent.ts";
 import { createMcpRelayBridge, type McpRelayConnectOptions } from "./mcp-relay.ts";
+import {
+  type ComposerTimeReference,
+  formatOccurrenceComposition,
+  parseOccurrenceSentence,
+} from "./occurrence-composer-model.ts";
+import { proposeInvestigationAction } from "./occurrence-composer-preview.ts";
+import {
+  shouldOpenComposerForSelection,
+  timelineItemIdForRelationshipSelection,
+} from "./occurrence-composer-selection.ts";
 import {
   canShareProjectFile,
   observeInstallAvailability,
@@ -134,6 +134,8 @@ interface CategoryRecord {
   id: string;
   name: string;
   color: string;
+  /** Optional authored presentation (e.g. composer color/icon) from imported data. */
+  attributes?: Record<string, unknown>;
   extensions?: Record<string, unknown>;
 }
 
@@ -1360,12 +1362,14 @@ function normalizeTimeline(
       categoryId: ensureCategory(raw.categoryId || ("category" in raw ? raw.category : undefined)),
       categoryIds: [
         ...new Set(
-          (
-            Array.isArray(raw.categoryIds)
-              ? raw.categoryIds
-              : [raw.categoryId || ("category" in raw ? raw.category : undefined)]
+          (Array.isArray(raw.categoryIds)
+            ? raw.categoryIds
+            : [raw.categoryId || ("category" in raw ? raw.category : undefined)]
           )
-            .filter((value): value is string | number => typeof value === "string" || typeof value === "number")
+            .filter(
+              (value): value is string | number =>
+                typeof value === "string" || typeof value === "number",
+            )
             .map((value) => ensureCategory(value)),
         ),
       ],
@@ -1875,8 +1879,7 @@ function occurrenceCompositionForRelationship(
     : [];
   const categoryNames = categoryIds
     .map(
-      (id) =>
-        state.categories.find((candidate) => String(candidate.id) === String(id))?.name ?? "",
+      (id) => state.categories.find((candidate) => String(candidate.id) === String(id))?.name ?? "",
     )
     .filter(Boolean);
   const extent = relationship.time ?? linkedItem?.time ?? null;
@@ -1936,9 +1939,7 @@ function syncOccurrenceComposerSelection(selection = applicationSelection.curren
     ? state.items.find((item) => String(item.id) === selectedItemId)
     : null;
   const selectedCategory = selectedItem
-    ? state.categories.find(
-        (candidate) => String(candidate.id) === String(selectedItem.categoryId),
-      )
+    ? state.categories.find((candidate) => String(candidate.id) === String(selectedItem.categoryId))
     : null;
   const selectedCategoryVisual: Readonly<{ color?: string; icon?: string }> = selectedCategory
     ? composerSemanticVisual(selectedCategory.attributes)
@@ -1950,13 +1951,14 @@ function syncOccurrenceComposerSelection(selection = applicationSelection.curren
     ...(selectedItemId ? { selectedItemId } : {}),
     title: selectedItem?.title ?? null,
     description: selectedItem?.description ?? relationship.role ?? null,
-    media: selectedItem?.media
-      ?.filter((entry) => Boolean(entry.src))
-      .map((entry) => ({
-        src: entry.src,
-        alt: entry.alt ?? "",
-        caption: entry.caption ?? "",
-      })) ?? [],
+    media:
+      selectedItem?.media
+        ?.filter((entry) => Boolean(entry.src))
+        .map((entry) => ({
+          src: entry.src,
+          alt: entry.alt ?? "",
+          caption: entry.caption ?? "",
+        })) ?? [],
     composition: occurrenceCompositionForRelationship(relationship, selectedItemId),
     relationship: {
       subjectId: String(relationship.subjectId),
@@ -2037,9 +2039,14 @@ function composerSemanticVisual(attributes: unknown): Readonly<{ color?: string;
       ? (record["style"] as Readonly<Record<string, unknown>>)
       : record;
   const rawColor =
-    style["categoryColor"] ?? style["color"] ?? style["stroke"] ?? style["lineColor"] ?? style["fill"];
+    style["categoryColor"] ??
+    style["color"] ??
+    style["stroke"] ??
+    style["lineColor"] ??
+    style["fill"];
   const color =
-    typeof rawColor === "string" && /^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(rawColor.trim())
+    typeof rawColor === "string" &&
+    /^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(rawColor.trim())
       ? rawColor.trim()
       : undefined;
   const icon = normalizeSemanticIconName(style["icon"] ?? record["icon"]) ?? undefined;
@@ -2116,7 +2123,7 @@ function syncOccurrenceComposerData(): void {
     })),
     categories: state.categories.map((category) => {
       const visual = composerSemanticVisual(
-        "attributes" in category ? (category as unknown as { attributes?: unknown }).attributes : category.extensions,
+        "attributes" in category ? category.attributes : category.extensions,
       );
       return {
         id: category.id,
@@ -6362,32 +6369,33 @@ els.occurrenceComposer.addEventListener("occurrenceinvestigationactionrequest", 
     candidates = [],
     qualifier = null,
     provenance = null,
-  } =
-    (
-      event as CustomEvent<{
+  } = (
+    event as CustomEvent<{
+      text?: string;
+      action?: string;
+      unknownEntityId?: string | null;
+      candidates?: readonly { entityId: string; label: string }[];
+      qualifier?: {
+        kind?: string;
         text?: string;
-        action?: string;
-        unknownEntityId?: string | null;
-        candidates?: readonly { entityId: string; label: string }[];
-        qualifier?: {
-          kind?: string;
-          text?: string;
-          normalizedText?: string;
-          scope?: "section" | "sentence" | "ambiguous";
-        } | null;
-        provenance?: {
-          sourceIds?: readonly string[];
-          relationshipId?: string | null;
-          itemId?: string | null;
-          entityId?: string | null;
-          placeId?: string | null;
-        } | null;
-      }>
-    ).detail ?? {};
+        normalizedText?: string;
+        scope?: "section" | "sentence" | "ambiguous";
+      } | null;
+      provenance?: {
+        sourceIds?: readonly string[];
+        relationshipId?: string | null;
+        itemId?: string | null;
+        entityId?: string | null;
+        placeId?: string | null;
+      } | null;
+    }>
+  ).detail ?? {};
   const current = caseReasoning.normalizeReasoning(state.reasoning);
   if (action === "promote-observation" || action === "promote-assertion") {
     const knownEvidenceIds = new Set(state.evidence.map((record) => record.id));
-    const sourceIds = [...new Set((provenance?.sourceIds ?? []).filter((id) => knownEvidenceIds.has(id)))];
+    const sourceIds = [
+      ...new Set((provenance?.sourceIds ?? []).filter((id) => knownEvidenceIds.has(id))),
+    ];
     const relationshipId = provenance?.relationshipId ?? null;
     const qualifierText = String(qualifier?.normalizedText ?? qualifier?.text ?? "")
       .replace(/\?$/, "")
@@ -6410,15 +6418,16 @@ els.occurrenceComposer.addEventListener("occurrenceinvestigationactionrequest", 
       entityIds: provenance?.entityId ? [provenance.entityId] : [],
       placeIds: provenance?.placeId ? [provenance.placeId] : [],
     });
-    const assertion = action === "promote-assertion"
-      ? buildAssertionDraft({
-          id: `assertion-${crypto.randomUUID()}`,
-          text: `The selected source describes the ${qualifierKind} as “${qualifierText}”.`,
-          sourceIds,
-          inputIds: [observationId],
-          itemIds: provenance?.itemId ? [provenance.itemId] : [],
-        })
-      : null;
+    const assertion =
+      action === "promote-assertion"
+        ? buildAssertionDraft({
+            id: `assertion-${crypto.randomUUID()}`,
+            text: `The selected source describes the ${qualifierKind} as “${qualifierText}”.`,
+            sourceIds,
+            inputIds: [observationId],
+            itemIds: provenance?.itemId ? [provenance.itemId] : [],
+          })
+        : null;
     const next = caseReasoning.normalizeReasoning({
       ...current,
       observations: [...current.observations, observation],
@@ -6431,12 +6440,16 @@ els.occurrenceComposer.addEventListener("occurrenceinvestigationactionrequest", 
       })
       .filter((finding) => finding.severity === "error");
     if (errors.length) {
-      els.occurrenceComposer.setError(errors[0]?.message ?? "Cannot promote the source-backed clue.");
+      els.occurrenceComposer.setError(
+        errors[0]?.message ?? "Cannot promote the source-backed clue.",
+      );
       return;
     }
     applyInvestigationReasoning(
       next,
-      assertion ? "Source-backed observation and assertion recorded." : "Source-backed observation recorded.",
+      assertion
+        ? "Source-backed observation and assertion recorded."
+        : "Source-backed observation recorded.",
     );
     return;
   }
@@ -6449,7 +6462,10 @@ els.occurrenceComposer.addEventListener("occurrenceinvestigationactionrequest", 
     }
     const candidateIds = new Set(state.entities.map((entity) => entity.id));
     const boundedCandidates = candidates
-      .filter((candidate) => candidateIds.has(candidate.entityId) && candidate.entityId !== unknownEntityId)
+      .filter(
+        (candidate) =>
+          candidateIds.has(candidate.entityId) && candidate.entityId !== unknownEntityId,
+      )
       .slice(0, 50);
     if (!boundedCandidates.length) {
       els.occurrenceComposer.setError("No canonical identity candidates are available to compare.");
