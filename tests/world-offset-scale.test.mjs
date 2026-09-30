@@ -142,9 +142,12 @@ test("global LOD ignores one oversized node once the scene is large enough", () 
   assert.equal(representativeWorldNodeRadiusPx([22, 22, 22, 22, 22, 22, 22, 22, 22, 64]), 22);
 });
 
-test("offset scale may shrink at close zoom to preserve collision pixels and is disabled for dense or offset-free scenes", () => {
+test("dense scenes preserve collision normalization while offset-free scenes stay neutral", () => {
   assert.ok(worldPresentationOffsetScale(18, 100, 500, 0) < 1);
-  assert.equal(worldPresentationOffsetScale(6, 50_000, 500, 0), 1);
+  const sparse = worldPresentationOffsetScale(14, 100, 500, 0);
+  const dense = worldPresentationOffsetScale(14, 50_000, 500, 0);
+  assert.equal(dense, sparse);
+  assert.ok(dense < 1, "density must not re-enable zoom-dependent collision growth");
   assert.equal(worldPresentationOffsetScale(6, 100, 0, 0), 1);
 });
 
