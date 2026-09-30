@@ -766,15 +766,30 @@ geolocation {
 .tag-editor-row .hue-field {
   grid-column: 1 / -1;
 }
+.hue-control-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 4.6rem auto;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
 .hue-field input[type="range"] {
   width: 100%;
+  min-width: 0;
   accent-color: light-dark(
     hsl(var(--tag-hue, 30) 62% 38%),
     hsl(var(--tag-hue, 30) 66% 68%)
   );
 }
-.category-hue-field input[type="range"] {
+.category-hue-field input[type="range"],
+.item-category-hue-field input[type="range"] {
   --tag-hue: var(--category-hue, 220);
+}
+.hue-number {
+  width: 100%;
+  min-width: 0;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
 }
 .hue-field output {
   color: var(--muted);
