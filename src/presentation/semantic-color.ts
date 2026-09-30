@@ -26,7 +26,7 @@ const HEX_COLOR = /^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 const HSL_COLOR =
   /^hsla?\(\s*(-?\d+(?:\.\d+)?)\s*(?:deg)?(?:\s+|\s*,\s*)(\d+(?:\.\d+)?)%?(?:\s+|\s*,\s*)\d+(?:\.\d+)?%?/i;
 const HSL_SOURCE =
-  /^hsla?\(\s*-?\d+(?:\.\d+)?\s*(?:deg)?(?:\s+|\s*,\s*)\d+(?:\.\d+)?%(?:\s+|\s*,\s*)\d+(?:\.\d+)?%(?:\s*(?:\/|,)\s*\d+(?:\.\d+)?%?)?\s*\)$/i;
+  /^hsla?\(\s*(-?\d+(?:\.\d+)?)\s*(?:deg)?(?:\s+|\s*,\s*)(\d+(?:\.\d+)?)%(?:\s+|\s*,\s*)(\d+(?:\.\d+)?)%(?:\s*(?:\/|,)\s*(\d+(?:\.\d+)?%?))?\s*\)$/i;
 const ACHROMATIC_RGB_DELTA = 10 / 255;
 const ACHROMATIC_HSL_SATURATION = 4;
 
@@ -53,8 +53,22 @@ export function normalizeSemanticColorSource(value: unknown): SemanticColorSourc
   if (typeof value !== "string") return null;
   const source = value.trim();
   if (!source) return null;
-  if (HEX_COLOR.test(source) || HSL_SOURCE.test(source)) return source;
-  return null;
+  if (HEX_COLOR.test(source)) return source;
+  const hsl = source.match(HSL_SOURCE);
+  if (!hsl) return null;
+  const saturation = Number(hsl[2]);
+  const lightness = Number(hsl[3]);
+  if (
+    !Number.isFinite(saturation) ||
+    !Number.isFinite(lightness) ||
+    saturation < 0 ||
+    saturation > 100 ||
+    lightness < 0 ||
+    lightness > 100
+  ) {
+    return null;
+  }
+  return source;
 }
 
 function hexRgb(value: string): readonly [number, number, number] | null {
