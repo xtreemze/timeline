@@ -23,9 +23,9 @@ export interface OccurrenceDeckInput {
 }
 
 const IMAGE_ZOOM_STEPS = Object.freeze([0.5, 0.75, 1, 1.25, 1.5, 2, 3] as const);
-const IMAGE_MIN_ZOOM: number = IMAGE_ZOOM_STEPS[0];
+const IMAGE_MIN_ZOOM = IMAGE_ZOOM_STEPS[0] as number;
 const IMAGE_RESET_ZOOM = 1;
-const IMAGE_MAX_ZOOM: number = IMAGE_ZOOM_STEPS[IMAGE_ZOOM_STEPS.length - 1] ?? 3;
+const IMAGE_MAX_ZOOM = IMAGE_ZOOM_STEPS[IMAGE_ZOOM_STEPS.length - 1] as number;
 const SWIPE_THRESHOLD_PX = 52;
 const SWIPE_MAX_DURATION_MS = 700;
 const DOUBLE_TAP_MAX_DELAY_MS = 320;

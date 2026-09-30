@@ -815,7 +815,8 @@
 
 #app-shell:has(#occurrence-composer[active]) #timeline-focus-view,
 #app-shell:has(#occurrence-composer[active]) .timeline-event-detail {
-  display: none;
+  /* biome-ignore lint/complexity/noImportantStyles: the active composer owns event context; legacy detail surfaces must never reappear over it. */
+  display: none !important;
 }
 
 /* Focus detail is a compact card extension. It follows the retained occurrence card
