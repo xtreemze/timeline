@@ -1,3 +1,4 @@
+import { canonicalSemanticHueColor } from "../src/presentation/semantic-color.ts";
 import { extendSampleCase } from "./sample-case-additions.ts";
 
 /**
@@ -8,51 +9,53 @@ import { extendSampleCase } from "./sample-case-additions.ts";
 const SAMPLE = {
   version: 2,
   title: "Nine classic tales — distributed fictional casebook",
+  // Example categories author hue only. The renderer owns saturation/lightness
+  // for light/dark themes and subdued/ambient/active interaction states.
   categories: [
     {
       id: "context",
       name: "Background / Condition",
-      color: "#667085",
+      color: canonicalSemanticHueColor(221),
     },
     {
       id: "movement",
       name: "Movement / Transition",
-      color: "#0e7090",
+      color: canonicalSemanticHueColor(195),
     },
     {
       id: "creation",
       name: "Creation / Preparation",
-      color: "#b54708",
+      color: canonicalSemanticHueColor(22),
     },
     {
       id: "conflict",
       name: "Conflict / Threat",
-      color: "#b42318",
+      color: canonicalSemanticHueColor(4),
     },
     {
       id: "decision",
       name: "Decision / Choice",
-      color: "#7a5af8",
+      color: canonicalSemanticHueColor(252),
     },
     {
       id: "discovery",
       name: "Discovery / Information",
-      color: "#2563eb",
+      color: canonicalSemanticHueColor(221),
     },
     {
       id: "relationship",
       name: "Relationship / Social",
-      color: "#027a48",
+      color: canonicalSemanticHueColor(155),
     },
     {
       id: "state-change",
       name: "State Change / Transformation",
-      color: "#c11574",
+      color: canonicalSemanticHueColor(327),
     },
     {
       id: "resolution",
       name: "Resolution / Outcome",
-      color: "#067647",
+      color: canonicalSemanticHueColor(155),
     },
   ],
   evidence: [
