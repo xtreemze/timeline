@@ -1,14 +1,11 @@
 import type { ComposerOption } from "./components/reusable/composer.ts";
 import { ReusableComposerElement } from "./components/reusable/composer.ts";
-import {
-  RetainedTimelineElement,
-  type RetainedTimelineController,
-} from "./components/reusable/retained-timeline.ts";
+import { RetainedTimelineElement } from "./components/reusable/retained-timeline.ts";
 
 class LabComposerElement extends ReusableComposerElement {}
 customElements.define("component-lab-composer", LabComposerElement);
 
-class LabTimelineController implements RetainedTimelineController {
+class LabTimelineController {
   constructor(host: HTMLElement) {
     const rail = document.createElement("div");
     rail.className = "demo-timeline-rail";
