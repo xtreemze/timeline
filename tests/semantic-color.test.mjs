@@ -4,6 +4,7 @@ import test from "node:test";
 
 import {
   canonicalSemanticHueColor,
+  normalizeSemanticColorSource,
   semanticColorCss,
   semanticColorHex,
   semanticHue,
@@ -54,6 +55,15 @@ test("canonical persistence stores a hue carrier rather than authored display co
   const canonical = canonicalSemanticHueColor(278);
   assert.match(canonical, /^#[0-9a-f]{6}$/);
   assert.ok(hueDistance(semanticHue(canonical), 278) < 1.5);
+});
+
+test("semantic color sources normalize consistently across renderers", () => {
+  assert.equal(normalizeSemanticColorSource("#b42318"), "#b42318");
+  assert.equal(normalizeSemanticColorSource(" hsl(212 64% 50%) "), "hsl(212 64% 50%)");
+  assert.equal(normalizeSemanticColorSource(725), 5);
+  assert.equal(normalizeSemanticColorSource("hsl(212 120% 50%)"), null);
+  assert.equal(normalizeSemanticColorSource("color(display-p3 1 0 0)"), null);
+  assert.equal(normalizeSemanticColorSource("red; background:url(x)"), null);
 });
 
 test("category authoring exposes hue only and semantic surfaces derive presentation colors", async () => {
