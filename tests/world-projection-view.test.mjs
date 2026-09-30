@@ -188,7 +188,11 @@ test("linked timeline category and tag colors carry into world edge and node sem
   const expectedBorder = canonicalSemanticHueColor(118);
   for (const entityId of ["alice", "bob"]) {
     const instance = projection.instances.find((candidate) => candidate.canonicalId === entityId);
-    assert.equal(instance?.style?.fillColor, "#b42318", `${entityId} inherits category fill`);
+    assert.equal(
+      instance?.style?.fillColor,
+      canonicalSemanticHueColor("#b42318"),
+      `${entityId} inherits category fill`,
+    );
     assert.equal(instance?.style?.borderColor, expectedBorder, `${entityId} inherits tag border`);
   }
 });
@@ -229,7 +233,7 @@ test("authored entity fill and border remain authoritative over occurrence seman
 
   assert.equal(alice?.style?.fillColor, "#112233");
   assert.equal(alice?.style?.borderColor, "#445566");
-  assert.equal(bob?.style?.fillColor, "#b42318");
+  assert.equal(bob?.style?.fillColor, canonicalSemanticHueColor("#b42318"));
   assert.equal(bob?.style?.borderColor, canonicalSemanticHueColor(118));
 });
 
@@ -254,8 +258,8 @@ test("secondary category hue supplies a semantic border when no tag hue is prese
   });
 
   const bob = getProjection().instances.find((candidate) => candidate.canonicalId === "bob");
-  assert.equal(bob?.style?.fillColor, "#b42318");
-  assert.equal(bob?.style?.borderColor, "#287a42");
+  assert.equal(bob?.style?.fillColor, canonicalSemanticHueColor("#b42318"));
+  assert.equal(bob?.style?.borderColor, canonicalSemanticHueColor("#287a42"));
 });
 
 test("conflicting ambient occurrence hues do not arbitrarily recolor a shared entity", () => {
