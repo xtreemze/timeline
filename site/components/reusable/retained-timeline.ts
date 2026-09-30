@@ -12,9 +12,7 @@ export interface RetainedTimelineController {
  * stable custom-element boundary. This keeps high-frequency geometry and
  * pointer physics outside reactive rendering.
  */
-export abstract class RetainedTimelineElement<
-  TController extends RetainedTimelineController,
-> extends LitElement {
+export abstract class RetainedTimelineElement<TController extends object> extends LitElement {
   private controllerInstance: TController | null = null;
 
   override createRenderRoot(): HTMLElement {
@@ -39,7 +37,8 @@ export abstract class RetainedTimelineElement<
   }
 
   releaseTimelineController(): void {
-    this.controllerInstance?.destroy?.();
+    const controller = this.controllerInstance as RetainedTimelineController | null;
+    controller?.destroy?.();
     this.controllerInstance = null;
   }
 
