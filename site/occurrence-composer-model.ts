@@ -1,3 +1,7 @@
+import {
+  canonicalSemanticHueColor,
+  normalizeSemanticColorSource,
+} from "../src/presentation/semantic-color.ts";
 import { SEMANTIC_ICON_NAMES, type SemanticIconName } from "../src/presentation/semantic-icons.ts";
 import {
   suggestSemanticIcon,
@@ -202,16 +206,9 @@ function actionIconHint(action: string): SemanticIconName {
 }
 
 export function normalizeComposerSemanticColor(value: unknown): string | undefined {
-  if (typeof value !== "string") return undefined;
-  const color = value.trim();
-  if (/^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(color)) return color;
-  const hsl = color.match(/^hsl\(\s*(\d{1,3})\s+(\d{1,3})%\s+(\d{1,3})%\s*\)$/i);
-  if (!hsl) return undefined;
-  const hue = Number(hsl[1]);
-  const saturation = Number(hsl[2]);
-  const lightness = Number(hsl[3]);
-  if (hue > 360 || saturation > 100 || lightness > 100) return undefined;
-  return `hsl(${hue} ${saturation}% ${lightness}%)`;
+  const source = normalizeSemanticColorSource(value);
+  if (source === null) return undefined;
+  return typeof source === "number" ? canonicalSemanticHueColor(source) : source;
 }
 
 function composerEntityColor(entity: ComposerEntityOption): string | undefined {
