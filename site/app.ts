@@ -27,6 +27,7 @@ import {
 import { suggestSemanticIconForPlace } from "../src/presentation/semantic-icon-inference.ts";
 import {
   canonicalSemanticHueColor,
+  normalizeSemanticColorSource,
   semanticColorCss,
   semanticColorHex,
   semanticHue,
@@ -2037,16 +2038,32 @@ function composerSemanticVisual(attributes: unknown): Readonly<{ color?: string;
     attributes && typeof attributes === "object" && !Array.isArray(attributes)
       ? (attributes as Readonly<Record<string, unknown>>)
       : {};
-  const style =
+  const nestedStyle =
     record["style"] && typeof record["style"] === "object" && !Array.isArray(record["style"])
       ? (record["style"] as Readonly<Record<string, unknown>>)
       : record;
+  const marker =
+    nestedStyle["marker"] &&
+    typeof nestedStyle["marker"] === "object" &&
+    !Array.isArray(nestedStyle["marker"])
+      ? (nestedStyle["marker"] as Readonly<Record<string, unknown>>)
+      : null;
+  const style = marker ?? nestedStyle;
   const rawColor =
-    style["categoryColor"] ?? style["color"] ?? style["stroke"] ?? style["lineColor"] ?? style["fill"];
+    style["categoryColor"] ??
+    style["color"] ??
+    style["stroke"] ??
+    style["lineColor"] ??
+    style["fillColor"] ??
+    style["fill"] ??
+    style["borderColor"];
+  const normalizedColor = normalizeSemanticColorSource(rawColor);
   const color =
-    typeof rawColor === "string" && /^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(rawColor.trim())
-      ? rawColor.trim()
-      : undefined;
+    normalizedColor === null
+      ? undefined
+      : typeof normalizedColor === "number"
+        ? canonicalSemanticHueColor(normalizedColor)
+        : normalizedColor;
   const icon = normalizeSemanticIconName(style["icon"] ?? record["icon"]) ?? undefined;
   return Object.freeze({
     ...(color ? { color } : {}),
@@ -2105,20 +2122,25 @@ function syncOccurrenceComposerData(): void {
       sourceIds: entity.sourceIds ?? [],
       icon: semanticIconStateForEntity(entity).icon ?? undefined,
     })),
-    places: state.places.map((place) => ({
-      id: place.id,
-      name: place.name,
-      ...(place.geometry?.type === "Point"
-        ? {
-            longitude: place.geometry.coordinates[0],
-            latitude: place.geometry.coordinates[1],
-          }
-        : {}),
-      icon:
-        normalizeSemanticIconName(place.icon) ??
-        suggestSemanticIconForPlace({ name: place.name })?.icon ??
-        "place",
-    })),
+    places: state.places.map((place) => {
+      const visual = composerSemanticVisual(place.style);
+      return {
+        id: place.id,
+        name: place.name,
+        ...(place.geometry?.type === "Point"
+          ? {
+              longitude: place.geometry.coordinates[0],
+              latitude: place.geometry.coordinates[1],
+            }
+          : {}),
+        ...(visual.color ? { color: visual.color } : {}),
+        icon:
+          normalizeSemanticIconName(place.icon) ??
+          visual.icon ??
+          suggestSemanticIconForPlace({ name: place.name })?.icon ??
+          "place",
+      };
+    }),
     categories: state.categories.map((category) => {
       const visual = composerSemanticVisual(
         "attributes" in category ? (category as unknown as { attributes?: unknown }).attributes : category.extensions,

@@ -1029,6 +1029,28 @@ test("inertial globe release settles before globe-to-local controller handoff", 
   assert.equal(swap.viewState.zoom, 11.6);
 });
 
+test("hover raises entity presentation without moving canonical relationship geometry", async () => {
+  const source = await readFile(
+    new URL("../site/world/deck-world-surface.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /const WORLD_HOVER_LIFT_PX = 4;/);
+  assert.match(source, /function liftedEntityInteractionPosition\([\s\S]*hovered: boolean/);
+  assert.match(
+    source,
+    /hovered[\s\S]*\? WORLD_HOVER_LIFT_PX[\s\S]*liftedPositionByPixels\(position, zoom, liftPx\)/,
+  );
+  assert.match(
+    source,
+    /liftedEntityInteractionPosition\([\s\S]*this\.#hoverSelection\?\.kind === "entity"[\s\S]*this\.#hoverSelection\.id === datum\.entityId/,
+  );
+  assert.doesNotMatch(
+    source,
+    /relationshipDatums\([\s\S]{0,800}WORLD_HOVER_LIFT_PX/,
+    "hover lift must stay out of canonical relationship routing",
+  );
+});
+
 test("hover semantic rebuilds coalesce to one animation frame", () => {
   let nextFrameId = 1;
   const frames = new Map();

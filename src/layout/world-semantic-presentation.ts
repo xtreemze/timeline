@@ -523,9 +523,9 @@ export function worldPixelsToDegrees(pixels: number, zoom: number): number {
 }
 
 /** Arrow length as a fraction of the visible target-node radius. */
-export const WORLD_EDGE_ARROW_NODE_RADIUS_RATIO = 0.85;
+export const WORLD_EDGE_ARROW_NODE_RADIUS_RATIO = 0.7;
 /** Arrow stroke width relative to the target-node radius, with edge width as a floor. */
-export const WORLD_EDGE_ARROW_STROKE_NODE_RADIUS_RATIO = 0.14;
+export const WORLD_EDGE_ARROW_STROKE_NODE_RADIUS_RATIO = 0.12;
 /** Prevent a large endpoint from making its chevron visually detach from a thin edge. */
 export const WORLD_EDGE_ARROW_MAX_EDGE_WIDTH_RATIO = 2;
 
