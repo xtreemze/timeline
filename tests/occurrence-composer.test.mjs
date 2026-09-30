@@ -171,7 +171,7 @@ test("quoted entity property delimiters do not terminate properties or trigger f
   const entitySentence = '"Research (Beta)" meets Bob';
   const suggestions = occurrenceComposerSuggestions(entitySentence, {
     entities: [{ id: "research-beta", name: "Research (Beta)", type: "group" }],
-    places: [],
+    places: [{ id: "office", name: "Office", icon: "place", color: "#2f6f5f" }],
     categories: [],
     cursorOffset: entitySentence.indexOf("Beta"),
   });
@@ -1391,6 +1391,20 @@ test("composer suggestions preserve authored semantic icon and color metadata", 
   assert.equal(predicate?.icon, "danger");
   assert.equal(predicate?.color, "#b54708");
 
+  const contextualPlace = occurrenceComposerSuggestions("@alice warns @bob", options).find(
+    (suggestion) => suggestion.kind === "place" && suggestion.label === "Office",
+  );
+  assert.equal(contextualPlace?.icon, "place");
+  assert.equal(contextualPlace?.color, "#2f6f5f");
+
+  const placeDraft = "@alice warns @bob at Off";
+  const cursorPlace = occurrenceComposerSuggestions(placeDraft, {
+    ...options,
+    cursorOffset: placeDraft.length,
+  }).find((suggestion) => suggestion.kind === "place" && suggestion.label === "Office");
+  assert.equal(cursorPlace?.icon, "place");
+  assert.equal(cursorPlace?.color, "#2f6f5f");
+
   const category = occurrenceComposerSuggestions(
     "@alice warns @bob [category: ",
     options,
@@ -1416,6 +1430,8 @@ test("composer suggestion rows and deck consume semantic styling", async () => {
   assert.match(source, /class="composer-heading-icon"/);
   assert.match(source, /--suggestion-accent/);
   assert.match(source, /class="option-color"/);
+  assert.match(source, /\.option\[data-semantic-color="true"\] \.option-icon/);
+  assert.match(source, /background: color-mix\(in srgb, var\(--suggestion-accent\) 9%/);
   assert.match(source, /normalizeComposerSemanticColor\(suggestion\.color\)/);
   assert.match(app, /function composerPredicateOptions\(\)/);
   assert.match(app, /function composerTagOptions\(\)/);
