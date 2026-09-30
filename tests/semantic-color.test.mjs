@@ -77,9 +77,12 @@ test("category authoring exposes hue only and semantic surfaces derive presentat
   ]);
 
   assert.match(html, /id="category-hue" type="range" min="0" max="359"/);
+  assert.match(html, /id="category-hue-number"[^>]*type="number"[^>]*max="359"/);
+  assert.match(html, /id="item-category-hue" type="range" min="0" max="359"/);
+  assert.match(html, /id="item-category-hue-number"[^>]*type="number"[^>]*max="359"/);
   assert.doesNotMatch(html, /id="category-color" type="color"/);
   assert.match(html, /the app controls saturation and lightness/);
-  assert.match(app, /canonicalSemanticHueColor\(els\.categoryHue\.value, 220\)/);
+  assert.match(app, /canonicalSemanticHueColor\(Number\(els\.categoryHue\.value\), 220\)/);
   assert.match(app, /semanticColorCss\(category\.color, "ambient"\)/);
   assert.match(app, /semanticColorCss\(category\.color, "active"\)/);
   assert.match(styles, /color-scheme:\s*light dark/);

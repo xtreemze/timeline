@@ -123,6 +123,15 @@
                 <span>Category</span>
                 <select id="item-category"></select>
               </label>
+              <label class="field hue-field item-category-hue-field">
+                <span>Category hue <small>shared by every item in this category</small></span>
+                <span class="hue-control-row">
+                  <input id="item-category-hue" type="range" min="0" max="359" step="1" value="220" aria-describedby="item-category-hue-output">
+                  <input id="item-category-hue-number" class="hue-number" type="number" min="0" max="359" step="1" value="220" inputmode="numeric" aria-label="Category hue in degrees">
+                  <output id="item-category-hue-output" for="item-category-hue item-category-hue-number">220°</output>
+                </span>
+              </label>
+              <div id="item-secondary-category-hues" class="item-secondary-category-hues field-wide" aria-label="Additional assigned category hues" hidden></div>
               <label class="field">
                 <span>Story context <small>optional</small></span>
                 <select id="item-story-context">
@@ -372,8 +381,12 @@
                       <input id="item-tag-1-icon" type="text" maxlength="48" autocomplete="off" list="semantic-icon-suggestions" value="note">
                     </label>
                     <label class="field hue-field">
-                      <span>Hue <output id="item-tag-1-hue-output">28°</output></span>
-                      <input id="item-tag-1-hue" type="range" min="0" max="359" step="1" value="28">
+                      <span>Hue</span>
+                      <span class="hue-control-row">
+                        <input id="item-tag-1-hue" type="range" min="0" max="359" step="1" value="28">
+                        <input id="item-tag-1-hue-number" class="hue-number" type="number" min="0" max="359" step="1" value="28" inputmode="numeric" aria-label="Tag 1 hue in degrees">
+                        <output id="item-tag-1-hue-output" for="item-tag-1-hue item-tag-1-hue-number">28°</output>
+                      </span>
                     </label>
                   </section>
                   <section class="tag-editor-row" data-tag-slot="2">
@@ -386,8 +399,12 @@
                       <input id="item-tag-2-icon" type="text" maxlength="48" autocomplete="off" list="semantic-icon-suggestions" value="note">
                     </label>
                     <label class="field hue-field">
-                      <span>Hue <output id="item-tag-2-hue-output">210°</output></span>
-                      <input id="item-tag-2-hue" type="range" min="0" max="359" step="1" value="210">
+                      <span>Hue</span>
+                      <span class="hue-control-row">
+                        <input id="item-tag-2-hue" type="range" min="0" max="359" step="1" value="210">
+                        <input id="item-tag-2-hue-number" class="hue-number" type="number" min="0" max="359" step="1" value="210" inputmode="numeric" aria-label="Tag 2 hue in degrees">
+                        <output id="item-tag-2-hue-output" for="item-tag-2-hue item-tag-2-hue-number">210°</output>
+                      </span>
                     </label>
                   </section>
                   <section class="tag-editor-row" data-tag-slot="3">
@@ -400,8 +417,12 @@
                       <input id="item-tag-3-icon" type="text" maxlength="48" autocomplete="off" list="semantic-icon-suggestions" value="note">
                     </label>
                     <label class="field hue-field">
-                      <span>Hue <output id="item-tag-3-hue-output">145°</output></span>
-                      <input id="item-tag-3-hue" type="range" min="0" max="359" step="1" value="145">
+                      <span>Hue</span>
+                      <span class="hue-control-row">
+                        <input id="item-tag-3-hue" type="range" min="0" max="359" step="1" value="145">
+                        <input id="item-tag-3-hue-number" class="hue-number" type="number" min="0" max="359" step="1" value="145" inputmode="numeric" aria-label="Tag 3 hue in degrees">
+                        <output id="item-tag-3-hue-output" for="item-tag-3-hue item-tag-3-hue-number">145°</output>
+                      </span>
                     </label>
                   </section>
                   <section class="tag-editor-row" data-tag-slot="4">
@@ -414,8 +435,48 @@
                       <input id="item-tag-4-icon" type="text" maxlength="48" autocomplete="off" list="semantic-icon-suggestions" value="note">
                     </label>
                     <label class="field hue-field">
-                      <span>Hue <output id="item-tag-4-hue-output">285°</output></span>
-                      <input id="item-tag-4-hue" type="range" min="0" max="359" step="1" value="285">
+                      <span>Hue</span>
+                      <span class="hue-control-row">
+                        <input id="item-tag-4-hue" type="range" min="0" max="359" step="1" value="285">
+                        <input id="item-tag-4-hue-number" class="hue-number" type="number" min="0" max="359" step="1" value="285" inputmode="numeric" aria-label="Tag 4 hue in degrees">
+                        <output id="item-tag-4-hue-output" for="item-tag-4-hue item-tag-4-hue-number">285°</output>
+                      </span>
+                    </label>
+                  </section>
+                  <section class="tag-editor-row" data-tag-slot="5">
+                    <label class="field tag-label-field">
+                      <span>Tag 5</span>
+                      <input id="item-tag-5-label" type="text" maxlength="48" autocomplete="off" placeholder="Context">
+                    </label>
+                    <label class="field">
+                      <span>Icon</span>
+                      <input id="item-tag-5-icon" type="text" maxlength="48" autocomplete="off" list="semantic-icon-suggestions" value="note">
+                    </label>
+                    <label class="field hue-field">
+                      <span>Hue</span>
+                      <span class="hue-control-row">
+                        <input id="item-tag-5-hue" type="range" min="0" max="359" step="1" value="35">
+                        <input id="item-tag-5-hue-number" class="hue-number" type="number" min="0" max="359" step="1" value="35" inputmode="numeric" aria-label="Tag 5 hue in degrees">
+                        <output id="item-tag-5-hue-output" for="item-tag-5-hue item-tag-5-hue-number">35°</output>
+                      </span>
+                    </label>
+                  </section>
+                  <section class="tag-editor-row" data-tag-slot="6">
+                    <label class="field tag-label-field">
+                      <span>Tag 6</span>
+                      <input id="item-tag-6-label" type="text" maxlength="48" autocomplete="off" placeholder="Status">
+                    </label>
+                    <label class="field">
+                      <span>Icon</span>
+                      <input id="item-tag-6-icon" type="text" maxlength="48" autocomplete="off" list="semantic-icon-suggestions" value="note">
+                    </label>
+                    <label class="field hue-field">
+                      <span>Hue</span>
+                      <span class="hue-control-row">
+                        <input id="item-tag-6-hue" type="range" min="0" max="359" step="1" value="210">
+                        <input id="item-tag-6-hue-number" class="hue-number" type="number" min="0" max="359" step="1" value="210" inputmode="numeric" aria-label="Tag 6 hue in degrees">
+                        <output id="item-tag-6-hue-output" for="item-tag-6-hue item-tag-6-hue-number">210°</output>
+                      </span>
                     </label>
                   </section>
                 </div>
@@ -778,8 +839,11 @@
             </label>
             <label class="field hue-field category-hue-field">
               <span>Hue <small>the app controls saturation and lightness</small></span>
-              <input id="category-hue" type="range" min="0" max="359" step="1" value="220" aria-describedby="category-hue-output">
-              <output id="category-hue-output" for="category-hue">220°</output>
+              <span class="hue-control-row">
+                <input id="category-hue" type="range" min="0" max="359" step="1" value="220" aria-describedby="category-hue-output">
+                <input id="category-hue-number" class="hue-number" type="number" min="0" max="359" step="1" value="220" inputmode="numeric" aria-label="Category hue in degrees">
+                <output id="category-hue-output" for="category-hue category-hue-number">220°</output>
+              </span>
             </label>
             <div class="form-actions category-actions">
               <button id="save-category" class="button primary" type="submit">Add category</button>
