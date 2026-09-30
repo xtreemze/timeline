@@ -2185,7 +2185,7 @@ export class TimelineViewController {
     // Match the globe's bounded quadratic release: distance = v0 * duration / 2.
     // With releaseMomentumEasing(), the first derivative starts at v0 and ends
     // at zero, so pointer-up does not introduce a speed discontinuity.
-    const travelPixels = (releaseVelocity * duration) / 2;
+    const travelPixels = motion.releaseMomentumDistance(releaseVelocity, duration);
     const travelTemporal = -((travelPixels / usable) * span);
     const startedAt = performance.now();
 
