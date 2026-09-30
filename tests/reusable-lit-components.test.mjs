@@ -13,7 +13,7 @@ test("reusable composer stays domain-neutral and exposes interaction contracts",
   assert.match(source, /role="listbox"/);
   assert.match(source, /composer-selection-change/);
   assert.match(source, /composer-commit/);
-  assert.match(source, /scrollIntoView\(\{ block: "center", inline: "nearest" \}\)/);
+  assert.match(source, /scrollIntoView\(\{\s*block:\s*"center",\s*inline:\s*"nearest"\s*\}\)/);
   assert.match(source, /event\.key === "ArrowDown"/);
   assert.match(source, /event\.key === " "/);
   assert.match(source, /onWheel/);
