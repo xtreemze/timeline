@@ -45,6 +45,14 @@ export function releaseMomentumEasing(progress: unknown): number {
   return t * (2 - t);
 }
 
+export function releaseMomentumDistance(
+  velocityPxPerMs: unknown,
+  durationMs: number = INERTIA_TAU_MS,
+): number {
+  const duration = Math.max(0, Number(durationMs) || 0);
+  return Number(velocityPxPerMs) * duration * 0.5;
+}
+
 function coalescedPointerEvents(event: PointerEvent | null): PointerEvent[] {
   if (event && typeof event.getCoalescedEvents === "function") {
     const events = event.getCoalescedEvents();
@@ -266,6 +274,7 @@ const TimelineMotionObj = {
   estimatePointerVelocity,
   estimatePointerVectorVelocity,
   pulseHaptic,
+  releaseMomentumDistance,
   releaseMomentumEasing,
   responseForElapsed,
 } as const;
