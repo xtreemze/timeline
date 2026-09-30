@@ -493,6 +493,7 @@ const els = {
   itemCategoryHue: requiredElement<HTMLInputElement>("#item-category-hue"),
   itemCategoryHueNumber: requiredElement<HTMLInputElement>("#item-category-hue-number"),
   itemCategoryHueOutput: requiredElement<HTMLOutputElement>("#item-category-hue-output"),
+  itemSecondaryCategoryHues: requiredElement<HTMLElement>("#item-secondary-category-hues"),
   itemStoryContext: requiredElement<HTMLSelectElement>("#item-story-context"),
   itemLayoutVariant: requiredElement<HTMLSelectElement>("#item-layout-variant"),
   itemTerminalShape: requiredElement<HTMLSelectElement>("#item-terminal-shape"),
@@ -3878,6 +3879,104 @@ function fillItemCategoryHue(categoryId = els.itemCategory.value): void {
   syncItemCategoryHuePreview();
 }
 
+function itemSecondaryCategoryIds(item: TimelineItemRecord | undefined): string[] {
+  if (!item) return [];
+  const primaryId = els.itemCategory.value;
+  return [
+    ...new Set(
+      (item.categoryIds ?? [])
+        .filter(
+          (categoryId) =>
+            categoryId !== item.categoryId &&
+            categoryId !== primaryId &&
+            state.categories.some((category) => category.id === categoryId),
+        ),
+    ),
+  ];
+}
+
+function syncSecondaryItemCategoryHueRow(
+  row: HTMLElement,
+  source: HTMLInputElement,
+): void {
+  const range = requiredDescendant<HTMLInputElement>(row, 'input[type="range"]');
+  const number = requiredDescendant<HTMLInputElement>(row, 'input[type="number"]');
+  const output = requiredDescendant<HTMLOutputElement>(row, "output");
+  if (source === number && !number.value.trim()) return;
+  const categoryId = row.dataset.categoryHueId ?? "";
+  const category = getCategory(categoryId);
+  const fallbackHue = category ? semanticHue(category.color, 220) : 220;
+  const hue = Math.round(semanticHue(Number(source.value), fallbackHue));
+  range.value = String(hue);
+  number.value = String(hue);
+  range.style.setProperty("--category-hue", String(hue));
+  output.value = `${hue}°`;
+}
+
+function fillSecondaryItemCategoryHues(item: TimelineItemRecord | undefined): void {
+  const rows = itemSecondaryCategoryIds(item).flatMap((categoryId) => {
+    const category = getCategory(categoryId);
+    if (!category) return [];
+    const hue = Math.round(semanticHue(category.color, 220));
+    const row = document.createElement("div");
+    row.className = "item-category-hue-row hue-field";
+    row.dataset.categoryHueId = category.id;
+
+    const name = document.createElement("strong");
+    name.textContent = category.name;
+
+    const controls = document.createElement("span");
+    controls.className = "hue-control-row";
+
+    const range = document.createElement("input");
+    range.type = "range";
+    range.min = "0";
+    range.max = "359";
+    range.step = "1";
+    range.value = String(hue);
+    range.setAttribute("aria-label", `${category.name} hue`);
+
+    const number = document.createElement("input");
+    number.type = "number";
+    number.min = "0";
+    number.max = "359";
+    number.step = "1";
+    number.inputMode = "numeric";
+    number.className = "hue-number";
+    number.value = String(hue);
+    number.setAttribute("aria-label", `${category.name} hue in degrees`);
+
+    const output = document.createElement("output");
+    output.value = `${hue}°`;
+
+    range.addEventListener("input", () => syncSecondaryItemCategoryHueRow(row, range));
+    number.addEventListener("input", () => syncSecondaryItemCategoryHueRow(row, number));
+    controls.append(range, number, output);
+    row.append(name, controls);
+    syncSecondaryItemCategoryHueRow(row, range);
+    return [row];
+  });
+
+  els.itemSecondaryCategoryHues.replaceChildren(...rows);
+  els.itemSecondaryCategoryHues.hidden = rows.length === 0;
+}
+
+function applyItemCategoryHuesToDraft(draft: TimelineState, item: TimelineItemRecord): void {
+  const primary = draft.categories.find((category) => category.id === item.categoryId);
+  if (primary) {
+    primary.color = canonicalSemanticHueColor(Number(els.itemCategoryHue.value), 220);
+  }
+  for (const row of els.itemSecondaryCategoryHues.querySelectorAll<HTMLElement>(
+    "[data-category-hue-id]",
+  )) {
+    const categoryId = row.dataset.categoryHueId ?? "";
+    const category = draft.categories.find((candidate) => candidate.id === categoryId);
+    const range = row.querySelector<HTMLInputElement>('input[type="range"]');
+    if (!category || !range) continue;
+    category.color = canonicalSemanticHueColor(Number(range.value), semanticHue(category.color, 220));
+  }
+}
+
 function editableItemIdFromSelection(): string | null {
   const selection = applicationSelection.current;
   if (selection?.kind === "relationship") {
@@ -3930,6 +4029,7 @@ function resetItemForm() {
   resetLocationForm();
   fillCategorySelect(els.itemCategory, false, state.categories[0]?.id || "");
   fillItemCategoryHue();
+  fillSecondaryItemCategoryHues(undefined);
   fillItemStoryContext(ui.activeStoryId || "");
   els.saveItem.textContent = "Add item";
   els.cancelItemEdit.hidden = true;
@@ -3953,6 +4053,7 @@ function beginItemEdit(id) {
   els.endField.hidden = item.kind !== "range";
   fillCategorySelect(els.itemCategory, false, item.categoryId);
   fillItemCategoryHue(item.categoryId);
+  fillSecondaryItemCategoryHues(item);
   const storyIds = storyIdsForItem(state.stories, item.id);
   const preferredStoryId =
     ui.activeStoryId && storyIds.includes(ui.activeStoryId)
@@ -5820,7 +5921,10 @@ for (const row of els.itemTagRows) {
   updateTagHuePreview(row);
 }
 
-els.itemCategory.addEventListener("change", () => fillItemCategoryHue());
+els.itemCategory.addEventListener("change", () => {
+  fillItemCategoryHue();
+  fillSecondaryItemCategoryHues(getItem(els.itemId.value));
+});
 els.itemCategoryHue.addEventListener("input", () =>
   syncItemCategoryHuePreview(els.itemCategoryHue),
 );
@@ -5959,10 +6063,7 @@ els.itemForm.addEventListener("submit", async (event) => {
   if (existingItem?.extensions) item.extensions = clone(existingItem.extensions);
 
   let draft = clone(state);
-  const editedCategory = draft.categories.find((category) => category.id === item.categoryId);
-  if (editedCategory) {
-    editedCategory.color = canonicalSemanticHueColor(Number(els.itemCategoryHue.value), 220);
-  }
+  applyItemCategoryHuesToDraft(draft, item);
   const evidenceMap = new Map(draft.evidence.map((record) => [record.id, record]));
   for (const record of evidenceRecords) evidenceMap.set(record.id, record);
   draft.evidence = [...evidenceMap.values()];
