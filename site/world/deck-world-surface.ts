@@ -763,6 +763,7 @@ const WORLD_PLACE_ICON_LIFT_PX = 2;
 /** Place pins closer than this remain one aggregate marker even when nodes can expand. */
 const WORLD_PLACE_MARKER_CLUSTER_MERGE_PX = 64;
 /** Pickup feedback is presentation-only and never feeds back into force state. */
+const WORLD_HOVER_LIFT_PX = 4;
 const WORLD_DRAG_PICKUP_LIFT_PX = 7;
 const WORLD_DRAG_PICKUP_FLASH_MS = 160;
 const WORLD_DRAG_PICKUP_FLASH_SCALE = 1.16;
@@ -783,12 +784,18 @@ function liftedPlaceIconPosition(position: WorldRenderPosition, zoom: number): W
   return liftedPositionByPixels(position, zoom, WORLD_PLACE_ICON_LIFT_PX);
 }
 
-function liftedDraggedEntityPosition(
+function liftedEntityInteractionPosition(
   position: WorldRenderPosition,
   zoom: number,
   dragging: boolean,
+  hovered: boolean,
 ): WorldRenderPosition {
-  return dragging ? liftedPositionByPixels(position, zoom, WORLD_DRAG_PICKUP_LIFT_PX) : position;
+  const liftPx = dragging
+    ? WORLD_DRAG_PICKUP_LIFT_PX
+    : hovered
+      ? WORLD_HOVER_LIFT_PX
+      : 0;
+  return liftPx > 0 ? liftedPositionByPixels(position, zoom, liftPx) : position;
 }
 
 export function shouldClusterEntityDatums(
@@ -5870,10 +5877,12 @@ export class DeckWorldSurface implements WorldSurface {
         radiusUnits: "pixels",
         getPosition: (datum: DeckWorldEntityRenderDatum) =>
           datum.kind === "entity"
-            ? liftedDraggedEntityPosition(
+            ? liftedEntityInteractionPosition(
                 datum.position,
                 this.#camera.zoom,
                 this.#activeDragInstanceId === datum.worldInstanceId,
+                this.#hoverSelection?.kind === "entity" &&
+                  this.#hoverSelection.id === datum.entityId,
               )
             : datum.position,
         // Individual entities are drawn by the styled marker layer; this
@@ -5909,7 +5918,11 @@ export class DeckWorldSurface implements WorldSurface {
         getFillColor: (datum: DeckWorldEntityRenderDatum) =>
           datum.kind === "cluster" ? scaleAlpha(this.#theme.cluster, 0) : this.#theme.hit,
         updateTriggers: {
-          getPosition: [this.#dragPresentationRevision, screenScaleZoomStep(this.#camera.zoom)],
+          getPosition: [
+            this.#dragPresentationRevision,
+            screenScaleZoomStep(this.#camera.zoom),
+            this.#hoverSelection?.kind === "entity" ? this.#hoverSelection.id : "",
+          ],
           getRadius: [this.#palette, clusterPhase],
           getLineWidth: [clusterPhase],
           getLineColor: [this.#palette, clusterPhase],
@@ -5960,10 +5973,12 @@ export class DeckWorldSurface implements WorldSurface {
               billboard: true,
               sizeUnits: "pixels",
               getPosition: (datum: DeckWorldEntityDatum) =>
-                liftedDraggedEntityPosition(
+                liftedEntityInteractionPosition(
                   datum.position,
                   this.#camera.zoom,
                   this.#activeDragInstanceId === datum.worldInstanceId,
+                  this.#hoverSelection?.kind === "entity" &&
+                    this.#hoverSelection.id === datum.entityId,
                 ),
               // Styled node markers: shape, fill, border and icon/image from
               // the entity's own style or the type default.
@@ -5994,6 +6009,7 @@ export class DeckWorldSurface implements WorldSurface {
                 getPosition: [
                   this.#dragPresentationRevision,
                   screenScaleZoomStep(this.#camera.zoom),
+                  this.#hoverSelection?.kind === "entity" ? this.#hoverSelection.id : "",
                 ],
                 getIcon: this.#palette,
                 getSize: [
