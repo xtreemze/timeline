@@ -19,6 +19,8 @@ import {
   worldPlaceClusterRadiusPx,
   worldPresentationOffsetScale,
 } from "../src/layout/world-semantic-presentation.ts";
+import { WORLD_FORCE_COLLISION_METERS_PER_PX } from "../src/layout/world-force-simulation.ts";
+import { WORLD_ENTITY_MIN_HIT_RADIUS_PX } from "../src/layout/world-graph-style.ts";
 
 const instance = Object.freeze({
   id: "a::1",
@@ -39,23 +41,25 @@ test("magnified render positions invert back to the stored offset (drag stays ho
   }
 });
 
-test("offset scale keeps the local graph at one stable screen-space radius while zooming", () => {
+test("offset scale keeps force collision radius matched to the rendered node radius while zooming", () => {
   const typical = 500;
+  const collisionRadiusMeters =
+    WORLD_ENTITY_MIN_HIT_RADIUS_PX * WORLD_FORCE_COLLISION_METERS_PER_PX;
   const radii = [];
-  for (const zoom of [6, 8, 10]) {
+  for (const zoom of [6, 10, 14, 18]) {
     const scale = worldPresentationOffsetScale(zoom, 100, typical, 0);
     const metersPerPixel = 40_075_016.686 / 512 / 2 ** zoom;
-    const radiusPx = (typical * scale) / metersPerPixel;
-    const targetPx = worldFloatingGraphRadiusPx(zoom);
-    radii.push(radiusPx);
+    const collisionRadiusPx = (collisionRadiusMeters * scale) / metersPerPixel;
+    radii.push(collisionRadiusPx);
     assert.ok(
-      Math.abs(radiusPx - targetPx) <= 1e-9,
-      "semantic compensation lands exactly on the stable screen-space target",
+      Math.abs(collisionRadiusPx - WORLD_ENTITY_MIN_HIT_RADIUS_PX) <= 1e-9,
+      "physical collision radius must project to the exact rendered node radius",
     );
   }
 
-  assert.ok(Math.abs(radii[1] - radii[0]) <= 1e-9);
-  assert.ok(Math.abs(radii[2] - radii[1]) <= 1e-9);
+  for (let index = 1; index < radii.length; index += 1) {
+    assert.ok(Math.abs(radii[index] - radii[0]) <= 1e-9);
+  }
   assert.equal(worldFloatingGraphRadiusPx(20), WORLD_LOCAL_GRAPH_RADIUS_PX);
 });
 
@@ -101,7 +105,7 @@ test("latitude-local scaling produces the same apparent radius at distant anchor
 
 test("offset scale respects the available viewport radius", () => {
   const zoom = 6;
-  const typical = 500;
+  const typical = 10_000;
   const uncapped = worldPresentationOffsetScale(zoom, 100, typical, 0);
   const capped = worldPresentationOffsetScale(zoom, 100, typical, 0, 140);
   const metersPerPixel = 40_075_016.686 / 512 / 2 ** zoom;
@@ -138,8 +142,8 @@ test("global LOD ignores one oversized node once the scene is large enough", () 
   assert.equal(representativeWorldNodeRadiusPx([22, 22, 22, 22, 22, 22, 22, 22, 22, 64]), 22);
 });
 
-test("offset scale never shrinks and is disabled for dense or offset-free scenes", () => {
-  assert.equal(worldPresentationOffsetScale(18, 100, 500, 0), 1);
+test("offset scale may shrink at close zoom to preserve collision pixels and is disabled for dense or offset-free scenes", () => {
+  assert.ok(worldPresentationOffsetScale(18, 100, 500, 0) < 1);
   assert.equal(worldPresentationOffsetScale(6, 50_000, 500, 0), 1);
   assert.equal(worldPresentationOffsetScale(6, 100, 0, 0), 1);
 });

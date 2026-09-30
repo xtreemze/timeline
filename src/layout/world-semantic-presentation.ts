@@ -1,3 +1,5 @@
+import { WORLD_FORCE_COLLISION_METERS_PER_PX } from "./world-force-simulation.ts";
+import { WORLD_ENTITY_MIN_HIT_RADIUS_PX } from "./world-graph-style.ts";
 import type { WorldRenderPosition } from "./world-geographic-position.ts";
 
 /**
@@ -414,9 +416,9 @@ export function declutterWorldLabels<T>(
  * Semantic-zoom magnification of local layout offsets. Local graphs are laid
  * out in metres around a place, which can become sub-pixel at regional zoom.
  * Magnification may compensate for camera scale so the stored offsets stay
- * untouched, but zoom itself must not ask the graph to occupy progressively
- * more screen space: that looked like a second layout running during camera
- * navigation. Sugiyama/D3 own graph spacing; the camera owns zoom.
+ * untouched, but it must preserve the force body's screen-space contract:
+ * the default physical collision radius may never project larger than the
+ * rendered node radius. Sugiyama/D3 own graph spacing; the camera owns zoom.
  */
 export const WORLD_LOCAL_GRAPH_RADIUS_PX = 320;
 const WORLD_METERS_PER_PIXEL_AT_ZOOM_0 = 40_075_016.686 / 512;
@@ -447,9 +449,19 @@ export function worldPresentationOffsetScale(
   const metersPerPixel = (WORLD_METERS_PER_PIXEL_AT_ZOOM_0 * cosine) / 2 ** zoom;
   const viewportRadius =
     Number.isFinite(maxRadiusPx) && maxRadiusPx > 0 ? maxRadiusPx : Number.POSITIVE_INFINITY;
-  const targetRadiusPx = Math.min(worldFloatingGraphRadiusPx(zoom), viewportRadius);
+  // Keep the tangent-space force body coupled to the marker footprint. The
+  // shared force conversion means any local offset rendered with this scale
+  // preserves the same metres-per-pixel ratio as collision geometry. This may
+  // shrink offsets below 1x at close zoom; otherwise a fixed metre collision
+  // body grows on screen while the marker remains a fixed pixel radius.
+  const collisionMatchedRadiusPx =
+    typicalOffsetMeters / WORLD_FORCE_COLLISION_METERS_PER_PX;
+  const targetRadiusPx = Math.min(
+    worldFloatingGraphRadiusPx(zoom),
+    viewportRadius,
+    collisionMatchedRadiusPx,
+  );
   const wanted = (targetRadiusPx * metersPerPixel) / typicalOffsetMeters;
-  if (wanted <= 1) return 1;
   return wanted;
 }
 
