@@ -35,3 +35,34 @@ test("retained timeline controller populates the host without Lit scene reconcil
   await expect(timeline.locator(".demo-timeline-rail")).toBeVisible();
   await expect(timeline.getByRole("button")).toHaveCount(3);
 });
+
+
+test("retained timeline destroys and recreates its controller across disconnects", async ({ page }) => {
+  await page.goto("/component-lab.html");
+
+  const timeline = page.locator("component-lab-timeline");
+  await expect(timeline.locator(".demo-timeline-rail")).toBeVisible();
+  const firstGeneration = await timeline.getAttribute("data-controller-generation");
+  expect(firstGeneration).toBeTruthy();
+
+  await timeline.evaluate((element) => {
+    const parent = element.parentElement;
+    if (!parent) throw new Error("timeline has no parent");
+    element.remove();
+    (window as any).__detachedTimeline = element;
+    (window as any).__timelineParent = parent;
+  });
+
+  await expect.poll(async () =>
+    page.evaluate(() => (window as any).__detachedTimeline?.dataset.controllerDestroyed),
+  ).toBe("true");
+
+  await page.evaluate(() => {
+    (window as any).__timelineParent.append((window as any).__detachedTimeline);
+  });
+
+  await expect(timeline.locator(".demo-timeline-rail")).toBeVisible();
+  await expect(timeline.getByRole("button")).toHaveCount(3);
+  await expect.poll(() => timeline.getAttribute("data-controller-generation")).not.toBe(firstGeneration);
+  await expect(timeline.locator(".demo-timeline-rail")).toHaveCount(1);
+});
