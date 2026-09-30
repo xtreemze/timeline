@@ -6,6 +6,7 @@ import {
   WORLD_ENTITY_MIN_HIT_RADIUS_PX,
   WORLD_LIGHT_PALETTE,
   WORLD_MIN_VISIBLE_STROKE_PX,
+  WORLD_NODE_DEFAULT_BORDER_WIDTH_PX,
   worldColorBytes,
   worldEdgeStyle,
   worldNodeFootprintRadiusPx,
@@ -33,6 +34,8 @@ test("node defaults follow the Orb type language", () => {
   assert.equal(person.icon, "person");
   assert.equal(person.border, semanticColorHex("#4b5f86", "light", "subdued"));
   assert.equal(person.foreground, WORLD_LIGHT_PALETTE.line);
+  assert.equal(WORLD_NODE_DEFAULT_BORDER_WIDTH_PX, 2.5);
+  assert.equal(person.borderWidth, WORLD_NODE_DEFAULT_BORDER_WIDTH_PX);
   assert.equal(worldNodeStyle({ type: "event" }, WORLD_LIGHT_PALETTE).shape, "diamond");
   assert.equal(worldNodeStyle({ type: "organization" }, WORLD_LIGHT_PALETTE).shape, "square");
   assert.equal(worldNodeStyle({ type: "story" }, WORLD_LIGHT_PALETTE).shape, "hexagon");
