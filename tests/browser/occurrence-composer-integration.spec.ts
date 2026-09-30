@@ -241,9 +241,10 @@ test("selecting a World edge selects its timeline event and opens that event con
   await expect(composer.locator(".composer-card-heading")).toContainText(
     "Third Pig builds the brick house",
   );
+  // The sample "pigs-brick-build" occurrence carries three illustrations (site/sample-case.ts).
   await expect(composer.locator("luum-occurrence-deck.composer-context-deck")).toHaveAttribute(
     "data-frame-count",
-    "2",
+    "3",
   );
   await expect(
     page.locator('.timeline-semantic-occurrence[data-id="pigs-brick-build"]'),
@@ -312,6 +313,17 @@ test("mobile composer fills one viewport lane, follows pan, and snaps centered",
       };
     });
 
+  // Opening re-centres the lane after footer content settles; only sample the initial
+  // geometry once two consecutive polls observe identical layout.
+  let previousSample = "";
+  await expect
+    .poll(async () => {
+      const sample = JSON.stringify(await geometry());
+      const settled = sample === previousSample;
+      previousSample = sample;
+      return settled;
+    })
+    .toBe(true);
   const initial = await geometry();
   expect(initial.footerOverflowX).toMatch(/auto|scroll/);
   expect(initial.footerSnapType).toMatch(/^x(?: proximity)?$/);
@@ -329,8 +341,9 @@ test("mobile composer fills one viewport lane, follows pan, and snaps centered",
     // mandatory target is already centered. Disable snapping only while
     // sampling the in-progress pan geometry, then restore the authored rule.
     element.style.scrollSnapType = "none";
+    // Pan forward relative to the centered lane; the composer is not the first footer item.
     const available = element.scrollWidth - element.clientWidth;
-    element.scrollLeft = Math.min(96, Math.max(1, available));
+    element.scrollLeft = Math.min(element.scrollLeft + 96, Math.max(1, available));
   });
   await expect.poll(async () => (await geometry()).shellLeft).toBeLessThan(initial.shellLeft - 1);
 
@@ -345,10 +358,14 @@ test("mobile composer fills one viewport lane, follows pan, and snaps centered",
   await composer.evaluate((element: HTMLElement & { revealMobileInputLane?: () => void }) => {
     element.revealMobileInputLane?.();
   });
+  // The anchored panel follows the shell on the next layout, so poll both together.
   await expect
     .poll(async () => {
       const centered = await geometry();
-      return Math.abs(centered.shellCenter - centered.viewportCenter);
+      return Math.max(
+        Math.abs(centered.shellCenter - centered.viewportCenter),
+        Math.abs(centered.panelCenter - centered.viewportCenter),
+      );
     })
     .toBeLessThanOrEqual(2);
 

@@ -49,10 +49,7 @@ test("occurrence options preserve multiple categories and tags with a primary co
     categories: ["Observation", "Conflict"],
     tags: ["work", "urgent"],
   });
-  assert.equal(
-    sentence,
-    "@alice meets @bob [categories: Observation|Conflict, tags: work|urgent]",
-  );
+  assert.equal(sentence, "@alice meets @bob [categories: Observation|Conflict, tags: work|urgent]");
 
   const parsed = parseOccurrenceSentence(sentence);
   assert.deepEqual(parsed.options.categories, ["Observation", "Conflict"]);
@@ -990,7 +987,7 @@ test("Lit composer is a touch-safe ARIA combobox with live-context guidance", as
   assert.match(source, /accuracyMeters/);
   assert.match(source, /setTimelineViewport/);
   assert.match(source, /setWorldContext/);
-  assert.match(source, /placeholder=\$\{\`Who did what to whom · at/);
+  assert.match(source, /placeholder=\$\{`Who did what to whom · at/);
   assert.match(source, /private cursorOffset = 0/);
   assert.match(source, /selectionStart/);
   assert.match(source, /@focus=\$\{\(event: Event\) => this\.onCaretMove\(event\)\}/);
@@ -1343,7 +1340,6 @@ test("live composer preserves project tags for option completion", async () => {
   assert.match(source, /editSentenceSection\(section\)/);
 });
 
-
 test("composer-local glyphs preserve the shared Lucide construction contract", async () => {
   const source = await readFile(
     new URL("../site/components/occurrence-composer.ts", import.meta.url),
@@ -1372,9 +1368,7 @@ test("composer suggestions preserve authored semantic icon and color metadata", 
       { id: "bob", name: "Bob", type: "person", icon: "child" },
     ],
     places: [],
-    categories: [
-      { id: "incident", name: "Incident", color: "#b42318", icon: "evidence" },
-    ],
+    categories: [{ id: "incident", name: "Incident", color: "#b42318", icon: "evidence" }],
     predicates: [{ name: "warns", icon: "danger", color: "#b54708" }],
     tags: [{ label: "urgent", icon: "danger", color: "hsl(28 64% 44%)" }],
   };
@@ -1391,17 +1385,15 @@ test("composer suggestions preserve authored semantic icon and color metadata", 
   assert.equal(predicate?.icon, "danger");
   assert.equal(predicate?.color, "#b54708");
 
-  const category = occurrenceComposerSuggestions(
-    "@alice warns @bob [category: ",
-    options,
-  ).find((suggestion) => suggestion.kind === "category" && suggestion.label === "Incident");
+  const category = occurrenceComposerSuggestions("@alice warns @bob [category: ", options).find(
+    (suggestion) => suggestion.kind === "category" && suggestion.label === "Incident",
+  );
   assert.equal(category?.icon, "evidence");
   assert.equal(category?.color, "#b42318");
 
-  const tag = occurrenceComposerSuggestions(
-    "@alice warns @bob [tags: ",
-    options,
-  ).find((suggestion) => suggestion.kind === "tag" && suggestion.label === "urgent");
+  const tag = occurrenceComposerSuggestions("@alice warns @bob [tags: ", options).find(
+    (suggestion) => suggestion.kind === "tag" && suggestion.label === "urgent",
+  );
   assert.equal(tag?.icon, "danger");
   assert.equal(tag?.color, "hsl(28 64% 44%)");
 });
@@ -1437,5 +1429,88 @@ test("composer-local suggestion glyphs preserve the shared Lucide construction c
   assert.match(
     source,
     /\.option-icon svg\s*\{[^}]*stroke:\s*currentColor;[^}]*stroke-width:\s*2;[^}]*stroke-linecap:\s*round;[^}]*stroke-linejoin:\s*round;/s,
+  );
+});
+
+test("a caret after an open trailing option list stays inside that option section", () => {
+  for (const value of [
+    "@alice meets @bob [categories: ]",
+    "@alice meets @bob [categories: Observation|]",
+    "@alice meets @bob [categories: Observation, tags: ]",
+  ]) {
+    assert.equal(composerCursorSection(value, value.length).kind, "options", value);
+  }
+  for (const value of [
+    "@alice meets @bob [categories: Observation]",
+    "@alice meets @bob [categories: Observation|Conflict, tags: work|urgent]",
+  ]) {
+    assert.equal(composerCursorSection(value, value.length).kind, "tail", value);
+  }
+});
+
+test("an open trailing option list offers its multi-select choices at the end caret", () => {
+  const value = "@alice meets @bob [categories: ]";
+  const suggestions = occurrenceComposerSuggestions(value, {
+    entities: [],
+    places: [],
+    categories: [
+      { id: "observation", name: "Observation" },
+      { id: "conflict", name: "Conflict" },
+    ],
+    tags: ["work"],
+    cursorOffset: value.length,
+  });
+  assert.deepEqual(
+    suggestions.map((suggestion) => [suggestion.kind, suggestion.label, suggestion.multiSelect]),
+    [
+      ["category", "Observation", true],
+      ["category", "Conflict", true],
+    ],
+  );
+});
+
+test("a completed option value keeps the remaining multi-select choices available", () => {
+  const categories = [
+    { id: "observation", name: "Observation" },
+    { id: "conflict", name: "Conflict" },
+  ];
+  const categoryValue = "@alice meets @bob [category: Observation]";
+  assert.deepEqual(
+    occurrenceComposerSuggestions(categoryValue, {
+      entities: [],
+      places: [],
+      categories,
+      cursorOffset: categoryValue.length - 1,
+    }).map((suggestion) => [suggestion.label, suggestion.selected]),
+    [
+      ["Observation", true],
+      ["Conflict", false],
+    ],
+  );
+
+  const tagValue = "@alice meets @bob [category: Observation, tags: work]";
+  assert.deepEqual(
+    occurrenceComposerSuggestions(tagValue, {
+      entities: [],
+      places: [],
+      categories,
+      tags: ["work", "urgent"],
+      cursorOffset: tagValue.length - 1,
+    }).map((suggestion) => [suggestion.label, suggestion.selected]),
+    [
+      ["work", true],
+      ["urgent", false],
+    ],
+  );
+
+  const partialValue = "@alice meets @bob [category: Obs]";
+  assert.deepEqual(
+    occurrenceComposerSuggestions(partialValue, {
+      entities: [],
+      places: [],
+      categories,
+      cursorOffset: partialValue.length - 1,
+    }).map((suggestion) => suggestion.label),
+    ["Observation"],
   );
 });

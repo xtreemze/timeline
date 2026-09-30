@@ -827,7 +827,11 @@ export function composerCursorSection(input: string, cursorOffset: number): Comp
   if (optionsStart >= 0) {
     const optionsEnd = input.indexOf("]", optionsStart + 1);
     const end = optionsEnd >= 0 ? optionsEnd + 1 : input.length;
-    if (offset >= optionsStart && offset < end) {
+    // A caret resting after "]" at the end of input is still filling the list while its
+    // last value is empty ("key: ]" or "a|]"); a completed list leaves the caret in the tail.
+    const openTrailingList =
+      offset === end && end === input.length && /(?::|\|)\s*\]$/.test(input.slice(0, end));
+    if (offset >= optionsStart && (offset < end || openTrailingList)) {
       return Object.freeze({
         kind: "options",
         start: optionsStart,
@@ -1344,9 +1348,12 @@ export function occurrenceComposerSuggestions(
     );
   }
 
-  if (/\[[^\]]*$/.test(prefix)) {
-    const optionStart = prefix.lastIndexOf("[");
-    const optionText = prefix.slice(optionStart + 1);
+  // "[categories: ]" with the caret after "]" is still an open list; read it without the "]".
+  const openTrailingOption = cursorOffset === input.length && /\[[^\]]*(?::|\|)\s*\]$/.test(prefix);
+  const optionPrefix = openTrailingOption ? prefix.slice(0, -1) : prefix;
+  if (/\[[^\]]*$/.test(optionPrefix)) {
+    const optionStart = optionPrefix.lastIndexOf("[");
+    const optionText = optionPrefix.slice(optionStart + 1);
     const categoryMatch = optionText.match(/(?:^|,)\s*categor(?:y|ies)\s*:\s*([^,\]]*)$/i);
     const tagMatch = optionText.match(/(?:^|,)\s*tags\s*:\s*([^,\]]*)$/i);
 
@@ -1354,11 +1361,16 @@ export function occurrenceComposerSuggestions(
       const rawTags = tagMatch[1] ?? "";
       const selectedTags = composerListValues(rawTags);
       const selectedKeys = new Set(selectedTags.map(normalizedMatchText));
-      const activeTag = normalizedMatchText(splitComposerDelimited(rawTags, "|").at(-1) ?? "");
+      const tagOptions = (options.tags ?? [])
+        .map(normalizeTagOption)
+        .filter((tag): tag is ComposerTagOption => Boolean(tag));
+      const lastTag = normalizedMatchText(splitComposerDelimited(rawTags, "|").at(-1) ?? "");
+      // A last value that already names a tag is a completed choice, not a search query.
+      const activeTag = tagOptions.some((tag) => normalizedMatchText(tag.label) === lastTag)
+        ? ""
+        : lastTag;
       return uniqueSuggestions(
-        (options.tags ?? [])
-          .map(normalizeTagOption)
-          .filter((tag): tag is ComposerTagOption => Boolean(tag))
+        tagOptions
           .filter(
             (tag) =>
               !activeTag ||
@@ -1382,9 +1394,15 @@ export function occurrenceComposerSuggestions(
     const rawCategories = categoryMatch?.[1] ?? "";
     const selectedCategories = composerListValues(rawCategories);
     const selectedKeys = new Set(selectedCategories.map(normalizedMatchText));
-    const activeCategory = normalizedMatchText(
+    const lastCategory = normalizedMatchText(
       splitComposerDelimited(rawCategories, "|").at(-1) ?? "",
     );
+    // A last value that already names a category is a completed choice, not a search query.
+    const activeCategory = options.categories.some(
+      (category) => normalizedMatchText(category.name) === lastCategory,
+    )
+      ? ""
+      : lastCategory;
     const categorySuggestions = options.categories
       .filter(
         (category) =>

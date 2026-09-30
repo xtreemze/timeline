@@ -1267,7 +1267,9 @@ export class LuumOccurrenceComposerElement extends LitElement {
   focusSection(
     field: "subject" | "predicate" | "object" | "place" | "time" | "category" | "tag",
   ): void {
-    this.beginSession();
+    // An open composer already owns its session; ambient time/world drift must not wipe
+    // the draft the user is focusing into.
+    if (!this.active) this.beginSession();
     const section = composerEditableSections(this.value).find(
       (candidate) => candidate.kind === field,
     );
@@ -1686,6 +1688,16 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.setComposerValue(target.value, target.selectionStart ?? target.value.length);
   }
 
+  private onBeforeInput(event: InputEvent): void {
+    const target = event.currentTarget;
+    if (!(target instanceof HTMLInputElement) || this.composing) return;
+    // Clearing an already-empty field changes no value, so no input event follows;
+    // the explicit delete still means "start over" for the suggestion list.
+    if (target.value === "" && event.inputType.startsWith("delete")) {
+      this.resetSuggestionSelection();
+    }
+  }
+
   private onCompositionStart(): void {
     this.composing = true;
   }
@@ -1850,7 +1862,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
   }
 
   private investigationProjection() {
-    const qualifiers = projectInvestigativeQualifiers(this.value);
+    // Uncommitted IME text is not yet investigative input; compositionend re-projects it.
+    const qualifiers = this.composing ? [] : projectInvestigativeQualifiers(this.value);
     const activeQualifier =
       qualifiers.find(
         (qualifier) => this.cursorOffset >= qualifier.start && this.cursorOffset <= qualifier.end,
@@ -2312,6 +2325,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
               .value=${this.value}
               @compositionstart=${() => this.onCompositionStart()}
               @compositionend=${(event: CompositionEvent) => this.onCompositionEnd(event)}
+              @beforeinput=${(event: InputEvent) => this.onBeforeInput(event)}
               @input=${(event: Event) => this.onInput(event)}
               @focus=${(event: Event) => this.onCaretMove(event)}
               @click=${(event: Event) => this.onCaretMove(event)}
