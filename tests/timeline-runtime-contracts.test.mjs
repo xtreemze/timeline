@@ -81,14 +81,14 @@ test("timeline uses a Lit custom-element ownership boundary without reactive sce
 
   assert.match(html, /<luum-timeline id="timeline-view"/);
   assert.match(html, /<\/luum-timeline>/);
-  assert.match(view, /import \\{ RetainedTimelineElement \\} from "\\.\\/reusable\\/retained-timeline\\.ts"/);
+  assert.match(view, /import \{ RetainedTimelineElement \} from "\.\/reusable\/retained-timeline\.ts"/);
   assert.match(
     view,
     /class LuumTimelineElement extends RetainedTimelineElement<TimelineViewController>/,
   );
-  assert.match(view, /protected override createTimelineController\\(\\): TimelineViewController/);
-  assert.match(view, /return new TimelineViewController\\(this\\)/);
-  assert.match(view, /customElements\\.define\\("luum-timeline", LuumTimelineElement\\)/);
+  assert.match(view, /protected override createTimelineController\(\): TimelineViewController/);
+  assert.match(view, /return new TimelineViewController\(this\)/);
+  assert.match(view, /customElements\.define\("luum-timeline", LuumTimelineElement\)/);
 });
 
 test("retained event cards use Lit for semantic content but not interaction geometry", async () => {
