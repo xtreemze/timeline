@@ -94,6 +94,7 @@ export interface ComposerPlaceOption {
   readonly id: string;
   readonly name: string;
   readonly icon?: string;
+  readonly color?: string;
   readonly longitude?: number;
   readonly latitude?: number;
 }
@@ -1274,6 +1275,9 @@ function cursorPlaceSuggestions(
         label: place.name,
         detail: sameNameCount > 1 ? `nearest place · ${place.id}` : "nearest place",
         ...(place.icon ? { icon: place.icon } : {}),
+        ...(normalizeComposerSemanticColor(place.color)
+          ? { color: normalizeComposerSemanticColor(place.color) }
+          : {}),
         insertText: sameNameCount > 1 ? `@${place.id}` : quoteComposerName(place.name),
         replaceRange: Object.freeze({ start: section.start, end: section.end }),
       };
@@ -1510,6 +1514,7 @@ export function occurrenceComposerSuggestions(
             ? `${entity.type || "entity"} · ${entity.id}`
             : entity.type || "entity",
           ...(entity.icon ? { icon: entity.icon } : {}),
+          ...(composerEntityColor(entity) ? { color: composerEntityColor(entity) } : {}),
           insertText: canonicalReferenceRequired ? `@${entity.id}` : quoteComposerName(entity.name),
         };
       });
@@ -1540,6 +1545,10 @@ export function occurrenceComposerSuggestions(
       kind: "place" as const,
       label: place.name,
       detail: sameNameCount > 1 ? `place · ${place.id}` : "place",
+      ...(place.icon ? { icon: place.icon } : {}),
+      ...(normalizeComposerSemanticColor(place.color)
+        ? { color: normalizeComposerSemanticColor(place.color) }
+        : {}),
       insertText: sameNameCount > 1 ? `at @${place.id}` : `at ${quoteComposerName(place.name)}`,
     };
   });
