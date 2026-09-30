@@ -34,6 +34,17 @@ export function decayVelocity(
   return Number(velocity) * Math.exp(-Math.max(0, Number(elapsedMs) || 0) / tau);
 }
 
+/**
+ * Bounded release curve shared by direct-manipulation surfaces.
+ * Its slope starts at 2 and reaches 0 at completion; when total travel is
+ * velocity * duration / 2, the animation begins at the measured release
+ * velocity and comes continuously to rest at the duration boundary.
+ */
+export function releaseMomentumEasing(progress: unknown): number {
+  const t = clamp(Number(progress) || 0, 0, 1);
+  return t * (2 - t);
+}
+
 function coalescedPointerEvents(event: PointerEvent | null): PointerEvent[] {
   if (event && typeof event.getCoalescedEvents === "function") {
     const events = event.getCoalescedEvents();
@@ -255,6 +266,7 @@ const TimelineMotionObj = {
   estimatePointerVelocity,
   estimatePointerVectorVelocity,
   pulseHaptic,
+  releaseMomentumEasing,
   responseForElapsed,
 } as const;
 
