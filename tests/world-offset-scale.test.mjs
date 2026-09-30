@@ -13,7 +13,6 @@ import {
   WORLD_ENTITY_FLOAT_PX,
   WORLD_LOCAL_GRAPH_RADIUS_PX,
   WORLD_PLACE_CLUSTER_RADIUS_PX,
-  WORLD_ENTITY_MIN_HIT_RADIUS_PX,
   worldEntityFloatPx,
   worldFloatingGraphRadiusPx,
   worldLocalRadiusPx,
@@ -21,6 +20,7 @@ import {
   worldPresentationOffsetScale,
 } from "../src/layout/world-semantic-presentation.ts";
 import { WORLD_FORCE_COLLISION_METERS_PER_PX } from "../src/layout/world-force-simulation.ts";
+import { WORLD_ENTITY_MIN_HIT_RADIUS_PX } from "../src/layout/world-graph-style.ts";
 
 const instance = Object.freeze({
   id: "a::1",
