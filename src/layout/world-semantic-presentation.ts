@@ -439,21 +439,19 @@ export function worldPresentationOffsetScale(
 ): number {
   if (
     !Number.isFinite(zoom) ||
-    entityCount >= 25_000 ||
     !Number.isFinite(typicalOffsetMeters) ||
     typicalOffsetMeters <= 0
   ) {
     return 1;
   }
+  // Dense scenes may skip expensive/readability-oriented LOD work, but that
+  // cannot disable collision normalization: a fixed metre force body would
+  // otherwise grow beyond its fixed-pixel marker as the camera zooms in.
+  void entityCount;
   const cosine = Math.max(0.05, Math.cos((latitude * Math.PI) / 180));
   const metersPerPixel = (WORLD_METERS_PER_PIXEL_AT_ZOOM_0 * cosine) / 2 ** zoom;
   const viewportRadius =
     Number.isFinite(maxRadiusPx) && maxRadiusPx > 0 ? maxRadiusPx : Number.POSITIVE_INFINITY;
-  // Keep the tangent-space force body coupled to the marker footprint. The
-  // shared force conversion means any local offset rendered with this scale
-  // preserves the same metres-per-pixel ratio as collision geometry. This may
-  // shrink offsets below 1x at close zoom; otherwise a fixed metre collision
-  // body grows on screen while the marker remains a fixed pixel radius.
   const collisionMatchedRadiusPx =
     typicalOffsetMeters / WORLD_FORCE_COLLISION_METERS_PER_PX;
   const targetRadiusPx = Math.min(
@@ -461,8 +459,7 @@ export function worldPresentationOffsetScale(
     viewportRadius,
     collisionMatchedRadiusPx,
   );
-  const wanted = (targetRadiusPx * metersPerPixel) / typicalOffsetMeters;
-  return wanted;
+  return (targetRadiusPx * metersPerPixel) / typicalOffsetMeters;
 }
 
 /** 90th-percentile distance of local offsets from their anchors, in metres. */
