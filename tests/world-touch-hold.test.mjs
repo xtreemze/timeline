@@ -297,6 +297,7 @@ test("a long press on an entity then drag claims the node drag", (t) => {
   h.touch("pointerdown", 4, 118, 259);
   assert.equal(h.dataset.worldTouchDrag, "holding");
   t.mock.timers.tick(WORLD_TOUCH_HOLD_MS + 1);
+  t.mock.timers.tick(1);
   assert.equal(h.dataset.worldTouchDrag, "active");
   assert.deepEqual(h.surface.getAccessibleSnapshot().selection, { kind: "entity", id: "alice" });
   assert.deepEqual(
@@ -324,6 +325,7 @@ test("owned long-press release reaches deck so its touch contact terminates", (t
 
   h.touch("pointerdown", 4, 118, 259);
   t.mock.timers.tick(WORLD_TOUCH_HOLD_MS + 1);
+  t.mock.timers.tick(1);
   assert.equal(h.dataset.worldTouchDrag, "active");
 
   const move = h.touch("pointermove", 4, 160, 280);
@@ -364,6 +366,7 @@ test("long-press pickup flashes and lifts only the actively dragged node", (t) =
 
   h.touch("pointerdown", 4, 118, 259);
   t.mock.timers.tick(WORLD_TOUCH_HOLD_MS + 1);
+  t.mock.timers.tick(1);
   assert.deepEqual(h.begins, [[4, worldInstanceId("alice", "meeting")]]);
 
   const flashedLayer = h.entityIconLayer();
@@ -449,6 +452,7 @@ test("stationary long-press on empty world launches authoring without claiming a
 
   h.touch("pointerdown", 4, 118, 259, 1_000);
   t.mock.timers.tick(WORLD_TOUCH_HOLD_MS + 1);
+  t.mock.timers.tick(1);
 
   const request = h.dispatched.find((event) => event.type === "worldcontextrequest");
   assert.ok(request, "empty-world hold publishes the authoring context request");
