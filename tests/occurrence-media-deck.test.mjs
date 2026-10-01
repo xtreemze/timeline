@@ -14,6 +14,14 @@ test("occurrence deck normalizes image and context frames without inventing empt
 
   const frames = normalizeOccurrenceDeckFrames([
     { kind: "image", src: "one.jpg", alt: "One" },
+    {
+      kind: "video",
+      src: "clip.webm",
+      mimeType: "video/webm",
+      sha256: "a".repeat(64),
+      caption: "Clip",
+    },
+    { kind: "audio", src: "interview.ogg", mimeType: "audio/ogg", alt: "Interview" },
     { kind: "image", src: "", alt: "Missing" },
     { kind: "context", label: "Context", body: "A concise contextual frame." },
     { kind: "context", label: "", body: "" },
@@ -21,6 +29,15 @@ test("occurrence deck normalizes image and context frames without inventing empt
 
   assert.deepEqual(frames, [
     { kind: "image", src: "one.jpg", alt: "One", caption: "" },
+    {
+      kind: "video",
+      src: "clip.webm",
+      mimeType: "video/webm",
+      sha256: "a".repeat(64),
+      alt: "",
+      caption: "Clip",
+    },
+    { kind: "audio", src: "interview.ogg", mimeType: "audio/ogg", alt: "Interview", caption: "" },
     { kind: "context", label: "Context", body: "A concise contextual frame." },
   ]);
 });
@@ -87,6 +104,11 @@ test("occurrence deck component owns media navigation without autoplay or parent
   assert.match(source, /timeline-focus-media-control/);
   assert.match(source, /timeline-focus-slide-dot/);
   assert.match(source, /timeline-focus-slide-count/);
+  assert.match(source, /<video[\s\S]*controls[\s\S]*playsinline/);
+  assert.match(source, /<audio[\s\S]*controls/);
+  assert.match(source, /preload="metadata"/);
+  assert.match(source, /URL\.createObjectURL/);
+  assert.match(source, /URL\.revokeObjectURL/);
   assert.match(source, /IMAGE_ZOOM_STEPS/);
   assert.match(source, /\[0\.5, 0\.75, 1, 1\.25, 1\.5, 2, 3\]/);
   assert.match(source, /IMAGE_RESET_ZOOM = 1/);
@@ -110,6 +132,7 @@ test("occurrence deck component owns media navigation without autoplay or parent
   assert.match(source, /this\.imageZoomValue <= IMAGE_RESET_ZOOM \+ 0\.001/);
   assert.match(source, /this\.imageZoomValue > IMAGE_RESET_ZOOM \+ 0\.001/);
   assert.doesNotMatch(source, /setInterval|setTimeout\([^)]*next|autoplay/i);
+  assert.doesNotMatch(source, /\.play\(\)/);
 });
 
 test("occurrence deck surfaces use theme tokens and expose touch-safe image manipulation", async () => {
@@ -127,6 +150,8 @@ test("occurrence deck surfaces use theme tokens and expose touch-safe image mani
     css,
     /\.timeline-focus-hero\s*\{[\s\S]*background:\s*var\(--paper\)[\s\S]*color:\s*var\(--ink\)/,
   );
+  assert.match(css, /\.timeline-occurrence-deck-video\s*\{[\s\S]*object-fit:\s*contain/);
+  assert.match(css, /\.timeline-occurrence-deck-audio\s*\{[\s\S]*inline-size:/);
   assert.match(css, /\.timeline-focus-hero-fallback\s*\{[\s\S]*var\(--paper\)[\s\S]*var\(--panel\)/);
   assert.match(
     composer,
