@@ -442,6 +442,11 @@ test("focused standalone occurrence keeps parent identity while emphasizing chil
 
   view.setFocus("meeting-item");
 
+  assert.deepEqual(
+    calls.filter(([name]) => name === "focus:occurrence").at(-1),
+    ["focus:occurrence", "meeting-item"],
+    "focus keeps the standalone canonical occurrence identity",
+  );
   assert.deepEqual(getProjection().edges.map((edge) => edge.id), ["meeting"]);
   assert.ok(
     getProjection().instances.every((instance) =>
