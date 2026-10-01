@@ -96,6 +96,7 @@ export class LuumOccurrenceDeckElement extends LitElement {
     this.frames = nextFrames;
     this.activeIndex = nextIndex;
     this.dataset.frameCount = String(nextFrames.length);
+    this.dataset.activeKind = nextFrames[nextIndex]?.kind ?? "";
     this.requestUpdate();
   }
 
@@ -114,6 +115,7 @@ export class LuumOccurrenceDeckElement extends LitElement {
     }
 
     this.activeIndex = next;
+    this.dataset.activeKind = this.frames[next]?.kind ?? "";
     this.resetImageTransform(false);
     this.requestUpdate();
     this.dispatchEvent(
