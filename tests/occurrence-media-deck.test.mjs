@@ -205,3 +205,32 @@ test("multimedia evidence is fingerprinted, persisted, and projected into the sl
   assert.match(markup, /audio\/\*/);
   assert.match(markup, /video\/\*/);
 });
+
+test("occurrence deck bounds hot-path DOM work and releases transient state", async () => {
+  const source = await readFile(
+    new URL("../site/components/occurrence-media-deck.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /createRef, ref/);
+  assert.match(source, /occurrenceDeckFramesEqual/);
+  assert.match(
+    source,
+    /if \(!occurrenceChanged && !framesChanged && !indexChanged\) return;/,
+  );
+  assert.match(source, /if \(framesChanged\) \{[\s\S]*releaseUnusedBlobUrls\(nextFrames\)/);
+  assert.match(source, /imageTransformFrame = requestAnimationFrame/);
+  assert.match(source, /cancelAnimationFrame\(this\.imageTransformFrame\)/);
+  assert.match(source, /connectedCallback\(\): void \{[\s\S]*frame\.blob[\s\S]*this\.requestUpdate\(\)/);
+  assert.match(source, /this\.resetGestureState\(\);[\s\S]*this\.releaseBlobUrls\(\);/);
+  assert.match(source, /gestureViewportRect = viewport\.getBoundingClientRect\(\)/);
+  assert.match(source, /previous\.x = event\.clientX;[\s\S]*previous\.y = event\.clientY;/);
+  assert.doesNotMatch(source, /\[\.\.\.this\.activePointers\.values\(\)\]/);
+
+  const pointerMove =
+    source.match(/private onImagePointerMove\([\s\S]*?\n  \}\n\n  private releasePointer/)?.[0] ?? "";
+  assert.ok(pointerMove);
+  assert.doesNotMatch(pointerMove, /getBoundingClientRect/);
+  assert.doesNotMatch(pointerMove, /requestUpdate/);
+  assert.doesNotMatch(pointerMove, /syncImageTransform/);
+});

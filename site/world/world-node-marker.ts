@@ -24,7 +24,17 @@ export interface WorldNodeMarker {
 }
 
 const SUPERSAMPLE = 2;
+const WORLD_NODE_MARKER_CACHE_LIMIT = 192;
 const markers = new Map<string, WorldNodeMarker>();
+
+function cacheMarker(key: string, marker: WorldNodeMarker): WorldNodeMarker {
+  if (markers.size >= WORLD_NODE_MARKER_CACHE_LIMIT) {
+    const oldest = markers.keys().next().value;
+    if (oldest !== undefined) markers.delete(oldest);
+  }
+  markers.set(key, marker);
+  return marker;
+}
 
 function escapeAttribute(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");

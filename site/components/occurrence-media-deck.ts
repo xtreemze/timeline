@@ -1,4 +1,5 @@
 import { html, LitElement, nothing } from "lit";
+import { createRef, ref } from "lit/directives/ref.js";
 import { createIcon } from "../event-presentation.ts";
 import {
   deckNavigationMode,
@@ -40,7 +41,30 @@ const DOUBLE_TAP_MAX_DELAY_MS = 320;
 const DOUBLE_TAP_MAX_DISTANCE_PX = 28;
 const KEYBOARD_PAN_PX = 36;
 
-type PointerPoint = Readonly<{ x: number; y: number }>;
+type PointerPoint = { x: number; y: number };
+
+function occurrenceDeckFramesEqual(
+  previous: readonly OccurrenceDeckFrame[],
+  next: readonly OccurrenceDeckFrame[],
+): boolean {
+  if (previous.length !== next.length) return false;
+  return previous.every((frame, index) => {
+    const candidate = next[index];
+    if (!candidate || frame.kind !== candidate.kind) return false;
+    if (frame.kind === "context" && candidate.kind === "context") {
+      return frame.label === candidate.label && frame.body === candidate.body;
+    }
+    if (frame.kind === "context" || candidate.kind === "context") return false;
+    return (
+      frame.src === candidate.src &&
+      frame.blob === candidate.blob &&
+      frame.mimeType === candidate.mimeType &&
+      frame.sha256 === candidate.sha256 &&
+      frame.alt === candidate.alt &&
+      frame.caption === candidate.caption
+    );
+  });
+}
 
 export class LuumOccurrenceDeckElement extends LitElement {
   static override properties = {
@@ -65,6 +89,13 @@ export class LuumOccurrenceDeckElement extends LitElement {
   private pinchDistance = 0;
   private pinchCenter: PointerPoint | null = null;
   private lastTouchTap: Readonly<{ x: number; y: number; at: number }> | null = null;
+  private readonly imageViewportRef = createRef<HTMLElement>();
+  private readonly imageRef = createRef<HTMLImageElement>();
+  private imageTransformFrame = 0;
+  private imageTransformNeedsRender = false;
+  private gestureViewportRect: DOMRect | null = null;
+  private transientViewportRect: DOMRect | null = null;
+  private readonly pinchMetricScratch = { distance: 0, centerX: 0, centerY: 0 };
 
   constructor() {
     super();
@@ -87,13 +118,20 @@ export class LuumOccurrenceDeckElement extends LitElement {
       frameCount: nextFrames.length,
     });
 
-    if (nextOccurrenceId !== this.occurrenceId) {
+    const occurrenceChanged = nextOccurrenceId !== this.occurrenceId;
+    const framesChanged = !occurrenceDeckFramesEqual(this.frames, nextFrames);
+    const indexChanged = nextIndex !== this.activeIndex;
+    if (!occurrenceChanged && !framesChanged && !indexChanged) return;
+
+    if (occurrenceChanged || framesChanged) {
       this.failedMediaIndexes.clear();
       this.resetImageTransform(false);
     }
-    this.releaseUnusedBlobUrls(nextFrames);
+    if (framesChanged) {
+      this.releaseUnusedBlobUrls(nextFrames);
+      this.frames = nextFrames;
+    }
     this.occurrenceId = nextOccurrenceId;
-    this.frames = nextFrames;
     this.activeIndex = nextIndex;
     this.dataset.frameCount = String(nextFrames.length);
     this.dataset.activeKind = nextFrames[nextIndex]?.kind ?? "";
@@ -179,7 +217,19 @@ export class LuumOccurrenceDeckElement extends LitElement {
     this.blobObjectUrls.clear();
   }
 
+  override connectedCallback(): void {
+    super.connectedCallback();
+    if (this.frames.some((frame) => frame.kind !== "context" && frame.blob)) {
+      this.requestUpdate();
+    }
+  }
+
   override disconnectedCallback(): void {
+    if (this.imageTransformFrame) cancelAnimationFrame(this.imageTransformFrame);
+    this.imageTransformFrame = 0;
+    this.imageTransformNeedsRender = false;
+    this.transientViewportRect = null;
+    this.resetGestureState();
     this.releaseBlobUrls();
     super.disconnectedCallback();
   }
@@ -189,11 +239,11 @@ export class LuumOccurrenceDeckElement extends LitElement {
   }
 
   private imageViewport(): HTMLElement | null {
-    return this.querySelector<HTMLElement>(".timeline-occurrence-deck-image-viewport");
+    return this.imageViewportRef.value ?? null;
   }
 
   private imageElement(): HTMLImageElement | null {
-    return this.querySelector<HTMLImageElement>(".timeline-focus-hero-image");
+    return this.imageRef.value ?? null;
   }
 
   private hasInteractiveImage(): boolean {
@@ -222,12 +272,26 @@ export class LuumOccurrenceDeckElement extends LitElement {
     }
   }
 
+  private scheduleImageTransformSync(requestRender = false): void {
+    this.imageTransformNeedsRender ||= requestRender;
+    if (this.imageTransformFrame) return;
+    this.imageTransformFrame = requestAnimationFrame(() => {
+      this.imageTransformFrame = 0;
+      const shouldRender = this.imageTransformNeedsRender;
+      this.imageTransformNeedsRender = false;
+      this.transientViewportRect = null;
+      this.syncImageTransform();
+      if (shouldRender) this.requestUpdate();
+    });
+  }
+
   private resetGestureState(): void {
     this.activePointers.clear();
     this.gestureOrigin = null;
     this.gestureWasPinch = false;
     this.pinchDistance = 0;
     this.pinchCenter = null;
+    this.gestureViewportRect = null;
   }
 
   private resetImageTransform(request = true): void {
@@ -254,7 +318,7 @@ export class LuumOccurrenceDeckElement extends LitElement {
     this.imagePanX = x;
     this.imagePanY = y;
     this.clampImagePan(viewport);
-    this.syncImageTransform();
+    this.scheduleImageTransformSync();
   }
 
   private setImageZoom(
@@ -267,7 +331,11 @@ export class LuumOccurrenceDeckElement extends LitElement {
     if (Math.abs(nextZoom - previousZoom) < 0.0001) return;
 
     if (viewport && focalPoint && previousZoom > 0) {
-      const rect = viewport.getBoundingClientRect();
+      let rect = this.gestureViewportRect ?? this.transientViewportRect;
+      if (!rect) {
+        rect = viewport.getBoundingClientRect();
+        this.transientViewportRect = rect;
+      }
       const focalX = focalPoint.x - rect.left - rect.width / 2;
       const focalY = focalPoint.y - rect.top - rect.height / 2;
       const ratio = nextZoom / previousZoom;
@@ -277,8 +345,7 @@ export class LuumOccurrenceDeckElement extends LitElement {
 
     this.imageZoomValue = nextZoom;
     this.clampImagePan(viewport);
-    this.syncImageTransform();
-    this.requestUpdate();
+    this.scheduleImageTransformSync(true);
   }
 
   private stepImageZoom(delta: number): void {
@@ -293,18 +360,17 @@ export class LuumOccurrenceDeckElement extends LitElement {
     this.setImageZoom(target);
   }
 
-  private pinchMetrics(): Readonly<{ distance: number; center: PointerPoint }> | null {
-    const points = [...this.activePointers.values()];
-    if (points.length < 2) return null;
-    const first = points[0];
-    const second = points[1];
+  private pinchMetrics(): Readonly<{ distance: number; centerX: number; centerY: number }> | null {
+    const iterator = this.activePointers.values();
+    const first = iterator.next().value;
+    const second = iterator.next().value;
     if (!first || !second) return null;
     const dx = second.x - first.x;
     const dy = second.y - first.y;
-    return Object.freeze({
-      distance: Math.hypot(dx, dy),
-      center: Object.freeze({ x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 }),
-    });
+    this.pinchMetricScratch.distance = Math.hypot(dx, dy);
+    this.pinchMetricScratch.centerX = (first.x + second.x) / 2;
+    this.pinchMetricScratch.centerY = (first.y + second.y) / 2;
+    return this.pinchMetricScratch;
   }
 
   private beginPinch(): void {
@@ -312,7 +378,7 @@ export class LuumOccurrenceDeckElement extends LitElement {
     if (!metrics) return;
     this.gestureWasPinch = true;
     this.pinchDistance = Math.max(1, metrics.distance);
-    this.pinchCenter = metrics.center;
+    this.pinchCenter = { x: metrics.centerX, y: metrics.centerY };
   }
 
   private onImagePointerDown(event: PointerEvent): void {
@@ -335,8 +401,9 @@ export class LuumOccurrenceDeckElement extends LitElement {
         pointerType: event.pointerType,
       });
       this.gestureWasPinch = false;
+      this.gestureViewportRect = viewport.getBoundingClientRect();
     }
-    this.activePointers.set(event.pointerId, Object.freeze({ x: event.clientX, y: event.clientY }));
+    this.activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
     if (this.activePointers.size >= 2) this.beginPinch();
   }
 
@@ -345,29 +412,40 @@ export class LuumOccurrenceDeckElement extends LitElement {
     if (!previous) return;
     const viewport = event.currentTarget;
     if (!(viewport instanceof HTMLElement)) return;
-    this.activePointers.set(event.pointerId, Object.freeze({ x: event.clientX, y: event.clientY }));
+    const previousX = previous.x;
+    const previousY = previous.y;
+    previous.x = event.clientX;
+    previous.y = event.clientY;
 
     if (this.activePointers.size >= 2) {
       event.preventDefault();
       const metrics = this.pinchMetrics();
       if (!metrics) return;
-      const previousCenter = this.pinchCenter ?? metrics.center;
-      this.imagePanX += metrics.center.x - previousCenter.x;
-      this.imagePanY += metrics.center.y - previousCenter.y;
+      const previousCenterX = this.pinchCenter?.x ?? metrics.centerX;
+      const previousCenterY = this.pinchCenter?.y ?? metrics.centerY;
+      this.imagePanX += metrics.centerX - previousCenterX;
+      this.imagePanY += metrics.centerY - previousCenterY;
       const distanceRatio =
         this.pinchDistance > 0 ? metrics.distance / this.pinchDistance : 1;
-      this.setImageZoom(this.imageZoomValue * distanceRatio, viewport, metrics.center);
+      this.setImageZoom(this.imageZoomValue * distanceRatio, viewport, {
+        x: metrics.centerX,
+        y: metrics.centerY,
+      });
       this.pinchDistance = Math.max(1, metrics.distance);
-      this.pinchCenter = metrics.center;
-      this.syncImageTransform();
+      if (this.pinchCenter) {
+        this.pinchCenter.x = metrics.centerX;
+        this.pinchCenter.y = metrics.centerY;
+      } else {
+        this.pinchCenter = { x: metrics.centerX, y: metrics.centerY };
+      }
       return;
     }
 
     if (this.imageZoomValue > IMAGE_RESET_ZOOM + 0.001) {
       event.preventDefault();
       this.setImagePan(
-        this.imagePanX + event.clientX - previous.x,
-        this.imagePanY + event.clientY - previous.y,
+        this.imagePanX + event.clientX - previousX,
+        this.imagePanY + event.clientY - previousY,
         viewport,
       );
     }
@@ -394,7 +472,7 @@ export class LuumOccurrenceDeckElement extends LitElement {
       this.setImageZoom(
         this.imageZoomValue > IMAGE_RESET_ZOOM + 0.001 ? IMAGE_RESET_ZOOM : 2,
         this.imageViewport(),
-        Object.freeze({ x: event.clientX, y: event.clientY }),
+        { x: event.clientX, y: event.clientY },
       );
       return;
     }
@@ -472,7 +550,7 @@ export class LuumOccurrenceDeckElement extends LitElement {
     this.setImageZoom(
       this.imageZoomValue * factor,
       viewport,
-      Object.freeze({ x: event.clientX, y: event.clientY }),
+      { x: event.clientX, y: event.clientY },
     );
   }
 
@@ -482,7 +560,7 @@ export class LuumOccurrenceDeckElement extends LitElement {
     this.setImageZoom(
       this.imageZoomValue > IMAGE_RESET_ZOOM + 0.001 ? IMAGE_RESET_ZOOM : 2,
       this.imageViewport(),
-      Object.freeze({ x: event.clientX, y: event.clientY }),
+      { x: event.clientX, y: event.clientY },
     );
   }
 
@@ -628,6 +706,7 @@ export class LuumOccurrenceDeckElement extends LitElement {
 
     return html`
       <div
+        ${ref(this.imageViewportRef)}
         class="timeline-occurrence-deck-image-viewport"
         data-zoomed=${String(this.imageZoomValue > IMAGE_RESET_ZOOM + 0.001)}
         tabindex="0"
@@ -644,6 +723,7 @@ export class LuumOccurrenceDeckElement extends LitElement {
         @keydown=${(event: KeyboardEvent) => this.onImageKeydown(event)}
       >
         <img
+          ${ref(this.imageRef)}
           class="timeline-focus-hero-image"
           src=${src}
           alt=${frame.alt}

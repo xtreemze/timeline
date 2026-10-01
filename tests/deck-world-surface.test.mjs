@@ -3601,3 +3601,16 @@ test("user camera moves are handed back to the controlled deck so the globe rota
   assert.equal(pushed.viewState.longitude, 40);
   assert.equal(surface.getCamera().longitude, 40);
 });
+
+test("world renderer bounds semantic style memoization and releases retained graph state on destroy", async () => {
+  const source = await readFile(
+    new URL("../site/world/deck-world-surface.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /WORLD_STYLE_CACHE_LIMIT = 512/);
+  assert.match(source, /setBoundedCache\(this\.#nodeStyles, key, style, WORLD_STYLE_CACHE_LIMIT\)/);
+  assert.match(source, /setBoundedCache\(this\.#edgeStyles, key, style, WORLD_STYLE_CACHE_LIMIT\)/);
+  assert.match(source, /destroy\(\): void \{[\s\S]*this\.#nodeStyles\.clear\(\)/);
+  assert.match(source, /destroy\(\): void \{[\s\S]*this\.#lineClipCache\.clear\(\)/);
+  assert.match(source, /destroy\(\): void \{[\s\S]*this\.#topologyIndex\.replace\(this\.#projection\)/);
+});

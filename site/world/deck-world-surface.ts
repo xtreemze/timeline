@@ -3001,6 +3001,16 @@ function clusterPositionFromPicking(
   return Object.freeze([longitude, latitude, altitude]) as WorldRenderPosition;
 }
 
+const WORLD_STYLE_CACHE_LIMIT = 512;
+
+function setBoundedCache<K, V>(cache: Map<K, V>, key: K, value: V, limit: number): void {
+  if (!cache.has(key) && cache.size >= limit) {
+    const oldest = cache.keys().next().value;
+    if (oldest !== undefined) cache.delete(oldest);
+  }
+  cache.set(key, value);
+}
+
 export class DeckWorldSurface implements WorldSurface {
   readonly #runtime: DeckWorldRuntime;
   readonly #labelCollisionExtension: unknown | null;
@@ -3905,7 +3915,7 @@ export class DeckWorldSurface implements WorldSurface {
       if (inactive) {
         style = Object.freeze({ ...style, fill: this.#palette.muted, border: this.#palette.muted });
       }
-      this.#nodeStyles.set(key, style);
+      setBoundedCache(this.#nodeStyles, key, style, WORLD_STYLE_CACHE_LIMIT);
     }
     return style;
   }
@@ -3915,7 +3925,7 @@ export class DeckWorldSurface implements WorldSurface {
     let style = this.#nodeStyles.get(key);
     if (!style) {
       style = worldPlaceStyle(datum.style, datum.selected, this.#palette, datum.emphasized);
-      this.#nodeStyles.set(key, style);
+      setBoundedCache(this.#nodeStyles, key, style, WORLD_STYLE_CACHE_LIMIT);
     }
     return style;
   }
@@ -3944,7 +3954,7 @@ export class DeckWorldSurface implements WorldSurface {
         },
         this.#palette,
       );
-      this.#edgeStyles.set(key, style);
+      setBoundedCache(this.#edgeStyles, key, style, WORLD_STYLE_CACHE_LIMIT);
     }
     return style;
   }
@@ -4790,6 +4800,33 @@ export class DeckWorldSurface implements WorldSurface {
     const keyboardDataset = (this.#container as { dataset?: DOMStringMap }).dataset;
     if (keyboardDataset) delete keyboardDataset.surfaceKeyboardNavigation;
     this.#deck.finalize();
+
+    // A destroyed surface may remain reachable from application/controller references.
+    // Drop large renderer-owned graphs, presentation memoization, and sink references
+    // immediately instead of waiting for the surface object itself to become collectible.
+    this.#cameraInteractionSink = null;
+    this.#nodeDragSink = null;
+    this.#clusterForceSink = null;
+    this.#basemap = null;
+    this.#selection = null;
+    this.#hoverSelection = null;
+    this.#relationshipRouteHints = new Map();
+    this.#contextRelationshipIds = new Set();
+    this.#projectionHandoffPresentation.clear();
+    this.#nodeStyles.clear();
+    this.#edgeStyles.clear();
+    this.#lineClipCache.clear();
+    this.#visibleLabelCache = [];
+    this.#visiblePlaceCache = [];
+    this.#visibleEntityCache = [];
+    this.#placeDatumCache = new Map();
+    this.#entityDatumCache = new Map();
+    this.#relationshipDatumCache = new Map();
+    this.#projection = Object.freeze({
+      instances: Object.freeze([]),
+      edges: Object.freeze([]),
+    });
+    this.#topologyIndex.replace(this.#projection);
   }
 
   #dragPositionForInstance(
