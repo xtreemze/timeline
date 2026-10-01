@@ -43,8 +43,44 @@ test("component lab exercises reusable composer and retained timeline", async ()
 
   assert.match(html, /<component-lab-composer/);
   assert.match(html, /<component-lab-timeline/);
+  assert.match(html, /<component-lab-hue/);
+  assert.match(html, /<component-lab-media-viewer/);
   assert.match(script, /extends ReusableComposerElement/);
   assert.match(script, /extends RetainedTimelineElement/);
   assert.match(script, /selectOnSpace = true/);
   assert.match(script, /wheelSelection = true/);
+});
+
+
+test("imperative surface host stays renderer-neutral and is reused by timeline", async () => {
+  const [surface, timeline] = await Promise.all([
+    readFile(new URL("../site/components/reusable/imperative-surface.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/components/reusable/retained-timeline.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(surface, /class ImperativeSurfaceElement/);
+  assert.match(surface, /adoptSurfaceController/);
+  assert.match(surface, /releaseSurfaceController/);
+  assert.doesNotMatch(surface, /TimelineViewController|deck\.gl|Luum/);
+  assert.match(timeline, /extends ImperativeSurfaceElement/);
+});
+
+test("semantic hue control owns hue only and emits portable events", async () => {
+  const source = await readFile(new URL("../site/components/reusable/semantic-hue.ts", import.meta.url), "utf8");
+  assert.match(source, /class SemanticHueElement extends LitElement/);
+  assert.match(source, /semantic-hue-input/);
+  assert.match(source, /semantic-hue-change/);
+  assert.match(source, /type="range"/);
+  assert.match(source, /type="number"/);
+  assert.doesNotMatch(source, /semanticColorCss|canonicalSemanticHueColor|src\/presentation/);
+});
+
+test("media viewer owns image navigation without occurrence or timeline dependencies", async () => {
+  const source = await readFile(new URL("../site/components/reusable/media-viewer.ts", import.meta.url), "utf8");
+  assert.match(source, /class ReusableMediaViewerElement extends LitElement/);
+  assert.match(source, /@pointerdown/);
+  assert.match(source, /@wheel/);
+  assert.match(source, /@dblclick/);
+  assert.match(source, /media-viewer-zoom/);
+  assert.match(source, /\[0\.5, 0\.75, 1, 1\.25, 1\.5, 2, 3\]/);
+  assert.doesNotMatch(source, /occurrence|timeline|world|src\/application/);
 });
