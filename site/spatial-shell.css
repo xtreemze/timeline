@@ -817,6 +817,7 @@
 
 #app-shell:has(#occurrence-composer[active]) #timeline-focus-view,
 #app-shell:has(#occurrence-composer[active]) .timeline-event-detail {
+  /* biome-ignore lint/complexity/noImportantStyles: intentional cascade override — suppresses legacy detail surfaces while composer is active */
   display: none !important;
 }
 
