@@ -1321,7 +1321,16 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
   beginSession(): void {
     const nextKey = this.currentContextKey();
-    if (this.sessionKey && this.sessionKey !== nextKey && this.value.trim()) {
+    // Ambient timeline/world context can move while the composer is open. Preserve a dirty
+    // active draft; only an untouched seeded draft in a closed composer may restart on drift.
+    const userEdited = Boolean(this.value.trim()) && !this.selectionSeeded;
+    if (
+      !this.active &&
+      !userEdited &&
+      this.sessionKey &&
+      this.sessionKey !== nextKey &&
+      this.value.trim()
+    ) {
       this.resetDraft();
     }
     this.sessionKey = nextKey;
@@ -1406,16 +1415,17 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
   revealMobileInputLane(): void {
     if (!this.active) return;
-    if (typeof matchMedia === "function" && !matchMedia("(max-width: 699px)").matches) return;
     const footer = this.closest<HTMLElement>(".app-footer-bar");
     const shell = this.renderRoot.querySelector<HTMLElement>(".input-shell");
-    if (!footer || !shell) return;
+    if (!(footer && shell)) return;
+    // Responsive composition stays in CSS; measured overflow is the semantic signal that
+    // this footer needs horizontal lane recentring.
+    if (footer.scrollWidth <= footer.clientWidth) return;
     const visualViewport = window.visualViewport;
     const viewportLeft = visualViewport?.offsetLeft ?? 0;
     const viewportWidth = visualViewport?.width ?? window.innerWidth;
     const shellRect = shell.getBoundingClientRect();
-    const delta =
-      shellRect.left + shellRect.width / 2 - (viewportLeft + viewportWidth / 2);
+    const delta = shellRect.left + shellRect.width / 2 - (viewportLeft + viewportWidth / 2);
     const maximum = Math.max(0, footer.scrollWidth - footer.clientWidth);
     footer.scrollTo({
       left: Math.max(0, Math.min(maximum, footer.scrollLeft + delta)),
