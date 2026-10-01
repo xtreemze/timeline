@@ -48,11 +48,21 @@ const relationship = {
   attributes: {},
 };
 
+function source(id) {
+  return {
+    id: sourceId(id),
+    kind: "document",
+    title: id,
+    attributes: {},
+  };
+}
+
 function project(schemaVersion = 3) {
   return {
     schemaVersion,
     entities: [alice, bob],
     relationships: [relationship],
+    sources: [source("source-a")],
   };
 }
 
@@ -202,6 +212,7 @@ test("serialized project snapshots preserve standards-aware actor and occurrence
         ],
       },
     ],
+    sources: [source("source-a"), source("authority-source")],
   };
 
   const serialized = serializeProjectSnapshot({
@@ -233,6 +244,7 @@ test("serialized project snapshots preserve standalone multi-participant occurre
         attributes: {},
       },
     ],
+    sources: [...project().sources, source("minutes")],
   };
 
   const serialized = serializeProjectSnapshot({
@@ -289,6 +301,7 @@ test("serialized project snapshots preserve dense trajectory manifests without e
         attributes: {},
       },
     ],
+    sources: [...project().sources, source("gps-source")],
   };
 
   const serialized = serializeProjectSnapshot({
@@ -340,6 +353,44 @@ test("canonical project validation rejects unresolved contextual representation"
         },
       ],
     }),
+  );
+});
+
+
+test("canonical project validation rejects place references when the place registry is omitted", () => {
+  assert.throws(
+    () =>
+      assertCanonicalProject({
+        ...project(),
+        relationships: [{ ...relationship, placeId: "missing-place" }],
+      }),
+    /unknown place/,
+  );
+});
+
+test("canonical project validation rejects dangling provenance references", () => {
+  assert.throws(
+    () =>
+      assertCanonicalProject({
+        ...project(),
+        relationships: [{ ...relationship, sourceIds: [sourceId("missing-source")] }],
+      }),
+    /unknown source/,
+  );
+
+  assert.throws(
+    () =>
+      assertCanonicalProject({
+        ...project(),
+        relationships: [
+          {
+            ...relationship,
+            sourceIds: [sourceId("source-a")],
+            subjectContext: { authoritySourceIds: [sourceId("missing-authority")] },
+          },
+        ],
+      }),
+    /unknown source/,
   );
 });
 
