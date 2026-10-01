@@ -276,9 +276,14 @@ export class LuumOccurrenceComposerElement extends LitElement {
     }
 
     .stage {
+      /* A stable width sized for the longest hint: changing guidance must never shift the
+         input under the pointer between the two presses of a double-click. */
+      box-sizing: border-box;
       justify-content: center;
-      min-inline-size: max-content;
+      inline-size: 16.5em;
       min-block-size: 32px;
+      overflow: hidden;
+      white-space: nowrap;
       text-transform: none;
     }
 
@@ -368,6 +373,29 @@ export class LuumOccurrenceComposerElement extends LitElement {
       box-shadow:
         0 0 0 2px color-mix(in srgb, var(--focus, #315fbd) 58%, transparent),
         0 1px 2px color-mix(in srgb, #000 8%, transparent);
+    }
+
+    /* The caret's section names itself in the input's top padding: no extra line, and only
+       the active token is labelled so short words never collide with their labels. */
+    .input-token[data-active="true"]::before {
+      content: attr(data-label);
+      position: absolute;
+      inset-block-end: calc(100% + 1px);
+      inset-inline-start: 0.1rem;
+      color: var(--focus, #315fbd);
+      font: 650 0.5rem/1 system-ui, sans-serif;
+      letter-spacing: 0.04em;
+      pointer-events: none;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .composer[data-semantic-color="true"] .input-token[data-active="true"]::before {
+      color: var(--composer-semantic-accent);
+    }
+
+    .input-token[data-investigative="true"][data-active="true"]::before {
+      color: var(--accent, #b7472a);
     }
 
     .input-token[data-active="true"] .input-token-icon {
@@ -535,6 +563,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     .composer[data-semantic-color="true"] .composer-heading-icon { color: var(--composer-semantic-accent); }
     .composer-heading-icon svg { inline-size: 20px; block-size: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
     .composer-card-heading strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .card-details-button { margin-inline-start: auto; }
     .composer-card-meta-chips,
     .composer-context-hints {
       display: flex;
@@ -1263,7 +1292,10 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
   beginSession(): void {
     const nextKey = this.currentContextKey();
-    if (this.sessionKey && this.sessionKey !== nextKey && this.value.trim()) {
+    // Only a closed composer starts over when its context moved. An open composer already
+    // owns its session: ambient time/world drift (or app code re-asserting "open") must not
+    // wipe the draft, and real selection changes go through the pending-selection prompt.
+    if (!this.active && this.sessionKey && this.sessionKey !== nextKey && this.value.trim()) {
       this.resetDraft();
     }
     this.sessionKey = nextKey;
@@ -1274,9 +1306,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
   focusSection(
     field: "subject" | "predicate" | "object" | "place" | "time" | "category" | "tag",
   ): void {
-    // An open composer already owns its session; ambient time/world drift must not wipe
-    // the draft the user is focusing into.
-    if (!this.active) this.beginSession();
+    this.beginSession();
     const section = composerEditableSections(this.value).find(
       (candidate) => candidate.kind === field,
     );
@@ -1797,6 +1827,23 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.focusComposerOffset(accepted.cursorOffset);
   }
 
+  private openAdvancedEdit(): void {
+    const relationshipId = this.selectionContext?.selectedOccurrenceId;
+    if (!relationshipId) return;
+    const initialText = this.selectionContext?.composition?.trim() ?? "";
+    if (this.value.trim() !== initialText) {
+      this.commit();
+      if (this.externalError) return;
+    }
+    this.dispatchEvent(
+      new CustomEvent("occurrencecomposeradvancededitrequest", {
+        bubbles: true,
+        composed: true,
+        detail: { relationshipId },
+      }),
+    );
+  }
+
   private commit(): void {
     const draft = this.parsed();
     if (draft.investigation.qualifiers.length) {
@@ -1989,6 +2036,12 @@ export class LuumOccurrenceComposerElement extends LitElement {
       }
       return;
     }
+    if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+      // Ctrl/Cmd+Enter finalizes the transaction without consuming a highlighted suggestion.
+      event.preventDefault();
+      this.commit();
+      return;
+    }
     const suggestions = this.suggestions().slice(0, 7);
     if (event.key === "ArrowDown" && suggestions.length) {
       event.preventDefault();
@@ -2001,12 +2054,18 @@ export class LuumOccurrenceComposerElement extends LitElement {
       return;
     }
     const activeSuggestion = suggestions[this.activeSuggestion] ?? suggestions[0];
-    if (event.key === " " && activeSuggestion?.multiSelect) {
+    // Space/Enter only operate a multi-select list while the caret is inside its option
+    // block; ambient category/tag hints at the end of a complete sentence must not
+    // swallow Space or turn Enter's commit into a list advance.
+    const editingOptions =
+      Boolean(activeSuggestion?.multiSelect) &&
+      composerCursorSection(this.value, this.cursorOffset).kind === "options";
+    if (event.key === " " && activeSuggestion && editingOptions) {
       event.preventDefault();
       this.toggleMultiSelectSuggestion(activeSuggestion);
       return;
     }
-    if (event.key === "Enter" && activeSuggestion?.multiSelect) {
+    if (event.key === "Enter" && activeSuggestion && editingOptions) {
       event.preventDefault();
       this.advanceMultiSelectSuggestion(activeSuggestion);
       return;
@@ -2022,6 +2081,13 @@ export class LuumOccurrenceComposerElement extends LitElement {
       return;
     }
     this.commit();
+  }
+
+  /** Machine-readable section being authored: the caret's section, else the next one needed. */
+  private authoringStage(parsed: OccurrenceSentenceDraft, investigating: boolean): string {
+    if (investigating) return "investigation";
+    const cursor = composerCursorSection(this.value, this.cursorOffset);
+    return cursor.kind === "tail" ? parsed.stage : cursor.kind;
   }
 
   private stageGuidance(
@@ -2272,38 +2338,18 @@ export class LuumOccurrenceComposerElement extends LitElement {
           <span
             class="stage composer-chip"
             data-chip-kind="guidance"
+            data-stage=${this.authoringStage(parsed, qualifiers.length > 0)}
             role="status"
             aria-live="polite"
           >${this.stageGuidance(parsed, qualifiers, suggestions, activeSuggestion)}</span>
           <div class="input-shell">
-            <span class="input-decoration" aria-hidden="true">
-              <span class="input-decoration-content">
-                ${inputSegments.map((segment) =>
-                  segment.kind
-                    ? html`<span
-                        class="input-token"
-                        data-kind=${segment.kind}
-                        data-label=${this.inputTokenLabel(segment)}
-                        data-investigative=${String(segment.investigative)}
-                        data-active=${String(segment.active)}
-                      >
-                        <span
-                          class="input-token-icon"
-                          data-icon=${this.inputTokenIcon(segment)}
-                          aria-hidden="true"
-                        >
-                          <svg viewBox="0 0 24 24" focusable="false">
-                            ${iconPathData(this.inputTokenIcon(segment)).map(
-                              (path) => svg`<path d=${path}></path>`,
-                            )}
-                          </svg>
-                        </span>
-                        <span class="input-token-text">${segment.text}</span>
-                      </span>`
-                    : html`<span class="input-decoration-text">${segment.text}</span>`,
-                )}<span class="ghost-suffix">${ghostSuffix}</span>
-              </span>
-            </span>
+            <span class="input-decoration" aria-hidden="true"><span class="input-decoration-content">${inputSegments.map(
+              (segment) =>
+                segment.kind
+                  ? // white-space: pre renders template whitespace, so token markup has none.
+                    html`<span class="input-token" data-kind=${segment.kind} data-label=${this.inputTokenLabel(segment)} data-investigative=${String(segment.investigative)} data-active=${String(segment.active)}><span class="input-token-icon" data-icon=${this.inputTokenIcon(segment)} aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false">${iconPathData(this.inputTokenIcon(segment)).map((path) => svg`<path d=${path}></path>`)}</svg></span><span class="input-token-text">${segment.text}</span></span>`
+                  : html`<span class="input-decoration-text">${segment.text}</span>`,
+            )}<span class="ghost-suffix">${ghostSuffix}</span></span></span>
             <input
               type="text"
               autocomplete="off"
@@ -2405,6 +2451,17 @@ export class LuumOccurrenceComposerElement extends LitElement {
                 }
                 <strong>${this.selectionContext?.title || "New occurrence"}</strong>
               </span>
+              ${
+                this.selectionContext?.selectedOccurrenceId
+                  ? html`<button
+                      class="composer-chip composer-chip-button card-details-button"
+                      type="button"
+                      data-chip-kind="details"
+                      title="Save and open the full edge editor"
+                      @click=${() => this.openAdvancedEdit()}
+                    >Details</button>`
+                  : nothing
+              }
               <span
                 class="composer-chip card-status-chip"
                 data-chip-kind="status"

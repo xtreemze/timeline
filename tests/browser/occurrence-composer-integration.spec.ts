@@ -1240,3 +1240,90 @@ test("different occurrence selection cannot overwrite a dirty investigative draf
   await expect(composer.locator("#occurrence-investigation-panel")).toHaveCount(0);
   await expect(composer.locator(".composer-card-heading")).toContainText("Occurrence B");
 });
+
+test("inline semantic tokens stay on the single input line they decorate", async ({ page }) => {
+  const composer = page.locator("#occurrence-composer");
+  await composer.locator(".compact").click();
+  const input = composer.locator('input[role="combobox"]');
+  await input.fill("Alice meets Bob at Stockholm");
+
+  const tokens = composer.locator(".input-token");
+  await expect(tokens).not.toHaveCount(0);
+  const inputBox = await input.boundingBox();
+  if (!inputBox) throw new Error("Composer input has no live bounds.");
+  for (const box of await tokens.evaluateAll((elements) =>
+    elements.map((element) => {
+      const rect = element.getBoundingClientRect();
+      return { top: rect.top, bottom: rect.bottom, height: rect.height };
+    }),
+  )) {
+    // One text line: the decorated span must overlay the input row, not wrap below it.
+    expect(box.height).toBeLessThanOrEqual(inputBox.height);
+    expect(box.top).toBeGreaterThanOrEqual(inputBox.y - 1);
+    expect(box.bottom).toBeLessThanOrEqual(inputBox.y + inputBox.height + 1);
+  }
+});
+
+test("changing stage guidance never shifts the input under the pointer", async ({ page }) => {
+  const composer = page.locator("#occurrence-composer");
+  await composer.locator(".compact").click();
+  const input = composer.locator('input[role="combobox"]');
+  await input.fill(
+    "Alice meets Bob at Stockholm on 2026-09-28 [category: Observation, tags: work|urgent]",
+  );
+  const stage = composer.locator(".stage");
+  const guidanceBefore = await stage.textContent();
+  const before = await input.boundingBox();
+  if (!before) throw new Error("Composer input has no live bounds.");
+
+  const action = composer.locator('.input-token[data-kind="predicate"]');
+  await action.evaluate((element: HTMLElement) => {
+    const field = element.closest(".input-shell")?.querySelector("input");
+    if (!field) throw new Error("Composer input is missing beside its decoration.");
+    field.scrollLeft = Math.max(0, element.offsetLeft - 24);
+    field.dispatchEvent(new Event("scroll"));
+  });
+  const box = await action.boundingBox();
+  if (!box) throw new Error("Inline action token has no live bounds.");
+  // A caret move into the action changes the guidance text; the input must stay put so a
+  // double-click's second press lands on the same character.
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await expect(stage).toHaveAttribute("data-stage", "predicate");
+  expect(await stage.textContent()).not.toBe(guidanceBefore);
+  const after = await input.boundingBox();
+  expect(after?.x).toBeCloseTo(before.x, 0);
+  expect(after?.width).toBeCloseTo(before.width, 0);
+});
+
+test("the active sentence section shows its label inside the input box", async ({ page }) => {
+  const composer = page.locator("#occurrence-composer");
+  await composer.locator(".compact").click();
+  const input = composer.locator('input[role="combobox"]');
+  await input.fill("Alice meets Bob at Stockholm");
+  // Caret inside the action: only that token is labelled, without adding a line.
+  await input.evaluate((field: HTMLInputElement) => {
+    field.setSelectionRange(8, 8);
+    field.dispatchEvent(new Event("select", { bubbles: true }));
+  });
+  const active = composer.locator('.input-token[data-active="true"]');
+  await expect(active).toHaveAttribute("data-kind", "predicate");
+  const label = await active.evaluate((token) => {
+    const style = getComputedStyle(token, "::before");
+    const shell = token.closest(".input-shell")?.getBoundingClientRect();
+    const tokenBox = token.getBoundingClientRect();
+    return {
+      content: style.content,
+      display: style.display,
+      labelTop: tokenBox.top - Number.parseFloat(style.blockSize || style.height || "0"),
+      shellTop: shell?.top ?? 0,
+    };
+  });
+  expect(label.content).toBe('"action"');
+  expect(label.display).not.toBe("none");
+  expect(label.labelTop).toBeGreaterThanOrEqual(label.shellTop);
+
+  const inactive = composer.locator('.input-token[data-kind="subject"]');
+  expect(
+    await inactive.evaluate((token) => getComputedStyle(token, "::before").content),
+  ).toMatch(/^(none|normal)$/);
+});

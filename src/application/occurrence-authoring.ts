@@ -391,9 +391,7 @@ function resolveCategories<TState extends OccurrenceAuthoringState<TExtent>, TEx
   if (!normalized.length) {
     return Object.freeze([resolveCategory(undefined, draft, dependencies)]);
   }
-  return Object.freeze(
-    normalized.map((name) => resolveCategory(name, draft, dependencies)),
-  );
+  return Object.freeze(normalized.map((name) => resolveCategory(name, draft, dependencies)));
 }
 
 export function authorOccurrence<TExtent, TState extends OccurrenceAuthoringState<TExtent>>(
@@ -531,6 +529,64 @@ function itemIdOf(value: unknown): string {
   return typeof id === "string" || typeof id === "number" ? String(id) : "";
 }
 
+type OccurrenceSemanticReviewReason =
+  | "subject-changed"
+  | "object-changed"
+  | "predicate-changed"
+  | "place-changed"
+  | "time-changed";
+
+function relationshipHasSemanticSupport(
+  relationship: AuthoringRelationship,
+  items: readonly unknown[],
+  linkedItemIds: readonly string[],
+): boolean {
+  if ((relationship.sourceIds ?? []).length > 0) return true;
+  if (relationship.confidence !== null && relationship.confidence !== undefined) return true;
+  if ((relationship.semanticMappings ?? []).length > 0) return true;
+  if (Boolean(relationship.role?.trim()) || Boolean(relationship.occurrenceType?.trim()))
+    return true;
+  if (relationship.subjectContext || relationship.objectContext) return true;
+  return linkedItemIds.some((itemId) => {
+    const item = items.find((candidate) => itemIdOf(candidate) === itemId);
+    const record = itemRecord(item);
+    const evidenceIds = record?.["evidenceIds"];
+    return Array.isArray(evidenceIds) && evidenceIds.length > 0;
+  });
+}
+
+function semanticReviewReasons(
+  attributes: Record<string, unknown> | undefined,
+): OccurrenceSemanticReviewReason[] {
+  const review = itemRecord(attributes?.["semanticReview"]);
+  const reasons = Array.isArray(review?.["reasons"]) ? review!["reasons"] : [];
+  return reasons.filter(
+    (reason): reason is OccurrenceSemanticReviewReason =>
+      reason === "subject-changed" ||
+      reason === "object-changed" ||
+      reason === "predicate-changed" ||
+      reason === "place-changed" ||
+      reason === "time-changed",
+  );
+}
+
+function markSemanticReview(
+  relationship: AuthoringRelationship,
+  reasons: readonly OccurrenceSemanticReviewReason[],
+): void {
+  if (!reasons.length) return;
+  const mergedReasons = [
+    ...new Set([...semanticReviewReasons(relationship.attributes), ...reasons]),
+  ];
+  relationship.attributes = {
+    ...(relationship.attributes ?? {}),
+    semanticReview: {
+      required: true,
+      reasons: mergedReasons,
+    },
+  };
+}
+
 function derivedRelationshipTitle(
   state: Pick<OccurrenceAuthoringState, "entities">,
   relationship: Pick<AuthoringRelationship, "subjectId" | "predicate" | "objectId">,
@@ -577,11 +633,15 @@ export function updateOccurrence<TExtent, TState extends OccurrenceAuthoringStat
     throw new Error("An occurrence must connect two different entities.");
   }
 
+  const nextPredicate = predicate.slice(0, 120);
+  const subjectChanged = existing.subjectId !== subject.id;
+  const objectChanged = existing.objectId !== object.id;
+  const predicateChanged = existing.predicate !== nextPredicate;
   const next: AuthoringRelationship<TExtent> = {
     ...existing,
     subjectId: subject.id,
     objectId: object.id,
-    predicate: predicate.slice(0, 120),
+    predicate: nextPredicate,
   };
   if (request.role !== undefined) {
     const role = request.role?.trim() ?? "";
@@ -600,6 +660,8 @@ export function updateOccurrence<TExtent, TState extends OccurrenceAuthoringStat
   if (request.attributes !== undefined) {
     next.attributes = { ...request.attributes };
   }
+  if (subjectChanged) delete next.subjectContext;
+  if (objectChanged) delete next.objectContext;
 
   if (request.placeName !== undefined) {
     if (request.placeName === null) {
@@ -643,6 +705,25 @@ export function updateOccurrence<TExtent, TState extends OccurrenceAuthoringStat
   draft.relationships[existingIndex] = next;
 
   const linkedItemIds = [...new Set((existing.itemIds ?? []).map(String).filter(Boolean))];
+  const reviewReasons: OccurrenceSemanticReviewReason[] = [];
+  if (subjectChanged) reviewReasons.push("subject-changed");
+  if (objectChanged) reviewReasons.push("object-changed");
+  if (predicateChanged) reviewReasons.push("predicate-changed");
+  if ((existing.placeId ?? "") !== (next.placeId ?? "")) reviewReasons.push("place-changed");
+  if (
+    request.time !== undefined &&
+    JSON.stringify(existing.time ?? null) !== JSON.stringify(next.time ?? null)
+  ) {
+    reviewReasons.push("time-changed");
+  }
+  const requiresSemanticReview =
+    reviewReasons.length > 0 &&
+    relationshipHasSemanticSupport(existing, draft.items, linkedItemIds);
+  if (requiresSemanticReview) {
+    next.confidence = null;
+    markSemanticReview(next, reviewReasons);
+  }
+
   const requestedItemId = request.itemId?.trim() || "";
   if (requestedItemId && !linkedItemIds.includes(requestedItemId)) {
     throw new Error(
@@ -666,30 +747,48 @@ export function updateOccurrence<TExtent, TState extends OccurrenceAuthoringStat
     }
   }
 
-  const itemContextChanged =
-    request.time !== undefined ||
+  // Canonical time is shared by every linked projection (synced below); only category and
+  // tags are scoped to one exact chronology item.
+  const itemScopedContextChanged =
     request.categoryName !== undefined ||
     request.categoryNames !== undefined ||
     request.tags !== undefined;
-  if (itemContextChanged && linkedItemIds.length > 1 && !exactItemId) {
+  if (itemScopedContextChanged && linkedItemIds.length > 1 && !exactItemId) {
     throw new Error(
-      "This occurrence is linked to multiple chronology items. Focus the exact timeline item before editing time, category, or tags.",
+      "This occurrence is linked to multiple chronology items. Focus the exact timeline item before editing category or tags.",
     );
   }
-  if (
-    (request.categoryName !== undefined ||
-      request.categoryNames !== undefined ||
-      request.tags !== undefined) &&
-    linkedItemIds.length === 0
-  ) {
+  if (itemScopedContextChanged && linkedItemIds.length === 0) {
     throw new Error(
       "This occurrence has no linked chronology item. Category and tags require an exact timeline item.",
     );
   }
-  if (request.time === null && exactItemId) {
+  if (request.time === null && linkedItemIds.length > 0) {
     throw new Error(
-      "A linked chronology item requires time. Unlink that timeline item before making the canonical relationship timeless.",
+      "A linked chronology item requires time. Unlink every timeline item before making the canonical relationship timeless.",
     );
+  }
+
+  if (request.time) {
+    for (const linkedItemId of linkedItemIds) {
+      const linkedIndex = draft.items.findIndex((item) => itemIdOf(item) === linkedItemId);
+      if (linkedIndex < 0) {
+        throw new Error(
+          `Chronology item “${linkedItemId}” linked to occurrence “${relationshipId}” no longer exists.`,
+        );
+      }
+      const linkedRecord = itemRecord(draft.items[linkedIndex]);
+      if (!linkedRecord) {
+        throw new Error(`Chronology item “${linkedItemId}” is invalid.`);
+      }
+      draft.items[linkedIndex] = {
+        ...linkedRecord,
+        kind: request.time.kind,
+        start: request.time.startValue,
+        end: request.time.endValue,
+        time: request.time.extent,
+      };
+    }
   }
 
   let categoryId = "";
@@ -705,19 +804,14 @@ export function updateOccurrence<TExtent, TState extends OccurrenceAuthoringStat
     }
     const updatedItem: Record<string, unknown> = { ...currentItem };
 
-    if (request.time) {
-      updatedItem["kind"] = request.time.kind;
-      updatedItem["start"] = request.time.startValue;
-      updatedItem["end"] = request.time.endValue;
-      updatedItem["time"] = request.time.extent;
-    }
-
     if (request.categoryNames !== undefined || request.categoryName !== undefined) {
       const names =
         request.categoryNames ??
         (request.categoryName === null ? [] : request.categoryName ? [request.categoryName] : []);
       if (!names.length || names.every((name) => !name.trim())) {
-        throw new Error("Timeline items require at least one category. Choose another category instead.");
+        throw new Error(
+          "Timeline items require at least one category. Choose another category instead.",
+        );
       }
       const categories = resolveCategories(names, undefined, draft, dependencies);
       updatedItem["categoryId"] = categories[0]!.id;
@@ -767,5 +861,11 @@ export function updateOccurrence<TExtent, TState extends OccurrenceAuthoringStat
     placeId: next.placeId ?? "",
     categoryId,
     categoryIds: Object.freeze(categoryIds),
+    ...(requiresSemanticReview
+      ? {
+          semanticReviewRequired: true,
+          semanticReviewReasons: Object.freeze([...reviewReasons]),
+        }
+      : {}),
   };
 }
