@@ -17,6 +17,11 @@ test("reusable composer stays domain-neutral and exposes interaction contracts",
   assert.match(source, /event\.key === "ArrowDown"/);
   assert.match(source, /event\.key === " "/);
   assert.match(source, /onWheel/);
+  assert.match(source, /event\.isComposing/);
+  assert.match(source, /composerInstanceSequence/);
+  assert.match(source, /aria-multiselectable/);
+  assert.match(source, /event\.key === "Home"/);
+  assert.match(source, /event\.key === "End"/);
   assert.doesNotMatch(source, /src\/application|occurrence-composer-model|timeline-view|world-graph/);
 });
 
@@ -33,6 +38,9 @@ test("reusable retained timeline owns lifecycle through the generic imperative s
   assert.match(timeline, /extends ImperativeSurfaceElement/);
   assert.match(timeline, /protected abstract createTimelineController/);
   assert.match(timeline, /ensureTimelineController/);
+  assert.match(timeline, /disconnectedCallback/);
+  assert.match(timeline, /releaseTimelineController/);
+  assert.match(timeline, /connectionGeneration/);
   assert.doesNotMatch(timeline, /timeline-view\.ts|TimelineViewController|Luum/);
 });
 
