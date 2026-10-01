@@ -3476,12 +3476,21 @@ async function ensureEvidenceExtractionForInference() {
     const id = parts.id.value.trim();
     if (!id) continue;
     const existing = state.evidence.find((record) => record.id === id);
-    const hasNewFile = Boolean(parts.file.files?.[0]);
+    const selectedFile = parts.file.files?.[0] || null;
+    const hasNewFile = Boolean(selectedFile);
     const extraction = hasNewFile
       ? evidenceExtractionDrafts.get(id)
       : evidenceExtractionDrafts.get(id) || existing?.extraction || null;
     const hasFile = hasNewFile || Boolean(existing?.file?.blobKey);
-    if (hasFile && !extraction) await extractEvidenceRow(row, { quiet: true });
+    const existingFileKind = existing?.file
+      ? evidenceFileKind({ type: existing.file.mimeType, name: existing.file.name })
+      : null;
+    const supportsExtraction = selectedFile
+      ? extractableEvidenceFile(selectedFile)
+      : existingFileKind === "pdf" || existingFileKind === "image";
+    if (hasFile && supportsExtraction && !extraction) {
+      await extractEvidenceRow(row, { quiet: true });
+    }
   }
 }
 
