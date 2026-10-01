@@ -15,8 +15,14 @@ class LabMediaViewerElement extends ReusableMediaViewerElement {}
 customElements.define("component-lab-media-viewer", LabMediaViewerElement);
 
 class LabTimelineController {
-  constructor(host: HTMLElement) {
+  private static sequence = 0;
+  private readonly rail: HTMLDivElement;
+
+  constructor(private readonly host: HTMLElement) {
+    const generation = ++LabTimelineController.sequence;
+    host.dataset.controllerGeneration = String(generation);
     const rail = document.createElement("div");
+    this.rail = rail;
     rail.className = "demo-timeline-rail";
     rail.setAttribute("aria-label", "Retained timeline demo");
     const events = [
@@ -32,6 +38,11 @@ class LabTimelineController {
       rail.append(item);
     }
     host.append(rail);
+  }
+
+  destroy(): void {
+    this.rail.remove();
+    this.host.dataset.controllerDestroyed = "true";
   }
 }
 
