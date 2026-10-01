@@ -297,3 +297,14 @@ test("a runtime without icon support renders no icon layer", () => {
     undefined,
   );
 });
+
+test("world marker memoization is bounded so authored styles cannot retain unlimited SVG data", async () => {
+  const source = await readFile(
+    new URL("../site/world/world-node-marker.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /WORLD_NODE_MARKER_CACHE_LIMIT = 192/);
+  assert.match(source, /if \(markers\.size >= WORLD_NODE_MARKER_CACHE_LIMIT\)/);
+  assert.match(source, /markers\.delete\(oldest\)/);
+  assert.match(source, /return cacheMarker\(key, marker\)/);
+});
