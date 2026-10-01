@@ -1,5 +1,7 @@
 import type { CanonicalSpatialGeometry, GeoPosition } from "../domain/geotemporal.ts";
-import type { EntityId, PlaceId, RelationshipId } from "../domain/ids.ts";
+import type { CanonicalOccurrenceId, EntityId, OccurrenceId, PlaceId, RelationshipId } from "../domain/ids.ts";
+import type { CanonicalOccurrence } from "../domain/occurrence.ts";
+import { occurrenceParticipantEntityIds } from "../domain/occurrence.ts";
 import type { CanonicalRelationship } from "../domain/relationship.ts";
 import { createSpatialAnchor, type SpatialAnchor } from "./world-projection.ts";
 
@@ -15,14 +17,14 @@ export interface SpatialPlaceRecord {
 
 export interface EntitySpatialAnchor {
   readonly entityId: EntityId;
-  readonly occurrenceId: RelationshipId;
-  readonly role: "subject" | "object";
+  readonly occurrenceId: CanonicalOccurrenceId;
+  readonly role: "subject" | "object" | "participant";
   readonly anchor: SpatialAnchor;
 }
 
 export interface WorldLayoutConstraint {
   readonly canonicalId: EntityId;
-  readonly occurrenceId: RelationshipId;
+  readonly occurrenceId: CanonicalOccurrenceId;
   readonly spatialAnchors: readonly SpatialAnchor[];
 }
 
@@ -124,12 +126,15 @@ function freezeEntityAnchor(anchor: EntitySpatialAnchor): EntitySpatialAnchor {
 export class SpatialAnchorIndex {
   readonly #places = new Map<PlaceId, SpatialPlaceRecord>();
   readonly #relationships = new Map<RelationshipId, CanonicalRelationship>();
-  readonly #occurrenceAnchors = new Map<RelationshipId, SpatialAnchor>();
+  readonly #occurrences = new Map<OccurrenceId, CanonicalOccurrence>();
+  readonly #occurrenceAnchors = new Map<CanonicalOccurrenceId, SpatialAnchor>();
+  readonly #occurrenceEntityIds = new Map<CanonicalOccurrenceId, readonly EntityId[]>();
   readonly #entityAnchors = new Map<EntityId, readonly EntitySpatialAnchor[]>();
 
   constructor(
     places: readonly SpatialPlaceRecord[],
     relationships: readonly CanonicalRelationship[],
+    occurrences: readonly CanonicalOccurrence[] = [],
   ) {
     for (const place of places) {
       if (this.#places.has(place.id)) {
@@ -145,6 +150,10 @@ export class SpatialAnchorIndex {
         throw new Error(`Duplicate relationship ID: ${String(relationship.id)}`);
       }
       this.#relationships.set(relationship.id, relationship);
+      this.#occurrenceEntityIds.set(
+        relationship.id,
+        Object.freeze([relationship.subjectId, relationship.objectId]),
+      );
 
       if (!relationship.placeId) {
         continue;
@@ -182,6 +191,53 @@ export class SpatialAnchorIndex {
       ]);
     }
 
+    for (const occurrence of occurrences) {
+      if (this.#occurrences.has(occurrence.id)) {
+        throw new Error(`Duplicate occurrence ID: ${String(occurrence.id)}`);
+      }
+      if (this.#relationships.has(occurrence.id as unknown as RelationshipId)) {
+        throw new Error(`Occurrence ID collides with relationship ID: ${String(occurrence.id)}`);
+      }
+      this.#occurrences.set(occurrence.id, occurrence);
+
+      const entityIds = occurrenceParticipantEntityIds(occurrence, relationships);
+      this.#occurrenceEntityIds.set(occurrence.id, entityIds);
+
+      const childPlaceIds = [
+        ...new Set(
+          occurrence.relationshipIds
+            .map((id) => this.#relationships.get(id)?.placeId)
+            .filter((id): id is PlaceId => id !== undefined),
+        ),
+      ];
+      const effectivePlaceId =
+        occurrence.placeId ??
+        (childPlaceIds.length === 1 ? childPlaceIds[0] : undefined);
+      if (!effectivePlaceId) continue;
+
+      const place = this.#places.get(effectivePlaceId);
+      if (!place) {
+        throw new Error(
+          `Occurrence ${String(occurrence.id)} references unknown place ${String(effectivePlaceId)}.`,
+        );
+      }
+
+      const anchor = anchorFromPlace(place);
+      this.#occurrenceAnchors.set(occurrence.id, anchor);
+      for (const entity of entityIds) {
+        const participantAnchor = freezeEntityAnchor({
+          entityId: entity,
+          occurrenceId: occurrence.id,
+          role: "participant",
+          anchor,
+        });
+        mutableEntityAnchors.set(entity, [
+          ...(mutableEntityAnchors.get(entity) ?? []),
+          participantAnchor,
+        ]);
+      }
+    }
+
     for (const [entityId, anchors] of mutableEntityAnchors) {
       this.#entityAnchors.set(
         entityId,
@@ -200,7 +256,7 @@ export class SpatialAnchorIndex {
     return this.#places.get(id);
   }
 
-  anchorForOccurrence(id: RelationshipId): SpatialAnchor | undefined {
+  anchorForOccurrence(id: CanonicalOccurrenceId): SpatialAnchor | undefined {
     return this.#occurrenceAnchors.get(id);
   }
 
@@ -209,35 +265,30 @@ export class SpatialAnchorIndex {
   }
 
   constraintsForOccurrences(
-    occurrenceIds: readonly RelationshipId[],
+    occurrenceIds: readonly CanonicalOccurrenceId[],
   ): readonly WorldLayoutConstraint[] {
     const constraints: WorldLayoutConstraint[] = [];
 
     for (const occurrenceId of [...new Set(occurrenceIds)].sort((left, right) =>
       String(left).localeCompare(String(right)),
     )) {
-      const relationship = this.#relationships.get(occurrenceId);
-      if (!relationship) {
+      const entityIds = this.#occurrenceEntityIds.get(occurrenceId);
+      if (!entityIds) {
         throw new Error(`Unknown occurrence ID: ${String(occurrenceId)}`);
       }
 
       const anchor = this.#occurrenceAnchors.get(occurrenceId);
-      if (!anchor) {
-        continue;
-      }
+      if (!anchor) continue;
 
-      constraints.push(
-        Object.freeze({
-          canonicalId: relationship.subjectId,
-          occurrenceId,
-          spatialAnchors: Object.freeze([anchor]),
-        }),
-        Object.freeze({
-          canonicalId: relationship.objectId,
-          occurrenceId,
-          spatialAnchors: Object.freeze([anchor]),
-        }),
-      );
+      for (const canonicalId of entityIds) {
+        constraints.push(
+          Object.freeze({
+            canonicalId,
+            occurrenceId,
+            spatialAnchors: Object.freeze([anchor]),
+          }),
+        );
+      }
     }
 
     return Object.freeze(
