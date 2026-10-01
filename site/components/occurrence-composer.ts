@@ -1488,7 +1488,9 @@ export class LuumOccurrenceComposerElement extends LitElement {
     return parseOccurrenceSentence(this.value);
   }
 
-  private suggestions(parsed: OccurrenceSentenceDraft = this.parsed()): readonly ComposerSuggestion[] {
+  private suggestions(
+    parsed: OccurrenceSentenceDraft = this.parsed(),
+  ): readonly ComposerSuggestion[] {
     const preferredEntityIds =
       parsed.stage === "object" && this.selectionContext?.relationship?.objectId
         ? [this.selectionContext.relationship.objectId]
@@ -2532,12 +2534,17 @@ export class LuumOccurrenceComposerElement extends LitElement {
             ${contextFrames.length || this.selectionContext?.description?.trim()
               ? html`<div
                   class="composer-card-details"
-                  data-split=${String(Boolean(contextFrames.length && this.selectionContext?.description?.trim()))}
+                  data-split=${String(
+                    Boolean(contextFrames.length && this.selectionContext?.description?.trim()),
+                  )}
                   aria-label="Occurrence media and context"
                 >
                   ${contextFrames.length
                     ? html`<div class="composer-card-media" aria-label="Occurrence slideshow">
-                        <luum-occurrence-deck ${ref(this.contextDeckRef)} class="composer-context-deck"></luum-occurrence-deck>
+                        <luum-occurrence-deck
+                          ${ref(this.contextDeckRef)}
+                          class="composer-context-deck"
+                        ></luum-occurrence-deck>
                       </div>`
                     : nothing}
                   ${this.selectionContext?.description?.trim()
