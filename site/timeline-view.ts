@@ -3855,7 +3855,8 @@ export class TimelineViewController {
 
     const localMedia = (
       await Promise.all(
-        descriptors.map(async ({ record, file, kind, blobKey }) => {
+        descriptors.map(
+          async ({ record, file, kind, blobKey }): Promise<OccurrenceContextMediaFrame | null> => {
           try {
             const blob = await getEvidenceBlob(blobKey);
             if (!blob) return null;
@@ -3875,9 +3876,10 @@ export class TimelineViewController {
             console.warn("Could not load local evidence media:", error);
             return null;
           }
-        }),
+        },
+        ),
       )
-    ).filter((entry): entry is OccurrenceContextMediaFrame => Boolean(entry));
+    ).filter((entry): entry is OccurrenceContextMediaFrame => entry !== null);
 
     if (!deck.isConnected || deck.occurrenceId !== item.id) return;
     if (!localMedia.length) {
