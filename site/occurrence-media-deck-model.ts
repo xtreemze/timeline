@@ -56,35 +56,35 @@ export function normalizeOccurrenceDeckFrames(
   const normalized: OccurrenceDeckFrame[] = [];
 
   for (const frame of frames) {
-    if (frame.kind === "image" || frame.kind === "video" || frame.kind === "audio") {
-      const src = frame.src?.trim() ?? "";
-      const blob =
-        typeof Blob !== "undefined" && frame.blob instanceof Blob ? frame.blob : undefined;
-      if (!src && !blob) continue;
-      const mimeType = frame.mimeType?.trim() ?? "";
-      const sha256 = frame.sha256?.trim().toLowerCase() ?? "";
+    if (frame.kind === "context") {
+      const label = frame.label?.trim() ?? "";
+      const body = frame.body?.trim() ?? "";
+      if (!label && !body) continue;
       normalized.push(
         Object.freeze({
-          kind: frame.kind,
-          ...(src ? { src } : {}),
-          ...(blob ? { blob } : {}),
-          ...(mimeType ? { mimeType } : {}),
-          ...(sha256 ? { sha256 } : {}),
-          alt: frame.alt ?? "",
-          caption: frame.caption?.trim() ?? "",
+          kind: "context",
+          label: label || "Context",
+          body,
         }),
       );
       continue;
     }
 
-    const label = frame.label?.trim() ?? "";
-    const body = frame.body?.trim() ?? "";
-    if (!label && !body) continue;
+    const src = frame.src?.trim() ?? "";
+    const blob =
+      typeof Blob !== "undefined" && frame.blob instanceof Blob ? frame.blob : undefined;
+    if (!src && !blob) continue;
+    const mimeType = frame.mimeType?.trim() ?? "";
+    const sha256 = frame.sha256?.trim().toLowerCase() ?? "";
     normalized.push(
       Object.freeze({
-        kind: "context",
-        label: label || "Context",
-        body,
+        kind: frame.kind,
+        ...(src ? { src } : {}),
+        ...(blob ? { blob } : {}),
+        ...(mimeType ? { mimeType } : {}),
+        ...(sha256 ? { sha256 } : {}),
+        alt: frame.alt ?? "",
+        caption: frame.caption?.trim() ?? "",
       }),
     );
   }

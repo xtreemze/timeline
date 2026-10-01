@@ -31,9 +31,9 @@ export interface OccurrenceDeckInput {
 }
 
 const IMAGE_ZOOM_STEPS = Object.freeze([0.5, 0.75, 1, 1.25, 1.5, 2, 3] as const);
-const IMAGE_MIN_ZOOM = IMAGE_ZOOM_STEPS[0];
+const IMAGE_MIN_ZOOM = 0.5;
 const IMAGE_RESET_ZOOM = 1;
-const IMAGE_MAX_ZOOM = IMAGE_ZOOM_STEPS[IMAGE_ZOOM_STEPS.length - 1];
+const IMAGE_MAX_ZOOM = 3;
 const SWIPE_THRESHOLD_PX = 52;
 const SWIPE_MAX_DURATION_MS = 700;
 const DOUBLE_TAP_MAX_DELAY_MS = 320;
@@ -296,7 +296,9 @@ export class LuumOccurrenceDeckElement extends LitElement {
   private pinchMetrics(): Readonly<{ distance: number; center: PointerPoint }> | null {
     const points = [...this.activePointers.values()];
     if (points.length < 2) return null;
-    const [first, second] = points;
+    const first = points[0];
+    const second = points[1];
+    if (!first || !second) return null;
     const dx = second.x - first.x;
     const dy = second.y - first.y;
     return Object.freeze({
