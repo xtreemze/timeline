@@ -153,6 +153,22 @@ test("story context emits deterministic bounded dependency closure and omits unr
   assert.equal(context.unresolvedReferences.length, 0);
 });
 
+test("story and occurrence selectors resolve relationship-derived canonical occurrences", () => {
+  const parsed = JSON.parse(fixtureProject());
+  parsed.project.stories[0].occurrenceIds = ["r1"];
+  const source = formatProjectInterchange(JSON.stringify(parsed));
+
+  const story = buildLumAgentContext(source, { storyIds: ["story-1"] });
+  assert.deepEqual(story.project.occurrences, []);
+  assert.deepEqual(story.project.relationships.map((record) => record.id), ["r1"]);
+  assert.deepEqual(story.project.entities.map((record) => record.id), ["alice", "bob"]);
+
+  const selected = buildLumAgentContext(source, { occurrenceIds: ["r1"] });
+  assert.deepEqual(selected.project.occurrences, []);
+  assert.deepEqual(selected.project.relationships.map((record) => record.id), ["r1"]);
+  assert.equal(selected.unresolvedReferences.length, 0);
+});
+
 test("entity neighborhood depth is bounded and deterministic", () => {
   const depth1 = buildLumAgentContext(fixtureProject(), { entityIds: ["alice"], depth: 1 });
   assert.deepEqual(
