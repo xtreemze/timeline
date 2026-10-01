@@ -237,7 +237,7 @@ test("selecting a World edge selects its timeline event and opens that event con
   );
   await expect(composer.locator("luum-occurrence-deck.composer-context-deck")).toHaveAttribute(
     "data-frame-count",
-    "2",
+    "3",
   );
   await expect(
     page.locator('.timeline-semantic-occurrence[data-id="pigs-brick-build"]'),
