@@ -198,6 +198,8 @@ test("multimedia evidence is fingerprinted, persisted, and projected into the sl
   assert.match(app, /fileKind === "video"/);
   assert.match(timeline, /getEvidenceBlob\(blobKey\)/);
   assert.match(timeline, /evidenceMediaKind\(record\)/);
+  assert.match(timeline, /timeline-focus-evidence-file-meta/);
+  assert.match(timeline, /SHA-256/);
   assert.match(markup, /<option value="audio">Audio upload<\/option>/);
   assert.match(markup, /<option value="video">Video upload<\/option>/);
   assert.match(markup, /audio\/\*/);
