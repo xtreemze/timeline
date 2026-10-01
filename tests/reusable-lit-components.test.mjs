@@ -16,7 +16,7 @@ test("reusable composer stays domain-neutral and exposes interaction contracts",
   assert.match(source, /scrollIntoView\(\{\s*block:\s*"center",\s*inline:\s*"nearest"\s*\}\)/);
   assert.match(source, /event\.key === "ArrowDown"/);
   assert.match(source, /event\.key === " "/);
-  assert.match(source, /onWheel/);
+  assert.match(source, /onWheel/);\n  assert.match(source, /event\\.isComposing/);\n  assert.match(source, /composerInstanceSequence/);\n  assert.match(source, /aria-multiselectable/);\n  assert.match(source, /event\\.key === "Home"/);\n  assert.match(source, /event\\.key === "End"/);
   assert.doesNotMatch(source, /src\/application|occurrence-composer-model|timeline-view|world-graph/);
 });
 
