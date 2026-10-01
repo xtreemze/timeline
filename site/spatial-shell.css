@@ -539,7 +539,6 @@
   block-size: 20px;
 }
 
-
 @media (hover: hover) and (pointer: fine) {
   .app-footer-bar
     :is(.toolbar-control, .toolbar-compound-control):is(:hover, :focus-visible, :focus-within) {
@@ -814,9 +813,9 @@
   }
 }
 
-
 #app-shell:has(#occurrence-composer[active]) #timeline-focus-view,
 #app-shell:has(#occurrence-composer[active]) .timeline-event-detail {
+  /* biome-ignore lint/complexity/noImportantStyles: the active composer owns event context; legacy detail surfaces must never reappear over it. */
   display: none !important;
 }
 
@@ -1160,16 +1159,16 @@
   min-block-size: 44px;
 }
 
-
 /* Contextual graph-layout inspectors opened from long-press/right-click/keyboard. */
 .world-layout-inspector {
   position: fixed;
   z-index: 2200;
   inset: auto;
-  inline-size: min(360px, calc(100vw - 16px));
-  max-block-size: min(560px, calc(100dvh - 16px));
+  /* Fixed popovers resolve percentages against the viewport containing block. */
+  inline-size: calc(100% - 12px);
+  max-block-size: min(70dvh, 560px);
   margin: 0;
-  padding: 0.7rem;
+  padding: 0.62rem;
   overflow: auto;
   color: var(--ink);
   border: 1px solid color-mix(in srgb, var(--line-strong) 86%, transparent);
@@ -1203,7 +1202,7 @@
 
 .world-layout-inspector-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(132px, 1.2fr);
+  grid-template-columns: minmax(0, 1fr) minmax(112px, 1fr) auto;
   align-items: center;
   gap: 0.7rem;
   min-block-size: 36px;
@@ -1215,8 +1214,12 @@
   min-inline-size: 0;
 }
 
-.world-layout-inspector-range {
-  grid-template-columns: minmax(0, 1fr) minmax(100px, 1fr) 3.4rem;
+.world-layout-inspector-row:not(.world-layout-inspector-range) > span {
+  grid-column: 1;
+}
+
+.world-layout-inspector-row:not(.world-layout-inspector-range) > select {
+  grid-column: 2 / -1;
 }
 
 .world-layout-inspector-range > output {
@@ -1253,23 +1256,18 @@
   font-weight: 650;
 }
 
-@media (max-width: 520px) {
+@media (min-width: 521px) {
   .world-layout-inspector {
-    inline-size: calc(100vw - 12px);
-    max-block-size: min(70dvh, 560px);
-    padding: 0.62rem;
+    inline-size: min(360px, calc(100% - 16px));
+    max-block-size: min(560px, calc(100dvh - 16px));
+    padding: 0.7rem;
   }
 
-  .world-layout-inspector-row,
+  .world-layout-inspector-row {
+    grid-template-columns: minmax(0, 1fr) minmax(132px, 1.2fr);
+  }
+
   .world-layout-inspector-range {
-    grid-template-columns: minmax(0, 1fr) minmax(112px, 1fr) auto;
-  }
-
-  .world-layout-inspector-row:not(.world-layout-inspector-range) > span {
-    grid-column: 1;
-  }
-
-  .world-layout-inspector-row:not(.world-layout-inspector-range) > select {
-    grid-column: 2 / -1;
+    grid-template-columns: minmax(0, 1fr) minmax(100px, 1fr) 3.4rem;
   }
 }
