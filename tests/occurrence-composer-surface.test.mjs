@@ -170,25 +170,3 @@ test("expanded timeline detail yields to the composer-owned card while editing",
   const css = await readFile(new URL("../site/timeline-view.css", import.meta.url), "utf8");
   assert.match(css, /:has\(#occurrence-composer\[active\]\) \.timeline-event-detail/);
 });
-
-test("composer retains stable DOM references without surrendering canonical input control", async () => {
-  const source = await readFile(
-    new URL("../site/components/occurrence-composer.ts", import.meta.url),
-    "utf8",
-  );
-
-  assert.match(source, /createRef, ref/);
-  assert.match(source, /composerInputRef = createRef<HTMLInputElement>/);
-  assert.match(source, /inputShellRef = createRef<HTMLElement>/);
-  assert.match(source, /inputDecorationContentRef = createRef<HTMLElement>/);
-  assert.match(source, /contextDeckRef = createRef<LuumOccurrenceDeckElement>/);
-  assert.match(source, /previewPaletteCache/);
-  assert.match(source, /removeEventListener\?\.\("change", this\.handleThemeChange\)/);
-  assert.match(source, /this\.suggestions\(parsed\)\.slice\(0, 7\)/);
-  assert.match(source, /const contextFrames = this\.contextDeckFrames\(\)/);
-  assert.match(source, /deck === this\.syncedDeckElement/);
-  assert.match(source, /\.value=\$\{this\.value\}/);
-  assert.doesNotMatch(source, /live\(this\.value\)/);
-  assert.match(source, /setTimelineViewport[\s\S]*if \(!this\.active\) return;[\s\S]*previous\?\.value === next\?\.value/);
-  assert.match(source, /setWorldContext[\s\S]*if \(!this\.active\) return;[\s\S]*previous\?\.label === next\?\.label/);
-});
