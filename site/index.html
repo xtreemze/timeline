@@ -579,6 +579,8 @@
                         <option value="article">News / article</option>
                         <option value="pdf">PDF upload</option>
                         <option value="image">Image upload</option>
+                        <option value="audio">Audio upload</option>
+                        <option value="video">Video upload</option>
                         <option value="note">Text note</option>
                         <option value="document">Document / source</option>
                       </select>
@@ -604,8 +606,8 @@
                       <textarea id="item-evidence-1-note" rows="3" maxlength="5000" placeholder="Explain what this source supports and any relevant caveats."></textarea>
                     </label>
                     <label class="field field-wide evidence-file-field">
-                      <span>Evidence file <small>PDF or image · stored locally in IndexedDB</small></span>
-                      <input id="item-evidence-1-file" type="file" accept="application/pdf,.pdf,image/png,image/jpeg,image/webp,image/gif">
+                      <span>Evidence file <small>PDF, image, audio or video · stored locally with SHA-256</small></span>
+                      <input id="item-evidence-1-file" type="file" accept="application/pdf,.pdf,image/png,image/jpeg,image/webp,image/gif,image/avif,audio/*,.mp3,.m4a,.aac,.wav,.ogg,.oga,.flac,.opus,video/*,.mp4,.webm,.ogv,.mov,.m4v">
                     </label>
                     <div class="evidence-extraction-controls field-wide">
                       <button class="button secondary evidence-extract-text" type="button">Extract text</button>
@@ -625,6 +627,8 @@
                         <option value="article">News / article</option>
                         <option value="pdf">PDF upload</option>
                         <option value="image">Image upload</option>
+                        <option value="audio">Audio upload</option>
+                        <option value="video">Video upload</option>
                         <option value="note">Text note</option>
                         <option value="document">Document / source</option>
                       </select>
@@ -650,8 +654,8 @@
                       <textarea id="item-evidence-2-note" rows="3" maxlength="5000" placeholder="Explain what this source supports and any relevant caveats."></textarea>
                     </label>
                     <label class="field field-wide evidence-file-field">
-                      <span>Evidence file <small>PDF or image · stored locally in IndexedDB</small></span>
-                      <input id="item-evidence-2-file" type="file" accept="application/pdf,.pdf,image/png,image/jpeg,image/webp,image/gif">
+                      <span>Evidence file <small>PDF, image, audio or video · stored locally with SHA-256</small></span>
+                      <input id="item-evidence-2-file" type="file" accept="application/pdf,.pdf,image/png,image/jpeg,image/webp,image/gif,image/avif,audio/*,.mp3,.m4a,.aac,.wav,.ogg,.oga,.flac,.opus,video/*,.mp4,.webm,.ogv,.mov,.m4v">
                     </label>
                     <div class="evidence-extraction-controls field-wide">
                       <button class="button secondary evidence-extract-text" type="button">Extract text</button>
@@ -671,6 +675,8 @@
                         <option value="article">News / article</option>
                         <option value="pdf">PDF upload</option>
                         <option value="image">Image upload</option>
+                        <option value="audio">Audio upload</option>
+                        <option value="video">Video upload</option>
                         <option value="note">Text note</option>
                         <option value="document">Document / source</option>
                       </select>
@@ -696,8 +702,8 @@
                       <textarea id="item-evidence-3-note" rows="3" maxlength="5000" placeholder="Explain what this source supports and any relevant caveats."></textarea>
                     </label>
                     <label class="field field-wide evidence-file-field">
-                      <span>Evidence file <small>PDF or image · stored locally in IndexedDB</small></span>
-                      <input id="item-evidence-3-file" type="file" accept="application/pdf,.pdf,image/png,image/jpeg,image/webp,image/gif">
+                      <span>Evidence file <small>PDF, image, audio or video · stored locally with SHA-256</small></span>
+                      <input id="item-evidence-3-file" type="file" accept="application/pdf,.pdf,image/png,image/jpeg,image/webp,image/gif,image/avif,audio/*,.mp3,.m4a,.aac,.wav,.ogg,.oga,.flac,.opus,video/*,.mp4,.webm,.ogv,.mov,.m4v">
                     </label>
                     <div class="evidence-extraction-controls field-wide">
                       <button class="button secondary evidence-extract-text" type="button">Extract text</button>
@@ -710,7 +716,7 @@
                     <p id="item-evidence-3-file-status" class="evidence-file-status"></p>
                   </section>
                 </div>
-                <p class="field-hint">Evidence records can be reused by export/import as metadata. Uploaded PDF/image bytes remain local to this browser. Embedded PDF text is extracted first; scanned pages and images use OCR when available. Extracted text is stored as derived page/image segments with method provenance and can feed AI graph inference.</p>
+                <p class="field-hint">Evidence records can be reused by export/import as metadata. Uploaded PDF/image/audio/video bytes remain local to this browser and are fingerprinted with SHA-256. Embedded PDF text is extracted first; scanned pages and images use OCR when available. Extracted text is stored as derived page/image segments with method provenance and can feed AI graph inference.</p>
               </details>
 
               <details id="item-location-details" class="optional-editor field-wide" hidden>

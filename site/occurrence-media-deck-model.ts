@@ -1,9 +1,16 @@
-export interface OccurrenceDeckImageFrame {
-  readonly kind: "image";
-  readonly src: string;
+export type OccurrenceDeckMediaKind = "image" | "video" | "audio";
+
+export interface OccurrenceDeckMediaFrame {
+  readonly kind: OccurrenceDeckMediaKind;
+  readonly src?: string;
+  readonly blob?: Blob;
+  readonly mimeType?: string;
+  readonly sha256?: string;
   readonly alt: string;
   readonly caption: string;
 }
+
+export type OccurrenceDeckImageFrame = OccurrenceDeckMediaFrame & Readonly<{ kind: "image" }>;
 
 export interface OccurrenceDeckContextFrame {
   readonly kind: "context";
@@ -11,7 +18,7 @@ export interface OccurrenceDeckContextFrame {
   readonly body: string;
 }
 
-export type OccurrenceDeckFrame = OccurrenceDeckImageFrame | OccurrenceDeckContextFrame;
+export type OccurrenceDeckFrame = OccurrenceDeckMediaFrame | OccurrenceDeckContextFrame;
 export type OccurrenceDeckNavigationMode = "none" | "dots" | "counter";
 
 export interface ResolveOccurrenceDeckIndexInput {
@@ -34,35 +41,50 @@ function clampedIndex(index: number, frameCount: number): number {
 
 export function normalizeOccurrenceDeckFrames(
   frames: readonly (
-    | Readonly<{ kind: "image"; src?: string; alt?: string; caption?: string }>
+    | Readonly<{
+        kind: OccurrenceDeckMediaKind;
+        src?: string;
+        blob?: Blob;
+        mimeType?: string;
+        sha256?: string;
+        alt?: string;
+        caption?: string;
+      }>
     | Readonly<{ kind: "context"; label?: string; body?: string }>
   )[],
 ): readonly OccurrenceDeckFrame[] {
   const normalized: OccurrenceDeckFrame[] = [];
 
   for (const frame of frames) {
-    if (frame.kind === "image") {
-      const src = frame.src?.trim() ?? "";
-      if (!src) continue;
+    if (frame.kind === "context") {
+      const label = frame.label?.trim() ?? "";
+      const body = frame.body?.trim() ?? "";
+      if (!label && !body) continue;
       normalized.push(
         Object.freeze({
-          kind: "image",
-          src,
-          alt: frame.alt ?? "",
-          caption: frame.caption?.trim() ?? "",
+          kind: "context",
+          label: label || "Context",
+          body,
         }),
       );
       continue;
     }
 
-    const label = frame.label?.trim() ?? "";
-    const body = frame.body?.trim() ?? "";
-    if (!label && !body) continue;
+    const src = frame.src?.trim() ?? "";
+    const blob =
+      typeof Blob !== "undefined" && frame.blob instanceof Blob ? frame.blob : undefined;
+    if (!src && !blob) continue;
+    const mimeType = frame.mimeType?.trim() ?? "";
+    const sha256 = frame.sha256?.trim().toLowerCase() ?? "";
     normalized.push(
       Object.freeze({
-        kind: "context",
-        label: label || "Context",
-        body,
+        kind: frame.kind,
+        ...(src ? { src } : {}),
+        ...(blob ? { blob } : {}),
+        ...(mimeType ? { mimeType } : {}),
+        ...(sha256 ? { sha256 } : {}),
+        alt: frame.alt ?? "",
+        caption: frame.caption?.trim() ?? "",
       }),
     );
   }

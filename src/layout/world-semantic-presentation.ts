@@ -1,5 +1,4 @@
 import { WORLD_FORCE_COLLISION_METERS_PER_PX } from "./world-force-simulation.ts";
-import { WORLD_ENTITY_MIN_HIT_RADIUS_PX } from "./world-graph-style.ts";
 import type { WorldRenderPosition } from "./world-geographic-position.ts";
 
 /**
