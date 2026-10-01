@@ -1,6 +1,6 @@
 # Reusable Lit components
 
-Status: initial extraction, 2026-09-30.
+Status: expanding extraction, 2026-10-01.
 
 Lūm contains interaction patterns that are useful outside its domain. Reuse must not pull the Lūm project model, occurrence grammar, graph projection, evidence model, or timeline physics into another application.
 
@@ -20,11 +20,23 @@ The caller owns suggestion generation, grammar, validation, commands, persistenc
 
 Register a project-specific subclass so the reusable module does not reserve a global custom-element name.
 
+## Imperative surface host
+
+`site/components/reusable/imperative-surface.ts` centralizes the Lit/light-DOM boundary for renderers that must keep high-frequency scene ownership outside Lit. The retained timeline and Lūm world host both reuse it while retaining their different lifecycle policies.
+
 ## Retained timeline
 
 `site/components/reusable/retained-timeline.ts` provides a Lit lifecycle boundary for high-frequency retained timeline renderers. Lit deliberately does not reconcile the scene children. A project supplies an imperative controller for geometry, pan/zoom, inertia, pointer capture, and retained item lifetime.
 
 That boundary is appropriate for Lūm's timeline because reactive rendering every event on every gesture frame would work against the retained-window architecture. Other projects can provide different controllers without importing Lūm.
+
+## Semantic hue
+
+`site/components/reusable/semantic-hue.ts` synchronizes range and numeric hue editing and emits portable input/change events. It intentionally exposes hue only. The consuming design system remains responsible for saturation, lightness/value, contrast, dark/light theme mapping, and interaction-state emphasis.
+
+## Media viewer
+
+`site/components/reusable/media-viewer.ts` owns single-image pan and zoom interaction: pointer drag, pinch, wheel zoom, double-click/double-tap, keyboard panning, zoom steps, reset, caption and accessibility semantics. It has no occurrence, timeline, graph, or persistence dependencies. The Lūm occurrence deck can migrate onto this primitive once its existing slideshow CSS and swipe contract are preserved by an adapter.
 
 ## Component lab instead of Storybook
 
