@@ -227,7 +227,7 @@ interface WorldSurface {
   setSelection(selection: CanonicalSelection | null): void;
 
   focusEntity(id: EntityId): void;
-  focusOccurrence(id: OccurrenceId): void;
+  focusOccurrence(id: CanonicalOccurrenceId): void;
   focusPlace(id: PlaceId): void;
 
   getCamera(): WorldCameraState;
@@ -279,7 +279,25 @@ TemporalOccurrenceIndex
          └────────────→ WorldProjection → WorldSurface
 ```
 
-Both consume the same logical occurrence activation.
+Both consume the same logical occurrence activation. The activation ID is `CanonicalOccurrenceId`: either a standalone `OccurrenceId` or the `RelationshipId` of an ungrouped relationship-derived occurrence. Timeline and World must not independently reinterpret that ID set.
+
+The canonical flow is:
+
+```
+CanonicalProject
+      ↓
+projectCanonicalOccurrences()
+      ↓
+TemporalOccurrenceIndex<CanonicalProjectedOccurrence>
+      ↓
+active CanonicalOccurrenceId[]
+      ├────────────→ TimelineProjection / TimelineSurface
+      └────────────→ WorldProjection / WorldSurface
+                         ↓
+               expand standalone occurrence
+               into participant nodes + child
+               relationship topology
+```
 
 Timeline movement should preferentially update retained projection/filter state rather than reconstruct the world scene. GPU filtering/binary attribute updates may be used when they preserve exact canonical semantics.
 
