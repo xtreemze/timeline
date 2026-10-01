@@ -4,8 +4,7 @@ import {
   type OccurrenceNodeSemanticStyle,
 } from "../src/presentation/occurrence-semantic-color.ts";
 import { normalizeSemanticIconName } from "../src/presentation/semantic-icons.ts";
-import { worldNodeStyle, type WorldGraphPalette } from "../src/layout/world-graph-style.ts";
-import { worldNodeMarker } from "./world/world-node-marker.ts";
+import { type WorldGraphPalette, worldNodeStyle } from "../src/layout/world-graph-style.ts";
 import {
   composerEditableSections,
   parseOccurrenceSentence,
@@ -15,6 +14,7 @@ import {
   type ComposerSuggestion,
   type ComposerTagOption,
 } from "./occurrence-composer-model.ts";
+import { worldNodeMarker } from "./world/world-node-marker.ts";
 
 export interface ComposerPreviewNode {
   readonly label: string;
@@ -82,9 +82,12 @@ function previewNode(
     normalizeSemanticIconName(matched?.icon) ||
     "person";
   const style: Record<string, string> = Object.fromEntries(
-    ["shape", "color", "fill", "border", "borderWidth", "image", "size", "radius"]
-      .filter((key) => Boolean(properties?.[key]))
-      .map((key) => [key, properties![key]!] as const),
+    ["shape", "color", "fill", "border", "borderWidth", "image", "size", "radius"].flatMap(
+      (key) => {
+        const value = properties?.[key];
+        return value ? [[key, value] as const] : [];
+      },
+    ),
   );
   return Object.freeze({
     label: matched?.name ?? name.replace(/^@/, ""),
@@ -155,8 +158,9 @@ export function projectComposerPreview(
       return suggestion.color;
     }
     const tag = tags
-      .map((candidate): ComposerTagOption =>
-        typeof candidate === "string" ? { label: candidate } : candidate,
+      .map(
+        (candidate): ComposerTagOption =>
+          typeof candidate === "string" ? { label: candidate } : candidate,
       )
       .find((candidate) => candidate.label.toLocaleLowerCase() === label.toLocaleLowerCase());
     return tag?.color;
@@ -189,8 +193,8 @@ export function projectComposerPreview(
     place: parsed.place
       ? Object.freeze({
           label: place?.name ?? parsed.place.name,
-          longitude: Number.isFinite(place?.longitude) ? place!.longitude! : null,
-          latitude: Number.isFinite(place?.latitude) ? place!.latitude! : null,
+          longitude: place && Number.isFinite(place.longitude) ? (place.longitude ?? null) : null,
+          latitude: place && Number.isFinite(place.latitude) ? (place.latitude ?? null) : null,
         })
       : null,
   });
