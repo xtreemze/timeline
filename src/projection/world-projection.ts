@@ -1,4 +1,4 @@
-import type { EntityId, PlaceId, RelationshipId } from "../domain/ids.ts";
+import type { CanonicalOccurrenceId, EntityId, PlaceId, RelationshipId } from "../domain/ids.ts";
 
 export type WorldInstanceId = string & { readonly __worldInstanceId: unique symbol };
 
@@ -35,9 +35,9 @@ export interface ProjectedWorldInstance {
   readonly canonicalId: EntityId;
   readonly label?: string;
   readonly kind?: string;
-  readonly occurrenceId?: RelationshipId;
-  /** All active occurrences represented by this rendered spatial instance. */
-  readonly occurrenceIds?: readonly RelationshipId[];
+  readonly occurrenceId?: CanonicalOccurrenceId;
+  /** All active canonical occurrences represented by this rendered spatial instance. */
+  readonly occurrenceIds?: readonly CanonicalOccurrenceId[];
   readonly geographicAnchors: readonly SpatialAnchor[];
   readonly temporalWeight: number;
   readonly visualWeight: number;
@@ -106,7 +106,7 @@ function optionalText(value: string | undefined, max: number): string | undefine
 
 export function worldInstanceId(
   canonicalId: EntityId,
-  _occurrenceId?: RelationshipId,
+  _occurrenceId?: CanonicalOccurrenceId,
 ): WorldInstanceId {
   return JSON.stringify([nonEmpty(canonicalId, "Canonical entity ID"), null]) as WorldInstanceId;
 }
@@ -154,14 +154,16 @@ export function createProjectedWorldInstance(
   const occurrenceId =
     instance.occurrenceId === undefined
       ? undefined
-      : (nonEmpty(instance.occurrenceId, "Occurrence ID") as RelationshipId);
+      : (nonEmpty(instance.occurrenceId, "Occurrence ID") as CanonicalOccurrenceId);
   const occurrenceIds =
     instance.occurrenceIds === undefined
       ? undefined
       : Object.freeze(
           [
             ...new Set(
-              instance.occurrenceIds.map((id) => nonEmpty(id, "Occurrence ID") as RelationshipId),
+              instance.occurrenceIds.map((id) =>
+                nonEmpty(id, "Occurrence ID") as CanonicalOccurrenceId,
+              ),
             ),
           ].sort((left, right) => String(left).localeCompare(String(right))),
         );
