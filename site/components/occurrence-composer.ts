@@ -1338,12 +1338,12 @@ export class LuumOccurrenceComposerElement extends LitElement {
     void this.updateComplete.then(() => {
       const input = this.renderRoot.querySelector<HTMLInputElement>("input");
       if (!input) return;
+      input.focus({ preventScroll: true });
       if (section) {
         input.setSelectionRange(section.start, section.end);
       } else {
         input.setSelectionRange(this.value.length, this.value.length);
       }
-      input.focus({ preventScroll: true });
     });
   }
 
@@ -1404,7 +1404,6 @@ export class LuumOccurrenceComposerElement extends LitElement {
     void this.updateComplete.then(() => {
       this.revealMobileInputLane();
       this.renderRoot.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
-      requestAnimationFrame(() => this.revealMobileInputLane());
     });
   }
 
@@ -1641,6 +1640,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
   private resetSuggestionSelection(): void {
     this.activeSuggestion = 0;
     this.previewSuggestion = null;
+    this.choiceWheelLastStepAt = 0;
     this.requestUpdate();
     this.centerActiveChoice("suggestion");
   }
@@ -1916,7 +1916,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
   }
 
   private investigationProjection() {
-    const qualifiers = projectInvestigativeQualifiers(this.value);
+    const qualifiers = this.composing ? [] : projectInvestigativeQualifiers(this.value);
     const activeQualifier =
       qualifiers.find(
         (qualifier) => this.cursorOffset >= qualifier.start && this.cursorOffset <= qualifier.end,
@@ -2079,7 +2079,9 @@ export class LuumOccurrenceComposerElement extends LitElement {
     );
     const selectingOptions =
       Boolean(activeSuggestion?.multiSelect) &&
-      (cursor.kind === "options" ||
+      (activeSuggestion?.kind === "category" ||
+        activeSuggestion?.kind === "tag" ||
+        cursor.kind === "options" ||
         editableSection?.kind === "category" ||
         editableSection?.kind === "tag");
 

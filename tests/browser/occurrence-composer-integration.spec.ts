@@ -878,6 +878,8 @@ test("IME composition cannot accept or commit investigative text before composit
   await input.press("Enter");
   await expect(input).toHaveValue("man? calls @alice");
   await expect(composer.locator("#occurrence-investigation-panel")).toHaveCount(0);
+  await expect(input).toHaveAttribute("aria-expanded", "false");
+  await expect(input).not.toHaveAttribute("aria-controls", "occurrence-investigation-panel");
 
   await input.evaluate((element: HTMLInputElement) => {
     element.dispatchEvent(new CompositionEvent("compositionend", {
