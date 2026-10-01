@@ -1,9 +1,17 @@
 import type { ComposerOption } from "./components/reusable/composer.ts";
 import { ReusableComposerElement } from "./components/reusable/composer.ts";
 import { RetainedTimelineElement } from "./components/reusable/retained-timeline.ts";
+import { ReusableMediaViewerElement } from "./components/reusable/media-viewer.ts";
+import { SemanticHueElement } from "./components/reusable/semantic-hue.ts";
 
 class LabComposerElement extends ReusableComposerElement {}
 customElements.define("component-lab-composer", LabComposerElement);
+
+class LabHueElement extends SemanticHueElement {}
+customElements.define("component-lab-hue", LabHueElement);
+
+class LabMediaViewerElement extends ReusableMediaViewerElement {}
+customElements.define("component-lab-media-viewer", LabMediaViewerElement);
 
 class LabTimelineController {
   constructor(host: HTMLElement) {
@@ -82,4 +90,12 @@ if (composer) {
       output.textContent = labels.length ? labels.join(" · ") : "No selections";
     }
   });
+}
+
+const mediaViewer = document.querySelector<LabMediaViewerElement>("component-lab-media-viewer");
+if (mediaViewer) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540"><rect width="960" height="540" fill="#d7d8dc"/><path d="M80 430 320 170l170 190 110-120 280 190Z" fill="#737782"/><circle cx="730" cy="130" r="58" fill="#f0f1f4"/></svg>`;
+  mediaViewer.src = `data:image/svg+xml,${encodeURIComponent(svg)}`;
+  mediaViewer.alt = "Abstract landscape used to test pan and zoom";
+  mediaViewer.caption = "Pinch, wheel, double-click, or use the keyboard and zoom controls.";
 }
