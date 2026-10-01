@@ -3,6 +3,7 @@ import { ReusableComposerElement } from "./components/reusable/composer.ts";
 import { RetainedTimelineElement } from "./components/reusable/retained-timeline.ts";
 import { ReusableMediaViewerElement } from "./components/reusable/media-viewer.ts";
 import { SemanticHueElement } from "./components/reusable/semantic-hue.ts";
+import "./components/occurrence-media-deck.ts";
 
 class LabComposerElement extends ReusableComposerElement {}
 customElements.define("component-lab-composer", LabComposerElement);
