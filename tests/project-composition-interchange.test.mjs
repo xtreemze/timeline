@@ -72,6 +72,56 @@ test("Lūm interchange round-trips canonical places, sources, categories, and st
   assert.deepEqual(validation.snapshot.project.stories?.[0]?.occurrenceIds, ["occurrence-1"]);
 });
 
+
+test("stories may reference relationship-derived canonical occurrences", () => {
+  const doc = baseProject();
+  doc.project.entities = [
+    {
+      id: "alice",
+      type: "person",
+      name: "Alice",
+      alternateNames: [],
+      sourceIds: [],
+      attributes: {},
+    },
+    {
+      id: "bob",
+      type: "person",
+      name: "Bob",
+      alternateNames: [],
+      sourceIds: [],
+      attributes: {},
+    },
+  ];
+  doc.project.relationships = [
+    {
+      id: "meeting",
+      subjectId: "alice",
+      objectId: "bob",
+      predicate: "met",
+      itemIds: [],
+      sourceIds: [],
+      confidence: 1,
+      time: { type: "instant", start: { value: "2026-09-28T10:00:00Z" } },
+      attributes: {},
+    },
+  ];
+  doc.project.stories = [
+    {
+      id: "story-a",
+      title: "Story A",
+      occurrenceIds: ["meeting"],
+      placeIds: [],
+      attributes: {},
+    },
+  ];
+
+  const validation = validateProjectInterchange(formatProjectInterchange(JSON.stringify(doc)));
+  assert.equal(validation.valid, true);
+  if (!validation.valid) return;
+  assert.deepEqual(validation.snapshot.project.stories?.[0]?.occurrenceIds, ["meeting"]);
+});
+
 test("strict composition validation rejects dangling story and place references", () => {
   const doc = baseProject();
   doc.project.places = [];
