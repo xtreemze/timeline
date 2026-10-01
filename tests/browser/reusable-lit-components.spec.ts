@@ -35,3 +35,54 @@ test("retained timeline controller populates the host without Lit scene reconcil
   await expect(timeline.locator(".demo-timeline-rail")).toBeVisible();
   await expect(timeline.getByRole("button")).toHaveCount(3);
 });
+
+
+test("occurrence media deck uses native non-autoplay audio and video controls", async ({ page }) => {
+  await page.goto("/component-lab.html");
+
+  await page.evaluate(async () => {
+    await import("/components/occurrence-media-deck.ts");
+    const deck = document.createElement("luum-occurrence-deck");
+    deck.id = "native-media-deck";
+    document.body.append(deck);
+    deck.setDeck({
+      occurrenceId: "occ-media",
+      frames: [
+        { kind: "video", src: "data:video/mp4;base64,", alt: "Video evidence" },
+        { kind: "audio", src: "data:audio/mpeg;base64,", alt: "Audio evidence" },
+      ],
+    });
+  });
+
+  const deck = page.locator("#native-media-deck");
+  const video = deck.locator("video");
+  await expect(video).toHaveCount(1);
+  await expect(
+    video.evaluate((element) => ({
+      controls: element.controls,
+      autoplay: element.autoplay,
+      playsInline: element.playsInline,
+      preload: element.preload,
+    })),
+  ).resolves.toEqual({
+    controls: true,
+    autoplay: false,
+    playsInline: true,
+    preload: "metadata",
+  });
+
+  await deck.getByRole("button", { name: "Next frame" }).click();
+  const audio = deck.locator("audio");
+  await expect(audio).toHaveCount(1);
+  await expect(
+    audio.evaluate((element) => ({
+      controls: element.controls,
+      autoplay: element.autoplay,
+      preload: element.preload,
+    })),
+  ).resolves.toEqual({
+    controls: true,
+    autoplay: false,
+    preload: "metadata",
+  });
+});
