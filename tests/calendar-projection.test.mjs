@@ -236,6 +236,44 @@ test("story and explicit occurrence selectors preserve canonical ordering", () =
   );
 });
 
+test("story and explicit selectors export relationship-derived canonical occurrences", () => {
+  const input = snapshot({
+    type: "instant",
+    start: endpoint("2026-09-28T12:30Z", { precision: "minute" }),
+  });
+  input.project.stories[0].occurrenceIds = ["rel-1"];
+
+  const story = projectOccurrencesToCalendar(input, { storyId: "story-1" });
+  assert.deepEqual(story.events.map((event) => event.occurrenceId), ["rel-1"]);
+  assert.equal(story.events[0].summary, "Alice warns Bob");
+
+  const direct = projectOccurrenceToCalendarEvent(input, "rel-1");
+  assert.equal(direct.occurrenceId, "rel-1");
+  assert.equal(direct.summary, "Alice warns Bob");
+});
+
+test("default calendar projection includes ungrouped timed relationships without duplicating grouped children", () => {
+  const input = snapshot({
+    type: "instant",
+    start: endpoint("2026-09-28", { precision: "day" }),
+  });
+  input.project.relationships.push({
+    ...structuredClone(input.project.relationships[0]),
+    id: "rel-2",
+    predicate: "calls",
+    time: {
+      type: "instant",
+      start: endpoint("2026-09-29", { precision: "day" }),
+    },
+  });
+
+  const calendar = projectOccurrencesToCalendar(input);
+  assert.deepEqual(
+    calendar.events.map((event) => event.occurrenceId),
+    ["occ-1", "rel-2"],
+  );
+});
+
 test("strict projection rejects unknown, uncertain, reduced precision, and open intervals", () => {
   const cases = [
     {
