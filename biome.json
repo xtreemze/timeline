@@ -31,6 +31,9 @@
       "benchmarks/**/*.mjs",
       "*.config.ts"
     ],
+    "domains": {
+      "qwik": "none"
+    },
     "rules": {
       "preset": "recommended",
       "suspicious": {
