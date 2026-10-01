@@ -67,7 +67,11 @@ export interface OccurrenceComposerSelectionContext {
   readonly title?: string | null;
   readonly description?: string | null;
   readonly media?: readonly {
+    readonly kind?: "image" | "video" | "audio";
     readonly src?: string;
+    readonly blob?: Blob;
+    readonly mimeType?: string;
+    readonly sha256?: string;
     readonly alt?: string;
     readonly caption?: string;
   }[] | null;
@@ -626,6 +630,30 @@ export class LuumOccurrenceComposerElement extends LitElement {
     .composer-context-deck .timeline-occurrence-deck-image-viewport:focus-visible {
       box-shadow: inset 0 0 0 2px var(--focus, #315fbd);
     }
+    .composer-context-deck .timeline-occurrence-deck-native-media-viewport {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      min-inline-size: 0;
+      min-block-size: 0;
+      place-items: center;
+      overflow: hidden;
+      background: var(--paper, #fff);
+    }
+    .composer-context-deck .timeline-occurrence-deck-video {
+      display: block;
+      inline-size: 100%;
+      block-size: 100%;
+      max-inline-size: 100%;
+      max-block-size: 100%;
+      object-fit: contain;
+      background: var(--paper, #fff);
+    }
+    .composer-context-deck .timeline-occurrence-deck-audio {
+      display: block;
+      inline-size: min(32rem, calc(100% - 1rem));
+      max-inline-size: calc(100% - 1rem);
+    }
     .composer-context-deck .timeline-focus-hero-image,
     .composer-context-deck .timeline-focus-hero-fallback {
       position: absolute;
@@ -701,6 +729,9 @@ export class LuumOccurrenceComposerElement extends LitElement {
       display: flex;
       align-items: center;
       transform: translateX(-50%);
+    }
+    .composer-context-deck[data-active-kind="video"] .timeline-focus-slideshow-controls {
+      inset-block-end: 3.5rem;
     }
     .composer-context-deck .timeline-focus-media-control,
     .composer-context-deck .timeline-focus-slide-dot {
