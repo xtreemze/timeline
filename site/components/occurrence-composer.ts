@@ -1796,7 +1796,10 @@ export class LuumOccurrenceComposerElement extends LitElement {
     }
     const suggestions = this.suggestions().slice(0, 7);
     const activeSuggestion = suggestions[this.activeSuggestion] ?? suggestions[0];
-    if (!activeSuggestion?.multiSelect) return;
+    const editingOptions =
+      Boolean(activeSuggestion?.multiSelect) &&
+      composerCursorSection(this.value, this.cursorOffset).kind === "options";
+    if (!(activeSuggestion && editingOptions)) return;
     event.preventDefault();
     this.toggleMultiSelectSuggestion(activeSuggestion);
   }
@@ -2104,14 +2107,26 @@ export class LuumOccurrenceComposerElement extends LitElement {
       return;
     }
     const activeSuggestion = suggestions[this.activeSuggestion] ?? suggestions[0];
+    const editingOptions =
+      Boolean(activeSuggestion?.multiSelect) &&
+      composerCursorSection(this.value, this.cursorOffset).kind === "options";
+    const terminalTagSelection =
+      editingOptions &&
+      activeSuggestion?.kind === "tag" &&
+      this.terminalTagSelection();
     const spacePressed =
       event.key === " " || event.key === "Spacebar" || event.code === "Space";
-    if (spacePressed && activeSuggestion?.multiSelect) {
+    if (spacePressed && activeSuggestion && editingOptions) {
       event.preventDefault();
       this.toggleMultiSelectSuggestion(activeSuggestion);
       return;
     }
-    if (event.key === "Enter" && activeSuggestion?.multiSelect) {
+    if (event.key === "Enter" && terminalTagSelection) {
+      event.preventDefault();
+      this.commit();
+      return;
+    }
+    if (event.key === "Enter" && activeSuggestion && editingOptions) {
       event.preventDefault();
       this.advanceMultiSelectSuggestion(activeSuggestion);
       return;
@@ -2129,6 +2144,13 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.commit();
   }
 
+  private terminalTagSelection(): boolean {
+    const tagSuggestions = this.suggestions().filter(
+      (suggestion) => suggestion.kind === "tag" && suggestion.multiSelect,
+    );
+    return tagSuggestions.length > 0 && tagSuggestions.every((suggestion) => suggestion.selected);
+  }
+
   private stageGuidance(
     parsed: OccurrenceSentenceDraft,
     qualifiers: ReturnType<typeof projectInvestigativeQualifiers>,
@@ -2139,13 +2161,19 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
     const cursor = composerCursorSection(this.value, this.cursorOffset);
     const selectingOptions =
-      Boolean(activeSuggestion?.multiSelect) ||
-      suggestions.some(
-        (suggestion) =>
-          suggestion.multiSelect &&
-          (suggestion.kind === "category" || suggestion.kind === "tag"),
-      );
+      cursor.kind === "options" &&
+      (Boolean(activeSuggestion?.multiSelect) ||
+        suggestions.some(
+          (suggestion) =>
+            suggestion.multiSelect &&
+            (suggestion.kind === "category" || suggestion.kind === "tag"),
+        ));
+    const terminalTagSelection =
+      selectingOptions &&
+      activeSuggestion?.kind === "tag" &&
+      this.terminalTagSelection();
 
+    if (terminalTagSelection) return "Enter save";
     if (selectingOptions) return "Space toggle · Enter next";
     if (suggestions.length && cursor.kind !== "tail") return "↑↓ choose · Enter accept";
     if (parsed.stage === "complete" && parsed.diagnostics.length === 0) return "Enter save";
