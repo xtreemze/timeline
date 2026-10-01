@@ -1,4 +1,4 @@
-import type { EntityId, OccurrenceId, PlaceId, RelationshipId } from "../domain/ids.ts";
+import type { CanonicalOccurrenceId, EntityId, PlaceId, RelationshipId } from "../domain/ids.ts";
 import type { CanonicalOccurrence } from "../domain/occurrence.ts";
 import { occurrenceParticipantEntityIds } from "../domain/occurrence.ts";
 import type { CanonicalProject } from "../domain/project.ts";
@@ -8,7 +8,7 @@ import {
   type ProjectableOccurrence,
 } from "./spatiotemporal-projection.ts";
 
-export type CanonicalProjectedOccurrenceId = OccurrenceId | RelationshipId;
+export type CanonicalProjectedOccurrenceId = CanonicalOccurrenceId;
 
 export interface CanonicalProjectedOccurrence
   extends ProjectableOccurrence<CanonicalProjectedOccurrenceId> {

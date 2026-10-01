@@ -144,11 +144,14 @@ interface SemanticTickSpec {
   approxMs: number;
 }
 
-interface TimelineRelationshipBand {
+interface TimelineOccurrenceIdentity {
   id: string;
-  predicate?: string;
   start: number;
   end: number;
+}
+
+interface TimelineRelationshipBand extends TimelineOccurrenceIdentity {
+  predicate?: string;
   subjectId?: string;
 }
 
@@ -162,6 +165,11 @@ interface SetItemsOptions {
   focusId?: string | null;
   allCoordinates?: number[];
   relationships?: TimelineRelationshipBand[];
+  /**
+   * Canonical chronology identities used for shared Timeline/World activation.
+   * When omitted, relationship bands remain the compatibility fallback.
+   */
+  occurrences?: TimelineOccurrenceIdentity[];
 }
 
 interface SceneRecord {
@@ -564,6 +572,7 @@ export class TimelineViewController {
   items: TimelineItem[] = [];
   itemEpoch = 0;
   relationships: TimelineRelationshipBand[] = [];
+  occurrences: TimelineOccurrenceIdentity[] = [];
   allCoordinates: number[] = [];
   viewport: TemporalWindow = { start: 0, end: DEFAULT_SPAN_MS };
   renderWindow: TemporalWindow = { start: 0, end: DEFAULT_SPAN_MS };
@@ -1216,6 +1225,20 @@ export class TimelineViewController {
           )
       : [];
     this.rebuildRelationshipBandPresentation();
+    this.occurrences = Array.isArray(options.occurrences)
+      ? options.occurrences
+          .filter(
+            (occurrence): occurrence is TimelineOccurrenceIdentity =>
+              Boolean(occurrence) &&
+              typeof occurrence.id === "string" &&
+              Number.isFinite(occurrence.start) &&
+              Number.isFinite(occurrence.end),
+          )
+          .sort(
+            (left, right) =>
+              left.start - right.start || left.end - right.end || left.id.localeCompare(right.id),
+          )
+      : this.relationships.map(({ id, start, end }) => ({ id, start, end }));
     this.allCoordinates = Array.isArray(options.allCoordinates)
       ? options.allCoordinates.filter(Number.isFinite)
       : this.items.flatMap((item) =>
@@ -3685,7 +3708,7 @@ export class TimelineViewController {
         detail: {
           viewport: {
             ...this.viewport,
-            activeOccurrenceIds: activeOccurrenceIds(this.relationships, this.viewport),
+            activeOccurrenceIds: activeOccurrenceIds(this.occurrences, this.viewport),
           },
           committed,
           renderWindow: { ...this.renderWindow },

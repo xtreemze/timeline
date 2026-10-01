@@ -1,4 +1,10 @@
-import type { EntityId, EvidenceId, PlaceId, RelationshipId } from "../domain/ids.ts";
+import type {
+  CanonicalOccurrenceId,
+  EntityId,
+  EvidenceId,
+  PlaceId,
+  RelationshipId,
+} from "../domain/ids.ts";
 
 export type CanonicalWorldHit =
   | {
@@ -24,13 +30,13 @@ export type CanonicalWorldHit =
 
 export type CanonicalSelectionItem =
   | { readonly kind: "entity"; readonly id: EntityId }
-  | { readonly kind: "occurrence"; readonly id: RelationshipId }
+  | { readonly kind: "occurrence"; readonly id: CanonicalOccurrenceId }
   | { readonly kind: "place"; readonly id: PlaceId }
   | { readonly kind: "evidence"; readonly id: EvidenceId };
 
 export interface CanonicalSelectionSet {
   readonly entityIds: readonly EntityId[];
-  readonly occurrenceIds: readonly RelationshipId[];
+  readonly occurrenceIds: readonly CanonicalOccurrenceId[];
   readonly placeIds: readonly PlaceId[];
   readonly evidenceIds: readonly EvidenceId[];
 }

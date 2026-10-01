@@ -1,4 +1,4 @@
-import type { EntityId, PlaceId, RelationshipId } from "../domain/ids.ts";
+import type { CanonicalOccurrenceId, EntityId, PlaceId, RelationshipId } from "../domain/ids.ts";
 import type { WorldInstanceId, WorldProjection } from "../projection/world-projection.ts";
 import type { WorldProjectionDelta } from "../projection/world-projection-delta.ts";
 import type { WorldRelationshipRouteHint } from "./world-force-simulation.ts";
@@ -115,7 +115,7 @@ export interface WorldSurface {
   setCamera(camera: WorldCameraState): void;
 
   focusEntity(id: EntityId): void;
-  focusOccurrence(id: RelationshipId): void;
+  focusOccurrence(id: CanonicalOccurrenceId): void;
   focusPlace(id: PlaceId): void;
   /** Reframe the current projection without changing canonical selection. */
   fitToContent?(): void;

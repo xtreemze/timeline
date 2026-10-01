@@ -7,6 +7,8 @@ export type TimelineId<Kind extends string> = string & {
 export type EntityId = TimelineId<"entity">;
 export type RelationshipId = TimelineId<"relationship">;
 export type OccurrenceId = TimelineId<"occurrence">;
+/** Canonical chronology identity: either a standalone occurrence or a relationship-derived occurrence. */
+export type CanonicalOccurrenceId = OccurrenceId | RelationshipId;
 export type TrajectoryId = TimelineId<"trajectory">;
 export type PlaceId = TimelineId<"place">;
 export type EvidenceId = TimelineId<"evidence">;

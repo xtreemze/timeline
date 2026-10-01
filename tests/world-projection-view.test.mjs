@@ -420,6 +420,64 @@ test("timeline occurrence focus scopes and frames its related world nodes", () =
   );
 });
 
+test("focused standalone occurrence keeps parent identity while emphasizing child topology", () => {
+  const { view, getProjection } = harness();
+  view.setModel({
+    ...model,
+    items: [{ id: "meeting-item" }],
+    relationships: model.relationships.map((relationship) =>
+      relationship.id === "meeting" ? { ...relationship, itemIds: ["meeting-item"] } : relationship,
+    ),
+    occurrences: [
+      {
+        id: "meeting-item",
+        time: { type: "instant", start: { value: "2026-09-23T10:00:00Z" } },
+        participantContexts: [{ entityId: "alice" }, { entityId: "bob" }],
+        relationshipIds: ["meeting"],
+        confidence: 1,
+        attributes: {},
+      },
+    ],
+  });
+
+  view.setFocus("meeting-item");
+
+  assert.deepEqual(
+    calls.filter(([name]) => name === "focus:occurrence").at(-1),
+    ["focus:occurrence", "meeting-item"],
+    "focus keeps the standalone canonical occurrence identity",
+  );
+  assert.deepEqual(getProjection().edges.map((edge) => edge.id), ["meeting"]);
+  assert.ok(
+    getProjection().instances.every((instance) =>
+      instance.occurrenceIds?.some((id) => String(id) === "meeting-item"),
+    ),
+  );
+});
+
+test("timeless unary standalone occurrences remain available as world-only context", () => {
+  const { view, getProjection } = harness();
+  view.setModel({
+    entities: [{ id: "alice", name: "Alice", type: "person" }],
+    relationships: [],
+    occurrences: [
+      {
+        id: "status",
+        time: null,
+        participantContexts: [{ entityId: "alice" }],
+        relationshipIds: [],
+        confidence: null,
+        attributes: {},
+      },
+    ],
+  });
+
+  const projection = getProjection();
+  assert.deepEqual(projection.edges, []);
+  assert.deepEqual(projection.instances.map((instance) => instance.canonicalId), ["alice"]);
+  assert.deepEqual(projection.instances[0].occurrenceIds, ["status"]);
+});
+
 test("one active timeline event can emphasize every related relationship without inventing selection", () => {
   const { calls, view, getProjection } = harness();
   view.setModel({

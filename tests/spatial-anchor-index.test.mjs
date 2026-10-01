@@ -78,6 +78,55 @@ test("SpatialAnchorIndex derives occurrence and endpoint constraints without pla
   );
 });
 
+test("standalone occurrences anchor all canonical participants without creating place nodes", () => {
+  const relationships = [
+    relationship({
+      id: "signed",
+      subjectId: "alice",
+      objectId: "document",
+    }),
+  ];
+  const occurrences = [
+    {
+      id: "signing-ceremony",
+      time: { type: "instant", start: { value: "2026-09-28T10:00:00Z" } },
+      placeId: "stockholm",
+      participantContexts: [{ entityId: "alice" }, { entityId: "witness" }],
+      relationshipIds: ["signed"],
+      sourceIds: [],
+      confidence: 1,
+      attributes: {},
+    },
+  ];
+  const index = new SpatialAnchorIndex(
+    [
+      {
+        id: "stockholm",
+        geometry: { type: "Point", coordinates: [18.0686, 59.3293] },
+      },
+    ],
+    relationships,
+    occurrences,
+  );
+
+  assert.equal(index.anchorForOccurrence("signing-ceremony")?.placeId, "stockholm");
+  assert.deepEqual(
+    index
+      .constraintsForOccurrences(["signing-ceremony"])
+      .map(({ canonicalId, occurrenceId }) => [canonicalId, occurrenceId]),
+    [
+      ["alice", "signing-ceremony"],
+      ["document", "signing-ceremony"],
+      ["witness", "signing-ceremony"],
+    ],
+  );
+  assert.ok(
+    index
+      .anchorsForEntity("witness")
+      .some(({ occurrenceId, role }) => occurrenceId === "signing-ceremony" && role === "participant"),
+  );
+});
+
 test("one entity can retain distinct anchors from multiple placed occurrences", () => {
   const index = new SpatialAnchorIndex(
     [

@@ -76,6 +76,33 @@ test("WorldProjection consumes the exact active occurrence ids supplied by the l
   assert.deepEqual(edgeIds(getProjection()), ["meeting"]);
 });
 
+test("shared activation preserves standalone occurrence identity while projecting child topology", () => {
+  const { view, getProjection } = harness();
+  view.setModel({
+    ...model,
+    occurrences: [
+      {
+        id: "ceremony",
+        title: "Meeting ceremony",
+        time: { type: "instant", start: { value: "2026-09-23T10:00:00Z" } },
+        participantContexts: [{ entityId: "alice" }, { entityId: "bob" }],
+        relationshipIds: ["meeting"],
+        confidence: 1,
+        attributes: {},
+      },
+    ],
+  });
+
+  view.setWindow({ ...window, activeOccurrenceIds: ["ceremony"] });
+
+  assert.deepEqual(edgeIds(getProjection()), ["meeting"]);
+  assert.ok(
+    getProjection().instances.every((instance) =>
+      instance.occurrenceIds?.some((id) => String(id) === "ceremony"),
+    ),
+  );
+});
+
 test("the supplied active set is authoritative even where an independent world re-query would differ", () => {
   const { view, getProjection } = harness();
   view.setModel(model);
@@ -186,13 +213,27 @@ test("TimelineSurface publishes activation from the logical viewport, never from
 
   const emit =
     /emitViewport\(committed: boolean\): void \{([\s\S]*?)\n {2}\}/.exec(view)?.[1] ?? "";
-  assert.match(emit, /activeOccurrenceIds\(this\.relationships, this\.viewport\)/);
+  assert.match(emit, /activeOccurrenceIds\(this\.occurrences, this\.viewport\)/);
   assert.doesNotMatch(emit, /activeOccurrenceIds\([^)]*(renderWindow|retention)/);
   assert.match(app, /createSettledTemporalWindowSink/);
   assert.match(
     app,
     /timelineviewportchange[\s\S]{0,260}settledSpatialWindow\.push\([\s\S]*event\.detail\?\.viewport \|\| null[\s\S]*Boolean\(event\.detail\?\.committed\)/,
   );
+});
+
+test("application composition supplies the same canonical occurrence model to Timeline and World", async () => {
+  const app = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
+  assert.match(app, /occurrences:\s*canonicalProjectionOccurrences\(\)/);
+  assert.match(app, /occurrences:\s*canonicalActivationOccurrences/);
+  assert.match(app, /groupedRelationshipIds/);
+});
+
+test("TimelineSurface keeps canonical occurrence activation distinct from relationship bands", async () => {
+  const view = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
+  assert.match(view, /occurrences\?: TimelineOccurrenceIdentity\[\]/);
+  assert.match(view, /this\.occurrences = Array\.isArray\(options\.occurrences\)/);
+  assert.match(view, /activeOccurrenceIds\(this\.occurrences, this\.viewport\)/);
 });
 
 test("transient timeline viewport bursts preview cheaply and collapse to one settled spatial update", () => {

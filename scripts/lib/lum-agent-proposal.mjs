@@ -545,6 +545,9 @@ function deletedRecordReferences(project, collection, id) {
         `/project/occurrences/${index}/relationshipIds`,
       );
     });
+    (project.stories ?? []).forEach((story, index) => {
+      add(includesId(story.occurrenceIds, id), `/project/stories/${index}/occurrenceIds`);
+    });
   }
 
   if (collection === "occurrences") {

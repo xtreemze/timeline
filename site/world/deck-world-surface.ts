@@ -1,4 +1,9 @@
-import type { EntityId, PlaceId, RelationshipId } from "../../src/domain/ids.ts";
+import type {
+  CanonicalOccurrenceId,
+  EntityId,
+  PlaceId,
+  RelationshipId,
+} from "../../src/domain/ids.ts";
 import {
   surfaceActivationFromKeyboard,
   surfaceCursor,
@@ -4515,17 +4520,31 @@ export class DeckWorldSurface implements WorldSurface {
     );
   }
 
-  focusOccurrence(id: RelationshipId): void {
-    this.#setLabelFocus("relationship", id);
-    this.#focusPosition(
-      relationshipDatums(
-        this.#projection,
-        this.#instanceIndex(),
-        this.#topologyIndex,
-        this.#selection,
-        this.#relationshipDatumCache,
-      ).datums.find((datum) => datum.relationshipId === id)?.path[0] ?? null,
+  focusOccurrence(id: CanonicalOccurrenceId): void {
+    const relationship = relationshipDatums(
+      this.#projection,
+      this.#instanceIndex(),
+      this.#topologyIndex,
+      this.#selection,
+      this.#relationshipDatumCache,
+    ).datums.find((datum) => String(datum.relationshipId) === String(id));
+    if (relationship) {
+      this.#setLabelFocus("relationship", relationship.relationshipId);
+      this.#focusPosition(relationship.path[0] ?? null);
+      return;
+    }
+
+    const instance = this.#projection.instances.find(
+      (candidate) =>
+        candidate.occurrenceId === id ||
+        candidate.occurrenceIds?.some((occurrenceId) => occurrenceId === id),
     );
+    if (instance) {
+      this.focusEntity(instance.canonicalId);
+      return;
+    }
+
+    this.#focusPosition(null);
   }
 
   focusPlace(id: PlaceId): void {

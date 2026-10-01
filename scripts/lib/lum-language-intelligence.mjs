@@ -60,7 +60,7 @@ const FIELD_DOCS = Object.freeze({
   placeId: "Canonical place reference.",
   sourceIds: "Canonical source/evidence references.",
   relationshipIds: "Canonical relationship references.",
-  occurrenceIds: "Canonical occurrence references.",
+  occurrenceIds: "Canonical occurrence references: standalone occurrences or relationship-derived occurrences.",
   trajectoryIds: "Canonical trajectory references.",
   placeIds: "Canonical place references.",
   categoryId: "Canonical category reference.",
@@ -290,9 +290,21 @@ function declarationIndex(source) {
   return collections;
 }
 
+function canonicalOccurrenceReferenceTarget(declarations, id) {
+  const occurrence = (declarations.get("occurrences") ?? []).some(
+    (candidate) => candidate.id === id,
+  );
+  if (occurrence) return "occurrences";
+  const relationship = (declarations.get("relationships") ?? []).some(
+    (candidate) => candidate.id === id,
+  );
+  return relationship ? "relationships" : "occurrences";
+}
+
 function referenceOccurrences(source) {
   const starts = lineStarts(source);
   const references = [];
+  const declarations = declarationIndex(source);
   for (const [field, targetCollection] of Object.entries(REFERENCE_TARGETS)) {
     if (field.endsWith("Ids")) {
       const pattern = new RegExp(`"${field}"\\s*:\\s*\\[`, "g");
@@ -305,10 +317,14 @@ function referenceOccurrences(source) {
         for (const token of segment.matchAll(stringPattern)) {
           const start = arrayStart + 1 + token.index + 1;
           const end = start + token[1].length;
+          const id = decodeString(token[1]);
           references.push({
-            id: decodeString(token[1]),
+            id,
             field,
-            targetCollection,
+            targetCollection:
+              field === "occurrenceIds"
+                ? canonicalOccurrenceReferenceTarget(declarations, id)
+                : targetCollection,
             range: rangeFromOffsets(source, start, end, starts),
             start,
             end,
@@ -361,7 +377,7 @@ function declarationAt(source, position) {
   return null;
 }
 
-function completionTarget(source, position) {
+function completionContext(source, position) {
   const offset = positionToOffset(source, position);
   for (const [field, targetCollection] of Object.entries(REFERENCE_TARGETS)) {
     const keyPattern = new RegExp(`"${field}"\\s*:`, "g");
@@ -371,20 +387,28 @@ function completionTarget(source, position) {
         const start = source.indexOf("[", colon + 1);
         if (start < 0) continue;
         const end = matchingBracket(source, start, "[", "]");
-        if (offset > start && (end < 0 || offset <= end)) return targetCollection;
+        if (offset > start && (end < 0 || offset <= end)) {
+          return { field, targetCollection };
+        }
       } else {
         const start = source.indexOf('"', colon + 1);
         if (start < 0) continue;
         const end = source.indexOf('"', start + 1);
-        if (offset >= start + 1 && (end < 0 || offset <= end)) return targetCollection;
+        if (offset >= start + 1 && (end < 0 || offset <= end)) {
+          return { field, targetCollection };
+        }
       }
     }
   }
   return null;
 }
 
+function completionTarget(source, position) {
+  return completionContext(source, position)?.targetCollection ?? null;
+}
+
 export function lumReferenceTargetAt(source, position) {
-  return completionTarget(source, position);
+  return referenceAt(source, position)?.targetCollection ?? completionTarget(source, position);
 }
 
 export function lumSymbolAt(source, position) {
@@ -448,15 +472,25 @@ export function lumDocumentIndex(source, uri = "") {
 }
 
 export function lumCompletions(source, position) {
-  const targetCollection = completionTarget(source, position);
-  if (!targetCollection) return [];
-  return (declarationIndex(source).get(targetCollection) ?? []).map((declaration) => ({
-    label: declaration.id,
-    kind: 18,
-    detail: `Lūm ${declaration.kind}`,
-    insertText: declaration.id,
-    sortText: declaration.id,
-  }));
+  const context = completionContext(source, position);
+  if (!context) return [];
+  const declarations = declarationIndex(source);
+  const candidates =
+    context.field === "occurrenceIds"
+      ? [
+          ...(declarations.get("occurrences") ?? []),
+          ...(declarations.get("relationships") ?? []),
+        ]
+      : declarations.get(context.targetCollection) ?? [];
+  return candidates
+    .sort((left, right) => left.id.localeCompare(right.id))
+    .map((declaration) => ({
+      label: declaration.id,
+      kind: 18,
+      detail: `Lūm ${declaration.kind}`,
+      insertText: declaration.id,
+      sortText: declaration.id,
+    }));
 }
 
 export function lumHover(source, position) {

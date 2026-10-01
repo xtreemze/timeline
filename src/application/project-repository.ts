@@ -549,7 +549,7 @@ function assertStoryShape(
     id: storyId(requireNonEmptyString(value.id, "Story ID")),
     title: requireNonEmptyString(value.title, "Story title"),
     ...(typeof value.description === "string" ? { description: value.description } : {}),
-    occurrenceIds: value.occurrenceIds.map(occurrenceId),
+    occurrenceIds: value.occurrenceIds as CanonicalStory["occurrenceIds"],
     placeIds: value.placeIds.map(placeId),
     attributes: value.attributes,
   };
@@ -790,20 +790,18 @@ export function assertCanonicalProject(value: unknown): CanonicalProject {
     placeIds.add(id);
   }
 
-  if (places) {
-    for (const relationship of relationships) {
-      if (relationship.placeId && !placeIds.has(String(relationship.placeId))) {
-        throw new Error(
-          `Relationship ${String(relationship.id)} references unknown place ${String(relationship.placeId)}.`,
-        );
-      }
+  for (const relationship of relationships) {
+    if (relationship.placeId && !placeIds.has(String(relationship.placeId))) {
+      throw new Error(
+        `Relationship ${String(relationship.id)} references unknown place ${String(relationship.placeId)}.`,
+      );
     }
-    for (const occurrence of occurrences ?? []) {
-      if (occurrence.placeId && !placeIds.has(String(occurrence.placeId))) {
-        throw new Error(
-          `Occurrence ${String(occurrence.id)} references unknown place ${String(occurrence.placeId)}.`,
-        );
-      }
+  }
+  for (const occurrence of occurrences ?? []) {
+    if (occurrence.placeId && !placeIds.has(String(occurrence.placeId))) {
+      throw new Error(
+        `Occurrence ${String(occurrence.id)} references unknown place ${String(occurrence.placeId)}.`,
+      );
     }
   }
 
@@ -816,6 +814,49 @@ export function assertCanonicalProject(value: unknown): CanonicalProject {
     const id = String(source.id);
     if (sourceIds.has(id)) throw new Error(`Duplicate source ID "${id}".`);
     sourceIds.add(id);
+  }
+
+  const requireSources = (ids: readonly unknown[] | undefined, owner: string): void => {
+    for (const sourceRef of ids ?? []) {
+      if (!sourceIds.has(String(sourceRef))) {
+        throw new Error(`${owner} references unknown source ${String(sourceRef)}.`);
+      }
+    }
+  };
+  for (const entity of entities) {
+    requireSources(entity.sourceIds, `Entity ${String(entity.id)}`);
+    for (const identifier of entity.identifiers ?? []) {
+      requireSources(identifier.sourceIds, `Entity ${String(entity.id)} identifier`);
+    }
+    for (const appellation of entity.appellations ?? []) {
+      requireSources(appellation.sourceIds, `Entity ${String(entity.id)} appellation`);
+    }
+  }
+  for (const relationship of relationships) {
+    requireSources(relationship.sourceIds, `Relationship ${String(relationship.id)}`);
+    requireSources(
+      relationship.subjectContext?.authoritySourceIds,
+      `Relationship ${String(relationship.id)} subject context`,
+    );
+    requireSources(
+      relationship.objectContext?.authoritySourceIds,
+      `Relationship ${String(relationship.id)} object context`,
+    );
+  }
+  for (const occurrence of occurrences ?? []) {
+    requireSources(occurrence.sourceIds, `Occurrence ${String(occurrence.id)}`);
+    for (const participant of occurrence.participantContexts) {
+      requireSources(
+        participant.authoritySourceIds,
+        `Occurrence ${String(occurrence.id)} participant ${String(participant.entityId)}`,
+      );
+    }
+  }
+  for (const trajectory of trajectories ?? []) {
+    requireSources(trajectory.sourceIds, `Trajectory ${String(trajectory.id)}`);
+  }
+  for (const place of places ?? []) {
+    requireSources(place.sourceIds, `Place ${String(place.id)}`);
   }
 
   if (value.categories !== undefined && !Array.isArray(value.categories)) {
@@ -833,9 +874,10 @@ export function assertCanonicalProject(value: unknown): CanonicalProject {
   if (value.stories !== undefined && !Array.isArray(value.stories)) {
     throw new Error("Canonical project stories must be an array when present.");
   }
-  const canonicalOccurrenceIds = new Set(
-    (occurrences ?? []).map((occurrence) => String(occurrence.id)),
-  );
+  const canonicalOccurrenceIds = new Set([
+    ...(occurrences ?? []).map((occurrence) => String(occurrence.id)),
+    ...relationships.map((relationship) => String(relationship.id)),
+  ]);
   const stories = Array.isArray(value.stories)
     ? value.stories.map((story) => assertStoryShape(story, canonicalOccurrenceIds, placeIds))
     : undefined;

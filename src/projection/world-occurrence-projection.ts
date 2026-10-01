@@ -1,4 +1,6 @@
-import type { EntityId, RelationshipId } from "../domain/ids.ts";
+import type { CanonicalOccurrenceId, EntityId, RelationshipId } from "../domain/ids.ts";
+import { occurrenceParticipantEntityIds } from "../domain/occurrence.ts";
+import type { CanonicalProject } from "../domain/project.ts";
 import type { CanonicalRelationship } from "../domain/relationship.ts";
 import type { SpatialAnchorIndex } from "./spatial-anchor-index.ts";
 import {
@@ -19,11 +21,11 @@ export interface WorldEntityPresentation {
   readonly style?: Readonly<Record<string, unknown>>;
 }
 
-export interface WorldOccurrenceProjectionOptions {
+export interface WorldOccurrenceProjectionOptions<Id extends string = CanonicalOccurrenceId> {
   readonly entityPresentation?: ReadonlyMap<EntityId, WorldEntityPresentation>;
-  readonly temporalWeights?: ReadonlyMap<RelationshipId, number>;
-  readonly visualWeights?: ReadonlyMap<RelationshipId, number>;
-  readonly retainedOccurrenceIds?: ReadonlySet<RelationshipId>;
+  readonly temporalWeights?: ReadonlyMap<Id, number>;
+  readonly visualWeights?: ReadonlyMap<Id, number>;
+  readonly retainedOccurrenceIds?: ReadonlySet<Id>;
 }
 
 function relationshipStyle(
@@ -50,7 +52,7 @@ interface WorldInstanceAccumulator {
   readonly canonicalId: EntityId;
   readonly presentation?: WorldEntityPresentation;
   readonly geographicAnchors: SpatialAnchor[];
-  readonly occurrenceIds: RelationshipId[];
+  readonly occurrenceIds: CanonicalOccurrenceId[];
   temporalWeight: number;
   visualWeight: number;
   retained: boolean;
@@ -80,7 +82,7 @@ function mergeGeographicAnchors(target: SpatialAnchor[], incoming: readonly Spat
 function accumulateInstance(
   instances: Map<WorldInstanceId, WorldInstanceAccumulator>,
   canonicalId: EntityId,
-  occurrenceId: RelationshipId,
+  occurrenceId: CanonicalOccurrenceId,
   geographicAnchors: readonly SpatialAnchor[],
   temporalWeight: number,
   visualWeight: number,
@@ -113,32 +115,35 @@ function accumulateInstance(
   return id;
 }
 
-export function projectWorldOccurrences(
-  relationships: readonly CanonicalRelationship[],
-  activeOccurrenceIds: readonly RelationshipId[],
+export function projectCanonicalWorldOccurrences(
+  project: Pick<CanonicalProject, "relationships" | "occurrences">,
+  activeOccurrenceIds: readonly CanonicalOccurrenceId[],
   spatialAnchors: SpatialAnchorIndex,
-  options: WorldOccurrenceProjectionOptions = {},
+  options: WorldOccurrenceProjectionOptions<CanonicalOccurrenceId> = {},
 ): WorldProjection {
   const relationshipsById = new Map<RelationshipId, CanonicalRelationship>();
-
-  for (const relationship of relationships) {
+  for (const relationship of project.relationships) {
     if (relationshipsById.has(relationship.id)) {
       throw new Error(`Duplicate relationship ID: ${String(relationship.id)}`);
     }
     relationshipsById.set(relationship.id, relationship);
   }
 
+  const occurrencesById = new Map(
+    (project.occurrences ?? []).map((occurrence) => [String(occurrence.id), occurrence] as const),
+  );
   const instancesById = new Map<WorldInstanceId, WorldInstanceAccumulator>();
-  const edges: ProjectedWorldEdge[] = [];
+  const edgesById = new Map<RelationshipId, ProjectedWorldEdge>();
 
   const activeIds = [...new Set(activeOccurrenceIds)].sort((left, right) =>
     String(left).localeCompare(String(right)),
   );
 
   for (const occurrenceId of activeIds) {
-    const relationship = relationshipsById.get(occurrenceId);
-    if (!relationship) {
-      throw new Error(`Active occurrence ${String(occurrenceId)} is not a canonical relationship.`);
+    const standalone = occurrencesById.get(String(occurrenceId));
+    const relationship = relationshipsById.get(occurrenceId as RelationshipId);
+    if (!standalone && !relationship) {
+      throw new Error(`Active occurrence ${String(occurrenceId)} is not canonical.`);
     }
 
     const temporalWeight = options.temporalWeights?.get(occurrenceId) ?? 1;
@@ -146,43 +151,55 @@ export function projectWorldOccurrences(
     const retained = options.retainedOccurrenceIds?.has(occurrenceId) ?? false;
     const anchor = spatialAnchors.anchorForOccurrence(occurrenceId);
     const geographicAnchors = anchor ? Object.freeze([anchor]) : Object.freeze([]);
-    const subjectPresentation = options.entityPresentation?.get(relationship.subjectId);
-    const objectPresentation = options.entityPresentation?.get(relationship.objectId);
 
-    const subjectInstanceId = accumulateInstance(
-      instancesById,
-      relationship.subjectId,
-      occurrenceId,
-      geographicAnchors,
-      temporalWeight,
-      visualWeight,
-      retained,
-      subjectPresentation,
-    );
-    const objectInstanceId = accumulateInstance(
-      instancesById,
-      relationship.objectId,
-      occurrenceId,
-      geographicAnchors,
-      temporalWeight,
-      visualWeight,
-      retained,
-      objectPresentation,
-    );
+    const entityIds = standalone
+      ? occurrenceParticipantEntityIds(standalone, project.relationships)
+      : Object.freeze([relationship!.subjectId, relationship!.objectId]);
+    const relationshipIds = standalone
+      ? standalone.relationshipIds
+      : Object.freeze([relationship!.id]);
 
-    const style = relationshipStyle(relationship);
-    edges.push(
-      createProjectedWorldEdge({
-        id: relationship.id,
-        label: relationship.predicate,
-        ...(style ? { style } : {}),
-        sourceInstanceId: subjectInstanceId,
-        targetInstanceId: objectInstanceId,
+    for (const entity of entityIds) {
+      accumulateInstance(
+        instancesById,
+        entity,
+        occurrenceId,
+        geographicAnchors,
         temporalWeight,
-        visible: true,
+        visualWeight,
         retained,
-      }),
-    );
+        options.entityPresentation?.get(entity),
+      );
+    }
+
+    for (const relationshipId of relationshipIds) {
+      const edgeRelationship = relationshipsById.get(relationshipId);
+      if (!edgeRelationship) {
+        throw new Error(
+          `Canonical occurrence ${String(occurrenceId)} references missing relationship ${String(relationshipId)}.`,
+        );
+      }
+
+      const sourceInstanceId = canonicalWorldInstanceId(edgeRelationship.subjectId);
+      const targetInstanceId = canonicalWorldInstanceId(edgeRelationship.objectId);
+      const existing = edgesById.get(edgeRelationship.id);
+      const edgeTemporalWeight = Math.max(existing?.temporalWeight ?? 0, temporalWeight);
+      const edgeRetained = Boolean(existing?.retained || retained);
+      const style = relationshipStyle(edgeRelationship);
+      edgesById.set(
+        edgeRelationship.id,
+        createProjectedWorldEdge({
+          id: edgeRelationship.id,
+          label: edgeRelationship.predicate,
+          ...(style ? { style } : {}),
+          sourceInstanceId,
+          targetInstanceId,
+          temporalWeight: edgeTemporalWeight,
+          visible: true,
+          retained: edgeRetained,
+        }),
+      );
+    }
   }
 
   const instances: ProjectedWorldInstance[] = [...instancesById.values()].map((instance) => {
@@ -208,5 +225,27 @@ export function projectWorldOccurrences(
     });
   });
 
-  return createWorldProjection({ instances, edges });
+  return createWorldProjection({
+    instances,
+    edges: [...edgesById.values()],
+  });
+}
+
+/**
+ * Compatibility adapter for relationship-only callers. New canonical paths
+ * should call projectCanonicalWorldOccurrences so standalone occurrence IDs
+ * survive temporal/spatial projection.
+ */
+export function projectWorldOccurrences(
+  relationships: readonly CanonicalRelationship[],
+  activeOccurrenceIds: readonly RelationshipId[],
+  spatialAnchors: SpatialAnchorIndex,
+  options: WorldOccurrenceProjectionOptions<RelationshipId> = {},
+): WorldProjection {
+  return projectCanonicalWorldOccurrences(
+    { relationships, occurrences: [] },
+    activeOccurrenceIds,
+    spatialAnchors,
+    options as WorldOccurrenceProjectionOptions<CanonicalOccurrenceId>,
+  );
 }

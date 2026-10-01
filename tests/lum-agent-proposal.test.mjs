@@ -320,6 +320,36 @@ test("candidate validation rejects reference-unsafe deletion", () => {
   assert.ok(result.diagnostics.some((finding) => finding.code === "record-still-referenced"));
 });
 
+test("relationship deletion is blocked while a story references it as an occurrence", () => {
+  const parsed = JSON.parse(baseProject());
+  parsed.project.relationships = [relationshipRecord()];
+  parsed.project.stories = [
+    {
+      id: "story-1",
+      title: "Relationship occurrence story",
+      occurrenceIds: ["rel-1"],
+      placeIds: [],
+      attributes: {},
+    },
+  ];
+  const project = formatProjectInterchange(JSON.stringify(parsed));
+
+  const result = applyLumChangeProposal(
+    proposal([{ op: "delete", collection: "relationships", id: "rel-1" }]),
+    project,
+    { savedAt: "2026-09-28T09:00:00.000Z" },
+  );
+
+  assert.equal(result.valid, false);
+  assert.ok(
+    result.diagnostics.some(
+      (finding) =>
+        finding.code === "record-still-referenced" &&
+        finding.message.includes("/project/stories/0/occurrenceIds"),
+    ),
+  );
+});
+
 test("source deletion is blocked while provenance references remain", () => {
   const parsed = JSON.parse(baseProject());
   parsed.project.sources = [
