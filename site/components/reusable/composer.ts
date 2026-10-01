@@ -93,7 +93,10 @@ export class ReusableComposerElement extends LitElement {
     const query = this.value.trim().toLocaleLowerCase();
     if (!query) return this.suggestions;
     return this.suggestions.filter((option) =>
-      [option.label, option.detail ?? "", ...(option.keywords ?? [])].join(" ").toLocaleLowerCase().includes(query),
+      [option.label, option.detail ?? "", ...(option.keywords ?? [])]
+        .join(" ")
+        .toLocaleLowerCase()
+        .includes(query),
     );
   }
 
@@ -111,14 +114,20 @@ export class ReusableComposerElement extends LitElement {
     const exists = this.isSelected(option.id);
     this.selected = Object.freeze(
       this.multiple
-        ? exists ? this.selected.filter((entry) => entry.id !== option.id) : [...this.selected, option]
+        ? exists
+          ? this.selected.filter((entry) => entry.id !== option.id)
+          : [...this.selected, option]
         : [option],
     );
     this.value = this.multiple ? "" : option.label;
     this.activeIndex = 0;
-    this.dispatchEvent(new CustomEvent("composer-selection-change", {
-      bubbles:true, composed:true, detail:Object.freeze({ option, selected:this.selected }),
-    }));
+    this.dispatchEvent(
+      new CustomEvent("composer-selection-change", {
+        bubbles: true,
+        composed: true,
+        detail: Object.freeze({ option, selected: this.selected }),
+      }),
+    );
   }
 
   private onInput(event: InputEvent): void {
@@ -126,9 +135,13 @@ export class ReusableComposerElement extends LitElement {
     if (!(input instanceof HTMLInputElement)) return;
     this.value = input.value;
     this.activeIndex = 0;
-    this.dispatchEvent(new CustomEvent("composer-input", {
-      bubbles:true, composed:true, detail:Object.freeze({ value:this.value }),
-    }));
+    this.dispatchEvent(
+      new CustomEvent("composer-input", {
+        bubbles: true,
+        composed: true,
+        detail: Object.freeze({ value: this.value }),
+      }),
+    );
   }
 
   private onKeyDown(event: KeyboardEvent): void {
@@ -136,19 +149,31 @@ export class ReusableComposerElement extends LitElement {
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
       this.move(event.key === "ArrowDown" ? 1 : -1);
-    } else if (event.key === " " && this.multiple && this.selectOnSpace && this.value.trim() && options[this.activeIndex]) {
+    } else if (
+      event.key === " " &&
+      this.multiple &&
+      this.selectOnSpace &&
+      this.value.trim() &&
+      options[this.activeIndex]
+    ) {
       event.preventDefault();
-      this.choose(options[this.activeIndex]);
+      const active = options[this.activeIndex];
+      if (active) this.choose(active);
     } else if (event.key === "Enter") {
       event.preventDefault();
       const active = options[this.activeIndex];
       if (active) this.choose(active);
-      else this.dispatchEvent(new CustomEvent("composer-commit", {
-        bubbles:true, composed:true, detail:Object.freeze({ value:this.value, selected:this.selected }),
-      }));
+      else
+        this.dispatchEvent(
+          new CustomEvent("composer-commit", {
+            bubbles: true,
+            composed: true,
+            detail: Object.freeze({ value: this.value, selected: this.selected }),
+          }),
+        );
     } else if (event.key === "Escape") {
       event.preventDefault();
-      this.dispatchEvent(new CustomEvent("composer-dismiss", { bubbles:true, composed:true }));
+      this.dispatchEvent(new CustomEvent("composer-dismiss", { bubbles: true, composed: true }));
     }
   }
 
@@ -161,8 +186,9 @@ export class ReusableComposerElement extends LitElement {
   protected override updated(): void {
     const count = this.options.length;
     this.activeIndex = count ? Math.max(0, Math.min(this.activeIndex, count - 1)) : 0;
-    this.renderRoot.querySelector<HTMLElement>('.option[data-active="true"]')
-      ?.scrollIntoView({ block:"center", inline:"nearest" });
+    this.renderRoot
+      .querySelector<HTMLElement>('.option[data-active="true"]')
+      ?.scrollIntoView({ block: "center", inline: "nearest" });
   }
 
   override render() {
@@ -172,12 +198,14 @@ export class ReusableComposerElement extends LitElement {
       <div class="control" part="control">
         <div class="field" part="field" @wheel=${this.onWheel}>
           <slot name="prefix"></slot>
-          ${this.selected.map((option) => html`
+          ${this.selected.map(
+            (option) => html`
             <span class="chip" part="chip" style=${option.color ? `--chip-accent:${option.color}` : nothing}>
               ${option.color ? html`<span class="swatch" style=${`--item-accent:${option.color}`} aria-hidden="true"></span>` : nothing}
               <span>${option.label}</span>
             </span>
-          `)}
+          `,
+          )}
           <input
             part="input" .value=${this.value} placeholder=${this.placeholder} ?disabled=${this.disabled}
             role="combobox" aria-autocomplete="list" aria-expanded=${String(!this.disabled && options.length > 0)}
@@ -186,21 +214,33 @@ export class ReusableComposerElement extends LitElement {
           />
           <slot name="suffix"></slot>
         </div>
-        ${!this.disabled && (this.value.length > 0 || options.length > 0) ? html`
+        ${
+          !this.disabled && (this.value.length > 0 || options.length > 0)
+            ? html`
           <div id="composer-listbox" class="listbox" part="listbox" role="listbox">
-            ${options.length ? options.map((option,index) => html`
+            ${
+              options.length
+                ? options.map(
+                    (option, index) => html`
               <button
                 id=${`composer-option-${index}`} class="option" part="option" type="button" role="option"
                 data-active=${String(index === this.activeIndex)} aria-selected=${String(this.isSelected(option.id))}
                 ?disabled=${option.disabled} style=${option.color ? `--item-accent:${option.color}` : nothing}
-                @pointerenter=${() => { this.activeIndex = index; }} @click=${() => this.choose(option)}
+                @pointerenter=${() => {
+                  this.activeIndex = index;
+                }} @click=${() => this.choose(option)}
               >
                 <span aria-hidden="true">${option.iconLabel ?? (option.color ? html`<span class="swatch"></span>` : "")}</span>
                 <span class="copy"><span class="label">${option.label}</span>${option.detail ? html`<span class="detail">${option.detail}</span>` : nothing}</span>
               </button>
-            `) : html`<div class="empty" part="empty">No matching suggestions</div>`}
+            `,
+                  )
+                : html`<div class="empty" part="empty">No matching suggestions</div>`
+            }
           </div>
-        ` : nothing}
+        `
+            : nothing
+        }
       </div>
     `;
   }
