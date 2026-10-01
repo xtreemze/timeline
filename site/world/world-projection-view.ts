@@ -41,7 +41,7 @@ export interface WorldProjectionRuntime {
   setTemporalWindow(window: WorldViewViewport): void;
   setContextRelationships?(ids: readonly RelationshipId[]): void;
   focusEntity(id: EntityId): void;
-  focusOccurrence(id: RelationshipId): void;
+  focusOccurrence(id: CanonicalOccurrenceId): void;
   focusPlace(id: PlaceId): void;
   fitToContent(): boolean;
   zoomToContent(): boolean;
@@ -883,16 +883,8 @@ export class WorldProjectionView {
     }
     const standalone = this.#occurrenceByStringId.get(this.#focusId);
     if (standalone) {
-      const relationship = standalone.relationshipIds[0];
-      if (relationship) {
-        this.#runtime.focusOccurrence(relationship);
-        return;
-      }
-      const participant = standalone.participantContexts[0];
-      if (participant) {
-        this.#runtime.focusEntity(participant.entityId);
-        return;
-      }
+      this.#runtime.focusOccurrence(standalone.id);
+      return;
     }
 
     const focusedRelationshipId = relationshipId(this.#focusId);
