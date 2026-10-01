@@ -1323,7 +1323,7 @@ test("the active sentence section shows its label inside the input box", async (
   expect(label.labelTop).toBeGreaterThanOrEqual(label.shellTop);
 
   const inactive = composer.locator('.input-token[data-kind="subject"]');
-  expect(
-    await inactive.evaluate((token) => getComputedStyle(token, "::before").content),
-  ).toMatch(/^(none|normal)$/);
+  expect(await inactive.evaluate((token) => getComputedStyle(token, "::before").content)).toMatch(
+    /^(none|normal)$/,
+  );
 });

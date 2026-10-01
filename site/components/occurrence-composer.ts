@@ -1292,10 +1292,18 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
   beginSession(): void {
     const nextKey = this.currentContextKey();
-    // Only a closed composer starts over when its context moved. An open composer already
-    // owns its session: ambient time/world drift (or app code re-asserting "open") must not
-    // wipe the draft, and real selection changes go through the pending-selection prompt.
-    if (!this.active && this.sessionKey && this.sessionKey !== nextKey && this.value.trim()) {
+    // Only an untouched (seeded) draft in a closed composer starts over when its context
+    // moved. User-edited text is never discarded here: ambient time/world drift and app code
+    // re-asserting "open" must not wipe it, and real selection changes over a dirty draft go
+    // through the pending-selection prompt instead.
+    const userEdited = Boolean(this.value.trim()) && !this.selectionSeeded;
+    if (
+      !this.active &&
+      !userEdited &&
+      this.sessionKey &&
+      this.sessionKey !== nextKey &&
+      this.value.trim()
+    ) {
       this.resetDraft();
     }
     this.sessionKey = nextKey;

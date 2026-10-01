@@ -790,11 +790,7 @@ function liftedEntityInteractionPosition(
   dragging: boolean,
   hovered: boolean,
 ): WorldRenderPosition {
-  const liftPx = dragging
-    ? WORLD_DRAG_PICKUP_LIFT_PX
-    : hovered
-      ? WORLD_HOVER_LIFT_PX
-      : 0;
+  const liftPx = dragging ? WORLD_DRAG_PICKUP_LIFT_PX : hovered ? WORLD_HOVER_LIFT_PX : 0;
   return liftPx > 0 ? liftedPositionByPixels(position, zoom, liftPx) : position;
 }
 
@@ -3261,6 +3257,32 @@ export class DeckWorldSurface implements WorldSurface {
     }
   };
 
+  /**
+   * After a long press launches authoring, the browser still synthesizes the touch's
+   * compatibility focus on the canvas, which would steal focus from the composer that was
+   * just opened. For this gesture only, focus arriving in the surface from outside goes
+   * straight back to the exact element it left (e.g. the composer's shadow-root input).
+   */
+  #suppressCompatibilityMouseFocus(): void {
+    const container = this.#container;
+    const ownerDocument = container.ownerDocument;
+    if (!ownerDocument || !container.addEventListener || !container.removeEventListener) return;
+    let previous: HTMLElement | null = null;
+    const remember = (event: Event): void => {
+      const origin = event.composedPath()[0];
+      if (origin instanceof HTMLElement && !container.contains(origin)) previous = origin;
+    };
+    const restore = (): void => {
+      if (previous?.isConnected) previous.focus({ preventScroll: true });
+    };
+    ownerDocument.addEventListener("focusout", remember, true);
+    container.addEventListener("focusin", restore, true);
+    globalThis.setTimeout(() => {
+      ownerDocument.removeEventListener("focusout", remember, true);
+      container.removeEventListener?.("focusin", restore, true);
+    }, 600);
+  }
+
   readonly #handleTouchPointerUp = (event: TouchPointerEvent): void => {
     const touch = touchPointer(event);
     if (!touch) return;
@@ -3273,6 +3295,7 @@ export class DeckWorldSurface implements WorldSurface {
       this.#clearTouchHoldTimer();
       this.#authoringContextPointerId = null;
       this.#setTouchDragState(null);
+      this.#suppressCompatibilityMouseFocus();
       return;
     }
 

@@ -1116,13 +1116,17 @@ test.describe("contextual world authoring certification", () => {
         const footer = document.querySelector(".app-tool-dock.app-footer-bar");
         if (!(composer instanceof HTMLElement) || !(footer instanceof HTMLElement)) return null;
         const composerRect = composer.getBoundingClientRect();
+        // On narrow screens the footer scrolls one viewport-wide input lane into view; the
+        // lane, not the whole composer row (close/approve sit beside it), must fit.
+        const lane = composer.shadowRoot?.querySelector<HTMLElement>(".input-shell");
+        const laneRect = lane?.getBoundingClientRect() ?? composerRect;
         const footerRect = footer.getBoundingClientRect();
         const visualWidth = visual?.width ?? window.innerWidth;
         const visualHeight = visual?.height ?? window.innerHeight;
         return {
           composer: {
-            left: composerRect.left,
-            right: composerRect.right,
+            left: laneRect.left,
+            right: laneRect.right,
             top: composerRect.top,
             bottom: composerRect.bottom,
           },
@@ -1171,7 +1175,15 @@ test.describe("contextual world authoring certification", () => {
 
       await input.press("Escape");
       await expect(composer).not.toHaveAttribute("active", "");
-      await expect(page.locator(".temporal-graph-canvas")).toBeFocused();
+      // Pointer authoring returns focus to the World element that was pressed (deck's canvas
+      // inside the surface); keyboard authoring restores the surface itself (see above).
+      await expect
+        .poll(() =>
+          page
+            .locator(".temporal-graph-canvas")
+            .evaluate((world) => world.contains(document.activeElement)),
+        )
+        .toBe(true);
 
       // Start the next orientation from a settled, closed authoring state.
       await page.goto("/");
