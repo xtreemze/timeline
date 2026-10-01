@@ -1,11 +1,15 @@
+import { canonicalSemanticHueColor } from "../src/presentation/semantic-color.ts";
+
 const SOURCE_TEXT = "Fictional narrative ordering coordinate; not a real-world date.";
+
 const MEDIA_CAPTION =
   "Public-domain story illustration via Wikimedia Commons; illustrative only, not evidence or a real-place depiction.";
 
+// Preserve each legacy preference as hue identity only; contrast is renderer-owned.
 const EXTRA_CATEGORIES = [
-  { id: "deception", name: "Deception / Manipulation", color: "#9333ea" },
-  { id: "exchange", name: "Exchange / Bargain", color: "#a16207" },
-  { id: "obligation", name: "Promise / Obligation", color: "#0f766e" },
+  { id: "deception", name: "Deception / Manipulation", color: canonicalSemanticHueColor(271) },
+  { id: "exchange", name: "Exchange / Bargain", color: canonicalSemanticHueColor(35) },
+  { id: "obligation", name: "Promise / Obligation", color: canonicalSemanticHueColor(175) },
 ];
 
 const ACTION_TAG_LABELS = Object.freeze({

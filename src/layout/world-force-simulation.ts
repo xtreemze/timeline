@@ -1,6 +1,9 @@
 import type { EntityId, PlaceId, RelationshipId } from "../domain/ids.ts";
 import type { WorldInstanceId } from "../projection/world-projection.ts";
 
+/** Shared tangent-space scale for the default 22px collision footprint (360m / 22px). */
+export const WORLD_FORCE_COLLISION_METERS_PER_PX = 360 / 22;
+
 export type WorldSimulationReason =
   | "idle"
   | "projection-update"

@@ -1,41 +1,15 @@
-import { LitElement, noChange } from "lit";
 import { TimelineViewController } from "../timeline-view.ts";
+import { RetainedTimelineElement } from "./reusable/retained-timeline.ts";
 
 /**
- * Stable Lit ownership boundary for the retained timeline.
+ * Lūm adapter for the reusable retained-timeline Lit lifecycle boundary.
  *
- * The controller remains imperative and owns interaction/rendering. Lit owns
- * lifecycle only and never reconciles the retained occurrence scene.
+ * TimelineViewController remains responsible for interaction, retained scene
+ * identity, geometry and rendering. The generic base owns only host lifecycle.
  */
-export class LuumTimelineElement extends LitElement {
-  private timelineController: TimelineViewController | null = null;
-
-  override createRenderRoot(): HTMLElement {
-    return this;
-  }
-
-  override render() {
-    return noChange;
-  }
-
-  ensureTimelineController(): TimelineViewController {
-    if (!this.timelineController) {
-      this.timelineController = new TimelineViewController(this);
-    }
-    return this.timelineController;
-  }
-
-  get controller(): TimelineViewController | null {
-    return this.timelineController;
-  }
-
-  override connectedCallback(): void {
-    super.connectedCallback();
-    queueMicrotask(() => {
-      if (this.isConnected) {
-        this.ensureTimelineController();
-      }
-    });
+export class LuumTimelineElement extends RetainedTimelineElement<TimelineViewController> {
+  protected override createTimelineController(): TimelineViewController {
+    return new TimelineViewController(this);
   }
 }
 

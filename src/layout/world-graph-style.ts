@@ -7,7 +7,9 @@
  */
 
 import {
+  type SemanticColorSource,
   type SemanticColorState,
+  normalizeSemanticColorSource,
   semanticColorHex,
   semanticHue,
   semanticThemeForSurface,
@@ -53,6 +55,8 @@ export const WORLD_NODE_SCALE = 1;
 export const WORLD_ENTITY_MIN_HIT_RADIUS_PX = 22;
 /** Full pixel floor for visible world strokes across device pixel ratios. */
 export const WORLD_MIN_VISIBLE_STROKE_PX = 1;
+/** Slightly stronger default entity outline; authored widths still win. */
+export const WORLD_NODE_DEFAULT_BORDER_WIDTH_PX = 2.5;
 
 export interface WorldNodeStyle {
   readonly fill: string;
@@ -76,7 +80,6 @@ export interface WorldEdgeStyle {
   readonly arrow: boolean;
 }
 
-const HEX_COLOR = /^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 const SHAPES: readonly WorldNodeShape[] = ["circle", "square", "diamond", "hexagon", "pin"];
 
 /**
@@ -119,8 +122,8 @@ function record(value: unknown): Readonly<Record<string, unknown>> | null {
     : null;
 }
 
-function color(value: unknown): string | null {
-  return typeof value === "string" && HEX_COLOR.test(value.trim()) ? value.trim() : null;
+function color(value: unknown): SemanticColorSource | null {
+  return normalizeSemanticColorSource(value);
 }
 
 function number(value: unknown, min: number, max: number): number | null {
@@ -147,7 +150,7 @@ function semanticState(
 }
 
 function semanticPresentationColor(
-  value: string,
+  value: SemanticColorSource,
   palette: WorldGraphPalette,
   state: SemanticColorState,
   fallbackHue = 30,
@@ -205,7 +208,9 @@ function worldNodeMetrics(input: WorldNodeStyleInput): {
     number(own["radius"], 4, 32) ?? (authoredDiameter === null ? null : authoredDiameter / 2);
   const resolvedRadius = Math.round(authoredRadius ?? baseRadius * WORLD_NODE_SCALE);
   const authoredBorderWidth =
-    number(own["borderWidth"], 0, 8) ?? number(own["strokeWidth"], 0, 8) ?? 2;
+    number(own["borderWidth"], 0, 8) ??
+    number(own["strokeWidth"], 0, 8) ??
+    WORLD_NODE_DEFAULT_BORDER_WIDTH_PX;
   return Object.freeze({
     // Interaction state is presentation-only. Never feed hover/selection into
     // visible geometry or collision/force footprints.

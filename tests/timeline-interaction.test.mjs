@@ -413,6 +413,36 @@ test("motion response and inertial decay are smooth and monotonic", () => {
   assert.ok(v1 < 1 && v2 < v1 && v2 > 0);
 });
 
+test("release momentum is bounded and comes to rest without a release-speed jump", () => {
+  assert.equal(motion.releaseMomentumEasing(0), 0);
+  assert.equal(motion.releaseMomentumEasing(1), 1);
+  assert.equal(motion.releaseMomentumEasing(-1), 0);
+  assert.equal(motion.releaseMomentumEasing(2), 1);
+  assert.ok(motion.releaseMomentumEasing(0.25) > 0.25);
+  assert.ok(motion.releaseMomentumEasing(0.75) < 1);
+});
+
+test("timeline drag release uses the shared brief momentum horizon", async () => {
+  const source = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
+  assert.match(source, /const duration = motion\.INERTIA_TAU_MS/);
+  assert.match(
+    source,
+    /const travelPixels = motion\.releaseMomentumDistance\(releaseVelocity, duration\)/,
+  );
+  assert.match(source, /const eased = motion\.releaseMomentumEasing\(progress\)/);
+  assert.match(source, /const remainingVelocity = releaseVelocity \* \(1 - progress\)/);
+  assert.doesNotMatch(source, /velocity = motion\.decayVelocity\(velocity, elapsed\)/);
+});
+
+test("maximum release continuation stays within the brief momentum travel budget", () => {
+  const distance = motion.releaseMomentumDistance(
+    motion.MAX_RELEASE_VELOCITY_PX_PER_MS,
+    motion.INERTIA_TAU_MS,
+  );
+  assert.equal(distance, 672);
+  assert.ok(distance <= 700, "a maximum-speed flick must remain a brief continuation, not a throw");
+});
+
 test("pointer velocity uses recent samples and clamps extreme release speed", () => {
   const velocity = motion.estimatePointerVelocity([
     { coordinate: 0, time: 0 },

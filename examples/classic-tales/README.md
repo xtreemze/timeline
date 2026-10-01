@@ -20,6 +20,7 @@ The current source of truth is still split across:
 5. Shared records must be declared deliberately under a future `shared/` module rather than copied between stories.
 6. Every modular story will ultimately validate independently and as part of the complete project.
 7. Runtime sample loading must eventually use the same Lūm import/validation path as user projects.
+8. Example semantic colors author hue identity only. Category fixtures use the canonical hue carrier; tags store `hue`; nodes, edges, places, labels, and paths must not hard-code saturation/lightness or black/white contrast.
 
 ## Intended per-story structure
 

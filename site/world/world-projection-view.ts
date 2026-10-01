@@ -24,6 +24,15 @@ import {
   type WorldEntityPresentation,
 } from "../../src/projection/world-occurrence-projection.ts";
 import type { WorldProjection } from "../../src/projection/world-projection.ts";
+import {
+  mergeOccurrenceNodeSemanticStyle,
+  occurrenceNodeSemanticStyle,
+  type OccurrenceNodeSemanticStyle,
+} from "../../src/presentation/occurrence-semantic-color.ts";
+import {
+  canonicalSemanticHueColor,
+  normalizeSemanticColorSource,
+} from "../../src/presentation/semantic-color.ts";
 import { TimelineTemporal } from "../temporal-standards.ts";
 
 export interface WorldProjectionRuntime {
@@ -76,11 +85,14 @@ interface InputRelationship {
 interface InputCategory {
   readonly id?: unknown;
   readonly color?: unknown;
+  readonly hue?: unknown;
 }
 
 interface InputItem {
   readonly id?: unknown;
   readonly categoryId?: unknown;
+  readonly categoryIds?: unknown;
+  readonly tags?: unknown;
 }
 
 export interface WorldViewModel {
@@ -118,6 +130,54 @@ function text(value: unknown): string {
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function stringList(value: unknown): readonly string[] {
+  if (!Array.isArray(value)) return Object.freeze([]);
+  return Object.freeze(value.map(text).filter(Boolean));
+}
+
+function itemNodeSemanticStyle(
+  item: InputItem,
+  categoryColors: ReadonlyMap<string, string>,
+): OccurrenceNodeSemanticStyle | null {
+  const categoryIds = [
+    text(item.categoryId),
+    ...stringList(item.categoryIds),
+  ].filter((id, index, values) => Boolean(id) && values.indexOf(id) === index);
+  const categorySemanticColors = categoryIds
+    .map((id) => categoryColors.get(id) ?? "")
+    .filter(Boolean);
+  const tagSemanticColors = (Array.isArray(item.tags) ? item.tags : [])
+    .map((tag) => {
+      if (!isRecord(tag)) return null;
+      const color = normalizeSemanticColorSource(tag["color"]);
+      if (color !== null) return color;
+      const hue = Number(tag["hue"]);
+      return Number.isFinite(hue) ? hue : null;
+    })
+    .filter((value) => value !== null);
+  return occurrenceNodeSemanticStyle(categorySemanticColors, tagSemanticColors);
+}
+
+function addSemanticStyleConsensus(
+  target: Map<EntityId, OccurrenceNodeSemanticStyle | null>,
+  entity: EntityId,
+  incoming: OccurrenceNodeSemanticStyle,
+): void {
+  if (!target.has(entity)) {
+    target.set(entity, incoming);
+    return;
+  }
+  const current = target.get(entity);
+  if (
+    current &&
+    current.fillColor === incoming.fillColor &&
+    current.borderColor === incoming.borderColor
+  ) {
+    return;
+  }
+  target.set(entity, null);
 }
 
 function canonicalGeometry(value: unknown): CanonicalSpatialGeometry | null {
@@ -298,6 +358,7 @@ export class WorldProjectionView {
   readonly #runtime: WorldProjectionRuntime;
 
   #relationships: readonly CanonicalRelationship[] = Object.freeze([]);
+  #relationshipById = new Map<RelationshipId, CanonicalRelationship>();
   #spatialAnchors = new SpatialAnchorIndex([], []);
   #temporalIndex: TemporalOccurrenceIndex<IndexedRelationshipOccurrence> =
     createTemporalOccurrenceIndex<IndexedRelationshipOccurrence>([]);
@@ -309,6 +370,7 @@ export class WorldProjectionView {
   #presentationMode = false;
   #entityIds = new Set<string>();
   #entityPresentation = new Map<EntityId, WorldEntityPresentation>();
+  #nodeSemanticStyleByRelationshipId = new Map<RelationshipId, OccurrenceNodeSemanticStyle>();
   #placeIds = new Set<string>();
   #relationshipIdsByItem = new Map<string, readonly RelationshipId[]>();
 
@@ -342,31 +404,71 @@ export class WorldProjectionView {
     );
     this.#placeIds = new Set(places.map((place) => String(place.id)));
 
+    const categories = Array.isArray(model.categories) ? model.categories : [];
+    const items = Array.isArray(model.items) ? model.items : [];
     const categoryColors = new Map(
-      (Array.isArray(model.categories) ? model.categories : [])
-        .map((category) => [text(category.id), text(category.color)] as const)
+      categories
+        .map((category) => {
+          const id = text(category.id);
+          const source = normalizeSemanticColorSource(category.color);
+          const hue = Number(category.hue);
+          const color =
+            source !== null
+              ? typeof source === "number"
+                ? canonicalSemanticHueColor(source)
+                : source
+              : Number.isFinite(hue)
+                ? canonicalSemanticHueColor(hue)
+                : "";
+          return [id, color] as const;
+        })
         .filter(([id, color]) => Boolean(id && color)),
     );
     const itemCategoryColors = new Map(
-      (Array.isArray(model.items) ? model.items : [])
+      items
         .map((item) => {
           const id = text(item.id);
-          const categoryColor = categoryColors.get(text(item.categoryId)) ?? "";
+          const categoryId = text(item.categoryId) || stringList(item.categoryIds)[0] || "";
+          const categoryColor = categoryColors.get(categoryId) ?? "";
           return [id, categoryColor] as const;
         })
         .filter(([id, color]) => Boolean(id && color)),
     );
+    const itemNodeSemanticStyles = new Map(
+      items
+        .map((item) => {
+          const id = text(item.id);
+          const style = itemNodeSemanticStyle(item, categoryColors);
+          return style && id ? ([id, style] as const) : null;
+        })
+        .filter(
+          (entry): entry is readonly [string, OccurrenceNodeSemanticStyle] => entry !== null,
+        ),
+    );
     const categoryColorByRelationshipId = new Map<string, string>();
+    const nodeSemanticStyleByRelationshipId = new Map<RelationshipId, OccurrenceNodeSemanticStyle>();
     for (const relationship of Array.isArray(model.relationships) ? model.relationships : []) {
       const id = text(relationship.id);
       if (!id || !Array.isArray(relationship.itemIds)) continue;
-      for (const itemId of relationship.itemIds) {
-        const categoryColor = itemCategoryColors.get(text(itemId));
-        if (!categoryColor) continue;
-        categoryColorByRelationshipId.set(id, categoryColor);
-        break;
+      for (const itemIdValue of relationship.itemIds) {
+        const itemId = text(itemIdValue);
+        const categoryColor = itemCategoryColors.get(itemId);
+        if (categoryColor && !categoryColorByRelationshipId.has(id)) {
+          categoryColorByRelationshipId.set(id, categoryColor);
+        }
+        const semanticStyle = itemNodeSemanticStyles.get(itemId);
+        if (semanticStyle && !nodeSemanticStyleByRelationshipId.has(relationshipId(id))) {
+          nodeSemanticStyleByRelationshipId.set(relationshipId(id), semanticStyle);
+        }
+        if (
+          categoryColorByRelationshipId.has(id) &&
+          nodeSemanticStyleByRelationshipId.has(relationshipId(id))
+        ) {
+          break;
+        }
       }
     }
+    this.#nodeSemanticStyleByRelationshipId = nodeSemanticStyleByRelationshipId;
 
     const relationshipIdsByItem = new Map<string, RelationshipId[]>();
     for (const raw of Array.isArray(model.relationships) ? model.relationships : []) {
@@ -398,6 +500,9 @@ export class WorldProjectionView {
       this.#entityIds,
       this.#placeIds,
       categoryColorByRelationshipId,
+    );
+    this.#relationshipById = new Map(
+      this.#relationships.map((relationship) => [relationship.id, relationship] as const),
     );
     this.#spatialAnchors = new SpatialAnchorIndex(places, this.#relationships);
 
@@ -520,11 +625,7 @@ export class WorldProjectionView {
       ? this.#relationshipIdsByItem.get(this.#focusId)
       : undefined;
     const activeIds = contextualIds?.length
-      ? Object.freeze(
-          contextualIds.filter((id) =>
-            this.#relationships.some((relationship) => relationship.id === id),
-          ),
-        )
+      ? Object.freeze(contextualIds.filter((id) => this.#relationshipById.has(id)))
       : base.activeIds;
     const weights = contextualIds?.length
       ? new Map(activeIds.map((id) => [id, base.weights.get(id) ?? 1] as const))
@@ -535,7 +636,7 @@ export class WorldProjectionView {
       activeIds,
       this.#spatialAnchors,
       {
-        entityPresentation: this.#entityPresentation,
+        entityPresentation: this.#entityPresentationFor(activeIds, contextualIds),
         temporalWeights: weights,
       },
     );
@@ -546,13 +647,56 @@ export class WorldProjectionView {
     this.#focusCurrent();
   }
 
+  #entityPresentationFor(
+    activeIds: readonly RelationshipId[],
+    contextualIds: readonly RelationshipId[] | undefined,
+  ): ReadonlyMap<EntityId, WorldEntityPresentation> {
+    const contextualSet = new Set(contextualIds ?? []);
+    const contextualStyles = new Map<EntityId, OccurrenceNodeSemanticStyle | null>();
+    const ambientStyles = new Map<EntityId, OccurrenceNodeSemanticStyle | null>();
+
+    for (const id of activeIds) {
+      const semanticStyle = this.#nodeSemanticStyleByRelationshipId.get(id);
+      if (!semanticStyle) continue;
+      const relationship = this.#relationshipById.get(id);
+      if (!relationship) continue;
+      const target = contextualSet.has(id) ? contextualStyles : ambientStyles;
+      for (const entity of [relationship.subjectId, relationship.objectId]) {
+        addSemanticStyleConsensus(target, entity, semanticStyle);
+      }
+    }
+
+    if (contextualStyles.size === 0 && ambientStyles.size === 0) {
+      return this.#entityPresentation;
+    }
+
+    const result = new Map<EntityId, WorldEntityPresentation>();
+    for (const [id, presentation] of this.#entityPresentation) {
+      // Focused occurrence semantics outrank ambient context. Conflicts
+      // deliberately resolve to null so the entity falls back to authored/type
+      // presentation instead of choosing an arbitrary active occurrence hue.
+      const inherited = contextualStyles.has(id)
+        ? contextualStyles.get(id)
+        : ambientStyles.get(id);
+      if (!inherited) {
+        result.set(id, presentation);
+        continue;
+      }
+      const authored = presentation.style ?? {};
+      const style = mergeOccurrenceNodeSemanticStyle(authored, inherited);
+      result.set(id, Object.freeze({ ...presentation, style }));
+    }
+    return result;
+  }
+
   #sharedActivation(ids: readonly string[]): {
     readonly activeIds: readonly RelationshipId[];
     readonly weights: ReadonlyMap<RelationshipId, number>;
   } {
-    const known = new Set(this.#relationships.map((relationship) => String(relationship.id)));
     const activeIds = Object.freeze(
-      ids.filter((id) => known.has(id)).map((id) => relationshipId(id)),
+      ids
+        .map((id) => relationshipId(id))
+        .filter((id) => this.#relationshipById.has(id)),
     );
     const weights = new Map<RelationshipId, number>();
     for (const id of activeIds) {
@@ -604,8 +748,9 @@ export class WorldProjectionView {
       this.#runtime.focusPlace(placeId(this.#focusId));
       return;
     }
-    if (this.#relationships.some((relationship) => String(relationship.id) === this.#focusId)) {
-      this.#runtime.focusOccurrence(relationshipId(this.#focusId));
+    const focusedRelationshipId = relationshipId(this.#focusId);
+    if (this.#relationshipById.has(focusedRelationshipId)) {
+      this.#runtime.focusOccurrence(focusedRelationshipId);
     }
   }
 }

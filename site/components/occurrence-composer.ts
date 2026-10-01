@@ -988,16 +988,23 @@ export class LuumOccurrenceComposerElement extends LitElement {
     .option-icon {
       display: inline-grid;
       flex: 0 0 auto;
-      inline-size: 20px;
-      block-size: 20px;
+      inline-size: 24px;
+      block-size: 24px;
       place-items: center;
+      border: 1px solid transparent;
+      border-radius: 0.36rem;
+      color: var(--muted, #6b6965);
     }
 
     .option[data-semantic-color="true"] .option-icon {
-      color: color-mix(in srgb, var(--suggestion-accent) 58%, var(--muted, #6b6965));
+      border-color: color-mix(in srgb, var(--suggestion-accent) 38%, var(--line, #d1ccc4));
+      background: color-mix(in srgb, var(--suggestion-accent) 9%, var(--paper, #fff));
+      color: color-mix(in srgb, var(--suggestion-accent) 72%, var(--muted, #6b6965));
     }
 
     .option[data-semantic-color="true"]:is([data-active="true"], :focus-visible, :hover) .option-icon {
+      border-color: color-mix(in srgb, var(--suggestion-accent) 68%, var(--line, #d1ccc4));
+      background: color-mix(in srgb, var(--suggestion-accent) 15%, var(--paper, #fff));
       color: var(--suggestion-accent);
     }
 
@@ -1017,8 +1024,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
     }
 
     .option-icon svg {
-      inline-size: 20px;
-      block-size: 20px;
+      inline-size: 18px;
+      block-size: 18px;
       fill: none;
       stroke: currentColor;
       stroke-width: 2;
@@ -2154,6 +2161,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
       this.data.entities,
       this.previewSuggestion,
       this.data.places,
+      this.data.categories,
+      this.data.tags ?? [],
     );
     const previewCategory = this.data.categories.find(
       (category) => category.name === preview.category,

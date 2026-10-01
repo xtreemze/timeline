@@ -1,3 +1,4 @@
+import { WORLD_FORCE_COLLISION_METERS_PER_PX } from "./world-force-simulation.ts";
 import type { WorldRenderPosition } from "./world-geographic-position.ts";
 
 /**
@@ -414,9 +415,9 @@ export function declutterWorldLabels<T>(
  * Semantic-zoom magnification of local layout offsets. Local graphs are laid
  * out in metres around a place, which can become sub-pixel at regional zoom.
  * Magnification may compensate for camera scale so the stored offsets stay
- * untouched, but zoom itself must not ask the graph to occupy progressively
- * more screen space: that looked like a second layout running during camera
- * navigation. Sugiyama/D3 own graph spacing; the camera owns zoom.
+ * untouched, but it must preserve the force body's screen-space contract:
+ * the default physical collision radius may never project larger than the
+ * rendered node radius. Sugiyama/D3 own graph spacing; the camera owns zoom.
  */
 export const WORLD_LOCAL_GRAPH_RADIUS_PX = 320;
 const WORLD_METERS_PER_PIXEL_AT_ZOOM_0 = 40_075_016.686 / 512;
@@ -435,22 +436,24 @@ export function worldPresentationOffsetScale(
   latitude = 0,
   maxRadiusPx = Number.POSITIVE_INFINITY,
 ): number {
-  if (
-    !Number.isFinite(zoom) ||
-    entityCount >= 25_000 ||
-    !Number.isFinite(typicalOffsetMeters) ||
-    typicalOffsetMeters <= 0
-  ) {
+  if (!Number.isFinite(zoom) || !Number.isFinite(typicalOffsetMeters) || typicalOffsetMeters <= 0) {
     return 1;
   }
+  // Dense scenes may skip expensive/readability-oriented LOD work, but that
+  // cannot disable collision normalization: a fixed metre force body would
+  // otherwise grow beyond its fixed-pixel marker as the camera zooms in.
+  void entityCount;
   const cosine = Math.max(0.05, Math.cos((latitude * Math.PI) / 180));
   const metersPerPixel = (WORLD_METERS_PER_PIXEL_AT_ZOOM_0 * cosine) / 2 ** zoom;
   const viewportRadius =
     Number.isFinite(maxRadiusPx) && maxRadiusPx > 0 ? maxRadiusPx : Number.POSITIVE_INFINITY;
-  const targetRadiusPx = Math.min(worldFloatingGraphRadiusPx(zoom), viewportRadius);
-  const wanted = (targetRadiusPx * metersPerPixel) / typicalOffsetMeters;
-  if (wanted <= 1) return 1;
-  return wanted;
+  const collisionMatchedRadiusPx = typicalOffsetMeters / WORLD_FORCE_COLLISION_METERS_PER_PX;
+  const targetRadiusPx = Math.min(
+    worldFloatingGraphRadiusPx(zoom),
+    viewportRadius,
+    collisionMatchedRadiusPx,
+  );
+  return (targetRadiusPx * metersPerPixel) / typicalOffsetMeters;
 }
 
 /** 90th-percentile distance of local offsets from their anchors, in metres. */
@@ -523,9 +526,9 @@ export function worldPixelsToDegrees(pixels: number, zoom: number): number {
 }
 
 /** Arrow length as a fraction of the visible target-node radius. */
-export const WORLD_EDGE_ARROW_NODE_RADIUS_RATIO = 0.85;
+export const WORLD_EDGE_ARROW_NODE_RADIUS_RATIO = 0.7;
 /** Arrow stroke width relative to the target-node radius, with edge width as a floor. */
-export const WORLD_EDGE_ARROW_STROKE_NODE_RADIUS_RATIO = 0.14;
+export const WORLD_EDGE_ARROW_STROKE_NODE_RADIUS_RATIO = 0.12;
 /** Prevent a large endpoint from making its chevron visually detach from a thin edge. */
 export const WORLD_EDGE_ARROW_MAX_EDGE_WIDTH_RATIO = 2;
 

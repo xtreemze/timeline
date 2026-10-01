@@ -1,8 +1,12 @@
 import {
+  canonicalSemanticHueColor,
+  normalizeSemanticColorSource,
+} from "../src/presentation/semantic-color.ts";
+import { SEMANTIC_ICON_NAMES, type SemanticIconName } from "../src/presentation/semantic-icons.ts";
+import {
   suggestSemanticIcon,
   suggestSemanticIconForPlace,
 } from "../src/presentation/semantic-icon-inference.ts";
-import { SEMANTIC_ICON_NAMES, type SemanticIconName } from "../src/presentation/semantic-icons.ts";
 
 export type OccurrenceComposerStage =
   | "subject"
@@ -90,6 +94,7 @@ export interface ComposerPlaceOption {
   readonly id: string;
   readonly name: string;
   readonly icon?: string;
+  readonly color?: string;
   readonly longitude?: number;
   readonly latitude?: number;
 }
@@ -202,16 +207,9 @@ function actionIconHint(action: string): SemanticIconName {
 }
 
 export function normalizeComposerSemanticColor(value: unknown): string | undefined {
-  if (typeof value !== "string") return undefined;
-  const color = value.trim();
-  if (/^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(color)) return color;
-  const hsl = color.match(/^hsl\(\s*(\d{1,3})\s+(\d{1,3})%\s+(\d{1,3})%\s*\)$/i);
-  if (!hsl) return undefined;
-  const hue = Number(hsl[1]);
-  const saturation = Number(hsl[2]);
-  const lightness = Number(hsl[3]);
-  if (hue > 360 || saturation > 100 || lightness > 100) return undefined;
-  return `hsl(${hue} ${saturation}% ${lightness}%)`;
+  const source = normalizeSemanticColorSource(value);
+  if (source === null) return undefined;
+  return typeof source === "number" ? canonicalSemanticHueColor(source) : source;
 }
 
 function composerEntityColor(entity: ComposerEntityOption): string | undefined {
@@ -1280,6 +1278,9 @@ function cursorPlaceSuggestions(
         label: place.name,
         detail: sameNameCount > 1 ? `nearest place · ${place.id}` : "nearest place",
         ...(place.icon ? { icon: place.icon } : {}),
+        ...(normalizeComposerSemanticColor(place.color)
+          ? { color: normalizeComposerSemanticColor(place.color) }
+          : {}),
         insertText: sameNameCount > 1 ? `@${place.id}` : quoteComposerName(place.name),
         replaceRange: Object.freeze({ start: section.start, end: section.end }),
       };
@@ -1528,6 +1529,7 @@ export function occurrenceComposerSuggestions(
             ? `${entity.type || "entity"} · ${entity.id}`
             : entity.type || "entity",
           ...(entity.icon ? { icon: entity.icon } : {}),
+          ...(composerEntityColor(entity) ? { color: composerEntityColor(entity) } : {}),
           insertText: canonicalReferenceRequired ? `@${entity.id}` : quoteComposerName(entity.name),
         };
       });
@@ -1558,6 +1560,10 @@ export function occurrenceComposerSuggestions(
       kind: "place" as const,
       label: place.name,
       detail: sameNameCount > 1 ? `place · ${place.id}` : "place",
+      ...(place.icon ? { icon: place.icon } : {}),
+      ...(normalizeComposerSemanticColor(place.color)
+        ? { color: normalizeComposerSemanticColor(place.color) }
+        : {}),
       insertText: sameNameCount > 1 ? `at @${place.id}` : `at ${quoteComposerName(place.name)}`,
     };
   });
