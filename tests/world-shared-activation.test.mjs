@@ -76,6 +76,33 @@ test("WorldProjection consumes the exact active occurrence ids supplied by the l
   assert.deepEqual(edgeIds(getProjection()), ["meeting"]);
 });
 
+test("shared activation preserves standalone occurrence identity while projecting child topology", () => {
+  const { view, getProjection } = harness();
+  view.setModel({
+    ...model,
+    occurrences: [
+      {
+        id: "ceremony",
+        title: "Meeting ceremony",
+        time: { type: "instant", start: { value: "2026-09-23T10:00:00Z" } },
+        participantContexts: [{ entityId: "alice" }, { entityId: "bob" }],
+        relationshipIds: ["meeting"],
+        confidence: 1,
+        attributes: {},
+      },
+    ],
+  });
+
+  view.setWindow({ ...window, activeOccurrenceIds: ["ceremony"] });
+
+  assert.deepEqual(edgeIds(getProjection()), ["meeting"]);
+  assert.ok(
+    getProjection().instances.every((instance) =>
+      instance.occurrenceIds?.some((id) => String(id) === "ceremony"),
+    ),
+  );
+});
+
 test("the supplied active set is authoritative even where an independent world re-query would differ", () => {
   const { view, getProjection } = harness();
   view.setModel(model);
