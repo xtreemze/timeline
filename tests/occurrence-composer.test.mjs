@@ -472,11 +472,23 @@ test("composer identifies the grammatical section under the caret", () => {
   assert.equal(composerCursorSection(sentence, sentence.indexOf("[category") + 2).kind, "options");
 });
 
-test("caret after a terminal options bracket remains in options for keyboard multi-select", () => {
+test("caret after an open terminal option list remains in options for keyboard multi-select", () => {
+  for (const sentence of [
+    "@alice meets @bob [categories: ]",
+    "@alice meets @bob [categories: Observation|]",
+    "@alice meets @bob [categories: Observation, tags: ]",
+  ]) {
+    assert.equal(composerCursorSection(sentence, sentence.length).kind, "options", sentence);
+  }
+
+  for (const sentence of [
+    "@alice meets @bob [categories: Observation]",
+    "@alice meets @bob [categories: Observation|Conflict, tags: work|urgent]",
+  ]) {
+    assert.equal(composerCursorSection(sentence, sentence.length).kind, "tail", sentence);
+  }
+
   const sentence = "@alice meets @bob [categories: ]";
-
-  assert.equal(composerCursorSection(sentence, sentence.length).kind, "options");
-
   const suggestions = occurrenceComposerSuggestions(sentence, {
     entities: [],
     places: [],
@@ -488,9 +500,48 @@ test("caret after a terminal options bracket remains in options for keyboard mul
     cursorOffset: sentence.length,
   });
 
-  assert.equal(suggestions[0]?.kind, "category");
-  assert.equal(suggestions[0]?.label, "Observation");
-  assert.equal(suggestions[0]?.multiSelect, true);
+  assert.deepEqual(
+    suggestions.map((suggestion) => [suggestion.kind, suggestion.label, suggestion.multiSelect]),
+    [
+      ["category", "Observation", true],
+      ["category", "Conflict", true],
+    ],
+  );
+});
+
+test("completed option values keep remaining multi-select choices available", () => {
+  const categories = [
+    { id: "observation", name: "Observation" },
+    { id: "conflict", name: "Conflict" },
+  ];
+  const categoryValue = "@alice meets @bob [category: Observation]";
+  assert.deepEqual(
+    occurrenceComposerSuggestions(categoryValue, {
+      entities: [],
+      places: [],
+      categories,
+      cursorOffset: categoryValue.length - 1,
+    }).map((suggestion) => [suggestion.label, suggestion.selected]),
+    [
+      ["Observation", true],
+      ["Conflict", false],
+    ],
+  );
+
+  const tagValue = "@alice meets @bob [category: Observation, tags: work]";
+  assert.deepEqual(
+    occurrenceComposerSuggestions(tagValue, {
+      entities: [],
+      places: [],
+      categories,
+      tags: ["work", "urgent"],
+      cursorOffset: tagValue.length - 1,
+    }).map((suggestion) => [suggestion.label, suggestion.selected]),
+    [
+      ["work", true],
+      ["urgent", false],
+    ],
+  );
 });
 
 test("composer stays on the current grammatical token until whitespace advances it", () => {
