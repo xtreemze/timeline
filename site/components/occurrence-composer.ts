@@ -1437,7 +1437,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.externalError = "";
     void this.updateComplete.then(() => {
       this.revealMobileInputLane();
-      this.composerInputRef.value ?? null?.focus({ preventScroll: true });
+      this.composerInputRef.value?.focus({ preventScroll: true });
       requestAnimationFrame(() => this.revealMobileInputLane());
     });
   }
@@ -1461,7 +1461,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.applySelectionSeed();
     this.requestUpdate();
     void this.updateComplete.then(() => {
-      this.composerInputRef.value ?? null?.focus({ preventScroll: true });
+      this.composerInputRef.value?.focus({ preventScroll: true });
     });
   }
 
