@@ -10,6 +10,7 @@
     "src/application/**/*.ts",
     "src/projection/**/*.ts",
     "src/layout/**/*.ts",
-    "src/interaction/**/*.ts"
+    "src/interaction/**/*.ts",
+    "packages/**/*.ts"
   ]
 }
