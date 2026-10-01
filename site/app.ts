@@ -3247,15 +3247,30 @@ function evidenceRowParts(row) {
   };
 }
 
-function supportedEvidenceFile(file) {
-  if (!file) return false;
+function evidenceFileKind(file) {
+  if (!file) return null;
   const mime = String(file.type || "").toLowerCase();
-  const name = "name" in file ? String(file.name || "") : "";
-  return (
-    mime === "application/pdf" ||
-    mime.startsWith("image/") ||
-    /\.(?:pdf|png|jpe?g|webp|gif)$/i.test(name)
-  );
+  const name = "name" in file ? String(file.name || "").toLowerCase() : "";
+  if (mime === "application/pdf" || /\.pdf$/i.test(name)) return "pdf";
+  if (mime.startsWith("image/") || /\.(?:png|jpe?g|webp|gif|avif)$/i.test(name)) return "image";
+  if (
+    mime.startsWith("audio/") ||
+    /\.(?:mp3|m4a|aac|wav|ogg|oga|flac|opus)$/i.test(name)
+  ) return "audio";
+  if (
+    mime.startsWith("video/") ||
+    /\.(?:mp4|webm|ogv|mov|m4v)$/i.test(name)
+  ) return "video";
+  return null;
+}
+
+function supportedEvidenceFile(file) {
+  return evidenceFileKind(file) !== null;
+}
+
+function extractableEvidenceFile(file) {
+  const kind = evidenceFileKind(file);
+  return kind === "pdf" || kind === "image";
 }
 
 function evidenceExtractionLabel(extraction) {
@@ -3329,7 +3344,7 @@ async function extractEvidenceRow(row, { quiet = false } = {}) {
     if (!quiet) setError(els.itemFormError, "Attach a PDF or image before extracting text.");
     return null;
   }
-  if (!supportedEvidenceFile(source.blob)) {
+  if (!extractableEvidenceFile(source.blob)) {
     if (!quiet) setError(els.itemFormError, "Text extraction supports PDF and image evidence.");
     return null;
   }
@@ -3404,23 +3419,43 @@ async function collectEvidenceForm() {
     const file = parts.file.files?.[0] || null;
     let fileMetadata = existing?.file || null;
     if (file) {
-      if (!supportedEvidenceFile(file)) {
-        throw new Error("Evidence uploads must be PDF or image files.");
+      const fileKind = evidenceFileKind(file);
+      if (!fileKind) {
+        throw new Error("Evidence uploads must be PDF, image, audio, or video files.");
       }
-      const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name || "");
-      const sizeLimit = isPdf ? 25_000_000 : 15_000_000;
+      const sizeLimit =
+        fileKind === "video"
+          ? 250_000_000
+          : fileKind === "audio"
+            ? 100_000_000
+            : fileKind === "pdf"
+              ? 25_000_000
+              : 15_000_000;
       if (file.size > sizeLimit) {
         throw new Error(
           `Evidence files are limited to ${Math.round(sizeLimit / 1_000_000)} MB for this format.`,
         );
       }
       const blobKey = `evidence:${id}`;
+      const sha256 = await evidenceStore.sha256Blob(file);
       await evidenceStore.putBlob(blobKey, file);
+      if (parts.type.value === "article" || parts.type.value === "document") {
+        parts.type.value = fileKind;
+      }
       fileMetadata = {
         blobKey,
         name: file.name.slice(0, 260),
-        mimeType: file.type || (parts.type.value === "image" ? "image/*" : "application/pdf"),
+        mimeType:
+          file.type ||
+          (fileKind === "image"
+            ? "image/*"
+            : fileKind === "audio"
+              ? "audio/*"
+              : fileKind === "video"
+                ? "video/*"
+                : "application/pdf"),
         size: file.size,
+        sha256,
       };
     }
     const extraction =
@@ -3459,7 +3494,9 @@ function fillEvidenceForm(item) {
     parts.url.value = record?.url || "";
     parts.note.value = record?.note || "";
     parts.file.value = "";
-    parts.fileStatus.textContent = record?.file?.name ? `Stored locally: ${record.file.name}` : "";
+    parts.fileStatus.textContent = record?.file?.name
+      ? `Stored locally: ${record.file.name}${record.file.sha256 ? ` · SHA-256 ${record.file.sha256}` : ""}`
+      : "";
     if (record?.extraction) evidenceExtractionDrafts.set(record.id, record.extraction);
     renderEvidenceExtraction(parts, record?.extraction || null);
   });
@@ -5216,8 +5253,10 @@ function toMarkdown() {
       if (record.sourceName) lines.push(`Source: ${record.sourceName}  `);
       if (record.publishedAt) lines.push(`Published / recorded: ${record.publishedAt}  `);
       if (record.url) lines.push(`URL: ${record.url}  `);
-      if (record.file?.name)
-        lines.push(`Local PDF metadata: ${record.file.name} (${record.file.size || 0} bytes)  `);
+      if (record.file?.name) {
+        lines.push(`Local file: ${record.file.name} (${record.file.size || 0} bytes)  `);
+        if (record.file.sha256) lines.push(`SHA-256: ${record.file.sha256}  `);
+      }
       if (record.note) lines.push("", record.note);
       const supported = state.items.filter((item) => item.evidenceIds?.includes(record.id));
       if (supported.length)
