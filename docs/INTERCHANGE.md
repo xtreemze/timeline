@@ -38,7 +38,7 @@ JSON containers such as `events`, `points`, `milestones`, `periods`, `ranges`, `
 
 Unknown source records are preserved under `extensions.externalInterchange` and can be merged back during export. Canonical Timeline fields always override preserved vendor values.
 
-Stories, entities, temporal relationships, and evidence metadata are retained in the `_timeline` envelope when the target structure does not have an equivalent first-class concept. Uploaded PDF/image bytes remain local and are never embedded in interchange JSON. Derived PDF/OCR text segments remain ordinary evidence metadata and round-trip with page/image locator and extraction-method provenance.
+Stories, entities, temporal relationships, and evidence metadata are retained in the `_timeline` envelope when the target structure does not have an equivalent first-class concept. Uploaded PDF/image/audio/video bytes remain local and are never embedded in interchange JSON. Their file metadata, including the locally computed SHA-256 fingerprint when present, remains portable. Derived PDF/OCR text segments remain ordinary evidence metadata and round-trip with page/image locator and extraction-method provenance.
 
 ## Export envelope
 

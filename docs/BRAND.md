@@ -67,6 +67,8 @@ Semantic colors retain their meaning. The brand accent must not replace focus, d
 
 For user-selectable semantic colors, **hue is authored; saturation and lightness are presentation-owned**. Lūm derives chroma/lightness from the OS light/dark color scheme and from interaction state. Ambient and subdued nodes, edges, tags, labels, and rules must remain restrained and must not use pure black or white as their semantic presentation color. Selected, hovered, keyboard-active, and active-occurrence elements may use the higher-contrast state while retaining the same hue. Persisted legacy hex/HSL colors remain valid interchange values, but renderers interpret them as hue sources rather than as authoritative display contrast.
 
+World node color is semantic presentation, not canonical entity identity. Explicit entity styling is authoritative. Otherwise, a linked occurrence may supply the node fill from its primary category and the border from its first semantic tag, then secondary category, then fill hue. Focused occurrence context outranks ambient occurrence context. If multiple ambient active occurrences assign conflicting node semantics, the node must fall back to its entity-authored/type presentation instead of selecting an arbitrary occurrence hue. Composer mini-world previews must use the same resolution rule as the WorldSurface.
+
 ## Typography
 
 The application currently uses Inter with a system sans-serif fallback. Brand documentation should follow the product UI rather than introduce a separate display-font dependency.

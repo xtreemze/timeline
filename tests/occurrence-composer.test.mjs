@@ -472,6 +472,78 @@ test("composer identifies the grammatical section under the caret", () => {
   assert.equal(composerCursorSection(sentence, sentence.indexOf("[category") + 2).kind, "options");
 });
 
+test("caret after an open terminal option list remains in options for keyboard multi-select", () => {
+  for (const sentence of [
+    "@alice meets @bob [categories: ]",
+    "@alice meets @bob [categories: Observation|]",
+    "@alice meets @bob [categories: Observation, tags: ]",
+  ]) {
+    assert.equal(composerCursorSection(sentence, sentence.length).kind, "options", sentence);
+  }
+
+  for (const sentence of [
+    "@alice meets @bob [categories: Observation]",
+    "@alice meets @bob [categories: Observation|Conflict, tags: work|urgent]",
+  ]) {
+    assert.equal(composerCursorSection(sentence, sentence.length).kind, "tail", sentence);
+  }
+
+  const sentence = "@alice meets @bob [categories: ]";
+  const suggestions = occurrenceComposerSuggestions(sentence, {
+    entities: [],
+    places: [],
+    categories: [
+      { id: "observation", name: "Observation" },
+      { id: "conflict", name: "Conflict" },
+    ],
+    tags: ["work", "urgent"],
+    cursorOffset: sentence.length,
+  });
+
+  assert.deepEqual(
+    suggestions.map((suggestion) => [suggestion.kind, suggestion.label, suggestion.multiSelect]),
+    [
+      ["category", "Observation", true],
+      ["category", "Conflict", true],
+    ],
+  );
+});
+
+test("completed option values keep remaining multi-select choices available", () => {
+  const categories = [
+    { id: "observation", name: "Observation" },
+    { id: "conflict", name: "Conflict" },
+  ];
+  const categoryValue = "@alice meets @bob [category: Observation]";
+  assert.deepEqual(
+    occurrenceComposerSuggestions(categoryValue, {
+      entities: [],
+      places: [],
+      categories,
+      cursorOffset: categoryValue.length - 1,
+    }).map((suggestion) => [suggestion.label, suggestion.selected]),
+    [
+      ["Observation", true],
+      ["Conflict", false],
+    ],
+  );
+
+  const tagValue = "@alice meets @bob [category: Observation, tags: work]";
+  assert.deepEqual(
+    occurrenceComposerSuggestions(tagValue, {
+      entities: [],
+      places: [],
+      categories,
+      tags: ["work", "urgent"],
+      cursorOffset: tagValue.length - 1,
+    }).map((suggestion) => [suggestion.label, suggestion.selected]),
+    [
+      ["work", true],
+      ["urgent", false],
+    ],
+  );
+});
+
 test("composer stays on the current grammatical token until whitespace advances it", () => {
   const baseOptions = {
     entities: [
@@ -1371,7 +1443,7 @@ test("composer suggestions preserve authored semantic icon and color metadata", 
       },
       { id: "bob", name: "Bob", type: "person", icon: "child" },
     ],
-    places: [],
+    places: [{ id: "office", name: "Office", icon: "place", color: "#2f6f5f" }],
     categories: [
       { id: "incident", name: "Incident", color: "#b42318", icon: "evidence" },
     ],
@@ -1390,6 +1462,20 @@ test("composer suggestions preserve authored semantic icon and color metadata", 
   );
   assert.equal(predicate?.icon, "danger");
   assert.equal(predicate?.color, "#b54708");
+
+  const contextualPlace = occurrenceComposerSuggestions("@alice warns @bob", options).find(
+    (suggestion) => suggestion.kind === "place" && suggestion.label === "Office",
+  );
+  assert.equal(contextualPlace?.icon, "place");
+  assert.equal(contextualPlace?.color, "#2f6f5f");
+
+  const placeDraft = "@alice warns @bob at Off";
+  const cursorPlace = occurrenceComposerSuggestions(placeDraft, {
+    ...options,
+    cursorOffset: placeDraft.length,
+  }).find((suggestion) => suggestion.kind === "place" && suggestion.label === "Office");
+  assert.equal(cursorPlace?.icon, "place");
+  assert.equal(cursorPlace?.color, "#2f6f5f");
 
   const category = occurrenceComposerSuggestions(
     "@alice warns @bob [category: ",
@@ -1416,6 +1502,8 @@ test("composer suggestion rows and deck consume semantic styling", async () => {
   assert.match(source, /class="composer-heading-icon"/);
   assert.match(source, /--suggestion-accent/);
   assert.match(source, /class="option-color"/);
+  assert.match(source, /\.option\[data-semantic-color="true"\] \.option-icon/);
+  assert.match(source, /background: color-mix\(in srgb, var\(--suggestion-accent\) 9%/);
   assert.match(source, /normalizeComposerSemanticColor\(suggestion\.color\)/);
   assert.match(app, /function composerPredicateOptions\(\)/);
   assert.match(app, /function composerTagOptions\(\)/);

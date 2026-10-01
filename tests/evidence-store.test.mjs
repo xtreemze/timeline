@@ -6,6 +6,56 @@ await import("../site/evidence-store-shim.ts");
 
 const evidence = globalThis.TimelineEvidence;
 
+test("fingerprints uploaded multimedia evidence and preserves media metadata", async () => {
+  const audio = evidence.normalizeRecord({
+    id: "audio-a",
+    type: "audio",
+    title: "Interview recording",
+    file: {
+      blobKey: "evidence:audio-a",
+      name: "interview.ogg",
+      mimeType: "audio/ogg",
+      size: 2048,
+      sha256: "a".repeat(64),
+    },
+  });
+  const video = evidence.normalizeRecord({
+    id: "video-a",
+    type: "video",
+    title: "Scene recording",
+    file: {
+      blobKey: "evidence:video-a",
+      name: "scene.webm",
+      mimeType: "video/webm",
+      size: 4096,
+      sha256: "B".repeat(64),
+    },
+  });
+
+  assert.equal(audio.type, "audio");
+  assert.equal(audio.file.mimeType, "audio/ogg");
+  assert.equal(audio.file.sha256, "a".repeat(64));
+  assert.equal(video.type, "video");
+  assert.equal(video.file.mimeType, "video/webm");
+  assert.equal(video.file.sha256, "b".repeat(64));
+
+  const digest = await evidence.sha256Blob(new Blob(["abc"]));
+  assert.equal(
+    digest,
+    "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+  );
+});
+
+test("rejects malformed file SHA-256 metadata", () => {
+  const record = evidence.normalizeRecord({
+    id: "bad-digest",
+    type: "audio",
+    title: "Recording",
+    file: { blobKey: "evidence:bad-digest", name: "recording.mp3", sha256: "not-a-digest" },
+  });
+  assert.equal("sha256" in record.file, false);
+});
+
 test("normalizes article, PDF metadata and notes without embedding binary data", () => {
   const records = evidence.normalizeRecords([
     { id: "a", type: "article", title: "News report", url: "https://example.org/story" },

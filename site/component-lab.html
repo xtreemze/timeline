@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reusable Lit component lab</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: system-ui, sans-serif;
+        background: Canvas;
+        color: CanvasText;
+      }
+      body {
+        margin: 0;
+        padding: clamp(1rem, 4vw, 3rem);
+      }
+      main {
+        display: grid;
+        gap: 2rem;
+        max-inline-size: 72rem;
+        margin-inline: auto;
+      }
+      section {
+        display: grid;
+        gap: 0.8rem;
+        min-inline-size: 0;
+        padding: 1rem;
+        border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas);
+        border-radius: 0.8rem;
+      }
+      component-lab-composer {
+        --composer-focus: oklch(58% 0.18 255);
+      }
+      component-lab-timeline {
+        display: block;
+        min-block-size: 9rem;
+        overflow: auto;
+      }
+      .demo-timeline-rail {
+        position: relative;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(8rem, 1fr));
+        gap: 1rem;
+        align-items: center;
+        min-inline-size: 32rem;
+        min-block-size: 8rem;
+      }
+      .demo-timeline-rail::before {
+        content: "";
+        position: absolute;
+        inset-inline: 0;
+        inset-block-start: 50%;
+        block-size: 2px;
+        background: color-mix(in srgb, CanvasText 25%, Canvas);
+      }
+      .demo-timeline-event {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        gap: 0.2rem;
+        min-block-size: 48px;
+        padding: 0.45rem;
+      }
+      .demo-timeline-event span {
+        color: GrayText;
+      }
+      code {
+        font-family: ui-monospace, monospace;
+      }
+    </style>
+    <script type="module" src="./component-lab.ts"></script>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Reusable Lit component lab</h1>
+        <p>Isolated development surface for domain-neutral UI extracted from Lūm.</p>
+      </header>
+      <section>
+        <h2>Composer</h2>
+        <p>
+          Type to filter. Arrow keys or the mouse wheel move the active suggestion.
+          Space selects multiple matches; Enter selects the active match.
+        </p>
+        <component-lab-composer placeholder="Compose…"></component-lab-composer>
+        <output data-composer-output>No selections</output>
+      </section>
+      <section>
+        <h2>Retained timeline host</h2>
+        <p>
+          Lit owns lifecycle; the supplied controller owns retained scene children and interaction geometry.
+        </p>
+        <component-lab-timeline></component-lab-timeline>
+      </section>
+    </main>
+  </body>
+</html>

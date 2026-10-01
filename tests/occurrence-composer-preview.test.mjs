@@ -8,6 +8,7 @@ import {
   proposeInvestigationAction,
 } from "../site/occurrence-composer-preview.ts";
 import { WORLD_DARK_PALETTE, worldNodeStyle } from "../src/layout/world-graph-style.ts";
+import { canonicalSemanticHueColor } from "../src/presentation/semantic-color.ts";
 import { worldNodeMarker } from "../site/world/world-node-marker.ts";
 import { occurrenceComposerSuggestions } from "../site/occurrence-composer-model.ts";
 
@@ -49,6 +50,90 @@ test("hovered category and tag suggestions appear in the preview before acceptan
     kind: "tag", label: "important", insertText: "important", icon: "tag",
   });
   assert.deepEqual(tagged.tags, ["important"]);
+});
+
+test("composer mini-world uses the same category fill and tag border semantics as World", () => {
+  const categories = [
+    { id: "family", name: "Family", color: "hsl(12 64% 50%)" },
+    { id: "danger", name: "Danger", color: "hsl(282 64% 50%)" },
+  ];
+  const tags = [{ label: "witness", color: "hsl(145 64% 50%)" }];
+  const preview = projectComposerPreview(
+    "@alice meets @bob [categories: Family|Danger, tags: witness]",
+    entities,
+    null,
+    [],
+    categories,
+    tags,
+  );
+
+  const expectedSemanticStyle = {
+    fillColor: canonicalSemanticHueColor(categories[0].color),
+    borderColor: canonicalSemanticHueColor(tags[0].color),
+  };
+  assert.deepEqual(preview.categories, ["Family", "Danger"]);
+  assert.deepEqual(preview.subject?.semanticStyle, expectedSemanticStyle);
+  assert.deepEqual(preview.object?.semanticStyle, expectedSemanticStyle);
+
+  const marker = previewModule.composerWorldNodeMarker(
+    preview.subject,
+    entities,
+    WORLD_DARK_PALETTE,
+  );
+  const expected = worldNodeMarker(
+    worldNodeStyle(
+      {
+        type: "person",
+        attributes: {
+          style: {
+            ...expectedSemanticStyle,
+            icon: "person",
+          },
+        },
+      },
+      WORLD_DARK_PALETTE,
+    ),
+  );
+  assert.deepEqual(marker, expected);
+});
+
+test("composer semantic context fills only missing authored node channels", () => {
+  const styled = {
+    id: "alice",
+    name: "Alice",
+    type: "person",
+    icon: "person",
+    attributes: { style: { fillColor: "#112233" } },
+  };
+  const preview = projectComposerPreview(
+    "@alice meets @bob [category: Family, tags: witness]",
+    [styled, entities[1]],
+    null,
+    [],
+    [{ id: "family", name: "Family", color: "#b42318" }],
+    [{ label: "witness", color: "hsl(145 64% 50%)" }],
+  );
+  const marker = previewModule.composerWorldNodeMarker(
+    preview.subject,
+    [styled, entities[1]],
+    WORLD_DARK_PALETTE,
+  );
+  const expected = worldNodeMarker(
+    worldNodeStyle(
+      {
+        type: "person",
+        attributes: {
+          style: {
+            fillColor: "#112233",
+            borderColor: canonicalSemanticHueColor("hsl(145 64% 50%)"),
+            icon: "person",
+          },
+        },
+      },
+      WORLD_DARK_PALETTE,
+    ),
+  );
+  assert.deepEqual(marker, expected);
 });
 
 test("composer preview builds the world incrementally and previews icon suggestions without committing", () => {
