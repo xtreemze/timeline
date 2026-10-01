@@ -8,9 +8,11 @@ Occurrences never become semantic graph nodes.
 
 ## Identity and grouping
 
-A standalone occurrence has a branded `OccurrenceId`, and occurrence IDs may not collide with relationship IDs.
+A standalone occurrence has a branded `OccurrenceId`, and occurrence IDs may not collide with relationship IDs. Any API that addresses canonical chronology uses `CanonicalOccurrenceId = OccurrenceId | RelationshipId`: the first form addresses an independently identified standalone occurrence, while the second addresses a relationship-derived occurrence without manufacturing a wrapper record.
 
 `projectCanonicalOccurrences()` defines default chronology identity: ungrouped timed relationships project directly; grouped child relationships are suppressed as duplicate top-level chronology records; the standalone occurrence projects once; fact-level views may still expand its `relationshipIds[]`.
+
+Stories use the same canonical occurrence-reference identity. A story can therefore include an ordinary relationship-derived occurrence directly or a standalone occurrence when independent event identity is warranted.
 
 ## Participants
 
@@ -19,6 +21,8 @@ A standalone occurrence has a branded `OccurrenceId`, and occurrence IDs may not
 ## Time and place
 
 The occurrence owns shared time/place when known. During migration, projection may inherit time, place, or type from grouped child relationships only when all resolvable children agree exactly.
+
+`TemporalOccurrenceIndex`, Timeline activation, and World activation consume the same projected canonical occurrence set. `SpatialAnchorIndex` may anchor every participant of a standalone occurrence at its occurrence place while child relationships remain semantic edges. A unary occurrence can therefore appear in time/world context without inventing a self-loop.
 
 ## Semantic graph boundary
 
