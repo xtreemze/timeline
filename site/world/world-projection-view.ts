@@ -1,8 +1,8 @@
 import type { CanonicalSpatialGeometry } from "../../src/domain/geotemporal.ts";
 import { validateSpatialGeometry } from "../../src/domain/geotemporal.ts";
-import type { CanonicalOccurrenceId, EntityId, OccurrenceId, PlaceId, RelationshipId } from "../../src/domain/ids.ts";
+import type { CanonicalOccurrenceId, EntityId, PlaceId, RelationshipId } from "../../src/domain/ids.ts";
 import { entityId, occurrenceId, placeId, relationshipId } from "../../src/domain/ids.ts";
-import type { CanonicalOccurrence } from "../../src/domain/occurrence.ts";
+import type { CanonicalOccurrence, CanonicalOccurrenceParticipant } from "../../src/domain/occurrence.ts";
 import type {
   CanonicalRelationship,
   CanonicalTemporalExtent,
@@ -390,7 +390,7 @@ function canonicalOccurrences(
             : {}),
         });
       })
-      .filter((value): value is NonNullable<typeof value> => value !== null);
+      .filter((value): value is CanonicalOccurrenceParticipant => value !== null);
 
     const linkedRelationshipIds = stringList(raw.relationshipIds)
       .filter((id) => relationshipIds.has(id))
@@ -399,7 +399,9 @@ function canonicalOccurrences(
     if (participantContexts.length === 0 && linkedRelationshipIds.length === 0) continue;
 
     const rawPlaceId = text(raw.placeId);
-    const attributes = isRecord(raw.attributes) ? Object.freeze({ ...raw.attributes }) : Object.freeze({});
+    const attributes = isRecord(raw.attributes)
+      ? Object.freeze({ ...raw.attributes })
+      : Object.freeze({});
     result.push(
       Object.freeze({
         id: occurrenceId(id),
