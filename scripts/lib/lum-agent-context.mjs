@@ -235,6 +235,16 @@ export function buildLumAgentContext(source, selectors = {}) {
     return true;
   };
 
+  const addCanonicalOccurrence = (id, from, required = false) => {
+    if (!id) return false;
+    const key = String(id);
+    if (indexes.occurrences.has(key)) return add("occurrences", key, from, required);
+    if (indexes.relationships.has(key)) return add("relationships", key, from, required);
+    if (required) throw new Error(`Unknown occurrence "${key}".`);
+    unresolvedRef("occurrences", key, from);
+    return false;
+  };
+
   const addSources = (values, from) => {
     for (const id of ids(values)) add("sources", id, from);
   };
@@ -284,7 +294,7 @@ export function buildLumAgentContext(source, selectors = {}) {
       return;
     }
     if (collection === "stories") {
-      for (const id of ids(record.occurrenceIds)) add("occurrences", id, from);
+      for (const id of ids(record.occurrenceIds)) addCanonicalOccurrence(id, from);
       for (const id of ids(record.placeIds)) add("places", id, from);
     }
   };
@@ -292,7 +302,7 @@ export function buildLumAgentContext(source, selectors = {}) {
   if (selectors.storyIds?.length) {
     for (const id of selectors.storyIds) add("stories", id, "selector", true);
   } else if (selectors.occurrenceIds?.length) {
-    for (const id of selectors.occurrenceIds) add("occurrences", id, "selector", true);
+    for (const id of selectors.occurrenceIds) addCanonicalOccurrence(id, "selector", true);
   } else if (selectors.entityIds?.length) {
     const depth = selectors.depth ?? 1;
     let frontier = new Set(selectors.entityIds.map(String));
