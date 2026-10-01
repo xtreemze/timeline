@@ -133,16 +133,16 @@ export class ReusableComposerElement extends LitElement {
 
   private onKeyDown(event: KeyboardEvent): void {
     const options = this.options;
+    const activeOption = options[this.activeIndex];
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
       this.move(event.key === "ArrowDown" ? 1 : -1);
-    } else if (event.key === " " && this.multiple && this.selectOnSpace && this.value.trim() && options[this.activeIndex]) {
+    } else if (event.key === " " && this.multiple && this.selectOnSpace && this.value.trim() && activeOption) {
       event.preventDefault();
-      this.choose(options[this.activeIndex]);
+      this.choose(activeOption);
     } else if (event.key === "Enter") {
       event.preventDefault();
-      const active = options[this.activeIndex];
-      if (active) this.choose(active);
+      if (activeOption) this.choose(activeOption);
       else this.dispatchEvent(new CustomEvent("composer-commit", {
         bubbles:true, composed:true, detail:Object.freeze({ value:this.value, selected:this.selected }),
       }));
