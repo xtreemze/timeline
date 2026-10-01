@@ -1517,6 +1517,20 @@ luum-occurrence-deck {
 .timeline-focus-evidence-note {
   color: var(--ink);
 }
+.timeline-focus-evidence-file-meta {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0.4rem 0 0;
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+.timeline-focus-evidence-file-meta code {
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font: inherit;
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+}
 .timeline-focus-evidence-actions {
   display: flex;
   flex-wrap: wrap;
