@@ -342,7 +342,10 @@ test("mobile composer fills one viewport lane, follows pan, and snaps centered",
   await expect
     .poll(async () => {
       const centered = await geometry();
-      return Math.abs(centered.shellCenter - centered.viewportCenter);
+      return Math.max(
+        Math.abs(centered.shellCenter - centered.viewportCenter),
+        Math.abs(centered.panelCenter - centered.viewportCenter),
+      );
     })
     .toBeLessThanOrEqual(2);
 
