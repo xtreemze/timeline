@@ -1957,11 +1957,7 @@ async function hydrateOccurrenceComposerEvidenceMedia(
         }
       }),
     )
-  ).filter(
-    (
-      frame,
-    ): frame is NonNullable<OccurrenceComposerSelectionContext["media"]>[number] => frame !== null,
-  );
+  ).filter((frame) => frame !== null);
   if (!frames.length || version !== occurrenceComposerMediaHydrationVersion) return;
   els.occurrenceComposer.setSelectionMedia(baseContext, [
     ...(baseContext.media || []),
@@ -2019,7 +2015,7 @@ function syncOccurrenceComposerSelection(selection = applicationSelection.curren
       )
     : null;
   const selectedCategoryVisual: Readonly<{ color?: string; icon?: string }> = selectedCategory
-    ? composerSemanticVisual(selectedCategory.attributes)
+    ? composerSemanticVisual(selectedCategory.extensions)
     : {};
   const selectedOccurrenceColor = selectedCategory?.color ?? selectedCategoryVisual.color ?? null;
   const selectedOccurrenceIcon = selectedCategoryVisual.icon ?? null;
@@ -3340,10 +3336,6 @@ function evidenceFileKind(file) {
     /\.(?:mp4|webm|ogv|mov|m4v)$/i.test(name)
   ) return "video";
   return null;
-}
-
-function supportedEvidenceFile(file) {
-  return evidenceFileKind(file) !== null;
 }
 
 function extractableEvidenceFile(file) {
@@ -6071,7 +6063,7 @@ for (const row of els.itemTagRows) {
 
 els.itemCategory.addEventListener("change", () => {
   fillItemCategoryHue();
-  fillSecondaryItemCategoryHues(getItem(els.itemId.value));
+  fillSecondaryItemCategoryHues(getItem(els.itemId.value) ?? undefined);
 });
 els.itemCategoryHue.addEventListener("input", () =>
   syncItemCategoryHuePreview(els.itemCategoryHue),

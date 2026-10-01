@@ -195,6 +195,17 @@ export function preserveWorldProjectionRenderContinuity(
     );
     if (!local) return instance;
 
+    // Skip rebasing when the computed local position exactly matches what is
+    // already stored. This prevents diffWorldProjection from seeing spurious
+    // changes when only an unrelated attribute (e.g. visualWeight) changed.
+    if (
+      local.eastMeters === (instance.localOffset?.eastMeters ?? 0) &&
+      local.northMeters === (instance.localOffset?.northMeters ?? 0) &&
+      local.visualAltitudeMeters === (instance.visualAltitude ?? 0)
+    ) {
+      return instance;
+    }
+
     const rebased = createProjectedWorldInstance({
       ...instance,
       localOffset: Object.freeze({
