@@ -1338,12 +1338,15 @@ export class LuumOccurrenceComposerElement extends LitElement {
     void this.updateComplete.then(() => {
       const input = this.renderRoot.querySelector<HTMLInputElement>("input");
       if (!input) return;
+      const start = section?.start ?? this.value.length;
+      const end = section?.end ?? this.value.length;
       input.focus({ preventScroll: true });
-      if (section) {
-        input.setSelectionRange(section.start, section.end);
-      } else {
-        input.setSelectionRange(this.value.length, this.value.length);
-      }
+      input.setSelectionRange(start, end);
+      requestAnimationFrame(() => {
+        const liveInput = this.renderRoot.querySelector<HTMLInputElement>("input");
+        if (!liveInput || !this.inputHasFocus()) return;
+        liveInput.setSelectionRange(start, end);
+      });
     });
   }
 
@@ -1376,7 +1379,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
   }
 
   inputHasFocus(): boolean {
-    return this.renderRoot.activeElement instanceof HTMLInputElement;
+    return this.shadowRoot?.activeElement instanceof HTMLInputElement;
   }
 
   revealMobileInputLane(): void {
@@ -1402,8 +1405,20 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.active = true;
     this.externalError = "";
     void this.updateComplete.then(() => {
+      const footer = this.closest<HTMLElement>(".app-footer-bar");
       this.revealMobileInputLane();
+      const centeredScrollLeft = footer?.scrollLeft ?? null;
       this.renderRoot.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
+      requestAnimationFrame(() => {
+        if (
+          footer &&
+          centeredScrollLeft !== null &&
+          Math.abs(footer.scrollLeft - centeredScrollLeft) > 1
+        ) {
+          return;
+        }
+        this.revealMobileInputLane();
+      });
     });
   }
 
@@ -2077,13 +2092,11 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const editableSection = composerEditableSections(this.value).find(
       (section) => this.cursorOffset >= section.start && this.cursorOffset <= section.end,
     );
-    const selectingOptions =
-      Boolean(activeSuggestion?.multiSelect) &&
-      (activeSuggestion?.kind === "category" ||
-        activeSuggestion?.kind === "tag" ||
-        cursor.kind === "options" ||
-        editableSection?.kind === "category" ||
-        editableSection?.kind === "tag");
+    const selectingOptions = suggestions.some(
+      (suggestion) =>
+        suggestion.multiSelect &&
+        (suggestion.kind === "category" || suggestion.kind === "tag"),
+    );
 
     if (selectingOptions) return "Space toggle · Enter next";
     if (suggestions.length && cursor.kind !== "tail") return "↑↓ choose · Enter accept";
@@ -2183,7 +2196,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
       candidateMatrix,
       unknownEntityId,
     } = investigation;
-    const suggestions = qualifiers.length ? [] : this.suggestions().slice(0, 7);
+    const suggestions =
+      this.composing || qualifiers.length ? [] : this.suggestions().slice(0, 7);
     const selectedIndex = Math.min(this.activeSuggestion, Math.max(0, suggestions.length - 1));
     const activeSuggestion = suggestions[selectedIndex];
     const ghostSuffix =
