@@ -3879,7 +3879,21 @@ export class TimelineViewController {
       )
     ).filter((entry): entry is OccurrenceContextMediaFrame => Boolean(entry));
 
-    if (!localMedia.length || !deck.isConnected || deck.occurrenceId !== item.id) return;
+    if (!deck.isConnected || deck.occurrenceId !== item.id) return;
+    if (!localMedia.length) {
+      const frames = occurrenceContextDeckFrames(item.media, item.description);
+      if (!frames.some((frame) => frame.kind !== "context")) {
+        hero.classList.add("has-no-media");
+        if (!hero.querySelector("[data-empty-media]")) {
+          const fallback = document.createElement("div");
+          fallback.className = "timeline-focus-hero-fallback";
+          fallback.dataset.emptyMedia = "true";
+          fallback.setAttribute("aria-hidden", "true");
+          hero.append(fallback);
+        }
+      }
+      return;
+    }
     const frames = occurrenceContextDeckFrames(
       [...(item.media || []), ...localMedia],
       item.description,
