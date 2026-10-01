@@ -4,6 +4,25 @@ import { touchscreen } from "../support/touch-gestures.ts";
 
 type FractionPoint = { readonly x: number; readonly y: number };
 
+/** Loose shapes of agent-API project JSON read inside page.evaluate (type-only, erased). */
+interface ProjectRecord {
+  id?: unknown;
+  kind?: unknown;
+  title?: unknown;
+  start?: unknown;
+  predicate?: unknown;
+  confidence?: unknown;
+  itemIds?: unknown[];
+  time?: { start?: { value?: unknown }; end?: { value?: unknown } } | null;
+  attributes?: { semanticReview?: unknown };
+}
+
+interface ProjectSnapshot {
+  items?: ProjectRecord[];
+  relationships?: ProjectRecord[];
+  stories?: ProjectRecord[];
+}
+
 async function certifyWebGlWorld(page: Page): Promise<boolean> {
   await page.goto("/");
   const webgl2 = await page.evaluate(() => {
@@ -247,6 +266,59 @@ async function selectEntityWithTimelineContext(page: Page): Promise<string> {
   throw new Error("No accessible World entity projected to selected chronology context.");
 }
 
+/** Rewrite the focused occurrence's action in the sentence input; returns the new action. */
+async function rewriteFocusedPredicate(
+  composer: Locator,
+  relationship: RelationshipFocus,
+): Promise<string> {
+  const input = composer.locator("input");
+  const initial = await input.inputValue();
+  const replacement = relationship.predicate === "reframes" ? "recounts" : "reframes";
+  const edited = initial.replace(
+    `@${relationship.subjectId} ${relationship.predicate} @${relationship.objectId}`,
+    `@${relationship.subjectId} ${replacement} @${relationship.objectId}`,
+  );
+  expect(edited).not.toBe(initial);
+  await input.fill(edited);
+  await expect(input).toHaveValue(edited);
+  return replacement;
+}
+
+async function relationshipPredicate(page: Page, relationshipId: string): Promise<string> {
+  return page.evaluate((id) => {
+    const project = (
+      window as typeof window & {
+        TimelineAgentAPI?: {
+          getProject?: () => { relationships?: Array<{ id?: unknown; predicate?: unknown }> };
+        };
+      }
+    ).TimelineAgentAPI?.getProject?.();
+    const match = (project?.relationships ?? []).find((candidate) => String(candidate.id) === id);
+    return String(match?.predicate ?? "");
+  }, relationshipId);
+}
+
+/** Double-click the inline decoration token for a sentence section, as a mouse user would. */
+async function selectSentenceSection(
+  page: Page,
+  composer: Locator,
+  kind: string,
+  index = 0,
+): Promise<void> {
+  const token = composer.locator(`.input-token[data-kind="${kind}"]`).nth(index);
+  // Long sentences scroll horizontally inside the one-line input; bring the token into view.
+  await token.evaluate((element: HTMLElement) => {
+    const input = element.closest(".input-shell")?.querySelector("input");
+    if (!input) throw new Error("Composer input is missing beside its decoration.");
+    input.scrollLeft = Math.max(0, element.offsetLeft - 24);
+    input.dispatchEvent(new Event("scroll"));
+  });
+  await expect(token).toBeVisible();
+  const box = await token.boundingBox();
+  if (!box) throw new Error(`Inline ${kind} token has no live bounds.`);
+  await page.mouse.dblclick(box.x + box.width / 2, box.y + box.height / 2);
+}
+
 test.describe("contextual world authoring certification", () => {
   test("real empty-world context menu opens the footer composer at a world coordinate", async ({
     page,
@@ -333,25 +405,26 @@ test.describe("contextual world authoring certification", () => {
     const composer = await openPersistentComposer(page);
     const input = composer.locator("input");
     const stage = composer.locator(".stage");
-    const subjectId = entityIds[0]!;
+    const [subjectId] = entityIds;
+    if (!subjectId) return test.skip(true, "Example project needs at least two entities.");
 
     await input.fill(`@${subjectId} rece`);
-    await expect(stage).toHaveText("action");
+    await expect(stage).toHaveAttribute("data-stage", "predicate");
     const keyboardAction = composer
       .getByRole("option")
-      .filter({ hasText: /^receives/ })
+      .filter({ hasText: /^\s*receives\b/ })
       .first();
     await expect(keyboardAction).toBeVisible();
     await input.press("Enter");
 
     await expect(input).toHaveValue(`@${subjectId} receives `);
-    await expect(stage).toHaveText("object");
+    await expect(stage).toHaveAttribute("data-stage", "object");
     await expect(composer.getByRole("option").first()).toBeVisible();
 
     await input.fill(`@${subjectId} rece`);
     const pointerAction = composer
       .getByRole("option")
-      .filter({ hasText: /^receives/ })
+      .filter({ hasText: /^\s*receives\b/ })
       .first();
     await expect(pointerAction).toBeVisible();
     if (testInfo.project.use.hasTouch) {
@@ -361,7 +434,7 @@ test.describe("contextual world authoring certification", () => {
     }
 
     await expect(input).toHaveValue(`@${subjectId} receives `);
-    await expect(stage).toHaveText("object");
+    await expect(stage).toHaveAttribute("data-stage", "object");
   });
 
   test("selected occurrence composition edits the canonical relationship in place", async ({
@@ -370,14 +443,14 @@ test.describe("contextual world authoring certification", () => {
     await page.goto("/");
     const [relationship] = await relationshipFocuses(page);
     if (!relationship)
-      test.skip(true, "Example project exposes no focusable relationship occurrence.");
+      return test.skip(true, "Example project exposes no focusable relationship occurrence.");
 
-    await focusRelationship(page, relationship!);
+    await focusRelationship(page, relationship);
     const composer = await openPersistentComposer(page);
     const input = composer.locator("input");
     const initial = await input.inputValue();
     expect(initial).toContain(
-      `@${relationship!.subjectId} ${relationship!.predicate} @${relationship!.objectId}`,
+      `@${relationship.subjectId} ${relationship.predicate} @${relationship.objectId}`,
     );
 
     const beforeCount = await page.evaluate(
@@ -388,13 +461,15 @@ test.describe("contextual world authoring certification", () => {
           }
         ).TimelineAgentAPI?.getProject?.()?.relationships?.length ?? 0,
     );
-    const replacementPredicate = relationship!.predicate === "reframes" ? "recounts" : "reframes";
+    const replacementPredicate = relationship.predicate === "reframes" ? "recounts" : "reframes";
+    // Editing happens in the one sentence input: rewrite the action in place and commit.
     const edited = initial.replace(
-      `@${relationship!.subjectId} ${relationship!.predicate} @${relationship!.objectId}`,
-      `@${relationship!.subjectId} ${replacementPredicate} @${relationship!.objectId}`,
+      `@${relationship.subjectId} ${relationship.predicate} @${relationship.objectId}`,
+      `@${relationship.subjectId} ${replacementPredicate} @${relationship.objectId}`,
     );
     expect(edited).not.toBe(initial);
     await input.fill(edited);
+    await expect(input).toHaveValue(edited);
     await input.press("Enter");
 
     await expect
@@ -417,7 +492,7 @@ test.describe("contextual world authoring certification", () => {
                 ?.predicate ?? "",
             ),
           };
-        }, relationship!.relationshipId),
+        }, relationship.relationshipId),
       )
       .toEqual({
         count: beforeCount,
@@ -436,60 +511,147 @@ test.describe("contextual world authoring certification", () => {
           }
         ).TimelineAgentAPI?.getProject?.()?.relationships ?? [];
       return relationships.filter((candidate) => String(candidate.id) === relationshipId);
-    }, relationship!.relationshipId);
+    }, relationship.relationshipId);
     expect(persisted).toHaveLength(1);
     expect(String(persisted[0]?.predicate)).toBe(replacementPredicate);
     expect(await input.inputValue()).toContain(
-      `@${relationship!.subjectId} ${replacementPredicate} @${relationship!.objectId}`,
+      `@${relationship.subjectId} ${replacementPredicate} @${relationship.objectId}`,
     );
   });
 
-  test("strict project validation rejects divergent canonical and linked occurrence time", async ({
+  test("double-clicking an inline sentence token selects its exact span for out-of-order edits", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      Boolean(testInfo.project.use.hasTouch),
+      "Section double-click is the fine-pointer affordance; touch keeps native text selection.",
+    );
+    await page.goto("/");
+    const composer = await openPersistentComposer(page);
+    const input = composer.locator("input");
+    const sentence =
+      "Alice meets Bob at Stockholm on 2026-09-28 [category: Observation, tags: work|urgent]";
+    await input.fill(sentence);
+
+    const selectedText = () =>
+      input.evaluate((field: HTMLInputElement) =>
+        field.value.slice(field.selectionStart ?? 0, field.selectionEnd ?? 0),
+      );
+
+    await selectSentenceSection(page, composer, "predicate");
+    await expect(input).toBeFocused();
+    await expect.poll(selectedText).toBe("meets");
+
+    // Replace the selected action with another offered action from the live suggestions.
+    const alternative = composer
+      .getByRole("option")
+      .filter({ has: page.locator(".option-label").filter({ hasNotText: /^meets$/ }) })
+      .first();
+    await expect(alternative).toBeVisible();
+    const action = ((await alternative.locator(".option-label").textContent()) ?? "").trim();
+    expect(action).not.toBe("");
+    await alternative.click();
+    await expect(input).toHaveValue(
+      `Alice ${action} Bob at Stockholm on 2026-09-28 [category: Observation, tags: work|urgent]`,
+    );
+
+    await selectSentenceSection(page, composer, "tag", 1);
+    await expect.poll(selectedText).toBe("urgent");
+    await page.keyboard.type("travel");
+    await expect(input).toHaveValue(
+      `Alice ${action} Bob at Stockholm on 2026-09-28 [category: Observation, tags: work|travel]`,
+    );
+
+    await selectSentenceSection(page, composer, "category");
+    await expect.poll(selectedText).toBe("Observation");
+    await page.keyboard.type("Incident");
+    await expect(input).toHaveValue(
+      `Alice ${action} Bob at Stockholm on 2026-09-28 [category: Incident, tags: work|travel]`,
+    );
+
+    const geometry = await composer.evaluate((host) => {
+      const root = host.shadowRoot;
+      const panel = root?.querySelector<HTMLElement>(".completion-panel");
+      const option = root?.querySelector<HTMLElement>(".option");
+      if (!panel) return null;
+      const box = panel.getBoundingClientRect();
+      return {
+        left: box.left,
+        right: box.right,
+        top: box.top,
+        bottom: box.bottom,
+        optionHeight: option?.getBoundingClientRect().height ?? 44,
+        documentWidth: document.documentElement.scrollWidth,
+        documentHeight: document.documentElement.scrollHeight,
+      };
+    });
+    const viewport = page.viewportSize();
+    if (!viewport || !geometry) throw new Error("Composer responsive geometry is unavailable.");
+    expect(geometry.left).toBeGreaterThanOrEqual(-1);
+    expect(geometry.right).toBeLessThanOrEqual(viewport.width + 1);
+    expect(geometry.top).toBeGreaterThanOrEqual(-1);
+    expect(geometry.bottom).toBeLessThanOrEqual(viewport.height + 1);
+    expect(geometry.optionHeight).toBeGreaterThanOrEqual(43);
+    expect(geometry.documentWidth).toBeLessThanOrEqual(viewport.width + 2);
+    expect(geometry.documentHeight).toBeLessThanOrEqual(viewport.height + 2);
+  });
+
+  test("strict project validation accepts shipped legacy chronology context links", async ({
     page,
   }) => {
     await page.goto("/");
-    const validation = await page.evaluate(() => {
+    const result = await page.evaluate(() => {
       const api = (
         window as typeof window & {
           TimelineAgentAPI?: {
-            getProject?: () => any;
-            validateProject?: (project: any) => {
+            validateProject?: (project: ProjectSnapshot) => {
               valid?: boolean;
               errors?: string[];
             };
           };
+          TimelineSampleCase?: ProjectSnapshot;
         }
       ).TimelineAgentAPI;
-      const project = api?.getProject?.();
-      if (!project || !api?.validateProject) return null;
+      const sample = structuredClone(
+        (window as typeof window & { TimelineSampleCase?: ProjectSnapshot }).TimelineSampleCase,
+      );
+      if (!sample || !api?.validateProject) return null;
 
-      const items = Array.isArray(project.items) ? project.items : [];
-      const relationship = (project.relationships ?? []).find((candidate: any) => {
-        const ids = Array.isArray(candidate.itemIds) ? candidate.itemIds.map(String) : [];
-        if (ids.length !== 1 || !candidate.time || candidate.time.end) return false;
-        const item = items.find((entry: any) => String(entry.id) === ids[0]);
-        return item?.kind === "event" && Boolean(item?.time?.start?.value);
-      });
-      if (!relationship) return null;
-      const item = items.find((entry: any) => String(entry.id) === String(relationship.itemIds[0]));
-      if (!item) return null;
-
-      item.start = "2099-01-16";
-      item.time = {
-        ...structuredClone(item.time),
-        start: {
-          ...structuredClone(item.time.start),
-          value: "2099-01-16",
-        },
+      type TimedRecord = {
+        id?: unknown;
+        time?: { start?: { value?: unknown }; end?: { value?: unknown } };
       };
-      return api.validateProject(project);
-    });
-    test.skip(!validation, "Example project needs an event-backed relationship.");
+      const itemsById = new Map<string, TimedRecord>(
+        (Array.isArray(sample.items) ? (sample.items as TimedRecord[]) : []).map((item) => [
+          String(item.id),
+          item,
+        ]),
+      );
+      let divergentContextLinks = 0;
+      for (const relationship of Array.isArray(sample.relationships) ? sample.relationships : []) {
+        if (!relationship?.time || !Array.isArray(relationship.itemIds)) continue;
+        for (const itemId of relationship.itemIds) {
+          const item = itemsById.get(String(itemId));
+          if (!item?.time) continue;
+          const relationshipStart = relationship.time?.start?.value ?? null;
+          const relationshipEnd = relationship.time?.end?.value ?? null;
+          const itemStart = item.time?.start?.value ?? null;
+          const itemEnd = item.time?.end?.value ?? null;
+          if (relationshipStart !== itemStart || relationshipEnd !== itemEnd) {
+            divergentContextLinks += 1;
+          }
+        }
+      }
 
-    expect(validation!.valid).toBe(false);
-    expect(validation!.errors?.join("\n")).toMatch(
-      /Canonical occurrence time and its linked projections must agree/i,
-    );
+      return {
+        divergentContextLinks,
+        validation: api.validateProject(sample),
+      };
+    });
+    expect(result).not.toBeNull();
+    if (!result) return;
+    expect(result.divergentContextLinks).toBeGreaterThan(0);
+    expect(result.validation.valid, result.validation.errors?.join("\n")).toBe(true);
   });
 
   test("material occurrence edits surface semantic-support review and invalidate confidence", async ({
@@ -498,35 +660,35 @@ test.describe("contextual world authoring certification", () => {
     await page.goto("/");
     const [relationship] = await relationshipFocuses(page);
     if (!relationship)
-      test.skip(true, "Example project exposes no focusable relationship occurrence.");
+      return test.skip(true, "Example project exposes no focusable relationship occurrence.");
 
     await page.evaluate((relationshipId) => {
       const api = (
         window as typeof window & {
           TimelineAgentAPI?: {
-            getProject?: () => any;
-            replaceProject?: (project: any) => unknown;
+            getProject?: () => ProjectSnapshot;
+            replaceProject?: (project: ProjectSnapshot) => unknown;
           };
         }
       ).TimelineAgentAPI;
       const project = api?.getProject?.();
       if (!project || !api?.replaceProject) throw new Error("Timeline agent API is unavailable.");
       const candidate = (project.relationships ?? []).find(
-        (entry: any) => String(entry.id) === relationshipId,
+        (entry: ProjectRecord) => String(entry.id) === relationshipId,
       );
       if (!candidate) throw new Error("Relationship fixture disappeared.");
       candidate.confidence = 0.91;
       api.replaceProject(project);
-    }, relationship!.relationshipId);
+    }, relationship.relationshipId);
 
-    await focusRelationship(page, relationship!);
+    await focusRelationship(page, relationship);
     const composer = await openPersistentComposer(page);
     const input = composer.locator("input");
     const initial = await input.inputValue();
-    const replacementPredicate = relationship!.predicate === "reframes" ? "recounts" : "reframes";
+    const replacementPredicate = relationship.predicate === "reframes" ? "recounts" : "reframes";
     const edited = initial.replace(
-      `@${relationship!.subjectId} ${relationship!.predicate} @${relationship!.objectId}`,
-      `@${relationship!.subjectId} ${replacementPredicate} @${relationship!.objectId}`,
+      `@${relationship.subjectId} ${relationship.predicate} @${relationship.objectId}`,
+      `@${relationship.subjectId} ${replacementPredicate} @${relationship.objectId}`,
     );
     expect(edited).not.toBe(initial);
 
@@ -541,16 +703,16 @@ test.describe("contextual world authoring certification", () => {
         page.evaluate((relationshipId) => {
           const relationship = (
             window as typeof window & {
-              TimelineAgentAPI?: { getProject?: () => any };
+              TimelineAgentAPI?: { getProject?: () => ProjectSnapshot };
             }
           ).TimelineAgentAPI?.getProject?.()?.relationships?.find(
-            (candidate: any) => String(candidate.id) === relationshipId,
+            (candidate: ProjectRecord) => String(candidate.id) === relationshipId,
           );
           return {
             confidence: relationship?.confidence ?? null,
             review: relationship?.attributes?.semanticReview ?? null,
           };
-        }, relationship!.relationshipId),
+        }, relationship.relationshipId),
       )
       .toEqual({
         confidence: null,
@@ -570,8 +732,8 @@ test.describe("contextual world authoring certification", () => {
       const api = (
         window as typeof window & {
           TimelineAgentAPI?: {
-            getProject?: () => any;
-            replaceProject?: (project: any) => unknown;
+            getProject?: () => ProjectSnapshot;
+            replaceProject?: (project: ProjectSnapshot) => unknown;
           };
         }
       ).TimelineAgentAPI;
@@ -580,19 +742,19 @@ test.describe("contextual world authoring certification", () => {
 
       const items = Array.isArray(project.items) ? project.items : [];
       const relationships = Array.isArray(project.relationships) ? project.relationships : [];
-      const relationship = relationships.find((candidate: any) => {
+      const relationship = relationships.find((candidate: ProjectRecord) => {
         const ids = Array.isArray(candidate.itemIds) ? candidate.itemIds.map(String) : [];
         if (ids.length !== 1 || candidate.time?.end) return false;
-        const item = items.find((entry: any) => String(entry.id) === ids[0]);
+        const item = items.find((entry: ProjectRecord) => String(entry.id) === ids[0]);
         return item?.kind === "event" && Boolean(candidate.time?.start?.value ?? item?.start);
       });
       if (!relationship) return null;
 
       const sourceId = String(relationship.itemIds[0]);
-      const sourceItem = items.find((entry: any) => String(entry.id) === sourceId);
+      const sourceItem = items.find((entry: ProjectRecord) => String(entry.id) === sourceId);
       if (!sourceItem) return null;
       const copyId = `${sourceId}-temporal-projection-test`;
-      project.items = items.filter((entry: any) => String(entry.id) !== copyId);
+      project.items = items.filter((entry: ProjectRecord) => String(entry.id) !== copyId);
       project.items.push({
         ...structuredClone(sourceItem),
         id: copyId,
@@ -613,19 +775,25 @@ test.describe("contextual world authoring certification", () => {
         oldStart: String(relationship.time?.start?.value ?? sourceItem.start),
       };
     });
-    test.skip(!fixture, "Example project needs a simple event-backed relationship.");
+    if (!fixture)
+      return test.skip(true, "Example project needs a simple event-backed relationship.");
 
     await page.evaluate((itemId) => {
-      const timeline = document.querySelector("#timeline-view") as HTMLElement & {
-        focusItem?: (id: string) => void;
-      };
-      timeline.focusItem?.(itemId);
-    }, fixture!.copyId);
+      const root = document.querySelector("#timeline-view");
+      if (!(root instanceof HTMLElement)) throw new Error("Timeline root unavailable.");
+      const view = (
+        globalThis as typeof globalThis & {
+          TimelineView?: { create(root: HTMLElement): { focusItem(id: string): void } };
+        }
+      ).TimelineView?.create(root);
+      if (!view) throw new Error("Timeline controller unavailable.");
+      view.focusItem(itemId);
+    }, fixture.copyId);
 
     await expect
       .poll(async () =>
         page
-          .locator(`.timeline-semantic-occurrence[data-id="${fixture!.copyId}"][data-selected]`)
+          .locator(`.timeline-semantic-occurrence[data-id="${fixture.copyId}"][data-selected]`)
           .count(),
       )
       .toBeGreaterThan(0);
@@ -633,10 +801,10 @@ test.describe("contextual world authoring certification", () => {
     const composer = await openPersistentComposer(page);
     const input = composer.locator("input");
     const initial = await input.inputValue();
-    expect(initial).toContain(` on ${fixture!.oldStart}`);
+    expect(initial).toContain(` on ${fixture.oldStart}`);
 
     const replacementStart = "2099-01-15";
-    const edited = initial.replace(` on ${fixture!.oldStart}`, ` on ${replacementStart}`);
+    const edited = initial.replace(` on ${fixture.oldStart}`, ` on ${replacementStart}`);
     expect(edited).not.toBe(initial);
     await input.fill(edited);
     await input.press("Enter");
@@ -647,17 +815,17 @@ test.describe("contextual world authoring certification", () => {
           ({ relationshipId, itemIds }) => {
             const project = (
               window as typeof window & {
-                TimelineAgentAPI?: { getProject?: () => any };
+                TimelineAgentAPI?: { getProject?: () => ProjectSnapshot };
               }
             ).TimelineAgentAPI?.getProject?.();
             const relationship = (project?.relationships ?? []).find(
-              (candidate: any) => String(candidate.id) === relationshipId,
+              (candidate: ProjectRecord) => String(candidate.id) === relationshipId,
             );
             return {
               relationshipStart: String(relationship?.time?.start?.value ?? ""),
               items: itemIds.map((itemId: string) => {
                 const item = (project?.items ?? []).find(
-                  (candidate: any) => String(candidate.id) === itemId,
+                  (candidate: ProjectRecord) => String(candidate.id) === itemId,
                 );
                 return {
                   id: itemId,
@@ -668,16 +836,16 @@ test.describe("contextual world authoring certification", () => {
             };
           },
           {
-            relationshipId: fixture!.relationshipId,
-            itemIds: [fixture!.sourceId, fixture!.copyId],
+            relationshipId: fixture.relationshipId,
+            itemIds: [fixture.sourceId, fixture.copyId],
           },
         ),
       )
       .toEqual({
         relationshipStart: replacementStart,
         items: [
-          { id: fixture!.sourceId, start: replacementStart, timeStart: replacementStart },
-          { id: fixture!.copyId, start: replacementStart, timeStart: replacementStart },
+          { id: fixture.sourceId, start: replacementStart, timeStart: replacementStart },
+          { id: fixture.copyId, start: replacementStart, timeStart: replacementStart },
         ],
       });
   });
@@ -688,11 +856,13 @@ test.describe("contextual world authoring certification", () => {
     await page.goto("/");
     const relationships = await relationshipFocuses(page);
     test.skip(relationships.length < 2, "Example project needs two focusable relationships.");
-    const first = relationships[0]!;
+    const [first] = relationships;
+    if (!first) return test.skip(true, "Example project needs two focusable relationships.");
     const second = relationships.find(
       (relationship) => relationship.relationshipId !== first.relationshipId,
     );
-    test.skip(!second, "Example project needs two distinct focusable relationships.");
+    if (!second)
+      return test.skip(true, "Example project needs two distinct focusable relationships.");
 
     await focusRelationship(page, first);
     const composer = await openPersistentComposer(page);
@@ -703,7 +873,7 @@ test.describe("contextual world authoring certification", () => {
     await input.press("Escape");
     await expect(composer).not.toHaveAttribute("active", "");
 
-    await focusRelationship(page, second!);
+    await focusRelationship(page, second);
     await openPersistentComposer(page);
 
     await expect(input).toHaveValue(dirty);
@@ -714,7 +884,7 @@ test.describe("contextual world authoring certification", () => {
     await pending.click();
     await expect(input).not.toHaveValue(dirty);
     const adopted = await input.inputValue();
-    expect(adopted).toContain(`@${second!.subjectId} ${second!.predicate} @${second!.objectId}`);
+    expect(adopted).toContain(`@${second.subjectId} ${second.predicate} @${second.objectId}`);
   });
 
   test("canonical World selection propagates to timeline and survives as the composer @id seed", async ({
@@ -787,7 +957,7 @@ test.describe("contextual world authoring certification", () => {
     expect(afterScroll).toEqual(beforeScroll);
   });
 
-  test("live place and time chips are real controls that can pin context before grammar completion", async ({
+  test("live place and time defaults stay visible until the sentence pins its own context", async ({
     page,
   }) => {
     await page.goto("/");
@@ -801,71 +971,43 @@ test.describe("contextual world authoring certification", () => {
       const center = Date.UTC(2026, 8, 28, 12, 0, 0);
       live.setTimelineViewport?.(center - 3_600_000, center + 3_600_000);
     });
-    const place = composer.locator('button.context-chip[data-context-kind="place"]');
-    const time = composer.locator('button.context-chip[data-context-kind="time"]');
+    const livePlace = composer.locator('[data-chip-kind="live-place"]');
+    const liveTime = composer.locator('[data-chip-kind="live-time"]');
+    await expect(livePlace).toBeVisible();
+    await expect(livePlace).toContainText("live place");
+    await expect(liveTime).toBeVisible();
+    await expect(liveTime).toContainText("live time");
 
-    await expect(place).toBeVisible();
-    await expect(time).toBeVisible();
-    await expect(place).toHaveAttribute("data-context-state", "live");
-    await expect(time).toHaveAttribute("data-context-state", "live");
+    const input = composer.locator("input");
+    await input.fill("Alice meets Bob at Stockholm");
+    await expect(livePlace).toHaveCount(0);
+    await expect(liveTime).toBeVisible();
 
-    await place.click();
-    await expect(place).toHaveAttribute("data-context-state", "pinned");
-    await time.click();
-    await expect(time).toHaveAttribute("data-context-state", "pinned");
-
-    await place.focus();
-    await place.press("ArrowRight");
-    await expect(time).toBeFocused();
-    await time.press("ArrowRight");
-    await expect(
-      composer.locator('button.context-chip[data-context-kind="details"]'),
-    ).toBeFocused();
+    await input.fill("Alice meets Bob at Stockholm on 2026-09-28");
+    await expect(livePlace).toHaveCount(0);
+    await expect(liveTime).toHaveCount(0);
   });
 
-  test("visible Save occurrence control commits relationship details without pressing Enter", async ({
+  test("visible Approve control commits an occurrence edit without pressing Enter", async ({
     page,
-  }) => {
+  }, testInfo) => {
     await page.goto("/");
     const [relationship] = await relationshipFocuses(page);
-    test.skip(!relationship, "Example project exposes no focusable relationship occurrence.");
+    if (!relationship)
+      return test.skip(true, "Example project exposes no focusable relationship occurrence.");
 
-    await focusRelationship(page, relationship!);
+    await focusRelationship(page, relationship);
     const composer = await openPersistentComposer(page);
-    await composer.locator('button.context-chip[data-context-kind="details"]').click();
+    const replacementPredicate = await rewriteFocusedPredicate(composer, relationship);
 
-    await composer.getByLabel("Role").fill("composer-recipient");
-    await composer.getByLabel("Confidence · 0–1").fill("0.83");
-    await composer
-      .locator('textarea[placeholder*="evidence-17"]')
-      .fill("source-composer\nevidence-composer");
-
-    const save = composer.getByRole("button", { name: "Save occurrence" });
-    await expect(save).toBeEnabled();
-    await save.click();
+    const approve = composer.getByRole("button", { name: "Approve occurrence" });
+    await expect(approve).toBeVisible();
+    if (testInfo.project.use.hasTouch) await approve.tap();
+    else await approve.click();
 
     await expect
-      .poll(async () =>
-        page.evaluate((relationshipId) => {
-          const relationship = (
-            window as typeof window & {
-              TimelineAgentAPI?: { getProject?: () => any };
-            }
-          ).TimelineAgentAPI?.getProject?.()?.relationships?.find(
-            (candidate: any) => String(candidate.id) === relationshipId,
-          );
-          return {
-            role: relationship?.role ?? null,
-            confidence: relationship?.confidence ?? null,
-            sourceIds: relationship?.sourceIds ?? [],
-          };
-        }, relationship!.relationshipId),
-      )
-      .toEqual({
-        role: "composer-recipient",
-        confidence: 0.83,
-        sourceIds: ["source-composer", "evidence-composer"],
-      });
+      .poll(() => relationshipPredicate(page, relationship.relationshipId))
+      .toBe(replacementPredicate);
   });
 
   test("Ctrl+Enter finalizes the same composer transaction without consuming a suggestion", async ({
@@ -873,83 +1015,41 @@ test.describe("contextual world authoring certification", () => {
   }) => {
     await page.goto("/");
     const [relationship] = await relationshipFocuses(page);
-    test.skip(!relationship, "Example project exposes no focusable relationship occurrence.");
+    if (!relationship)
+      return test.skip(true, "Example project exposes no focusable relationship occurrence.");
 
-    await focusRelationship(page, relationship!);
+    await focusRelationship(page, relationship);
     const composer = await openPersistentComposer(page);
-    await composer.locator('button.context-chip[data-context-kind="details"]').click();
-    await composer.getByLabel("Role").fill("keyboard-recipient");
-
+    const replacementPredicate = await rewriteFocusedPredicate(composer, relationship);
     const input = composer.locator('input[role="combobox"]');
-    await input.focus();
+    const edited = await input.inputValue();
+    // Put the caret inside the action so a suggestion is highlighted; Ctrl+Enter must not apply it.
+    await input.evaluate((field: HTMLInputElement, text: string) => {
+      const offset = field.value.indexOf(text) + 2;
+      field.setSelectionRange(offset, offset);
+      field.dispatchEvent(new Event("select", { bubbles: true }));
+    }, replacementPredicate);
+    await expect(composer.getByRole("option").first()).toBeVisible();
     await input.press("Control+Enter");
 
     await expect
-      .poll(async () =>
-        page.evaluate((relationshipId) => {
-          const relationship = (
-            window as typeof window & {
-              TimelineAgentAPI?: { getProject?: () => any };
-            }
-          ).TimelineAgentAPI?.getProject?.()?.relationships?.find(
-            (candidate: any) => String(candidate.id) === relationshipId,
-          );
-          return relationship?.role ?? null;
-        }, relationship!.relationshipId),
-      )
-      .toBe("keyboard-recipient");
+      .poll(() => relationshipPredicate(page, relationship.relationshipId))
+      .toBe(replacementPredicate);
+    await expect(input).toHaveValue(edited);
   });
 
   test("Details bridges an existing occurrence into the full edge editor", async ({ page }) => {
     await page.goto("/");
     const [relationship] = await relationshipFocuses(page);
-    test.skip(!relationship, "Example project exposes no focusable relationship occurrence.");
+    if (!relationship)
+      return test.skip(true, "Example project exposes no focusable relationship occurrence.");
 
-    await focusRelationship(page, relationship!);
+    await focusRelationship(page, relationship);
     const composer = await openPersistentComposer(page);
-    await composer.locator('button.context-chip[data-context-kind="details"]').click();
-    await composer.getByLabel("Role").fill("bridge-recipient");
-    await composer.getByRole("button", { name: "Save and open full edge editor" }).click();
+    await composer.locator('button[data-chip-kind="details"]').click();
 
-    await expect(page.locator("#graph-edge-id")).toHaveValue(relationship!.relationshipId);
-    await expect(page.locator("#graph-edge-predicate")).toHaveValue(relationship!.predicate);
-    await expect(page.locator("#graph-edge-role")).toHaveValue("bridge-recipient");
-    await expect(composer).not.toHaveAttribute("active", "");
-  });
-
-  test("mobile touch can activate semantic chips and finalize through the visible control", async ({
-    page,
-  }, testInfo) => {
-    test.skip(
-      testInfo.project.name !== "Mobile Chrome",
-      "Touch parity is certified on Mobile Chrome.",
-    );
-    await page.goto("/");
-    const [relationship] = await relationshipFocuses(page);
-    test.skip(!relationship, "Example project exposes no focusable relationship occurrence.");
-
-    await focusRelationship(page, relationship!);
-    const composer = await openPersistentComposer(page);
-    const details = composer.locator('button.context-chip[data-context-kind="details"]');
-    await details.tap();
-    await composer.getByLabel("Role").fill("touch-recipient");
-
-    const save = composer.getByRole("button", { name: "Save occurrence" });
-    await save.tap();
-    await expect
-      .poll(async () =>
-        page.evaluate((relationshipId) => {
-          const relationship = (
-            window as typeof window & {
-              TimelineAgentAPI?: { getProject?: () => any };
-            }
-          ).TimelineAgentAPI?.getProject?.()?.relationships?.find(
-            (candidate: any) => String(candidate.id) === relationshipId,
-          );
-          return relationship?.role ?? null;
-        }, relationship!.relationshipId),
-      )
-      .toBe("touch-recipient");
+    await expect(page.locator("#graph-edge-id")).toHaveValue(relationship.relationshipId);
+    await expect(page.locator("#graph-edge-predicate")).toHaveValue(relationship.predicate);
   });
 
   test("suggestion clicks compose subject action and object without erasing accepted components", async ({
@@ -1016,13 +1116,17 @@ test.describe("contextual world authoring certification", () => {
         const footer = document.querySelector(".app-tool-dock.app-footer-bar");
         if (!(composer instanceof HTMLElement) || !(footer instanceof HTMLElement)) return null;
         const composerRect = composer.getBoundingClientRect();
+        // On narrow screens the footer scrolls one viewport-wide input lane into view; the
+        // lane, not the whole composer row (close/approve sit beside it), must fit.
+        const lane = composer.shadowRoot?.querySelector<HTMLElement>(".input-shell");
+        const laneRect = lane?.getBoundingClientRect() ?? composerRect;
         const footerRect = footer.getBoundingClientRect();
         const visualWidth = visual?.width ?? window.innerWidth;
         const visualHeight = visual?.height ?? window.innerHeight;
         return {
           composer: {
-            left: composerRect.left,
-            right: composerRect.right,
+            left: laneRect.left,
+            right: laneRect.right,
             top: composerRect.top,
             bottom: composerRect.bottom,
           },
@@ -1055,11 +1159,13 @@ test.describe("contextual world authoring certification", () => {
         visualContainment.visualHeight + 1,
       );
       expect(visualContainment.shell, viewport.name).not.toBeNull();
-      expect(visualContainment.shell!.top, viewport.name).toBeGreaterThanOrEqual(-1);
-      expect(visualContainment.shell!.bottom, viewport.name).toBeGreaterThanOrEqual(
+      const shell = visualContainment.shell;
+      if (!shell) continue;
+      expect(shell.top, viewport.name).toBeGreaterThanOrEqual(-1);
+      expect(shell.bottom, viewport.name).toBeGreaterThanOrEqual(
         visualContainment.visualHeight - 1,
       );
-      expect(visualContainment.shell!.height, viewport.name).toBeGreaterThanOrEqual(
+      expect(shell.height, viewport.name).toBeGreaterThanOrEqual(
         visualContainment.visualHeight - 1,
       );
       expect(visualContainment.scrollWidth, viewport.name).toBeLessThanOrEqual(viewport.width + 2);
@@ -1069,7 +1175,15 @@ test.describe("contextual world authoring certification", () => {
 
       await input.press("Escape");
       await expect(composer).not.toHaveAttribute("active", "");
-      await expect(page.locator(".temporal-graph-canvas")).toBeFocused();
+      // Pointer authoring returns focus to the World element that was pressed (deck's canvas
+      // inside the surface); keyboard authoring restores the surface itself (see above).
+      await expect
+        .poll(() =>
+          page
+            .locator(".temporal-graph-canvas")
+            .evaluate((world) => world.contains(document.activeElement)),
+        )
+        .toBe(true);
 
       // Start the next orientation from a settled, closed authoring state.
       await page.goto("/");
