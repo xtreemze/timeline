@@ -173,8 +173,8 @@ test("Lūm LSP resolves story occurrenceIds to relationship-derived occurrences"
   const { server, messages } = createHarness(storySource);
   const referencePosition = positionOf(
     storySource,
-    '"occurrenceIds": [\n        "rel-1"',
-    '"occurrenceIds": [\n        "'.length + 2,
+    '"occurrenceIds": [\n          "rel-1"',
+    '"occurrenceIds": [\n          "'.length + 2,
   );
 
   server.handle({
@@ -192,14 +192,14 @@ test("Lūm LSP resolves story occurrenceIds to relationship-derived occurrences"
   assert.equal(definition.range.start.line, relationshipDeclaration.line);
 
   const completionSource = storySource.replace(
-    '"occurrenceIds": [\n        "rel-1"\n      ]',
-    '"occurrenceIds": [\n        ""\n      ]',
+    '"occurrenceIds": [\n          "rel-1"\n        ]',
+    '"occurrenceIds": [\n          ""\n        ]',
   );
   const completionHarness = createHarness(completionSource);
   const completionPosition = positionOf(
     completionSource,
-    '"occurrenceIds": [\n        ""',
-    '"occurrenceIds": [\n        "'.length,
+    '"occurrenceIds": [\n          ""',
+    '"occurrenceIds": [\n          "'.length,
   );
   completionHarness.server.handle({
     jsonrpc: "2.0",
