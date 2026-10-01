@@ -221,6 +221,7 @@ test("occurrence deck bounds hot-path DOM work and releases transient state", as
   assert.match(source, /if \(framesChanged\) \{[\s\S]*releaseUnusedBlobUrls\(nextFrames\)/);
   assert.match(source, /imageTransformFrame = requestAnimationFrame/);
   assert.match(source, /cancelAnimationFrame\(this\.imageTransformFrame\)/);
+  assert.match(source, /connectedCallback\(\): void \{[\s\S]*frame\.blob[\s\S]*this\.requestUpdate\(\)/);
   assert.match(source, /this\.resetGestureState\(\);[\s\S]*this\.releaseBlobUrls\(\);/);
   assert.match(source, /gestureViewportRect = viewport\.getBoundingClientRect\(\)/);
   assert.match(source, /previous\.x = event\.clientX;[\s\S]*previous\.y = event\.clientY;/);
