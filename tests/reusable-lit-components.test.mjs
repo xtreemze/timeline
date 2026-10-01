@@ -82,5 +82,5 @@ test("media viewer owns image navigation without occurrence or timeline dependen
   assert.match(source, /@dblclick/);
   assert.match(source, /media-viewer-zoom/);
   assert.match(source, /\[0\.5, 0\.75, 1, 1\.25, 1\.5, 2, 3\]/);
-  assert.doesNotMatch(source, /occurrence|timeline|world|src\/application/);
+  assert.doesNotMatch(source, /from "\.\.\/|occurrence-media|timeline-view|world-graph|src\/application/);
 });
