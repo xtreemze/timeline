@@ -436,7 +436,7 @@ export class WorldProjectionView {
   #temporalIndex: TemporalOccurrenceIndex<CanonicalProjectedOccurrence> =
     createTemporalOccurrenceIndex<CanonicalProjectedOccurrence>([]);
   #timedById: ReadonlyMap<string, CanonicalProjectedOccurrence> = new Map();
-  #timelessIds: readonly RelationshipId[] = Object.freeze([]);
+  #timelessIds: readonly CanonicalOccurrenceId[] = Object.freeze([]);
   #viewport: WorldTemporalWindow | null = null;
   #sharedActiveIds: readonly string[] | null = null;
   #focusId: string | null = null;
@@ -611,15 +611,26 @@ export class WorldProjectionView {
         occurrence.relationshipIds.map((id) => String(id)),
       ),
     );
+    const projectedIds = new Set(projected.map((occurrence) => String(occurrence.id)));
+    const timelessStandaloneIds = this.#occurrences
+      .filter(
+        (occurrence) =>
+          !projectedIds.has(String(occurrence.id)) &&
+          occurrence.time === null &&
+          !occurrence.relationshipIds.some((id) => projectedIds.has(String(id))),
+      )
+      .map((occurrence) => occurrence.id);
     this.#timelessIds = Object.freeze(
-      this.#relationships
-        .filter(
-          (relationship) =>
-            relationship.time === null &&
-            !groupedRelationshipIds.has(String(relationship.id)),
-        )
-        .map((relationship) => relationship.id)
-        .sort((left, right) => String(left).localeCompare(String(right))),
+      [
+        ...timelessStandaloneIds,
+        ...this.#relationships
+          .filter(
+            (relationship) =>
+              relationship.time === null &&
+              !groupedRelationshipIds.has(String(relationship.id)),
+          )
+          .map((relationship) => relationship.id),
+      ].sort((left, right) => String(left).localeCompare(String(right))),
     );
     this.#render();
   }
@@ -725,8 +736,13 @@ export class WorldProjectionView {
     const contextualIds = this.#focusId
       ? this.#relationshipIdsByItem.get(this.#focusId)
       : undefined;
+    const contextualOccurrence = this.#focusId
+      ? this.#occurrenceByStringId.get(this.#focusId)
+      : undefined;
     const activeIds: readonly CanonicalOccurrenceId[] = contextualIds?.length
-      ? Object.freeze(contextualIds.filter((id) => this.#relationshipById.has(id)))
+      ? contextualOccurrence
+        ? Object.freeze([contextualOccurrence.id])
+        : Object.freeze(contextualIds.filter((id) => this.#relationshipById.has(id)))
       : base.activeIds;
     const weights = contextualIds?.length
       ? new Map(activeIds.map((id) => [id, base.weights.get(id) ?? 1] as const))
