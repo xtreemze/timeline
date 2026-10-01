@@ -40,6 +40,24 @@ test("tags normalize icon and hue while retaining semantic labels", () => {
   assert.equal(tags[1].hue, 330);
 });
 
+test("item Edit exposes hue controls for every supported tag and assigned category", async () => {
+  const [html, app] = await Promise.all([
+    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
+  ]);
+  assert.equal((html.match(/data-tag-slot=/g) ?? []).length, 6);
+  assert.equal((html.match(/id="item-tag-\d-hue-number"/g) ?? []).length, 6);
+  assert.match(html, /id="item-secondary-category-hues"/);
+  assert.match(app, /fillTagForm\(item\.tags \|\| \[\]\)/);
+  assert.match(app, /fillItemCategoryHue\(item\.categoryId\)/);
+  assert.match(app, /fillSecondaryItemCategoryHues\(item\)/);
+  assert.match(app, /applyItemCategoryHuesToDraft\(draft, item\)/);
+  assert.match(
+    app,
+    /timelineItemIdForRelationshipSelection\([\s\S]*selection\.itemId \?\? null/,
+  );
+});
+
 test("form and focus markup use one range input and no small popover detail", async () => {
   const html = await readFile(new URL("../site/index.html", import.meta.url), "utf8");
   assert.match(html, /id="item-date-range"/);
@@ -304,7 +322,7 @@ test("utility surfaces stay coordinated with persistent View controls and one Ed
   assert.doesNotMatch(app, /viewControlsToggle|closeViewControls|viewControlsAreOpen/);
   assert.match(
     app,
-    /editorToggle\?\.addEventListener\("click"[\s\S]*focusedId[\s\S]*beginItemEdit\(focusedEditableId\)/,
+    /editorToggle\?\.addEventListener\("click"[\s\S]*editableItemIdFromSelection\(\)[\s\S]*beginItemEdit\(editableItemId\)/,
   );
   assert.match(app, /timelinefocuschange[\s\S]*closeLargeUtilitySurfaces\("focus"\)/);
   assert.match(app, /function syncTimelineContextControls\(\)/);

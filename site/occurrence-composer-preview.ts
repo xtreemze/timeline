@@ -1,12 +1,19 @@
+import {
+  mergeOccurrenceNodeSemanticStyle,
+  occurrenceNodeSemanticStyle,
+  type OccurrenceNodeSemanticStyle,
+} from "../src/presentation/occurrence-semantic-color.ts";
 import { normalizeSemanticIconName } from "../src/presentation/semantic-icons.ts";
 import { worldNodeStyle, type WorldGraphPalette } from "../src/layout/world-graph-style.ts";
 import { worldNodeMarker } from "./world/world-node-marker.ts";
 import {
   composerEditableSections,
   parseOccurrenceSentence,
+  type ComposerCategoryOption,
   type ComposerEntityOption,
   type ComposerPlaceOption,
   type ComposerSuggestion,
+  type ComposerTagOption,
 } from "./occurrence-composer-model.ts";
 
 export interface ComposerPreviewNode {
@@ -14,6 +21,7 @@ export interface ComposerPreviewNode {
   readonly icon: string;
   readonly entityId?: string;
   readonly style?: Readonly<Record<string, string>>;
+  readonly semanticStyle?: OccurrenceNodeSemanticStyle;
 }
 
 /** Share the renderer's marker geometry, authored styling and semantic glyph. */
@@ -26,13 +34,21 @@ export function composerWorldNodeMarker(
     node.entityId ? candidate.id === node.entityId : candidate.name === node.label,
   );
   const authoredStyle = entity?.attributes?.style;
-  const style = typeof authoredStyle === "object" && authoredStyle !== null && !Array.isArray(authoredStyle)
-    ? authoredStyle as Readonly<Record<string, unknown>>
-    : {};
-  return worldNodeMarker(worldNodeStyle({
-    type: entity?.type ?? "person",
-    attributes: { style: { ...style, ...node.style, icon: node.icon } },
-  }, palette));
+  const entityStyle =
+    typeof authoredStyle === "object" && authoredStyle !== null && !Array.isArray(authoredStyle)
+      ? (authoredStyle as Readonly<Record<string, unknown>>)
+      : {};
+  const explicitStyle = Object.freeze({ ...entityStyle, ...node.style, icon: node.icon });
+  const style = mergeOccurrenceNodeSemanticStyle(explicitStyle, node.semanticStyle);
+  return worldNodeMarker(
+    worldNodeStyle(
+      {
+        type: entity?.type ?? "person",
+        attributes: { style },
+      },
+      palette,
+    ),
+  );
 }
 
 export interface ComposerPreview {
@@ -40,6 +56,7 @@ export interface ComposerPreview {
   readonly edge: { readonly label: string } | null;
   readonly object: ComposerPreviewNode | null;
   readonly category: string | null;
+  readonly categories: readonly string[];
   readonly tags: readonly string[];
   readonly place: {
     readonly label: string;
@@ -82,6 +99,8 @@ export function projectComposerPreview(
   entities: readonly ComposerEntityOption[],
   suggestion?: ComposerSuggestion | null,
   places: readonly ComposerPlaceOption[] = [],
+  categories: readonly ComposerCategoryOption[] = [],
+  tags: readonly (string | ComposerTagOption)[] = [],
 ): ComposerPreview {
   const parsed = parseOccurrenceSentence(input);
   const iconSuggestion =
@@ -102,6 +121,18 @@ export function projectComposerPreview(
           `@${candidate.id}` === parsed.place?.name,
       )
     : null;
+  const previewCategories = parsed.options.categories.length
+    ? [...parsed.options.categories]
+    : sections.filter((section) => section.kind === "category").map((section) => section.text);
+  if (suggestion?.kind === "category") {
+    const current = sections.findLast((section) => section.kind === "category");
+    if (current && previewCategories.length) {
+      previewCategories[previewCategories.length - 1] = suggestion.insertText;
+    } else {
+      previewCategories.push(suggestion.insertText);
+    }
+  }
+
   const previewTags = parsed.options.tags.length
     ? [...parsed.options.tags]
     : sections.filter((section) => section.kind === "tag").map((section) => section.text);
@@ -110,23 +141,50 @@ export function projectComposerPreview(
     if (current && previewTags.length) previewTags[previewTags.length - 1] = suggestion.insertText;
     else previewTags.push(suggestion.insertText);
   }
+
+  const categoryColors = previewCategories.map((name) => {
+    if (suggestion?.kind === "category" && suggestion.insertText === name && suggestion.color) {
+      return suggestion.color;
+    }
+    return categories.find(
+      (category) => category.name.toLocaleLowerCase() === name.toLocaleLowerCase(),
+    )?.color;
+  });
+  const tagColors = previewTags.map((label) => {
+    if (suggestion?.kind === "tag" && suggestion.insertText === label && suggestion.color) {
+      return suggestion.color;
+    }
+    const tag = tags
+      .map((candidate): ComposerTagOption =>
+        typeof candidate === "string" ? { label: candidate } : candidate,
+      )
+      .find((candidate) => candidate.label.toLocaleLowerCase() === label.toLocaleLowerCase());
+    return tag?.color;
+  });
+  const semanticStyle = occurrenceNodeSemanticStyle(categoryColors, tagColors);
+  const decorate = (node: ComposerPreviewNode | null): ComposerPreviewNode | null =>
+    node && semanticStyle ? Object.freeze({ ...node, semanticStyle }) : node;
+
   return Object.freeze({
-    subject: previewNode(
-      parsed.subject?.name ?? sections.find((section) => section.kind === "subject")?.text,
-      parsed.subject?.properties,
-      entities,
-      previewSubjectIcon,
+    subject: decorate(
+      previewNode(
+        parsed.subject?.name ?? sections.find((section) => section.kind === "subject")?.text,
+        parsed.subject?.properties,
+        entities,
+        previewSubjectIcon,
+      ),
     ),
     edge: parsed.predicate ? Object.freeze({ label: parsed.predicate }) : null,
-    object: previewNode(
-      parsed.object?.name ?? sections.find((section) => section.kind === "object")?.text,
-      parsed.object?.properties,
-      entities,
-      previewObjectIcon,
+    object: decorate(
+      previewNode(
+        parsed.object?.name ?? sections.find((section) => section.kind === "object")?.text,
+        parsed.object?.properties,
+        entities,
+        previewObjectIcon,
+      ),
     ),
-    category: suggestion?.kind === "category"
-      ? suggestion.insertText
-      : parsed.options.category ?? sections.find((section) => section.kind === "category")?.text ?? null,
+    category: previewCategories[0] ?? null,
+    categories: Object.freeze(previewCategories),
     tags: Object.freeze(previewTags),
     place: parsed.place
       ? Object.freeze({

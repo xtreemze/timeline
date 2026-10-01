@@ -11,7 +11,6 @@ test("composer keeps active suggestions visible across keyboard, wheel, and rese
   const composer = page.locator("#occurrence-composer");
   await composer.locator(".compact").click();
   const input = composer.locator('input[role="combobox"]');
-  const panel = composer.locator(".completion-panel");
   const listbox = composer.locator(".listbox");
   const options = composer.locator(".option");
 
@@ -99,6 +98,7 @@ test("composer keeps active suggestions visible across keyboard, wheel, and rese
     `occurrence-composer-option-${lastIndex}`,
   );
 
+  await input.fill("reset");
   await input.fill("");
   await expect.poll(async () => options.count()).toBeGreaterThan(4);
   await expect(input).toHaveAttribute("aria-activedescendant", "occurrence-composer-option-0");
@@ -237,7 +237,7 @@ test("selecting a World edge selects its timeline event and opens that event con
   );
   await expect(composer.locator("luum-occurrence-deck.composer-context-deck")).toHaveAttribute(
     "data-frame-count",
-    "2",
+    "3",
   );
   await expect(
     page.locator('.timeline-semantic-occurrence[data-id="pigs-brick-build"]'),
@@ -322,7 +322,7 @@ test("mobile composer fills one viewport lane, follows pan, and snaps centered",
     // sampling the in-progress pan geometry, then restore the authored rule.
     element.style.scrollSnapType = "none";
     const available = element.scrollWidth - element.clientWidth;
-    element.scrollLeft = Math.min(96, Math.max(1, available));
+    element.scrollLeft = Math.min(available, element.scrollLeft + Math.min(96, available));
   });
   await expect
     .poll(async () => (await geometry()).shellLeft)
@@ -342,7 +342,10 @@ test("mobile composer fills one viewport lane, follows pan, and snaps centered",
   await expect
     .poll(async () => {
       const centered = await geometry();
-      return Math.abs(centered.shellCenter - centered.viewportCenter);
+      return Math.max(
+        Math.abs(centered.shellCenter - centered.viewportCenter),
+        Math.abs(centered.panelCenter - centered.viewportCenter),
+      );
     })
     .toBeLessThanOrEqual(2);
 
@@ -878,6 +881,8 @@ test("IME composition cannot accept or commit investigative text before composit
   await input.press("Enter");
   await expect(input).toHaveValue("man? calls @alice");
   await expect(composer.locator("#occurrence-investigation-panel")).toHaveCount(0);
+  await expect(input).toHaveAttribute("aria-expanded", "false");
+  await expect(input).not.toHaveAttribute("aria-controls", "occurrence-investigation-panel");
 
   await input.evaluate((element: HTMLInputElement) => {
     element.dispatchEvent(new CompositionEvent("compositionend", {

@@ -766,15 +766,51 @@ geolocation {
 .tag-editor-row .hue-field {
   grid-column: 1 / -1;
 }
+.hue-control-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 4.6rem auto;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+.item-secondary-category-hues {
+  display: grid;
+  gap: 0.55rem;
+}
+.item-secondary-category-hues[hidden] {
+  display: none;
+}
+.item-category-hue-row {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.55rem;
+  background: var(--paper);
+}
+.item-category-hue-row input[type="range"] {
+  --tag-hue: var(--category-hue, 220);
+}
+.item-category-hue-row > strong {
+  font-size: 0.72rem;
+}
 .hue-field input[type="range"] {
   width: 100%;
+  min-width: 0;
   accent-color: light-dark(
     hsl(var(--tag-hue, 30) 62% 38%),
     hsl(var(--tag-hue, 30) 66% 68%)
   );
 }
-.category-hue-field input[type="range"] {
+.category-hue-field input[type="range"],
+.item-category-hue-field input[type="range"] {
   --tag-hue: var(--category-hue, 220);
+}
+.hue-number {
+  width: 100%;
+  min-width: 0;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
 }
 .hue-field output {
   color: var(--muted);
