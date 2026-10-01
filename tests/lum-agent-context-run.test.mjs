@@ -206,13 +206,16 @@ test("selector parser supports story occurrence entity depth and ids with strict
   assert.throws(() => parseLumAgentSelectors(["--entity", "alice", "--depth", "9"]), /depth/i);
 });
 
-test("missing selected or dependent references are explicit rather than invented", () => {
+test("invalid canonical references fail before agent context and selectors never invent records", () => {
   const parsed = JSON.parse(fixtureProject());
   parsed.project.occurrences[0].sourceIds = ["missing-source"];
-  const context = buildLumAgentContext(formatProjectInterchange(JSON.stringify(parsed)), {
-    occurrenceIds: ["o1"],
-  });
-  assert.ok(context.unresolvedReferences.some((entry) => entry.id === "missing-source"));
+  assert.throws(
+    () =>
+      buildLumAgentContext(formatProjectInterchange(JSON.stringify(parsed)), {
+        occurrenceIds: ["o1"],
+      }),
+    /invalid Lūm project/i,
+  );
   assert.throws(
     () => buildLumAgentContext(fixtureProject(), { occurrenceIds: ["missing-occurrence"] }),
     /Unknown occurrence/i,
