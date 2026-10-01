@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { suggestSemanticIconForPlace } from "../src/presentation/semantic-icon-inference.ts";
+import {
+  canonicalSemanticHueColor,
+  semanticHue,
+} from "../src/presentation/semantic-color.ts";
 
 await import("../site/temporal-standards-shim.ts");
 await import("../site/event-presentation-shim.ts");
@@ -43,6 +48,90 @@ test("sample is a nine-story fictional anthology with strict logical consistency
     sample.extensions?.narrative?.anthology?.storyIds,
     sample.stories.map((story) => story.id),
   );
+});
+
+test("example stories author semantic hue without owning display contrast", async () => {
+  const expectedCategoryHues = new Map([
+    ["context", 221],
+    ["movement", 195],
+    ["creation", 22],
+    ["conflict", 4],
+    ["decision", 252],
+    ["discovery", 221],
+    ["relationship", 155],
+    ["state-change", 327],
+    ["deception", 271],
+    ["exchange", 35],
+    ["obligation", 175],
+  ]);
+
+  for (const category of sample.categories) {
+    const expectedHue = expectedCategoryHues.get(category.id);
+    assert.notEqual(expectedHue, undefined, `${category.id}: documented example hue`);
+    const actualHue = semanticHue(category.color, expectedHue);
+    const delta = Math.abs(actualHue - expectedHue) % 360;
+    assert.ok(Math.min(delta, 360 - delta) < 1.5, `${category.id}: preserve legacy hue`);
+    assert.equal(
+      category.color,
+      canonicalSemanticHueColor(actualHue),
+      `${category.id}: category stores only the canonical hue carrier`,
+    );
+    assert.notEqual(category.color.toLowerCase(), "#000000");
+    assert.notEqual(category.color.toLowerCase(), "#ffffff");
+  }
+
+  for (const item of sample.items) {
+    for (const tag of item.tags ?? []) {
+      if (typeof tag === "string") continue;
+      assert.ok(Number.isFinite(tag.hue), `${item.id}: tag hue`);
+      assert.ok(tag.hue >= 0 && tag.hue < 360, `${item.id}: normalized tag hue`);
+      assert.equal("color" in tag, false, `${item.id}: tags must not author display color`);
+      assert.equal("saturation" in tag, false, `${item.id}: tags must not author saturation`);
+      assert.equal("lightness" in tag, false, `${item.id}: tags must not author lightness`);
+    }
+  }
+
+  const exactColorKeys = new Set([
+    "color",
+    "fillColor",
+    "backgroundColor",
+    "borderColor",
+    "stroke",
+    "strokeColor",
+    "lineColor",
+    "categoryColor",
+  ]);
+  const assertNoExactStyleColor = (style, label) => {
+    if (!style || typeof style !== "object") return;
+    for (const key of Object.keys(style)) {
+      assert.equal(exactColorKeys.has(key), false, `${label}: ${key} must not author contrast`);
+    }
+  };
+
+  for (const entity of sample.entities) {
+    assertNoExactStyleColor(entity.attributes?.style, entity.id);
+  }
+  for (const relationship of sample.relationships) {
+    assertNoExactStyleColor(relationship.attributes?.style, relationship.id);
+  }
+  for (const place of sample.places) {
+    assertNoExactStyleColor(place.style, place.id);
+    assertNoExactStyleColor(place.mapStyle?.marker, `${place.id}: marker`);
+    assertNoExactStyleColor(place.mapStyle?.path, `${place.id}: path`);
+    assertNoExactStyleColor(place.mapStyle?.area, `${place.id}: area`);
+  }
+
+  const [baseSource, additionsSource] = await Promise.all([
+    readFile(new URL("../site/sample-case.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/sample-case-additions.ts", import.meta.url), "utf8"),
+  ]);
+  for (const source of [baseSource, additionsSource]) {
+    assert.doesNotMatch(
+      source,
+      /#[0-9a-f]{6}/i,
+      "example story source must not encode arbitrary saturation/lightness as raw hex",
+    );
+  }
 });
 
 test("every chronology item belongs to exactly one independently inspectable story", () => {

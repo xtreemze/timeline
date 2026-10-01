@@ -1,6 +1,7 @@
 import type { ComposerOption } from "./components/reusable/composer.ts";
 import { ReusableComposerElement } from "./components/reusable/composer.ts";
 import { RetainedTimelineElement } from "./components/reusable/retained-timeline.ts";
+import "./components/occurrence-media-deck.ts";
 
 class LabComposerElement extends ReusableComposerElement {}
 customElements.define("component-lab-composer", LabComposerElement);

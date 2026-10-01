@@ -1,3 +1,7 @@
+import {
+  canonicalSemanticHueColor,
+  normalizeSemanticColorSource,
+} from "../src/presentation/semantic-color.ts";
 import { SEMANTIC_ICON_NAMES, type SemanticIconName } from "../src/presentation/semantic-icons.ts";
 import {
   suggestSemanticIcon,
@@ -90,6 +94,7 @@ export interface ComposerPlaceOption {
   readonly id: string;
   readonly name: string;
   readonly icon?: string;
+  readonly color?: string;
   readonly longitude?: number;
   readonly latitude?: number;
 }
@@ -202,16 +207,9 @@ function actionIconHint(action: string): SemanticIconName {
 }
 
 export function normalizeComposerSemanticColor(value: unknown): string | undefined {
-  if (typeof value !== "string") return undefined;
-  const color = value.trim();
-  if (/^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(color)) return color;
-  const hsl = color.match(/^hsl\(\s*(\d{1,3})\s+(\d{1,3})%\s+(\d{1,3})%\s*\)$/i);
-  if (!hsl) return undefined;
-  const hue = Number(hsl[1]);
-  const saturation = Number(hsl[2]);
-  const lightness = Number(hsl[3]);
-  if (hue > 360 || saturation > 100 || lightness > 100) return undefined;
-  return `hsl(${hue} ${saturation}% ${lightness}%)`;
+  const source = normalizeSemanticColorSource(value);
+  if (source === null) return undefined;
+  return typeof source === "number" ? canonicalSemanticHueColor(source) : source;
 }
 
 function composerEntityColor(entity: ComposerEntityOption): string | undefined {
@@ -820,7 +818,11 @@ export function composerCursorSection(input: string, cursorOffset: number): Comp
   if (optionsStart >= 0) {
     const optionsEnd = input.indexOf("]", optionsStart + 1);
     const end = optionsEnd >= 0 ? optionsEnd + 1 : input.length;
-    if (offset >= optionsStart && offset < end) {
+    // A caret resting after "]" at the end of input is still filling the list while its
+    // last value is empty ("key: ]" or "a|]"); a completed list leaves the caret in the tail.
+    const openTrailingList =
+      offset === end && end === input.length && /(?::|\|)\s*\]$/.test(input.slice(0, end));
+    if (offset >= optionsStart && (offset < end || openTrailingList)) {
       return Object.freeze({
         kind: "options",
         start: optionsStart,
@@ -1277,6 +1279,9 @@ function cursorPlaceSuggestions(
         label: place.name,
         detail: sameNameCount > 1 ? `nearest place · ${place.id}` : "nearest place",
         ...(place.icon ? { icon: place.icon } : {}),
+        ...(normalizeComposerSemanticColor(place.color)
+          ? { color: normalizeComposerSemanticColor(place.color) }
+          : {}),
         insertText: sameNameCount > 1 ? `@${place.id}` : quoteComposerName(place.name),
         replaceRange: Object.freeze({ start: section.start, end: section.end }),
       };
@@ -1345,9 +1350,12 @@ export function occurrenceComposerSuggestions(
     );
   }
 
-  if (/\[[^\]]*$/.test(prefix)) {
-    const optionStart = prefix.lastIndexOf("[");
-    const optionText = prefix.slice(optionStart + 1);
+  // "[categories: ]" with the caret after "]" is still an open list; read it without the "]".
+  const openTrailingOption = cursorOffset === input.length && /\[[^\]]*(?::|\|)\s*\]$/.test(prefix);
+  const optionPrefix = openTrailingOption ? prefix.slice(0, -1) : prefix;
+  if (/\[[^\]]*$/.test(optionPrefix)) {
+    const optionStart = optionPrefix.lastIndexOf("[");
+    const optionText = optionPrefix.slice(optionStart + 1);
     const categoryMatch = optionText.match(/(?:^|,)\s*categor(?:y|ies)\s*:\s*([^,\]]*)$/i);
     const tagMatch = optionText.match(/(?:^|,)\s*tags\s*:\s*([^,\]]*)$/i);
 
@@ -1355,13 +1363,15 @@ export function occurrenceComposerSuggestions(
       const rawTags = tagMatch[1] ?? "";
       const selectedTags = composerListValues(rawTags);
       const selectedKeys = new Set(selectedTags.map(normalizedMatchText));
-      const activeTag = normalizedMatchText(
-        splitComposerDelimited(rawTags, "|").at(-1) ?? "",
-      );
+      const tagOptions = (options.tags ?? [])
+        .map(normalizeTagOption)
+        .filter((tag): tag is ComposerTagOption => Boolean(tag));
+      const lastTag = normalizedMatchText(splitComposerDelimited(rawTags, "|").at(-1) ?? "");
+      const activeTag = tagOptions.some((tag) => normalizedMatchText(tag.label) === lastTag)
+        ? ""
+        : lastTag;
       return uniqueSuggestions(
-        (options.tags ?? [])
-          .map(normalizeTagOption)
-          .filter((tag): tag is ComposerTagOption => Boolean(tag))
+        tagOptions
           .filter(
             (tag) =>
               !activeTag ||
@@ -1385,9 +1395,14 @@ export function occurrenceComposerSuggestions(
     const rawCategories = categoryMatch?.[1] ?? "";
     const selectedCategories = composerListValues(rawCategories);
     const selectedKeys = new Set(selectedCategories.map(normalizedMatchText));
-    const activeCategory = normalizedMatchText(
+    const lastCategory = normalizedMatchText(
       splitComposerDelimited(rawCategories, "|").at(-1) ?? "",
     );
+    const activeCategory = options.categories.some(
+      (category) => normalizedMatchText(category.name) === lastCategory,
+    )
+      ? ""
+      : lastCategory;
     const categorySuggestions = options.categories
       .filter(
         (category) =>
@@ -1513,6 +1528,7 @@ export function occurrenceComposerSuggestions(
             ? `${entity.type || "entity"} · ${entity.id}`
             : entity.type || "entity",
           ...(entity.icon ? { icon: entity.icon } : {}),
+          ...(composerEntityColor(entity) ? { color: composerEntityColor(entity) } : {}),
           insertText: canonicalReferenceRequired ? `@${entity.id}` : quoteComposerName(entity.name),
         };
       });
@@ -1543,6 +1559,10 @@ export function occurrenceComposerSuggestions(
       kind: "place" as const,
       label: place.name,
       detail: sameNameCount > 1 ? `place · ${place.id}` : "place",
+      ...(place.icon ? { icon: place.icon } : {}),
+      ...(normalizeComposerSemanticColor(place.color)
+        ? { color: normalizeComposerSemanticColor(place.color) }
+        : {}),
       insertText: sameNameCount > 1 ? `at @${place.id}` : `at ${quoteComposerName(place.name)}`,
     };
   });

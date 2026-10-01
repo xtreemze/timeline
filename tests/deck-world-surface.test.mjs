@@ -974,6 +974,83 @@ test("active pinch defers zoom-derived semantic layer rebuilds until interaction
   );
 });
 
+test("inertial globe release settles before globe-to-local controller handoff", () => {
+  const { calls, runtime } = harness();
+  class WeightedGlobeController {}
+  class LocalController {}
+  const localView = { type: "local", props: { id: "lum-world-local" } };
+  new DeckWorldSurface(
+    {},
+    {
+      ...runtime,
+      createGlobeControllerType() {
+        return WeightedGlobeController;
+      },
+      createMapControllerType() {
+        return LocalController;
+      },
+      createMapView() {
+        return localView;
+      },
+    },
+    {
+      longitude: 18.0686,
+      latitude: 59.3293,
+      zoom: 11.45,
+      bearing: 0,
+      pitch: 20,
+    },
+  );
+
+  assert.equal(calls.deckProps.views[0].type, "globe");
+
+  calls.deckProps.onViewStateChange({
+    viewState: {
+      longitude: 18.0686,
+      latitude: 59.3293,
+      zoom: 11.6,
+      bearing: 0,
+      pitch: 20,
+    },
+    interactionState: { inTransition: true, isPanning: true },
+  });
+
+  assert.equal(
+    calls.setProps.some((props) => Array.isArray(props.views)),
+    false,
+    "crossing the threshold during release inertia must not swap controllers mid-flight",
+  );
+
+  calls.deckProps.onInteractionStateChange({ inTransition: false, isPanning: false });
+  const swap = calls.setProps.findLast((props) => Array.isArray(props.views));
+  assert.ok(swap, "the deferred spatial-mode swap must occur after interaction settles");
+  assert.equal(swap.views[0], localView);
+  assert.equal(swap.controller.type, LocalController);
+  assert.equal(swap.viewState.zoom, 11.6);
+});
+
+test("hover raises entity presentation without moving canonical relationship geometry", async () => {
+  const source = await readFile(
+    new URL("../site/world/deck-world-surface.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /const WORLD_HOVER_LIFT_PX = 4;/);
+  assert.match(source, /function liftedEntityInteractionPosition\([\s\S]*hovered: boolean/);
+  assert.match(
+    source,
+    /hovered[\s\S]*\? WORLD_HOVER_LIFT_PX[\s\S]*liftedPositionByPixels\(position, zoom, liftPx\)/,
+  );
+  assert.match(
+    source,
+    /liftedEntityInteractionPosition\([\s\S]*this\.#hoverSelection\?\.kind === "entity"[\s\S]*this\.#hoverSelection\.id === datum\.entityId/,
+  );
+  assert.doesNotMatch(
+    source,
+    /relationshipDatums\([\s\S]{0,800}WORLD_HOVER_LIFT_PX/,
+    "hover lift must stay out of canonical relationship routing",
+  );
+});
+
 test("hover semantic rebuilds coalesce to one animation frame", () => {
   let nextFrameId = 1;
   const frames = new Map();
@@ -1101,11 +1178,11 @@ test("real globe direct pan applies the shared timeline-weighted response", asyn
     source,
     /event\.type === "pinchstart" \|\| event\.type === "multipanstart"/,
   );
-  assert.match(source, /function velocityContinuousGlobeInertiaEasing\(progress: number\)/);
-  assert.match(source, /return t \* \(2 - t\)/);
+  assert.doesNotMatch(source, /function velocityContinuousGlobeInertiaEasing/);
+  assert.match(source, /TimelineMotion\.releaseMomentumEasing/);
   assert.match(source, /interactionState\.isDragging === false/);
   assert.match(source, /interactionState\.isPanning === true/);
-  assert.match(source, /transitionEasing: velocityContinuousGlobeInertiaEasing/);
+  assert.match(source, /transitionEasing: TimelineMotion\.releaseMomentumEasing/);
   assert.match(source, /override _onPanMoveEnd\(event: GlobeControllerCenterEvent\)/);
   assert.match(source, /#appendWeightedPanSample\(center, releaseTime\)/);
   assert.match(
@@ -1113,8 +1190,14 @@ test("real globe direct pan applies the shared timeline-weighted response", asyn
     /TimelineMotion\.estimatePointerVectorVelocity\(this\.#weightedPanSamples\)/,
   );
   assert.match(source, /velocity\.magnitude >= TimelineMotion\.STOP_VELOCITY_PX_PER_MS/);
-  assert.match(source, /center\[0\] \+ \(velocity\.x \* this\.inertia\) \/ 2/);
-  assert.match(source, /center\[1\] \+ \(velocity\.y \* this\.inertia\) \/ 2/);
+  assert.match(
+    source,
+    /center\[0\] \+ TimelineMotion\.releaseMomentumDistance\(velocity\.x, this\.inertia\)/,
+  );
+  assert.match(
+    source,
+    /center\[1\] \+ TimelineMotion\.releaseMomentumDistance\(velocity\.y, this\.inertia\)/,
+  );
 });
 
 test("world surface advertises and releases focused keyboard camera ownership", () => {

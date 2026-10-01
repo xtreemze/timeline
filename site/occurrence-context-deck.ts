@@ -1,11 +1,25 @@
+export type OccurrenceContextMediaKind = "image" | "video" | "audio";
+
 export interface OccurrenceContextMediaFrame {
+  readonly kind?: OccurrenceContextMediaKind;
   readonly src?: string;
+  readonly blob?: Blob;
+  readonly mimeType?: string;
+  readonly sha256?: string;
   readonly alt?: string;
   readonly caption?: string;
 }
 
 export type OccurrenceContextDeckFrame =
-  | Readonly<{ kind: "image"; src?: string; alt?: string; caption?: string }>
+  | Readonly<{
+      kind: OccurrenceContextMediaKind;
+      src?: string;
+      blob?: Blob;
+      mimeType?: string;
+      sha256?: string;
+      alt?: string;
+      caption?: string;
+    }>
   | Readonly<{ kind: "context"; label: string; body: string }>;
 
 /**
@@ -19,15 +33,26 @@ export function occurrenceContextDeckFrames(
   description: string | null | undefined,
 ): readonly OccurrenceContextDeckFrame[] {
   const frames: OccurrenceContextDeckFrame[] = (media ?? [])
-    .filter((entry) => Boolean(entry?.src?.trim()))
-    .map((entry) =>
-      Object.freeze({
-        kind: "image" as const,
-        src: entry.src,
+    .filter(
+      (entry) =>
+        Boolean(entry?.src?.trim()) ||
+        (typeof Blob !== "undefined" && entry?.blob instanceof Blob),
+    )
+    .map((entry) => {
+      const kind: OccurrenceContextMediaKind =
+        entry.kind === "video" || entry.kind === "audio" ? entry.kind : "image";
+      return Object.freeze({
+        kind,
+        ...(entry.src?.trim() ? { src: entry.src } : {}),
+        ...(typeof Blob !== "undefined" && entry.blob instanceof Blob
+          ? { blob: entry.blob }
+          : {}),
+        ...(entry.mimeType?.trim() ? { mimeType: entry.mimeType } : {}),
+        ...(entry.sha256?.trim() ? { sha256: entry.sha256 } : {}),
         alt: entry.alt,
         caption: entry.caption,
-      }),
-    );
+      });
+    });
 
   const context = description?.trim();
   if (context) {

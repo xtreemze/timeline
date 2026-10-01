@@ -46,7 +46,12 @@ import {
   LuumOccurrenceDeckElement,
   type OccurrenceDeckChangeDetail,
 } from "./components/occurrence-media-deck.ts";
-import { occurrenceContextDeckFrames } from "./occurrence-context-deck.ts";
+import {
+  occurrenceContextDeckFrames,
+  type OccurrenceContextMediaFrame,
+  type OccurrenceContextMediaKind,
+} from "./occurrence-context-deck.ts";
+import { getBlob as getEvidenceBlob } from "./evidence-store.ts";
 import {
   createOccurrenceInteractionSession,
   resolveOccurrencePresentation,
@@ -486,6 +491,40 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function recordString(record: Record<string, unknown> | null, key: string): string {
   const value = record?.[key];
   return typeof value === "string" ? value : "";
+}
+
+function evidenceMediaKind(record: Record<string, unknown>): OccurrenceContextMediaKind | null {
+  const file = isRecord(record.file) ? record.file : null;
+  if (!file) return null;
+  const type = recordString(record, "type").toLowerCase();
+  const mimeType = recordString(file, "mimeType").toLowerCase();
+  const name = recordString(file, "name").toLowerCase();
+  if (type === "video" || mimeType.startsWith("video/") || /\.(?:mp4|webm|ogv|mov|m4v)$/.test(name)) {
+    return "video";
+  }
+  if (type === "audio" || mimeType.startsWith("audio/") || /\.(?:mp3|m4a|aac|wav|ogg|oga|flac|opus)$/.test(name)) {
+    return "audio";
+  }
+  if (type === "image" || mimeType.startsWith("image/") || /\.(?:png|jpe?g|webp|gif|avif)$/.test(name)) {
+    return "image";
+  }
+  return null;
+}
+
+function evidenceMediaRevision(records: readonly unknown[]): string {
+  return records
+    .filter(isRecord)
+    .map((record) => {
+      const file = isRecord(record.file) ? record.file : null;
+      return [
+        recordString(record, "id"),
+        recordString(record, "type"),
+        recordString(file, "blobKey"),
+        recordString(file, "mimeType"),
+        recordString(file, "sha256"),
+      ].join("\u0001");
+    })
+    .join("\u0002");
 }
 
 function formatElapsedDuration(durationMs: number): string {
@@ -2176,32 +2215,36 @@ export class TimelineViewController {
     }
     this.cancelInertia();
     this.beginInteraction();
+
     const usable = Math.max(1, usableLength);
-    let velocity = Number(initialVelocityPxPerMs) || 0;
-    let lastFrame = 0;
+    const duration = motion.INERTIA_TAU_MS;
+    const releaseVelocity = Number(initialVelocityPxPerMs) || 0;
+    const span = this.viewport.end - this.viewport.start;
+    const startViewport = { ...this.viewport };
+    // Match the globe's bounded quadratic release: distance = v0 * duration / 2.
+    // With releaseMomentumEasing(), the first derivative starts at v0 and ends
+    // at zero, so pointer-up does not introduce a speed discontinuity.
+    const travelPixels = motion.releaseMomentumDistance(releaseVelocity, duration);
+    const travelTemporal = -((travelPixels / usable) * span);
+    const startedAt = performance.now();
 
     const step = (now: number): void => {
       this.inertiaAnimationFrame = 0;
-      if (Math.abs(velocity) < motion.STOP_VELOCITY_PX_PER_MS) {
-        this.interactionVelocity = 0;
-        this.commitInteraction();
-        return;
-      }
+      const progress = clamp((now - startedAt) / duration, 0, 1);
+      const eased = motion.releaseMomentumEasing(progress);
+      const remainingVelocity = releaseVelocity * (1 - progress);
 
-      const elapsed = lastFrame ? clamp(now - lastFrame, 1, 48) : 16;
-      lastFrame = now;
-      velocity = motion.decayVelocity(velocity, elapsed);
-      const span = this.viewport.end - this.viewport.start;
-      const deltaPixels = velocity * elapsed;
-      const deltaTemporal = -(deltaPixels / usable) * span;
-      this.interactionVelocity = deltaTemporal / elapsed;
+      this.interactionVelocity = -((remainingVelocity / usable) * span);
       this.viewport = {
-        start: this.viewport.start + deltaTemporal,
-        end: this.viewport.end + deltaTemporal,
+        start: startViewport.start + travelTemporal * eased,
+        end: startViewport.end + travelTemporal * eased,
       };
       this.scheduleInteractionRender();
 
-      if (Math.abs(velocity) >= motion.STOP_VELOCITY_PX_PER_MS) {
+      if (
+        progress < 1 &&
+        Math.abs(remainingVelocity) >= motion.STOP_VELOCITY_PX_PER_MS
+      ) {
         this.inertiaAnimationFrame = requestAnimationFrame(step);
       } else {
         this.interactionVelocity = 0;
@@ -2421,6 +2464,7 @@ export class TimelineViewController {
           : [entry.label || "", entry.icon || "", entry.hue ?? ""].join("\u0001"),
       )
       .join("\u0002");
+    const evidenceMedia = evidenceMediaRevision(item.evidence || []);
     return [
       item.title || "",
       item.startLabel || "",
@@ -2434,6 +2478,7 @@ export class TimelineViewController {
       item.connectorEndpoint || "",
       tags,
       media,
+      evidenceMedia,
     ].join("\u0003");
   }
 
@@ -3782,10 +3827,100 @@ export class TimelineViewController {
     commit();
   }
 
+  private async hydrateEvidenceMediaDeck(
+    item: TimelineItem,
+    deck: LuumOccurrenceDeckElement,
+    hero: HTMLElement,
+  ): Promise<void> {
+    const descriptors = (item.evidence || [])
+      .filter(isRecord)
+      .map((record) => {
+        const kind = evidenceMediaKind(record);
+        const file = isRecord(record.file) ? record.file : null;
+        const blobKey = recordString(file, "blobKey");
+        return kind && file && blobKey ? { record, file, kind, blobKey } : null;
+      })
+      .filter(
+        (
+          entry,
+        ): entry is {
+          record: Record<string, unknown>;
+          file: Record<string, unknown>;
+          kind: OccurrenceContextMediaKind;
+          blobKey: string;
+        } => Boolean(entry),
+      );
+
+    if (!descriptors.length) return;
+
+    const localMedia = (
+      await Promise.all(
+        descriptors.map(
+          async ({ record, file, kind, blobKey }): Promise<OccurrenceContextMediaFrame | null> => {
+          try {
+            const blob = await getEvidenceBlob(blobKey);
+            if (!blob) return null;
+            const title = recordString(record, "title");
+            const sourceName = recordString(record, "sourceName");
+            const fileName = recordString(file, "name");
+            const caption = [title, sourceName || fileName].filter(Boolean).join(" · ");
+            return {
+              kind,
+              blob,
+              mimeType: recordString(file, "mimeType") || blob.type,
+              sha256: recordString(file, "sha256"),
+              alt: title || fileName || `${kind} evidence`,
+              caption,
+            } satisfies OccurrenceContextMediaFrame;
+          } catch (error) {
+            console.warn("Could not load local evidence media:", error);
+            return null;
+          }
+        },
+        ),
+      )
+    ).filter((entry): entry is OccurrenceContextMediaFrame => entry !== null);
+
+    if (!deck.isConnected || deck.occurrenceId !== item.id) return;
+    if (!localMedia.length) {
+      const frames = occurrenceContextDeckFrames(item.media, item.description);
+      if (!frames.some((frame) => frame.kind !== "context")) {
+        hero.classList.add("has-no-media");
+        if (!hero.querySelector("[data-empty-media]")) {
+          const fallback = document.createElement("div");
+          fallback.className = "timeline-focus-hero-fallback";
+          fallback.dataset.emptyMedia = "true";
+          fallback.setAttribute("aria-hidden", "true");
+          hero.append(fallback);
+        }
+      }
+      return;
+    }
+    const frames = occurrenceContextDeckFrames(
+      [...(item.media || []), ...localMedia],
+      item.description,
+    );
+    deck.setDeck({
+      occurrenceId: item.id,
+      frames,
+      activeIndex: deck.activeIndex,
+    });
+    hero.classList.toggle(
+      "has-no-media",
+      !frames.some((frame) => frame.kind !== "context"),
+    );
+    if (frames.some((frame) => frame.kind !== "context")) {
+      hero.querySelector<HTMLElement>("[data-empty-media]")?.remove();
+    }
+  }
+
   createFocusHero(item: TimelineItem): HTMLElement {
     const hero = document.createElement("section");
     hero.className = "timeline-focus-hero";
     const frames = occurrenceContextDeckFrames(item.media, item.description);
+    const hasPendingEvidenceMedia = (item.evidence || [])
+      .filter(isRecord)
+      .some((record) => evidenceMediaKind(record) !== null);
 
     const deck = new LuumOccurrenceDeckElement();
     deck.setDeck({
@@ -3800,11 +3935,13 @@ export class TimelineViewController {
       this.focusMediaIndex = detail.activeIndex;
     });
     hero.append(deck);
+    void this.hydrateEvidenceMediaDeck(item, deck, hero);
 
-    if (!frames.some((frame) => frame.kind === "image" && Boolean(frame.src?.trim()))) {
+    if (!frames.some((frame) => frame.kind !== "context") && !hasPendingEvidenceMedia) {
       hero.classList.add("has-no-media");
       const fallback = document.createElement("div");
       fallback.className = "timeline-focus-hero-fallback";
+      fallback.dataset.emptyMedia = "true";
       fallback.setAttribute("aria-hidden", "true");
       hero.append(fallback);
     }
@@ -3960,6 +4097,23 @@ export class TimelineViewController {
         }
         const url = recordString(record, "url");
         const file = isRecord(record.file) ? record.file : null;
+        const fileName = recordString(file, "name");
+        const sha256 = recordString(file, "sha256");
+        if (fileName || sha256) {
+          const fileMetadata = document.createElement("p");
+          fileMetadata.className = "timeline-focus-evidence-file-meta";
+          if (fileName) {
+            const name = document.createElement("span");
+            name.textContent = fileName;
+            fileMetadata.append(name);
+          }
+          if (sha256) {
+            const fingerprint = document.createElement("code");
+            fingerprint.textContent = `SHA-256 ${sha256}`;
+            fileMetadata.append(fingerprint);
+          }
+          card.append(fileMetadata);
+        }
         if (url || recordString(file, "blobKey")) {
           const evidenceActions = document.createElement("div");
           evidenceActions.className = "timeline-focus-evidence-actions";
@@ -3977,7 +4131,7 @@ export class TimelineViewController {
             const open = document.createElement("button");
             open.type = "button";
             open.className = "button secondary";
-            open.textContent = "Open local PDF";
+            open.textContent = "Open local file";
             open.addEventListener("click", () => {
               this.root.dispatchEvent(
                 new CustomEvent("timelineevidenceopen", {

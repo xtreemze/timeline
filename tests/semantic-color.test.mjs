@@ -4,6 +4,7 @@ import test from "node:test";
 
 import {
   canonicalSemanticHueColor,
+  normalizeSemanticColorSource,
   semanticColorCss,
   semanticColorHex,
   semanticHue,
@@ -56,6 +57,15 @@ test("canonical persistence stores a hue carrier rather than authored display co
   assert.ok(hueDistance(semanticHue(canonical), 278) < 1.5);
 });
 
+test("semantic color sources normalize consistently across renderers", () => {
+  assert.equal(normalizeSemanticColorSource("#b42318"), "#b42318");
+  assert.equal(normalizeSemanticColorSource(" hsl(212 64% 50%) "), "hsl(212 64% 50%)");
+  assert.equal(normalizeSemanticColorSource(725), 5);
+  assert.equal(normalizeSemanticColorSource("hsl(212 120% 50%)"), null);
+  assert.equal(normalizeSemanticColorSource("color(display-p3 1 0 0)"), null);
+  assert.equal(normalizeSemanticColorSource("red; background:url(x)"), null);
+});
+
 test("category authoring exposes hue only and semantic surfaces derive presentation colors", async () => {
   const [html, app, styles, composer, worldSurface, locationMap] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
@@ -67,9 +77,12 @@ test("category authoring exposes hue only and semantic surfaces derive presentat
   ]);
 
   assert.match(html, /id="category-hue" type="range" min="0" max="359"/);
+  assert.match(html, /id="category-hue-number"[^>]*type="number"[^>]*max="359"/);
+  assert.match(html, /id="item-category-hue" type="range" min="0" max="359"/);
+  assert.match(html, /id="item-category-hue-number"[^>]*type="number"[^>]*max="359"/);
   assert.doesNotMatch(html, /id="category-color" type="color"/);
   assert.match(html, /the app controls saturation and lightness/);
-  assert.match(app, /canonicalSemanticHueColor\(els\.categoryHue\.value, 220\)/);
+  assert.match(app, /canonicalSemanticHueColor\(Number\(els\.categoryHue\.value\), 220\)/);
   assert.match(app, /semanticColorCss\(category\.color, "ambient"\)/);
   assert.match(app, /semanticColorCss\(category\.color, "active"\)/);
   assert.match(styles, /color-scheme:\s*light dark/);

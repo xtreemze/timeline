@@ -41,12 +41,14 @@ Current source types are:
 - `article` — news, reporting, web publication or comparable external source;
 - `pdf` — uploaded or externally linked PDF exhibit;
 - `image` — uploaded image evidence such as a photographed document, screenshot or scene image;
+- `audio` — uploaded audio evidence such as an interview, voice note or field recording;
+- `video` — uploaded video evidence such as a scene recording, screen capture or camera clip;
 - `note` — text note such as an interview, observation, analyst note or transcription;
 - `document` — generic record or documentary source.
 
 ## Binary attachment and derived-text boundary
 
-A PDF or image selected from the event editor is stored as a Blob in IndexedDB. JSON stores file metadata plus any derived text extraction metadata, but never the binary bytes themselves.
+A PDF, image, audio or video selected from the event editor is stored as a Blob in browser file storage (currently IndexedDB). JSON stores file metadata, a content SHA-256 fingerprint, and any derived text extraction metadata, but never the binary bytes themselves.
 
 ```json
 {
@@ -54,7 +56,8 @@ A PDF or image selected from the event editor is stored as a Blob in IndexedDB. 
     "blobKey": "evidence:evidence-a",
     "name": "exhibit-a.pdf",
     "mimeType": "application/pdf",
-    "size": 4096
+    "size": 4096,
+    "sha256": "…64 lowercase hexadecimal characters…"
   }
 }
 ```
@@ -62,10 +65,13 @@ A PDF or image selected from the event editor is stored as a Blob in IndexedDB. 
 Consequences:
 
 - normal JSON and interchange exports remain compact and inspectable;
-- a JSON export alone does not carry the local uploaded PDF/image;
+- a JSON export alone does not carry the local uploaded PDF/image/audio/video;
 - importing the metadata on another browser does not imply that the binary is present;
+- the SHA-256 value fingerprints the exact locally stored bytes and can be used to detect accidental or deliberate content changes;
 - the focused view reports when a local blob is unavailable rather than pretending the exhibit exists;
 - externally hosted evidence can use a validated HTTP(S) URL instead.
+
+Audio and video evidence linked to an occurrence is projected into the occurrence media deck. Playback uses the browser's native `<audio controls>` and `<video controls playsinline>` implementations, with no custom transport or autoplay layer. Browser codec support therefore remains authoritative.
 
 A future evidence package exporter can explicitly bundle JSON plus blobs in a signed archive; that should be a deliberate format rather than an implicit JSON behavior.
 
@@ -143,7 +149,7 @@ Evidence can optionally carry a `forensic` object. Ordinary timeline sources do 
 }
 ```
 
-The initial record classes are `source`, `acquired-copy`, and `derived-artifact`. They describe lineage; they do not assert authenticity or admissibility. Digest values are preserved exactly with their algorithm (and optional encoding). Timeline never fabricates a digest when none was supplied.
+The initial record classes are `source`, `acquired-copy`, and `derived-artifact`. They describe lineage; they do not assert authenticity or admissibility. Forensic digest values are preserved exactly with their algorithm (and optional encoding). Timeline never fabricates forensic provenance. The separate `file.sha256` fingerprint is deterministically computed by Lūm at local upload time from the exact attachment bytes and is not a substitute for a documented forensic acquisition digest.
 
 This structure is intended to support later CASE/UCO `ProvenanceRecord` / `InvestigativeAction` adapters and W3C PROV-O mappings. It is standards-aligned data modeling, not a claim that Timeline or a case record is ISO-certified.
 
