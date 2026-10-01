@@ -1524,11 +1524,13 @@ export class LuumOccurrenceComposerElement extends LitElement {
   }>[] {
     if (!this.value) return Object.freeze([]);
 
+    // biome-ignore lint/correctness/useQwikValidLexicalScope: not a Qwik component
     const cursorWithin = (candidate: { start: number; end: number }) =>
       this.cursorOffset >= candidate.start && this.cursorOffset <= candidate.end;
     const activeQualifier = qualifiers.find(cursorWithin) ?? null;
     const activeSection = activeQualifier ? null : (sections.find(cursorWithin) ?? null);
 
+    // biome-ignore lint/correctness/useQwikValidLexicalScope: not a Qwik component
     const markerAt = (offset: number) => {
       const qualifier = qualifiers.find(
         (candidate) => offset >= candidate.start && offset < candidate.end,
@@ -2111,6 +2113,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const dark = window.matchMedia?.("(prefers-color-scheme: dark)").matches;
     const fallback = dark ? WORLD_DARK_PALETTE : WORLD_LIGHT_PALETTE;
     const computed = getComputedStyle(this);
+    // biome-ignore lint/correctness/useQwikValidLexicalScope: not a Qwik component
     const token = (name: string, value: string) => {
       const raw = computed.getPropertyValue(`--${name}`).trim();
       return /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(raw) ? raw : value;
@@ -2242,6 +2245,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
             entity.id === preview.object?.entityId || entity.name === preview.object?.label,
         )
       : null;
+    // biome-ignore lint/correctness/useQwikValidLexicalScope: not a Qwik component
     const entityVisual = (entity: ComposerEntityOption | null | undefined) => {
       const attributes = entity?.attributes;
       const style =
