@@ -189,4 +189,6 @@ test("composer retains stable DOM references without surrendering canonical inpu
   assert.match(source, /deck === this\.syncedDeckElement/);
   assert.match(source, /\.value=\$\{this\.value\}/);
   assert.doesNotMatch(source, /live\(this\.value\)/);
+  assert.match(source, /setTimelineViewport[\s\S]*if \(!this\.active\) return;[\s\S]*previous\?\.value === next\?\.value/);
+  assert.match(source, /setWorldContext[\s\S]*if \(!this\.active\) return;[\s\S]*previous\?\.label === next\?\.label/);
 });
