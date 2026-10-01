@@ -1,3 +1,9 @@
+import type {
+  CanonicalCategory,
+  CanonicalPlace,
+  CanonicalSource,
+  CanonicalStory,
+} from "../domain/composition.ts";
 import type { CanonicalEntity } from "../domain/entity.ts";
 import {
   entityId,
@@ -10,15 +16,9 @@ import {
 import type { CanonicalOccurrence } from "../domain/occurrence.ts";
 import type { CanonicalProject } from "../domain/project.ts";
 import type { CanonicalRelationship } from "../domain/relationship.ts";
-import type {
-  CanonicalCategory,
-  CanonicalPlace,
-  CanonicalSource,
-  CanonicalStory,
-} from "../domain/composition.ts";
-import { CURRENT_PROJECT_SCHEMA_VERSION, type ProjectSnapshot } from "./project-repository.ts";
 import { serializeProjectInterchange, validateProjectInterchange } from "./project-interchange.ts";
 import { createProjectModule } from "./project-module.ts";
+import { CURRENT_PROJECT_SCHEMA_VERSION, type ProjectSnapshot } from "./project-repository.ts";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -79,47 +79,47 @@ function selectedSourceIds(
   places: readonly JsonRecord[],
 ): string[] {
   return unique([
-    ...entities.flatMap((entity) => strings(entity.sourceIds)),
-    ...relationships.flatMap((relationship) => strings(relationship.sourceIds)),
-    ...items.flatMap((item) => strings(item.evidenceIds)),
-    ...places.flatMap((place) => strings(place.sourceIds)),
+    ...entities.flatMap((entity) => strings(entity["sourceIds"])),
+    ...relationships.flatMap((relationship) => strings(relationship["sourceIds"])),
+    ...items.flatMap((item) => strings(item["evidenceIds"])),
+    ...places.flatMap((place) => strings(place["sourceIds"])),
   ]);
 }
 
 function canonicalEntity(raw: JsonRecord): CanonicalEntity {
   return {
-    id: entityId(requiredString(raw.id, "Entity ID")),
-    type: requiredString(raw.type ?? "entity", "Entity type"),
-    name: requiredString(raw.name ?? raw.id, "Entity name"),
-    alternateNames: strings(raw.alternateNames),
-    ...(typeof raw.identityResolution === "string"
+    id: entityId(requiredString(raw["id"], "Entity ID")),
+    type: requiredString(raw["type"] ?? "entity", "Entity type"),
+    name: requiredString(raw["name"] ?? raw["id"], "Entity name"),
+    alternateNames: strings(raw["alternateNames"]),
+    ...(typeof raw["identityResolution"] === "string"
       ? {
-          identityResolution: raw.identityResolution as CanonicalEntity["identityResolution"],
+          identityResolution: raw["identityResolution"] as CanonicalEntity["identityResolution"],
         }
       : {}),
-    ...(Array.isArray(raw.identifiers)
+    ...(Array.isArray(raw["identifiers"])
       ? {
-          identifiers: structuredClone(raw.identifiers) as NonNullable<
+          identifiers: structuredClone(raw["identifiers"]) as NonNullable<
             CanonicalEntity["identifiers"]
           >,
         }
       : {}),
-    ...(Array.isArray(raw.appellations)
+    ...(Array.isArray(raw["appellations"])
       ? {
-          appellations: structuredClone(raw.appellations) as NonNullable<
+          appellations: structuredClone(raw["appellations"]) as NonNullable<
             CanonicalEntity["appellations"]
           >,
         }
       : {}),
-    ...(Array.isArray(raw.semanticMappings)
+    ...(Array.isArray(raw["semanticMappings"])
       ? {
-          semanticMappings: structuredClone(raw.semanticMappings) as NonNullable<
+          semanticMappings: structuredClone(raw["semanticMappings"]) as NonNullable<
             CanonicalEntity["semanticMappings"]
           >,
         }
       : {}),
-    sourceIds: strings(raw.sourceIds).map(sourceId),
-    attributes: structuredClone(record(raw.attributes)),
+    sourceIds: strings(raw["sourceIds"]).map(sourceId),
+    attributes: structuredClone(record(raw["attributes"])),
   };
 }
 
@@ -127,51 +127,53 @@ function canonicalRelationship(
   raw: JsonRecord,
   allowedOccurrenceIds: ReadonlySet<string>,
 ): CanonicalRelationship {
-  const itemIds = strings(raw.itemIds).filter((id) => allowedOccurrenceIds.has(id));
-  const attributes = structuredClone(record(raw.attributes));
-  if (raw.initialState !== undefined) {
-    attributes.legacyInitialState = structuredClone(raw.initialState);
+  const itemIds = strings(raw["itemIds"]).filter((id) => allowedOccurrenceIds.has(id));
+  const attributes = structuredClone(record(raw["attributes"]));
+  if (raw["initialState"] !== undefined) {
+    attributes["legacyInitialState"] = structuredClone(raw["initialState"]);
   }
   return {
-    id: relationshipId(requiredString(raw.id, "Relationship ID")),
-    subjectId: entityId(requiredString(raw.subjectId, "Relationship subjectId")),
-    objectId: entityId(requiredString(raw.objectId, "Relationship objectId")),
-    predicate: requiredString(raw.predicate, "Relationship predicate"),
-    ...(typeof raw.role === "string" && raw.role.trim() ? { role: raw.role } : {}),
-    ...(typeof raw.occurrenceType === "string" && raw.occurrenceType.trim()
-      ? { occurrenceType: raw.occurrenceType }
+    id: relationshipId(requiredString(raw["id"], "Relationship ID")),
+    subjectId: entityId(requiredString(raw["subjectId"], "Relationship subjectId")),
+    objectId: entityId(requiredString(raw["objectId"], "Relationship objectId")),
+    predicate: requiredString(raw["predicate"], "Relationship predicate"),
+    ...(typeof raw["role"] === "string" && raw["role"].trim() ? { role: raw["role"] } : {}),
+    ...(typeof raw["occurrenceType"] === "string" && raw["occurrenceType"].trim()
+      ? { occurrenceType: raw["occurrenceType"] }
       : {}),
-    ...(raw.subjectContext && typeof raw.subjectContext === "object"
+    ...(raw["subjectContext"] && typeof raw["subjectContext"] === "object"
       ? {
-          subjectContext: structuredClone(raw.subjectContext) as NonNullable<
+          subjectContext: structuredClone(raw["subjectContext"]) as NonNullable<
             CanonicalRelationship["subjectContext"]
           >,
         }
       : {}),
-    ...(raw.objectContext && typeof raw.objectContext === "object"
+    ...(raw["objectContext"] && typeof raw["objectContext"] === "object"
       ? {
-          objectContext: structuredClone(raw.objectContext) as NonNullable<
+          objectContext: structuredClone(raw["objectContext"]) as NonNullable<
             CanonicalRelationship["objectContext"]
           >,
         }
       : {}),
-    ...(Array.isArray(raw.semanticMappings)
+    ...(Array.isArray(raw["semanticMappings"])
       ? {
-          semanticMappings: structuredClone(raw.semanticMappings) as NonNullable<
+          semanticMappings: structuredClone(raw["semanticMappings"]) as NonNullable<
             CanonicalRelationship["semanticMappings"]
           >,
         }
       : {}),
-    ...(typeof raw.placeId === "string" && raw.placeId.trim()
-      ? { placeId: placeId(raw.placeId) }
+    ...(typeof raw["placeId"] === "string" && raw["placeId"].trim()
+      ? { placeId: placeId(raw["placeId"]) }
       : {}),
     itemIds: itemIds.map(occurrenceId),
-    sourceIds: strings(raw.sourceIds).map(sourceId),
+    sourceIds: strings(raw["sourceIds"]).map(sourceId),
     confidence:
-      typeof raw.confidence === "number" && Number.isFinite(raw.confidence) ? raw.confidence : null,
+      typeof raw["confidence"] === "number" && Number.isFinite(raw["confidence"])
+        ? raw["confidence"]
+        : null,
     time:
-      raw.time && typeof raw.time === "object"
-        ? (structuredClone(raw.time) as CanonicalRelationship["time"])
+      raw["time"] && typeof raw["time"] === "object"
+        ? (structuredClone(raw["time"]) as CanonicalRelationship["time"])
         : null,
     attributes,
   };
@@ -181,7 +183,7 @@ function canonicalOccurrence(
   item: JsonRecord,
   relationships: readonly CanonicalRelationship[],
 ): CanonicalOccurrence {
-  const id = requiredString(item.id, "Occurrence ID");
+  const id = requiredString(item["id"], "Occurrence ID");
   const linked = relationships.filter((relationship) =>
     relationship.itemIds.some((itemId) => String(itemId) === id),
   );
@@ -195,21 +197,19 @@ function canonicalOccurrence(
     linked.flatMap((relationship) => (relationship.placeId ? [String(relationship.placeId)] : [])),
   );
   const attributes: JsonRecord = {
-    description: typeof item.description === "string" ? item.description : "",
-    ...(typeof item.categoryId === "string" ? { categoryId: item.categoryId } : {}),
-    ...(Array.isArray(item.categoryIds)
-      ? { categoryIds: strings(item.categoryIds) }
+    description: typeof item["description"] === "string" ? item["description"] : "",
+    ...(typeof item["categoryId"] === "string" ? { categoryId: item["categoryId"] } : {}),
+    ...(Array.isArray(item["categoryIds"]) ? { categoryIds: strings(item["categoryIds"]) } : {}),
+    ...(Array.isArray(item["tags"]) ? { tags: structuredClone(item["tags"]) } : {}),
+    ...(item["presentation"] && typeof item["presentation"] === "object"
+      ? { presentation: structuredClone(item["presentation"]) }
       : {}),
-    ...(Array.isArray(item.tags) ? { tags: structuredClone(item.tags) } : {}),
-    ...(item.presentation && typeof item.presentation === "object"
-      ? { presentation: structuredClone(item.presentation) }
+    ...(Array.isArray(item["media"]) ? { media: structuredClone(item["media"]) } : {}),
+    ...(Array.isArray(item["relationChanges"])
+      ? { relationChanges: structuredClone(item["relationChanges"]) }
       : {}),
-    ...(Array.isArray(item.media) ? { media: structuredClone(item.media) } : {}),
-    ...(Array.isArray(item.relationChanges)
-      ? { relationChanges: structuredClone(item.relationChanges) }
-      : {}),
-    ...(item.extensions && typeof item.extensions === "object"
-      ? { extensions: structuredClone(item.extensions) }
+    ...(item["extensions"] && typeof item["extensions"] === "object"
+      ? { extensions: structuredClone(item["extensions"]) }
       : {}),
   };
   if (participantIds.length === 0 && linked.length === 0) {
@@ -220,37 +220,37 @@ function canonicalOccurrence(
 
   return {
     id: occurrenceId(id),
-    ...(typeof item.title === "string" && item.title.trim() ? { title: item.title } : {}),
+    ...(typeof item["title"] === "string" && item["title"].trim() ? { title: item["title"] } : {}),
     time:
-      item.time && typeof item.time === "object"
-        ? (structuredClone(item.time) as CanonicalOccurrence["time"])
+      item["time"] && typeof item["time"] === "object"
+        ? (structuredClone(item["time"]) as CanonicalOccurrence["time"])
         : null,
     ...(linkedPlaces.length === 1 ? { placeId: placeId(linkedPlaces[0]!) } : {}),
     participantContexts: participantIds.map((id) => ({ entityId: entityId(id) })),
     relationshipIds: linked.map((relationship) => relationship.id),
-    sourceIds: strings(item.evidenceIds).map(sourceId),
+    sourceIds: strings(item["evidenceIds"]).map(sourceId),
     confidence:
-      typeof item.confidence === "number" && Number.isFinite(item.confidence)
-        ? item.confidence
+      typeof item["confidence"] === "number" && Number.isFinite(item["confidence"])
+        ? item["confidence"]
         : null,
     attributes,
   };
 }
 
 function canonicalPlace(raw: JsonRecord): CanonicalPlace {
-  const attributes = structuredClone(record(raw.attributes));
+  const attributes = structuredClone(record(raw["attributes"]));
   for (const key of ["crs", "radiusMeters", "icon", "markerShape", "style"]) {
     if (raw[key] !== undefined) attributes[key] = structuredClone(raw[key]);
   }
   return {
-    id: placeId(requiredString(raw.id, "Place ID")),
-    name: requiredString(raw.name ?? raw.id, "Place name"),
-    geometry: structuredClone(raw.geometry) as CanonicalPlace["geometry"],
-    ...(typeof raw.geographicIdentifier === "string"
-      ? { geographicIdentifier: raw.geographicIdentifier }
+    id: placeId(requiredString(raw["id"], "Place ID")),
+    name: requiredString(raw["name"] ?? raw["id"], "Place name"),
+    geometry: structuredClone(raw["geometry"]) as CanonicalPlace["geometry"],
+    ...(typeof raw["geographicIdentifier"] === "string"
+      ? { geographicIdentifier: raw["geographicIdentifier"] }
       : {}),
-    ...(typeof raw.address === "string" ? { address: raw.address } : {}),
-    sourceIds: strings(raw.sourceIds).map(sourceId),
+    ...(typeof raw["address"] === "string" ? { address: raw["address"] } : {}),
+    sourceIds: strings(raw["sourceIds"]).map(sourceId),
     attributes,
   };
 }
@@ -260,26 +260,26 @@ function canonicalSource(raw: JsonRecord, id: string): CanonicalSource {
   return {
     id: sourceId(id),
     kind:
-      typeof raw.type === "string" && raw.type.trim()
-        ? raw.type
-        : typeof raw.kind === "string" && raw.kind.trim()
-          ? raw.kind
+      typeof raw["type"] === "string" && raw["type"].trim()
+        ? raw["type"]
+        : typeof raw["kind"] === "string" && raw["kind"].trim()
+          ? raw["kind"]
           : "source",
-    title: typeof raw.title === "string" && raw.title.trim() ? raw.title : id,
-    ...(typeof raw.sourceName === "string" ? { sourceName: raw.sourceName } : {}),
-    ...(typeof raw.note === "string" ? { note: raw.note } : {}),
-    ...(typeof raw.publishedAt === "string" ? { publishedAt: raw.publishedAt } : {}),
-    ...(typeof raw.url === "string" ? { url: raw.url } : {}),
+    title: typeof raw["title"] === "string" && raw["title"].trim() ? raw["title"] : id,
+    ...(typeof raw["sourceName"] === "string" ? { sourceName: raw["sourceName"] } : {}),
+    ...(typeof raw["note"] === "string" ? { note: raw["note"] } : {}),
+    ...(typeof raw["publishedAt"] === "string" ? { publishedAt: raw["publishedAt"] } : {}),
+    ...(typeof raw["url"] === "string" ? { url: raw["url"] } : {}),
     attributes: known ? {} : { unresolvedLegacyReference: true },
   };
 }
 
 function canonicalCategory(raw: JsonRecord): CanonicalCategory {
   return {
-    id: requiredString(raw.id, "Category ID"),
-    name: requiredString(raw.name ?? raw.id, "Category name"),
-    ...(typeof raw.color === "string" && raw.color.trim() ? { color: raw.color } : {}),
-    attributes: structuredClone(record(raw.extensions)),
+    id: requiredString(raw["id"], "Category ID"),
+    name: requiredString(raw["name"] ?? raw["id"], "Category name"),
+    ...(typeof raw["color"] === "string" && raw["color"].trim() ? { color: raw["color"] } : {}),
+    attributes: structuredClone(record(raw["extensions"])),
   };
 }
 
@@ -292,7 +292,7 @@ export function compileExampleStoryProject(
   if (!story) throw new Error(`Example story ${selectedStoryId} does not exist.`);
 
   const itemIdSet = new Set(story.itemIds);
-  const itemById = new Map(sample.items.map((item) => [String(item.id), item] as const));
+  const itemById = new Map(sample.items.map((item) => [String(item["id"]), item] as const));
   const missingItems = story.itemIds.filter((id) => !itemById.has(id));
   if (missingItems.length > 0) {
     throw new Error(
@@ -302,21 +302,21 @@ export function compileExampleStoryProject(
   const items = story.itemIds.map((id) => itemById.get(id)!);
 
   const relationshipRows = sample.relationships.filter((relationship) => {
-    const attributes = record(relationship.attributes);
+    const attributes = record(relationship["attributes"]);
     return (
-      attributes.storyId === selectedStoryId ||
-      strings(relationship.itemIds).some((id) => itemIdSet.has(id))
+      attributes["storyId"] === selectedStoryId ||
+      strings(relationship["itemIds"]).some((id) => itemIdSet.has(id))
     );
   });
   const entityIdSet = new Set(
     relationshipRows
       .flatMap((relationship) => [
-        String(relationship.subjectId ?? ""),
-        String(relationship.objectId ?? ""),
+        String(relationship["subjectId"] ?? ""),
+        String(relationship["objectId"] ?? ""),
       ])
       .filter(Boolean),
   );
-  const entities = sample.entities.filter((entity) => entityIdSet.has(String(entity.id)));
+  const entities = sample.entities.filter((entity) => entityIdSet.has(String(entity["id"])));
   if (entities.length !== entityIdSet.size) {
     throw new Error(`Example story ${selectedStoryId} has unresolved relationship endpoints.`);
   }
@@ -335,7 +335,7 @@ export function compileExampleStoryProject(
       occurrence.placeId ? [String(occurrence.placeId)] : [],
     ),
   ]);
-  const placeRows = sample.places.filter((place) => referencedPlaceIds.has(String(place.id)));
+  const placeRows = sample.places.filter((place) => referencedPlaceIds.has(String(place["id"])));
   const places = placeRows.map(canonicalPlace);
   if (places.length !== referencedPlaceIds.size) {
     const present = new Set(places.map((place) => String(place.id)));
@@ -347,17 +347,21 @@ export function compileExampleStoryProject(
 
   const entityRecords = entities.map(canonicalEntity);
   const sourceIds = selectedSourceIds(entities, relationshipRows, items, placeRows);
-  const evidenceById = new Map(sample.evidence.map((evidence) => [String(evidence.id), evidence]));
+  const evidenceById = new Map(
+    sample.evidence.map((evidence) => [String(evidence["id"]), evidence]),
+  );
   const sources = sourceIds.map((id) => canonicalSource(evidenceById.get(id) ?? {}, id));
 
   const categoryIds = new Set(
     items.flatMap((item) => [
-      ...(typeof item.categoryId === "string" && item.categoryId.trim() ? [item.categoryId] : []),
-      ...strings(item.categoryIds),
+      ...(typeof item["categoryId"] === "string" && item["categoryId"].trim()
+        ? [item["categoryId"]]
+        : []),
+      ...strings(item["categoryIds"]),
     ]),
   );
   const categories = sample.categories
-    .filter((category) => categoryIds.has(String(category.id)))
+    .filter((category) => categoryIds.has(String(category["id"])))
     .map(canonicalCategory);
   if (categories.length !== categoryIds.size) {
     throw new Error(`Example story ${selectedStoryId} has unresolved categories.`);
