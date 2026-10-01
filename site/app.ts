@@ -230,6 +230,19 @@ interface RelationshipRecord {
   attributes?: Record<string, unknown>;
 }
 
+interface ProjectionOccurrenceRecord {
+  id: string;
+  title: string;
+  time: TemporalExtent;
+  placeId?: string;
+  participantContexts: Array<{ entityId: string }>;
+  relationshipIds: string[];
+  confidence: number | null;
+  attributes: Record<string, unknown>;
+  start: number;
+  end: number;
+}
+
 interface PresentationMapController {
   refresh?(): void;
   destroy?(): void;
@@ -2657,6 +2670,7 @@ function renderTimeline() {
   const graphInput = {
     entities: state.entities,
     relationships: state.relationships,
+    occurrences: canonicalProjectionOccurrences(),
     items: state.items,
     stories: state.stories,
   };
@@ -2693,6 +2707,21 @@ function renderTimeline() {
             .toLocaleLowerCase()
             .includes(searchNeedle);
         });
+
+  const canonicalItemOccurrences = canonicalProjectionOccurrences();
+  const groupedRelationshipIds = new Set(
+    canonicalItemOccurrences.flatMap((occurrence) => occurrence.relationshipIds),
+  );
+  const canonicalActivationOccurrences = [
+    ...canonicalItemOccurrences.map(({ id, start, end }) => ({ id, start, end })),
+    ...relationshipOccurrences
+      .filter((occurrence) => !groupedRelationshipIds.has(occurrence.relationshipId))
+      .map((occurrence) => ({
+        id: occurrence.occurrenceId,
+        start: occurrence.start,
+        end: occurrence.end ?? occurrence.start,
+      })),
+  ];
 
   const allTimelineCoordinates = [
     ...state.items.flatMap((item) => {
@@ -2865,6 +2894,7 @@ function renderTimeline() {
             return [];
           }
         })(),
+        occurrences: canonicalActivationOccurrences,
       },
     );
   } catch (error) {
@@ -5065,6 +5095,61 @@ function renderGraphEdges() {
     rows.push(empty);
   }
   els.graphEdgeList.replaceChildren(...rows);
+}
+
+function canonicalProjectionOccurrences(): ProjectionOccurrenceRecord[] {
+  const relationshipsByItem = new Map<string, RelationshipRecord[]>();
+  for (const relationship of state.relationships) {
+    for (const itemId of relationship.itemIds ?? []) {
+      const current = relationshipsByItem.get(String(itemId)) ?? [];
+      current.push(relationship);
+      relationshipsByItem.set(String(itemId), current);
+    }
+  }
+
+  return state.items.flatMap((item) => {
+    const linked = relationshipsByItem.get(String(item.id)) ?? [];
+    if (linked.length === 0) return [];
+
+    const participantIds = [
+      ...new Set(
+        linked.flatMap((relationship) => [relationship.subjectId, relationship.objectId]),
+      ),
+    ];
+    const start = temporal.sortKey(item.time?.start || item.start);
+    const endCandidate = item.kind === "range"
+      ? temporal.sortKey(item.time?.end || item.end)
+      : start;
+    if (!Number.isFinite(start)) return [];
+    const end = Number.isFinite(endCandidate) ? endCandidate : start;
+    const linkedPlaceIds = [
+      ...new Set(
+        linked
+          .map((relationship) => relationship.placeId)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ];
+    const directPlace = placeForItem(item.id);
+
+    return [
+      {
+        id: item.id,
+        title: item.title,
+        time: item.time,
+        ...(directPlace?.id
+          ? { placeId: String(directPlace.id) }
+          : linkedPlaceIds.length === 1
+            ? { placeId: linkedPlaceIds[0] }
+            : {}),
+        participantContexts: participantIds.map((entityId) => ({ entityId })),
+        relationshipIds: linked.map((relationship) => relationship.id),
+        confidence: null,
+        attributes: {},
+        start: Math.min(start, end),
+        end: Math.max(start, end),
+      },
+    ];
+  });
 }
 
 function renderGraphEditor() {
