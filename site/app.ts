@@ -41,6 +41,7 @@ import {
 import type {
   LuumOccurrenceComposerElement,
   OccurrenceCommitDetail,
+  OccurrenceComposerSelectionContext,
 } from "./components/occurrence-composer.ts";
 import {
   formatOccurrenceComposition,
@@ -1911,7 +1912,78 @@ function occurrenceCompositionForRelationship(
   });
 }
 
+let occurrenceComposerMediaHydrationVersion = 0;
+
+function evidenceRecordMediaKind(record: EvidenceRecord): "image" | "audio" | "video" | null {
+  const file = record.file;
+  if (!file) return null;
+  const mime = String(file.mimeType || "").toLowerCase();
+  const name = String(file.name || "").toLowerCase();
+  if (record.type === "video" || mime.startsWith("video/") || /\.(?:mp4|webm|ogv|mov|m4v)$/.test(name)) {
+    return "video";
+  }
+  if (
+    record.type === "audio" ||
+    mime.startsWith("audio/") ||
+    /\.(?:mp3|m4a|aac|wav|ogg|oga|flac|opus)$/.test(name)
+  ) {
+    return "audio";
+  }
+  if (
+    record.type === "image" ||
+    mime.startsWith("image/") ||
+    /\.(?:png|jpe?g|webp|gif|avif)$/.test(name)
+  ) {
+    return "image";
+  }
+  return null;
+}
+
+async function hydrateOccurrenceComposerEvidenceMedia(
+  item: TimelineItemRecord,
+  baseContext: OccurrenceComposerSelectionContext | null,
+  version: number,
+): Promise<void> {
+  if (!baseContext) return;
+  const records = (item.evidenceIds || [])
+    .map((id) => state.evidence.find((record) => record.id === id))
+    .filter(isEvidenceRecord);
+  const frames = (
+    await Promise.all(
+      records.map(async (record) => {
+        const kind = evidenceRecordMediaKind(record);
+        if (!kind || !record.file?.blobKey) return null;
+        try {
+          const blob = await evidenceStore.getBlob(record.file.blobKey);
+          if (!blob) return null;
+          return {
+            kind,
+            blob,
+            mimeType: record.file.mimeType || blob.type,
+            sha256: record.file.sha256 || "",
+            alt: record.title || record.file.name || `${kind} evidence`,
+            caption: [record.title, record.sourceName || record.file.name].filter(Boolean).join(" · "),
+          };
+        } catch (error) {
+          console.warn("Could not load composer evidence media:", error);
+          return null;
+        }
+      }),
+    )
+  ).filter(
+    (
+      frame,
+    ): frame is NonNullable<OccurrenceComposerSelectionContext["media"]>[number] => frame !== null,
+  );
+  if (!frames.length || version !== occurrenceComposerMediaHydrationVersion) return;
+  els.occurrenceComposer.setSelectionMedia(baseContext, [
+    ...(baseContext.media || []),
+    ...frames,
+  ]);
+}
+
 function syncOccurrenceComposerSelection(selection = applicationSelection.current): void {
+  const hydrationVersion = ++occurrenceComposerMediaHydrationVersion;
   if (!selection) {
     els.occurrenceComposer.setSelectionContext(null);
     return;
@@ -1964,18 +2036,20 @@ function syncOccurrenceComposerSelection(selection = applicationSelection.curren
     : {};
   const selectedOccurrenceColor = selectedCategory?.color ?? selectedCategoryVisual.color ?? null;
   const selectedOccurrenceIcon = selectedCategoryVisual.icon ?? null;
-  els.occurrenceComposer.setSelectionContext({
+  const selectionContext = {
     selectedOccurrenceId: String(relationship.id),
     ...(selectedItemId ? { selectedItemId } : {}),
     title: selectedItem?.title ?? null,
     description: selectedItem?.description ?? relationship.role ?? null,
-    media: selectedItem?.media
-      ?.filter((entry) => Boolean(entry.src))
-      .map((entry) => ({
-        src: entry.src,
-        alt: entry.alt ?? "",
-        caption: entry.caption ?? "",
-      })) ?? [],
+    media:
+      selectedItem?.media
+        ?.filter((entry) => Boolean(entry.src))
+        .map((entry) => ({
+          kind: "image" as const,
+          src: entry.src,
+          alt: entry.alt ?? "",
+          caption: entry.caption ?? "",
+        })) ?? [],
     composition: occurrenceCompositionForRelationship(relationship, selectedItemId),
     relationship: {
       subjectId: String(relationship.subjectId),
@@ -1983,7 +2057,7 @@ function syncOccurrenceComposerSelection(selection = applicationSelection.curren
     },
     metadata: {
       role: relationship.role ?? null,
-      initialState: relationship.initialState === "inactive" ? "inactive" : "active",
+      initialState: relationship.initialState === "inactive" ? ("inactive" as const) : ("active" as const),
       sourceIds: relationship.sourceIds ?? [],
       confidence: relationship.confidence ?? null,
       attributes: relationship.attributes ?? {},
@@ -2004,7 +2078,11 @@ function syncOccurrenceComposerSelection(selection = applicationSelection.curren
           },
         }
       : {}),
-  });
+  };
+  els.occurrenceComposer.setSelectionContext(selectionContext);
+  if (selectedItem) {
+    void hydrateOccurrenceComposerEvidenceMedia(selectedItem, selectionContext, hydrationVersion);
+  }
 }
 
 let occurrenceComposerReturnFocus: HTMLElement | null = null;
@@ -3277,15 +3355,30 @@ function evidenceRowParts(row) {
   };
 }
 
-function supportedEvidenceFile(file) {
-  if (!file) return false;
+function evidenceFileKind(file) {
+  if (!file) return null;
   const mime = String(file.type || "").toLowerCase();
-  const name = "name" in file ? String(file.name || "") : "";
-  return (
-    mime === "application/pdf" ||
-    mime.startsWith("image/") ||
-    /\.(?:pdf|png|jpe?g|webp|gif)$/i.test(name)
-  );
+  const name = "name" in file ? String(file.name || "").toLowerCase() : "";
+  if (mime === "application/pdf" || /\.pdf$/i.test(name)) return "pdf";
+  if (mime.startsWith("image/") || /\.(?:png|jpe?g|webp|gif|avif)$/i.test(name)) return "image";
+  if (
+    mime.startsWith("audio/") ||
+    /\.(?:mp3|m4a|aac|wav|ogg|oga|flac|opus)$/i.test(name)
+  ) return "audio";
+  if (
+    mime.startsWith("video/") ||
+    /\.(?:mp4|webm|ogv|mov|m4v)$/i.test(name)
+  ) return "video";
+  return null;
+}
+
+function supportedEvidenceFile(file) {
+  return evidenceFileKind(file) !== null;
+}
+
+function extractableEvidenceFile(file) {
+  const kind = evidenceFileKind(file);
+  return kind === "pdf" || kind === "image";
 }
 
 function evidenceExtractionLabel(extraction) {
@@ -3359,7 +3452,7 @@ async function extractEvidenceRow(row, { quiet = false } = {}) {
     if (!quiet) setError(els.itemFormError, "Attach a PDF or image before extracting text.");
     return null;
   }
-  if (!supportedEvidenceFile(source.blob)) {
+  if (!extractableEvidenceFile(source.blob)) {
     if (!quiet) setError(els.itemFormError, "Text extraction supports PDF and image evidence.");
     return null;
   }
@@ -3413,12 +3506,21 @@ async function ensureEvidenceExtractionForInference() {
     const id = parts.id.value.trim();
     if (!id) continue;
     const existing = state.evidence.find((record) => record.id === id);
-    const hasNewFile = Boolean(parts.file.files?.[0]);
+    const selectedFile = parts.file.files?.[0] || null;
+    const hasNewFile = Boolean(selectedFile);
     const extraction = hasNewFile
       ? evidenceExtractionDrafts.get(id)
       : evidenceExtractionDrafts.get(id) || existing?.extraction || null;
     const hasFile = hasNewFile || Boolean(existing?.file?.blobKey);
-    if (hasFile && !extraction) await extractEvidenceRow(row, { quiet: true });
+    const existingFileKind = existing?.file
+      ? evidenceFileKind({ type: existing.file.mimeType, name: existing.file.name })
+      : null;
+    const supportsExtraction = selectedFile
+      ? extractableEvidenceFile(selectedFile)
+      : existingFileKind === "pdf" || existingFileKind === "image";
+    if (hasFile && supportsExtraction && !extraction) {
+      await extractEvidenceRow(row, { quiet: true });
+    }
   }
 }
 
@@ -3434,23 +3536,43 @@ async function collectEvidenceForm() {
     const file = parts.file.files?.[0] || null;
     let fileMetadata = existing?.file || null;
     if (file) {
-      if (!supportedEvidenceFile(file)) {
-        throw new Error("Evidence uploads must be PDF or image files.");
+      const fileKind = evidenceFileKind(file);
+      if (!fileKind) {
+        throw new Error("Evidence uploads must be PDF, image, audio, or video files.");
       }
-      const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name || "");
-      const sizeLimit = isPdf ? 25_000_000 : 15_000_000;
+      const sizeLimit =
+        fileKind === "video"
+          ? 250_000_000
+          : fileKind === "audio"
+            ? 100_000_000
+            : fileKind === "pdf"
+              ? 25_000_000
+              : 15_000_000;
       if (file.size > sizeLimit) {
         throw new Error(
           `Evidence files are limited to ${Math.round(sizeLimit / 1_000_000)} MB for this format.`,
         );
       }
       const blobKey = `evidence:${id}`;
+      const sha256 = await evidenceStore.sha256Blob(file);
       await evidenceStore.putBlob(blobKey, file);
+      if (parts.type.value === "article" || parts.type.value === "document") {
+        parts.type.value = fileKind;
+      }
       fileMetadata = {
         blobKey,
         name: file.name.slice(0, 260),
-        mimeType: file.type || (parts.type.value === "image" ? "image/*" : "application/pdf"),
+        mimeType:
+          file.type ||
+          (fileKind === "image"
+            ? "image/*"
+            : fileKind === "audio"
+              ? "audio/*"
+              : fileKind === "video"
+                ? "video/*"
+                : "application/pdf"),
         size: file.size,
+        sha256,
       };
     }
     const extraction =
@@ -3489,7 +3611,9 @@ function fillEvidenceForm(item) {
     parts.url.value = record?.url || "";
     parts.note.value = record?.note || "";
     parts.file.value = "";
-    parts.fileStatus.textContent = record?.file?.name ? `Stored locally: ${record.file.name}` : "";
+    parts.fileStatus.textContent = record?.file?.name
+      ? `Stored locally: ${record.file.name}${record.file.sha256 ? ` · SHA-256 ${record.file.sha256}` : ""}`
+      : "";
     if (record?.extraction) evidenceExtractionDrafts.set(record.id, record.extraction);
     renderEvidenceExtraction(parts, record?.extraction || null);
   });
@@ -5301,8 +5425,10 @@ function toMarkdown() {
       if (record.sourceName) lines.push(`Source: ${record.sourceName}  `);
       if (record.publishedAt) lines.push(`Published / recorded: ${record.publishedAt}  `);
       if (record.url) lines.push(`URL: ${record.url}  `);
-      if (record.file?.name)
-        lines.push(`Local PDF metadata: ${record.file.name} (${record.file.size || 0} bytes)  `);
+      if (record.file?.name) {
+        lines.push(`Local file: ${record.file.name} (${record.file.size || 0} bytes)  `);
+        if (record.file.sha256) lines.push(`SHA-256: ${record.file.sha256}  `);
+      }
       if (record.note) lines.push("", record.note);
       const supported = state.items.filter((item) => item.evidenceIds?.includes(record.id));
       if (supported.length)

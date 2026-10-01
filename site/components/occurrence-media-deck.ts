@@ -16,7 +16,15 @@ export interface OccurrenceDeckChangeDetail {
 export interface OccurrenceDeckInput {
   readonly occurrenceId: string;
   readonly frames: readonly (
-    | Readonly<{ kind: "image"; src?: string; alt?: string; caption?: string }>
+    | Readonly<{
+        kind: "image" | "video" | "audio";
+        src?: string;
+        blob?: Blob;
+        mimeType?: string;
+        sha256?: string;
+        alt?: string;
+        caption?: string;
+      }>
     | Readonly<{ kind: "context"; label?: string; body?: string }>
   )[];
   readonly activeIndex?: number;
@@ -44,7 +52,8 @@ export class LuumOccurrenceDeckElement extends LitElement {
   declare activeIndex: number;
 
   private frames: readonly OccurrenceDeckFrame[] = Object.freeze([]);
-  private readonly failedImageIndexes = new Set<number>();
+  private readonly failedMediaIndexes = new Set<number>();
+  private readonly blobObjectUrls = new Map<Blob, string>();
   private imageZoomValue = IMAGE_RESET_ZOOM;
   private imagePanX = 0;
   private imagePanY = 0;
@@ -79,13 +88,15 @@ export class LuumOccurrenceDeckElement extends LitElement {
     });
 
     if (nextOccurrenceId !== this.occurrenceId) {
-      this.failedImageIndexes.clear();
+      this.failedMediaIndexes.clear();
       this.resetImageTransform(false);
     }
+    this.releaseUnusedBlobUrls(nextFrames);
     this.occurrenceId = nextOccurrenceId;
     this.frames = nextFrames;
     this.activeIndex = nextIndex;
     this.dataset.frameCount = String(nextFrames.length);
+    this.dataset.activeKind = nextFrames[nextIndex]?.kind ?? "";
     this.requestUpdate();
   }
 
@@ -104,6 +115,7 @@ export class LuumOccurrenceDeckElement extends LitElement {
     }
 
     this.activeIndex = next;
+    this.dataset.activeKind = this.frames[next]?.kind ?? "";
     this.resetImageTransform(false);
     this.requestUpdate();
     this.dispatchEvent(
@@ -132,10 +144,44 @@ export class LuumOccurrenceDeckElement extends LitElement {
     return true;
   }
 
-  private onImageError(index: number): void {
-    this.failedImageIndexes.add(index);
+  private onMediaError(index: number): void {
+    this.failedMediaIndexes.add(index);
     this.resetImageTransform(false);
     this.requestUpdate();
+  }
+
+  private mediaSource(frame: OccurrenceDeckFrame): string {
+    if (frame.kind === "context") return "";
+    const direct = frame.src?.trim() ?? "";
+    if (direct) return direct;
+    if (!frame.blob) return "";
+    const existing = this.blobObjectUrls.get(frame.blob);
+    if (existing) return existing;
+    const url = URL.createObjectURL(frame.blob);
+    this.blobObjectUrls.set(frame.blob, url);
+    return url;
+  }
+
+  private releaseUnusedBlobUrls(frames: readonly OccurrenceDeckFrame[]): void {
+    const retained = new Set<Blob>();
+    for (const frame of frames) {
+      if (frame.kind !== "context" && frame.blob) retained.add(frame.blob);
+    }
+    for (const [blob, url] of this.blobObjectUrls) {
+      if (retained.has(blob)) continue;
+      URL.revokeObjectURL(url);
+      this.blobObjectUrls.delete(blob);
+    }
+  }
+
+  private releaseBlobUrls(): void {
+    for (const url of this.blobObjectUrls.values()) URL.revokeObjectURL(url);
+    this.blobObjectUrls.clear();
+  }
+
+  override disconnectedCallback(): void {
+    this.releaseBlobUrls();
+    super.disconnectedCallback();
   }
 
   private imageZoom(): number {
@@ -152,7 +198,7 @@ export class LuumOccurrenceDeckElement extends LitElement {
 
   private hasInteractiveImage(): boolean {
     const frame = this.frames[this.activeIndex];
-    return frame?.kind === "image" && !this.failedImageIndexes.has(this.activeIndex);
+    return frame?.kind === "image" && !this.failedMediaIndexes.has(this.activeIndex);
   }
 
   private imageTransformStyle(): string {
@@ -526,13 +572,55 @@ export class LuumOccurrenceDeckElement extends LitElement {
       `;
     }
 
-    if (this.failedImageIndexes.has(this.activeIndex)) {
+    if (this.failedMediaIndexes.has(this.activeIndex)) {
       return html`
         <div
           class="timeline-focus-hero-fallback"
           role=${frame.alt ? "img" : nothing}
           aria-label=${frame.alt || nothing}
         ></div>
+      `;
+    }
+
+    const src = this.mediaSource(frame);
+    if (frame.kind === "video") {
+      return html`
+        <div class="timeline-occurrence-deck-native-media-viewport" data-media-kind="video">
+          <video
+            class="timeline-occurrence-deck-video"
+            src=${src}
+            controls
+            playsinline
+            preload="metadata"
+            aria-label=${frame.alt || frame.caption || "Video evidence"}
+            @error=${() => this.onMediaError(this.activeIndex)}
+          ></video>
+        </div>
+        ${
+          frame.caption
+            ? html`<p class="timeline-occurrence-deck-caption">${frame.caption}</p>`
+            : nothing
+        }
+      `;
+    }
+
+    if (frame.kind === "audio") {
+      return html`
+        <div class="timeline-occurrence-deck-native-media-viewport" data-media-kind="audio">
+          <audio
+            class="timeline-occurrence-deck-audio"
+            src=${src}
+            controls
+            preload="metadata"
+            aria-label=${frame.alt || frame.caption || "Audio evidence"}
+            @error=${() => this.onMediaError(this.activeIndex)}
+          ></audio>
+        </div>
+        ${
+          frame.caption
+            ? html`<p class="timeline-occurrence-deck-caption">${frame.caption}</p>`
+            : nothing
+        }
       `;
     }
 
@@ -555,12 +643,12 @@ export class LuumOccurrenceDeckElement extends LitElement {
       >
         <img
           class="timeline-focus-hero-image"
-          src=${frame.src}
+          src=${src}
           alt=${frame.alt}
           decoding="async"
           draggable="false"
           style=${this.imageTransformStyle()}
-          @error=${() => this.onImageError(this.activeIndex)}
+          @error=${() => this.onMediaError(this.activeIndex)}
         />
       </div>
       ${
@@ -577,7 +665,7 @@ export class LuumOccurrenceDeckElement extends LitElement {
 
   private renderZoomControls() {
     const frame = this.frames[this.activeIndex];
-    if (frame?.kind !== "image" || this.failedImageIndexes.has(this.activeIndex)) return nothing;
+    if (frame?.kind !== "image" || this.failedMediaIndexes.has(this.activeIndex)) return nothing;
     const zoom = this.imageZoom();
     return html`
       <div
