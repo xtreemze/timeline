@@ -177,7 +177,9 @@ export class ReusableMediaViewerElement extends LitElement {
     if (!(viewport instanceof HTMLElement)) return;
     event.preventDefault();
     viewport.focus({ preventScroll:true });
-    try { viewport.setPointerCapture(event.pointerId); } catch {\n      // Synthetic pointer events may not own native capture.\n    }
+    try { viewport.setPointerCapture(event.pointerId); } catch {
+      // Synthetic pointer events may not own native capture.
+    }
     this.pointers.set(event.pointerId, Object.freeze({ x:event.clientX, y:event.clientY }));
     const metrics = this.pinchMetrics();
     if (metrics) {
@@ -214,7 +216,11 @@ export class ReusableMediaViewerElement extends LitElement {
     const viewport = event.currentTarget;
     if (!(viewport instanceof HTMLElement)) return;
     this.pointers.delete(event.pointerId);
-    try {\n      if (viewport.hasPointerCapture(event.pointerId)) viewport.releasePointerCapture(event.pointerId);\n    } catch {\n      // Ignore capture differences for synthetic or cancelled pointers.\n    }
+    try {
+      if (viewport.hasPointerCapture(event.pointerId)) viewport.releasePointerCapture(event.pointerId);
+    } catch {
+      // Ignore capture differences for synthetic or cancelled pointers.
+    }
     if (this.pointers.size < 2) {
       this.pinchDistance = 0;
       this.pinchCenter = null;
