@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { SpatialAnchorIndex } from "../src/projection/spatial-anchor-index.ts";
-import { projectWorldOccurrences } from "../src/projection/world-occurrence-projection.ts";
+import {
+  projectCanonicalWorldOccurrences,
+  projectWorldOccurrences,
+} from "../src/projection/world-occurrence-projection.ts";
 
 function relationship(overrides) {
   return {
@@ -52,6 +55,84 @@ test("active placed relationships compose into elevated-world-ready instances an
     ),
   );
   assert.equal(projection.edges[0].id, "stockholm-meeting");
+});
+
+test("standalone occurrence identity drives world nodes while child relationships remain topology", () => {
+  const relationships = [
+    relationship({
+      id: "signed",
+      subjectId: "alice",
+      objectId: "document",
+      predicate: "signed",
+    }),
+  ];
+  const occurrences = [
+    {
+      id: "signing-ceremony",
+      time: { type: "instant", start: { value: "2026-09-28T10:00:00Z" } },
+      placeId: "stockholm",
+      participantContexts: [{ entityId: "alice" }, { entityId: "witness" }],
+      relationshipIds: ["signed"],
+      sourceIds: [],
+      confidence: 1,
+      attributes: {},
+    },
+  ];
+  const spatialAnchors = new SpatialAnchorIndex(
+    [
+      {
+        id: "stockholm",
+        geometry: { type: "Point", coordinates: [18.0686, 59.3293] },
+      },
+    ],
+    relationships,
+    occurrences,
+  );
+
+  const projection = projectCanonicalWorldOccurrences(
+    { relationships, occurrences },
+    ["signing-ceremony"],
+    spatialAnchors,
+  );
+
+  assert.deepEqual(
+    projection.instances.map((instance) => instance.canonicalId),
+    ["alice", "document", "witness"],
+  );
+  assert.ok(
+    projection.instances.every(
+      (instance) =>
+        instance.occurrenceId === "signing-ceremony" &&
+        instance.geographicAnchors[0]?.placeId === "stockholm",
+    ),
+  );
+  assert.deepEqual(
+    projection.edges.map(({ id, label }) => [id, label]),
+    [["signed", "signed"]],
+  );
+});
+
+test("unary standalone occurrences render participants without inventing self-loop edges", () => {
+  const occurrences = [
+    {
+      id: "arrival",
+      time: { type: "instant", start: { value: "2026-09-28T10:00:00Z" } },
+      participantContexts: [{ entityId: "alice" }],
+      relationshipIds: [],
+      sourceIds: [],
+      confidence: 1,
+      attributes: {},
+    },
+  ];
+  const spatialAnchors = new SpatialAnchorIndex([], [], occurrences);
+  const projection = projectCanonicalWorldOccurrences(
+    { relationships: [], occurrences },
+    ["arrival"],
+    spatialAnchors,
+  );
+
+  assert.deepEqual(projection.instances.map((instance) => instance.canonicalId), ["alice"]);
+  assert.deepEqual(projection.edges, []);
 });
 
 test("one canonical entity stays one world node across distinct spatial contexts", () => {
