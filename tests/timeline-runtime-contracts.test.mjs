@@ -120,10 +120,9 @@ test("world graph mounts behind a Lit lifecycle boundary", async () => {
 
   assert.match(html, /<luum-world-surface id="temporal-graph-view"/);
   assert.match(html, /<\/luum-world-surface>/);
-  assert.match(source, /class LuumWorldSurfaceElement extends LitElement/);
-  assert.match(source, /render\(\)[\s\S]*return noChange/);
-  assert.match(source, /adoptView\(/);
-  assert.match(source, /disconnectedCallback\(\)[\s\S]*destroy\(\)/);
+  assert.match(source, /extends ImperativeSurfaceElement<WorldSurfaceOwnedView>/);
+  assert.match(source, /adoptView\([\s\S]*adoptSurfaceController\(view\)/);
+  assert.match(source, /disconnectedCallback\(\)[\s\S]*releaseSurfaceController\(\)/);
 });
 
 test("Lit event card has no ambient Timeline globals", async () => {
