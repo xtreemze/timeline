@@ -186,13 +186,20 @@ test("TimelineSurface publishes activation from the logical viewport, never from
 
   const emit =
     /emitViewport\(committed: boolean\): void \{([\s\S]*?)\n {2}\}/.exec(view)?.[1] ?? "";
-  assert.match(emit, /activeOccurrenceIds\(this\.relationships, this\.viewport\)/);
+  assert.match(emit, /activeOccurrenceIds\(this\.occurrences, this\.viewport\)/);
   assert.doesNotMatch(emit, /activeOccurrenceIds\([^)]*(renderWindow|retention)/);
   assert.match(app, /createSettledTemporalWindowSink/);
   assert.match(
     app,
     /timelineviewportchange[\s\S]{0,260}settledSpatialWindow\.push\([\s\S]*event\.detail\?\.viewport \|\| null[\s\S]*Boolean\(event\.detail\?\.committed\)/,
   );
+});
+
+test("TimelineSurface keeps canonical occurrence activation distinct from relationship bands", async () => {
+  const view = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
+  assert.match(view, /occurrences\?: TimelineOccurrenceIdentity\[\]/);
+  assert.match(view, /this\.occurrences = Array\.isArray\(options\.occurrences\)/);
+  assert.match(view, /activeOccurrenceIds\(this\.occurrences, this\.viewport\)/);
 });
 
 test("transient timeline viewport bursts preview cheaply and collapse to one settled spatial update", () => {
