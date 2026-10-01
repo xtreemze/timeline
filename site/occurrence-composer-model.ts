@@ -273,7 +273,7 @@ function availableActions(
       Object.freeze({
         name: option.name,
         icon: option.icon ?? previous?.icon ?? actionIconHint(option.name),
-        ...(option.color ?? previous?.color ? { color: option.color ?? previous?.color } : {}),
+        ...((option.color ?? previous?.color) ? { color: option.color ?? previous?.color } : {}),
       }),
     );
   }
@@ -321,7 +321,7 @@ function composerDelimitedSpans(
     segments.push(Object.freeze({ text: value.slice(start, end), start, end }));
   };
   for (let index = 0; index < value.length; index += 1) {
-    const character = value[index]!;
+    const character = value.charAt(index);
     if (escaped) {
       escaped = false;
       continue;
@@ -436,9 +436,7 @@ export function formatOccurrenceComposition(input: OccurrenceCompositionInput): 
 
 function parseProperties(value: string): Readonly<Record<string, string>> {
   return Object.freeze(
-    Object.fromEntries(
-      composerPropertyEntries(value).map((entry) => [entry.key, entry.rawValue]),
-    ),
+    Object.fromEntries(composerPropertyEntries(value).map((entry) => [entry.key, entry.rawValue])),
   );
 }
 
@@ -473,9 +471,9 @@ function parseEntityAtStart(input: string): {
     name = unquote(source.slice(0, closedAt + 1));
     offset = closedAt + 1;
   } else {
-    const match = source.match(/^([^\s()\[\]]+)/);
+    const match = source.match(/^([^\s()[\]]+)/);
     if (!match) return { entity: null, rest: source };
-    name = match[1]!;
+    name = match[1] ?? "";
     offset = match[0].length;
   }
 
@@ -486,7 +484,10 @@ function parseEntityAtStart(input: string): {
     if (close < 0) return { entity: null, rest: source };
     properties = Object.freeze(
       Object.fromEntries(
-        Object.entries(parseProperties(rest.slice(1, close))).map(([key, value]) => [key, unquote(value)]),
+        Object.entries(parseProperties(rest.slice(1, close))).map(([key, value]) => [
+          key,
+          unquote(value),
+        ]),
       ),
     );
     rest = rest.slice(close + 1).trimStart();
@@ -541,7 +542,7 @@ function stripTime(input: string): {
   if (range) {
     return {
       source: input.slice(0, range.index).trimEnd(),
-      time: Object.freeze({ kind: "range", start: range[1]!, end: range[2]! }),
+      time: Object.freeze({ kind: "range", start: range[1] ?? "", end: range[2] ?? "" }),
     };
   }
   const instant = input.match(/\s+on\s+(\S+)\s*$/i);
@@ -592,7 +593,7 @@ export function parseOccurrenceSentence(input: string): OccurrenceSentenceDraft 
     });
   }
 
-  const predicateMatch = subjectPass.rest.match(/^([^\s()\[\]]+)/);
+  const predicateMatch = subjectPass.rest.match(/^([^\s()[\]]+)/);
   if (!predicateMatch) {
     return Object.freeze({
       subject: subjectPass.entity,
@@ -607,7 +608,7 @@ export function parseOccurrenceSentence(input: string): OccurrenceSentenceDraft 
     });
   }
 
-  const predicate = predicateMatch[1]!;
+  const predicate = predicateMatch[1] ?? "";
   const afterPredicate = subjectPass.rest.slice(predicateMatch[0].length).trimStart();
   const objectPass = parseEntityAtStart(afterPredicate);
   if (!objectPass.entity) {
@@ -664,7 +665,7 @@ function uniqueSuggestions(
 
 function skipSpaces(input: string, offset: number): number {
   let cursor = Math.max(0, Math.min(input.length, offset));
-  while (cursor < input.length && /\s/.test(input[cursor]!)) cursor += 1;
+  while (cursor < input.length && /\s/.test(input.charAt(cursor))) cursor += 1;
   return cursor;
 }
 
@@ -680,7 +681,7 @@ function readEntitySpan(
     let escaped = false;
     nameEnd = start + 1;
     while (nameEnd < input.length) {
-      const character = input[nameEnd]!;
+      const character = input.charAt(nameEnd);
       if (escaped) {
         escaped = false;
       } else if (character === "\\") {
@@ -692,7 +693,7 @@ function readEntitySpan(
       nameEnd += 1;
     }
   } else {
-    while (nameEnd < input.length && !/[\s()[\]]/.test(input[nameEnd]!)) nameEnd += 1;
+    while (nameEnd < input.length && !/[\s()[\]]/.test(input.charAt(nameEnd))) nameEnd += 1;
   }
   if (nameEnd <= start) return null;
 
@@ -718,13 +719,13 @@ function readTokenSpan(
   const start = skipSpaces(input, offset);
   if (start >= input.length) return null;
   let end = start;
-  while (end < input.length && !/[\s()[\]]/.test(input[end]!)) end += 1;
+  while (end < input.length && !/[\s()[\]]/.test(input.charAt(end))) end += 1;
   return end > start ? { start, end, text: input.slice(start, end) } : null;
 }
 
 function trimRangeEnd(input: string, start: number, end: number): number {
   let cursor = Math.max(start, Math.min(input.length, end));
-  while (cursor > start && /\s/.test(input[cursor - 1]!)) cursor -= 1;
+  while (cursor > start && /\s/.test(input.charAt(cursor - 1))) cursor -= 1;
   return cursor;
 }
 
@@ -744,7 +745,9 @@ export function composerCursorSection(input: string, cursorOffset: number): Comp
 
   if (
     cursorWithinSpan(offset, subject.start, subject.end, input.length) ||
-    (offset === semanticEnd(input, subject.start, subject.end) && input[offset] === "?" && !questionMarkIsEscaped(input, offset))
+    (offset === semanticEnd(input, subject.start, subject.end) &&
+      input[offset] === "?" &&
+      !questionMarkIsEscaped(input, offset))
   ) {
     return Object.freeze({
       kind: "subject",
@@ -758,7 +761,9 @@ export function composerCursorSection(input: string, cursorOffset: number): Comp
   if (!predicate) return Object.freeze({ kind: "tail", start: offset, end: offset, text: "" });
   if (
     cursorWithinSpan(offset, predicate.start, predicate.end, input.length) ||
-    (offset === semanticEnd(input, predicate.start, predicate.end) && input[offset] === "?" && !questionMarkIsEscaped(input, offset))
+    (offset === semanticEnd(input, predicate.start, predicate.end) &&
+      input[offset] === "?" &&
+      !questionMarkIsEscaped(input, offset))
   ) {
     return Object.freeze({
       kind: "predicate",
@@ -772,7 +777,9 @@ export function composerCursorSection(input: string, cursorOffset: number): Comp
   if (!object) return Object.freeze({ kind: "tail", start: offset, end: offset, text: "" });
   if (
     cursorWithinSpan(offset, object.start, object.end, input.length) ||
-    (offset === semanticEnd(input, object.start, object.end) && input[offset] === "?" && !questionMarkIsEscaped(input, offset))
+    (offset === semanticEnd(input, object.start, object.end) &&
+      input[offset] === "?" &&
+      !questionMarkIsEscaped(input, offset))
   ) {
     return Object.freeze({
       kind: "object",
@@ -818,7 +825,11 @@ export function composerCursorSection(input: string, cursorOffset: number): Comp
   if (optionsStart >= 0) {
     const optionsEnd = input.indexOf("]", optionsStart + 1);
     const end = optionsEnd >= 0 ? optionsEnd + 1 : input.length;
-    if (offset >= optionsStart && offset < end) {
+    // A caret resting after "]" at the end of input is still filling the list while its
+    // last value is empty ("key: ]" or "a|]"); a completed list leaves the caret in the tail.
+    const openTrailingList =
+      offset === end && end === input.length && /(?::|\|)\s*\]$/.test(input.slice(0, end));
+    if (offset >= optionsStart && (offset < end || openTrailingList)) {
       return Object.freeze({
         kind: "options",
         start: optionsStart,
@@ -838,8 +849,8 @@ function trimmedValueRange(
 ): Readonly<{ start: number; end: number }> {
   let valueStart = Math.max(0, Math.min(input.length, start));
   let valueEnd = Math.max(valueStart, Math.min(input.length, end));
-  while (valueStart < valueEnd && /\s/.test(input[valueStart]!)) valueStart += 1;
-  while (valueEnd > valueStart && /\s/.test(input[valueEnd - 1]!)) valueEnd -= 1;
+  while (valueStart < valueEnd && /\s/.test(input.charAt(valueStart))) valueStart += 1;
+  while (valueEnd > valueStart && /\s/.test(input.charAt(valueEnd - 1))) valueEnd -= 1;
   return Object.freeze({ start: valueStart, end: valueEnd });
 }
 
@@ -854,18 +865,14 @@ function composerDelimitedRanges(
   let escaped = false;
   let itemIndex = 0;
   const push = (segmentEnd: number) => {
-    const range = trimmedValueRange(
-      input,
-      rawStart + segmentStart,
-      rawStart + segmentEnd,
-    );
+    const range = trimmedValueRange(input, rawStart + segmentStart, rawStart + segmentEnd);
     if (range.end > range.start) {
       ranges.push(Object.freeze({ ...range, index: itemIndex }));
       itemIndex += 1;
     }
   };
   for (let index = 0; index < rawValue.length; index += 1) {
-    const character = rawValue[index]!;
+    const character = rawValue.charAt(index);
     if (escaped) {
       escaped = false;
       continue;
@@ -1037,10 +1044,7 @@ export function projectOccurrenceInvestigation(input: string): OccurrenceInvesti
 
   for (const section of sections) {
     const operatorIndex = section.end;
-    if (
-      input[operatorIndex] !== "?" ||
-      questionMarkIsEscaped(input, operatorIndex)
-    ) {
+    if (input[operatorIndex] !== "?" || questionMarkIsEscaped(input, operatorIndex)) {
       continue;
     }
     const end = operatorIndex + 1;
@@ -1134,7 +1138,7 @@ function editDistance(left: string, right: string): number {
     }
     previous.splice(0, previous.length, ...current);
   }
-  return previous[right.length]!;
+  return previous[right.length] ?? right.length;
 }
 
 function entityReferenceNeedsCanonicalId(
@@ -1237,8 +1241,7 @@ function cursorPredicateSuggestions(
       .sort(
         (left, right) =>
           nearestMatchScore(section.text, [left.name]) -
-            nearestMatchScore(section.text, [right.name]) ||
-          left.name.localeCompare(right.name),
+            nearestMatchScore(section.text, [right.name]) || left.name.localeCompare(right.name),
       )
       .slice(0, 8)
       .map((action) => ({
@@ -1346,9 +1349,12 @@ export function occurrenceComposerSuggestions(
     );
   }
 
-  if (/\[[^\]]*$/.test(prefix)) {
-    const optionStart = prefix.lastIndexOf("[");
-    const optionText = prefix.slice(optionStart + 1);
+  // "[categories: ]" with the caret after "]" is still an open list; read it without the "]".
+  const openTrailingOption = cursorOffset === input.length && /\[[^\]]*(?::|\|)\s*\]$/.test(prefix);
+  const optionPrefix = openTrailingOption ? prefix.slice(0, -1) : prefix;
+  if (/\[[^\]]*$/.test(optionPrefix)) {
+    const optionStart = optionPrefix.lastIndexOf("[");
+    const optionText = optionPrefix.slice(optionStart + 1);
     const categoryMatch = optionText.match(/(?:^|,)\s*categor(?:y|ies)\s*:\s*([^,\]]*)$/i);
     const tagMatch = optionText.match(/(?:^|,)\s*tags\s*:\s*([^,\]]*)$/i);
 
@@ -1356,13 +1362,16 @@ export function occurrenceComposerSuggestions(
       const rawTags = tagMatch[1] ?? "";
       const selectedTags = composerListValues(rawTags);
       const selectedKeys = new Set(selectedTags.map(normalizedMatchText));
-      const activeTag = normalizedMatchText(
-        splitComposerDelimited(rawTags, "|").at(-1) ?? "",
-      );
+      const tagOptions = (options.tags ?? [])
+        .map(normalizeTagOption)
+        .filter((tag): tag is ComposerTagOption => Boolean(tag));
+      const lastTag = normalizedMatchText(splitComposerDelimited(rawTags, "|").at(-1) ?? "");
+      // A last value that already names a tag is a completed choice, not a search query.
+      const activeTag = tagOptions.some((tag) => normalizedMatchText(tag.label) === lastTag)
+        ? ""
+        : lastTag;
       return uniqueSuggestions(
-        (options.tags ?? [])
-          .map(normalizeTagOption)
-          .filter((tag): tag is ComposerTagOption => Boolean(tag))
+        tagOptions
           .filter(
             (tag) =>
               !activeTag ||
@@ -1386,9 +1395,15 @@ export function occurrenceComposerSuggestions(
     const rawCategories = categoryMatch?.[1] ?? "";
     const selectedCategories = composerListValues(rawCategories);
     const selectedKeys = new Set(selectedCategories.map(normalizedMatchText));
-    const activeCategory = normalizedMatchText(
+    const lastCategory = normalizedMatchText(
       splitComposerDelimited(rawCategories, "|").at(-1) ?? "",
     );
+    // A last value that already names a category is a completed choice, not a search query.
+    const activeCategory = options.categories.some(
+      (category) => normalizedMatchText(category.name) === lastCategory,
+    )
+      ? ""
+      : lastCategory;
     const categorySuggestions = options.categories
       .filter(
         (category) =>
@@ -1599,7 +1614,9 @@ export function occurrenceComposerSuggestions(
       .map((tag) => ({
         kind: "tag" as const,
         label: tag.label,
-        detail: selectedTagKeys.has(normalizedMatchText(tag.label)) ? "selected tag" : "occurrence tag",
+        detail: selectedTagKeys.has(normalizedMatchText(tag.label))
+          ? "selected tag"
+          : "occurrence tag",
         ...(tag.icon ? { icon: tag.icon } : {}),
         ...(tag.color ? { color: tag.color } : {}),
         insertText: quoteComposerName(tag.label),
@@ -1622,7 +1639,9 @@ function composerOptionSentence(
   const parts: string[] = [];
   let categoryEnd = -1;
   let tagEnd = -1;
-  const normalizedCategories = [...new Set(categories.map((value) => value.trim()).filter(Boolean))];
+  const normalizedCategories = [
+    ...new Set(categories.map((value) => value.trim()).filter(Boolean)),
+  ];
   const normalizedTags = [...new Set(tags.map((value) => value.trim()).filter(Boolean))];
 
   if (normalizedCategories.length) {
