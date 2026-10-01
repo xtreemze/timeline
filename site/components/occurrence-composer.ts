@@ -1,4 +1,5 @@
 import { LitElement, css, html, nothing, svg } from "lit";
+import { createRef, ref } from "lit/directives/ref.js";
 import {
   interpretInvestigativeQualifier,
   projectInvestigativeCandidateMatrix,
@@ -1116,11 +1117,44 @@ export class LuumOccurrenceComposerElement extends LitElement {
   private hasPendingSelectionContext = false;
   private selectionSeeded = false;
   private sessionKey = "";
+  private readonly composerInputRef = createRef<HTMLInputElement>();
+  private readonly inputShellRef = createRef<HTMLElement>();
+  private readonly inputDecorationContentRef = createRef<HTMLElement>();
+  private readonly contextDeckRef = createRef<LuumOccurrenceDeckElement>();
+  private previewPaletteCache: WorldGraphPalette | null = null;
+  private themeQuery: MediaQueryList | null = null;
+  private syncedDeckElement: LuumOccurrenceDeckElement | null = null;
+  private syncedDeckContext: OccurrenceComposerSelectionContext | null | undefined = undefined;
+  private readonly handleThemeChange = () => {
+    this.previewPaletteCache = null;
+    this.requestUpdate();
+  };
 
   constructor() {
     super();
     this.active = false;
     this.editing = false;
+  }
+
+  override connectedCallback(): void {
+    super.connectedCallback();
+    const nextThemeQuery =
+      this.ownerDocument.defaultView?.matchMedia?.("(prefers-color-scheme: dark)") ?? null;
+    if (this.themeQuery !== nextThemeQuery) {
+      this.themeQuery?.removeEventListener?.("change", this.handleThemeChange);
+      this.themeQuery = nextThemeQuery;
+      this.themeQuery?.addEventListener?.("change", this.handleThemeChange);
+      this.previewPaletteCache = null;
+    }
+  }
+
+  override disconnectedCallback(): void {
+    this.themeQuery?.removeEventListener?.("change", this.handleThemeChange);
+    this.themeQuery = null;
+    this.previewPaletteCache = null;
+    this.syncedDeckElement = null;
+    this.syncedDeckContext = undefined;
+    super.disconnectedCallback();
   }
 
   setData(data: OccurrenceComposerData): void {
@@ -1279,7 +1313,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.applySelectionSeed();
     this.requestUpdate();
     void this.updateComplete.then(() => {
-      const input = this.renderRoot.querySelector<HTMLInputElement>("input");
+      const input = this.composerInputRef.value ?? null;
       if (!input) return;
       input.focus({ preventScroll: true });
       input.setSelectionRange(this.cursorOffset, this.cursorOffset);
@@ -1336,7 +1370,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.resetSuggestionSelection();
     this.requestUpdate();
     void this.updateComplete.then(() => {
-      const input = this.renderRoot.querySelector<HTMLInputElement>("input");
+      const input = this.composerInputRef.value ?? null;
       if (!input) return;
       if (section) {
         input.setSelectionRange(section.start, section.end);
@@ -1383,7 +1417,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     if (!this.active) return;
     if (typeof matchMedia === "function" && !matchMedia("(max-width: 699px)").matches) return;
     const footer = this.closest<HTMLElement>(".app-footer-bar");
-    const shell = this.renderRoot.querySelector<HTMLElement>(".input-shell");
+    const shell = this.inputShellRef.value ?? null;
     if (!footer || !shell) return;
     const visualViewport = window.visualViewport;
     const viewportLeft = visualViewport?.offsetLeft ?? 0;
@@ -1403,7 +1437,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.externalError = "";
     void this.updateComplete.then(() => {
       this.revealMobileInputLane();
-      this.renderRoot.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
+      this.composerInputRef.value ?? null?.focus({ preventScroll: true });
       requestAnimationFrame(() => this.revealMobileInputLane());
     });
   }
@@ -1427,7 +1461,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.applySelectionSeed();
     this.requestUpdate();
     void this.updateComplete.then(() => {
-      this.renderRoot.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
+      this.composerInputRef.value ?? null?.focus({ preventScroll: true });
     });
   }
 
@@ -1435,8 +1469,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     return parseOccurrenceSentence(this.value);
   }
 
-  private suggestions(): readonly ComposerSuggestion[] {
-    const parsed = this.parsed();
+  private suggestions(parsed: OccurrenceSentenceDraft = this.parsed()): readonly ComposerSuggestion[] {
     const preferredEntityIds =
       parsed.stage === "object" && this.selectionContext?.relationship?.objectId
         ? [this.selectionContext.relationship.objectId]
@@ -1582,7 +1615,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
   }
 
   private syncInputDecorationScroll(target: HTMLInputElement): void {
-    const content = this.renderRoot.querySelector<HTMLElement>(".input-decoration-content");
+    const content = this.inputDecorationContentRef.value ?? null;
     if (!content) return;
     content.style.transform = `translateX(${-target.scrollLeft}px)`;
   }
@@ -1788,7 +1821,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.resetSuggestionSelection();
     this.requestUpdate();
     void this.updateComplete.then(() => {
-      const input = this.renderRoot.querySelector<HTMLInputElement>("input");
+      const input = this.composerInputRef.value ?? null;
       if (!input || input.value !== this.value) return;
       input.setSelectionRange(range.start, range.end);
       input.focus({ preventScroll: true });
@@ -1797,7 +1830,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
   private focusComposerOffset(cursorOffset: number): void {
     void this.updateComplete.then(() => {
-      const input = this.renderRoot.querySelector<HTMLInputElement>("input");
+      const input = this.composerInputRef.value ?? null;
       if (!input) return;
       input.focus({ preventScroll: true });
       input.setSelectionRange(cursorOffset, cursorOffset);
@@ -2106,18 +2139,23 @@ export class LuumOccurrenceComposerElement extends LitElement {
   }
 
   private previewPalette(): WorldGraphPalette {
-    const dark = window.matchMedia?.("(prefers-color-scheme: dark)").matches;
+    if (this.previewPaletteCache) return this.previewPaletteCache;
+    const dark = this.themeQuery?.matches ?? false;
     const fallback = dark ? WORLD_DARK_PALETTE : WORLD_LIGHT_PALETTE;
     const computed = getComputedStyle(this);
     const token = (name: string, value: string) => {
       const raw = computed.getPropertyValue(`--${name}`).trim();
       return /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(raw) ? raw : value;
     };
-    return {
-      ink: token("ink", fallback.ink), muted: token("muted", fallback.muted),
-      paper: token("paper", fallback.paper), focus: token("focus", fallback.focus),
-      story: token("story", fallback.story), line: token("line", fallback.line),
-    };
+    this.previewPaletteCache = Object.freeze({
+      ink: token("ink", fallback.ink),
+      muted: token("muted", fallback.muted),
+      paper: token("paper", fallback.paper),
+      focus: token("focus", fallback.focus),
+      story: token("story", fallback.story),
+      line: token("line", fallback.line),
+    });
+    return this.previewPaletteCache;
   }
 
   private previewNode(node: { label: string; icon: string; entityId?: string } | null, label: string, palette: WorldGraphPalette) {
@@ -2131,8 +2169,9 @@ export class LuumOccurrenceComposerElement extends LitElement {
   }
 
   private syncContextDeck(): void {
-    const deck = this.renderRoot.querySelector<LuumOccurrenceDeckElement>(".composer-context-deck");
+    const deck = this.contextDeckRef.value;
     if (!deck) return;
+    if (deck === this.syncedDeckElement && this.selectionContext === this.syncedDeckContext) return;
     deck.setDeck({
       occurrenceId:
         this.selectionContext?.selectedOccurrenceId ??
@@ -2141,11 +2180,13 @@ export class LuumOccurrenceComposerElement extends LitElement {
       frames: this.contextDeckFrames(),
       activeIndex: deck.activeIndex,
     });
+    this.syncedDeckElement = deck;
+    this.syncedDeckContext = this.selectionContext;
   }
 
   override updated(): void {
     this.syncContextDeck();
-    const input = this.renderRoot.querySelector<HTMLInputElement>("input");
+    const input = this.composerInputRef.value ?? null;
     if (input) this.syncInputDecorationScroll(input);
   }
 
@@ -2181,7 +2222,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
       candidateMatrix,
       unknownEntityId,
     } = investigation;
-    const suggestions = qualifiers.length ? [] : this.suggestions().slice(0, 7);
+    const suggestions = qualifiers.length ? [] : this.suggestions(parsed).slice(0, 7);
     const selectedIndex = Math.min(this.activeSuggestion, Math.max(0, suggestions.length - 1));
     const activeSuggestion = suggestions[selectedIndex];
     const ghostSuffix =
@@ -2295,6 +2336,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const hasExplicitPlace = sections.some((section) => section.kind === "place");
     const hasExplicitTime = sections.some((section) => section.kind === "time");
     const cardStatus = qualifiers.length ? "Investigating" : preview.category || "Draft";
+    const contextFrames = this.contextDeckFrames();
 
     return html`
       <section
@@ -2310,9 +2352,9 @@ export class LuumOccurrenceComposerElement extends LitElement {
             role="status"
             aria-live="polite"
           >${this.stageGuidance(parsed, qualifiers, suggestions, activeSuggestion)}</span>
-          <div class="input-shell">
+          <div ${ref(this.inputShellRef)} class="input-shell">
             <span class="input-decoration" aria-hidden="true">
-              <span class="input-decoration-content">
+              <span ${ref(this.inputDecorationContentRef)} class="input-decoration-content">
                 ${inputSegments.map((segment) =>
                   segment.kind
                     ? html`<span
@@ -2340,6 +2382,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
               </span>
             </span>
             <input
+              ${ref(this.composerInputRef)}
               type="text"
               autocomplete="off"
               autocapitalize="sentences"
@@ -2467,15 +2510,15 @@ export class LuumOccurrenceComposerElement extends LitElement {
                     : nothing}
                 </div>`
               : nothing}
-            ${this.contextDeckFrames().length || this.selectionContext?.description?.trim()
+            ${contextFrames.length || this.selectionContext?.description?.trim()
               ? html`<div
                   class="composer-card-details"
-                  data-split=${String(Boolean(this.contextDeckFrames().length && this.selectionContext?.description?.trim()))}
+                  data-split=${String(Boolean(contextFrames.length && this.selectionContext?.description?.trim()))}
                   aria-label="Occurrence media and context"
                 >
-                  ${this.contextDeckFrames().length
+                  ${contextFrames.length
                     ? html`<div class="composer-card-media" aria-label="Occurrence slideshow">
-                        <luum-occurrence-deck class="composer-context-deck"></luum-occurrence-deck>
+                        <luum-occurrence-deck ${ref(this.contextDeckRef)} class="composer-context-deck"></luum-occurrence-deck>
                       </div>`
                     : nothing}
                   ${this.selectionContext?.description?.trim()
