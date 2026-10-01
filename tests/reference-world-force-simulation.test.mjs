@@ -193,6 +193,52 @@ test("same-place topology participates in local layout", () => {
   assert.ok(afterDistance < beforeDistance);
 });
 
+test("reference solver preserves hard radius while adding hub connectivity clearance", () => {
+  const simulation = new ReferenceWorldForceSimulation({
+    repulsionStrength: 0,
+    collisionStrength: 0.08,
+    anchorStrength: 0,
+    altitudeStrength: 0,
+    damping: 0.86,
+    settleEnergy: 0,
+  });
+  const hub = '["hub","network"]';
+  const peer = '["peer","network"]';
+  simulation.setScene({
+    nodes: [
+      node(hub, {
+        initialEastMeters: -100,
+        collisionRadiusMeters: 100,
+        connectivityClearanceMeters: 400,
+      }),
+      node(peer, {
+        initialEastMeters: 100,
+        collisionRadiusMeters: 100,
+      }),
+    ],
+    edges: [],
+    anchors: [
+      anchor(hub, "stockholm", { influence: 0 }),
+      anchor(peer, "stockholm", { influence: 0 }),
+    ],
+  });
+
+  simulation.apply(topologyRequest());
+  for (let index = 0; index < 120; index += 1) simulation.step(1000 / 60);
+  const positions = simulation.getSnapshot();
+  const separation = Math.hypot(
+    positions[1].eastMeters - positions[0].eastMeters,
+    positions[1].northMeters - positions[0].northMeters,
+  );
+
+  assert.ok(separation > 500, `hub clearance should create additional spacing; got ${separation}`);
+  assert.equal(
+    simulation.getDiagnostics().running,
+    true,
+    "spacing remains a force concern rather than changing the node's hard collision radius",
+  );
+});
+
 test("default repulsion spreads a dense same-anchor group beyond label-scale crowding", () => {
   const simulation = new ReferenceWorldForceSimulation();
   const ids = [

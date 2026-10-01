@@ -1,5 +1,8 @@
 import { expect, test } from "@playwright/test";
-import { WORLD_CAMERA_MAX_ZOOM } from "../../src/layout/world-spatial-mode.ts";
+import {
+  DEFAULT_WORLD_SPATIAL_MODE_POLICY,
+  WORLD_CAMERA_MAX_ZOOM,
+} from "../../src/layout/world-spatial-mode.ts";
 import { doubleTap, pinch, swipe, touchscreen } from "../support/touch-gestures.ts";
 
 /**
@@ -61,6 +64,208 @@ async function gotoHarness(page: import("@playwright/test").Page) {
 }
 
 test.describe("world interaction coverage (issue #445 Priority 8)", () => {
+  test("globe drag is weighted during direct manipulation and carries release inertia", async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(
+      isMobile,
+      "Mobile projects exercise the same controller through trusted touch swipes.",
+    );
+    test.skip(!(await gotoHarness(page)), "WebGL2 unavailable in this environment.");
+
+    const viewport = page.viewportSize();
+    if (!viewport) throw new Error("WorldSurface drag certification requires a viewport.");
+
+    const camera = { longitude: 0, latitude: 20, zoom: 5, bearing: 0, pitch: 0 };
+    const start = {
+      x: Math.round(viewport.width * 0.42),
+      y: Math.round(viewport.height * 0.5),
+    };
+    const distance = Math.min(180, Math.round(viewport.width * 0.22));
+
+    const resetCamera = async () => {
+      await page.evaluate(async (nextCamera) => {
+        window.__worldPerfHarness.surface.setCamera(nextCamera);
+        await new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        );
+      }, camera);
+    };
+
+    const drag = async (steps: number, delayMs: number) => {
+      await resetCamera();
+      await page.mouse.move(start.x, start.y);
+      await page.mouse.down();
+      for (let step = 1; step <= steps; step += 1) {
+        await page.mouse.move(start.x + (distance * step) / steps, start.y);
+        if (delayMs > 0) await page.waitForTimeout(delayMs);
+      }
+      const held = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera());
+      await page.mouse.up();
+      await page.waitForTimeout(120);
+      const inertial = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera());
+      await page.waitForTimeout(350);
+      return { held, inertial };
+    };
+
+    const fast = await drag(3, 4);
+    const slow = await drag(8, 24);
+    const cameraDistance = (sample: typeof camera) =>
+      Math.hypot(
+        (sample.longitude - camera.longitude) * Math.cos((camera.latitude * Math.PI) / 180),
+        sample.latitude - camera.latitude,
+      );
+    const fastHeldDistance = cameraDistance(fast.held);
+    const slowHeldDistance = cameraDistance(slow.held);
+
+    expect(fastHeldDistance, "a fast drag must still move the globe").toBeGreaterThan(0);
+    expect(
+      slowHeldDistance,
+      "the same pointer distance over more elapsed time should approach the pointer farther",
+    ).toBeGreaterThan(fastHeldDistance * 1.25);
+    expect(
+      cameraDistance(slow.inertial),
+      "release inertia should continue the weighted globe path after pointer-up",
+    ).toBeGreaterThan(slowHeldDistance);
+  });
+
+  test("globe release inertia does not accelerate beyond the held drag velocity", async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(
+      isMobile,
+      "Mobile projects exercise the same controller through trusted touch swipes.",
+    );
+    test.skip(!(await gotoHarness(page)), "WebGL2 unavailable in this environment.");
+
+    const viewport = page.viewportSize();
+    if (!viewport) throw new Error("WorldSurface drag certification requires a viewport.");
+
+    const startCamera = { longitude: 0, latitude: 20, zoom: 5, bearing: 0, pitch: 0 };
+    await page.evaluate(async (nextCamera) => {
+      window.__worldPerfHarness.surface.setCamera(nextCamera);
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      );
+    }, startCamera);
+
+    const start = {
+      x: Math.round(viewport.width * 0.42),
+      y: Math.round(viewport.height * 0.5),
+    };
+    const distance = Math.min(180, Math.round(viewport.width * 0.22));
+    const sample = () =>
+      page.evaluate(() => ({
+        camera: window.__worldPerfHarness.surface.getCamera(),
+        time: performance.now(),
+      }));
+    const cameraDistance = (
+      from: typeof startCamera,
+      to: typeof startCamera,
+    ) =>
+      Math.hypot(
+        (to.longitude - from.longitude) *
+          Math.cos((((from.latitude + to.latitude) / 2) * Math.PI) / 180),
+        to.latitude - from.latitude,
+      );
+
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    const heldSamples: Array<Awaited<ReturnType<typeof sample>>> = [];
+    for (let step = 1; step <= 12; step += 1) {
+      await page.mouse.move(start.x + (distance * step) / 12, start.y);
+      heldSamples.push(await sample());
+      if (step < 12) await page.waitForTimeout(20);
+    }
+
+    const recent = heldSamples.slice(-5);
+    const recentFirst = recent[0];
+    const held = recent.at(-1);
+    if (!recentFirst || !held) throw new Error("Expected direct-manipulation camera samples.");
+    const directElapsed = Math.max(1, held.time - recentFirst.time);
+    const directVelocity = cameraDistance(recentFirst.camera, held.camera) / directElapsed;
+
+    await page.mouse.up();
+    await page.waitForTimeout(32);
+    const released = await sample();
+    const releaseElapsed = Math.max(1, released.time - held.time);
+    const releaseVelocity = cameraDistance(held.camera, released.camera) / releaseElapsed;
+
+    expect(directVelocity, "the held drag must have measurable camera velocity").toBeGreaterThan(0);
+    expect(
+      releaseVelocity,
+      "release inertia should continue rather than stall immediately",
+    ).toBeGreaterThan(directVelocity * 0.35);
+    expect(
+      releaseVelocity,
+      "pointer-up must not accelerate the globe above the held drag velocity",
+    ).toBeLessThan(directVelocity * 1.35);
+  });
+
+  test("globe release does not fling after the pointer has already come to rest", async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(
+      isMobile,
+      "Mobile projects exercise the same controller through trusted touch swipes.",
+    );
+    test.skip(!(await gotoHarness(page)), "WebGL2 unavailable in this environment.");
+
+    const viewport = page.viewportSize();
+    if (!viewport) throw new Error("WorldSurface drag certification requires a viewport.");
+
+    const startCamera = { longitude: 0, latitude: 20, zoom: 5, bearing: 0, pitch: 0 };
+    await page.evaluate(async (nextCamera) => {
+      window.__worldPerfHarness.surface.setCamera(nextCamera);
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      );
+    }, startCamera);
+
+    const start = {
+      x: Math.round(viewport.width * 0.42),
+      y: Math.round(viewport.height * 0.5),
+    };
+    const distance = Math.min(180, Math.round(viewport.width * 0.22));
+    const cameraDistance = (
+      from: typeof startCamera,
+      to: typeof startCamera,
+    ) =>
+      Math.hypot(
+        (to.longitude - from.longitude) *
+          Math.cos((((from.latitude + to.latitude) / 2) * Math.PI) / 180),
+        to.latitude - from.latitude,
+      );
+
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    for (let step = 1; step <= 8; step += 1) {
+      await page.mouse.move(start.x + (distance * step) / 8, start.y);
+      if (step < 8) await page.waitForTimeout(20);
+    }
+
+    const held = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera());
+    await page.waitForTimeout(120);
+    const rested = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera());
+    await page.mouse.up();
+    await page.waitForTimeout(80);
+    const released = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera());
+
+    const moved = cameraDistance(startCamera, held);
+    expect(moved, "the drag must move the globe before the hold").toBeGreaterThan(0);
+    expect(
+      cameraDistance(held, rested),
+      "holding the pointer still must keep the weighted globe stationary",
+    ).toBeLessThan(moved * 0.01 + 0.002);
+    expect(
+      cameraDistance(rested, released),
+      "lifting after the pointer has rested must not resurrect stale fling velocity",
+    ).toBeLessThan(moved * 0.03 + 0.004);
+  });
+
   test("mouse-wheel zoom changes the camera on the desktop controller path", async ({
     page,
     isMobile,
@@ -80,6 +285,65 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
     expect(after.zoom, "wheel zoom should change the camera zoom level").not.toBeCloseTo(
       before.zoom,
       5,
+    );
+  });
+
+  test("wheel zoom crosses the globe/local handoff and continues without slider or button input", async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, "Mobile projects certify two-finger pinch separately.");
+    test.skip(!(await gotoHarness(page)), "WebGL2 unavailable in this environment.");
+
+    const viewport = page.viewportSize();
+    if (!viewport) throw new Error("WorldSurface wheel handoff certification requires a viewport.");
+
+    await page.evaluate(
+      async ({ enterLocalAtZoom }) => {
+        const surface = window.__worldPerfHarness.surface;
+        surface.setCamera({
+          longitude: 18.0686,
+          latitude: 59.3293,
+          zoom: enterLocalAtZoom - 0.25,
+          bearing: 0,
+          pitch: 0,
+        });
+        await new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        );
+      },
+      { enterLocalAtZoom: DEFAULT_WORLD_SPATIAL_MODE_POLICY.enterLocalAtZoom },
+    );
+
+    const point = {
+      x: Math.round(viewport.width * 0.62),
+      y: Math.round(viewport.height * 0.46),
+    };
+    await page.mouse.move(point.x, point.y);
+
+    // First wheel gesture crosses the semantic/detail threshold. Let the
+    // controlled globe gesture settle so the deferred MapView/controller
+    // handoff can complete, then continue with wheel input only.
+    await page.mouse.wheel(0, -600);
+    await page.waitForTimeout(450);
+    const afterCrossing = await page.evaluate(
+      () => window.__worldPerfHarness.surface.getCamera().zoom,
+    );
+    expect(afterCrossing).toBeGreaterThanOrEqual(
+      DEFAULT_WORLD_SPATIAL_MODE_POLICY.enterLocalAtZoom,
+    );
+
+    await page.mouse.wheel(0, -600);
+    await page.waitForTimeout(450);
+    const afterContinuation = await page.evaluate(
+      () => window.__worldPerfHarness.surface.getCamera().zoom,
+    );
+    expect(
+      afterContinuation,
+      "wheel zoom must continue after the globe/local handoff without requiring toolbar controls",
+    ).toBeGreaterThan(afterCrossing + 0.1);
+    expect(afterContinuation).toBeGreaterThan(
+      DEFAULT_WORLD_SPATIAL_MODE_POLICY.enterLocalAtZoom + 0.25,
     );
   });
 
@@ -220,22 +484,25 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
     const viewport = page.viewportSize();
     if (!viewport) throw new Error("WorldSurface pinch certification requires a viewport.");
 
-    await page.evaluate(async () => {
-      const helpersModulePath = "/world-test-helpers.mjs";
-      const { createWorldProjection } = await import(helpersModulePath);
-      const harness = window.__worldPerfHarness;
-      harness.surface.setProjection(createWorldProjection({ instances: [], edges: [] }));
-      harness.surface.setCamera({
-        longitude: 12,
-        latitude: 30,
-        zoom: 12.6,
-        bearing: 0,
-        pitch: 0,
-      });
-      await new Promise<void>((resolve) =>
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
-      );
-    });
+    await page.evaluate(
+      async ({ enterLocalAtZoom }) => {
+        const helpersModulePath = "/world-test-helpers.mjs";
+        const { createWorldProjection } = await import(helpersModulePath);
+        const harness = window.__worldPerfHarness;
+        harness.surface.setProjection(createWorldProjection({ instances: [], edges: [] }));
+        harness.surface.setCamera({
+          longitude: 12,
+          latitude: 30,
+          zoom: enterLocalAtZoom - 0.25,
+          bearing: 0,
+          pitch: 0,
+        });
+        await new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        );
+      },
+      { enterLocalAtZoom: DEFAULT_WORLD_SPATIAL_MODE_POLICY.enterLocalAtZoom },
+    );
 
     await pinch(page, { x: viewport.width / 2, y: viewport.height / 2 }, 2);
 
@@ -243,7 +510,7 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
       .poll(() => page.evaluate(() => window.__worldPerfHarness.surface.getCamera().zoom), {
         message: "pinch should cross into local precision zoom",
       })
-      .toBeGreaterThan(12);
+      .toBeGreaterThan(DEFAULT_WORLD_SPATIAL_MODE_POLICY.enterLocalAtZoom);
 
     const afterPinch = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera());
     await swipe(

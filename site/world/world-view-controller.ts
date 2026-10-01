@@ -8,7 +8,14 @@ import {
   createWorldNodeDragController,
   type WorldNodeDragPosition,
 } from "../../src/interaction/world-node-drag-controller.ts";
-import type { WorldDagLayoutOrientation } from "../../src/layout/world-dag-layout.ts";
+import type {
+  WorldDagCoordinateStrategy,
+  WorldDagEdgeStyle,
+  WorldDagLayoutAlgorithm,
+  WorldDagLayoutOrientation,
+  WorldDagLayoutPlaceOverride,
+  WorldDagLayoutStrategy,
+} from "../../src/layout/world-dag-layout.ts";
 import {
   applyWorldForceLayoutUpdate,
   updateWorldForceLayoutInstance,
@@ -22,6 +29,7 @@ import { preserveWorldProjectionRenderContinuity } from "../../src/layout/world-
 import {
   createWorldSimulationCoordinator,
   type WorldForceSimulationBackend,
+  type WorldForceTuning,
 } from "../../src/layout/world-force-simulation.ts";
 import type {
   WorldRenderContinuitySample,
@@ -41,6 +49,17 @@ import {
 
 export interface WorldLayoutReadback {
   read(): readonly WorldForceLayoutSample[];
+}
+
+export interface WorldDagOperatorSettings {
+  /** "auto" follows the live viewport orientation. */
+  readonly orientation?: WorldDagLayoutOrientation | "auto";
+  readonly algorithm?: WorldDagLayoutAlgorithm;
+  readonly strategy?: WorldDagLayoutStrategy;
+  readonly coordinate?: WorldDagCoordinateStrategy;
+  readonly edgeStyle?: WorldDagEdgeStyle;
+  /** Omit for global layout; set to reorganize only this authored place. */
+  readonly placeId?: PlaceId;
 }
 
 /**
@@ -95,7 +114,13 @@ export class WorldViewRuntimeController {
   #renderOverrides = new Map<WorldInstanceId, ProjectedWorldInstance>();
   #renderProjectionDirty = false;
   #projectionRevision = 0;
-  #dagOrientation: WorldDagLayoutOrientation = "top-to-bottom";
+  #viewportDagOrientation: WorldDagLayoutOrientation = "top-to-bottom";
+  #globalDagOrientation: WorldDagLayoutOrientation | null = null;
+  #globalDagAlgorithm: WorldDagLayoutAlgorithm = "sugiyama";
+  #globalDagStrategy: WorldDagLayoutStrategy = "auto";
+  #globalDagCoordinate: WorldDagCoordinateStrategy = "greedy";
+  #globalDagEdgeStyle: WorldDagEdgeStyle = "routed";
+  #dagPlaceOverrides = new Map<PlaceId, WorldDagLayoutPlaceOverride>();
   #sinceLayoutPush = Number.POSITIVE_INFINITY;
   #cameraInteractionActive = false;
   #destroyed = false;
@@ -165,7 +190,12 @@ export class WorldViewRuntimeController {
     // the first visible committed frame and first physics frame agree without
     // turning handoff offsets or altitude into permanent solver targets.
     const forceScene = createWorldForceScene(projection, this.#forcePolicy, {
-      dagOrientation: this.#dagOrientation,
+      dagOrientation: this.#effectiveDagOrientation(),
+      dagAlgorithm: this.#globalDagAlgorithm,
+      dagStrategy: this.#globalDagStrategy,
+      dagCoordinate: this.#globalDagCoordinate,
+      dagEdgeStyle: this.#globalDagEdgeStyle,
+      dagPlaceOverrides: this.#dagPlaceOverrides,
       initialProjection: renderProjection,
     });
     this.#forceBackend.setScene(forceScene);
@@ -210,13 +240,21 @@ export class WorldViewRuntimeController {
    */
   setDagOrientation(orientation: WorldDagLayoutOrientation): boolean {
     this.#assertAlive();
-    if (orientation === this.#dagOrientation) return false;
-    this.#dagOrientation = orientation;
+    if (orientation === this.#viewportDagOrientation) return false;
+    const previousEffective = this.#effectiveDagOrientation();
+    this.#viewportDagOrientation = orientation;
+    const effective = this.#effectiveDagOrientation();
+    if (effective === previousEffective) return false;
     if (!this.#sourceProjection) return true;
 
     const projection = this.getRenderProjection() ?? this.#sourceProjection;
     const forceScene = createWorldForceScene(projection, this.#forcePolicy, {
-      dagOrientation: this.#dagOrientation,
+      dagOrientation: effective,
+      dagAlgorithm: this.#globalDagAlgorithm,
+      dagStrategy: this.#globalDagStrategy,
+      dagCoordinate: this.#globalDagCoordinate,
+      dagEdgeStyle: this.#globalDagEdgeStyle,
+      dagPlaceOverrides: this.#dagPlaceOverrides,
     });
     this.#forceBackend.setScene(forceScene);
     this.#surface.setRelationshipRoutes?.(forceScene.relationshipRoutes ?? Object.freeze([]));
@@ -225,21 +263,87 @@ export class WorldViewRuntimeController {
   }
 
   /**
-   * Rebuild local Sugiyama targets and route hints for the current projection.
+   * Rebuild local D3 DAG targets and route hints for the current projection.
    * Geographic anchors are retained verbatim; only the entity layout around
    * each anchor is reorganized, then D3 force moves toward the new soft targets.
    */
-  reorganizeDag(): boolean {
+  reorganizeDag(settings: WorldDagOperatorSettings = {}): boolean {
     this.#assertAlive();
     if (!this.#sourceProjection) return false;
 
+    const placeId = settings.placeId;
+    if (placeId !== undefined) {
+      const previous = this.#dagPlaceOverrides.get(placeId);
+      const nextOrientation =
+        settings.orientation === undefined
+          ? previous?.orientation
+          : settings.orientation === "auto"
+            ? undefined
+            : settings.orientation;
+      const nextAlgorithm =
+        settings.algorithm === undefined ? previous?.algorithm : settings.algorithm;
+      const nextStrategy =
+        settings.strategy === undefined
+          ? previous?.strategy
+          : settings.strategy === "auto"
+            ? undefined
+            : settings.strategy;
+      const nextCoordinate =
+        settings.coordinate === undefined ? previous?.coordinate : settings.coordinate;
+      const nextEdgeStyle =
+        settings.edgeStyle === undefined ? previous?.edgeStyle : settings.edgeStyle;
+      if (
+        nextOrientation === undefined &&
+        nextAlgorithm === undefined &&
+        nextStrategy === undefined &&
+        nextCoordinate === undefined &&
+        nextEdgeStyle === undefined
+      ) {
+        this.#dagPlaceOverrides.delete(placeId);
+      } else {
+        this.#dagPlaceOverrides.set(
+          placeId,
+          Object.freeze({
+            ...(nextOrientation === undefined ? {} : { orientation: nextOrientation }),
+            ...(nextAlgorithm === undefined ? {} : { algorithm: nextAlgorithm }),
+            ...(nextStrategy === undefined ? {} : { strategy: nextStrategy }),
+            ...(nextCoordinate === undefined ? {} : { coordinate: nextCoordinate }),
+            ...(nextEdgeStyle === undefined ? {} : { edgeStyle: nextEdgeStyle }),
+          }),
+        );
+      }
+    } else {
+      if (settings.orientation !== undefined) {
+        this.#globalDagOrientation =
+          settings.orientation === "auto" ? null : settings.orientation;
+      }
+      if (settings.algorithm !== undefined) this.#globalDagAlgorithm = settings.algorithm;
+      if (settings.strategy !== undefined) this.#globalDagStrategy = settings.strategy;
+      if (settings.coordinate !== undefined) this.#globalDagCoordinate = settings.coordinate;
+      if (settings.edgeStyle !== undefined) this.#globalDagEdgeStyle = settings.edgeStyle;
+    }
+
     const forceScene = createWorldForceScene(this.#sourceProjection, this.#forcePolicy, {
-      reorganizeDag: true,
-      dagOrientation: this.#dagOrientation,
+      reorganizeDag: placeId === undefined,
+      ...(placeId === undefined ? {} : { reorganizeDagPlaceId: placeId }),
+      dagOrientation: this.#effectiveDagOrientation(),
+      dagAlgorithm: this.#globalDagAlgorithm,
+      dagStrategy: this.#globalDagStrategy,
+      dagCoordinate: this.#globalDagCoordinate,
+      dagEdgeStyle: this.#globalDagEdgeStyle,
+      dagPlaceOverrides: this.#dagPlaceOverrides,
     });
     this.#forceBackend.setScene(forceScene);
     this.#surface.setRelationshipRoutes?.(forceScene.relationshipRoutes ?? Object.freeze([]));
     this.#reheatTopology(0.18);
+    return true;
+  }
+
+  setForceTuning(tuning: WorldForceTuning, placeId?: PlaceId): boolean {
+    this.#assertAlive();
+    if (!this.#sourceProjection || !this.#forceBackend.setTuning) return false;
+    this.#forceBackend.setTuning(tuning, placeId === undefined ? {} : { placeId });
+    this.#reheatTopology(0.16);
     return true;
   }
 
@@ -489,6 +593,10 @@ export class WorldViewRuntimeController {
     });
     this.#renderProjectionDirty = false;
     return this.#renderProjection;
+  }
+
+  #effectiveDagOrientation(): WorldDagLayoutOrientation {
+    return this.#globalDagOrientation ?? this.#viewportDagOrientation;
   }
 
   #reheatTopology(excitation: number): void {

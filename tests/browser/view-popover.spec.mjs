@@ -318,6 +318,21 @@ test("composer exposes live context, pins explicit context, and leaves Tab for f
   await expect(compose).toBeVisible();
   await compose.click();
 
+  const close = composer.getByRole("button", { name: "Close occurrence composer" });
+  const approve = composer.getByRole("button", { name: "Approve occurrence" });
+  for (const [button, title] of [
+    [close, "Close occurrence composer"],
+    [approve, "Approve occurrence"],
+  ]) {
+    await expect(button).toBeVisible();
+    await expect(button).toHaveAttribute("title", title);
+    const icon = button.locator(":scope > svg.semantic-icon");
+    await expect(icon).toBeVisible();
+    expect(await icon.locator("path").count()).toBeGreaterThan(0);
+    const namespace = await icon.locator("path").first().evaluate((path) => path.namespaceURI);
+    expect(namespace).toBe("http://www.w3.org/2000/svg");
+  }
+
   const input = composer.locator("input");
   await expect(composer).toHaveAttribute("active", "");
   await expect(page.locator("#app-shell")).toHaveAttribute("data-composer-open", "true");
@@ -342,7 +357,6 @@ test("composer exposes live context, pins explicit context, and leaves Tab for f
   );
 
   await input.press("Tab");
-  const close = composer.locator("button.close");
   await expect(close).toBeFocused();
   await expect(composer).toHaveAttribute("active", "");
   await close.click();
@@ -403,7 +417,12 @@ test("opening Browse disables direct View controls without changing spatial stag
 });
 
 test("Browse opens an example story into visible timeline context", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const timeline = page.locator("#timeline-view");
+  if ((await timeline.getAttribute("data-orientation")) !== "landscape") {
+    await page.locator("#timeline-orientation-toggle").click();
+  }
+  await expect(timeline).toHaveAttribute("data-orientation", "landscape");
   await page.locator("#timeline-browser-toggle").click();
 
   const browser = page.locator("#timeline-browser-sheet");
@@ -446,12 +465,30 @@ test("Browse opens an example story into visible timeline context", async ({ pag
     .toBeGreaterThan(0);
   await expect(page.locator(`.timeline-event[data-id="${storyItems[0].id}"]`)).toBeVisible();
 
-  const storyNextOwnsHitTarget = await page.locator("#story-next").evaluate((button) => {
+  const titlebarStack = await page.locator("#story-next").evaluate((button) => {
     const rect = button.getBoundingClientRect();
-    const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
-    return Boolean(hit?.closest("#story-next"));
+    const x = rect.left + rect.width / 2;
+    const y = rect.top + rect.height / 2;
+    const graph = document.querySelector("#presentation-stage > .graph-lens:not([hidden])");
+    const graphRect = graph?.getBoundingClientRect();
+    const stack = document.elementsFromPoint(x, y);
+    return {
+      overlapsWorld:
+        Boolean(graphRect) &&
+        x >= graphRect.left &&
+        x <= graphRect.right &&
+        y >= graphRect.top &&
+        y <= graphRect.bottom,
+      buttonOwnsHit: Boolean(stack[0]?.closest("#story-next")),
+      worldIsUnderButton: stack.some((node) => Boolean(node.closest(".graph-lens"))),
+    };
   });
-  expect(storyNextOwnsHitTarget).toBe(true);
+  expect(titlebarStack.overlapsWorld).toBe(true);
+  expect(titlebarStack.buttonOwnsHit).toBe(true);
+  expect(titlebarStack.worldIsUnderButton).toBe(true);
+
+  await page.locator("#timeline-title").click();
+  await expect(page.locator("#timeline-title")).toBeFocused();
 
   await page.locator("#story-next").click();
   await expect(page.locator("#story-focus-position")).toHaveText(`2 / ${storyItems.length}`);
@@ -551,8 +588,11 @@ test("overflowing occurrence cards stay interactive above the world while world 
   const focusedCard = page.locator("#timeline-view luum-event-card[data-focused]").first();
   await expect(focusedCard).toBeVisible();
   await focusedCard.locator(".timeline-event-terminal").click();
-  await expect(focusedCard.locator(".timeline-event-detail")).toBeVisible();
-  await expect(page.locator("#timeline-focus-view")).toBeHidden();
+  const composer = page.locator("#occurrence-composer");
+  await expect(composer).toHaveAttribute("active", "");
+  await expect(composer.locator(".composer-occurrence-card")).toBeVisible();
+  await expect(page.locator(".timeline-event-detail:visible")).toHaveCount(0);
+  await expect(page.locator("#timeline-focus-view:visible")).toHaveCount(0);
 });
 
 test("stale bundled demo storage refreshes the current example stories", async ({ page }) => {

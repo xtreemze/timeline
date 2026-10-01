@@ -25,8 +25,8 @@
 .timeline-project-heading {
   view-transition-name: timeline-project-heading;
   position: absolute;
-  /* Permanent titlebar chrome must stay above the persistent world canvas
-     (graph-lens is z-index 1050) while remaining below modal/utility sheets. */
+  /* This orders titlebar chrome within timeline-view. The timeline root itself
+     is raised above the non-fullscreen world stacking context below. */
   z-index: 1200;
   top: max(0.5rem, env(safe-area-inset-top));
   inset-inline-start: max(0.5rem, env(safe-area-inset-left));
@@ -610,9 +610,8 @@
   background: color-mix(in srgb, var(--paper) 91%, var(--event-color));
 }
 
-/* A focused occurrence expands inside its retained event-card identity. The zero-size
-   retained anchor never changes; only this absolutely positioned child occupies visual
-   space over the world. */
+/* Deprecated compatibility host. The retained timeline keeps only the temporal anchor;
+   occurrence context/media/editing is rendered by the persistent composer deck. */
 .timeline-event.is-expanded {
   z-index: 120;
 }
@@ -620,17 +619,16 @@
 .timeline-event-detail {
   position: absolute;
   z-index: 20;
-  left: 0;
+  inset-inline-start: 0;
   top: 0;
-  display: grid;
+  display: none;
   grid-template-columns: minmax(0, 1fr);
   grid-auto-rows: auto;
   align-content: start;
-  width: min(32rem, calc(100vw - 1rem));
-  min-width: min(18rem, calc(100vw - 1rem));
-  max-width: calc(100vw - 1rem);
+  width: min(32rem, calc(100cqi - 1rem));
+  min-width: min(18rem, calc(100cqi - 1rem));
+  max-width: calc(100cqi - 1rem);
   max-height: min(28rem, calc(100dvh - 1rem));
-  overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 0.42rem;
@@ -647,6 +645,11 @@
 }
 
 .timeline-event-detail[hidden] {
+  display: none;
+}
+
+/* Defense in depth for stale markup retained during migration. */
+.app-shell:has(#occurrence-composer[active]) .timeline-event-detail {
   display: none;
 }
 
@@ -674,11 +677,69 @@
   backdrop-filter: blur(16px);
 }
 
+.timeline-event-detail .timeline-occurrence-sentence {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.2rem 0.6rem;
+  padding: 0.65rem 0.78rem 0.2rem;
+}
+
+.timeline-event-detail .timeline-occurrence-sentence-label {
+  grid-column: 1 / -1;
+  color: var(--ink-muted);
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.timeline-event-detail .timeline-occurrence-sentence p {
+  min-width: 0;
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.timeline-event-detail .timeline-occurrence-edit {
+  min-height: 44px;
+  white-space: nowrap;
+}
+
+.timeline-event-detail .timeline-occurrence-fields {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.timeline-event-detail .timeline-occurrence-field {
+  min-height: 44px;
+  max-width: 100%;
+  padding: 0.28rem 0.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: 1px solid color-mix(in srgb, var(--event-color) 45%, var(--line));
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--event-color) 9%, var(--paper));
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+}
+
+.timeline-event-detail .timeline-occurrence-field:focus-visible {
+  outline: 2px solid var(--event-color);
+  outline-offset: 2px;
+}
+
 .timeline-event-detail .timeline-focus-hero {
   grid-column: 1;
   grid-row: auto;
-  min-height: clamp(126px, 21dvh, 182px);
-  max-height: 182px;
+  min-height: clamp(104px, 17dvh, 150px);
+  max-height: 150px;
   margin-top: 0.42rem;
   border-radius: 0.64rem;
 }
@@ -738,9 +799,9 @@
   border-radius: 0.58rem;
 }
 
-@container (max-width: 420px) {
+@container (inline-size <= 420px) {
   .timeline-event-detail {
-    min-width: min(15rem, calc(100vw - 1rem));
+    min-width: min(15rem, calc(100cqi - 1rem));
   }
 
   .timeline-event-detail .timeline-focus-hero {
@@ -802,7 +863,6 @@
 .timeline-cluster-tile > .semantic-icon {
   width: 1.3rem;
   height: 1.3rem;
-  stroke-width: 2.2;
 }
 .timeline-cluster-image {
   width: 100%;
@@ -827,7 +887,6 @@
 .timeline-cluster-icon-badge .semantic-icon {
   width: 0.72rem;
   height: 0.72rem;
-  stroke-width: 2.25;
 }
 .timeline-event-dot,
 .timeline-event-art {
@@ -848,7 +907,6 @@
 .timeline-event-dot .semantic-icon {
   width: 1.6rem;
   height: 1.6rem;
-  stroke-width: 2.2;
 }
 .timeline-event-art-image {
   width: 100%;
@@ -888,7 +946,6 @@
 .timeline-event-icon-badge .semantic-icon {
   width: 0.9rem;
   height: 0.9rem;
-  stroke-width: 2.25;
 }
 .timeline-event-copy {
   min-width: 0;
@@ -1057,8 +1114,8 @@
   overflow: hidden;
   container-type: inline-size;
   border-radius: 1rem;
-  background: var(--ink);
-  color: white;
+  background: var(--paper);
+  color: var(--ink);
   isolation: isolate;
 }
 luum-occurrence-deck {
@@ -1067,6 +1124,56 @@ luum-occurrence-deck {
   display: block;
   min-inline-size: 0;
   min-block-size: 0;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.timeline-occurrence-deck-image-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  outline: none;
+  background: var(--paper);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  overscroll-behavior: contain;
+}
+.timeline-occurrence-deck-image-viewport:active,
+.timeline-occurrence-deck-image-viewport[data-zoomed="true"]:active {
+  cursor: grabbing;
+}
+.timeline-occurrence-deck-image-viewport:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--focus);
+}
+
+.timeline-occurrence-deck-native-media-viewport {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  min-inline-size: 0;
+  min-block-size: 0;
+  place-items: center;
+  overflow: hidden;
+  background: var(--paper);
+}
+
+.timeline-occurrence-deck-video {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  max-inline-size: 100%;
+  max-block-size: 100%;
+  object-fit: contain;
+  background: var(--paper);
+}
+
+.timeline-occurrence-deck-audio {
+  display: block;
+  inline-size: min(42rem, calc(100% - 2rem));
+  max-inline-size: calc(100% - 2rem);
 }
 
 .timeline-focus-hero-image,
@@ -1086,11 +1193,14 @@ luum-occurrence-deck {
   max-width: calc(100% - 1.4rem);
   margin: 0;
   padding: 0.32rem 0.48rem;
+  border: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
   border-radius: 0.42rem;
-  background: color-mix(in srgb, black 54%, transparent);
-  color: white;
+  background: color-mix(in srgb, var(--paper) 90%, transparent);
+  color: var(--ink);
   font-size: 0.72rem;
   line-height: 1.35;
+  pointer-events: none;
+  backdrop-filter: blur(10px);
 }
 
 .timeline-occurrence-deck-context {
@@ -1100,7 +1210,7 @@ luum-occurrence-deck {
   gap: 0.5rem;
   box-sizing: border-box;
   padding: clamp(1rem, 5cqi, 2.5rem);
-  color: white;
+  color: var(--ink);
 }
 
 .timeline-occurrence-deck-context-label,
@@ -1126,24 +1236,36 @@ luum-occurrence-deck {
   min-inline-size: 3.6rem;
   min-block-size: 44px;
   place-items: center;
-  color: white;
+  color: var(--ink);
   font:
     700 0.72rem / 1 ui-monospace,
     monospace;
   font-variant-numeric: tabular-nums;
 }
 .timeline-focus-hero-image {
-  object-fit: cover;
-  transform: scale(1.005);
+  object-fit: contain;
+  object-position: center;
+  pointer-events: none;
+  transform:
+    translate3d(
+      var(--occurrence-image-pan-x, 0px),
+      var(--occurrence-image-pan-y, 0px),
+      0
+    )
+    scale(var(--occurrence-image-zoom, 1));
+  transform-origin: center;
+  transition: transform 160ms ease;
+  will-change: transform;
 }
 .timeline-focus-hero-fallback {
   background:
     radial-gradient(
       circle at 18% 20%,
-      color-mix(in srgb, var(--event-color, var(--accent)) 62%, transparent),
+      color-mix(in srgb, var(--event-color, var(--accent)) 24%, transparent),
       transparent 42%
     ),
-    linear-gradient(135deg, #141414, #39332f 58%, #111);
+    linear-gradient(135deg, var(--paper), var(--panel));
+  color: var(--ink);
 }
 .timeline-focus-hero-veil {
   position: absolute;
@@ -1197,6 +1319,41 @@ luum-occurrence-deck {
   gap: 0.38rem;
   margin-top: 0.25rem;
 }
+.timeline-occurrence-deck-zoom-controls {
+  position: absolute;
+  z-index: 5;
+  inset-inline-end: 0.55rem;
+  inset-block-end: 0.55rem;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--paper) 86%, transparent);
+  color: var(--ink);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14);
+  backdrop-filter: blur(10px);
+}
+.timeline-occurrence-deck-zoom-controls .timeline-focus-media-control {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  backdrop-filter: none;
+}
+.timeline-occurrence-deck-zoom-controls .timeline-focus-media-control:disabled {
+  cursor: default;
+  opacity: 0.42;
+}
+.timeline-occurrence-deck-zoom-level {
+  min-inline-size: 3.2rem;
+  color: inherit;
+  font:
+    700 0.68rem / 1 ui-monospace,
+    monospace;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
 .timeline-focus-slideshow-controls {
   position: absolute;
   z-index: 4;
@@ -1222,18 +1379,18 @@ luum-occurrence-deck {
 .timeline-focus-slide-dot::before {
   width: 0.55rem;
   height: 0.55rem;
-  border: 1px solid rgba(255, 255, 255, 0.78);
+  border: 1px solid color-mix(in srgb, var(--ink) 68%, transparent);
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.28);
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2);
+  background: color-mix(in srgb, var(--paper) 76%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--line) 58%, transparent);
   content: "";
 }
 .timeline-focus-slide-dot.is-active::before {
-  background: white;
+  background: var(--ink);
   transform: scale(1.18);
 }
 .timeline-focus-slide-dot:focus-visible {
-  outline: 2px solid white;
+  outline: 2px solid var(--focus);
   outline-offset: -5px;
 }
 .timeline-focus-section {
@@ -1359,6 +1516,20 @@ luum-occurrence-deck {
 }
 .timeline-focus-evidence-note {
   color: var(--ink);
+}
+.timeline-focus-evidence-file-meta {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0.4rem 0 0;
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+.timeline-focus-evidence-file-meta code {
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font: inherit;
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
 }
 .timeline-focus-evidence-actions {
   display: flex;
@@ -2433,8 +2604,18 @@ luum-occurrence-deck {
 
 /* The timeline root is a transparent full-stage composition layer. It must not
    steal background input from the persistent graph, while its actual rail,
-   labels, focus content, and controls stay above and interactive. */
-#presentation-stage > .timeline-view,
+   labels, focus content, and controls stay above and interactive.
+
+   Non-fullscreen graph-lens is a sibling stacking context at z-index: 1050.
+   Raising only descendants (for example the title bar at 1200) cannot escape
+   timeline-view's isolated stacking context, so the root itself must sit just
+   above the world. Pointer transparency preserves world interaction everywhere
+   outside the explicit timeline interaction islands below. */
+#presentation-stage:not(:fullscreen) > .timeline-view {
+  z-index: 1060;
+  pointer-events: none;
+}
+
 #presentation-stage:where(:fullscreen) > .timeline-view {
   z-index: 2;
   pointer-events: none;
@@ -4480,12 +4661,10 @@ luum-occurrence-deck {
 .timeline-zoom-endpoint .semantic-icon {
   width: 15px;
   height: 15px;
-  stroke-width: 1.9;
 }
 .timeline-focus-tags .event-tag .semantic-icon {
   width: 1.35rem;
   height: 1.35rem;
-  stroke-width: 2.1;
 }
 
 /* Simplified View toolbar: display controls, semantic zoom, then slideshow.
@@ -5331,12 +5510,35 @@ luum-occurrence-deck {
 }
 
 .timeline-focus-media-control {
-  background: color-mix(in srgb, black 46%, transparent);
-  color: white;
+  border: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  color: var(--ink);
+  backdrop-filter: blur(10px);
 }
 
-.timeline-focus-slideshow-controls {
+/* Media navigation and image zoom are separate control rows.
+   This intentionally outranks legacy compact-focus offsets so a growing
+   slideshow cluster can never occupy the zoom controls' hit area. */
+#app-shell luum-occurrence-deck .timeline-focus-slideshow-controls {
+  top: auto;
+  right: auto;
+  bottom: 0.45rem;
+  left: 50%;
+  max-inline-size: calc(100% - 1rem);
   gap: 0.1rem;
+  transform: translateX(-50%);
+}
+
+#app-shell
+  luum-occurrence-deck[data-active-kind="video"]
+  .timeline-focus-slideshow-controls {
+  bottom: 3.75rem;
+}
+
+#app-shell
+  luum-occurrence-deck[data-frame-count]:not([data-frame-count="1"])
+  .timeline-occurrence-deck-zoom-controls {
+  inset-block-end: 3.75rem;
 }
 
 .timeline-focus-slide-dot,
@@ -5414,7 +5616,6 @@ luum-occurrence-deck {
   display: block;
   inline-size: 20px;
   block-size: 20px;
-  stroke-width: 1.9;
 }
 
 .timeline-focus-context-action:disabled {
@@ -5504,4 +5705,11 @@ luum-occurrence-deck {
   > #timeline-view:is([data-orientation="portrait"], [data-orientation="landscape"])
   .story-focus-controls {
   flex-direction: row;
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+  .timeline-focus-hero-image {
+    transition: none;
+  }
 }

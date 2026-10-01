@@ -3,10 +3,19 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import { createDeckWorldRuntime } from "../site/world/deck-world-runtime.ts";
-import { DECK_WORLD_LAYER_IDS, DeckWorldSurface } from "../site/world/deck-world-surface.ts";
+import {
+  DECK_WORLD_LAYER_IDS,
+  DeckWorldSurface,
+  WORLD_CLUSTER_DETAIL_ZOOM_CEILING,
+} from "../site/world/deck-world-surface.ts";
 import {
   directedEdgePathArrowhead,
   relationshipEdgePath,
+  WORLD_EDGE_ARROW_NODE_RADIUS_RATIO,
+  WORLD_EDGE_ARROW_STROKE_NODE_RADIUS_RATIO,
+  worldArrowLengthDegreesForNodeRadius,
+  worldArrowStrokeWidthPxForNodeRadius,
+  worldPixelsToDegrees,
 } from "../src/layout/world-semantic-presentation.ts";
 import {
   createProjectedWorldEdge,
@@ -475,6 +484,46 @@ test("three very near places share one aggregate marker while readable nodes rem
         datum.text.includes("3 nodes"),
     ),
     "the aggregate marker communicates that nearby locations contain nodes",
+  );
+});
+
+test("local-detail zoom removes same-place aggregate markers before maximum zoom", () => {
+  const h = harness();
+  const instances = Array.from({ length: 5 }, (_, index) =>
+    instance(index, {
+      geographicAnchors: [
+        {
+          placeId: "shared-detail",
+          label: "Shared detail",
+          longitude: 12,
+          latitude: 41,
+          influence: 1,
+        },
+      ],
+    }),
+  );
+  const surface = new DeckWorldSurface({}, h.runtime, {
+    ...WORKING_CAMERA,
+    zoom: WORLD_CLUSTER_DETAIL_ZOOM_CEILING,
+  });
+  surface.setProjection(createWorldProjection({ instances, edges: [] }));
+
+  const layers = h.lastLayers();
+  const entities = layer(layers, DECK_WORLD_LAYER_IDS.entities);
+  assert.equal(
+    entities.props.data.some((datum) => datum.kind === "cluster"),
+    false,
+    "local detail must not retain an aggregate marker while additional camera zoom remains",
+  );
+  assert.equal(
+    entities.props.data.filter((datum) => datum.kind === "entity").length,
+    5,
+    "all same-place members remain directly represented from the detail ceiling onward",
+  );
+  assert.equal(
+    layer(layers, DECK_WORLD_LAYER_IDS.placeIcons).props.data.length,
+    1,
+    "the canonical place remains represented by its single authored place marker",
   );
 });
 
@@ -1387,6 +1436,13 @@ test("each rendered directed relationship has a visible marker preserving source
   assert.ok(distance(wingA, source) < distance(apex, source));
   assert.ok(distance(wingB, source) < distance(apex, source));
   assert.notDeepEqual(wingA, wingB);
+});
+
+test("direction markers remain compact relative to target nodes", () => {
+  assert.equal(WORLD_EDGE_ARROW_NODE_RADIUS_RATIO, 0.7);
+  assert.equal(WORLD_EDGE_ARROW_STROKE_NODE_RADIUS_RATIO, 0.12);
+  assert.equal(worldArrowLengthDegreesForNodeRadius(20, 0, 0), worldPixelsToDegrees(14, 0));
+  assert.equal(worldArrowStrokeWidthPxForNodeRadius(20, 1), 2);
 });
 
 test("direction marker altitude scales with its actual head length on sloped edges", () => {

@@ -1,6 +1,9 @@
 import type { EntityId, PlaceId, RelationshipId } from "../domain/ids.ts";
 import type { WorldInstanceId } from "../projection/world-projection.ts";
 
+/** Shared tangent-space scale for the default 22px collision footprint (360m / 22px). */
+export const WORLD_FORCE_COLLISION_METERS_PER_PX = 360 / 22;
+
 export type WorldSimulationReason =
   | "idle"
   | "projection-update"
@@ -15,8 +18,15 @@ export interface WorldForceNode {
   readonly mass: number;
   /** Exact rendered/mobile collision footprint in screen pixels. */
   readonly collisionRadiusPx: number;
-  /** Tangent-space equivalent used by metre-based fallback solvers. */
+  /** Tangent-space equivalent of the exact rendered body + border footprint. */
   readonly collisionRadiusMeters: number;
+  /** Incident active relationships; parallel relationships contribute independently. */
+  readonly connectivityDegree?: number;
+  /**
+   * Additional preferred clearance for highly connected nodes. This is layout
+   * space, not part of the node's hard collision body.
+   */
+  readonly connectivityClearanceMeters?: number;
   readonly initialEastMeters: number;
   readonly initialNorthMeters: number;
   /** Optional continuity seed distinct from the projection's target altitude. */
@@ -26,6 +36,10 @@ export interface WorldForceNode {
   readonly layoutTargetNorthMeters?: number;
   readonly layoutTargetStrength?: number;
   readonly targetVisualAltitudeMeters: number;
+}
+
+export function worldForceNodePreferredRadiusMeters(node: WorldForceNode): number {
+  return node.collisionRadiusMeters + Math.max(0, node.connectivityClearanceMeters ?? 0);
 }
 
 export interface WorldForceEdge {
@@ -92,8 +106,51 @@ export interface WorldSimulationDiagnostics {
   readonly iteration: number | null;
 }
 
+export interface WorldForceTuning {
+  /**
+   * d3 center-force strength. Zero preserves the existing anchor/DAG equilibrium;
+   * positive values translate the local force group toward the requested center.
+   */
+  readonly centerStrength?: number;
+  /** East/west center target in disposable local tangent-space metres. */
+  readonly centerEastMeters?: number;
+  /** North/south center target in disposable local tangent-space metres. */
+  readonly centerNorthMeters?: number;
+  /** d3 collision resolution strength in the normalized 0..1 range. */
+  readonly collisionStrength: number;
+  /** Number of collision solver passes per simulation tick. */
+  readonly collisionIterations: number;
+  /**
+   * Multiplier for connectivity-derived preferred clearance. The hard
+   * collision body itself always remains the rendered node + border footprint.
+   */
+  readonly connectivityClearanceScale: number;
+  /** Signed many-body force strength; negative values repel. */
+  readonly manyBodyStrength: number;
+  /** Multiplier applied to semantic relationship spring strength. */
+  readonly linkStrengthScale: number;
+  /** Multiplier applied to each semantic relationship's desired link distance. */
+  readonly linkDistanceScale?: number;
+  /** Number of link-constraint relaxation passes per simulation tick. */
+  readonly linkIterations?: number;
+  /** Multiplier applied to geographic anchor attraction. */
+  readonly anchorStrengthScale: number;
+  /** Multiplier applied to d3-dag soft target attraction. */
+  readonly dagStrengthScale: number;
+}
+
+export interface WorldForceTuningScope {
+  /** Omit to tune every layout group; set to affect only this authored place. */
+  readonly placeId?: PlaceId;
+}
+
 export interface WorldForceSimulationBackend {
   setScene(scene: WorldForceScene): void;
+  /**
+   * Optional operator-facing physics tuning. Implementations that support it
+   * must keep these values in disposable projection/layout state only.
+   */
+  setTuning?(tuning: WorldForceTuning, scope?: WorldForceTuningScope): void;
   /**
    * Presentation-only place clustering. `placeIds` controls anchor gathering;
    * `detachedLinkPlaceIds` may remain populated during expansion so D3

@@ -95,6 +95,37 @@ test("authored storybook glyphs override the generic entity-kind icon", () => {
   assert.match(svg, /M4 8 6 3l4 3/, "the authored wolf glyph is embedded in the marker");
 });
 
+test("world node glyphs preserve Lucide monochrome stroke construction", () => {
+  const style = worldNodeStyle(
+    { type: "person", attributes: { style: { icon: "person" } } },
+    WORLD_LIGHT_PALETTE,
+  );
+  const svg = decodeURIComponent(worldNodeMarker(style).url);
+  assert.match(svg, new RegExp(`color="${WORLD_LIGHT_PALETTE.line}"`));
+  assert.doesNotMatch(svg, /color="#(?:fff|ffffff|000|000000)"/i);
+  assert.match(svg, /stroke="currentColor"/);
+  assert.match(svg, /stroke-width="2"/);
+  assert.match(svg, /stroke-linecap="round"/);
+  assert.match(svg, /stroke-linejoin="round"/);
+  assert.doesNotMatch(svg, /stroke-width="2\.2"/);
+});
+
+test("selected world glyphs gain contrast without changing semantic geometry", () => {
+  const ambient = worldNodeStyle(
+    { type: "person", attributes: { style: { icon: "person" } } },
+    WORLD_LIGHT_PALETTE,
+  );
+  const active = worldNodeStyle(
+    { type: "person", selected: true, attributes: { style: { icon: "person" } } },
+    WORLD_LIGHT_PALETTE,
+  );
+  assert.equal(ambient.foreground, WORLD_LIGHT_PALETTE.line);
+  assert.equal(active.foreground, WORLD_LIGHT_PALETTE.paper);
+  assert.notEqual(active.foreground, ambient.foreground);
+  assert.equal(active.radius, ambient.radius);
+  assert.equal(active.borderWidth, ambient.borderWidth);
+});
+
 test("semantic icon changes never alter node geometry or collision footprint", () => {
   const baseInput = {
     type: "person",

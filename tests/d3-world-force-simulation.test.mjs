@@ -58,6 +58,189 @@ test("D3 collision and rejection reserve the full visible force-node footprint",
   );
 });
 
+test("D3 gives high-connectivity nodes additional soft spacing beyond hard collision", () => {
+  const settleDistance = (clearanceMeters) => {
+    const simulation = new D3WorldForceSimulation();
+    const hub = `["hub-${clearanceMeters}",null]`;
+    const peer = `["peer-${clearanceMeters}",null]`;
+    simulation.setScene({
+      nodes: [
+        node(hub, -20, 180, { connectivityClearanceMeters: clearanceMeters }),
+        node(peer, 20, 180),
+      ],
+      edges: [],
+      anchors: [anchor(hub, "stockholm", 1), anchor(peer, "stockholm", 1)],
+    });
+    simulation.apply(topologyRequest());
+    for (let index = 0; index < 240; index += 1) simulation.step(1000 / 60);
+    return distance(simulation.getSnapshot(), hub, peer);
+  };
+
+  const ordinary = settleDistance(0);
+  const hub = settleDistance(720);
+  assert.ok(hub > ordinary + 150, `hub spacing ${hub} must exceed ordinary spacing ${ordinary}`);
+});
+
+test(
+  "place-scoped force tuning changes connected-node clearance without changing hard collision radius",
+  () => {
+    const simulation = new D3WorldForceSimulation();
+    const stockholmHub = '["stockholm-hub",null]';
+    const stockholmPeer = '["stockholm-peer",null]';
+    const copenhagenHub = '["copenhagen-hub",null]';
+    const copenhagenPeer = '["copenhagen-peer",null]';
+    simulation.setScene({
+      nodes: [
+        node(stockholmHub, -20, 180, { connectivityClearanceMeters: 720 }),
+        node(stockholmPeer, 20, 180),
+        node(copenhagenHub, -20, 180, { connectivityClearanceMeters: 720 }),
+        node(copenhagenPeer, 20, 180),
+      ],
+      edges: [],
+      anchors: [
+        anchor(stockholmHub, "stockholm", 0),
+        anchor(stockholmPeer, "stockholm", 0),
+        anchor(copenhagenHub, "copenhagen", 0),
+        anchor(copenhagenPeer, "copenhagen", 0),
+      ],
+    });
+    simulation.setTuning(
+      {
+        collisionStrength: 0.82,
+        collisionIterations: 3,
+        connectivityClearanceScale: 0,
+        manyBodyStrength: -2600,
+        linkStrengthScale: 1,
+        anchorStrengthScale: 1,
+        dagStrengthScale: 1,
+      },
+      { placeId: "stockholm" },
+    );
+    simulation.apply(topologyRequest());
+    for (let index = 0; index < 240; index += 1) simulation.step(1000 / 60);
+
+    const snapshot = simulation.getSnapshot();
+    const stockholmDistance = distance(snapshot, stockholmHub, stockholmPeer);
+    const copenhagenDistance = distance(snapshot, copenhagenHub, copenhagenPeer);
+    assert.ok(
+      stockholmDistance >= 350,
+      "turning off soft hub clearance must still preserve the 360m combined rendered collision body",
+    );
+    assert.ok(
+      copenhagenDistance > stockholmDistance + 150,
+      "place-scoped tuning must not erase the default connectivity clearance at other places",
+    );
+  },
+);
+
+test("force tuning rejects collision settings that would violate the solver contract", () => {
+  const simulation = new D3WorldForceSimulation();
+  assert.throws(
+    () =>
+      simulation.setTuning({
+        collisionStrength: 1.2,
+        collisionIterations: 3,
+        connectivityClearanceScale: 1,
+        manyBodyStrength: -2600,
+        linkStrengthScale: 1,
+        anchorStrengthScale: 1,
+        dagStrengthScale: 1,
+      }),
+    /Collision strength must not exceed 1/,
+  );
+  assert.throws(
+    () =>
+      simulation.setTuning({
+        collisionStrength: 0.82,
+        collisionIterations: 0,
+        connectivityClearanceScale: 1,
+        manyBodyStrength: -2600,
+        linkStrengthScale: 1,
+        anchorStrengthScale: 1,
+        dagStrengthScale: 1,
+      }),
+    /Collision iterations must be an integer from 1 to 12/,
+  );
+  assert.throws(
+    () =>
+      simulation.setTuning({
+        collisionStrength: 0.82,
+        collisionIterations: 3,
+        connectivityClearanceScale: 1,
+        manyBodyStrength: -2600,
+        linkStrengthScale: 1,
+        linkIterations: 0,
+        anchorStrengthScale: 1,
+        dagStrengthScale: 1,
+      }),
+    /Link iterations must be an integer from 1 to 12/,
+  );
+});
+
+test("cross-place D3 spacing honors hub connectivity clearance", () => {
+  const simulation = new D3WorldForceSimulation();
+  const hub = '["hub","place-a"]';
+  const peer = '["peer","place-b"]';
+  simulation.setScene({
+    nodes: [node(hub, -10, 180, { connectivityClearanceMeters: 720 }), node(peer, 10, 180)],
+    edges: [],
+    anchors: [
+      anchor(hub, "place-a", 0, { longitude: 18, latitude: 59 }),
+      anchor(peer, "place-b", 0, { longitude: 18, latitude: 59 }),
+    ],
+  });
+
+  simulation.apply(topologyRequest());
+  for (let index = 0; index < 240; index += 1) simulation.step(1000 / 60);
+
+  assert.ok(
+    distance(simulation.getSnapshot(), hub, peer) > 650,
+    "hub clearance must participate in the world-space cross-place collision island",
+  );
+});
+
+test("selected-place tuning participates in cross-place collision islands", () => {
+  const settle = (clearanceScale) => {
+    const simulation = new D3WorldForceSimulation();
+    const hub = `["cross-tuned-hub-${clearanceScale}","place-a"]`;
+    const peer = `["cross-tuned-peer-${clearanceScale}","place-b"]`;
+    simulation.setScene({
+      nodes: [
+        node(hub, -10, 180, { connectivityClearanceMeters: 720 }),
+        node(peer, 10, 180),
+      ],
+      edges: [],
+      anchors: [
+        anchor(hub, "place-a", 0, { longitude: 18, latitude: 59 }),
+        anchor(peer, "place-b", 0, { longitude: 18, latitude: 59 }),
+      ],
+    });
+    simulation.setTuning(
+      {
+        collisionStrength: 0.82,
+        collisionIterations: 3,
+        connectivityClearanceScale: clearanceScale,
+        manyBodyStrength: -2600,
+        linkStrengthScale: 1,
+        anchorStrengthScale: 1,
+        dagStrengthScale: 1,
+      },
+      { placeId: "place-a" },
+    );
+    simulation.apply(topologyRequest());
+    for (let index = 0; index < 240; index += 1) simulation.step(1000 / 60);
+    return distance(simulation.getSnapshot(), hub, peer);
+  };
+
+  const hardBodyOnly = settle(0);
+  const hubClearance = settle(1);
+  assert.ok(hardBodyOnly >= 350, "cross-place tuning must retain the rendered hard body");
+  assert.ok(
+    hubClearance > hardBodyOnly + 100,
+    "selected-place connectivity clearance must affect nearby foreign-place rejection",
+  );
+});
+
 test("same-place D3 rejection is not truncated by a fixed kilometre cutoff", () => {
   const simulation = new D3WorldForceSimulation();
   const left = '["wide-left",null]';
@@ -123,6 +306,87 @@ test("cluster lifecycle detaches links, gathers with D3, then scatters from the 
     distance(simulation.getSnapshot(), alice, bob) > collapsed,
     "restoring links happens only after the free scatter phase",
   );
+});
+
+test("D3 center force translates a local place group without changing relative spacing", () => {
+  const simulation = new D3WorldForceSimulation();
+  const left = '["center-left",null]';
+  const right = '["center-right",null]';
+  simulation.setScene({
+    nodes: [node(left, -100, 100), node(right, 100, 100)],
+    edges: [],
+    anchors: [anchor(left, "stockholm", 0), anchor(right, "stockholm", 0)],
+  });
+  simulation.setTuning({
+    centerStrength: 1,
+    centerEastMeters: 1_200,
+    centerNorthMeters: -600,
+    collisionStrength: 0,
+    collisionIterations: 1,
+    connectivityClearanceScale: 0,
+    manyBodyStrength: 0,
+    linkStrengthScale: 0,
+    linkDistanceScale: 1,
+    anchorStrengthScale: 0,
+    dagStrengthScale: 0,
+  });
+
+  const beforeDistance = distance(simulation.getSnapshot(), left, right);
+  simulation.apply(topologyRequest());
+  for (let index = 0; index < 8; index += 1) simulation.step(1000 / 60);
+  const snapshot = simulation.getSnapshot();
+  const meanEast = snapshot.reduce((sum, entry) => sum + entry.eastMeters, 0) / snapshot.length;
+  const meanNorth = snapshot.reduce((sum, entry) => sum + entry.northMeters, 0) / snapshot.length;
+
+  assert.ok(Math.abs(meanEast - 1_200) < 1);
+  assert.ok(Math.abs(meanNorth + 600) < 1);
+  assert.ok(
+    Math.abs(distance(snapshot, left, right) - beforeDistance) < 1,
+    "forceCenter should translate the group without distorting its relative positions",
+  );
+});
+
+test("D3 link force exposes desired distance independently from link strength", () => {
+  const settle = (linkDistanceScale) => {
+    const simulation = new D3WorldForceSimulation();
+    const left = `["link-left-${linkDistanceScale}",null]`;
+    const right = `["link-right-${linkDistanceScale}",null]`;
+    simulation.setScene({
+      nodes: [node(left, -50, 100), node(right, 50, 100)],
+      edges: [
+        {
+          id: `link-${linkDistanceScale}`,
+          sourceId: left,
+          targetId: right,
+          strength: 1,
+          restLengthMeters: 1_000,
+        },
+      ],
+      anchors: [anchor(left, "stockholm", 0), anchor(right, "stockholm", 0)],
+    });
+    simulation.setTuning({
+      centerStrength: 0,
+      centerEastMeters: 0,
+      centerNorthMeters: 0,
+      collisionStrength: 0.82,
+      collisionIterations: 3,
+      connectivityClearanceScale: 0,
+      manyBodyStrength: 0,
+      linkStrengthScale: 1,
+      linkDistanceScale,
+      anchorStrengthScale: 0,
+      dagStrengthScale: 0,
+    });
+    simulation.apply(topologyRequest());
+    for (let index = 0; index < 240; index += 1) simulation.step(1000 / 60);
+    return distance(simulation.getSnapshot(), left, right);
+  };
+
+  const compact = settle(0.5);
+  const expanded = settle(2);
+  assert.ok(compact > 400 && compact < 700, `expected compact link near 500m, got ${compact}`);
+  assert.ok(expanded > 1_600, `expected expanded link near 2000m, got ${expanded}`);
+  assert.ok(expanded > compact * 2.5);
 });
 
 test("D3 DAG targets remain soft guidance outside collapsed clusters", () => {
@@ -270,6 +534,116 @@ test("D3 drag and post-drop stay local and publish sparse changed positions", ()
     .getSnapshot()
     .filter((entry) => entry.instanceId === remoteA || entry.instanceId === remoteB);
   assert.deepEqual(remoteAfter, remoteBefore);
+});
+
+test("D3 topology collision spans distinct place groups regardless of relationship", () => {
+  for (const related of [false, true]) {
+    const simulation = new D3WorldForceSimulation();
+    const left = `["left-${related}","place-a"]`;
+    const right = `["right-${related}","place-b"]`;
+
+    simulation.setScene({
+      nodes: [node(left, -20, 260), node(right, 20, 260)],
+      edges: related
+        ? [
+            {
+              id: `cross-place-${related}`,
+              sourceId: left,
+              targetId: right,
+              strength: 0.08,
+              restLengthMeters: 1_000,
+            },
+          ]
+        : [],
+      anchors: [
+        anchor(left, "place-a", 0, { longitude: 18, latitude: 59 }),
+        anchor(right, "place-b", 0, { longitude: 18, latitude: 59 }),
+      ],
+    });
+
+    simulation.apply(topologyRequest());
+    for (let index = 0; index < 180; index += 1) simulation.step(1000 / 60);
+
+    assert.ok(
+      distance(simulation.getSnapshot(), left, right) >= 500,
+      `cross-place topology collision must reserve marker footprints when related=${related}`,
+    );
+  }
+});
+
+test("D3 topology cross-place collision cools to a settled state", () => {
+  const simulation = new D3WorldForceSimulation();
+  const left = '["settle-left","place-a"]';
+  const right = '["settle-right","place-b"]';
+
+  simulation.setScene({
+    nodes: [node(left, -20, 260), node(right, 20, 260)],
+    edges: [],
+    anchors: [
+      anchor(left, "place-a", 1, { longitude: 18, latitude: 59 }),
+      anchor(right, "place-b", 1, { longitude: 18, latitude: 59 }),
+    ],
+  });
+
+  simulation.apply(topologyRequest());
+  for (let index = 0; index < 480 && !simulation.getDiagnostics().settled; index += 1) {
+    simulation.step(1000 / 60);
+  }
+
+  assert.equal(
+    simulation.getDiagnostics().settled,
+    true,
+    "cross-place collision must cool with the owning place groups instead of reheating forever",
+  );
+  assert.ok(
+    distance(simulation.getSnapshot(), left, right) >= 500,
+    "settling must preserve the combined collision footprint",
+  );
+});
+
+test("D3 topology collision resolves multiple nearby places without waking remote geography", () => {
+  const simulation = new D3WorldForceSimulation();
+  const first = '["first","place-a"]';
+  const second = '["second","place-b"]';
+  const third = '["third","place-c"]';
+  const remote = '["remote","copenhagen"]';
+
+  simulation.setScene({
+    nodes: [
+      node(first, -10, 180),
+      node(second, 0, 180),
+      node(third, 10, 180),
+      node(remote, 123, 180),
+    ],
+    edges: [],
+    anchors: [
+      anchor(first, "place-a", 0, { longitude: 18, latitude: 59 }),
+      anchor(second, "place-b", 0, { longitude: 18, latitude: 59 }),
+      anchor(third, "place-c", 0, { longitude: 18, latitude: 59 }),
+      anchor(remote, "copenhagen", 0),
+    ],
+  });
+
+  const remoteBefore = simulation.getSnapshot().find((entry) => entry.instanceId === remote);
+  simulation.apply(topologyRequest());
+  for (let index = 0; index < 180; index += 1) simulation.step(1000 / 60);
+  const snapshot = simulation.getSnapshot();
+  const minimumNearDistance = Math.min(
+    distance(snapshot, first, second),
+    distance(snapshot, first, third),
+    distance(snapshot, second, third),
+  );
+  const remoteAfter = snapshot.find((entry) => entry.instanceId === remote);
+
+  assert.ok(
+    minimumNearDistance >= 330,
+    `three distinct place groups must resolve their shared collision island; minimum=${minimumNearDistance}`,
+  );
+  assert.deepEqual(
+    remoteAfter,
+    remoteBefore,
+    "remote unrelated geography must remain outside the cross-place collision broad phase",
+  );
 });
 
 test("D3 drag rejects nearby nodes across different geographic anchors before collision", () => {

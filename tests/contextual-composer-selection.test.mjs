@@ -130,14 +130,42 @@ test("selection does not change the persistent Edit control presentation", async
   assert.doesNotMatch(sync, /Edit focused event|composerActive \? "Open editor"/);
 });
 
-test("composer owns Home/End suggestion navigation while active", async () => {
+test("investigation owns Home/End candidate navigation without stealing native suggestion editing", async () => {
   const composer = await readFile(
     new URL("../site/components/occurrence-composer.ts", import.meta.url),
     "utf8",
   );
 
-  assert.match(composer, /event\.key === "Home"[\s\S]*activeSuggestion = 0/);
-  assert.match(composer, /event\.key === "End"[\s\S]*activeSuggestion = suggestions\.length - 1/);
+  assert.match(
+    composer,
+    /if \(investigation\.qualifiers\.length\)[\s\S]*\(event\.key === "Home" \|\| event\.key === "End"\) && candidates\.length[\s\S]*selectCandidate\(event\.key === "Home" \? 0 : candidates\.length - 1, candidates, false\)/,
+  );
+  const suggestionNavigation =
+    composer.match(/const suggestions = this\.suggestions\(\)\.slice\(0, 7\);[\s\S]*?if \(event\.key !== "Enter"\) return;/)?.[0] ?? "";
+  assert.doesNotMatch(suggestionNavigation, /event\.key === "Home"|event\.key === "End"/);
+});
+
+test("composer keeps active suggestions and investigation candidates visibly centered", async () => {
+  const composer = await readFile(
+    new URL("../site/components/occurrence-composer.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(composer, /private centerActiveChoice\(kind: "suggestion" \| "candidate"\)/);
+  assert.match(composer, /kind === "suggestion" \? "\.listbox" : "\.candidate-matrix"/);
+  assert.match(composer, /choiceCenter[\s\S]*container\.clientHeight \/ 2/);
+  assert.match(composer, /container\.scrollTo\(\{ top: target, behavior: "auto" \}\)/);
+  assert.match(composer, /visibleChoiceRect[\s\S]*panel\.scrollTo\(\{/);
+  assert.match(composer, /private resetSuggestionSelection\(\)[\s\S]*centerActiveChoice\("suggestion"\)/);
+  assert.match(composer, /private resetCandidateSelection\(\)[\s\S]*centerActiveChoice\("candidate"\)/);
+  assert.match(composer, /@wheel=\$\{\(event: WheelEvent\) => this\.onSuggestionWheel\(event\)\}/);
+  assert.match(composer, /vertical <= horizontal \* 1\.25/);
+  assert.doesNotMatch(composer, /choiceWheelDelta|choiceWheelLastAt/);
+  assert.match(composer, /choiceWheelLastStepAt > 0[\s\S]*< 48/);
+  assert.match(composer, /return event\.deltaY > 0 \? 1 : -1/);
+  assert.match(composer, /selectSuggestion\(this\.activeSuggestion \+ step, suggestions, false\)/);
+  assert.match(composer, /selectCandidate\(this\.activeCandidate \+ step, candidates, false\)/);
+  assert.match(composer, /occurrence-composer-candidate-\$\{index\}/);
 });
 
 test("contextual composer returns focus to its connected invoker on close", async () => {
@@ -154,4 +182,30 @@ test("contextual composer returns focus to its connected invoker on close", asyn
     /restoreComposerFocus[\s\S]*isConnected[\s\S]*focus\(\{ preventScroll: true \}\)/,
   );
   assert.match(app, /syncApplicationSurfaces\(\)[\s\S]*restoreComposerFocus/);
+});
+
+
+test("focused occurrence opens the composer directly and suppresses legacy detail", async () => {
+  const [app, css] = await Promise.all([
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/spatial-shell.css", import.meta.url), "utf8"),
+  ]);
+  const focusHandler = app.match(/timelinefocuschange"[\s\S]*?\n\}\);/)?.[0] ?? "";
+
+  assert.match(
+    focusHandler,
+    /selectionForTimelineFocus\([\s\S]*event\.detail\?\.id,[\s\S]*state\.relationships,[\s\S]*event\.detail\?\.relationshipId/,
+  );
+  assert.match(
+    focusHandler,
+    /focusSelection\?\.kind === "relationship"[\s\S]*setOccurrenceComposerOpen\(true\)/,
+  );
+  assert.match(
+    css,
+    /#app-shell:has\(#occurrence-composer\[active\]\) #timeline-focus-view,[\s\S]*\.timeline-event-detail[\s\S]*display:\s*none\s*!important/,
+  );
+  assert.match(
+    app,
+    /timelineoccurrenceeditrequest[\s\S]*relationshipId\?: string[\s\S]*selectionForTimelineFocus\(id, state\.relationships, relationshipId\)/,
+  );
 });

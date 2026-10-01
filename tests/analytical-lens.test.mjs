@@ -59,6 +59,7 @@ const dataset = {
       id: "o1",
       relationshipId: "r1",
       categoryId: "communication",
+      categoryIds: ["communication", "priority"],
       placeId: "stockholm",
       entityIds: ["alice", "bob"],
       start: day("2026-09-20"),
@@ -160,6 +161,12 @@ test("two-hop analytical lens deterministically limits graph topology", () => {
     occurrences: 1,
   });
 });
+
+test("category filters match any category on a multi-category occurrence", () => {
+  const result = evaluateAnalyticalLens(lens({ categoryIds: ["priority"] }), dataset);
+  assert.deepEqual(result.occurrenceIds, ["o1"]);
+});
+
 
 test("one place and temporal window produce consistent graph/map/timeline IDs", () => {
   const result = evaluateAnalyticalLens(

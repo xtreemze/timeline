@@ -1,13 +1,18 @@
 import {
+  coordCenter,
   coordGreedy,
+  coordQuad,
+  coordSimplex,
   type Decross,
   decrossOpt,
   decrossTwoLayer,
   type GraphNode,
   graphConnect,
+  grid,
   layeringLongestPath,
   layeringSimplex,
   sugiyama,
+  zherebko,
 } from "d3-dag";
 
 import type { PlaceId, RelationshipId } from "../domain/ids.ts";
@@ -26,6 +31,24 @@ export interface WorldDagLayoutNodeSize {
 
 export type WorldDagLayoutOrientation = "top-to-bottom" | "left-to-right";
 
+export type WorldDagLayoutAlgorithm = "sugiyama" | "zherebko" | "grid";
+export type WorldDagCoordinateStrategy = "greedy" | "simplex" | "quad" | "center";
+export type WorldDagEdgeStyle = "routed" | "curved" | "straight" | "orthogonal";
+
+export type WorldDagLayoutStrategy =
+  | "auto"
+  | "longest-opt-greedy"
+  | "longest-two-layer-greedy"
+  | "simplex-two-layer-greedy";
+
+export interface WorldDagLayoutPlaceOverride {
+  readonly orientation?: WorldDagLayoutOrientation;
+  readonly algorithm?: WorldDagLayoutAlgorithm;
+  readonly strategy?: WorldDagLayoutStrategy;
+  readonly coordinate?: WorldDagCoordinateStrategy;
+  readonly edgeStyle?: WorldDagEdgeStyle;
+}
+
 export interface WorldDagLayoutOptions {
   /**
    * Direction of structural flow in the rendered world region. Sugiyama still
@@ -33,6 +56,19 @@ export interface WorldDagLayoutOptions {
    * are rotated into geographic tangent space after layout.
    */
   readonly orientation?: WorldDagLayoutOrientation;
+  /** Layout family. Sugiyama remains the default layered relationship layout. */
+  readonly algorithm?: WorldDagLayoutAlgorithm;
+  /** Automatic selection is the default; explicit strategies are operator exploration state. */
+  readonly strategy?: WorldDagLayoutStrategy;
+  /** Horizontal coordinate assignment used by Sugiyama. */
+  readonly coordinate?: WorldDagCoordinateStrategy;
+  /** Presentation-only route geometry derived from the selected layout. */
+  readonly edgeStyle?: WorldDagEdgeStyle;
+  /**
+   * Per-place overrides affect only the disposable local layout around that
+   * authored geographic anchor. They never move or rewrite the place itself.
+   */
+  readonly placeOverrides?: ReadonlyMap<PlaceId, WorldDagLayoutPlaceOverride>;
   readonly nodeSizes?: ReadonlyMap<WorldInstanceId, WorldDagLayoutNodeSize>;
   /** Layout-only footprint reserved around each authored geographic anchor. */
   readonly placeSizes?: ReadonlyMap<PlaceId, WorldDagLayoutNodeSize>;
@@ -43,6 +79,8 @@ export interface WorldDagLayoutOptions {
    * rewritten or promoted into DAG nodes.
    */
   readonly reorganize?: boolean;
+  /** Bypass cache/hysteresis for one selected place without disturbing other places. */
+  readonly reorganizePlaceId?: PlaceId;
 }
 
 export interface WorldDagLayoutTarget {
@@ -114,6 +152,9 @@ const DAG_PORT_LANE_MIN_PITCH_METERS = 180;
 const DAG_PORT_LANE_MAX_PITCH_METERS = 420;
 const DAG_PORT_STUB_MIN_METERS = 180;
 const DAG_PORT_STUB_MAX_METERS = 720;
+const DAG_CURVED_EDGE_BEND_RATIO = 0.16;
+const DAG_CURVED_EDGE_BEND_MIN_METERS = 160;
+const DAG_CURVED_EDGE_BEND_MAX_METERS = 720;
 
 interface LocalDagEdge {
   readonly relationshipId: RelationshipId;
@@ -511,10 +552,18 @@ function topologyKey(
   sizes: ReadonlyMap<string, readonly [number, number]>,
   placeSize: readonly [number, number],
   orientation: WorldDagLayoutOrientation,
+  algorithm: WorldDagLayoutAlgorithm,
+  strategy: WorldDagLayoutStrategy,
+  coordinate: WorldDagCoordinateStrategy,
+  edgeStyle: WorldDagEdgeStyle,
 ): string {
   return JSON.stringify([
     String(placeId),
     orientation,
+    algorithm,
+    strategy,
+    coordinate,
+    edgeStyle,
     [Math.round(placeSize[0]), Math.round(placeSize[1])],
     nodeIds.map((id) => {
       const [width, height] = sizes.get(String(id)) ?? [
@@ -1083,6 +1132,118 @@ function priorOrderInitializer(
   };
 }
 
+function curvedEdgePoints(
+  points: readonly WorldDagRoutePoint[],
+  orientation: WorldDagLayoutOrientation,
+): readonly WorldDagRoutePoint[] {
+  const source = points[0];
+  const target = points.at(-1);
+  if (!source || !target) return points;
+
+  let controls = points;
+  if (points.length === 2) {
+    const east = target.eastMeters - source.eastMeters;
+    const north = target.northMeters - source.northMeters;
+    const distance = Math.hypot(east, north);
+    const bend = Math.max(
+      DAG_CURVED_EDGE_BEND_MIN_METERS,
+      Math.min(DAG_CURVED_EDGE_BEND_MAX_METERS, distance * DAG_CURVED_EDGE_BEND_RATIO),
+    );
+    const midpoint = Object.freeze({
+      eastMeters:
+        (source.eastMeters + target.eastMeters) / 2 +
+        (orientation === "top-to-bottom" ? bend : 0),
+      northMeters:
+        (source.northMeters + target.northMeters) / 2 +
+        (orientation === "left-to-right" ? bend : 0),
+    });
+    controls = Object.freeze([source, midpoint, target]);
+  }
+
+  if (controls.length < 3) return controls;
+
+  const smoothed: WorldDagRoutePoint[] = [controls[0] as WorldDagRoutePoint];
+  for (let index = 0; index < controls.length - 1; index += 1) {
+    const left = controls[index];
+    const right = controls[index + 1];
+    if (!left || !right) continue;
+    smoothed.push(
+      Object.freeze({
+        eastMeters: left.eastMeters * 0.75 + right.eastMeters * 0.25,
+        northMeters: left.northMeters * 0.75 + right.northMeters * 0.25,
+      }),
+      Object.freeze({
+        eastMeters: left.eastMeters * 0.25 + right.eastMeters * 0.75,
+        northMeters: left.northMeters * 0.25 + right.northMeters * 0.75,
+      }),
+    );
+  }
+  smoothed.push(controls.at(-1) as WorldDagRoutePoint);
+  return Object.freeze(smoothed);
+}
+
+function applyEdgeStyle(
+  routes: readonly RawRoute[],
+  orientation: WorldDagLayoutOrientation,
+  edgeStyle: WorldDagEdgeStyle,
+): readonly RawRoute[] {
+  if (edgeStyle === "routed" || edgeStyle === "curved") return routes;
+
+  return Object.freeze(
+    routes.map((route) => {
+      const source = route.points[0];
+      const target = route.points.at(-1);
+      if (!source || !target) return route;
+
+      if (edgeStyle === "straight") {
+        return Object.freeze({
+          ...route,
+          points: Object.freeze([source, target]),
+        });
+      }
+
+      const points: WorldDagRoutePoint[] =
+        orientation === "left-to-right"
+          ? [
+              source,
+              Object.freeze({
+                eastMeters: (source.eastMeters + target.eastMeters) / 2,
+                northMeters: source.northMeters,
+              }),
+              Object.freeze({
+                eastMeters: (source.eastMeters + target.eastMeters) / 2,
+                northMeters: target.northMeters,
+              }),
+              target,
+            ]
+          : [
+              source,
+              Object.freeze({
+                eastMeters: source.eastMeters,
+                northMeters: (source.northMeters + target.northMeters) / 2,
+              }),
+              Object.freeze({
+                eastMeters: target.eastMeters,
+                northMeters: (source.northMeters + target.northMeters) / 2,
+              }),
+              target,
+            ];
+
+      return Object.freeze({
+        ...route,
+        points: Object.freeze(
+          points.filter(
+            (point, index) =>
+              index === 0 ||
+              point.eastMeters !== points[index - 1]?.eastMeters ||
+              point.northMeters !== points[index - 1]?.northMeters,
+          ),
+        ),
+      });
+    }),
+  );
+}
+
 function runLayoutCandidate(
   name: string,
   nodeIds: readonly WorldInstanceId[],
@@ -1095,6 +1256,9 @@ function runLayoutCandidate(
   decross: "opt" | "two-layer",
   placeObstacles: readonly DagPlaceObstacle[] = Object.freeze([]),
   rootSize: readonly [number, number] = Object.freeze([1, 1]),
+  algorithm: WorldDagLayoutAlgorithm = "sugiyama",
+  coordinate: WorldDagCoordinateStrategy = "greedy",
+  edgeStyle: WorldDagEdgeStyle = "routed",
 ): CandidateLayout {
   const rootId = "__lum-layout-root__";
   const indegree = new Map<WorldInstanceId, number>(nodeIds.map((id) => [id, 0] as const));
@@ -1151,17 +1315,34 @@ function runLayoutCandidate(
   }
 
   const graph = graphConnect()(links);
-  const defaultTwoLayer = decrossTwoLayer();
-  const twoLayer = defaultTwoLayer
-    .passes(nodeIds.length > 64 ? 8 : nodeIds.length > 24 ? 16 : 24)
-    .inits([priorOrderInitializer(previousTargets, orientation), ...defaultTwoLayer.inits()]);
-  const layout = sugiyama()
-    .layering(layering === "longest" ? layeringLongestPath() : layeringSimplex())
-    .decross(decross === "opt" ? decrossOpt() : twoLayer)
-    .coord(coordGreedy())
-    .nodeSize((node: GraphNode<string, DagLinkData>) => dagSizes.get(node.data) ?? [1, 1])
-    .gap(dagGap);
-  const dimensions = layout(graph);
+  const nodeSize = (node: GraphNode<string, DagLinkData>): readonly [number, number] =>
+    dagSizes.get(node.data) ?? [1, 1];
+
+  let dimensions: { readonly width: number; readonly height: number };
+  if (algorithm === "zherebko") {
+    dimensions = zherebko().nodeSize(nodeSize).gap(dagGap)(graph);
+  } else if (algorithm === "grid") {
+    dimensions = grid().nodeSize(nodeSize).gap(dagGap)(graph);
+  } else {
+    const defaultTwoLayer = decrossTwoLayer();
+    const twoLayer = defaultTwoLayer
+      .passes(nodeIds.length > 64 ? 8 : nodeIds.length > 24 ? 16 : 24)
+      .inits([priorOrderInitializer(previousTargets, orientation), ...defaultTwoLayer.inits()]);
+    const baseLayout = sugiyama()
+      .layering(layering === "longest" ? layeringLongestPath() : layeringSimplex())
+      .decross(decross === "opt" ? decrossOpt() : twoLayer)
+      .nodeSize(nodeSize)
+      .gap(dagGap);
+    const layout =
+      coordinate === "simplex"
+        ? baseLayout.coord(coordSimplex())
+        : coordinate === "quad"
+          ? baseLayout.coord(coordQuad())
+          : coordinate === "center"
+            ? baseLayout.coord(coordCenter())
+            : baseLayout.coord(coordGreedy());
+    dimensions = layout(graph);
+  }
 
   const graphNodes = [...graph.nodes()];
   const root = graphNodes.find((node) => node.data === rootId);
@@ -1230,14 +1411,32 @@ function runLayoutCandidate(
     );
   }
 
-  const portRouted = allocateRoutePorts(routes, targets, layoutSizes, orientation);
+  const styledRoutes = applyEdgeStyle(routes, orientation, edgeStyle);
+  // "Straight" is an explicit exploratory route mode, so do not reintroduce
+  // port doglegs after collapsing the D3 route to its endpoints. Curved routes
+  // smooth the port-aware D3 geometry so parallel-edge separation is retained.
+  const portRouted =
+    edgeStyle === "straight"
+      ? styledRoutes
+      : allocateRoutePorts(styledRoutes, targets, layoutSizes, orientation);
+  const presentationRoutes =
+    edgeStyle === "curved"
+      ? Object.freeze(
+          portRouted.map((route) =>
+            Object.freeze({
+              ...route,
+              points: curvedEdgePoints(route.points, orientation),
+            }),
+          ),
+        )
+      : portRouted;
 
   return scaledCandidate(
     {
       name,
       targets,
       routes: Object.freeze(
-        [...portRouted].sort((left, right) =>
+        [...presentationRoutes].sort((left, right) =>
           String(left.relationshipId).localeCompare(String(right.relationshipId)),
         ),
       ),
@@ -1283,6 +1482,10 @@ function chooseCandidate(
   sizes: ReadonlyMap<string, readonly [number, number]>,
   previousTargets: ReadonlyMap<string, WorldDagLayoutTarget>,
   orientation: WorldDagLayoutOrientation,
+  algorithm: WorldDagLayoutAlgorithm = "sugiyama",
+  strategy: WorldDagLayoutStrategy = "auto",
+  coordinate: WorldDagCoordinateStrategy = "greedy",
+  edgeStyle: WorldDagEdgeStyle = "routed",
   previousAlgorithm?: string,
   placeObstacles: readonly DagPlaceObstacle[] = Object.freeze([]),
   rootSize: readonly [number, number] = Object.freeze([1, 1]),
@@ -1291,6 +1494,27 @@ function chooseCandidate(
   for (const obstacle of placeObstacles) gapSizes.set(obstacle.id, obstacle.size);
   const gap = layoutGap(gapSizes);
   const previousName = stableAlgorithmName(previousAlgorithm);
+  const run = (
+    name: string,
+    layering: "longest" | "simplex",
+    decross: "opt" | "two-layer",
+  ): CandidateLayout =>
+    runLayoutCandidate(
+      name,
+      nodeIds,
+      edges,
+      sizes,
+      gap,
+      previousTargets,
+      orientation,
+      layering,
+      decross,
+      placeObstacles,
+      rootSize,
+      algorithm,
+      coordinate,
+      edgeStyle,
+    );
 
   if (nodeIds.length === 0) {
     return Object.freeze({
@@ -1307,54 +1531,41 @@ function chooseCandidate(
     });
   }
 
+  if (algorithm !== "sugiyama") {
+    return run(algorithm, "longest", "two-layer");
+  }
+
+  if (strategy !== "auto") {
+    const explicit =
+      strategy === "simplex-two-layer-greedy"
+        ? { layering: "simplex" as const, decross: "two-layer" as const }
+        : strategy === "longest-opt-greedy"
+          ? { layering: "longest" as const, decross: "opt" as const }
+          : { layering: "longest" as const, decross: "two-layer" as const };
+    const boundedOpt =
+      explicit.decross !== "opt" ||
+      (nodeIds.length <= EXACT_DECROSS_MAX_NODES && edges.length <= EXACT_DECROSS_MAX_EDGES);
+    if (boundedOpt) {
+      try {
+        return run(strategy, explicit.layering, explicit.decross);
+      } catch {
+        // Exact decross may reject pathological tiny graphs; fall through to
+        // the bounded longest-path/two-layer operator fallback below.
+      }
+    }
+    return run("longest-two-layer-greedy", "longest", "two-layer");
+  }
+
   if (nodeIds.length <= EXACT_DECROSS_MAX_NODES && edges.length <= EXACT_DECROSS_MAX_EDGES) {
     const candidates: CandidateLayout[] = [];
     try {
-      candidates.push(
-        runLayoutCandidate(
-          "longest-opt-greedy",
-          nodeIds,
-          edges,
-          sizes,
-          gap,
-          previousTargets,
-          orientation,
-          "longest",
-          "opt",
-          placeObstacles,
-          rootSize,
-        ),
-      );
+      candidates.push(run("longest-opt-greedy", "longest", "opt"));
     } catch {
       // Exact decross can reject pathological tiny graphs; bounded heuristics remain available.
     }
     candidates.push(
-      runLayoutCandidate(
-        "longest-two-layer-greedy",
-        nodeIds,
-        edges,
-        sizes,
-        gap,
-        previousTargets,
-        orientation,
-        "longest",
-        "two-layer",
-        placeObstacles,
-        rootSize,
-      ),
-      runLayoutCandidate(
-        "simplex-two-layer-greedy",
-        nodeIds,
-        edges,
-        sizes,
-        gap,
-        previousTargets,
-        orientation,
-        "simplex",
-        "two-layer",
-        placeObstacles,
-        rootSize,
-      ),
+      run("longest-two-layer-greedy", "longest", "two-layer"),
+      run("simplex-two-layer-greedy", "simplex", "two-layer"),
     );
     return preferPreviousCandidate(previousAlgorithm, candidates);
   }
@@ -1367,32 +1578,8 @@ function chooseCandidate(
 
   if (compareLayering) {
     return preferPreviousCandidate(previousAlgorithm, [
-      runLayoutCandidate(
-        "longest-two-layer-greedy",
-        nodeIds,
-        edges,
-        sizes,
-        gap,
-        previousTargets,
-        orientation,
-        "longest",
-        "two-layer",
-        placeObstacles,
-        rootSize,
-      ),
-      runLayoutCandidate(
-        "simplex-two-layer-greedy",
-        nodeIds,
-        edges,
-        sizes,
-        gap,
-        previousTargets,
-        orientation,
-        "simplex",
-        "two-layer",
-        placeObstacles,
-        rootSize,
-      ),
+      run("longest-two-layer-greedy", "longest", "two-layer"),
+      run("simplex-two-layer-greedy", "simplex", "two-layer"),
     ]);
   }
 
@@ -1402,18 +1589,10 @@ function chooseCandidate(
     (previousUsedSimplexLayering &&
       nodeIds.length <= SIMPLEX_LAYER_MAX_NODES + SIMPLEX_LAYER_HYSTERESIS_NODES &&
       edges.length <= SIMPLEX_LAYER_MAX_EDGES + SIMPLEX_LAYER_HYSTERESIS_EDGES);
-  return runLayoutCandidate(
+  return run(
     useSimplexLayering ? "simplex-two-layer-greedy" : "longest-two-layer-greedy",
-    nodeIds,
-    edges,
-    sizes,
-    gap,
-    previousTargets,
-    orientation,
     useSimplexLayering ? "simplex" : "longest",
     "two-layer",
-    placeObstacles,
-    rootSize,
   );
 }
 
@@ -1424,28 +1603,46 @@ function layoutPlace(
   options: WorldDagLayoutOptions,
   revision: number,
 ): PlaceLayoutCache["result"] {
-  const orientation = options.orientation ?? "top-to-bottom";
+  const placeOverride = options.placeOverrides?.get(placeId);
+  const orientation = placeOverride?.orientation ?? options.orientation ?? "top-to-bottom";
+  const algorithm = placeOverride?.algorithm ?? options.algorithm ?? "sugiyama";
+  const strategy = placeOverride?.strategy ?? options.strategy ?? "auto";
+  const coordinate = placeOverride?.coordinate ?? options.coordinate ?? "greedy";
+  const edgeStyle = placeOverride?.edgeStyle ?? options.edgeStyle ?? "routed";
+  const reorganize =
+    options.reorganize === true || options.reorganizePlaceId === placeId;
   const nodeIds = instances.map((instance) => instance.id);
   const nodeIdSet = new Set(nodeIds);
   const sizes = nodeSizeMap(nodeIds, options.nodeSizes);
   const placeSize = finitePositiveSize(options.placeSizes?.get(placeId));
   const edges = localAcyclicEdges(nodeIdSet, candidateEdges);
-  // Every entity sharing a geographic layout domain participates in Sugiyama
+  // Every entity sharing a geographic layout domain participates in D3 DAG
   // spacing. Semantic edges still determine hierarchy; isolated entities enter
   // as roots so they reserve real layout territory instead of becoming force-only
   // obstacles that can drift back through routed topology.
   const structuredNodeIds = nodeIds;
-  const key = topologyKey(placeId, nodeIds, edges, sizes, placeSize, orientation);
+  const key = topologyKey(
+    placeId,
+    nodeIds,
+    edges,
+    sizes,
+    placeSize,
+    orientation,
+    algorithm,
+    strategy,
+    coordinate,
+    edgeStyle,
+  );
   const cacheKey = String(placeId);
   const cached = placeCache.get(cacheKey);
 
-  if (!options.reorganize && cached?.topologyKey === key) {
+  if (!reorganize && cached?.topologyKey === key) {
     placeCache.set(cacheKey, { ...cached, lastSeenRevision: revision });
     return cached.result;
   }
 
   const previousTargets = new Map(
-    (options.reorganize ? [] : (cached?.result.targets ?? [])).map(
+    (reorganize ? [] : (cached?.result.targets ?? [])).map(
       (target) => [String(target.instanceId), target] as const,
     ),
   );
@@ -1455,7 +1652,11 @@ function layoutPlace(
     sizes,
     previousTargets,
     orientation,
-    options.reorganize ? undefined : cached?.result.metrics.algorithm,
+    algorithm,
+    strategy,
+    coordinate,
+    edgeStyle,
+    reorganize ? undefined : cached?.result.metrics.algorithm,
     Object.freeze([]),
     placeSize,
   );
@@ -1598,6 +1799,10 @@ function crossPlaceTopologyKey(
   places: ReadonlyMap<WorldInstanceId, PlaceId>,
   placeSizes: ReadonlyMap<PlaceId, WorldDagLayoutNodeSize> | undefined,
   orientation: WorldDagLayoutOrientation,
+  algorithm: WorldDagLayoutAlgorithm,
+  strategy: WorldDagLayoutStrategy,
+  coordinate: WorldDagCoordinateStrategy,
+  edgeStyle: WorldDagEdgeStyle,
 ): string {
   const usedPlaces = [
     ...new Set(nodeIds.map((id) => places.get(id)).filter((id): id is PlaceId => id !== undefined)),
@@ -1606,6 +1811,10 @@ function crossPlaceTopologyKey(
   return JSON.stringify([
     "cross-place",
     orientation,
+    algorithm,
+    strategy,
+    coordinate,
+    edgeStyle,
     nodeIds.map((id) => {
       const [width, height] = sizes.get(String(id)) ?? [
         DAG_FALLBACK_NODE_SIZE_METERS,
@@ -1629,7 +1838,18 @@ function layoutCrossPlaceTopology(
   options: WorldDagLayoutOptions,
   revision: number,
 ): CrossPlaceLayoutCache | null {
-  const orientation = options.orientation ?? "top-to-bottom";
+  const selectedOverride =
+    options.reorganizePlaceId === undefined
+      ? undefined
+      : options.placeOverrides?.get(options.reorganizePlaceId);
+  const orientation =
+    selectedOverride?.orientation ?? options.orientation ?? "top-to-bottom";
+  const algorithm = selectedOverride?.algorithm ?? options.algorithm ?? "sugiyama";
+  const strategy = selectedOverride?.strategy ?? options.strategy ?? "auto";
+  const coordinate = selectedOverride?.coordinate ?? options.coordinate ?? "greedy";
+  const edgeStyle = selectedOverride?.edgeStyle ?? options.edgeStyle ?? "routed";
+  const reorganize =
+    options.reorganize === true || options.reorganizePlaceId !== undefined;
   const connectedIds = layoutNeighborhoodNodeIds(index, options);
   if (connectedIds.size === 0) {
     crossPlaceCache = null;
@@ -1673,15 +1893,19 @@ function layoutCrossPlaceTopology(
     index.primaryPlaceByInstance,
     options.placeSizes,
     orientation,
+    algorithm,
+    strategy,
+    coordinate,
+    edgeStyle,
   );
 
-  if (!options.reorganize && crossPlaceCache?.topologyKey === key) {
+  if (!reorganize && crossPlaceCache?.topologyKey === key) {
     crossPlaceCache = { ...crossPlaceCache, lastSeenRevision: revision };
     return crossPlaceCache;
   }
 
   const previousTargets = new Map(
-    (options.reorganize ? [] : (crossPlaceCache?.targets ?? [])).map(
+    (reorganize ? [] : (crossPlaceCache?.targets ?? [])).map(
       (target) => [String(target.instanceId), target] as const,
     ),
   );
@@ -1691,7 +1915,11 @@ function layoutCrossPlaceTopology(
     sizes,
     previousTargets,
     orientation,
-    options.reorganize ? undefined : crossPlaceCache?.algorithm,
+    algorithm,
+    strategy,
+    coordinate,
+    edgeStyle,
+    reorganize ? undefined : crossPlaceCache?.algorithm,
     placeObstacles,
   );
   if (candidate.targets.length === 0) {
@@ -1775,7 +2003,7 @@ function prunePlaceCache(revision: number): void {
 }
 
 /**
- * Derive deterministic, size-aware Sugiyama organization while keeping each
+ * Derive deterministic, size-aware D3 DAG organization while keeping each
  * primary geographic anchor authoritative. Local-only neighborhoods are laid
  * out per place. Any connected component that crosses a place boundary is
  * additionally laid out as one structural DAG containing layout-only place

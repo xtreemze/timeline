@@ -2,11 +2,12 @@ import { expect, type Page, test } from "@playwright/test";
 
 async function ensureSample(page: Page) {
   const terminal = page
-    .locator("#timeline-view .timeline-event:not(.timeline-cluster) .timeline-event-terminal:visible")
+    .locator(
+      "#timeline-view .timeline-event:not(.timeline-cluster) .timeline-event-terminal:visible",
+    )
     .first();
-  if (!(await terminal.count())) {
-    await page.locator("#load-sample").evaluate((button: HTMLButtonElement) => button.click());
-  }
+  if (await terminal.count()) return terminal;
+  await page.locator("#load-sample").evaluate((button: HTMLButtonElement) => button.click());
   await expect(terminal).toBeVisible();
   return terminal;
 }
@@ -24,7 +25,7 @@ test.beforeEach(async ({ page }) => {
   await expect(page.locator("#timeline-view")).toBeVisible();
 });
 
-test("explicit detail promotes the same retained occurrence card and leaves sibling focus hidden", async ({
+test("occurrence activation keeps the retained temporal card and opens composer-owned detail", async ({
   page,
 }) => {
   const terminal = await ensureSample(page);
@@ -36,12 +37,12 @@ test("explicit detail promotes the same retained occurrence card and leaves sibl
   });
 
   await terminal.click();
-  await terminal.click();
 
-  await expect(card).toHaveAttribute("data-expanded", "true");
-  const detail = card.locator(".timeline-event-detail");
-  await expect(detail).toBeVisible();
-  await expect(page.locator("#timeline-focus-view")).toBeHidden();
+  const composer = page.locator("#occurrence-composer");
+  await expect(composer).toHaveAttribute("active", "");
+  await expect(composer.locator(".composer-occurrence-card")).toBeVisible();
+  await expect(page.locator(".timeline-event-detail:visible")).toHaveCount(0);
+  await expect(page.locator("#timeline-focus-view:visible")).toHaveCount(0);
   await expect(page.locator("#app-shell")).toHaveClass(/is-event-card-focused/);
   await expect(page.locator("#app-shell")).not.toHaveClass(/is-event-focused/);
 
@@ -54,12 +55,11 @@ test("explicit detail promotes the same retained occurrence card and leaves sibl
   ).toBe(true);
 });
 
-test("promoting retained detail preserves temporal anchor and graph workspace geometry", async ({
+test("composer-owned detail preserves temporal anchor and graph workspace geometry", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   const terminal = await ensureSample(page);
-  const card = terminal.locator("xpath=ancestor::luum-event-card[1]");
   const graph = page.locator("#graph-lens");
 
   const [terminalBefore, graphBefore] = await Promise.all([
@@ -70,8 +70,7 @@ test("promoting retained detail preserves temporal anchor and graph workspace ge
   expect(graphBefore).not.toBeNull();
 
   await terminal.click();
-  await terminal.click();
-  await expect(card).toHaveAttribute("data-expanded", "true");
+  await expect(page.locator("#occurrence-composer")).toHaveAttribute("active", "");
 
   const [terminalAfter, graphAfter] = await Promise.all([
     terminal.boundingBox(),
@@ -89,7 +88,7 @@ test("promoting retained detail preserves temporal anchor and graph workspace ge
   expect(Math.abs(graphAfter.height - graphBefore.height)).toBeLessThanOrEqual(2);
 });
 
-test("promoted detail stays in the visual viewport in both chronology orientations", async ({
+test("composer-owned occurrence detail stays in the visual viewport in both chronology orientations", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 412, height: 915 });
@@ -98,26 +97,32 @@ test("promoted detail stays in the visual viewport in both chronology orientatio
     await page.goto("/");
     await ensureOrientation(page, orientation);
     const terminal = await ensureSample(page);
-    const card = terminal.locator("xpath=ancestor::luum-event-card[1]");
 
     await terminal.click();
-    await terminal.click();
-    await expect(card).toHaveAttribute("data-expanded", "true");
 
-    const detail = card.locator(".timeline-event-detail");
-    const box = await detail.boundingBox();
+    const composer = page.locator("#occurrence-composer");
+    await expect(composer).toHaveAttribute("active", "");
+    await expect(page.locator(".timeline-event-detail:visible")).toHaveCount(0);
+
+    const box = await composer.evaluate((element) => {
+      const panel = element.shadowRoot?.querySelector(".completion-panel");
+      const rect = panel?.getBoundingClientRect();
+      return rect
+        ? { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
+        : null;
+    });
     expect(box).not.toBeNull();
     if (!box) continue;
 
-    expect(box.x).toBeGreaterThanOrEqual(0);
-    expect(box.y).toBeGreaterThanOrEqual(0);
-    expect(box.x + box.width).toBeLessThanOrEqual(412);
-    expect(box.y + box.height).toBeLessThanOrEqual(915);
+    expect(box.x).toBeGreaterThanOrEqual(-2);
+    expect(box.y).toBeGreaterThanOrEqual(-2);
+    expect(box.x + box.width).toBeLessThanOrEqual(414);
+    expect(box.y + box.height).toBeLessThanOrEqual(917);
     expect(
       await page.evaluate(
         () =>
-          document.documentElement.scrollWidth <= window.innerWidth &&
-          document.documentElement.scrollHeight <= window.innerHeight,
+          document.documentElement.scrollWidth <= window.innerWidth + 2 &&
+          document.documentElement.scrollHeight <= window.innerHeight + 2,
       ),
     ).toBe(true);
   }

@@ -6,6 +6,7 @@ export interface InvestigativeEntity {
   readonly type?: string;
   readonly alternateNames?: readonly string[];
   readonly attributes?: Readonly<Record<string, unknown>>;
+  readonly sourceIds?: readonly string[];
 }
 
 export interface InvestigativeQualifierInput {
@@ -225,8 +226,9 @@ export function interpretInvestigativeQualifier(
       }),
     );
   } else {
-    const typeMatch = [...new Set(context.entities.map((entity) => text(entity.type)).filter(Boolean))]
-      .find((type) => normalized(type) === normalized(clue));
+    const typeMatch = [
+      ...new Set(context.entities.map((entity) => text(entity.type)).filter(Boolean)),
+    ].find((type) => normalized(type) === normalized(clue));
     if (typeMatch) {
       interpretations.push(
         Object.freeze({
@@ -258,6 +260,12 @@ export function interpretInvestigativeQualifier(
   );
 }
 
+function sourceRecordIds(entity: InvestigativeEntity): readonly string[] {
+  return Object.freeze(
+    [...new Set((entity.sourceIds ?? []).map(text).filter(Boolean))].sort(),
+  );
+}
+
 function scalarAttributeValue(
   entity: InvestigativeEntity,
   property: string,
@@ -278,13 +286,12 @@ function inferredCell(
   if (interpretation.kind === "entity") {
     return Object.freeze({
       qualifierId: qualifier.id,
-      assessment:
-        stableEntityId(entity) === interpretation.entityId ? "consistent" : "unknown",
+      assessment: stableEntityId(entity) === interpretation.entityId ? "consistent" : "unknown",
       reason:
         stableEntityId(entity) === interpretation.entityId
           ? `Candidate identity matches ${interpretation.label}.`
           : "The identity clue does not by itself exclude other candidates.",
-      recordIds: Object.freeze([]),
+      recordIds: sourceRecordIds(entity),
     });
   }
 
@@ -295,7 +302,7 @@ function inferredCell(
         qualifierId: qualifier.id,
         assessment: "unknown",
         reason: "Candidate type is not recorded.",
-        recordIds: Object.freeze([]),
+        recordIds: sourceRecordIds(entity),
       });
     }
     const consistent = semanticallyEqual(candidateType, interpretation.value);
@@ -305,7 +312,7 @@ function inferredCell(
       reason: consistent
         ? `Candidate type is ${candidateType}.`
         : `Candidate type is ${candidateType}, not ${interpretation.value}.`,
-      recordIds: Object.freeze([]),
+      recordIds: sourceRecordIds(entity),
     });
   }
 
@@ -316,7 +323,7 @@ function inferredCell(
         qualifierId: qualifier.id,
         assessment: "unknown",
         reason: `Candidate has no recorded ${interpretation.property} value.`,
-        recordIds: Object.freeze([]),
+        recordIds: sourceRecordIds(entity),
       });
     }
     const consistent = semanticallyEqual(value, interpretation.value);
@@ -326,7 +333,7 @@ function inferredCell(
       reason: consistent
         ? `${interpretation.property} is recorded as ${value}.`
         : `${interpretation.property} is recorded as ${value}, not ${interpretation.value}.`,
-      recordIds: Object.freeze([]),
+      recordIds: sourceRecordIds(entity),
     });
   }
 
@@ -338,7 +345,7 @@ function inferredCell(
     reason: matchingName
       ? `Candidate name or alias “${matchingName}” matches the descriptor text.`
       : "No canonical property is available to test this free-text descriptor.",
-    recordIds: Object.freeze([]),
+    recordIds: sourceRecordIds(entity),
   });
 }
 
@@ -363,7 +370,10 @@ function explicitCell(
   return Object.freeze({
     qualifierId,
     assessment: chosen.assessment,
-    reason: relevant.map((assessment) => assessment.reason).filter(Boolean).join(" "),
+    reason: relevant
+      .map((assessment) => assessment.reason)
+      .filter(Boolean)
+      .join(" "),
     recordIds: Object.freeze(recordIds),
   });
 }
@@ -447,6 +457,48 @@ function cleanId(value: string): string {
 
 function uniqueIds(values: readonly string[] | undefined): string[] {
   return [...new Set((values ?? []).map(text).filter(Boolean))];
+}
+
+export function buildObservationDraft(input: {
+  readonly id: string;
+  readonly text: string;
+  readonly sourceIds?: readonly string[];
+  readonly evidenceIds?: readonly string[];
+  readonly itemIds?: readonly string[];
+  readonly relationshipIds?: readonly string[];
+  readonly entityIds?: readonly string[];
+  readonly placeIds?: readonly string[];
+  readonly methodId?: string;
+}) {
+  return Object.freeze({
+    id: text(input.id),
+    text: text(input.text),
+    sourceIds: Object.freeze(uniqueIds(input.sourceIds)),
+    evidenceIds: Object.freeze(uniqueIds(input.evidenceIds)),
+    itemIds: Object.freeze(uniqueIds(input.itemIds)),
+    relationshipIds: Object.freeze(uniqueIds(input.relationshipIds)),
+    entityIds: Object.freeze(uniqueIds(input.entityIds)),
+    placeIds: Object.freeze(uniqueIds(input.placeIds)),
+    methodId: text(input.methodId) || "composer-clue-promotion",
+  });
+}
+
+export function buildAssertionDraft(input: {
+  readonly id: string;
+  readonly text: string;
+  readonly sourceIds?: readonly string[];
+  readonly inputIds?: readonly string[];
+  readonly itemIds?: readonly string[];
+  readonly citationIds?: readonly string[];
+}) {
+  return Object.freeze({
+    id: text(input.id),
+    text: text(input.text),
+    sourceIds: Object.freeze(uniqueIds(input.sourceIds)),
+    inputIds: Object.freeze(uniqueIds(input.inputIds)),
+    itemIds: Object.freeze(uniqueIds(input.itemIds)),
+    citationIds: Object.freeze(uniqueIds(input.citationIds)),
+  });
 }
 
 export function buildQuestionDraft(input: {

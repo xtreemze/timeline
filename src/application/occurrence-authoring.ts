@@ -26,8 +26,14 @@ export interface OccurrenceAuthoringRequest<TExtent = unknown> {
   readonly accuracyMeters: number | null;
   readonly time: OccurrenceAuthoringTime<TExtent>;
   readonly categoryName?: string;
+  readonly categoryNames?: readonly string[];
   readonly tags: readonly string[];
   readonly activeStoryId?: string | null;
+  readonly role?: string | null;
+  readonly initialState?: "active" | "inactive";
+  readonly sourceIds?: readonly string[];
+  readonly confidence?: number | null;
+  readonly attributes?: Readonly<Record<string, unknown>>;
 }
 
 interface AuthoringEntity {
@@ -65,6 +71,11 @@ interface AuthoringRelationship<TExtent = unknown> {
   subjectId: string;
   objectId: string;
   predicate: string;
+  role?: string;
+  occurrenceType?: string;
+  subjectContext?: Record<string, unknown>;
+  objectContext?: Record<string, unknown>;
+  semanticMappings?: unknown[];
   placeId?: string;
   itemIds?: string[];
   initialState?: "active" | "inactive";
@@ -110,9 +121,19 @@ export interface OccurrenceUpdateRequest<TExtent = unknown> {
    */
   readonly categoryName?: string | null;
   /**
+   * undefined preserves categories; an empty array is invalid because timeline items require one.
+   */
+  readonly categoryNames?: readonly string[];
+  /**
    * undefined preserves tags; an empty array explicitly clears them.
    */
   readonly tags?: readonly string[];
+  /** undefined preserves the existing role; null or blank clears it. */
+  readonly role?: string | null;
+  readonly initialState?: "active" | "inactive";
+  readonly sourceIds?: readonly string[];
+  readonly confidence?: number | null;
+  readonly attributes?: Readonly<Record<string, unknown>>;
 }
 
 export interface OccurrenceAuthoringDependencies<
@@ -152,10 +173,21 @@ export interface OccurrenceAuthoringResult<TState> {
   readonly objectId: string;
   readonly placeId: string;
   readonly categoryId: string;
+  readonly categoryIds: readonly string[];
+  readonly semanticReviewRequired?: boolean;
+  readonly semanticReviewReasons?: readonly string[];
 }
 
 function normalizedName(value: string): string {
   return value.trim().toLocaleLowerCase();
+}
+
+function normalizeConfidence(value: number | null | undefined): number | null {
+  if (value === null || value === undefined) return null;
+  if (!Number.isFinite(value) || value < 0 || value > 1) {
+    throw new Error("Confidence must be a finite number from 0 to 1.");
+  }
+  return value;
 }
 
 function resolveEntity<TState extends OccurrenceAuthoringState<TExtent>, TExtent>(
@@ -343,6 +375,27 @@ function resolveCategory<TState extends OccurrenceAuthoringState<TExtent>, TExte
   return category;
 }
 
+function resolveCategories<TState extends OccurrenceAuthoringState<TExtent>, TExtent>(
+  names: readonly string[] | undefined,
+  fallbackName: string | undefined,
+  draft: TState,
+  dependencies: OccurrenceAuthoringDependencies<TExtent, TState>,
+): readonly AuthoringCategory[] {
+  const normalized = [
+    ...new Set(
+      (names?.length ? names : fallbackName ? [fallbackName] : [])
+        .map((name) => name.trim())
+        .filter(Boolean),
+    ),
+  ];
+  if (!normalized.length) {
+    return Object.freeze([resolveCategory(undefined, draft, dependencies)]);
+  }
+  return Object.freeze(
+    normalized.map((name) => resolveCategory(name, draft, dependencies)),
+  );
+}
+
 export function authorOccurrence<TExtent, TState extends OccurrenceAuthoringState<TExtent>>(
   state: TState,
   request: OccurrenceAuthoringRequest<TExtent>,
@@ -368,7 +421,13 @@ export function authorOccurrence<TExtent, TState extends OccurrenceAuthoringStat
   }
 
   const place = resolvePlace(request, draft, dependencies);
-  const category = resolveCategory(request.categoryName, draft, dependencies);
+  const categories = resolveCategories(
+    request.categoryNames,
+    request.categoryName,
+    draft,
+    dependencies,
+  );
+  const category = categories[0]!;
   const itemId = dependencies.newId("item");
   const item = {
     id: itemId,
@@ -379,6 +438,7 @@ export function authorOccurrence<TExtent, TState extends OccurrenceAuthoringStat
     title: `${subject.name} ${predicate} ${object.name}`.slice(0, 160),
     description: "",
     categoryId: category.id,
+    categoryIds: categories.map((candidate) => candidate.id),
     presentation: {
       variant: "hero-split",
       terminalShape: "rounded",
@@ -405,13 +465,14 @@ export function authorOccurrence<TExtent, TState extends OccurrenceAuthoringStat
     subjectId: subject.id,
     objectId: object.id,
     predicate: predicate.slice(0, 120),
+    ...(request.role?.trim() ? { role: request.role.trim().slice(0, 120) } : {}),
     placeId: place.id,
     itemIds: [itemId],
-    initialState: "active",
+    initialState: request.initialState === "inactive" ? "inactive" : "active",
     time: request.time.extent,
-    sourceIds: [],
-    confidence: null,
-    attributes: {},
+    sourceIds: [...new Set((request.sourceIds ?? []).map((id) => id.trim()).filter(Boolean))],
+    confidence: normalizeConfidence(request.confidence),
+    attributes: { ...(request.attributes ?? {}) },
   };
 
   const duplicate = dependencies.findDuplicateRelationship(
@@ -454,6 +515,7 @@ export function authorOccurrence<TExtent, TState extends OccurrenceAuthoringStat
     objectId: object.id,
     placeId: place.id,
     categoryId: category.id,
+    categoryIds: Object.freeze(categories.map((candidate) => candidate.id)),
   };
 }
 
@@ -521,6 +583,23 @@ export function updateOccurrence<TExtent, TState extends OccurrenceAuthoringStat
     objectId: object.id,
     predicate: predicate.slice(0, 120),
   };
+  if (request.role !== undefined) {
+    const role = request.role?.trim() ?? "";
+    if (role) next.role = role.slice(0, 120);
+    else delete next.role;
+  }
+  if (request.initialState !== undefined) {
+    next.initialState = request.initialState === "inactive" ? "inactive" : "active";
+  }
+  if (request.sourceIds !== undefined) {
+    next.sourceIds = [...new Set(request.sourceIds.map((id) => id.trim()).filter(Boolean))];
+  }
+  if (request.confidence !== undefined) {
+    next.confidence = normalizeConfidence(request.confidence);
+  }
+  if (request.attributes !== undefined) {
+    next.attributes = { ...request.attributes };
+  }
 
   if (request.placeName !== undefined) {
     if (request.placeName === null) {
@@ -588,14 +667,19 @@ export function updateOccurrence<TExtent, TState extends OccurrenceAuthoringStat
   }
 
   const itemContextChanged =
-    request.time !== undefined || request.categoryName !== undefined || request.tags !== undefined;
+    request.time !== undefined ||
+    request.categoryName !== undefined ||
+    request.categoryNames !== undefined ||
+    request.tags !== undefined;
   if (itemContextChanged && linkedItemIds.length > 1 && !exactItemId) {
     throw new Error(
       "This occurrence is linked to multiple chronology items. Focus the exact timeline item before editing time, category, or tags.",
     );
   }
   if (
-    (request.categoryName !== undefined || request.tags !== undefined) &&
+    (request.categoryName !== undefined ||
+      request.categoryNames !== undefined ||
+      request.tags !== undefined) &&
     linkedItemIds.length === 0
   ) {
     throw new Error(
@@ -628,13 +712,17 @@ export function updateOccurrence<TExtent, TState extends OccurrenceAuthoringStat
       updatedItem["time"] = request.time.extent;
     }
 
-    if (request.categoryName !== undefined) {
-      if (request.categoryName === null || !request.categoryName.trim()) {
-        throw new Error("Timeline items require a category. Choose another category instead.");
+    if (request.categoryNames !== undefined || request.categoryName !== undefined) {
+      const names =
+        request.categoryNames ??
+        (request.categoryName === null ? [] : request.categoryName ? [request.categoryName] : []);
+      if (!names.length || names.every((name) => !name.trim())) {
+        throw new Error("Timeline items require at least one category. Choose another category instead.");
       }
-      const category = resolveCategory(request.categoryName, draft, dependencies);
-      updatedItem["categoryId"] = category.id;
-      categoryId = category.id;
+      const categories = resolveCategories(names, undefined, draft, dependencies);
+      updatedItem["categoryId"] = categories[0]!.id;
+      updatedItem["categoryIds"] = categories.map((category) => category.id);
+      categoryId = categories[0]!.id;
     } else if (typeof currentItem["categoryId"] === "string") {
       categoryId = currentItem["categoryId"];
     }
@@ -660,6 +748,16 @@ export function updateOccurrence<TExtent, TState extends OccurrenceAuthoringStat
         : (draft.categories[0]?.id ?? "");
   }
 
+  const categoryIds = (() => {
+    if (!itemId) return categoryId ? [categoryId] : [];
+    const item = draft.items.find((candidate) => itemIdOf(candidate) === itemId);
+    const record = itemRecord(item);
+    const values = Array.isArray(record?.["categoryIds"])
+      ? record!["categoryIds"].filter((value): value is string => typeof value === "string")
+      : [];
+    return values.length ? values : categoryId ? [categoryId] : [];
+  })();
+
   return {
     state: dependencies.normalizeState(draft),
     itemId,
@@ -668,5 +766,6 @@ export function updateOccurrence<TExtent, TState extends OccurrenceAuthoringStat
     objectId: object.id,
     placeId: next.placeId ?? "",
     categoryId,
+    categoryIds: Object.freeze(categoryIds),
   };
 }

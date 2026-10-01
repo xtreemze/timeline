@@ -25,17 +25,35 @@ import {
   semanticIconLabel,
 } from "../src/presentation/semantic-icons.ts";
 import { suggestSemanticIconForPlace } from "../src/presentation/semantic-icon-inference.ts";
+import {
+  canonicalSemanticHueColor,
+  normalizeSemanticColorSource,
+  semanticColorCss,
+  semanticColorHex,
+  semanticHue,
+} from "../src/presentation/semantic-color.ts";
 import { projectTimelineOccurrences } from "../src/projection/timeline-projection.ts";
 import "./components/occurrence-composer.ts";
+import {
+  shouldOpenComposerForSelection,
+  timelineItemIdForRelationshipSelection,
+} from "./occurrence-composer-selection.ts";
 import type {
   LuumOccurrenceComposerElement,
   OccurrenceCommitDetail,
+  OccurrenceComposerSelectionContext,
 } from "./components/occurrence-composer.ts";
 import {
   formatOccurrenceComposition,
   parseOccurrenceSentence,
   type ComposerTimeReference,
 } from "./occurrence-composer-model.ts";
+import {
+  buildAssertionDraft,
+  buildIdentityHypothesisDrafts,
+  buildObservationDraft,
+} from "../src/application/investigative-query.ts";
+import { proposeInvestigationAction } from "./occurrence-composer-preview.ts";
 import { TimelineEvidence } from "./evidence-store.ts";
 import { TimelineGraphInference } from "./graph-inference.ts";
 import { TimelineInterchangeAdapter } from "./interchange-adapter.ts";
@@ -160,6 +178,7 @@ interface TimelineItemRecord {
   title: string;
   description: string;
   categoryId: string;
+  categoryIds?: string[];
   media?: MediaRecord[];
   tags?: TagRecord[];
   presentation: ItemPresentationRecord;
@@ -278,6 +297,7 @@ interface TimelineItemInputRecord {
   title?: unknown;
   description?: unknown;
   categoryId?: unknown;
+  categoryIds?: unknown;
   category?: unknown;
   media?: unknown;
   tags?: unknown;
@@ -472,6 +492,10 @@ const els = {
   itemId: requiredElement<HTMLInputElement>("#item-id"),
   itemKind: requiredElement<HTMLSelectElement>("#item-kind"),
   itemCategory: requiredElement<HTMLSelectElement>("#item-category"),
+  itemCategoryHue: requiredElement<HTMLInputElement>("#item-category-hue"),
+  itemCategoryHueNumber: requiredElement<HTMLInputElement>("#item-category-hue-number"),
+  itemCategoryHueOutput: requiredElement<HTMLOutputElement>("#item-category-hue-output"),
+  itemSecondaryCategoryHues: requiredElement<HTMLElement>("#item-secondary-category-hues"),
   itemStoryContext: requiredElement<HTMLSelectElement>("#item-story-context"),
   itemLayoutVariant: requiredElement<HTMLSelectElement>("#item-layout-variant"),
   itemTerminalShape: requiredElement<HTMLSelectElement>("#item-terminal-shape"),
@@ -554,7 +578,9 @@ const els = {
   categoryForm: requiredElement<HTMLFormElement>("#category-form"),
   categoryId: requiredElement<HTMLInputElement>("#category-id"),
   categoryName: requiredElement<HTMLInputElement>("#category-name"),
-  categoryColor: requiredElement<HTMLInputElement>("#category-color"),
+  categoryHue: requiredElement<HTMLInputElement>("#category-hue"),
+  categoryHueNumber: requiredElement<HTMLInputElement>("#category-hue-number"),
+  categoryHueOutput: requiredElement<HTMLOutputElement>("#category-hue-output"),
   categoryFormError: requiredElement<HTMLParagraphElement>("#category-form-error"),
   saveCategory: requiredElement<HTMLButtonElement>("#save-category"),
   cancelCategoryEdit: requiredElement<HTMLButtonElement>("#cancel-category-edit"),
@@ -739,10 +765,16 @@ try {
   console.error("Failed to initialize TemporalGraphView:", error);
 }
 const applicationSelection = createApplicationSelectionController();
-applicationSelection.subscribe(({ selection }) => {
+applicationSelection.subscribe((change) => {
+  const { selection } = change;
   temporalGraphView?.setSelection?.(selection);
   timelineView?.setSelection(selection);
   syncOccurrenceComposerSelection(selection);
+  if (shouldOpenComposerForSelection(change)) {
+    requestAnimationFrame(() => {
+      if (applicationSelection.current === selection) setOccurrenceComposerOpen(true);
+    });
+  }
 });
 const dateRangePicker = dateRangeFactory.create({
   input: els.itemDateRange,
@@ -887,7 +919,11 @@ function renderPresentationMap() {
     mapApi.createReadOnly?.({
       container: els.presentationMap,
       location: place,
-      color: category?.color || "#315fbd",
+      color: semanticColorHex(
+        category?.color || "#315fbd",
+        window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light",
+        "active",
+      ),
       iconName: place.icon || "place",
       markerShape: place.markerShape || "pin",
       label: name,
@@ -1329,6 +1365,17 @@ function normalizeTimeline(
       title,
       description: typeof raw.description === "string" ? raw.description.slice(0, 2000) : "",
       categoryId: ensureCategory(raw.categoryId || ("category" in raw ? raw.category : undefined)),
+      categoryIds: [
+        ...new Set(
+          (
+            Array.isArray(raw.categoryIds)
+              ? raw.categoryIds
+              : [raw.categoryId || ("category" in raw ? raw.category : undefined)]
+          )
+            .filter((value): value is string | number => typeof value === "string" || typeof value === "number")
+            .map((value) => ensureCategory(value)),
+        ),
+      ],
       presentation: {
         variant: "hero-split",
         terminalShape: "rounded",
@@ -1818,16 +1865,7 @@ function composerItemIdForRelationship(
   relationship: RelationshipRecord,
   requestedItemId: string | null | undefined,
 ): string | null {
-  const linkedItemIds = [
-    ...new Set(
-      (relationship.itemIds ?? [])
-        .map(String)
-        .filter((itemId) => state.items.some((item) => String(item.id) === itemId)),
-    ),
-  ];
-  const requested = requestedItemId ? String(requestedItemId) : "";
-  if (requested && linkedItemIds.includes(requested)) return requested;
-  return linkedItemIds.length === 1 ? linkedItemIds[0]! : null;
+  return timelineItemIdForRelationshipSelection(relationship, state.items, requestedItemId);
 }
 
 function occurrenceCompositionForRelationship(
@@ -1837,9 +1875,17 @@ function occurrenceCompositionForRelationship(
   const linkedItem = itemId
     ? (state.items.find((item) => String(item.id) === itemId) ?? null)
     : null;
-  const category = linkedItem
-    ? state.categories.find((candidate) => String(candidate.id) === String(linkedItem.categoryId))
-    : null;
+  const categoryIds = linkedItem
+    ? linkedItem.categoryIds?.length
+      ? linkedItem.categoryIds
+      : [linkedItem.categoryId]
+    : [];
+  const categoryNames = categoryIds
+    .map(
+      (id) =>
+        state.categories.find((candidate) => String(candidate.id) === String(id))?.name ?? "",
+    )
+    .filter(Boolean);
   const extent = relationship.time ?? linkedItem?.time ?? null;
   return formatOccurrenceComposition({
     subjectId: String(relationship.subjectId),
@@ -1848,12 +1894,79 @@ function occurrenceCompositionForRelationship(
     placeId: relationship.placeId ? String(relationship.placeId) : null,
     start: extent?.start?.value ?? linkedItem?.start ?? null,
     end: extent?.end?.value ?? linkedItem?.end ?? null,
-    category: category?.name ?? null,
+    categories: categoryNames,
     tags: linkedItem?.tags?.map((tag) => tag.label) ?? [],
   });
 }
 
+let occurrenceComposerMediaHydrationVersion = 0;
+
+function evidenceRecordMediaKind(record: EvidenceRecord): "image" | "audio" | "video" | null {
+  const file = record.file;
+  if (!file) return null;
+  const mime = String(file.mimeType || "").toLowerCase();
+  const name = String(file.name || "").toLowerCase();
+  if (record.type === "video" || mime.startsWith("video/") || /\.(?:mp4|webm|ogv|mov|m4v)$/.test(name)) {
+    return "video";
+  }
+  if (
+    record.type === "audio" ||
+    mime.startsWith("audio/") ||
+    /\.(?:mp3|m4a|aac|wav|ogg|oga|flac|opus)$/.test(name)
+  ) {
+    return "audio";
+  }
+  if (
+    record.type === "image" ||
+    mime.startsWith("image/") ||
+    /\.(?:png|jpe?g|webp|gif|avif)$/.test(name)
+  ) {
+    return "image";
+  }
+  return null;
+}
+
+async function hydrateOccurrenceComposerEvidenceMedia(
+  item: TimelineItemRecord,
+  baseContext: OccurrenceComposerSelectionContext | null,
+  version: number,
+): Promise<void> {
+  if (!baseContext) return;
+  const records = (item.evidenceIds || [])
+    .map((id) => state.evidence.find((record) => record.id === id))
+    .filter(isEvidenceRecord);
+  const frames = (
+    await Promise.all(
+      records.map(async (record) => {
+        const kind = evidenceRecordMediaKind(record);
+        if (!kind || !record.file?.blobKey) return null;
+        try {
+          const blob = await evidenceStore.getBlob(record.file.blobKey);
+          if (!blob) return null;
+          return {
+            kind,
+            blob,
+            mimeType: record.file.mimeType || blob.type,
+            sha256: record.file.sha256 || "",
+            alt: record.title || record.file.name || `${kind} evidence`,
+            caption: [record.title, record.sourceName || record.file.name].filter(Boolean).join(" · "),
+          };
+        } catch (error) {
+          console.warn("Could not load composer evidence media:", error);
+          return null;
+        }
+      }),
+    )
+  ).filter((frame) => frame !== null);
+  if (!frames.length || version !== occurrenceComposerMediaHydrationVersion) return;
+  els.occurrenceComposer.setSelectionMedia(baseContext, [
+    ...(baseContext.media || []),
+    ...frames,
+  ]);
+}
+
 function syncOccurrenceComposerSelection(selection = applicationSelection.current): void {
+  const hydrationVersion = ++occurrenceComposerMediaHydrationVersion;
   if (!selection) {
     els.occurrenceComposer.setSelectionContext(null);
     return;
@@ -1893,9 +2006,33 @@ function syncOccurrenceComposerSelection(selection = applicationSelection.curren
     ? state.places.find((candidate) => String(candidate.id) === String(relationship.placeId))
     : null;
   const selectedItemId = composerItemIdForRelationship(relationship, selection.itemId);
-  els.occurrenceComposer.setSelectionContext({
+  const selectedItem = selectedItemId
+    ? state.items.find((item) => String(item.id) === selectedItemId)
+    : null;
+  const selectedCategory = selectedItem
+    ? state.categories.find(
+        (candidate) => String(candidate.id) === String(selectedItem.categoryId),
+      )
+    : null;
+  const selectedCategoryVisual: Readonly<{ color?: string; icon?: string }> = selectedCategory
+    ? composerSemanticVisual(selectedCategory.extensions)
+    : {};
+  const selectedOccurrenceColor = selectedCategory?.color ?? selectedCategoryVisual.color ?? null;
+  const selectedOccurrenceIcon = selectedCategoryVisual.icon ?? null;
+  const selectionContext = {
     selectedOccurrenceId: String(relationship.id),
     ...(selectedItemId ? { selectedItemId } : {}),
+    title: selectedItem?.title ?? null,
+    description: selectedItem?.description ?? relationship.role ?? null,
+    media:
+      selectedItem?.media
+        ?.filter((entry) => Boolean(entry.src))
+        .map((entry) => ({
+          kind: "image" as const,
+          src: entry.src,
+          alt: entry.alt ?? "",
+          caption: entry.caption ?? "",
+        })) ?? [],
     composition: occurrenceCompositionForRelationship(relationship, selectedItemId),
     relationship: {
       subjectId: String(relationship.subjectId),
@@ -1903,11 +2040,19 @@ function syncOccurrenceComposerSelection(selection = applicationSelection.curren
     },
     metadata: {
       role: relationship.role ?? null,
-      initialState: relationship.initialState === "inactive" ? "inactive" : "active",
+      initialState: relationship.initialState === "inactive" ? ("inactive" as const) : ("active" as const),
       sourceIds: relationship.sourceIds ?? [],
       confidence: relationship.confidence ?? null,
       attributes: relationship.attributes ?? {},
     },
+    ...(selectedOccurrenceColor || selectedOccurrenceIcon
+      ? {
+          appearance: {
+            color: selectedOccurrenceColor,
+            icon: selectedOccurrenceIcon,
+          },
+        }
+      : {}),
     ...(relationshipPlace
       ? {
           place: {
@@ -1916,7 +2061,11 @@ function syncOccurrenceComposerSelection(selection = applicationSelection.curren
           },
         }
       : {}),
-  });
+  };
+  els.occurrenceComposer.setSelectionContext(selectionContext);
+  if (selectedItem) {
+    void hydrateOccurrenceComposerEvidenceMedia(selectedItem, selectionContext, hydrationVersion);
+  }
 }
 
 let occurrenceComposerReturnFocus: HTMLElement | null = null;
@@ -1939,18 +2088,101 @@ function restoreComposerFocus(target: HTMLElement | null): void {
 function syncComposerVisualViewport(): void {
   const visualViewport = window.visualViewport;
   const height = Math.max(1, visualViewport?.height || window.innerHeight || 1);
-  const offsetTop = Math.max(0, visualViewport?.offsetTop || 0);
+  const composerFocused = els.occurrenceComposer.inputHasFocus();
+  const bottomInset = composerFocused
+    ? Math.max(0, window.innerHeight - ((visualViewport?.offsetTop ?? 0) + height))
+    : 0;
   const heightPx = `${Math.round(height)}px`;
-  document.documentElement.style.setProperty("--app-visual-viewport-height", heightPx);
   document.documentElement.style.setProperty(
-    "--app-visual-viewport-offset-top",
-    `${Math.round(offsetTop)}px`,
+    "--app-visual-viewport-bottom",
+    `${Math.round(bottomInset)}px`,
   );
   els.occurrenceComposer.style.setProperty("--composer-visual-viewport-height", heightPx);
   els.occurrenceComposer.style.setProperty(
     "--composer-completion-max-height",
-    `${Math.max(112, Math.round(height * 0.42))}px`,
+    `${Math.max(112, Math.round(height * 0.65))}px`,
   );
+  if (composerFocused) {
+    requestAnimationFrame(() => els.occurrenceComposer.revealMobileInputLane());
+  }
+}
+
+function composerSemanticVisual(attributes: unknown): Readonly<{ color?: string; icon?: string }> {
+  const record =
+    attributes && typeof attributes === "object" && !Array.isArray(attributes)
+      ? (attributes as Readonly<Record<string, unknown>>)
+      : {};
+  const nestedStyle =
+    record["style"] && typeof record["style"] === "object" && !Array.isArray(record["style"])
+      ? (record["style"] as Readonly<Record<string, unknown>>)
+      : record;
+  const marker =
+    nestedStyle["marker"] &&
+    typeof nestedStyle["marker"] === "object" &&
+    !Array.isArray(nestedStyle["marker"])
+      ? (nestedStyle["marker"] as Readonly<Record<string, unknown>>)
+      : null;
+  const style = marker ?? nestedStyle;
+  const rawColor =
+    style["categoryColor"] ??
+    style["color"] ??
+    style["stroke"] ??
+    style["lineColor"] ??
+    style["fillColor"] ??
+    style["fill"] ??
+    style["borderColor"];
+  const normalizedColor = normalizeSemanticColorSource(rawColor);
+  const color =
+    normalizedColor === null
+      ? undefined
+      : typeof normalizedColor === "number"
+        ? canonicalSemanticHueColor(normalizedColor)
+        : normalizedColor;
+  const icon = normalizeSemanticIconName(style["icon"] ?? record["icon"]) ?? undefined;
+  return Object.freeze({
+    ...(color ? { color } : {}),
+    ...(icon ? { icon } : {}),
+  });
+}
+
+function composerPredicateOptions() {
+  const options = new Map<string, { name: string; color?: string; icon?: string }>();
+  for (const relationship of state.relationships) {
+    const name = relationship.predicate.trim();
+    if (!name) continue;
+    const visual = composerSemanticVisual(relationship.attributes);
+    const current = options.get(name);
+    options.set(name, {
+      name,
+      ...(current?.color || visual.color ? { color: current?.color ?? visual.color } : {}),
+      ...(current?.icon || visual.icon ? { icon: current?.icon ?? visual.icon } : {}),
+    });
+  }
+  return [...options.values()];
+}
+
+function composerTagOptions() {
+  const options = new Map<string, { label: string; color?: string; icon?: string }>();
+  for (const item of state.items) {
+    for (const tag of item.tags ?? []) {
+      const label = (typeof tag === "string" ? tag : tag.label)?.trim();
+      if (!label) continue;
+      const current = options.get(label);
+      if (typeof tag === "string") {
+        if (!current) options.set(label, { label });
+        continue;
+      }
+      const icon = normalizeSemanticIconName(tag.icon) ?? current?.icon;
+      const hue = presentation.normalizeHue(tag.hue);
+      const color = canonicalSemanticHueColor(hue);
+      options.set(label, {
+        label,
+        ...(current?.color || color ? { color: current?.color ?? color } : {}),
+        ...(icon ? { icon } : {}),
+      });
+    }
+  }
+  return [...options.values()];
 }
 
 function syncOccurrenceComposerData(): void {
@@ -1960,31 +2192,43 @@ function syncOccurrenceComposerData(): void {
       name: entity.name,
       type: entity.type,
       alternateNames: entity.alternateNames ?? [],
+      attributes: entity.attributes ?? {},
+      sourceIds: entity.sourceIds ?? [],
       icon: semanticIconStateForEntity(entity).icon ?? undefined,
     })),
-    places: state.places.map((place) => ({
-      id: place.id,
-      name: place.name,
-      icon:
-        normalizeSemanticIconName(place.icon) ??
-        suggestSemanticIconForPlace({ name: place.name })?.icon ??
-        "place",
-    })),
-    categories: state.categories.map((category) => ({
-      id: category.id,
-      name: category.name,
-    })),
-    tags: [
-      ...new Set(
-        state.items.flatMap((item) =>
-          (item.tags ?? [])
-            .map((tag) => (typeof tag === "string" ? tag : tag.label))
-            .filter((tag): tag is string => Boolean(tag?.trim()))
-            .map((tag) => tag.trim()),
-        ),
-      ),
-    ],
-    predicates: [...new Set(state.relationships.map((relationship) => relationship.predicate))],
+    places: state.places.map((place) => {
+      const visual = composerSemanticVisual(place.style);
+      return {
+        id: place.id,
+        name: place.name,
+        ...(place.geometry?.type === "Point"
+          ? {
+              longitude: place.geometry.coordinates[0],
+              latitude: place.geometry.coordinates[1],
+            }
+          : {}),
+        ...(visual.color ? { color: visual.color } : {}),
+        icon:
+          normalizeSemanticIconName(place.icon) ??
+          visual.icon ??
+          suggestSemanticIconForPlace({ name: place.name })?.icon ??
+          "place",
+      };
+    }),
+    categories: state.categories.map((category) => {
+      const visual = composerSemanticVisual(
+        "attributes" in category ? (category as unknown as { attributes?: unknown }).attributes : category.extensions,
+      );
+      return {
+        id: category.id,
+        name: category.name,
+        color: category.color,
+        ...(visual.icon ? { icon: visual.icon } : {}),
+      };
+    }),
+    tags: composerTagOptions(),
+    predicates: composerPredicateOptions(),
+    identityEvidence: caseReasoning.identityCandidateEvidenceAssessments(state.reasoning),
   });
   syncOccurrenceComposerSelection(applicationSelection.current);
 }
@@ -2130,8 +2374,9 @@ function relationshipMetadataIdentity(relationship: RelationshipRecord): string 
 function commitOccurrenceComposer(detail: OccurrenceCommitDetail): void {
   try {
     if (detail.editTarget) {
+      const { relationshipId } = detail.editTarget;
       const existingRelationship = state.relationships.find(
-        (relationship) => String(relationship.id) === detail.editTarget!.relationshipId,
+        (relationship) => String(relationship.id) === relationshipId,
       );
       const sentenceUnchanged = detail.text.trim() === detail.editTarget.initialText.trim();
       const metadataUnchanged =
@@ -2152,9 +2397,11 @@ function commitOccurrenceComposer(detail: OccurrenceCommitDetail): void {
       const nextTime = composerTimeIdentity(detail.draft.time);
       const time =
         initialTime === nextTime ? undefined : detail.draft.time ? composerTime(detail) : null;
-      const initialCategory = initialDraft.options.category ?? null;
-      const nextCategory = detail.draft.options.category ?? null;
-      const categoryName = initialCategory === nextCategory ? undefined : nextCategory;
+      const categoryNames =
+        composerTagsIdentity(initialDraft.options.categories) ===
+        composerTagsIdentity(detail.draft.options.categories)
+          ? undefined
+          : detail.draft.options.categories;
       const tags =
         composerTagsIdentity(initialDraft.options.tags) ===
         composerTagsIdentity(detail.draft.options.tags)
@@ -2174,7 +2421,7 @@ function commitOccurrenceComposer(detail: OccurrenceCommitDetail): void {
           latitude: detail.defaults.latitude,
           accuracyMeters: detail.defaults.accuracyMeters,
           time,
-          categoryName,
+          categoryNames,
           tags,
           role: detail.metadata.role,
           initialState: detail.metadata.initialState,
@@ -2210,7 +2457,7 @@ function commitOccurrenceComposer(detail: OccurrenceCommitDetail): void {
         latitude: detail.defaults.latitude,
         accuracyMeters: detail.defaults.accuracyMeters,
         time: composerTime(detail),
-        categoryName: detail.draft.options.category,
+        categoryNames: detail.draft.options.categories,
         tags: detail.draft.options.tags,
         activeStoryId: ui.activeStoryId,
         role: detail.metadata.role,
@@ -2416,13 +2663,13 @@ function renderTimelineList(visible: TimelineItemRecord[], activeStory: StoryRec
     const shell = document.createElement("div");
     shell.className = "timeline-category-shell";
     shell.dataset.categoryId = category.id;
-    shell.style.setProperty("--category-color", category.color);
+    shell.style.setProperty("--category-color", semanticColorCss(category.color, "ambient"));
 
     const details = document.createElement("details");
     details.className = "timeline-category-group";
     details.dataset.categoryId = category.id;
     details.open = !ui.collapsedCategoryIds.has(category.id);
-    details.style.setProperty("--category-color", category.color);
+    details.style.setProperty("--category-color", semanticColorCss(category.color, "ambient"));
 
     const summary = document.createElement("summary");
     summary.className = "timeline-category-summary";
@@ -2538,17 +2785,24 @@ function renderTimeline() {
       [
         ...visible.map((item) => {
           const category = getCategory(item.categoryId);
+          const primaryRelationship = state.relationships.find((candidate) =>
+            (candidate.itemIds || []).some((id) => String(id) === String(item.id)),
+          );
           const itemTime = temporal.sortKey(item.time?.start || item.start);
           const eventViewport = Number.isFinite(itemTime)
             ? { start: itemTime, end: itemTime }
             : timelineView?.getViewport?.();
           return {
             id: item.id,
+            relationshipId: primaryRelationship ? String(primaryRelationship.id) : undefined,
+            composition: primaryRelationship
+              ? occurrenceCompositionForRelationship(primaryRelationship, String(item.id))
+              : undefined,
             kind: item.kind,
             title: item.title,
             description: item.description,
             categoryName: category.name,
-            color: category.color,
+            color: semanticColorCss(category.color, "active"),
             start: temporal.sortKey(item.time?.start || item.start),
             end: item.end ? temporal.sortKey(item.time?.end || item.end) : null,
             startLabel: formatDateInline(item.start),
@@ -2615,6 +2869,10 @@ function renderTimeline() {
           };
           return {
             id: occurrence.occurrenceId,
+            relationshipId: occurrence.relationshipId,
+            composition: relationship
+              ? occurrenceCompositionForRelationship(relationship, null)
+              : undefined,
             kind: occurrence.end === null ? "event" : "range",
             title: occurrence.title,
             description: relationship?.role
@@ -2693,7 +2951,7 @@ function renderItem(item, activeStory) {
   const li = document.createElement("li");
   li.className = `timeline-item${item.kind === "range" ? " is-range" : ""}`;
   li.dataset.id = item.id;
-  li.style.setProperty("--category-color", category.color);
+  li.style.setProperty("--category-color", semanticColorCss(category.color, "ambient"));
 
   let storyIndex = -1;
   if (activeStory) {
@@ -2761,7 +3019,7 @@ function renderItem(item, activeStory) {
   meta.className = "card-meta";
   const categoryBadge = document.createElement("span");
   categoryBadge.className = "category";
-  categoryBadge.style.setProperty("--category-color", category.color);
+  categoryBadge.style.setProperty("--category-color", semanticColorCss(category.color, "ambient"));
   categoryBadge.textContent = category.name;
   const kindBadge = document.createElement("span");
   kindBadge.className = "kind-badge";
@@ -2882,6 +3140,7 @@ function tagRowParts(row: HTMLElement) {
     label: requiredDescendant<HTMLInputElement>(row, 'input[id$="-label"]'),
     icon: requiredDescendant<HTMLInputElement>(row, 'input[id$="-icon"]'),
     hue: requiredDescendant<HTMLInputElement>(row, 'input[type="range"]'),
+    hueNumber: requiredDescendant<HTMLInputElement>(row, 'input[id$="-hue-number"]'),
     output: requiredDescendant<HTMLOutputElement>(row, "output"),
   };
 }
@@ -2936,9 +3195,15 @@ function collectTagForm() {
   return presentation.normalizeTags(tags);
 }
 
-function updateTagHuePreview(row) {
+function updateTagHuePreview(
+  row: HTMLElement,
+  source: HTMLInputElement = tagRowParts(row).hue,
+): void {
   const parts = tagRowParts(row);
-  const hue = presentation.normalizeHue(parts.hue.value);
+  if (source === parts.hueNumber && !parts.hueNumber.value.trim()) return;
+  const hue = presentation.normalizeHue(source.value);
+  parts.hue.value = String(hue);
+  parts.hueNumber.value = String(hue);
   parts.output.value = `${hue}°`;
   row.style.setProperty("--tag-hue", String(hue));
 }
@@ -2951,6 +3216,7 @@ function fillTagForm(tags) {
     parts.label.value = entry?.label || "";
     parts.icon.value = entry?.icon || "note";
     parts.hue.value = String(entry?.hue ?? Number(parts.hue.defaultValue || 30));
+    parts.hueNumber.value = parts.hue.value;
     updateTagHuePreview(row);
   });
   els.itemTagsDetails.open = normalized.length > 0;
@@ -3055,15 +3321,26 @@ function evidenceRowParts(row) {
   };
 }
 
-function supportedEvidenceFile(file) {
-  if (!file) return false;
+function evidenceFileKind(file) {
+  if (!file) return null;
   const mime = String(file.type || "").toLowerCase();
-  const name = "name" in file ? String(file.name || "") : "";
-  return (
-    mime === "application/pdf" ||
-    mime.startsWith("image/") ||
-    /\.(?:pdf|png|jpe?g|webp|gif)$/i.test(name)
-  );
+  const name = "name" in file ? String(file.name || "").toLowerCase() : "";
+  if (mime === "application/pdf" || /\.pdf$/i.test(name)) return "pdf";
+  if (mime.startsWith("image/") || /\.(?:png|jpe?g|webp|gif|avif)$/i.test(name)) return "image";
+  if (
+    mime.startsWith("audio/") ||
+    /\.(?:mp3|m4a|aac|wav|ogg|oga|flac|opus)$/i.test(name)
+  ) return "audio";
+  if (
+    mime.startsWith("video/") ||
+    /\.(?:mp4|webm|ogv|mov|m4v)$/i.test(name)
+  ) return "video";
+  return null;
+}
+
+function extractableEvidenceFile(file) {
+  const kind = evidenceFileKind(file);
+  return kind === "pdf" || kind === "image";
 }
 
 function evidenceExtractionLabel(extraction) {
@@ -3137,7 +3414,7 @@ async function extractEvidenceRow(row, { quiet = false } = {}) {
     if (!quiet) setError(els.itemFormError, "Attach a PDF or image before extracting text.");
     return null;
   }
-  if (!supportedEvidenceFile(source.blob)) {
+  if (!extractableEvidenceFile(source.blob)) {
     if (!quiet) setError(els.itemFormError, "Text extraction supports PDF and image evidence.");
     return null;
   }
@@ -3191,12 +3468,21 @@ async function ensureEvidenceExtractionForInference() {
     const id = parts.id.value.trim();
     if (!id) continue;
     const existing = state.evidence.find((record) => record.id === id);
-    const hasNewFile = Boolean(parts.file.files?.[0]);
+    const selectedFile = parts.file.files?.[0] || null;
+    const hasNewFile = Boolean(selectedFile);
     const extraction = hasNewFile
       ? evidenceExtractionDrafts.get(id)
       : evidenceExtractionDrafts.get(id) || existing?.extraction || null;
     const hasFile = hasNewFile || Boolean(existing?.file?.blobKey);
-    if (hasFile && !extraction) await extractEvidenceRow(row, { quiet: true });
+    const existingFileKind = existing?.file
+      ? evidenceFileKind({ type: existing.file.mimeType, name: existing.file.name })
+      : null;
+    const supportsExtraction = selectedFile
+      ? extractableEvidenceFile(selectedFile)
+      : existingFileKind === "pdf" || existingFileKind === "image";
+    if (hasFile && supportsExtraction && !extraction) {
+      await extractEvidenceRow(row, { quiet: true });
+    }
   }
 }
 
@@ -3212,23 +3498,43 @@ async function collectEvidenceForm() {
     const file = parts.file.files?.[0] || null;
     let fileMetadata = existing?.file || null;
     if (file) {
-      if (!supportedEvidenceFile(file)) {
-        throw new Error("Evidence uploads must be PDF or image files.");
+      const fileKind = evidenceFileKind(file);
+      if (!fileKind) {
+        throw new Error("Evidence uploads must be PDF, image, audio, or video files.");
       }
-      const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name || "");
-      const sizeLimit = isPdf ? 25_000_000 : 15_000_000;
+      const sizeLimit =
+        fileKind === "video"
+          ? 250_000_000
+          : fileKind === "audio"
+            ? 100_000_000
+            : fileKind === "pdf"
+              ? 25_000_000
+              : 15_000_000;
       if (file.size > sizeLimit) {
         throw new Error(
           `Evidence files are limited to ${Math.round(sizeLimit / 1_000_000)} MB for this format.`,
         );
       }
       const blobKey = `evidence:${id}`;
+      const sha256 = await evidenceStore.sha256Blob(file);
       await evidenceStore.putBlob(blobKey, file);
+      if (parts.type.value === "article" || parts.type.value === "document") {
+        parts.type.value = fileKind;
+      }
       fileMetadata = {
         blobKey,
         name: file.name.slice(0, 260),
-        mimeType: file.type || (parts.type.value === "image" ? "image/*" : "application/pdf"),
+        mimeType:
+          file.type ||
+          (fileKind === "image"
+            ? "image/*"
+            : fileKind === "audio"
+              ? "audio/*"
+              : fileKind === "video"
+                ? "video/*"
+                : "application/pdf"),
         size: file.size,
+        sha256,
       };
     }
     const extraction =
@@ -3267,7 +3573,9 @@ function fillEvidenceForm(item) {
     parts.url.value = record?.url || "";
     parts.note.value = record?.note || "";
     parts.file.value = "";
-    parts.fileStatus.textContent = record?.file?.name ? `Stored locally: ${record.file.name}` : "";
+    parts.fileStatus.textContent = record?.file?.name
+      ? `Stored locally: ${record.file.name}${record.file.sha256 ? ` · SHA-256 ${record.file.sha256}` : ""}`
+      : "";
     if (record?.extraction) evidenceExtractionDrafts.set(record.id, record.extraction);
     renderEvidenceExtraction(parts, record?.extraction || null);
   });
@@ -3688,6 +3996,147 @@ function fillLocationForm(location) {
   if (location) locationMap?.refresh();
 }
 
+function syncItemCategoryHuePreview(
+  source: HTMLInputElement = els.itemCategoryHue,
+): void {
+  if (source === els.itemCategoryHueNumber && !els.itemCategoryHueNumber.value.trim()) return;
+  const category = getCategory(els.itemCategory.value);
+  const fallbackHue = category ? semanticHue(category.color, 220) : 220;
+  const hue = Math.round(semanticHue(Number(source.value), fallbackHue));
+  els.itemCategoryHue.value = String(hue);
+  els.itemCategoryHueNumber.value = String(hue);
+  els.itemCategoryHue.style.setProperty("--category-hue", String(hue));
+  els.itemCategoryHueOutput.value = `${hue}°`;
+}
+
+function fillItemCategoryHue(categoryId = els.itemCategory.value): void {
+  const category = getCategory(categoryId);
+  const hue = Math.round(semanticHue(category?.color, 220));
+  els.itemCategoryHue.value = String(hue);
+  els.itemCategoryHueNumber.value = String(hue);
+  syncItemCategoryHuePreview();
+}
+
+function itemSecondaryCategoryIds(item: TimelineItemRecord | undefined): string[] {
+  if (!item) return [];
+  const primaryId = els.itemCategory.value;
+  return [
+    ...new Set(
+      (item.categoryIds ?? [])
+        .filter(
+          (categoryId) =>
+            categoryId !== item.categoryId &&
+            categoryId !== primaryId &&
+            state.categories.some((category) => category.id === categoryId),
+        ),
+    ),
+  ];
+}
+
+function syncSecondaryItemCategoryHueRow(
+  row: HTMLElement,
+  source: HTMLInputElement,
+): void {
+  const range = requiredDescendant<HTMLInputElement>(row, 'input[type="range"]');
+  const number = requiredDescendant<HTMLInputElement>(row, 'input[type="number"]');
+  const output = requiredDescendant<HTMLOutputElement>(row, "output");
+  if (source === number && !number.value.trim()) return;
+  const categoryId = row.dataset.categoryHueId ?? "";
+  const category = getCategory(categoryId);
+  const fallbackHue = category ? semanticHue(category.color, 220) : 220;
+  const hue = Math.round(semanticHue(Number(source.value), fallbackHue));
+  range.value = String(hue);
+  number.value = String(hue);
+  range.style.setProperty("--category-hue", String(hue));
+  output.value = `${hue}°`;
+}
+
+function fillSecondaryItemCategoryHues(item: TimelineItemRecord | undefined): void {
+  const rows = itemSecondaryCategoryIds(item).flatMap((categoryId) => {
+    const category = getCategory(categoryId);
+    if (!category) return [];
+    const hue = Math.round(semanticHue(category.color, 220));
+    const row = document.createElement("div");
+    row.className = "item-category-hue-row hue-field";
+    row.dataset.categoryHueId = category.id;
+
+    const name = document.createElement("strong");
+    name.textContent = category.name;
+
+    const controls = document.createElement("span");
+    controls.className = "hue-control-row";
+
+    const range = document.createElement("input");
+    range.type = "range";
+    range.min = "0";
+    range.max = "359";
+    range.step = "1";
+    range.value = String(hue);
+    range.setAttribute("aria-label", `${category.name} hue`);
+
+    const number = document.createElement("input");
+    number.type = "number";
+    number.min = "0";
+    number.max = "359";
+    number.step = "1";
+    number.inputMode = "numeric";
+    number.className = "hue-number";
+    number.value = String(hue);
+    number.setAttribute("aria-label", `${category.name} hue in degrees`);
+
+    const output = document.createElement("output");
+    output.value = `${hue}°`;
+
+    range.addEventListener("input", () => syncSecondaryItemCategoryHueRow(row, range));
+    number.addEventListener("input", () => syncSecondaryItemCategoryHueRow(row, number));
+    controls.append(range, number, output);
+    row.append(name, controls);
+    syncSecondaryItemCategoryHueRow(row, range);
+    return [row];
+  });
+
+  els.itemSecondaryCategoryHues.replaceChildren(...rows);
+  els.itemSecondaryCategoryHues.hidden = rows.length === 0;
+}
+
+function applyItemCategoryHuesToDraft(draft: TimelineState, item: TimelineItemRecord): void {
+  const primary = draft.categories.find((category) => category.id === item.categoryId);
+  if (primary) {
+    primary.color = canonicalSemanticHueColor(Number(els.itemCategoryHue.value), 220);
+  }
+  for (const row of els.itemSecondaryCategoryHues.querySelectorAll<HTMLElement>(
+    "[data-category-hue-id]",
+  )) {
+    const categoryId = row.dataset.categoryHueId ?? "";
+    const category = draft.categories.find((candidate) => candidate.id === categoryId);
+    const range = row.querySelector<HTMLInputElement>('input[type="range"]');
+    if (!category || !range) continue;
+    category.color = canonicalSemanticHueColor(Number(range.value), semanticHue(category.color, 220));
+  }
+}
+
+function editableItemIdFromSelection(): string | null {
+  const selection = applicationSelection.current;
+  if (selection?.kind === "relationship") {
+    if (selection.itemId && getItem(selection.itemId)) return selection.itemId;
+    const relationship = state.relationships.find(
+      (candidate) => String(candidate.id) === selection.id,
+    );
+    if (relationship) {
+      const resolved = timelineItemIdForRelationshipSelection(
+        relationship,
+        state.items,
+        selection.itemId ?? null,
+      );
+      if (resolved && getItem(resolved)) return resolved;
+    }
+  }
+
+  const focusedId = timelineView?.focusedItemId?.() || null;
+  const navigation = focusedId ? timelineView?.focusNavigationState?.() : null;
+  return focusedId && navigation?.editable === true && getItem(focusedId) ? focusedId : null;
+}
+
 function resetItemForm() {
   clearInferenceDraft();
   els.itemForm.reset();
@@ -3717,6 +4166,8 @@ function resetItemForm() {
   els.itemLane.value = "";
   resetLocationForm();
   fillCategorySelect(els.itemCategory, false, state.categories[0]?.id || "");
+  fillItemCategoryHue();
+  fillSecondaryItemCategoryHues(undefined);
   fillItemStoryContext(ui.activeStoryId || "");
   els.saveItem.textContent = "Add item";
   els.cancelItemEdit.hidden = true;
@@ -3739,6 +4190,8 @@ function beginItemEdit(id) {
   dateRangePicker.setRange(startParts.date, item.kind === "range" ? endParts.date : "");
   els.endField.hidden = item.kind !== "range";
   fillCategorySelect(els.itemCategory, false, item.categoryId);
+  fillItemCategoryHue(item.categoryId);
+  fillSecondaryItemCategoryHues(item);
   const storyIds = storyIdsForItem(state.stories, item.id);
   const preferredStoryId =
     ui.activeStoryId && storyIds.includes(ui.activeStoryId)
@@ -4079,10 +4532,22 @@ function exitStoryFocus(render = true) {
   if (render) renderTimeline();
 }
 
+function syncCategoryHuePreview(
+  source: HTMLInputElement = els.categoryHue,
+): void {
+  if (source === els.categoryHueNumber && !els.categoryHueNumber.value.trim()) return;
+  const hue = Math.round(semanticHue(Number(source.value), 220));
+  els.categoryHue.value = String(hue);
+  els.categoryHueNumber.value = String(hue);
+  els.categoryHue.style.setProperty("--category-hue", String(hue));
+  els.categoryHueOutput.value = `${hue}°`;
+}
+
 function resetCategoryForm() {
   els.categoryForm.reset();
   els.categoryId.value = "";
-  els.categoryColor.value = "#667085";
+  els.categoryHue.value = "220";
+  syncCategoryHuePreview();
   els.saveCategory.textContent = "Add category";
   els.cancelCategoryEdit.hidden = true;
   setError(els.categoryFormError);
@@ -4094,7 +4559,8 @@ function beginCategoryEdit(id) {
   setActivePanel("categories");
   els.categoryId.value = category.id;
   els.categoryName.value = category.name;
-  els.categoryColor.value = category.color;
+  els.categoryHue.value = String(Math.round(semanticHue(category.color, 220)));
+  syncCategoryHuePreview();
   els.saveCategory.textContent = "Save category";
   els.cancelCategoryEdit.hidden = false;
   setError(els.categoryFormError);
@@ -4133,7 +4599,7 @@ function renderCategories() {
     const row = document.createElement("div");
     row.className = "category-row";
     row.dataset.id = category.id;
-    row.style.setProperty("--category-color", category.color);
+    row.style.setProperty("--category-color", semanticColorCss(category.color, "ambient"));
     const identity = document.createElement("div");
     identity.className = "category-identity";
     const dot = document.createElement("span");
@@ -4866,8 +5332,10 @@ function toMarkdown() {
       if (record.sourceName) lines.push(`Source: ${record.sourceName}  `);
       if (record.publishedAt) lines.push(`Published / recorded: ${record.publishedAt}  `);
       if (record.url) lines.push(`URL: ${record.url}  `);
-      if (record.file?.name)
-        lines.push(`Local PDF metadata: ${record.file.name} (${record.file.size || 0} bytes)  `);
+      if (record.file?.name) {
+        lines.push(`Local file: ${record.file.name} (${record.file.size || 0} bytes)  `);
+        if (record.file.sha256) lines.push(`SHA-256: ${record.file.sha256}  `);
+      }
       if (record.note) lines.push("", record.note);
       const supported = state.items.filter((item) => item.evidenceIds?.includes(record.id));
       if (supported.length)
@@ -5158,11 +5626,9 @@ els.editorToggle?.addEventListener("click", () => {
     setEditorSurfaceOpen(false);
     return;
   }
-  const focusedId = timelineView?.focusedItemId?.() || null;
-  const navigation = focusedId ? timelineView?.focusNavigationState?.() : null;
-  const focusedEditableId = focusedId && navigation?.editable === true ? focusedId : null;
+  const editableItemId = editableItemIdFromSelection();
   setEditorSurfaceOpen(true);
-  if (focusedEditableId) beginItemEdit(focusedEditableId);
+  if (editableItemId) beginItemEdit(editableItemId);
 });
 els.panelOpeners.forEach((button) => {
   button.addEventListener("click", () => setActivePanel(button.dataset.openPanel));
@@ -5590,9 +6056,21 @@ els.itemKind.addEventListener("change", () => {
 
 for (const row of els.itemTagRows) {
   const parts = tagRowParts(row);
-  parts.hue.addEventListener("input", () => updateTagHuePreview(row));
+  parts.hue.addEventListener("input", () => updateTagHuePreview(row, parts.hue));
+  parts.hueNumber.addEventListener("input", () => updateTagHuePreview(row, parts.hueNumber));
   updateTagHuePreview(row);
 }
+
+els.itemCategory.addEventListener("change", () => {
+  fillItemCategoryHue();
+  fillSecondaryItemCategoryHues(getItem(els.itemId.value) ?? undefined);
+});
+els.itemCategoryHue.addEventListener("input", () =>
+  syncItemCategoryHuePreview(els.itemCategoryHue),
+);
+els.itemCategoryHueNumber.addEventListener("input", () =>
+  syncItemCategoryHuePreview(els.itemCategoryHueNumber),
+);
 
 for (const row of els.itemEvidenceRows) {
   const parts = evidenceRowParts(row);
@@ -5714,9 +6192,18 @@ els.itemForm.addEventListener("submit", async (event) => {
   if (media.length) item.media = media;
   if (tags.length) item.tags = tags;
   const existingItem = state.items.find((candidate) => candidate.id === item.id);
+  const retainedSecondaryCategoryIds = (existingItem?.categoryIds ?? [])
+    .filter(
+      (categoryId) =>
+        categoryId !== existingItem?.categoryId &&
+        categoryId !== item.categoryId &&
+        state.categories.some((category) => category.id === categoryId),
+    );
+  item.categoryIds = [item.categoryId, ...retainedSecondaryCategoryIds];
   if (existingItem?.extensions) item.extensions = clone(existingItem.extensions);
 
   let draft = clone(state);
+  applyItemCategoryHuesToDraft(draft, item);
   const evidenceMap = new Map(draft.evidence.map((record) => [record.id, record]));
   for (const record of evidenceRecords) evidenceMap.set(record.id, record);
   draft.evidence = [...evidenceMap.values()];
@@ -5966,7 +6453,7 @@ els.categoryForm.addEventListener("submit", (event) => {
   const category = {
     id: editingId || newId("category"),
     name: name.slice(0, 60),
-    color: normalizeColor(els.categoryColor.value),
+    color: canonicalSemanticHueColor(Number(els.categoryHue.value), 220),
   };
   const index = state.categories.findIndex((candidate) => candidate.id === category.id);
   state = applyProjectTransaction(state, [
@@ -5979,6 +6466,10 @@ els.categoryForm.addEventListener("submit", (event) => {
   renderAll();
 });
 
+els.categoryHue.addEventListener("input", () => syncCategoryHuePreview(els.categoryHue));
+els.categoryHueNumber.addEventListener("input", () =>
+  syncCategoryHuePreview(els.categoryHueNumber),
+);
 els.cancelCategoryEdit.addEventListener("click", resetCategoryForm);
 
 els.categoryList.addEventListener("click", (event) => {
@@ -6039,15 +6530,21 @@ els.timelineViewRoot.addEventListener("timelineorientationchange", (event) => {
 els.timelineViewRoot.addEventListener("timelinefocuschange", (event) => {
   const focused = Boolean(event.detail?.focused);
   const cardFocused = focused && event.detail?.presentationSurface === "card";
+  let focusSelection: ReturnType<typeof selectionForTimelineFocus> | null = null;
   if (focused) {
-    applicationSelection.select(
-      selectionForTimelineFocus(event.detail?.id, state.relationships),
-      "timeline",
+    focusSelection = selectionForTimelineFocus(
+      event.detail?.id,
+      state.relationships,
+      event.detail?.relationshipId,
     );
+    applicationSelection.select(focusSelection, "timeline");
   }
   if (focused && ui.mode === "edit") {
     requestAnimationFrame(() => timelineView?.closeFocus());
     return;
+  }
+  if (focusSelection?.kind === "relationship" && ui.mode !== "edit") {
+    setOccurrenceComposerOpen(true);
   }
   if (focused) {
     closeLargeUtilitySurfaces("focus");
@@ -6061,6 +6558,24 @@ els.timelineViewRoot.addEventListener("timelinefocuschange", (event) => {
   syncContextualPresentationPanels();
   syncTimelineContextControls();
   schedulePresentationGeometryRefresh({ recenterGraph: !cardFocused });
+});
+
+els.timelineViewRoot.addEventListener("timelineoccurrenceeditrequest", (event) => {
+  const { id, relationshipId, field } =
+    (
+      event as CustomEvent<{
+        id?: string;
+        relationshipId?: string;
+        field?: "subject" | "predicate" | "object" | "place" | "time" | "category" | "tag";
+      }>
+    ).detail ?? {};
+  if (!id) return;
+  applicationSelection.select(
+    selectionForTimelineFocus(id, state.relationships, relationshipId),
+    "timeline",
+  );
+  setOccurrenceComposerOpen(true);
+  if (field) els.occurrenceComposer.focusSection(field);
 });
 
 els.timelineViewRoot.addEventListener("timelinefocusrender", (event) => {
@@ -6091,7 +6606,38 @@ els.graphViewRoot.addEventListener("worldselectionchange", (event) => {
       selection.kind === "place") &&
     (typeof selection.id === "string" || typeof selection.id === "number")
   ) {
-    applicationSelection.select({ kind: selection.kind, id: String(selection.id) }, "world");
+    const id = String(selection.id);
+    if (selection.kind === "relationship") {
+      const relationship = state.relationships.find((candidate) => String(candidate.id) === id);
+      const retainedItemId =
+        applicationSelection.current?.kind === "relationship" &&
+        applicationSelection.current.id === id
+          ? applicationSelection.current.itemId
+          : null;
+      let selectedItemId = relationship
+        ? composerItemIdForRelationship(relationship, retainedItemId)
+        : null;
+      if (!selectedItemId && relationship) {
+        selectedItemId = composerItemIdForRelationship(
+          relationship,
+          timelineView?.focusedItemId?.() ?? null,
+        );
+      }
+      const worldSelection = {
+        kind: "relationship" as const,
+        id,
+        ...(selectedItemId ? { itemId: selectedItemId } : {}),
+      };
+      const changed = applicationSelection.select(worldSelection, "world");
+      if (!changed) {
+        timelineView?.setSelection(worldSelection);
+        syncOccurrenceComposerSelection(worldSelection);
+        setOccurrenceComposerOpen(true);
+      }
+      return;
+    }
+
+    applicationSelection.select({ kind: selection.kind, id }, "world");
     return;
   }
   applicationSelection.clear("world");
@@ -6132,6 +6678,154 @@ els.occurrenceComposer.addEventListener("occurrencecomposeropenrequest", () => {
 els.occurrenceComposer.addEventListener("occurrencecomposercloserequest", () => {
   setOccurrenceComposerOpen(false);
 });
+els.occurrenceComposer.addEventListener("occurrenceinvestigationactionrequest", (event) => {
+  const {
+    text = "",
+    action = "",
+    unknownEntityId = null,
+    candidates = [],
+    qualifier = null,
+    provenance = null,
+  } =
+    (
+      event as CustomEvent<{
+        text?: string;
+        action?: string;
+        unknownEntityId?: string | null;
+        candidates?: readonly { entityId: string; label: string }[];
+        qualifier?: {
+          kind?: string;
+          text?: string;
+          normalizedText?: string;
+          scope?: "section" | "sentence" | "ambiguous";
+        } | null;
+        provenance?: {
+          sourceIds?: readonly string[];
+          relationshipId?: string | null;
+          itemId?: string | null;
+          entityId?: string | null;
+          placeId?: string | null;
+        } | null;
+      }>
+    ).detail ?? {};
+  const current = caseReasoning.normalizeReasoning(state.reasoning);
+  if (action === "promote-observation" || action === "promote-assertion") {
+    const knownEvidenceIds = new Set(state.evidence.map((record) => record.id));
+    const sourceIds = [...new Set((provenance?.sourceIds ?? []).filter((id) => knownEvidenceIds.has(id)))];
+    const relationshipId = provenance?.relationshipId ?? null;
+    const qualifierText = String(qualifier?.normalizedText ?? qualifier?.text ?? "")
+      .replace(/\?$/, "")
+      .trim();
+    const qualifierKind = String(qualifier?.kind ?? "clue").trim() || "clue";
+    if (!relationshipId || !qualifierText || !sourceIds.length) {
+      els.occurrenceComposer.setError(
+        "Source observation/assertion promotion requires a selected source-backed occurrence and an active unresolved clue.",
+      );
+      return;
+    }
+    const observationId = `observation-${crypto.randomUUID()}`;
+    const observation = buildObservationDraft({
+      id: observationId,
+      text: `Source-backed occurrence records ${qualifierKind} clue “${qualifierText}”.`,
+      sourceIds,
+      evidenceIds: sourceIds,
+      itemIds: provenance?.itemId ? [provenance.itemId] : [],
+      relationshipIds: [relationshipId],
+      entityIds: provenance?.entityId ? [provenance.entityId] : [],
+      placeIds: provenance?.placeId ? [provenance.placeId] : [],
+    });
+    const assertion = action === "promote-assertion"
+      ? buildAssertionDraft({
+          id: `assertion-${crypto.randomUUID()}`,
+          text: `The selected source describes the ${qualifierKind} as “${qualifierText}”.`,
+          sourceIds,
+          inputIds: [observationId],
+          itemIds: provenance?.itemId ? [provenance.itemId] : [],
+        })
+      : null;
+    const next = caseReasoning.normalizeReasoning({
+      ...current,
+      observations: [...current.observations, observation],
+      assertions: assertion ? [...current.assertions, assertion] : current.assertions,
+    });
+    const errors = caseReasoning
+      .validateReasoning(next, {
+        entityIds: state.entities.map((entity) => entity.id),
+        externalIds: investigationExternalIds(),
+      })
+      .filter((finding) => finding.severity === "error");
+    if (errors.length) {
+      els.occurrenceComposer.setError(errors[0]?.message ?? "Cannot promote the source-backed clue.");
+      return;
+    }
+    applyInvestigationReasoning(
+      next,
+      assertion ? "Source-backed observation and assertion recorded." : "Source-backed observation recorded.",
+    );
+    return;
+  }
+  if (action === "compare-candidates") {
+    if (!unknownEntityId || !state.entities.some((entity) => entity.id === unknownEntityId)) {
+      els.occurrenceComposer.setError(
+        "Compare candidates requires a canonical unresolved entity in the active clue.",
+      );
+      return;
+    }
+    const candidateIds = new Set(state.entities.map((entity) => entity.id));
+    const boundedCandidates = candidates
+      .filter((candidate) => candidateIds.has(candidate.entityId) && candidate.entityId !== unknownEntityId)
+      .slice(0, 50);
+    if (!boundedCandidates.length) {
+      els.occurrenceComposer.setError("No canonical identity candidates are available to compare.");
+      return;
+    }
+    const drafts = buildIdentityHypothesisDrafts({
+      unknownEntityId,
+      candidates: boundedCandidates,
+      alternativeGroupId: `${unknownEntityId}-identity`,
+    });
+    const draftIds = new Set(drafts.map((draft) => draft.id));
+    const next = caseReasoning.normalizeReasoning({
+      ...current,
+      hypotheses: [
+        ...current.hypotheses.filter((hypothesis) => !draftIds.has(hypothesis.id)),
+        ...drafts,
+      ],
+    });
+    const errors = caseReasoning
+      .validateReasoning(next, {
+        entityIds: state.entities.map((entity) => entity.id),
+        externalIds: investigationExternalIds(),
+      })
+      .filter((finding) => finding.severity === "error");
+    if (errors.length) {
+      els.occurrenceComposer.setError(errors[0]?.message ?? "Cannot create identity hypotheses.");
+      return;
+    }
+    applyInvestigationReasoning(next, "Identity alternatives recorded in case reasoning.");
+    return;
+  }
+  const proposal = proposeInvestigationAction(text, action);
+  if (!proposal) return;
+  const next = caseReasoning.normalizeReasoning({
+    ...current,
+    [proposal.collection]: [
+      ...current[proposal.collection],
+      { id: `${action}-${crypto.randomUUID()}`, ...proposal.record },
+    ],
+  });
+  const errors = caseReasoning
+    .validateReasoning(next, {
+      entityIds: state.entities.map((entity) => entity.id),
+      externalIds: investigationExternalIds(),
+    })
+    .filter((finding) => finding.severity === "error");
+  if (errors.length) {
+    els.occurrenceComposer.setError(errors[0]?.message ?? "Cannot create the question.");
+    return;
+  }
+  applyInvestigationReasoning(next, `${action} recorded in case reasoning.`);
+});
 els.occurrenceComposer.addEventListener("occurrencecomposeradvancededitrequest", (event) => {
   const relationshipId = (event as CustomEvent<{ relationshipId?: string }>).detail?.relationshipId;
   if (!relationshipId) return;
@@ -6143,6 +6837,10 @@ els.occurrenceComposer.addEventListener("occurrencecommit", (event) => {
 window.addEventListener("resize", syncComposerVisualViewport);
 window.visualViewport?.addEventListener("resize", syncComposerVisualViewport);
 window.visualViewport?.addEventListener("scroll", syncComposerVisualViewport);
+els.occurrenceComposer.addEventListener("focusin", syncComposerVisualViewport);
+els.occurrenceComposer.addEventListener("focusout", () => {
+  requestAnimationFrame(syncComposerVisualViewport);
+});
 
 async function openEvidenceRecord(id: string) {
   const record = state.evidence.find((candidate) => candidate.id === id);

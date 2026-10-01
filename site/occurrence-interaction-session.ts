@@ -124,9 +124,7 @@ function freezeQualifier(qualifier: InvestigativeQualifierState): InvestigativeQ
   });
 }
 
-function freezeInvestigation(
-  state: ComposerInvestigationState,
-): ComposerInvestigationState {
+function freezeInvestigation(state: ComposerInvestigationState): ComposerInvestigationState {
   return Object.freeze({
     qualifiers: Object.freeze(state.qualifiers.map(freezeQualifier)),
     activeQualifierId: state.activeQualifierId,
@@ -216,25 +214,9 @@ export function resolveOccurrencePresentation(
   const selectedId = session.occurrenceId;
   if (!selectedId) return setPresentation(session, "resting");
 
-  if (viewport.explicitDetailOpen) return setPresentation(session, "expanded");
-
-  const logicalIds = new Set(viewport.logicalOccurrenceIds.filter(Boolean));
-  const selectedIsVisible = logicalIds.has(selectedId);
-  const logicalHasOther = [...logicalIds].some((id) => id !== selectedId);
-  const fallback = viewport.focused ? "focused" : "selected";
-
-  if (session.presentation === "expanded") {
-    const demotionIds = new Set(
-      (viewport.demotionOccurrenceIds ?? viewport.logicalOccurrenceIds).filter(Boolean),
-    );
-    const hasDemotionBlocker = [...demotionIds].some((id) => id !== selectedId);
-    return setPresentation(session, hasDemotionBlocker ? fallback : "expanded");
-  }
-
-  return setPresentation(
-    session,
-    selectedIsVisible && !logicalHasOther ? "expanded" : fallback,
-  );
+  // Expanded occurrence detail no longer belongs to the timeline. The timeline
+  // keeps selection/focus only; the composer deck owns context, media and editing.
+  return setPresentation(session, viewport.focused ? "focused" : "selected");
 }
 
 export function setComposerDraft(
@@ -360,9 +342,7 @@ export function switchOccurrenceSelection(
   }
 
   const composer =
-    session.composer.dirty && policy === "preserve"
-      ? session.composer
-      : emptyComposer();
+    session.composer.dirty && policy === "preserve" ? session.composer : emptyComposer();
 
   return Object.freeze({
     session: freezeSession({

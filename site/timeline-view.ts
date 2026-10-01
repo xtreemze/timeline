@@ -7,6 +7,7 @@
  */
 
 import type { ApplicationSelection } from "../src/application/selection.ts";
+import { composerEditableSections } from "./occurrence-composer-model.ts";
 import { projectTimelineSelection } from "../src/application/timeline-selection.ts";
 import { surfacePointerMayStartDirectManipulation } from "../src/interaction/surface-input-policy.ts";
 import { TimelinePresentation } from "./event-presentation.ts";
@@ -45,6 +46,12 @@ import {
   LuumOccurrenceDeckElement,
   type OccurrenceDeckChangeDetail,
 } from "./components/occurrence-media-deck.ts";
+import {
+  occurrenceContextDeckFrames,
+  type OccurrenceContextMediaFrame,
+  type OccurrenceContextMediaKind,
+} from "./occurrence-context-deck.ts";
+import { getBlob as getEvidenceBlob } from "./evidence-store.ts";
 import {
   createOccurrenceInteractionSession,
   resolveOccurrencePresentation,
@@ -102,6 +109,8 @@ type Orientation = "horizontal" | "vertical";
 
 interface TimelineItem {
   id: string;
+  relationshipId?: string;
+  composition?: string;
   kind?: string;
   title?: string;
   description?: string;
@@ -482,6 +491,40 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function recordString(record: Record<string, unknown> | null, key: string): string {
   const value = record?.[key];
   return typeof value === "string" ? value : "";
+}
+
+function evidenceMediaKind(record: Record<string, unknown>): OccurrenceContextMediaKind | null {
+  const file = isRecord(record.file) ? record.file : null;
+  if (!file) return null;
+  const type = recordString(record, "type").toLowerCase();
+  const mimeType = recordString(file, "mimeType").toLowerCase();
+  const name = recordString(file, "name").toLowerCase();
+  if (type === "video" || mimeType.startsWith("video/") || /\.(?:mp4|webm|ogv|mov|m4v)$/.test(name)) {
+    return "video";
+  }
+  if (type === "audio" || mimeType.startsWith("audio/") || /\.(?:mp3|m4a|aac|wav|ogg|oga|flac|opus)$/.test(name)) {
+    return "audio";
+  }
+  if (type === "image" || mimeType.startsWith("image/") || /\.(?:png|jpe?g|webp|gif|avif)$/.test(name)) {
+    return "image";
+  }
+  return null;
+}
+
+function evidenceMediaRevision(records: readonly unknown[]): string {
+  return records
+    .filter(isRecord)
+    .map((record) => {
+      const file = isRecord(record.file) ? record.file : null;
+      return [
+        recordString(record, "id"),
+        recordString(record, "type"),
+        recordString(file, "blobKey"),
+        recordString(file, "mimeType"),
+        recordString(file, "sha256"),
+      ].join("\u0001");
+    })
+    .join("\u0002");
 }
 
 function formatElapsedDuration(durationMs: number): string {
@@ -1240,11 +1283,16 @@ export class TimelineViewController {
       selection === null
         ? this.applicationSelection === null
         : this.applicationSelection?.kind === selection.kind &&
-          this.applicationSelection.id === selection.id;
+          this.applicationSelection.id === selection.id &&
+          (this.applicationSelection.itemId ?? "") === (selection.itemId ?? "");
     if (same) return;
 
     this.applicationSelection = selection
-      ? Object.freeze({ kind: selection.kind, id: selection.id })
+      ? Object.freeze({
+          kind: selection.kind,
+          id: selection.id,
+          ...(selection.itemId ? { itemId: selection.itemId } : {}),
+        })
       : null;
     this.refreshCanonicalSelectionProjection();
 
@@ -1320,11 +1368,13 @@ export class TimelineViewController {
       button.toggleAttribute("data-selected", selected);
       button.setAttribute("aria-current", String(item.id === this.focusedId));
       button.addEventListener("click", () => {
-        if (this.focusedId === item.id) {
-          this.ensureFocusPopover();
-        } else {
-          this.focusItem(item.id);
-        }
+        if (this.focusedId !== item.id) this.focusItem(item.id);
+        this.root.dispatchEvent(
+          new CustomEvent("timelineoccurrenceeditrequest", {
+            bubbles: true,
+            detail: { id: item.id, relationshipId: item.relationshipId },
+          }),
+        );
       });
       row.append(button);
       return row;
@@ -2165,32 +2215,36 @@ export class TimelineViewController {
     }
     this.cancelInertia();
     this.beginInteraction();
+
     const usable = Math.max(1, usableLength);
-    let velocity = Number(initialVelocityPxPerMs) || 0;
-    let lastFrame = 0;
+    const duration = motion.INERTIA_TAU_MS;
+    const releaseVelocity = Number(initialVelocityPxPerMs) || 0;
+    const span = this.viewport.end - this.viewport.start;
+    const startViewport = { ...this.viewport };
+    // Match the globe's bounded quadratic release: distance = v0 * duration / 2.
+    // With releaseMomentumEasing(), the first derivative starts at v0 and ends
+    // at zero, so pointer-up does not introduce a speed discontinuity.
+    const travelPixels = motion.releaseMomentumDistance(releaseVelocity, duration);
+    const travelTemporal = -((travelPixels / usable) * span);
+    const startedAt = performance.now();
 
     const step = (now: number): void => {
       this.inertiaAnimationFrame = 0;
-      if (Math.abs(velocity) < motion.STOP_VELOCITY_PX_PER_MS) {
-        this.interactionVelocity = 0;
-        this.commitInteraction();
-        return;
-      }
+      const progress = clamp((now - startedAt) / duration, 0, 1);
+      const eased = motion.releaseMomentumEasing(progress);
+      const remainingVelocity = releaseVelocity * (1 - progress);
 
-      const elapsed = lastFrame ? clamp(now - lastFrame, 1, 48) : 16;
-      lastFrame = now;
-      velocity = motion.decayVelocity(velocity, elapsed);
-      const span = this.viewport.end - this.viewport.start;
-      const deltaPixels = velocity * elapsed;
-      const deltaTemporal = -(deltaPixels / usable) * span;
-      this.interactionVelocity = deltaTemporal / elapsed;
+      this.interactionVelocity = -((remainingVelocity / usable) * span);
       this.viewport = {
-        start: this.viewport.start + deltaTemporal,
-        end: this.viewport.end + deltaTemporal,
+        start: startViewport.start + travelTemporal * eased,
+        end: startViewport.end + travelTemporal * eased,
       };
       this.scheduleInteractionRender();
 
-      if (Math.abs(velocity) >= motion.STOP_VELOCITY_PX_PER_MS) {
+      if (
+        progress < 1 &&
+        Math.abs(remainingVelocity) >= motion.STOP_VELOCITY_PX_PER_MS
+      ) {
         this.inertiaAnimationFrame = requestAnimationFrame(step);
       } else {
         this.interactionVelocity = 0;
@@ -2410,6 +2464,7 @@ export class TimelineViewController {
           : [entry.label || "", entry.icon || "", entry.hue ?? ""].join("\u0001"),
       )
       .join("\u0002");
+    const evidenceMedia = evidenceMediaRevision(item.evidence || []);
     return [
       item.title || "",
       item.startLabel || "",
@@ -2423,6 +2478,7 @@ export class TimelineViewController {
       item.connectorEndpoint || "",
       tags,
       media,
+      evidenceMedia,
     ].join("\u0003");
   }
 
@@ -2957,6 +3013,15 @@ export class TimelineViewController {
     if (expansion?.viewport) this.viewport = { ...expansion.viewport };
     this.commitInteraction();
     this.focusItem(selectedId, { moveViewport: false });
+    this.root.dispatchEvent(
+      new CustomEvent("timelineoccurrenceeditrequest", {
+        bubbles: true,
+        detail: {
+          id: selectedId,
+          relationshipId: this.items.find((item) => item.id === selectedId)?.relationshipId,
+        },
+      }),
+    );
     void motion.pulseHaptic("selection");
   }
 
@@ -3129,13 +3194,20 @@ export class TimelineViewController {
     const connectorTurn = node.querySelector<HTMLElement>(".timeline-event-connector-turn");
     terminal.dataset.timelineGeometryId = item.id;
     this.geometryObserver?.observe(terminal);
+    const requestComposer = (): void => {
+      this.root.dispatchEvent(
+        new CustomEvent("timelineoccurrenceeditrequest", {
+          bubbles: true,
+          detail: { id: item.id, relationshipId: item.relationshipId },
+        }),
+      );
+    };
     const selectOccurrence = (): void => {
-      if (this.focusedId === item.id) {
-        this.ensureFocusPopover();
-        return;
+      if (this.focusedId !== item.id) {
+        this.focusItem(item.id, { moveViewport: false });
+        void motion.pulseHaptic("selection");
       }
-      this.focusItem(item.id, { moveViewport: false });
-      void motion.pulseHaptic("selection");
+      requestComposer();
     };
     terminal.addEventListener("click", selectOccurrence);
 
@@ -3252,9 +3324,7 @@ export class TimelineViewController {
     const span = Math.max(MIN_SPAN_MS, viewport.end - viewport.start);
     const inset = Math.min(span * 0.08, Math.max(0, span / 2 - MIN_SPAN_MS));
     const inner =
-      inset > 0
-        ? { start: viewport.start + inset, end: viewport.end - inset }
-        : viewport;
+      inset > 0 ? { start: viewport.start + inset, end: viewport.end - inset } : viewport;
     return this.logicalOccurrenceIds(inner);
   }
 
@@ -3265,11 +3335,9 @@ export class TimelineViewController {
     }
 
     if (this.interactionSession.occurrenceId !== this.focusedId) {
-      this.interactionSession = switchOccurrenceSelection(
-        this.interactionSession,
-        this.focusedId,
-        { dirtyDraftPolicy: "preserve" },
-      ).session;
+      this.interactionSession = switchOccurrenceSelection(this.interactionSession, this.focusedId, {
+        dirtyDraftPolicy: "preserve",
+      }).session;
     }
     if (
       this.interactionSession.presentation === "resting" ||
@@ -3339,7 +3407,7 @@ export class TimelineViewController {
 
     const focusedId = this.focusedId;
     for (const candidate of this.scene.values()) {
-      if (candidate.item.id !== focusedId) candidate.node.setExpanded(false);
+      candidate.node.setExpanded(false);
     }
 
     if (!focusedId) {
@@ -3352,25 +3420,11 @@ export class TimelineViewController {
     const record = this.scene.get(occurrenceSceneKey(focusedId));
     if (!record) return;
     const presentationState = this.resolveFocusedPresentation();
-    const expanded = presentationState === "expanded";
-    record.node.setExpanded(expanded);
     this.root.dataset.focusPresentation = presentationState;
 
-    // The old shell-owned focus surface stays mounted only as a migration
-    // boundary. The normal occurrence-detail path is now the retained card.
+    // The timeline retains only the temporal anchor. Occurrence detail,
+    // context/media and authoring are owned by the persistent composer deck.
     this.hideLegacyFocusView(true);
-
-    const detailHost = record.node.detailHost;
-    if (detailHost) detailHost.dataset.presentationSurface = "card";
-    if (expanded && detailHost) {
-      const needsRender =
-        detailHost.dataset.occurrenceId !== record.item.id || detailHost.childElementCount === 0;
-      if (needsRender) {
-        this.renderFocus(record.item, detailHost);
-        detailHost.dataset.occurrenceId = record.item.id;
-      }
-      this.syncExpandedDetailGeometry(record, detailHost);
-    }
 
     if (presentationState !== this.lastFocusPresentation) {
       this.lastFocusPresentation = presentationState;
@@ -3773,16 +3827,100 @@ export class TimelineViewController {
     commit();
   }
 
+  private async hydrateEvidenceMediaDeck(
+    item: TimelineItem,
+    deck: LuumOccurrenceDeckElement,
+    hero: HTMLElement,
+  ): Promise<void> {
+    const descriptors = (item.evidence || [])
+      .filter(isRecord)
+      .map((record) => {
+        const kind = evidenceMediaKind(record);
+        const file = isRecord(record.file) ? record.file : null;
+        const blobKey = recordString(file, "blobKey");
+        return kind && file && blobKey ? { record, file, kind, blobKey } : null;
+      })
+      .filter(
+        (
+          entry,
+        ): entry is {
+          record: Record<string, unknown>;
+          file: Record<string, unknown>;
+          kind: OccurrenceContextMediaKind;
+          blobKey: string;
+        } => Boolean(entry),
+      );
+
+    if (!descriptors.length) return;
+
+    const localMedia = (
+      await Promise.all(
+        descriptors.map(
+          async ({ record, file, kind, blobKey }): Promise<OccurrenceContextMediaFrame | null> => {
+          try {
+            const blob = await getEvidenceBlob(blobKey);
+            if (!blob) return null;
+            const title = recordString(record, "title");
+            const sourceName = recordString(record, "sourceName");
+            const fileName = recordString(file, "name");
+            const caption = [title, sourceName || fileName].filter(Boolean).join(" · ");
+            return {
+              kind,
+              blob,
+              mimeType: recordString(file, "mimeType") || blob.type,
+              sha256: recordString(file, "sha256"),
+              alt: title || fileName || `${kind} evidence`,
+              caption,
+            } satisfies OccurrenceContextMediaFrame;
+          } catch (error) {
+            console.warn("Could not load local evidence media:", error);
+            return null;
+          }
+        },
+        ),
+      )
+    ).filter((entry): entry is OccurrenceContextMediaFrame => entry !== null);
+
+    if (!deck.isConnected || deck.occurrenceId !== item.id) return;
+    if (!localMedia.length) {
+      const frames = occurrenceContextDeckFrames(item.media, item.description);
+      if (!frames.some((frame) => frame.kind !== "context")) {
+        hero.classList.add("has-no-media");
+        if (!hero.querySelector("[data-empty-media]")) {
+          const fallback = document.createElement("div");
+          fallback.className = "timeline-focus-hero-fallback";
+          fallback.dataset.emptyMedia = "true";
+          fallback.setAttribute("aria-hidden", "true");
+          hero.append(fallback);
+        }
+      }
+      return;
+    }
+    const frames = occurrenceContextDeckFrames(
+      [...(item.media || []), ...localMedia],
+      item.description,
+    );
+    deck.setDeck({
+      occurrenceId: item.id,
+      frames,
+      activeIndex: deck.activeIndex,
+    });
+    hero.classList.toggle(
+      "has-no-media",
+      !frames.some((frame) => frame.kind !== "context"),
+    );
+    if (frames.some((frame) => frame.kind !== "context")) {
+      hero.querySelector<HTMLElement>("[data-empty-media]")?.remove();
+    }
+  }
+
   createFocusHero(item: TimelineItem): HTMLElement {
     const hero = document.createElement("section");
     hero.className = "timeline-focus-hero";
-    const media = Array.isArray(item.media) ? item.media : [];
-    const frames = media.map((entry) => ({
-      kind: "image" as const,
-      src: entry?.src,
-      alt: entry?.alt,
-      caption: entry?.caption,
-    }));
+    const frames = occurrenceContextDeckFrames(item.media, item.description);
+    const hasPendingEvidenceMedia = (item.evidence || [])
+      .filter(isRecord)
+      .some((record) => evidenceMediaKind(record) !== null);
 
     const deck = new LuumOccurrenceDeckElement();
     deck.setDeck({
@@ -3797,11 +3935,13 @@ export class TimelineViewController {
       this.focusMediaIndex = detail.activeIndex;
     });
     hero.append(deck);
+    void this.hydrateEvidenceMediaDeck(item, deck, hero);
 
-    if (!frames.some((frame) => Boolean(frame.src?.trim()))) {
+    if (!frames.some((frame) => frame.kind !== "context") && !hasPendingEvidenceMedia) {
       hero.classList.add("has-no-media");
       const fallback = document.createElement("div");
       fallback.className = "timeline-focus-hero-fallback";
+      fallback.dataset.emptyMedia = "true";
       fallback.setAttribute("aria-hidden", "true");
       hero.append(fallback);
     }
@@ -3836,7 +3976,9 @@ export class TimelineViewController {
   renderFocus(item: TimelineItem, host: HTMLElement | null = null): void {
     const focusHost =
       host ||
-      (this.focusedId ? this.scene.get(occurrenceSceneKey(this.focusedId))?.node.detailHost : null) ||
+      (this.focusedId
+        ? this.scene.get(occurrenceSceneKey(this.focusedId))?.node.detailHost
+        : null) ||
       this.focusView;
     focusHost.tabIndex = -1;
     focusHost.style.setProperty("--event-color", item.color || "var(--accent)");
@@ -3845,6 +3987,49 @@ export class TimelineViewController {
     focusHost.setAttribute("aria-labelledby", "timeline-focus-heading");
 
     const hero = this.createFocusHero(item);
+
+    const sentence = document.createElement("div");
+    sentence.className = "timeline-occurrence-sentence";
+    const sentenceLabel = document.createElement("span");
+    sentenceLabel.className = "timeline-occurrence-sentence-label";
+    sentenceLabel.textContent = "Occurrence";
+    const sentenceText = document.createElement("p");
+    sentenceText.textContent = item.composition || item.title || item.id;
+    const fields = document.createElement("div");
+    fields.className = "timeline-occurrence-fields";
+    const sections = item.composition ? composerEditableSections(item.composition) : [];
+    for (const section of sections) {
+      const field = section.kind;
+      const label = section.text;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "timeline-occurrence-field";
+      button.textContent = label;
+      button.setAttribute("aria-label", `Edit ${field} ${label} of ${item.title || item.id}`);
+      button.addEventListener("click", () => {
+        this.root.dispatchEvent(
+          new CustomEvent("timelineoccurrenceeditrequest", {
+            bubbles: true,
+            detail: { id: item.id, relationshipId: item.relationshipId, field },
+          }),
+        );
+      });
+      fields.append(button);
+    }
+    const editSentence = document.createElement("button");
+    editSentence.type = "button";
+    editSentence.className = "timeline-occurrence-edit button secondary";
+    editSentence.textContent = "Edit in composer";
+    editSentence.setAttribute("aria-label", `Edit ${item.title || item.id} in composer`);
+    editSentence.addEventListener("click", () => {
+      this.root.dispatchEvent(
+        new CustomEvent("timelineoccurrenceeditrequest", {
+          bubbles: true,
+          detail: { id: item.id, relationshipId: item.relationshipId },
+        }),
+      );
+    });
+    sentence.append(sentenceLabel, sentenceText, fields, editSentence);
 
     const summary = document.createElement("section");
     summary.id = "timeline-focus-context-panel";
@@ -3912,6 +4097,23 @@ export class TimelineViewController {
         }
         const url = recordString(record, "url");
         const file = isRecord(record.file) ? record.file : null;
+        const fileName = recordString(file, "name");
+        const sha256 = recordString(file, "sha256");
+        if (fileName || sha256) {
+          const fileMetadata = document.createElement("p");
+          fileMetadata.className = "timeline-focus-evidence-file-meta";
+          if (fileName) {
+            const name = document.createElement("span");
+            name.textContent = fileName;
+            fileMetadata.append(name);
+          }
+          if (sha256) {
+            const fingerprint = document.createElement("code");
+            fingerprint.textContent = `SHA-256 ${sha256}`;
+            fileMetadata.append(fingerprint);
+          }
+          card.append(fileMetadata);
+        }
         if (url || recordString(file, "blobKey")) {
           const evidenceActions = document.createElement("div");
           evidenceActions.className = "timeline-focus-evidence-actions";
@@ -3929,7 +4131,7 @@ export class TimelineViewController {
             const open = document.createElement("button");
             open.type = "button";
             open.className = "button secondary";
-            open.textContent = "Open local PDF";
+            open.textContent = "Open local file";
             open.addEventListener("click", () => {
               this.root.dispatchEvent(
                 new CustomEvent("timelineevidenceopen", {
@@ -4082,7 +4284,7 @@ export class TimelineViewController {
     header.append(tabs, contextActions);
     applyFocusTab(this.focusTab);
 
-    focusHost.replaceChildren(header, hero, summary, evidence);
+    focusHost.replaceChildren(header, sentence, hero, summary, evidence);
     this.root.dispatchEvent(
       new CustomEvent("timelinefocusrender", {
         bubbles: true,
@@ -4118,9 +4320,8 @@ export class TimelineViewController {
 
     const direction = delta < 0 ? -1 : 1;
     const record = this.scene.get(occurrenceSceneKey(item.id));
-    const deck = record?.node.detailHost?.querySelector<LuumOccurrenceDeckElement>(
-      "luum-occurrence-deck",
-    );
+    const deck =
+      record?.node.detailHost?.querySelector<LuumOccurrenceDeckElement>("luum-occurrence-deck");
     if (deck?.stepBy(direction)) {
       this.focusMediaIndex = deck.activeIndex;
       return true;
@@ -4177,7 +4378,12 @@ export class TimelineViewController {
       this.root.dispatchEvent(
         new CustomEvent("timelinefocuschange", {
           bubbles: true,
-          detail: { focused: true, id, presentationSurface: "card" },
+          detail: {
+            focused: true,
+            id,
+            relationshipId: item.relationshipId,
+            presentationSurface: "card",
+          },
         }),
       );
     };
@@ -4192,9 +4398,14 @@ export class TimelineViewController {
 
   ensureFocusPopover(): void {
     if (!this.focusedId) return;
-    this.explicitDetailOpen = true;
-    this.interactionSession = setPresentation(this.interactionSession, "expanded");
-    this.render();
+    const item = this.items.find((candidate) => candidate.id === this.focusedId);
+    this.explicitDetailOpen = false;
+    this.root.dispatchEvent(
+      new CustomEvent("timelineoccurrenceeditrequest", {
+        bubbles: true,
+        detail: { id: this.focusedId, relationshipId: item?.relationshipId },
+      }),
+    );
   }
 
   closeFocus(): void {

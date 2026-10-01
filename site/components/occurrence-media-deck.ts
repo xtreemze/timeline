@@ -16,11 +16,31 @@ export interface OccurrenceDeckChangeDetail {
 export interface OccurrenceDeckInput {
   readonly occurrenceId: string;
   readonly frames: readonly (
-    | Readonly<{ kind: "image"; src?: string; alt?: string; caption?: string }>
+    | Readonly<{
+        kind: "image" | "video" | "audio";
+        src?: string;
+        blob?: Blob;
+        mimeType?: string;
+        sha256?: string;
+        alt?: string;
+        caption?: string;
+      }>
     | Readonly<{ kind: "context"; label?: string; body?: string }>
   )[];
   readonly activeIndex?: number;
 }
+
+const IMAGE_ZOOM_STEPS = Object.freeze([0.5, 0.75, 1, 1.25, 1.5, 2, 3] as const);
+const IMAGE_MIN_ZOOM = 0.5;
+const IMAGE_RESET_ZOOM = 1;
+const IMAGE_MAX_ZOOM = 3;
+const SWIPE_THRESHOLD_PX = 52;
+const SWIPE_MAX_DURATION_MS = 700;
+const DOUBLE_TAP_MAX_DELAY_MS = 320;
+const DOUBLE_TAP_MAX_DISTANCE_PX = 28;
+const KEYBOARD_PAN_PX = 36;
+
+type PointerPoint = Readonly<{ x: number; y: number }>;
 
 export class LuumOccurrenceDeckElement extends LitElement {
   static override properties = {
@@ -32,7 +52,19 @@ export class LuumOccurrenceDeckElement extends LitElement {
   declare activeIndex: number;
 
   private frames: readonly OccurrenceDeckFrame[] = Object.freeze([]);
-  private readonly failedImageIndexes = new Set<number>();
+  private readonly failedMediaIndexes = new Set<number>();
+  private readonly blobObjectUrls = new Map<Blob, string>();
+  private imageZoomValue = IMAGE_RESET_ZOOM;
+  private imagePanX = 0;
+  private imagePanY = 0;
+  private readonly activePointers = new Map<number, PointerPoint>();
+  private gestureOrigin:
+    | Readonly<{ x: number; y: number; startedAt: number; pointerType: string }>
+    | null = null;
+  private gestureWasPinch = false;
+  private pinchDistance = 0;
+  private pinchCenter: PointerPoint | null = null;
+  private lastTouchTap: Readonly<{ x: number; y: number; at: number }> | null = null;
 
   constructor() {
     super();
@@ -55,11 +87,16 @@ export class LuumOccurrenceDeckElement extends LitElement {
       frameCount: nextFrames.length,
     });
 
-    if (nextOccurrenceId !== this.occurrenceId) this.failedImageIndexes.clear();
+    if (nextOccurrenceId !== this.occurrenceId) {
+      this.failedMediaIndexes.clear();
+      this.resetImageTransform(false);
+    }
+    this.releaseUnusedBlobUrls(nextFrames);
     this.occurrenceId = nextOccurrenceId;
     this.frames = nextFrames;
     this.activeIndex = nextIndex;
     this.dataset.frameCount = String(nextFrames.length);
+    this.dataset.activeKind = nextFrames[nextIndex]?.kind ?? "";
     this.requestUpdate();
   }
 
@@ -78,6 +115,8 @@ export class LuumOccurrenceDeckElement extends LitElement {
     }
 
     this.activeIndex = next;
+    this.dataset.activeKind = this.frames[next]?.kind ?? "";
+    this.resetImageTransform(false);
     this.requestUpdate();
     this.dispatchEvent(
       new CustomEvent<OccurrenceDeckChangeDetail>("occurrencedeckchange", {
@@ -105,9 +144,400 @@ export class LuumOccurrenceDeckElement extends LitElement {
     return true;
   }
 
-  private onImageError(index: number): void {
-    this.failedImageIndexes.add(index);
+  private onMediaError(index: number): void {
+    this.failedMediaIndexes.add(index);
+    this.resetImageTransform(false);
     this.requestUpdate();
+  }
+
+  private mediaSource(frame: OccurrenceDeckFrame): string {
+    if (frame.kind === "context") return "";
+    const direct = frame.src?.trim() ?? "";
+    if (direct) return direct;
+    if (!frame.blob) return "";
+    const existing = this.blobObjectUrls.get(frame.blob);
+    if (existing) return existing;
+    const url = URL.createObjectURL(frame.blob);
+    this.blobObjectUrls.set(frame.blob, url);
+    return url;
+  }
+
+  private releaseUnusedBlobUrls(frames: readonly OccurrenceDeckFrame[]): void {
+    const retained = new Set<Blob>();
+    for (const frame of frames) {
+      if (frame.kind !== "context" && frame.blob) retained.add(frame.blob);
+    }
+    for (const [blob, url] of this.blobObjectUrls) {
+      if (retained.has(blob)) continue;
+      URL.revokeObjectURL(url);
+      this.blobObjectUrls.delete(blob);
+    }
+  }
+
+  private releaseBlobUrls(): void {
+    for (const url of this.blobObjectUrls.values()) URL.revokeObjectURL(url);
+    this.blobObjectUrls.clear();
+  }
+
+  override disconnectedCallback(): void {
+    this.releaseBlobUrls();
+    super.disconnectedCallback();
+  }
+
+  private imageZoom(): number {
+    return this.imageZoomValue;
+  }
+
+  private imageViewport(): HTMLElement | null {
+    return this.querySelector<HTMLElement>(".timeline-occurrence-deck-image-viewport");
+  }
+
+  private imageElement(): HTMLImageElement | null {
+    return this.querySelector<HTMLImageElement>(".timeline-focus-hero-image");
+  }
+
+  private hasInteractiveImage(): boolean {
+    const frame = this.frames[this.activeIndex];
+    return frame?.kind === "image" && !this.failedMediaIndexes.has(this.activeIndex);
+  }
+
+  private imageTransformStyle(): string {
+    return [
+      `--occurrence-image-zoom: ${this.imageZoomValue}`,
+      `--occurrence-image-pan-x: ${this.imagePanX}px`,
+      `--occurrence-image-pan-y: ${this.imagePanY}px`,
+    ].join("; ");
+  }
+
+  private syncImageTransform(): void {
+    const image = this.imageElement();
+    if (image) {
+      image.style.setProperty("--occurrence-image-zoom", String(this.imageZoomValue));
+      image.style.setProperty("--occurrence-image-pan-x", `${this.imagePanX}px`);
+      image.style.setProperty("--occurrence-image-pan-y", `${this.imagePanY}px`);
+    }
+    const viewport = this.imageViewport();
+    if (viewport) {
+      viewport.dataset.zoomed = String(this.imageZoomValue > IMAGE_RESET_ZOOM + 0.001);
+    }
+  }
+
+  private resetGestureState(): void {
+    this.activePointers.clear();
+    this.gestureOrigin = null;
+    this.gestureWasPinch = false;
+    this.pinchDistance = 0;
+    this.pinchCenter = null;
+  }
+
+  private resetImageTransform(request = true): void {
+    this.imageZoomValue = IMAGE_RESET_ZOOM;
+    this.imagePanX = 0;
+    this.imagePanY = 0;
+    this.resetGestureState();
+    if (request) this.requestUpdate();
+  }
+
+  private clampImagePan(viewport: HTMLElement | null = this.imageViewport()): void {
+    if (this.imageZoomValue <= IMAGE_RESET_ZOOM + 0.001 || !viewport) {
+      this.imagePanX = 0;
+      this.imagePanY = 0;
+      return;
+    }
+    const maxX = (viewport.clientWidth * (this.imageZoomValue - 1)) / 2;
+    const maxY = (viewport.clientHeight * (this.imageZoomValue - 1)) / 2;
+    this.imagePanX = Math.max(-maxX, Math.min(maxX, this.imagePanX));
+    this.imagePanY = Math.max(-maxY, Math.min(maxY, this.imagePanY));
+  }
+
+  private setImagePan(x: number, y: number, viewport: HTMLElement | null = this.imageViewport()): void {
+    this.imagePanX = x;
+    this.imagePanY = y;
+    this.clampImagePan(viewport);
+    this.syncImageTransform();
+  }
+
+  private setImageZoom(
+    zoom: number,
+    viewport: HTMLElement | null = this.imageViewport(),
+    focalPoint: PointerPoint | null = null,
+  ): void {
+    const previousZoom = this.imageZoomValue;
+    const nextZoom = Math.max(IMAGE_MIN_ZOOM, Math.min(IMAGE_MAX_ZOOM, zoom));
+    if (Math.abs(nextZoom - previousZoom) < 0.0001) return;
+
+    if (viewport && focalPoint && previousZoom > 0) {
+      const rect = viewport.getBoundingClientRect();
+      const focalX = focalPoint.x - rect.left - rect.width / 2;
+      const focalY = focalPoint.y - rect.top - rect.height / 2;
+      const ratio = nextZoom / previousZoom;
+      this.imagePanX = focalX - ratio * (focalX - this.imagePanX);
+      this.imagePanY = focalY - ratio * (focalY - this.imagePanY);
+    }
+
+    this.imageZoomValue = nextZoom;
+    this.clampImagePan(viewport);
+    this.syncImageTransform();
+    this.requestUpdate();
+  }
+
+  private stepImageZoom(delta: number): void {
+    const epsilon = 0.001;
+    const target =
+      delta > 0
+        ? (IMAGE_ZOOM_STEPS.find((value) => value > this.imageZoomValue + epsilon) ??
+          IMAGE_MAX_ZOOM)
+        : ([...IMAGE_ZOOM_STEPS]
+            .reverse()
+            .find((value) => value < this.imageZoomValue - epsilon) ?? IMAGE_MIN_ZOOM);
+    this.setImageZoom(target);
+  }
+
+  private pinchMetrics(): Readonly<{ distance: number; center: PointerPoint }> | null {
+    const points = [...this.activePointers.values()];
+    if (points.length < 2) return null;
+    const first = points[0];
+    const second = points[1];
+    if (!first || !second) return null;
+    const dx = second.x - first.x;
+    const dy = second.y - first.y;
+    return Object.freeze({
+      distance: Math.hypot(dx, dy),
+      center: Object.freeze({ x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 }),
+    });
+  }
+
+  private beginPinch(): void {
+    const metrics = this.pinchMetrics();
+    if (!metrics) return;
+    this.gestureWasPinch = true;
+    this.pinchDistance = Math.max(1, metrics.distance);
+    this.pinchCenter = metrics.center;
+  }
+
+  private onImagePointerDown(event: PointerEvent): void {
+    if (!this.hasInteractiveImage()) return;
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    event.preventDefault();
+    const viewport = event.currentTarget;
+    if (!(viewport instanceof HTMLElement)) return;
+    try {
+      viewport.setPointerCapture(event.pointerId);
+    } catch {
+      // Synthetic browser-certification pointer events may not own native capture.
+    }
+    viewport.focus({ preventScroll: true });
+    if (this.activePointers.size === 0) {
+      this.gestureOrigin = Object.freeze({
+        x: event.clientX,
+        y: event.clientY,
+        startedAt: Date.now(),
+        pointerType: event.pointerType,
+      });
+      this.gestureWasPinch = false;
+    }
+    this.activePointers.set(event.pointerId, Object.freeze({ x: event.clientX, y: event.clientY }));
+    if (this.activePointers.size >= 2) this.beginPinch();
+  }
+
+  private onImagePointerMove(event: PointerEvent): void {
+    const previous = this.activePointers.get(event.pointerId);
+    if (!previous) return;
+    const viewport = event.currentTarget;
+    if (!(viewport instanceof HTMLElement)) return;
+    this.activePointers.set(event.pointerId, Object.freeze({ x: event.clientX, y: event.clientY }));
+
+    if (this.activePointers.size >= 2) {
+      event.preventDefault();
+      const metrics = this.pinchMetrics();
+      if (!metrics) return;
+      const previousCenter = this.pinchCenter ?? metrics.center;
+      this.imagePanX += metrics.center.x - previousCenter.x;
+      this.imagePanY += metrics.center.y - previousCenter.y;
+      const distanceRatio =
+        this.pinchDistance > 0 ? metrics.distance / this.pinchDistance : 1;
+      this.setImageZoom(this.imageZoomValue * distanceRatio, viewport, metrics.center);
+      this.pinchDistance = Math.max(1, metrics.distance);
+      this.pinchCenter = metrics.center;
+      this.syncImageTransform();
+      return;
+    }
+
+    if (this.imageZoomValue > IMAGE_RESET_ZOOM + 0.001) {
+      event.preventDefault();
+      this.setImagePan(
+        this.imagePanX + event.clientX - previous.x,
+        this.imagePanY + event.clientY - previous.y,
+        viewport,
+      );
+    }
+  }
+
+  private releasePointer(viewport: HTMLElement, pointerId: number): void {
+    try {
+      if (viewport.hasPointerCapture(pointerId)) viewport.releasePointerCapture(pointerId);
+    } catch {
+      // Ignore capture state differences for synthetic or cancelled pointers.
+    }
+  }
+
+  private handleTouchTap(event: PointerEvent): void {
+    const now = Date.now();
+    const previous = this.lastTouchTap;
+    if (
+      previous &&
+      now - previous.at <= DOUBLE_TAP_MAX_DELAY_MS &&
+      Math.hypot(event.clientX - previous.x, event.clientY - previous.y) <=
+        DOUBLE_TAP_MAX_DISTANCE_PX
+    ) {
+      this.lastTouchTap = null;
+      this.setImageZoom(
+        this.imageZoomValue > IMAGE_RESET_ZOOM + 0.001 ? IMAGE_RESET_ZOOM : 2,
+        this.imageViewport(),
+        Object.freeze({ x: event.clientX, y: event.clientY }),
+      );
+      return;
+    }
+    this.lastTouchTap = Object.freeze({ x: event.clientX, y: event.clientY, at: now });
+  }
+
+  private onImagePointerEnd(event: PointerEvent): void {
+    const viewport = event.currentTarget;
+    if (!(viewport instanceof HTMLElement)) return;
+    const active = this.activePointers.has(event.pointerId);
+    const origin = this.gestureOrigin;
+    this.activePointers.delete(event.pointerId);
+    this.releasePointer(viewport, event.pointerId);
+
+    if (this.activePointers.size < 2) {
+      this.pinchDistance = 0;
+      this.pinchCenter = null;
+    }
+    if (!active || this.activePointers.size > 0) return;
+
+    const dx = origin ? event.clientX - origin.x : 0;
+    const dy = origin ? event.clientY - origin.y : 0;
+    const elapsed = origin ? Date.now() - origin.startedAt : Number.POSITIVE_INFINITY;
+    const wasPinch = this.gestureWasPinch;
+    const pointerType = origin?.pointerType ?? event.pointerType;
+    this.resetGestureState();
+
+    if (
+      !wasPinch &&
+      this.imageZoomValue <= IMAGE_RESET_ZOOM + 0.001 &&
+      this.frames.length > 1 &&
+      elapsed <= SWIPE_MAX_DURATION_MS &&
+      Math.abs(dx) >= SWIPE_THRESHOLD_PX &&
+      Math.abs(dx) > Math.abs(dy) * 1.15
+    ) {
+      this.step(dx < 0 ? 1 : -1);
+      return;
+    }
+
+    if (
+      !wasPinch &&
+      pointerType === "touch" &&
+      elapsed <= SWIPE_MAX_DURATION_MS &&
+      Math.hypot(dx, dy) < 12
+    ) {
+      this.handleTouchTap(event);
+    }
+  }
+
+  private onImagePointerCancel(event: PointerEvent): void {
+    const viewport = event.currentTarget;
+    if (viewport instanceof HTMLElement) this.releasePointer(viewport, event.pointerId);
+    this.activePointers.delete(event.pointerId);
+    if (this.activePointers.size === 0) this.resetGestureState();
+  }
+
+  private onImageLostPointerCapture(event: PointerEvent): void {
+    if (!this.activePointers.has(event.pointerId)) return;
+    this.activePointers.delete(event.pointerId);
+    if (this.activePointers.size === 0) this.resetGestureState();
+  }
+
+  private onImageWheel(event: WheelEvent): void {
+    if (!this.hasInteractiveImage()) return;
+    event.preventDefault();
+    const viewport = event.currentTarget;
+    if (!(viewport instanceof HTMLElement)) return;
+    const unit =
+      event.deltaMode === WheelEvent.DOM_DELTA_LINE
+        ? 16
+        : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
+          ? Math.max(1, viewport.clientHeight)
+          : 1;
+    const factor = Math.exp(-event.deltaY * unit * 0.0015);
+    this.setImageZoom(
+      this.imageZoomValue * factor,
+      viewport,
+      Object.freeze({ x: event.clientX, y: event.clientY }),
+    );
+  }
+
+  private onImageDoubleClick(event: MouseEvent): void {
+    if (!this.hasInteractiveImage()) return;
+    event.preventDefault();
+    this.setImageZoom(
+      this.imageZoomValue > IMAGE_RESET_ZOOM + 0.001 ? IMAGE_RESET_ZOOM : 2,
+      this.imageViewport(),
+      Object.freeze({ x: event.clientX, y: event.clientY }),
+    );
+  }
+
+  private onImageKeydown(event: KeyboardEvent): void {
+    const viewport = event.currentTarget;
+    if (!(viewport instanceof HTMLElement)) return;
+    if (event.key === "+" || event.key === "=") {
+      event.preventDefault();
+      this.stepImageZoom(1);
+      return;
+    }
+    if (event.key === "-" || event.key === "_") {
+      event.preventDefault();
+      this.stepImageZoom(-1);
+      return;
+    }
+    if (event.key === "0") {
+      event.preventDefault();
+      this.resetImageTransform();
+      return;
+    }
+
+    if (this.imageZoomValue > IMAGE_RESET_ZOOM + 0.001) {
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        this.setImagePan(this.imagePanX + KEYBOARD_PAN_PX, this.imagePanY, viewport);
+      } else if (event.key === "ArrowRight") {
+        event.preventDefault();
+        this.setImagePan(this.imagePanX - KEYBOARD_PAN_PX, this.imagePanY, viewport);
+      } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        this.setImagePan(this.imagePanX, this.imagePanY + KEYBOARD_PAN_PX, viewport);
+      } else if (event.key === "ArrowDown") {
+        event.preventDefault();
+        this.setImagePan(this.imagePanX, this.imagePanY - KEYBOARD_PAN_PX, viewport);
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        this.resetImageTransform();
+      }
+      return;
+    }
+
+    if (event.key === "ArrowLeft" && this.frames.length > 1) {
+      event.preventDefault();
+      this.step(-1);
+    } else if (event.key === "ArrowRight" && this.frames.length > 1) {
+      event.preventDefault();
+      this.step(1);
+    } else if (event.key === "Home" && this.frames.length > 1) {
+      event.preventDefault();
+      this.selectIndex(0);
+    } else if (event.key === "End" && this.frames.length > 1) {
+      event.preventDefault();
+      this.selectIndex(this.frames.length - 1);
+    }
   }
 
   private onControlsKeydown(event: KeyboardEvent): void {
@@ -135,14 +565,16 @@ export class LuumOccurrenceDeckElement extends LitElement {
       return html`
         <div class="timeline-focus-hero-fallback timeline-occurrence-deck-context">
           <p class="timeline-occurrence-deck-context-label">${frame.label}</p>
-          ${frame.body
-            ? html`<p class="timeline-occurrence-deck-context-body">${frame.body}</p>`
-            : nothing}
+          ${
+            frame.body
+              ? html`<p class="timeline-occurrence-deck-context-body">${frame.body}</p>`
+              : nothing
+          }
         </div>
       `;
     }
 
-    if (this.failedImageIndexes.has(this.activeIndex)) {
+    if (this.failedMediaIndexes.has(this.activeIndex)) {
       return html`
         <div
           class="timeline-focus-hero-fallback"
@@ -152,23 +584,122 @@ export class LuumOccurrenceDeckElement extends LitElement {
       `;
     }
 
+    const src = this.mediaSource(frame);
+    if (frame.kind === "video") {
+      return html`
+        <div class="timeline-occurrence-deck-native-media-viewport" data-media-kind="video">
+          <video
+            class="timeline-occurrence-deck-video"
+            src=${src}
+            controls
+            playsinline
+            preload="metadata"
+            aria-label=${frame.alt || frame.caption || "Video evidence"}
+            @error=${() => this.onMediaError(this.activeIndex)}
+          ></video>
+        </div>
+        ${
+          frame.caption
+            ? html`<p class="timeline-occurrence-deck-caption">${frame.caption}</p>`
+            : nothing
+        }
+      `;
+    }
+
+    if (frame.kind === "audio") {
+      return html`
+        <div class="timeline-occurrence-deck-native-media-viewport" data-media-kind="audio">
+          <audio
+            class="timeline-occurrence-deck-audio"
+            src=${src}
+            controls
+            preload="metadata"
+            aria-label=${frame.alt || frame.caption || "Audio evidence"}
+            @error=${() => this.onMediaError(this.activeIndex)}
+          ></audio>
+        </div>
+        ${
+          frame.caption
+            ? html`<p class="timeline-occurrence-deck-caption">${frame.caption}</p>`
+            : nothing
+        }
+      `;
+    }
+
     return html`
-      <img
-        class="timeline-focus-hero-image"
-        src=${frame.src}
-        alt=${frame.alt}
-        decoding="async"
-        draggable="false"
-        @error=${() => this.onImageError(this.activeIndex)}
-      />
-      ${frame.caption
-        ? html`<p class="timeline-occurrence-deck-caption">${frame.caption}</p>`
-        : nothing}
+      <div
+        class="timeline-occurrence-deck-image-viewport"
+        data-zoomed=${String(this.imageZoomValue > IMAGE_RESET_ZOOM + 0.001)}
+        tabindex="0"
+        role="group"
+        aria-label="Image viewer. Drag to pan above 100%; swipe to change frame at 100% or below; pinch, wheel, plus or minus to zoom from 50% to 300%; zero resets to 100%."
+        aria-keyshortcuts="+ - 0 ArrowLeft ArrowRight ArrowUp ArrowDown"
+        @pointerdown=${(event: PointerEvent) => this.onImagePointerDown(event)}
+        @pointermove=${(event: PointerEvent) => this.onImagePointerMove(event)}
+        @pointerup=${(event: PointerEvent) => this.onImagePointerEnd(event)}
+        @pointercancel=${(event: PointerEvent) => this.onImagePointerCancel(event)}
+        @lostpointercapture=${(event: PointerEvent) => this.onImageLostPointerCapture(event)}
+        @wheel=${(event: WheelEvent) => this.onImageWheel(event)}
+        @dblclick=${(event: MouseEvent) => this.onImageDoubleClick(event)}
+        @keydown=${(event: KeyboardEvent) => this.onImageKeydown(event)}
+      >
+        <img
+          class="timeline-focus-hero-image"
+          src=${src}
+          alt=${frame.alt}
+          decoding="async"
+          draggable="false"
+          style=${this.imageTransformStyle()}
+          @error=${() => this.onMediaError(this.activeIndex)}
+        />
+      </div>
+      ${
+        frame.caption
+          ? html`<p class="timeline-occurrence-deck-caption">${frame.caption}</p>`
+          : nothing
+      }
     `;
   }
 
-  private renderControlIcon(name: "chevron-left" | "chevron-right") {
+  private renderControlIcon(name: "chevron-left" | "chevron-right" | "zoom-in" | "zoom-out") {
     return html`<span class="timeline-occurrence-deck-icon" data-deck-icon=${name}></span>`;
+  }
+
+  private renderZoomControls() {
+    const frame = this.frames[this.activeIndex];
+    if (frame?.kind !== "image" || this.failedMediaIndexes.has(this.activeIndex)) return nothing;
+    const zoom = this.imageZoom();
+    return html`
+      <div
+        class="timeline-occurrence-deck-zoom-controls"
+        role="group"
+        aria-label="Image zoom"
+      >
+        <button
+          type="button"
+          class="timeline-focus-media-control timeline-focus-media-zoom is-zoom-out"
+          aria-label="Zoom image out"
+          title="Zoom image out"
+          ?disabled=${zoom <= IMAGE_MIN_ZOOM + 0.001}
+          @click=${() => this.stepImageZoom(-1)}
+        >
+          ${this.renderControlIcon("zoom-out")}
+        </button>
+        <span class="timeline-occurrence-deck-zoom-level" aria-live="polite">
+          ${Math.round(zoom * 100)}%
+        </span>
+        <button
+          type="button"
+          class="timeline-focus-media-control timeline-focus-media-zoom is-zoom-in"
+          aria-label="Zoom image in"
+          title="Zoom image in"
+          ?disabled=${zoom >= IMAGE_MAX_ZOOM - 0.001}
+          @click=${() => this.stepImageZoom(1)}
+        >
+          ${this.renderControlIcon("zoom-in")}
+        </button>
+      </div>
+    `;
   }
 
   private renderControls() {
@@ -190,25 +721,26 @@ export class LuumOccurrenceDeckElement extends LitElement {
         >
           ${this.renderControlIcon("chevron-left")}
         </button>
-        ${mode === "dots"
-          ? this.frames.map(
-              (_, index) => html`
+        ${
+          mode === "dots"
+            ? this.frames.map(
+                (_, index) => html`
                 <button
                   type="button"
                   class="timeline-focus-slide-dot ${index === this.activeIndex ? "is-active" : ""}"
                   data-slide-index=${index}
                   aria-label=${`Show frame ${index + 1} of ${this.frames.length}`}
                   aria-current=${index === this.activeIndex ? "true" : "false"}
-                  @click=${() =>
-                    this.selectIndex(index, `[data-slide-index="${index}"]`)}
+                  @click=${() => this.selectIndex(index, `[data-slide-index="${index}"]`)}
                 ></button>
               `,
-            )
-          : html`
+              )
+            : html`
               <span class="timeline-focus-slide-count" aria-live="polite">
                 ${this.activeIndex + 1} / ${this.frames.length}
               </span>
-            `}
+            `
+        }
         <button
           type="button"
           class="timeline-focus-media-control is-next"
@@ -223,21 +755,24 @@ export class LuumOccurrenceDeckElement extends LitElement {
 
   override render() {
     if (!this.frames.length) return nothing;
-    return html`${this.renderActiveFrame()}${this.renderControls()}`;
+    return html`${this.renderActiveFrame()}${this.renderZoomControls()}${this.renderControls()}`;
   }
 
   override updated(): void {
+    this.syncImageTransform();
     for (const slot of this.querySelectorAll<HTMLElement>("[data-deck-icon]")) {
       const name = slot.dataset.deckIcon;
-      if (name !== "chevron-left" && name !== "chevron-right") continue;
+      if (
+        name !== "chevron-left" &&
+        name !== "chevron-right" &&
+        name !== "zoom-in" &&
+        name !== "zoom-out"
+      ) continue;
       slot.replaceChildren(createIcon(name, { size: 20 }));
     }
   }
 }
 
-if (
-  typeof customElements !== "undefined" &&
-  !customElements.get("luum-occurrence-deck")
-) {
+if (typeof customElements !== "undefined" && !customElements.get("luum-occurrence-deck")) {
   customElements.define("luum-occurrence-deck", LuumOccurrenceDeckElement);
 }

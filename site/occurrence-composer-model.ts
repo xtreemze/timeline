@@ -1,3 +1,7 @@
+import {
+  canonicalSemanticHueColor,
+  normalizeSemanticColorSource,
+} from "../src/presentation/semantic-color.ts";
 import { SEMANTIC_ICON_NAMES, type SemanticIconName } from "../src/presentation/semantic-icons.ts";
 import {
   suggestSemanticIcon,
@@ -29,8 +33,27 @@ export interface ComposerTimeReference {
 }
 
 export interface ComposerOccurrenceOptions {
+  /** First selected category retained for compatibility with singular consumers. */
   readonly category?: string;
+  readonly categories: readonly string[];
   readonly tags: readonly string[];
+}
+
+export interface OccurrenceInvestigativeQualifier {
+  readonly id: string;
+  readonly section: ComposerEditableSectionKind | "sentence";
+  readonly start: number;
+  readonly end: number;
+  readonly operatorIndex: number;
+  readonly rawText: string;
+  readonly normalizedText: string;
+  readonly scope: "section" | "sentence" | "ambiguous";
+}
+
+export interface OccurrenceInvestigationProjection {
+  readonly qualifiers: readonly OccurrenceInvestigativeQualifier[];
+  readonly sentenceQuestion: boolean;
+  readonly hasAmbiguity: boolean;
 }
 
 export interface OccurrenceSentenceDraft {
@@ -42,6 +65,7 @@ export interface OccurrenceSentenceDraft {
   readonly options: ComposerOccurrenceOptions;
   readonly stage: OccurrenceComposerStage;
   readonly diagnostics: readonly string[];
+  readonly investigation: OccurrenceInvestigationProjection;
 }
 
 export interface ComposerEntityOption {
@@ -50,17 +74,36 @@ export interface ComposerEntityOption {
   readonly type?: string;
   readonly icon?: string;
   readonly alternateNames?: readonly string[];
+  readonly attributes?: Readonly<Record<string, unknown>>;
+  readonly sourceIds?: readonly string[];
+}
+
+export interface ComposerPredicateOption {
+  readonly name: string;
+  readonly icon?: string;
+  readonly color?: string;
+}
+
+export interface ComposerTagOption {
+  readonly label: string;
+  readonly icon?: string;
+  readonly color?: string;
 }
 
 export interface ComposerPlaceOption {
   readonly id: string;
   readonly name: string;
   readonly icon?: string;
+  readonly color?: string;
+  readonly longitude?: number;
+  readonly latitude?: number;
 }
 
 export interface ComposerCategoryOption {
   readonly id: string;
   readonly name: string;
+  readonly color?: string;
+  readonly icon?: string;
 }
 
 export interface ComposerSuggestion {
@@ -68,8 +111,11 @@ export interface ComposerSuggestion {
   readonly label: string;
   readonly detail?: string;
   readonly icon?: string;
+  readonly color?: string;
   readonly insertText: string;
   readonly replaceRange?: Readonly<{ start: number; end: number }>;
+  readonly multiSelect?: boolean;
+  readonly selected?: boolean;
 }
 
 export type ComposerCursorSectionKind =
@@ -160,15 +206,78 @@ function actionIconHint(action: string): SemanticIconName {
   return "relation";
 }
 
-function availableActions(projectPredicates: readonly string[] = []): readonly string[] {
-  return Object.freeze(
-    [
-      ...new Set([
-        ...ACTION_SUGGESTIONS,
-        ...projectPredicates.map((predicate) => predicate.trim()),
-      ]),
-    ].filter(Boolean),
+export function normalizeComposerSemanticColor(value: unknown): string | undefined {
+  const source = normalizeSemanticColorSource(value);
+  if (source === null) return undefined;
+  return typeof source === "number" ? canonicalSemanticHueColor(source) : source;
+}
+
+function composerEntityColor(entity: ComposerEntityOption): string | undefined {
+  const attributes = entity.attributes;
+  const style =
+    attributes?.["style"] && typeof attributes["style"] === "object"
+      ? (attributes["style"] as Readonly<Record<string, unknown>>)
+      : attributes;
+  return normalizeComposerSemanticColor(
+    style?.["color"] ?? style?.["fill"] ?? style?.["fillColor"] ?? style?.["border"],
   );
+}
+
+function normalizePredicateOption(
+  predicate: string | ComposerPredicateOption,
+): ComposerPredicateOption | null {
+  if (typeof predicate === "string") {
+    const name = predicate.trim();
+    return name ? Object.freeze({ name, icon: actionIconHint(name) }) : null;
+  }
+  const name = predicate.name.trim();
+  if (!name) return null;
+  return Object.freeze({
+    name,
+    icon: predicate.icon || actionIconHint(name),
+    ...(normalizeComposerSemanticColor(predicate.color)
+      ? { color: normalizeComposerSemanticColor(predicate.color) }
+      : {}),
+  });
+}
+
+function normalizeTagOption(tag: string | ComposerTagOption): ComposerTagOption | null {
+  if (typeof tag === "string") {
+    const label = tag.trim();
+    return label ? Object.freeze({ label }) : null;
+  }
+  const label = tag.label.trim();
+  if (!label) return null;
+  const color = normalizeComposerSemanticColor(tag.color);
+  return Object.freeze({
+    label,
+    ...(tag.icon ? { icon: tag.icon } : {}),
+    ...(color ? { color } : {}),
+  });
+}
+
+function availableActions(
+  projectPredicates: readonly (string | ComposerPredicateOption)[] = [],
+): readonly ComposerPredicateOption[] {
+  const actions = new Map<string, ComposerPredicateOption>();
+  for (const name of ACTION_SUGGESTIONS) {
+    actions.set(name.toLocaleLowerCase(), Object.freeze({ name, icon: actionIconHint(name) }));
+  }
+  for (const raw of projectPredicates) {
+    const option = normalizePredicateOption(raw);
+    if (!option) continue;
+    const key = option.name.toLocaleLowerCase();
+    const previous = actions.get(key);
+    actions.set(
+      key,
+      Object.freeze({
+        name: option.name,
+        icon: option.icon ?? previous?.icon ?? actionIconHint(option.name),
+        ...(option.color ?? previous?.color ? { color: option.color ?? previous?.color } : {}),
+      }),
+    );
+  }
+  return Object.freeze([...actions.values()]);
 }
 
 const PRIMARY_ENTITY_ICONS = Object.freeze(["person", "group", "object", "evidence"] as const);
@@ -200,6 +309,88 @@ export function quoteComposerName(value: string): string {
   return `"${trimmed.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 }
 
+function composerDelimitedSpans(
+  value: string,
+  delimiter: string,
+): readonly Readonly<{ text: string; start: number; end: number }>[] {
+  const segments: Array<Readonly<{ text: string; start: number; end: number }>> = [];
+  let start = 0;
+  let quoted = false;
+  let escaped = false;
+  const push = (end: number) => {
+    segments.push(Object.freeze({ text: value.slice(start, end), start, end }));
+  };
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index]!;
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (character === "\\") {
+      escaped = true;
+      continue;
+    }
+    if (character === '"') {
+      quoted = !quoted;
+      continue;
+    }
+    if (!quoted && character === delimiter) {
+      push(index);
+      start = index + 1;
+    }
+  }
+  push(value.length);
+  return Object.freeze(segments);
+}
+
+function splitComposerDelimited(value: string, delimiter: string): readonly string[] {
+  return Object.freeze(composerDelimitedSpans(value, delimiter).map((segment) => segment.text));
+}
+
+function composerPropertyEntries(
+  value: string,
+): readonly Readonly<{ key: string; rawValue: string; valueStart: number }>[] {
+  const entries: Array<Readonly<{ key: string; rawValue: string; valueStart: number }>> = [];
+  for (const segment of composerDelimitedSpans(value, ",")) {
+    const separator = segment.text.indexOf(":");
+    if (separator < 1) continue;
+    const key = segment.text.slice(0, separator).trim();
+    const rawTail = segment.text.slice(separator + 1);
+    const leading = rawTail.length - rawTail.trimStart().length;
+    const rawValue = rawTail.trim();
+    if (!key || !rawValue) continue;
+    entries.push(
+      Object.freeze({
+        key,
+        rawValue,
+        valueStart: segment.start + separator + 1 + leading,
+      }),
+    );
+  }
+  return Object.freeze(entries);
+}
+
+function composerListValues(value: string): readonly string[] {
+  return Object.freeze(
+    splitComposerDelimited(value, "|")
+      .map((entry) => unquote(entry))
+      .map((entry) => entry.trim())
+      .filter(Boolean),
+  );
+}
+
+function composerListSyntax(values: readonly string[]): string {
+  return values
+    .map((value) => {
+      const trimmed = value.trim();
+      if (/[|,]/.test(trimmed)) {
+        return `"${trimmed.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+      }
+      return quoteComposerName(trimmed);
+    })
+    .join("|");
+}
+
 export interface OccurrenceCompositionInput {
   readonly subjectId: string;
   readonly predicate: string;
@@ -208,6 +399,7 @@ export interface OccurrenceCompositionInput {
   readonly start?: string | null;
   readonly end?: string | null;
   readonly category?: string | null;
+  readonly categories?: readonly string[];
   readonly tags?: readonly string[];
 }
 
@@ -224,25 +416,30 @@ export function formatOccurrenceComposition(input: OccurrenceCompositionInput): 
   if (start && end) sentence += ` from ${start} to ${end}`;
   else if (start) sentence += ` on ${start}`;
   const options: string[] = [];
-  const category = input.category?.trim() ?? "";
-  if (category) options.push(`category: ${quoteComposerName(category)}`);
-  const tags = (input.tags ?? []).map((tag) => tag.trim()).filter(Boolean);
-  if (tags.length) options.push(`tags: ${tags.join("|")}`);
+  const categories = [
+    ...new Set(
+      (input.categories ?? (input.category ? [input.category] : []))
+        .map((category) => category.trim())
+        .filter(Boolean),
+    ),
+  ];
+  if (categories.length) {
+    options.push(
+      `${categories.length > 1 ? "categories" : "category"}: ${composerListSyntax(categories)}`,
+    );
+  }
+  const tags = [...new Set((input.tags ?? []).map((tag) => tag.trim()).filter(Boolean))];
+  if (tags.length) options.push(`tags: ${composerListSyntax(tags)}`);
   if (options.length) sentence += ` [${options.join(", ")}]`;
   return sentence;
 }
 
 function parseProperties(value: string): Readonly<Record<string, string>> {
-  const result: Record<string, string> = {};
-  for (const segment of value.split(",")) {
-    const separator = segment.indexOf(":");
-    if (separator < 1) continue;
-    const key = segment.slice(0, separator).trim();
-    const rawValue = segment.slice(separator + 1).trim();
-    if (!key || !rawValue) continue;
-    result[key] = unquote(rawValue);
-  }
-  return Object.freeze(result);
+  return Object.freeze(
+    Object.fromEntries(
+      composerPropertyEntries(value).map((entry) => [entry.key, entry.rawValue]),
+    ),
+  );
 }
 
 function parseEntityAtStart(input: string): {
@@ -287,7 +484,11 @@ function parseEntityAtStart(input: string): {
   if (rest.startsWith("(")) {
     const close = rest.indexOf(")");
     if (close < 0) return { entity: null, rest: source };
-    properties = parseProperties(rest.slice(1, close));
+    properties = Object.freeze(
+      Object.fromEntries(
+        Object.entries(parseProperties(rest.slice(1, close))).map(([key, value]) => [key, unquote(value)]),
+      ),
+    );
     rest = rest.slice(close + 1).trimStart();
   }
 
@@ -306,7 +507,7 @@ function stripOptions(input: string): {
   if (!trimmed.endsWith("]")) {
     return {
       source: trimmed,
-      options: Object.freeze({ tags: Object.freeze([]) }),
+      options: Object.freeze({ categories: Object.freeze([]), tags: Object.freeze([]) }),
       malformed: false,
     };
   }
@@ -314,20 +515,19 @@ function stripOptions(input: string): {
   if (open < 0) {
     return {
       source: trimmed,
-      options: Object.freeze({ tags: Object.freeze([]) }),
+      options: Object.freeze({ categories: Object.freeze([]), tags: Object.freeze([]) }),
       malformed: true,
     };
   }
   const properties = parseProperties(trimmed.slice(open + 1, -1));
-  const tags = (properties.tags ?? "")
-    .split("|")
-    .map((tag) => tag.trim())
-    .filter(Boolean);
+  const categories = composerListValues(properties.categories ?? properties.category ?? "");
+  const tags = composerListValues(properties.tags ?? "");
   return {
     source: trimmed.slice(0, open).trimEnd(),
     options: Object.freeze({
-      ...(properties.category ? { category: properties.category } : {}),
-      tags: Object.freeze(tags),
+      ...(categories[0] ? { category: categories[0] } : {}),
+      categories,
+      tags,
     }),
     malformed: false,
   };
@@ -370,7 +570,9 @@ function stripPlace(input: string): {
 
 export function parseOccurrenceSentence(input: string): OccurrenceSentenceDraft {
   const diagnostics: string[] = [];
-  const optionPass = stripOptions(input);
+  const investigation = projectOccurrenceInvestigation(input);
+  const sourceInput = stripInvestigativeOperators(input, investigation.qualifiers);
+  const optionPass = stripOptions(sourceInput);
   if (optionPass.malformed) diagnostics.push("Close the occurrence options with ].");
   const timePass = stripTime(optionPass.source);
   const placePass = stripPlace(timePass.source);
@@ -386,6 +588,7 @@ export function parseOccurrenceSentence(input: string): OccurrenceSentenceDraft 
       options: optionPass.options,
       stage: "subject",
       diagnostics: Object.freeze(diagnostics),
+      investigation,
     });
   }
 
@@ -400,6 +603,7 @@ export function parseOccurrenceSentence(input: string): OccurrenceSentenceDraft 
       options: optionPass.options,
       stage: "predicate",
       diagnostics: Object.freeze(diagnostics),
+      investigation,
     });
   }
 
@@ -416,6 +620,7 @@ export function parseOccurrenceSentence(input: string): OccurrenceSentenceDraft 
       options: optionPass.options,
       stage: "object",
       diagnostics: Object.freeze(diagnostics),
+      investigation,
     });
   }
 
@@ -434,6 +639,7 @@ export function parseOccurrenceSentence(input: string): OccurrenceSentenceDraft 
     options: optionPass.options,
     stage: diagnostics.length ? "object" : "complete",
     diagnostics: Object.freeze(diagnostics),
+    investigation,
   });
 }
 
@@ -496,6 +702,7 @@ function readEntitySpan(
     const close = input.indexOf(")", propertyStart + 1);
     end = close >= 0 ? close + 1 : input.length;
   }
+  if (input[end] === "?" && !questionMarkIsEscaped(input, end)) end += 1;
 
   return {
     start,
@@ -535,20 +742,44 @@ export function composerCursorSection(input: string, cursorOffset: number): Comp
   const subject = readEntitySpan(input, 0);
   if (!subject) return Object.freeze({ kind: "tail", start: offset, end: offset, text: "" });
 
-  if (cursorWithinSpan(offset, subject.start, subject.end, input.length)) {
-    return Object.freeze({ kind: "subject", ...subject });
+  if (
+    cursorWithinSpan(offset, subject.start, subject.end, input.length) ||
+    (offset === semanticEnd(input, subject.start, subject.end) && input[offset] === "?" && !questionMarkIsEscaped(input, offset))
+  ) {
+    return Object.freeze({
+      kind: "subject",
+      start: subject.start,
+      end: semanticEnd(input, subject.start, subject.end),
+      text: subject.text.replace(/\?$/, ""),
+    });
   }
 
   const predicate = readTokenSpan(input, subject.end);
   if (!predicate) return Object.freeze({ kind: "tail", start: offset, end: offset, text: "" });
-  if (cursorWithinSpan(offset, predicate.start, predicate.end, input.length)) {
-    return Object.freeze({ kind: "predicate", ...predicate });
+  if (
+    cursorWithinSpan(offset, predicate.start, predicate.end, input.length) ||
+    (offset === semanticEnd(input, predicate.start, predicate.end) && input[offset] === "?" && !questionMarkIsEscaped(input, offset))
+  ) {
+    return Object.freeze({
+      kind: "predicate",
+      start: predicate.start,
+      end: semanticEnd(input, predicate.start, predicate.end),
+      text: sectionText(input, predicate.start, predicate.end),
+    });
   }
 
   const object = readEntitySpan(input, predicate.end);
   if (!object) return Object.freeze({ kind: "tail", start: offset, end: offset, text: "" });
-  if (cursorWithinSpan(offset, object.start, object.end, input.length)) {
-    return Object.freeze({ kind: "object", ...object });
+  if (
+    cursorWithinSpan(offset, object.start, object.end, input.length) ||
+    (offset === semanticEnd(input, object.start, object.end) && input[offset] === "?" && !questionMarkIsEscaped(input, offset))
+  ) {
+    return Object.freeze({
+      kind: "object",
+      start: object.start,
+      end: semanticEnd(input, object.start, object.end),
+      text: object.text.replace(/\?$/, ""),
+    });
   }
 
   const lower = input.toLocaleLowerCase();
@@ -587,7 +818,11 @@ export function composerCursorSection(input: string, cursorOffset: number): Comp
   if (optionsStart >= 0) {
     const optionsEnd = input.indexOf("]", optionsStart + 1);
     const end = optionsEnd >= 0 ? optionsEnd + 1 : input.length;
-    if (offset >= optionsStart && offset < end) {
+    // A caret resting after "]" at the end of input is still filling the list while its
+    // last value is empty ("key: ]" or "a|]"); a completed list leaves the caret in the tail.
+    const openTrailingList =
+      offset === end && end === input.length && /(?::|\|)\s*\]$/.test(input.slice(0, end));
+    if (offset >= optionsStart && (offset < end || openTrailingList)) {
       return Object.freeze({
         kind: "options",
         start: optionsStart,
@@ -612,19 +847,104 @@ function trimmedValueRange(
   return Object.freeze({ start: valueStart, end: valueEnd });
 }
 
+function composerDelimitedRanges(
+  input: string,
+  rawStart: number,
+  rawValue: string,
+): readonly Readonly<{ start: number; end: number; index: number }>[] {
+  const ranges: Array<Readonly<{ start: number; end: number; index: number }>> = [];
+  let segmentStart = 0;
+  let quoted = false;
+  let escaped = false;
+  let itemIndex = 0;
+  const push = (segmentEnd: number) => {
+    const range = trimmedValueRange(
+      input,
+      rawStart + segmentStart,
+      rawStart + segmentEnd,
+    );
+    if (range.end > range.start) {
+      ranges.push(Object.freeze({ ...range, index: itemIndex }));
+      itemIndex += 1;
+    }
+  };
+  for (let index = 0; index < rawValue.length; index += 1) {
+    const character = rawValue[index]!;
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (character === "\\") {
+      escaped = true;
+      continue;
+    }
+    if (character === '"') {
+      quoted = !quoted;
+      continue;
+    }
+    if (!quoted && character === "|") {
+      push(index);
+      segmentStart = index + 1;
+    }
+  }
+  push(rawValue.length);
+  return Object.freeze(ranges);
+}
+
+function questionMarkIsEscaped(input: string, index: number): boolean {
+  if (index <= 0 || input[index] !== "?") return false;
+  let slashCount = 0;
+  for (let cursor = index - 1; cursor >= 0 && input[cursor] === "\\"; cursor -= 1) slashCount += 1;
+  return slashCount > 0;
+}
+
+function semanticEnd(input: string, start: number, end: number): number {
+  if (end <= start) return end;
+  const operatorIndex = end - 1;
+  return input[operatorIndex] === "?" && !questionMarkIsEscaped(input, operatorIndex)
+    ? operatorIndex
+    : end;
+}
+
+function sectionText(input: string, start: number, end: number, unquoteValue = false): string {
+  const value = input.slice(start, semanticEnd(input, start, end)).trim();
+  return unquoteValue ? unquote(value) : value;
+}
+
 export function composerEditableSections(input: string): readonly ComposerEditableSection[] {
   const sections: ComposerEditableSection[] = [];
   const subject = readEntitySpan(input, 0);
   if (!subject) return Object.freeze(sections);
-  sections.push(Object.freeze({ kind: "subject", ...subject }));
+  sections.push(
+    Object.freeze({
+      kind: "subject",
+      start: subject.start,
+      end: semanticEnd(input, subject.start, subject.end),
+      text: subject.text.replace(/\?$/, ""),
+    }),
+  );
 
   const predicate = readTokenSpan(input, subject.end);
   if (!predicate) return Object.freeze(sections);
-  sections.push(Object.freeze({ kind: "predicate", ...predicate }));
+  sections.push(
+    Object.freeze({
+      kind: "predicate",
+      start: predicate.start,
+      end: semanticEnd(input, predicate.start, predicate.end),
+      text: sectionText(input, predicate.start, predicate.end),
+    }),
+  );
 
   const object = readEntitySpan(input, predicate.end);
   if (!object) return Object.freeze(sections);
-  sections.push(Object.freeze({ kind: "object", ...object }));
+  sections.push(
+    Object.freeze({
+      kind: "object",
+      start: object.start,
+      end: semanticEnd(input, object.start, object.end),
+      text: object.text.replace(/\?$/, ""),
+    }),
+  );
 
   const lower = input.toLocaleLowerCase();
   const optionsStart = lower.indexOf("[", object.end);
@@ -645,8 +965,8 @@ export function composerEditableSections(input: string): readonly ComposerEditab
         Object.freeze({
           kind: "place",
           start: valueStart,
-          end: valueEnd,
-          text: unquote(input.slice(valueStart, valueEnd)),
+          end: semanticEnd(input, valueStart, valueEnd),
+          text: sectionText(input, valueStart, valueEnd, true),
         }),
       );
     }
@@ -664,8 +984,8 @@ export function composerEditableSections(input: string): readonly ComposerEditab
         Object.freeze({
           kind: "time",
           start: clauseStart,
-          end: clauseEnd,
-          text: input.slice(clauseStart, clauseEnd).trim(),
+          end: semanticEnd(input, clauseStart, clauseEnd),
+          text: sectionText(input, clauseStart, clauseEnd),
         }),
       );
     }
@@ -675,54 +995,122 @@ export function composerEditableSections(input: string): readonly ComposerEditab
     const optionsClose = input.indexOf("]", optionsStart + 1);
     const bodyEnd = optionsClose >= 0 ? optionsClose : input.length;
     const body = input.slice(optionsStart + 1, bodyEnd);
-    const categoryMatch = /(?:^|,)\s*category\s*:\s*([^,\]]*)/i.exec(body);
-    if (categoryMatch && categoryMatch.index >= 0) {
-      const rawValue = categoryMatch[1] ?? "";
-      const rawStart =
-        optionsStart + 1 + categoryMatch.index + categoryMatch[0].lastIndexOf(rawValue);
-      const range = trimmedValueRange(input, rawStart, rawStart + rawValue.length);
-      if (range.end > range.start) {
+    const optionEntries = composerPropertyEntries(body);
+    const categoryEntry = optionEntries.find((entry) =>
+      /^(?:category|categories)$/i.test(entry.key),
+    );
+    if (categoryEntry) {
+      const rawStart = optionsStart + 1 + categoryEntry.valueStart;
+      for (const range of composerDelimitedRanges(input, rawStart, categoryEntry.rawValue)) {
         sections.push(
           Object.freeze({
             kind: "category",
             start: range.start,
-            end: range.end,
-            text: unquote(input.slice(range.start, range.end)),
+            end: semanticEnd(input, range.start, range.end),
+            text: sectionText(input, range.start, range.end, true),
+            index: range.index,
           }),
         );
       }
     }
 
-    const tagsMatch = /(?:^|,)\s*tags\s*:\s*([^,\]]*)/i.exec(body);
-    if (tagsMatch && tagsMatch.index >= 0) {
-      const rawTags = tagsMatch[1] ?? "";
-      const rawStart = optionsStart + 1 + tagsMatch.index + tagsMatch[0].lastIndexOf(rawTags);
-      let segmentOffset = 0;
-      let tagIndex = 0;
-      for (const segment of rawTags.split("|")) {
-        const range = trimmedValueRange(
-          input,
-          rawStart + segmentOffset,
-          rawStart + segmentOffset + segment.length,
+    const tagsEntry = optionEntries.find((entry) => /^tags$/i.test(entry.key));
+    if (tagsEntry) {
+      const rawStart = optionsStart + 1 + tagsEntry.valueStart;
+      for (const range of composerDelimitedRanges(input, rawStart, tagsEntry.rawValue)) {
+        sections.push(
+          Object.freeze({
+            kind: "tag",
+            start: range.start,
+            end: semanticEnd(input, range.start, range.end),
+            text: sectionText(input, range.start, range.end, true),
+            index: range.index,
+          }),
         );
-        if (range.end > range.start) {
-          sections.push(
-            Object.freeze({
-              kind: "tag",
-              start: range.start,
-              end: range.end,
-              text: unquote(input.slice(range.start, range.end)),
-              index: tagIndex,
-            }),
-          );
-          tagIndex += 1;
-        }
-        segmentOffset += segment.length + 1;
       }
     }
   }
 
   return Object.freeze(sections);
+}
+
+export function projectOccurrenceInvestigation(input: string): OccurrenceInvestigationProjection {
+  const qualifiers: OccurrenceInvestigativeQualifier[] = [];
+  const sections = composerEditableSections(input);
+  const claimedOperators = new Set<number>();
+
+  for (const section of sections) {
+    const operatorIndex = section.end;
+    if (
+      input[operatorIndex] !== "?" ||
+      questionMarkIsEscaped(input, operatorIndex)
+    ) {
+      continue;
+    }
+    const end = operatorIndex + 1;
+    const rawText = input.slice(section.start, end);
+    const trimmedEnd = input.trimEnd().length;
+    const scope =
+      operatorIndex === trimmedEnd - 1 && ["place", "time"].includes(section.kind)
+        ? "ambiguous"
+        : "section";
+    qualifiers.push(
+      Object.freeze({
+        id: `${section.kind}:${section.start}:${end}`,
+        section: section.kind,
+        start: section.start,
+        end,
+        operatorIndex,
+        rawText,
+        normalizedText: section.text,
+        scope,
+      }),
+    );
+    claimedOperators.add(operatorIndex);
+  }
+
+  const trimmedEnd = input.trimEnd().length;
+  const finalOperator = trimmedEnd - 1;
+  const detachedSentenceQuestion =
+    finalOperator >= 0 &&
+    input[finalOperator] === "?" &&
+    !questionMarkIsEscaped(input, finalOperator) &&
+    !claimedOperators.has(finalOperator) &&
+    /\s/.test(input[finalOperator - 1] ?? "");
+  if (detachedSentenceQuestion) {
+    qualifiers.push(
+      Object.freeze({
+        id: `sentence:0:${input.length}`,
+        section: "sentence",
+        start: 0,
+        end: input.length,
+        operatorIndex: finalOperator,
+        rawText: input,
+        normalizedText: input.slice(0, finalOperator).trimEnd(),
+        scope: "sentence",
+      }),
+    );
+  }
+
+  return Object.freeze({
+    qualifiers: Object.freeze(qualifiers),
+    sentenceQuestion: detachedSentenceQuestion,
+    hasAmbiguity: qualifiers.some((qualifier) => qualifier.scope === "ambiguous"),
+  });
+}
+
+function stripInvestigativeOperators(
+  input: string,
+  qualifiers: readonly OccurrenceInvestigativeQualifier[],
+): string {
+  const operators = [...new Set(qualifiers.map((qualifier) => qualifier.operatorIndex))].sort(
+    (left, right) => right - left,
+  );
+  let result = input;
+  for (const operatorIndex of operators) {
+    result = result.slice(0, operatorIndex) + result.slice(operatorIndex + 1);
+  }
+  return result;
 }
 
 function normalizedMatchText(value: string): string {
@@ -816,6 +1204,7 @@ function cursorEntitySuggestions(
           ? `nearest ${section.kind} · ${entity.type || "entity"} · ${entity.id}`
           : `nearest ${section.kind} · ${entity.type || "entity"}`,
         ...(entity.icon ? { icon: entity.icon } : {}),
+        ...(composerEntityColor(entity) ? { color: composerEntityColor(entity) } : {}),
         insertText: canonicalReferenceRequired ? `@${entity.id}` : quoteComposerName(entity.name),
         replaceRange: Object.freeze({ start: section.start, end: section.end }),
       };
@@ -845,22 +1234,24 @@ function cursorEntitySuggestions(
 
 function cursorPredicateSuggestions(
   section: ComposerCursorSection,
-  projectPredicates: readonly string[] = [],
+  projectPredicates: readonly (string | ComposerPredicateOption)[] = [],
 ): readonly ComposerSuggestion[] {
   return Object.freeze(
     [...availableActions(projectPredicates)]
       .sort(
         (left, right) =>
-          nearestMatchScore(section.text, [left]) - nearestMatchScore(section.text, [right]) ||
-          left.localeCompare(right),
+          nearestMatchScore(section.text, [left.name]) -
+            nearestMatchScore(section.text, [right.name]) ||
+          left.name.localeCompare(right.name),
       )
       .slice(0, 8)
       .map((action) => ({
         kind: "predicate" as const,
-        label: action,
+        label: action.name,
         detail: "nearest action",
-        icon: actionIconHint(action),
-        insertText: action,
+        icon: action.icon ?? actionIconHint(action.name),
+        ...(action.color ? { color: action.color } : {}),
+        insertText: action.name,
         replaceRange: Object.freeze({ start: section.start, end: section.end }),
       })),
   );
@@ -888,6 +1279,9 @@ function cursorPlaceSuggestions(
         label: place.name,
         detail: sameNameCount > 1 ? `nearest place · ${place.id}` : "nearest place",
         ...(place.icon ? { icon: place.icon } : {}),
+        ...(normalizeComposerSemanticColor(place.color)
+          ? { color: normalizeComposerSemanticColor(place.color) }
+          : {}),
         insertText: sameNameCount > 1 ? `@${place.id}` : quoteComposerName(place.name),
         replaceRange: Object.freeze({ start: section.start, end: section.end }),
       };
@@ -922,8 +1316,8 @@ export function occurrenceComposerSuggestions(
     readonly timelineDefault?: string | null;
     readonly locationDefault?: string | null;
     readonly preferredEntityIds?: readonly string[];
-    readonly predicates?: readonly string[];
-    readonly tags?: readonly string[];
+    readonly predicates?: readonly (string | ComposerPredicateOption)[];
+    readonly tags?: readonly (string | ComposerTagOption)[];
     readonly cursorOffset?: number | null;
   },
 ): readonly ComposerSuggestion[] {
@@ -950,91 +1344,91 @@ export function occurrenceComposerSuggestions(
           kind: "property" as const,
           label: property,
           detail: iconValueActive ? "semantic icon" : "entity property",
+          ...(iconValueActive ? { icon: property.replace(/^icon:\s*/, "") } : {}),
           insertText: property,
         })),
     );
   }
 
-  if (/\[[^\]]*$/.test(prefix)) {
-    const optionStart = prefix.lastIndexOf("[");
-    const optionText = prefix.slice(optionStart + 1);
-    const categoryMatch = optionText.match(/(?:^|,)\s*category\s*:\s*([^,\]]*)$/i);
+  // "[categories: ]" with the caret after "]" is still an open list; read it without the "]".
+  const openTrailingOption = cursorOffset === input.length && /\[[^\]]*(?::|\|)\s*\]$/.test(prefix);
+  const optionPrefix = openTrailingOption ? prefix.slice(0, -1) : prefix;
+  if (/\[[^\]]*$/.test(optionPrefix)) {
+    const optionStart = optionPrefix.lastIndexOf("[");
+    const optionText = optionPrefix.slice(optionStart + 1);
+    const categoryMatch = optionText.match(/(?:^|,)\s*categor(?:y|ies)\s*:\s*([^,\]]*)$/i);
     const tagMatch = optionText.match(/(?:^|,)\s*tags\s*:\s*([^,\]]*)$/i);
 
     if (tagMatch) {
       const rawTags = tagMatch[1] ?? "";
-      const segments = rawTags.split("|");
-      const activeTag = normalizedMatchText(segments.at(-1) ?? "");
-      const retainedTags = segments
-        .slice(0, -1)
-        .map((tag) => tag.trim())
-        .filter(Boolean);
-      const retainedKeys = new Set(retainedTags.map(normalizedMatchText));
+      const selectedTags = composerListValues(rawTags);
+      const selectedKeys = new Set(selectedTags.map(normalizedMatchText));
+      const tagOptions = (options.tags ?? [])
+        .map(normalizeTagOption)
+        .filter((tag): tag is ComposerTagOption => Boolean(tag));
+      const lastTag = normalizedMatchText(splitComposerDelimited(rawTags, "|").at(-1) ?? "");
+      const activeTag = tagOptions.some((tag) => normalizedMatchText(tag.label) === lastTag)
+        ? ""
+        : lastTag;
       return uniqueSuggestions(
-        (options.tags ?? [])
-          .map((tag) => tag.trim())
-          .filter(Boolean)
-          .filter((tag) => !retainedKeys.has(normalizedMatchText(tag)))
-          .filter((tag) => {
-            if (editableSection?.kind === "tag" || !activeTag) return true;
-            return normalizedMatchText(tag).includes(activeTag);
-          })
+        tagOptions
+          .filter(
+            (tag) =>
+              !activeTag ||
+              selectedKeys.has(normalizedMatchText(tag.label)) ||
+              normalizedMatchText(tag.label).includes(activeTag),
+          )
           .slice(0, 10)
-          .map((tag) =>
-            editableSection?.kind === "tag"
-              ? {
-                  kind: "tag" as const,
-                  label: tag,
-                  detail: "existing tag",
-                  insertText: tag,
-                  replaceRange: Object.freeze({
-                    start: editableSection.start,
-                    end: editableSection.end,
-                  }),
-                }
-              : {
-                  kind: "tag" as const,
-                  label: tag,
-                  detail: "existing tag",
-                  insertText: `tags: ${[...retainedTags, tag].join("|")}`,
-                },
-          ),
+          .map((tag) => ({
+            kind: "tag" as const,
+            label: tag.label,
+            detail: selectedKeys.has(normalizedMatchText(tag.label)) ? "selected tag" : "tag",
+            ...(tag.icon ? { icon: tag.icon } : {}),
+            ...(tag.color ? { color: tag.color } : {}),
+            insertText: quoteComposerName(tag.label),
+            multiSelect: true,
+            selected: selectedKeys.has(normalizedMatchText(tag.label)),
+          })),
       );
     }
 
+    const rawCategories = categoryMatch?.[1] ?? "";
+    const selectedCategories = composerListValues(rawCategories);
+    const selectedKeys = new Set(selectedCategories.map(normalizedMatchText));
+    const lastCategory = normalizedMatchText(
+      splitComposerDelimited(rawCategories, "|").at(-1) ?? "",
+    );
+    const activeCategory = options.categories.some(
+      (category) => normalizedMatchText(category.name) === lastCategory,
+    )
+      ? ""
+      : lastCategory;
     const categorySuggestions = options.categories
-      .filter((category) => {
-        const activeCategory =
-          editableSection?.kind === "category" ? "" : normalizedMatchText(categoryMatch?.[1] ?? "");
-        return !activeCategory || normalizedMatchText(category.name).includes(activeCategory);
-      })
+      .filter(
+        (category) =>
+          !activeCategory ||
+          selectedKeys.has(normalizedMatchText(category.name)) ||
+          normalizedMatchText(category.name).includes(activeCategory),
+      )
       .slice(0, 10)
-      .map((category) =>
-        editableSection?.kind === "category"
-          ? {
-              kind: "category" as const,
-              label: category.name,
-              detail: "category",
-              insertText: quoteComposerName(category.name),
-              replaceRange: Object.freeze({
-                start: editableSection.start,
-                end: editableSection.end,
-              }),
-            }
-          : {
-              kind: "category" as const,
-              label: category.name,
-              detail: "category",
-              insertText: `category: ${quoteComposerName(category.name)}`,
-            },
-      );
+      .map((category) => ({
+        kind: "category" as const,
+        label: category.name,
+        detail: selectedKeys.has(normalizedMatchText(category.name))
+          ? "selected category"
+          : "category",
+        ...(category.icon ? { icon: category.icon } : {}),
+        ...(normalizeComposerSemanticColor(category.color)
+          ? { color: normalizeComposerSemanticColor(category.color) }
+          : {}),
+        insertText: quoteComposerName(category.name),
+        multiSelect: true,
+        selected: selectedKeys.has(normalizedMatchText(category.name)),
+      }));
 
     if (categoryMatch) return uniqueSuggestions(categorySuggestions);
 
-    return uniqueSuggestions([
-      ...categorySuggestions,
-      { kind: "tag", label: "tags", detail: "separate tags with |", insertText: "tags: " },
-    ]);
+    return uniqueSuggestions(categorySuggestions);
   }
 
   const cursorSection = composerCursorSection(input, cursorOffset);
@@ -1134,6 +1528,7 @@ export function occurrenceComposerSuggestions(
             ? `${entity.type || "entity"} · ${entity.id}`
             : entity.type || "entity",
           ...(entity.icon ? { icon: entity.icon } : {}),
+          ...(composerEntityColor(entity) ? { color: composerEntityColor(entity) } : {}),
           insertText: canonicalReferenceRequired ? `@${entity.id}` : quoteComposerName(entity.name),
         };
       });
@@ -1143,14 +1538,15 @@ export function occurrenceComposerSuggestions(
   if (parsed.stage === "predicate") {
     return Object.freeze(
       availableActions(options.predicates)
-        .filter((action) => !token || action.toLocaleLowerCase().includes(token))
+        .filter((action) => !token || action.name.toLocaleLowerCase().includes(token))
         .slice(0, 12)
         .map((action) => ({
           kind: "predicate" as const,
-          label: action,
+          label: action.name,
           detail: "action",
-          icon: actionIconHint(action),
-          insertText: action,
+          icon: action.icon ?? actionIconHint(action.name),
+          ...(action.color ? { color: action.color } : {}),
+          insertText: action.name,
         })),
     );
   }
@@ -1163,6 +1559,10 @@ export function occurrenceComposerSuggestions(
       kind: "place" as const,
       label: place.name,
       detail: sameNameCount > 1 ? `place · ${place.id}` : "place",
+      ...(place.icon ? { icon: place.icon } : {}),
+      ...(normalizeComposerSemanticColor(place.color)
+        ? { color: normalizeComposerSemanticColor(place.color) }
+        : {}),
       insertText: sameNameCount > 1 ? `at @${place.id}` : `at ${quoteComposerName(place.name)}`,
     };
   });
@@ -1186,92 +1586,131 @@ export function occurrenceComposerSuggestions(
       insertText: `on ${options.timelineDefault}`,
     });
   }
-  const optionsOpen = input.lastIndexOf("[");
-  const optionsClose = optionsOpen >= 0 ? input.indexOf("]", optionsOpen + 1) : -1;
-  const appendClosedOptionSuggestion = (
-    kind: "category" | "tag",
-    label: string,
-    detail: string,
-    key: "category" | "tags",
-    value: string,
-  ): ComposerSuggestion => {
-    if (optionsOpen >= 0 && optionsClose >= 0) {
-      let replaceEnd = optionsClose + 1;
-      while (replaceEnd < input.length && /\s/.test(input[replaceEnd]!)) replaceEnd += 1;
-      const body = input.slice(optionsOpen + 1, optionsClose).trim();
-      return Object.freeze({
-        kind,
-        label,
-        detail,
-        insertText: `${body ? ", " : ""}${key}: ${value}] `,
-        replaceRange: Object.freeze({ start: optionsClose, end: replaceEnd }),
-      });
-    }
-    const trimmedEnd = input.trimEnd().length;
-    return Object.freeze({
-      kind,
-      label,
-      detail,
-      insertText: `${trimmedEnd ? " " : ""}[${key}: ${value}] `,
-      replaceRange: Object.freeze({ start: trimmedEnd, end: input.length }),
-    });
-  };
-
-  if (!parsed.options.category) {
-    contextSuggestions.push(
-      ...options.categories
-        .slice(0, 6)
-        .map((category) =>
-          appendClosedOptionSuggestion(
-            "category",
-            category.name,
-            "occurrence category",
-            "category",
-            quoteComposerName(category.name),
-          ),
-        ),
-    );
-  }
+  const selectedCategoryKeys = new Set(parsed.options.categories.map(normalizedMatchText));
+  contextSuggestions.push(
+    ...options.categories.slice(0, 8).map((category) => ({
+      kind: "category" as const,
+      label: category.name,
+      detail: selectedCategoryKeys.has(normalizedMatchText(category.name))
+        ? "selected category"
+        : "occurrence category",
+      ...(category.icon ? { icon: category.icon } : {}),
+      ...(normalizeComposerSemanticColor(category.color)
+        ? { color: normalizeComposerSemanticColor(category.color) }
+        : {}),
+      insertText: quoteComposerName(category.name),
+      multiSelect: true,
+      selected: selectedCategoryKeys.has(normalizedMatchText(category.name)),
+    })),
+  );
 
   const selectedTagKeys = new Set(parsed.options.tags.map(normalizedMatchText));
-  if (!parsed.options.tags.length) {
-    contextSuggestions.push(
-      ...(options.tags ?? [])
-        .map((tag) => tag.trim())
-        .filter(Boolean)
-        .filter((tag) => !selectedTagKeys.has(normalizedMatchText(tag)))
-        .slice(0, 6)
-        .map((tag) =>
-          appendClosedOptionSuggestion(
-            "tag",
-            tag,
-            "occurrence tag",
-            "tags",
-            quoteComposerName(tag),
-          ),
-        ),
-    );
-  } else {
-    const tagSections = composerEditableSections(input).filter((section) => section.kind === "tag");
-    const lastTag = tagSections.at(-1);
-    if (lastTag) {
-      contextSuggestions.push(
-        ...(options.tags ?? [])
-          .map((tag) => tag.trim())
-          .filter(Boolean)
-          .filter((tag) => !selectedTagKeys.has(normalizedMatchText(tag)))
-          .slice(0, 6)
-          .map((tag) => ({
-            kind: "tag" as const,
-            label: tag,
-            detail: "add occurrence tag",
-            insertText: `|${quoteComposerName(tag)}`,
-            replaceRange: Object.freeze({ start: lastTag.end, end: lastTag.end }),
-          })),
-      );
-    }
-  }
+  contextSuggestions.push(
+    ...(options.tags ?? [])
+      .map(normalizeTagOption)
+      .filter((tag): tag is ComposerTagOption => Boolean(tag))
+      .slice(0, 8)
+      .map((tag) => ({
+        kind: "tag" as const,
+        label: tag.label,
+        detail: selectedTagKeys.has(normalizedMatchText(tag.label)) ? "selected tag" : "occurrence tag",
+        ...(tag.icon ? { icon: tag.icon } : {}),
+        ...(tag.color ? { color: tag.color } : {}),
+        insertText: quoteComposerName(tag.label),
+        multiSelect: true,
+        selected: selectedTagKeys.has(normalizedMatchText(tag.label)),
+      })),
+  );
   return uniqueSuggestions(contextSuggestions);
+}
+
+function composerOptionSentence(
+  input: string,
+  categories: readonly string[],
+  tags: readonly string[],
+  options: { readonly includeEmptyTags?: boolean } = {},
+): { readonly value: string; readonly categoryEnd: number; readonly tagEnd: number } {
+  const open = input.lastIndexOf("[");
+  const close = open >= 0 ? input.indexOf("]", open + 1) : -1;
+  const base = (open >= 0 ? input.slice(0, open) : input).trimEnd();
+  const parts: string[] = [];
+  let categoryEnd = -1;
+  let tagEnd = -1;
+  const normalizedCategories = [...new Set(categories.map((value) => value.trim()).filter(Boolean))];
+  const normalizedTags = [...new Set(tags.map((value) => value.trim()).filter(Boolean))];
+
+  if (normalizedCategories.length) {
+    const key = normalizedCategories.length > 1 ? "categories" : "category";
+    parts.push(`${key}: ${composerListSyntax(normalizedCategories)}`);
+  }
+  if (normalizedTags.length || options.includeEmptyTags) {
+    parts.push(`tags: ${composerListSyntax(normalizedTags)}`);
+  }
+
+  if (!parts.length) {
+    return Object.freeze({ value: base, categoryEnd: base.length, tagEnd: base.length });
+  }
+
+  const block = `[${parts.join(", ")}]`;
+  const value = `${base}${base ? " " : ""}${block}`;
+  const blockStart = value.lastIndexOf("[") + 1;
+  const categoryPart = parts.find((part) => /^categor(?:y|ies):/i.test(part));
+  const tagPart = parts.find((part) => /^tags:/i.test(part));
+  if (categoryPart) {
+    const offset = value.indexOf(categoryPart, blockStart);
+    categoryEnd = offset + categoryPart.length;
+  }
+  if (tagPart) {
+    const offset = value.indexOf(tagPart, blockStart);
+    tagEnd = offset + tagPart.length;
+  }
+
+  // Preserve trailing non-option text only when a caller supplied it intentionally.
+  // Canonical composer options are terminal, so text after a closed option block is discarded.
+  void close;
+  return Object.freeze({
+    value,
+    categoryEnd: categoryEnd >= 0 ? categoryEnd : value.length,
+    tagEnd: tagEnd >= 0 ? tagEnd : value.length,
+  });
+}
+
+export function toggleComposerMultiOption(
+  input: string,
+  kind: "category" | "tag",
+  value: string,
+): ComposerSuggestionApplication {
+  const normalized = value.trim();
+  if (!normalized) return Object.freeze({ value: input, cursorOffset: input.length });
+  const parsed = parseOccurrenceSentence(input);
+  const current = kind === "category" ? [...parsed.options.categories] : [...parsed.options.tags];
+  const key = normalizedMatchText(normalized);
+  const existingIndex = current.findIndex((entry) => normalizedMatchText(entry) === key);
+  if (existingIndex >= 0) current.splice(existingIndex, 1);
+  else current.push(normalized);
+
+  const categories = kind === "category" ? current : [...parsed.options.categories];
+  const tags = kind === "tag" ? current : [...parsed.options.tags];
+  const result = composerOptionSentence(input, categories, tags);
+  return Object.freeze({
+    value: result.value,
+    cursorOffset: kind === "category" ? result.categoryEnd : result.tagEnd,
+  });
+}
+
+export function advanceComposerMultiOption(
+  input: string,
+  kind: "category" | "tag",
+): ComposerSuggestionApplication {
+  const parsed = parseOccurrenceSentence(input);
+  if (kind === "category") {
+    const result = composerOptionSentence(input, parsed.options.categories, parsed.options.tags, {
+      includeEmptyTags: true,
+    });
+    return Object.freeze({ value: result.value, cursorOffset: result.tagEnd });
+  }
+  const result = composerOptionSentence(input, parsed.options.categories, parsed.options.tags);
+  return Object.freeze({ value: result.value, cursorOffset: result.value.length });
 }
 
 export function composerCompletionSuffix(

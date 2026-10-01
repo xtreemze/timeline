@@ -6,15 +6,14 @@ import {
   buildDisconfirmationEnquiryDraft,
   buildIdentityHypothesisDrafts,
   buildInformationReviewDraft,
+  buildObservationDraft,
+  buildAssertionDraft,
   buildLineOfEnquiryDraft,
   buildQuestionDraft,
   interpretInvestigativeQualifier,
   projectInvestigativeCandidateMatrix,
 } from "../src/application/investigative-query.ts";
-import {
-  normalizeReasoning,
-  validateReasoning,
-} from "../site/case-reasoning.ts";
+import { normalizeReasoning, validateReasoning } from "../site/case-reasoning.ts";
 
 const entities = [
   {
@@ -30,6 +29,7 @@ const entities = [
     type: "person",
     alternateNames: ["Robert"],
     attributes: { sex: "male", jacket: "blue" },
+    sourceIds: ["source-bob-profile"],
   },
   {
     id: "charlie",
@@ -77,7 +77,9 @@ test("canonical ids, names and aliases produce identity interpretations without 
     { entities },
   );
   assert.deepEqual(
-    byId.filter((interpretation) => interpretation.kind === "entity").map((entry) => entry.entityId),
+    byId
+      .filter((interpretation) => interpretation.kind === "entity")
+      .map((entry) => entry.entityId),
     ["alice"],
   );
 
@@ -123,17 +125,16 @@ test("candidate matrix uses categorical clue cells and keeps missing information
   });
 
   const bob = matrix.candidates.find((candidate) => candidate.candidateEntityId === "bob");
-  const charlie = matrix.candidates.find(
-    (candidate) => candidate.candidateEntityId === "charlie",
-  );
+  const charlie = matrix.candidates.find((candidate) => candidate.candidateEntityId === "charlie");
 
-  assert.equal(
-    bob.cells.find((cell) => cell.qualifierId === "q-sex")?.assessment,
-    "consistent",
-  );
+  assert.equal(bob.cells.find((cell) => cell.qualifierId === "q-sex")?.assessment, "consistent");
   assert.equal(
     bob.cells.find((cell) => cell.qualifierId === "q-jacket")?.assessment,
     "contradicts",
+  );
+  assert.deepEqual(
+    bob.cells.find((cell) => cell.qualifierId === "q-jacket")?.recordIds,
+    ["source-bob-profile"],
   );
   assert.equal(
     charlie.cells.find((cell) => cell.qualifierId === "q-jacket")?.assessment,
@@ -198,7 +199,10 @@ test("identity exploration always retains a none-known open-world candidate", ()
   });
 
   assert.equal(matrix.totalKnownCandidates, 3);
-  assert.equal(matrix.candidates.filter((candidate) => candidate.candidateScope === "entity").length, 2);
+  assert.equal(
+    matrix.candidates.filter((candidate) => candidate.candidateScope === "entity").length,
+    2,
+  );
   const noneKnown = matrix.candidates.at(-1);
   assert.equal(noneKnown.candidateScope, "none-known");
   assert.equal(noneKnown.candidateEntityId, null);
@@ -262,6 +266,35 @@ test("question and identity-hypothesis builders produce existing case-reasoning 
     }).some((finding) => finding.severity === "error"),
     false,
   );
+});
+
+test("source-backed clue promotion builders preserve provenance and validate without asserting canonical identity", () => {
+  const observation = buildObservationDraft({
+    id: "obs-clue-man",
+    text: "Source-backed occurrence records subject clue “man”.",
+    sourceIds: ["ev-witness"],
+    evidenceIds: ["ev-witness"],
+    relationshipIds: ["rel-1"],
+    itemIds: ["item-1"],
+    entityIds: ["unknown-person-a"],
+  });
+  const assertion = buildAssertionDraft({
+    id: "fact-source-description",
+    text: "The selected source describes the subject as “man”.",
+    sourceIds: ["ev-witness"],
+    inputIds: [observation.id],
+    itemIds: ["item-1"],
+  });
+  const model = normalizeReasoning({ observations: [observation], assertions: [assertion] });
+  const errors = validateReasoning(model, {
+    entityIds: ["unknown-person-a"],
+    externalIds: ["ev-witness", "rel-1", "item-1"],
+  }).filter((finding) => finding.severity === "error");
+  assert.deepEqual(errors, []);
+  assert.deepEqual(model.observations[0].evidenceIds, ["ev-witness"]);
+  assert.deepEqual(model.observations[0].relationshipIds, ["rel-1"]);
+  assert.deepEqual(model.assertions[0].inputIds, ["obs-clue-man"]);
+  assert.equal("candidateEntityId" in model.assertions[0], false);
 });
 
 test("methodology builders create explicit assumption, enquiry, falsification and information-review drafts", () => {

@@ -329,6 +329,58 @@ test.describe("Mobile-first Timeline layout contracts", () => {
     });
   }
 
+
+  test("D3 layout buttons disclose advanced controls by keyboard and long press", async ({ page }) => {
+    await page.setViewportSize(DESKTOP_LANDSCAPE);
+    await page.goto("/");
+    await ensureTimelineOrientation(page, "landscape");
+
+    const layoutButtons = page.locator(".world-layout-controls .world-layout-control");
+    await expect(layoutButtons).toHaveCount(2);
+    const dagButton = layoutButtons.nth(0);
+    const forceButton = layoutButtons.nth(1);
+
+    await dagButton.focus();
+    await page.keyboard.press("ArrowDown");
+    const dagPanel = page.locator("#world-dag-layout-inspector:popover-open");
+    await expect(dagPanel).toBeVisible();
+    await expect(dagButton).toHaveAttribute("aria-expanded", "true");
+    await expect(dagPanel.getByText("Longest path + optimal decross")).toBeVisible();
+    await expect(dagPanel.getByText("Simplex + two-layer")).toBeVisible();
+    await expect(dagPanel).toContainText("Sugiyama · layered");
+    await expect(dagPanel).toContainText("Zherebko · linear");
+    await expect(dagPanel).toContainText("Grid · topological");
+    await expect(dagPanel).toContainText("Quadratic");
+    await expect(dagPanel).toContainText("Curved");
+    await expect(dagPanel).toContainText("Orthogonal");
+    await page.keyboard.press("Escape");
+    await expect(dagButton).toHaveAttribute("aria-expanded", "false");
+
+    const box = await forceButton.boundingBox();
+    expect(box).not.toBeNull();
+    if (!box) throw new Error("D3 force button has no live bounds.");
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.waitForTimeout(550);
+    const forcePanel = page.locator("#world-force-layout-inspector:popover-open");
+    await expect(forcePanel).toBeVisible();
+    await page.mouse.up();
+    await expect(forceButton).toHaveAttribute("aria-expanded", "true");
+    await expect(forcePanel).toContainText("Center force");
+    await expect(forcePanel).toContainText("Center strength");
+    await expect(forcePanel).toContainText("Collide force");
+    await expect(forcePanel).toContainText("Collision strength");
+    await expect(forcePanel).toContainText("Connectivity clearance");
+    await expect(forcePanel).toContainText("Link force");
+    await expect(forcePanel).toContainText("Link strength");
+    await expect(forcePanel).toContainText("Link distance ×");
+    await expect(forcePanel).toContainText("Link passes");
+    await expect(forcePanel).toContainText("Collision radius");
+    await expect(forcePanel).toContainText("Rendered node + border · fixed");
+    await page.keyboard.press("Escape");
+    await expect(forceButton).toHaveAttribute("aria-expanded", "false");
+  });
+
   test("desktop footer keeps primary and spatial controls on one toolbar", async ({ page }) => {
     await page.setViewportSize(DESKTOP_LANDSCAPE);
     await page.goto("/");
@@ -631,27 +683,21 @@ test.describe("Persistent footer and focus geometry", () => {
       );
       const beforeScroll = await footer.evaluate((element) => element.scrollLeft);
 
-      const card = terminal.locator("xpath=ancestor::luum-event-card[1]");
-      await terminal.evaluate((button: HTMLButtonElement) => button.click());
       await terminal.evaluate((button: HTMLButtonElement) => button.click());
       await expect(page.locator("#app-shell")).toHaveClass(/is-event-card-focused/);
       await expect(page.locator("#timeline-focus-view")).toBeHidden();
 
-      const detail = card.locator(".timeline-event-detail");
-      await expect(detail).toBeVisible();
-      const focusActions = detail.locator(".timeline-focus-context-actions");
-      await expect(focusActions).toBeVisible();
-      await expect(focusActions.locator("#timeline-focus-prev")).toBeVisible();
-      await expect(focusActions.locator("#timeline-focus-next")).toBeVisible();
-      await expect(focusActions.locator("#timeline-related-zoom")).toBeVisible();
-      await expect(focusActions.locator("#timeline-related-fit")).toBeVisible();
+      const composer = page.locator("#occurrence-composer");
+      await expect(composer).toHaveAttribute("active", "");
+      await expect(composer.locator(".composer-occurrence-card")).toBeVisible();
+      await expect(composer.locator('input[role="combobox"]')).toBeVisible();
+      await expect(page.locator(".timeline-event-detail:visible")).toHaveCount(0);
       await expect(page.locator(".app-footer-bar #timeline-focus-prev")).toHaveCount(0);
       await expect(page.locator(".app-footer-bar #timeline-related-zoom")).toHaveCount(0);
       await expect(page.locator("#timeline-focus-edit")).toHaveCount(0);
       await expect(page.locator("#editor-toggle")).toHaveAttribute("aria-label", "Edit timeline");
       await expect(page.locator("#editor-toggle")).toHaveAttribute("data-semantic-icon", "edit");
       await expect(page.locator("#editor-toggle")).toHaveAttribute("aria-pressed", "false");
-      await expect(page.locator("#occurrence-composer .compact")).toBeVisible();
 
       const afterFooter = await footer.boundingBox();
       const afterPersistentBoxes = await Promise.all(
@@ -677,25 +723,6 @@ test.describe("Persistent footer and focus geometry", () => {
         expect(Math.abs(afterBox.y - beforeBox.y)).toBeLessThanOrEqual(1);
         expect(Math.abs(afterBox.width - beforeBox.width)).toBeLessThanOrEqual(1);
         expect(Math.abs(afterBox.height - beforeBox.height)).toBeLessThanOrEqual(1);
-      }
-
-      const contextActionCount = await focusActions
-        .locator(".timeline-focus-context-action")
-        .count();
-      expect(contextActionCount).toBe(4);
-      for (let index = 0; index < contextActionCount; index += 1) {
-        const action = focusActions.locator(".timeline-focus-context-action").nth(index);
-        const [actionBox, iconBox] = await Promise.all([
-          action.boundingBox(),
-          action.locator(":scope > .semantic-icon").boundingBox(),
-        ]);
-        expect(actionBox).not.toBeNull();
-        expect(iconBox).not.toBeNull();
-        if (!actionBox || !iconBox) throw new Error("Focused event action has no bounds.");
-        expect(Math.abs(actionBox.width - 44)).toBeLessThanOrEqual(1);
-        expect(Math.abs(actionBox.height - 44)).toBeLessThanOrEqual(1);
-        expect(Math.abs(iconBox.width - 20)).toBeLessThanOrEqual(1);
-        expect(Math.abs(iconBox.height - 20)).toBeLessThanOrEqual(1);
       }
 
       const afterTimeline = await timeline.boundingBox();

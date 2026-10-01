@@ -70,6 +70,7 @@ import {
   worldShowsOrdinaryPlaceLabels,
 } from "../../src/layout/world-semantic-presentation.ts";
 import {
+  DEFAULT_WORLD_SPATIAL_MODE_POLICY,
   selectWorldSpatialMode,
   WORLD_CAMERA_MAX_ZOOM,
   WORLD_CAMERA_MIN_ZOOM,
@@ -501,6 +502,13 @@ export function clusterZoomThresholdForPlaceDensity(
 const WORLD_CLUSTER_PANNABLE_OVERFLOW_RATIO = 1.35;
 const WORLD_CLUSTER_PANNABLE_MAX_MEMBERS = 32;
 
+/**
+ * Hard semantic ceiling for clustering. At the local-precision handoff the
+ * graph is in inspection mode: all canonical members must be directly
+ * represented and force/pan own readability from this point onward.
+ */
+export const WORLD_CLUSTER_DETAIL_ZOOM_CEILING = DEFAULT_WORLD_SPATIAL_MODE_POLICY.enterLocalAtZoom;
+
 export function clusterRequiredLocalRadiusPx(
   nodeRadiusPx: number,
   memberCount: number,
@@ -522,11 +530,11 @@ export function clusterRequiredLocalRadiusPx(
 }
 
 /**
- * Keeps authored places clustered until the *resulting expanded presentation*
- * has enough screen-space room. Zoom is only a conversion input: a group may
- * remain clustered at deep zoom when its node/edge load still exceeds the
- * available local-graph radius, and nearby groups remain collapsed while
- * their required radii would overlap.
+ * Keeps authored places clustered while the *resulting expanded presentation*
+ * still lacks screen-space room. Below the hard detail ceiling, zoom is only
+ * a conversion input and nearby groups may remain collapsed while their
+ * required radii would overlap. At the local-precision handoff, clustering
+ * ends unconditionally and force/panning own detail readability.
  */
 export function clusterTargetPlaceIds(
   instances: readonly ProjectedWorldInstance[],
@@ -536,6 +544,10 @@ export function clusterTargetPlaceIds(
   availableLocalRadiusPx: number,
   phase: WorldClusterLifecyclePhase,
 ): readonly PlaceId[] {
+  if (Number.isFinite(zoom) && zoom >= WORLD_CLUSTER_DETAIL_ZOOM_CEILING) {
+    return Object.freeze([]);
+  }
+
   type Anchor = ProjectedWorldInstance["geographicAnchors"][number];
   interface Group {
     readonly placeId: PlaceId;
@@ -754,6 +766,7 @@ const WORLD_PLACE_ICON_LIFT_PX = 2;
 /** Place pins closer than this remain one aggregate marker even when nodes can expand. */
 const WORLD_PLACE_MARKER_CLUSTER_MERGE_PX = 64;
 /** Pickup feedback is presentation-only and never feeds back into force state. */
+const WORLD_HOVER_LIFT_PX = 4;
 const WORLD_DRAG_PICKUP_LIFT_PX = 7;
 const WORLD_DRAG_PICKUP_FLASH_MS = 160;
 const WORLD_DRAG_PICKUP_FLASH_SCALE = 1.16;
@@ -774,12 +787,18 @@ function liftedPlaceIconPosition(position: WorldRenderPosition, zoom: number): W
   return liftedPositionByPixels(position, zoom, WORLD_PLACE_ICON_LIFT_PX);
 }
 
-function liftedDraggedEntityPosition(
+function liftedEntityInteractionPosition(
   position: WorldRenderPosition,
   zoom: number,
   dragging: boolean,
+  hovered: boolean,
 ): WorldRenderPosition {
-  return dragging ? liftedPositionByPixels(position, zoom, WORLD_DRAG_PICKUP_LIFT_PX) : position;
+  const liftPx = dragging
+    ? WORLD_DRAG_PICKUP_LIFT_PX
+    : hovered
+      ? WORLD_HOVER_LIFT_PX
+      : 0;
+  return liftPx > 0 ? liftedPositionByPixels(position, zoom, liftPx) : position;
 }
 
 export function shouldClusterEntityDatums(
@@ -1211,7 +1230,7 @@ function worldThemeColors(palette: WorldGraphPalette): WorldThemeColors {
     labelText: worldColorBytes(palette.ink),
     labelPlace: worldColorBytes(palette.muted),
     labelRelationship: worldColorBytes(palette.muted),
-    labelHalo: worldColorBytes(palette.paper, 230),
+    labelHalo: worldColorBytes(palette.paper, 160),
   });
 }
 
@@ -5539,7 +5558,7 @@ export class DeckWorldSurface implements WorldSurface {
       : Object.freeze([] as DeckWorldRelationshipDatum[]);
     const releasingSegments = releasingRelationshipSegments(releasingRelationships);
     const placeMarkerClusters =
-      clusterPhase !== "collapsed"
+      clusterPhase !== "collapsed" && this.#camera.zoom < WORLD_CLUSTER_DETAIL_ZOOM_CEILING
         ? Object.freeze(
             clusterEntityDatumsByPlace(
               entityResult.datums,
@@ -5960,10 +5979,12 @@ export class DeckWorldSurface implements WorldSurface {
         radiusUnits: "pixels",
         getPosition: (datum: DeckWorldEntityRenderDatum) =>
           datum.kind === "entity"
-            ? liftedDraggedEntityPosition(
+            ? liftedEntityInteractionPosition(
                 datum.position,
                 this.#camera.zoom,
                 this.#activeDragInstanceId === datum.worldInstanceId,
+                this.#hoverSelection?.kind === "entity" &&
+                  this.#hoverSelection.id === datum.entityId,
               )
             : datum.position,
         // Individual entities are drawn by the styled marker layer; this
@@ -5999,7 +6020,11 @@ export class DeckWorldSurface implements WorldSurface {
         getFillColor: (datum: DeckWorldEntityRenderDatum) =>
           datum.kind === "cluster" ? scaleAlpha(this.#theme.cluster, 0) : this.#theme.hit,
         updateTriggers: {
-          getPosition: [this.#dragPresentationRevision, screenScaleZoomStep(this.#camera.zoom)],
+          getPosition: [
+            this.#dragPresentationRevision,
+            screenScaleZoomStep(this.#camera.zoom),
+            this.#hoverSelection?.kind === "entity" ? this.#hoverSelection.id : "",
+          ],
           getRadius: [this.#palette, clusterPhase],
           getLineWidth: [clusterPhase],
           getLineColor: [this.#palette, clusterPhase],
@@ -6050,10 +6075,12 @@ export class DeckWorldSurface implements WorldSurface {
               billboard: true,
               sizeUnits: "pixels",
               getPosition: (datum: DeckWorldEntityDatum) =>
-                liftedDraggedEntityPosition(
+                liftedEntityInteractionPosition(
                   datum.position,
                   this.#camera.zoom,
                   this.#activeDragInstanceId === datum.worldInstanceId,
+                  this.#hoverSelection?.kind === "entity" &&
+                    this.#hoverSelection.id === datum.entityId,
                 ),
               // Styled node markers: shape, fill, border and icon/image from
               // the entity's own style or the type default.
@@ -6084,6 +6111,7 @@ export class DeckWorldSurface implements WorldSurface {
                 getPosition: [
                   this.#dragPresentationRevision,
                   screenScaleZoomStep(this.#camera.zoom),
+                  this.#hoverSelection?.kind === "entity" ? this.#hoverSelection.id : "",
                 ],
                 getIcon: this.#palette,
                 getSize: [
@@ -6205,9 +6233,9 @@ export class DeckWorldSurface implements WorldSurface {
                     this.#hoverSelection.id === datum.entityId) ||
                   (this.#focus?.kind === "entity" && this.#focus.id === datum.entityId);
                 const semanticBase =
-                  emphasized && entity
+                  (emphasized || directlyInteracted) && entity
                     ? worldColorBytes(this.#entityStyle(entity).fill)
-                    : this.#theme.labelText;
+                    : this.#theme.labelPlace;
                 const entityBase =
                   muteMembers && memberIds.has(datum.worldInstanceId) && !directlyInteracted
                     ? this.#theme.labelPlace

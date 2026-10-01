@@ -198,6 +198,22 @@ test("authorOccurrence atomically resolves endpoints and creates one occurrence 
   assert.deepEqual(result.state.items[0].tags, [{ label: "work" }]);
 });
 
+test("authorOccurrence persists multiple categories with the first as primary compatibility category", () => {
+  const state = baseState();
+  state.categories.push({ id: "decision", name: "Decision", color: "#b54708" });
+  const result = authorOccurrence(
+    state,
+    request({ categoryNames: ["Incident", "Decision"] }),
+    dependencies(),
+  );
+
+  assert.equal(result.state.items[0].categoryId, "incident");
+  assert.deepEqual(result.state.items[0].categoryIds, ["incident", "decision"]);
+  assert.deepEqual(result.categoryIds, ["incident", "decision"]);
+  assert.equal(result.categoryId, "incident");
+});
+
+
 test("authorOccurrence rejects ambiguous endpoint names instead of guessing", () => {
   const state = baseState();
   state.entities.push({

@@ -1,8 +1,9 @@
 :root {
+  color-scheme: light dark;
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: #171717;
-  background: #f4f1eb;
+  background: var(--paper-2, #f4f1eb);
   font-synthesis: none;
   --ink: #171717;
   --muted: #6b6965;
@@ -765,9 +766,51 @@ geolocation {
 .tag-editor-row .hue-field {
   grid-column: 1 / -1;
 }
+.hue-control-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 4.6rem auto;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+.item-secondary-category-hues {
+  display: grid;
+  gap: 0.55rem;
+}
+.item-secondary-category-hues[hidden] {
+  display: none;
+}
+.item-category-hue-row {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.55rem;
+  background: var(--paper);
+}
+.item-category-hue-row input[type="range"] {
+  --tag-hue: var(--category-hue, 220);
+}
+.item-category-hue-row > strong {
+  font-size: 0.72rem;
+}
 .hue-field input[type="range"] {
   width: 100%;
-  accent-color: oklch(62% 0.17 var(--tag-hue, 30));
+  min-width: 0;
+  accent-color: light-dark(
+    hsl(var(--tag-hue, 30) 62% 38%),
+    hsl(var(--tag-hue, 30) 66% 68%)
+  );
+}
+.category-hue-field input[type="range"],
+.item-category-hue-field input[type="range"] {
+  --tag-hue: var(--category-hue, 220);
+}
+.hue-number {
+  width: 100%;
+  min-width: 0;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
 }
 .hue-field output {
   color: var(--muted);
@@ -777,7 +820,10 @@ geolocation {
     monospace;
 }
 .event-tag {
-  --tag-color: oklch(78% 0.115 var(--tag-hue, 30));
+  --tag-color: light-dark(
+    hsl(var(--tag-hue, 30) 30% 84%),
+    hsl(var(--tag-hue, 30) 28% 27%)
+  );
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
@@ -942,7 +988,6 @@ geolocation {
 .timeline-map-place-icon .semantic-icon {
   width: 1.3rem;
   height: 1.3rem;
-  stroke-width: 2.2;
 }
 .timeline-map-place-status {
   position: absolute;
@@ -1264,13 +1309,11 @@ geolocation {
 .category-form .category-actions {
   grid-column: 1 / -1;
 }
-.color-field input[type="color"] {
-  width: 100%;
-  height: 40px;
-  padding: 0.15rem;
-  border: 1px solid var(--line-strong);
-  border-radius: 0.58rem;
-  background: var(--paper);
+.category-hue-field {
+  min-inline-size: min(18rem, 100%);
+}
+.category-hue-field output {
+  min-inline-size: 3.5ch;
 }
 .category-row {
   align-items: center;
@@ -1451,7 +1494,6 @@ geolocation {
 .story-nav-button .semantic-icon {
   width: 16px;
   height: 16px;
-  stroke-width: 2;
 }
 
 .empty-state {
@@ -2865,11 +2907,10 @@ body {
 
 #workspace {
   position: fixed;
-  inset-inline: 0;
-  inset-block-start: var(--app-visual-viewport-offset-top, 0px);
+  inset: 0;
   display: block;
   inline-size: 100%;
-  height: var(--app-visual-viewport-height, 100dvh);
+  height: 100dvh;
   overflow: hidden;
 }
 
@@ -3069,11 +3110,10 @@ body {
 #app-shell {
   position: fixed;
   z-index: 1;
-  inset-inline: 0;
-  inset-block-start: var(--app-visual-viewport-offset-top, 0px);
+  inset: 0;
   display: block;
   inline-size: 100%;
-  height: var(--app-visual-viewport-height, 100dvh);
+  height: 100dvh;
   min-width: 0;
   min-height: 0;
   padding: 0;
@@ -3117,7 +3157,7 @@ body {
   position: fixed;
   z-index: 1200;
   inset-inline-start: 50%;
-  inset-block-end: max(0.45rem, env(safe-area-inset-bottom));
+  inset-block-end: calc(max(0.45rem, env(safe-area-inset-bottom)) + var(--app-visual-viewport-bottom, 0px));
   display: flex;
   align-items: stretch;
   justify-content: stretch;
@@ -3159,7 +3199,6 @@ body {
 .app-tool .semantic-icon {
   width: 22px;
   height: 22px;
-  stroke-width: 1.9;
 }
 .project-menu-action.is-danger > span,
 .project-menu-action.is-danger .semantic-icon {
@@ -4255,7 +4294,7 @@ body {
   inset-block-start: auto;
   inset-inline-start: 0;
   inset-inline-end: 0;
-  inset-block-end: 0;
+  inset-block-end: var(--app-visual-viewport-bottom, 0px);
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   align-items: stretch;
@@ -4297,7 +4336,7 @@ body {
   inset-block-start: auto;
   inset-inline-start: 0;
   inset-inline-end: 0;
-  inset-block-end: 0;
+  inset-block-end: var(--app-visual-viewport-bottom, 0px);
   inline-size: 100%;
   max-inline-size: none;
   block-size: var(--workspace-footer-block-size);

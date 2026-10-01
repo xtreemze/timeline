@@ -6,12 +6,15 @@ const indexUrl = new URL("../site/index.html", import.meta.url);
 const shellUrl = new URL("../site/spatial-shell.css", import.meta.url);
 const worldUrl = new URL("../site/world/deck-world-surface.ts", import.meta.url);
 const factoryUrl = new URL("../site/world/world-view-factory.ts", import.meta.url);
+const layoutInspectorUrl = new URL("../site/world/world-layout-inspector.ts", import.meta.url);
+const composerUrl = new URL("../site/components/occurrence-composer.ts", import.meta.url);
 
 test("footer exposes view controls directly and keeps one primary Edit entry", async () => {
-  const [index, world, factory] = await Promise.all([
+  const [index, world, factory, layoutInspector] = await Promise.all([
     readFile(indexUrl, "utf8"),
     readFile(worldUrl, "utf8"),
     readFile(factoryUrl, "utf8"),
+    readFile(layoutInspectorUrl, "utf8"),
   ]);
 
   assert.match(
@@ -83,20 +86,100 @@ test("footer exposes view controls directly and keeps one primary Edit entry", a
   assert.doesNotMatch(index, /<span class="timeline-zoom-endpoint"/);
   assert.match(world, /#syncZoomControls\(\)/);
   assert.match(world, /#publishCameraContext\(\)[\s\S]*#syncZoomControls\(\)/);
-  assert.match(factory, /element\.className = "toolbar-control world-layout-control"/);
-  assert.match(factory, /element\.dataset\.viewControl = ""/);
-  assert.match(factory, /createIcon\(icon, \{ size: 20 \}\)/);
+  assert.match(layoutInspector, /element\.className = "toolbar-control world-layout-control"/);
+  assert.match(layoutInspector, /element\.dataset\.viewControl = ""/);
+  assert.match(layoutInspector, /createIcon\(options\.icon, \{ size: 20 \}\)/);
   assert.match(
-    factory,
-    /"Arrange relationships",[\s\S]*"Arrange relationships",[\s\S]*"dag",[\s\S]*actions\.reorganizeDag/,
+    layoutInspector,
+    /label: "Arrange relationships"[\s\S]*icon: "dag"[\s\S]*primaryAction: \(\) => actions\.reorganizeDag\(\{\}\)/,
   );
   assert.match(
-    factory,
-    /"Settle relationships",[\s\S]*"Settle relationships",[\s\S]*"refresh",[\s\S]*actions\.relaxForce/,
+    layoutInspector,
+    /label: "Settle relationships"[\s\S]*icon: "refresh"[\s\S]*primaryAction: actions\.relaxForce/,
   );
-  assert.doesNotMatch(factory, /"Reorganize relationship layout",[\s\S]*"dag"/);
+  assert.match(factory, /createWorldLayoutControls\(root\.ownerDocument/);
+  assert.doesNotMatch(factory, /function createWorldLayoutControls\(/);
 });
 
+test(
+  "graph layout buttons expose advanced options with input-modality parity and place scope",
+  async () => {
+    const [inspector, css] = await Promise.all([
+      readFile(layoutInspectorUrl, "utf8"),
+      readFile(shellUrl, "utf8"),
+    ]);
+
+    assert.match(inspector, /const LONG_PRESS_MS = 500/);
+    assert.match(
+      inspector,
+      /addEventListener\("pointerdown"[\s\S]*setTimeout\(open, LONG_PRESS_MS\)/,
+    );
+    assert.match(inspector, /addEventListener\("contextmenu"[\s\S]*open\(\)/);
+    assert.match(
+      inspector,
+      /event\.key === "ArrowDown"[\s\S]*event\.key === "F10" && event\.shiftKey/,
+    );
+    assert.match(inspector, /aria-haspopup", "dialog"/);
+    assert.match(
+      inspector,
+      /getSelectedPlaceId\(\)[\s\S]*state\.scope\.value = placeId === null \? "global" : "place"/,
+    );
+
+    assert.match(inspector, /"sugiyama", "Sugiyama · layered"/);
+    assert.match(inspector, /"zherebko", "Zherebko · linear"/);
+    assert.match(inspector, /"grid", "Grid · topological"/);
+    assert.match(inspector, /"longest-opt-greedy", "Longest path \+ optimal decross"/);
+    assert.match(inspector, /"longest-two-layer-greedy", "Longest path \+ two-layer"/);
+    assert.match(inspector, /"simplex-two-layer-greedy", "Simplex \+ two-layer"/);
+    assert.match(inspector, /"greedy", "Greedy"/);
+    assert.match(inspector, /"simplex", "Simplex"/);
+    assert.match(inspector, /"quad", "Quadratic"/);
+    assert.match(inspector, /"center", "Centered"/);
+    assert.match(inspector, /"routed", "D3 routed"/);
+    assert.match(inspector, /"curved", "Curved"/);
+    assert.match(inspector, /"straight", "Straight"/);
+    assert.match(inspector, /"orthogonal", "Orthogonal"/);
+    assert.match(inspector, /"top-to-bottom", "Top → bottom"/);
+    assert.match(inspector, /"left-to-right", "Left → right"/);
+    assert.match(
+      inspector,
+      /algorithm\.select\.value === "sugiyama"[\s\S]*strategy\.select\.disabled = !sugiyama[\s\S]*coordinate\.select\.disabled = !sugiyama/,
+    );
+
+    for (const label of [
+      "Center force",
+      "Center strength",
+      "Center east",
+      "Center north",
+      "Collide force",
+      "Collision strength",
+      "Collision passes",
+      "Connectivity clearance",
+      "Link force",
+      "Link strength",
+      "Link distance ×",
+      "Link passes",
+      "Repulsion",
+      "Place attraction",
+      "DAG guidance",
+    ]) {
+      assert.match(inspector, new RegExp(label));
+    }
+    assert.match(inspector, /"Collision radius", "Rendered node \+ border · fixed"/);
+    assert.match(inspector, /collision radius stays exact/);
+    assert.match(inspector, /linkDistanceScale: Number\(linkDistance\.input\.value\)/);
+    assert.match(inspector, /linkIterations: Number\(linkIterations\.input\.value\)/);
+    assert.match(inspector, /centerStrength: Number\(centerStrength\.input\.value\)/);
+    assert.match(
+      inspector,
+      /addEventListener\("pointermove"[\s\S]*Math\.hypot[\s\S]*> 8[\s\S]*clearTimer\(\)/,
+    );
+    assert.match(
+      css,
+      /\.world-layout-inspector\s*\{[\s\S]*position:\s*fixed[\s\S]*z-index:\s*2200/,
+    );
+  },
+);
 test("footer zoom controls neutralize legacy timeline grid geometry", async () => {
   const [shellCss, timelineCss] = await Promise.all([
     readFile(shellUrl, "utf8"),
@@ -178,21 +261,30 @@ test("all footer buttons and controls share the canonical toolbar surface", asyn
   assert.doesNotMatch(index, /id="timeline-view-controls-toggle"/);
 });
 
-test("narrow toolbar pins authoring and scrolls only dense View controls", async () => {
+test("narrow toolbar keeps the composer and controls in one horizontal command strip", async () => {
   const css = await readFile(shellUrl, "utf8");
 
   assert.match(
     css,
-    /@media \(max-width: 699px\)[\s\S]*\.app-tool-dock\.app-footer-bar[\s\S]*display:\s*grid[\s\S]*grid-template-columns:\s*auto clamp\(120px, 38vw, 220px\) minmax\(0, 1fr\)/,
+    /@media \(max-width: 699px\)[\s\S]*\.app-tool-dock\.app-footer-bar[\s\S]*display:\s*flex[\s\S]*overflow-x:\s*auto[\s\S]*touch-action:\s*pan-x/,
   );
   assert.match(
     css,
-    /#occurrence-composer:not\(\[active\]\)[\s\S]*order:\s*2[\s\S]*min-inline-size:\s*120px/,
+    /#occurrence-composer:not\(\[active\]\)[\s\S]*order:\s*2[\s\S]*flex:\s*0 0 260px/,
   );
   assert.match(
     css,
-    /\.app-footer-bar \.app-footer-view[\s\S]*order:\s*3[\s\S]*overflow-x:\s*auto[\s\S]*touch-action:\s*pan-x/,
+    /#occurrence-composer\[active\][\s\S]*order:\s*2[\s\S]*flex:\s*0 0 auto[\s\S]*inline-size:\s*max-content[\s\S]*min-inline-size:\s*100dvi/,
   );
+  assert.match(
+    css,
+    /#app-shell:has\(#occurrence-composer\[active\]\)[\s\S]*\.app-footer-view[\s\S]*order:\s*3[\s\S]*flex:\s*0 0 auto[\s\S]*overflow:\s*visible/,
+  );
+  assert.match(
+    css,
+    /#app-shell:has\(#occurrence-composer\[active\]\)[\s\S]*\.app-tool-dock\.app-footer-bar[\s\S]*z-index:\s*2300[\s\S]*isolation:\s*isolate[\s\S]*inset-inline:\s*0[\s\S]*transform:\s*none[\s\S]*backdrop-filter:\s*none/,
+  );
+
   assert.match(css, /\.app-footer-view \.world-camera-controls[\s\S]*flex-wrap:\s*nowrap/);
   assert.match(
     css,
@@ -220,14 +312,16 @@ test("narrow toolbar pins authoring and scrolls only dense View controls", async
 });
 
 test("toolbar actions use one direct semantic icon with explicit tooltips", async () => {
-  const [index, presentation, css, world, factory, timeline] = await Promise.all([
-    readFile(indexUrl, "utf8"),
-    readFile(new URL("../site/event-presentation.ts", import.meta.url), "utf8"),
-    readFile(shellUrl, "utf8"),
-    readFile(worldUrl, "utf8"),
-    readFile(factoryUrl, "utf8"),
-    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
-  ]);
+  const [index, presentation, css, world, factory, layoutInspector, timeline] =
+    await Promise.all([
+      readFile(indexUrl, "utf8"),
+      readFile(new URL("../site/event-presentation.ts", import.meta.url), "utf8"),
+      readFile(shellUrl, "utf8"),
+      readFile(worldUrl, "utf8"),
+      readFile(factoryUrl, "utf8"),
+      readFile(layoutInspectorUrl, "utf8"),
+      readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
+    ]);
 
   for (const [id, icon, label] of [
     ["project-menu-toggle", "folder", "Project actions"],
@@ -251,21 +345,61 @@ test("toolbar actions use one direct semantic icon with explicit tooltips", asyn
   assert.doesNotMatch(css, /compound-semantic-icon/);
   assert.doesNotMatch(world, /createCompoundIcon/);
   assert.doesNotMatch(factory, /createCompoundIcon/);
+  assert.doesNotMatch(layoutInspector, /createCompoundIcon/);
   assert.doesNotMatch(timeline, /createCompoundIcon|semanticIconSecondary/);
   assert.match(world, /element\.setAttribute\("aria-label", label\)[\s\S]*element\.title = label/);
   assert.match(
-    factory,
-    /element\.setAttribute\("aria-label", label\)[\s\S]*element\.title = title/,
+    layoutInspector,
+    /element\.setAttribute\("aria-label", options\.label\)[\s\S]*long press for options/,
+  );
+});
+
+test("semantic icon buttons keep visible glyphs, accessible names, and tooltips", async () => {
+  const [index, composer] = await Promise.all([
+    readFile(indexUrl, "utf8"),
+    readFile(composerUrl, "utf8"),
+  ]);
+
+  const semanticButtons = [...index.matchAll(/<button\\b[^>]*data-semantic-icon="[^"]+"[^>]*>/g)];
+  assert.ok(semanticButtons.length > 0);
+  for (const match of semanticButtons) {
+    const tag = match[0];
+    const id = tag.match(/id="([^"]+)"/)?.[1] ?? "semantic icon button";
+    assert.match(tag, /aria-label="[^"]+"/, `${id}: accessible name`);
+    assert.match(tag, /title="[^"]+"/, `${id}: tooltip`);
+  }
+
+  for (const [id, icon, label] of [
+    ["item-calendar-prev", "chevron-left", "Previous month"],
+    ["item-calendar-next", "chevron-right", "Next month"],
+    ["graph-edge-calendar-prev", "chevron-left", "Previous month"],
+    ["graph-edge-calendar-next", "chevron-right", "Next month"],
+  ]) {
+    assert.match(
+      index,
+      new RegExp(
+        `id="${id}"[^>]*data-semantic-icon="${icon}"[^>]*aria-label="${label}"[^>]*title="${label}"`,
+      ),
+    );
+  }
+
+  assert.match(
+    composer,
+    /class="semantic-icon"[\\s\\S]*stroke="currentColor"[\\s\\S]*iconPathData\\("close"\\)/,
+  );
+  assert.match(
+    composer,
+    /aria-label="Approve occurrence" title="Approve occurrence"[\\s\\S]*class="semantic-icon"[\\s\\S]*iconPathData\\("check"\\)/,
   );
 });
 
 test("every persistent toolbar button family has an executable interaction path", async () => {
-  const [index, app, timeline, world, factory, investigation] = await Promise.all([
+  const [index, app, timeline, world, layoutInspector, investigation] = await Promise.all([
     readFile(indexUrl, "utf8"),
     readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
     readFile(worldUrl, "utf8"),
-    readFile(factoryUrl, "utf8"),
+    readFile(layoutInspectorUrl, "utf8"),
     readFile(new URL("../site/ui/investigation-workspace.ts", import.meta.url), "utf8"),
   ]);
 
@@ -293,7 +427,10 @@ test("every persistent toolbar button family has an executable interaction path"
   assert.match(app, /autoToggle\.addEventListener\("click"[\s\S]*toggle-auto/);
   assert.match(timeline, /orientationToggle\?\.addEventListener\("click"[\s\S]*setOrientation/);
   assert.match(world, /world-camera-control[\s\S]*addEventListener\("click"[\s\S]*action\(\)/);
-  assert.match(factory, /world-layout-control[\s\S]*addEventListener\("click"[\s\S]*action\(\)/);
+  assert.match(
+    layoutInspector,
+    /world-layout-control[\s\S]*addEventListener\("click"[\s\S]*options\.primaryAction\(\)/,
+  );
   assert.match(investigation, /toggle\.addEventListener\("click"[\s\S]*onRequestOpen\(!open\)/);
   assert.match(investigation, /Close investigation methodology/);
 });

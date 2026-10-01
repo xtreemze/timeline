@@ -148,9 +148,7 @@ test("agent proposal rejects unresolved investigative composer syntax", () => {
 
   assert.equal(result.valid, false);
   assert.ok(
-    result.diagnostics.some(
-      (finding) => finding.code === "composer-investigative-unresolved",
-    ),
+    result.diagnostics.some((finding) => finding.code === "composer-investigative-unresolved"),
   );
 });
 

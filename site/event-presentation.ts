@@ -255,7 +255,10 @@ const ICON_PATHS: Record<string, string[]> = Object.freeze({
   minimize: ["M3 8h5V3", "M21 8h-5V3", "M3 16h5v5", "M21 16h-5v5"],
   "zoom-out": ["M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16z", "M8 11h6", "m21 21-4.35-4.35"],
   "zoom-in": ["M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16z", "M8 11h6", "M11 8v6", "m21 21-4.35-4.35"],
-  edit: ["M4 20h4L19 9l-4-4L4 16z", "m13-13 4 4"],
+  edit: [
+    "M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z",
+    "m15 5 4 4",
+  ],
   fit: ["M8 4H4v4", "M16 4h4v4", "M8 20H4v-4", "M16 20h4v-4"],
   play: ["M8 5 19 12 8 19z"],
   pause: ["M8 5v14", "M16 5v14"],
@@ -348,7 +351,7 @@ export function createIcon(name: string, options?: IconOptions): SVGSVGElement {
   svg.setAttribute("height", String(options?.size || 16));
   svg.setAttribute("fill", "none");
   svg.setAttribute("stroke", "currentColor");
-  svg.setAttribute("stroke-width", "1.8");
+  svg.setAttribute("stroke-width", "2");
   svg.setAttribute("stroke-linecap", "round");
   svg.setAttribute("stroke-linejoin", "round");
   svg.setAttribute("aria-hidden", "true");

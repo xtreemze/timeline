@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { WorldProjectionView } from "../site/world/world-projection-view.ts";
+import { canonicalSemanticHueColor } from "../src/presentation/semantic-color.ts";
 
 function harness() {
   const calls = [];
@@ -163,19 +164,144 @@ test("application model projects timed and timeless relationships into one world
   assert.ok(timelessInstances.every((instance) => instance.geographicAnchors.length === 0));
 });
 
-test("linked timeline category color is carried into world relationship presentation", () => {
+test("linked timeline category and tag colors carry into world edge and node semantics", () => {
   const { view, getProjection } = harness();
   view.setModel({
     ...model,
     categories: [{ id: "meeting-category", color: "#b42318" }],
-    items: [{ id: "meeting-item", categoryId: "meeting-category" }],
+    items: [
+      {
+        id: "meeting-item",
+        categoryId: "meeting-category",
+        tags: [{ label: "kinship", color: "not-a-color", hue: 118 }],
+      },
+    ],
     relationships: model.relationships.map((relationship) =>
       relationship.id === "meeting" ? { ...relationship, itemIds: ["meeting-item"] } : relationship,
     ),
   });
 
-  const meeting = getProjection().edges.find((edge) => edge.id === "meeting");
+  const projection = getProjection();
+  const meeting = projection.edges.find((edge) => edge.id === "meeting");
   assert.equal(meeting.style?.categoryColor, "#b42318");
+
+  const expectedBorder = canonicalSemanticHueColor(118);
+  for (const entityId of ["alice", "bob"]) {
+    const instance = projection.instances.find((candidate) => candidate.canonicalId === entityId);
+    assert.equal(
+      instance?.style?.fillColor,
+      canonicalSemanticHueColor("#b42318"),
+      `${entityId} inherits category fill`,
+    );
+    assert.equal(instance?.style?.borderColor, expectedBorder, `${entityId} inherits tag border`);
+  }
+});
+
+test("authored entity fill and border remain authoritative over occurrence semantics", () => {
+  const { view, getProjection } = harness();
+  view.setModel({
+    ...model,
+    entities: model.entities.map((entity) =>
+      entity.id === "alice"
+        ? {
+            ...entity,
+            attributes: {
+              style: {
+                fillColor: "#112233",
+                borderColor: "#445566",
+              },
+            },
+          }
+        : entity,
+    ),
+    categories: [{ id: "meeting-category", color: "#b42318" }],
+    items: [
+      {
+        id: "meeting-item",
+        categoryId: "meeting-category",
+        tags: [{ label: "kinship", hue: 118 }],
+      },
+    ],
+    relationships: model.relationships.map((relationship) =>
+      relationship.id === "meeting" ? { ...relationship, itemIds: ["meeting-item"] } : relationship,
+    ),
+  });
+
+  const projection = getProjection();
+  const alice = projection.instances.find((candidate) => candidate.canonicalId === "alice");
+  const bob = projection.instances.find((candidate) => candidate.canonicalId === "bob");
+
+  assert.equal(alice?.style?.fillColor, "#112233");
+  assert.equal(alice?.style?.borderColor, "#445566");
+  assert.equal(bob?.style?.fillColor, canonicalSemanticHueColor("#b42318"));
+  assert.equal(bob?.style?.borderColor, canonicalSemanticHueColor(118));
+});
+
+test("secondary category hue supplies a semantic border when no tag hue is present", () => {
+  const { view, getProjection } = harness();
+  view.setModel({
+    ...model,
+    categories: [
+      { id: "primary", color: "#b42318" },
+      { id: "secondary", color: "#287a42" },
+    ],
+    items: [
+      {
+        id: "meeting-item",
+        categoryId: "primary",
+        categoryIds: ["primary", "secondary"],
+      },
+    ],
+    relationships: model.relationships.map((relationship) =>
+      relationship.id === "meeting" ? { ...relationship, itemIds: ["meeting-item"] } : relationship,
+    ),
+  });
+
+  const bob = getProjection().instances.find((candidate) => candidate.canonicalId === "bob");
+  assert.equal(bob?.style?.fillColor, canonicalSemanticHueColor("#b42318"));
+  assert.equal(bob?.style?.borderColor, canonicalSemanticHueColor("#287a42"));
+});
+
+test("conflicting ambient occurrence hues do not arbitrarily recolor a shared entity", () => {
+  const { view, getProjection } = harness();
+  view.setModel({
+    ...model,
+    categories: [
+      { id: "meeting-category", color: "#b42318" },
+      { id: "timeless-category", color: "hsl(145 64% 50%)" },
+    ],
+    items: [
+      { id: "meeting-item", categoryId: "meeting-category" },
+      { id: "timeless-item", categoryId: "timeless-category" },
+    ],
+    relationships: model.relationships.map((relationship) =>
+      relationship.id === "meeting"
+        ? { ...relationship, itemIds: ["meeting-item"] }
+        : { ...relationship, itemIds: ["timeless-item"] },
+    ),
+  });
+
+  let projection = getProjection();
+  const alice = projection.instances.find((candidate) => candidate.canonicalId === "alice");
+  const bob = projection.instances.find((candidate) => candidate.canonicalId === "bob");
+  const charlie = projection.instances.find((candidate) => candidate.canonicalId === "charlie");
+
+  assert.equal(alice?.style, undefined, "shared entity keeps authored/type fallback on semantic conflict");
+  assert.equal(bob?.style?.fillColor, canonicalSemanticHueColor("#b42318"));
+  assert.equal(
+    charlie?.style?.fillColor,
+    canonicalSemanticHueColor("hsl(145 64% 50%)"),
+    "portable HSL category hue reaches World node semantics",
+  );
+
+  view.setFocus("timeless-item");
+  projection = getProjection();
+  const focusedAlice = projection.instances.find((candidate) => candidate.canonicalId === "alice");
+  assert.equal(
+    focusedAlice?.style?.fillColor,
+    canonicalSemanticHueColor("hsl(145 64% 50%)"),
+    "focused occurrence semantics resolve the otherwise ambiguous shared node",
+  );
 });
 
 test("timeline window controls world activation through the shared temporal index", () => {

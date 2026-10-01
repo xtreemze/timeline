@@ -41,6 +41,77 @@ test("occurrence sentence maps grammar into canonical authoring slots", () => {
   assert.deepEqual(parsed.diagnostics, []);
 });
 
+test("occurrence options preserve multiple categories and tags with a primary compatibility category", () => {
+  const sentence = formatOccurrenceComposition({
+    subjectId: "alice",
+    predicate: "meets",
+    objectId: "bob",
+    categories: ["Observation", "Conflict"],
+    tags: ["work", "urgent"],
+  });
+  assert.equal(
+    sentence,
+    "@alice meets @bob [categories: Observation|Conflict, tags: work|urgent]",
+  );
+
+  const parsed = parseOccurrenceSentence(sentence);
+  assert.deepEqual(parsed.options.categories, ["Observation", "Conflict"]);
+  assert.equal(parsed.options.category, "Observation");
+  assert.deepEqual(parsed.options.tags, ["work", "urgent"]);
+
+  assert.deepEqual(
+    composerEditableSections(sentence)
+      .filter((section) => section.kind === "category")
+      .map((section) => [section.index, sentence.slice(section.start, section.end)]),
+    [
+      [0, "Observation"],
+      [1, "Conflict"],
+    ],
+  );
+});
+
+test("category and tag suggestion lists expose selected values for keyboard multi-select", () => {
+  const categories = [
+    { id: "observation", name: "Observation" },
+    { id: "conflict", name: "Conflict" },
+    { id: "decision", name: "Decision" },
+  ];
+  const tags = ["work", "urgent", "travel"];
+
+  const categorySentence = "@alice meets @bob [categories: Observation|Conflict]";
+  const categorySuggestions = occurrenceComposerSuggestions(categorySentence, {
+    entities: [],
+    places: [],
+    categories,
+    tags,
+    cursorOffset: categorySentence.indexOf("Conflict") + "Conflict".length,
+  }).filter((suggestion) => suggestion.kind === "category");
+  assert.equal(
+    categorySuggestions.find((suggestion) => suggestion.label === "Observation")?.selected,
+    true,
+  );
+  assert.equal(
+    categorySuggestions.find((suggestion) => suggestion.label === "Conflict")?.selected,
+    true,
+  );
+  assert.equal(
+    categorySuggestions.find((suggestion) => suggestion.label === "Decision")?.selected,
+    false,
+  );
+
+  const tagSentence = "@alice meets @bob [categories: Observation|Conflict, tags: work|urgent]";
+  const tagSuggestions = occurrenceComposerSuggestions(tagSentence, {
+    entities: [],
+    places: [],
+    categories,
+    tags,
+    cursorOffset: tagSentence.indexOf("urgent") + "urgent".length,
+  }).filter((suggestion) => suggestion.kind === "tag");
+  assert.equal(tagSuggestions.find((suggestion) => suggestion.label === "work")?.selected, true);
+  assert.equal(tagSuggestions.find((suggestion) => suggestion.label === "urgent")?.selected, true);
+  assert.equal(tagSuggestions.find((suggestion) => suggestion.label === "travel")?.selected, false);
+});
+
 test("quoted grammar words remain entity and place text instead of structural clauses", () => {
   const noContext = parseOccurrenceSentence('Alice reads "Meeting at Dawn"');
   assert.equal(noContext.stage, "complete");
@@ -399,6 +470,78 @@ test("composer identifies the grammatical section under the caret", () => {
   assert.equal(composerCursorSection(sentence, sentence.indexOf("Deep Forest") + 3).kind, "place");
   assert.equal(composerCursorSection(sentence, sentence.indexOf("2026-09-28") + 2).kind, "time");
   assert.equal(composerCursorSection(sentence, sentence.indexOf("[category") + 2).kind, "options");
+});
+
+test("caret after an open terminal option list remains in options for keyboard multi-select", () => {
+  for (const sentence of [
+    "@alice meets @bob [categories: ]",
+    "@alice meets @bob [categories: Observation|]",
+    "@alice meets @bob [categories: Observation, tags: ]",
+  ]) {
+    assert.equal(composerCursorSection(sentence, sentence.length).kind, "options", sentence);
+  }
+
+  for (const sentence of [
+    "@alice meets @bob [categories: Observation]",
+    "@alice meets @bob [categories: Observation|Conflict, tags: work|urgent]",
+  ]) {
+    assert.equal(composerCursorSection(sentence, sentence.length).kind, "tail", sentence);
+  }
+
+  const sentence = "@alice meets @bob [categories: ]";
+  const suggestions = occurrenceComposerSuggestions(sentence, {
+    entities: [],
+    places: [],
+    categories: [
+      { id: "observation", name: "Observation" },
+      { id: "conflict", name: "Conflict" },
+    ],
+    tags: ["work", "urgent"],
+    cursorOffset: sentence.length,
+  });
+
+  assert.deepEqual(
+    suggestions.map((suggestion) => [suggestion.kind, suggestion.label, suggestion.multiSelect]),
+    [
+      ["category", "Observation", true],
+      ["category", "Conflict", true],
+    ],
+  );
+});
+
+test("completed option values keep remaining multi-select choices available", () => {
+  const categories = [
+    { id: "observation", name: "Observation" },
+    { id: "conflict", name: "Conflict" },
+  ];
+  const categoryValue = "@alice meets @bob [category: Observation]";
+  assert.deepEqual(
+    occurrenceComposerSuggestions(categoryValue, {
+      entities: [],
+      places: [],
+      categories,
+      cursorOffset: categoryValue.length - 1,
+    }).map((suggestion) => [suggestion.label, suggestion.selected]),
+    [
+      ["Observation", true],
+      ["Conflict", false],
+    ],
+  );
+
+  const tagValue = "@alice meets @bob [category: Observation, tags: work]";
+  assert.deepEqual(
+    occurrenceComposerSuggestions(tagValue, {
+      entities: [],
+      places: [],
+      categories,
+      tags: ["work", "urgent"],
+      cursorOffset: tagValue.length - 1,
+    }).map((suggestion) => [suggestion.label, suggestion.selected]),
+    [
+      ["work", true],
+      ["urgent", false],
+    ],
+  );
 });
 
 test("composer stays on the current grammatical token until whitespace advances it", () => {
@@ -1270,4 +1413,117 @@ test("live composer preserves project tags for option completion", async () => {
   assert.match(source, /tags:\s*Object\.freeze\(\[\.\.\.\(data\.tags \?\? \[\]\)\]\)/);
   assert.match(source, /composerEditableSections\(this\.value\)/);
   assert.match(source, /editSentenceSection\(section\)/);
+});
+
+
+test("composer-local glyphs preserve the shared Lucide construction contract", async () => {
+  const source = await readFile(
+    new URL("../site/components/occurrence-composer.ts", import.meta.url),
+    "utf8",
+  );
+  assert.doesNotMatch(source, /stroke-width:\s*1\.8/);
+  assert.match(
+    source,
+    /\.preview-node svg\s*\{[^}]*stroke:\s*currentColor;[^}]*stroke-width:\s*2;[^}]*stroke-linecap:\s*round;[^}]*stroke-linejoin:\s*round;/s,
+  );
+  assert.match(source, /iconPathData\("check"\)/);
+  assert.match(source, /iconPathData\("close"\)/);
+  assert.doesNotMatch(source, />×<\/button>/);
+});
+
+test("composer suggestions preserve authored semantic icon and color metadata", () => {
+  const options = {
+    entities: [
+      {
+        id: "alice",
+        name: "Alice",
+        type: "person",
+        icon: "person",
+        attributes: { style: { color: "#42658a" } },
+      },
+      { id: "bob", name: "Bob", type: "person", icon: "child" },
+    ],
+    places: [{ id: "office", name: "Office", icon: "place", color: "#2f6f5f" }],
+    categories: [
+      { id: "incident", name: "Incident", color: "#b42318", icon: "evidence" },
+    ],
+    predicates: [{ name: "warns", icon: "danger", color: "#b54708" }],
+    tags: [{ label: "urgent", icon: "danger", color: "hsl(28 64% 44%)" }],
+  };
+
+  const entity = occurrenceComposerSuggestions("", options).find(
+    (suggestion) => suggestion.kind === "entity" && suggestion.label === "Alice",
+  );
+  assert.equal(entity?.icon, "person");
+  assert.equal(entity?.color, "#42658a");
+
+  const predicate = occurrenceComposerSuggestions("@alice ", options).find(
+    (suggestion) => suggestion.kind === "predicate" && suggestion.label === "warns",
+  );
+  assert.equal(predicate?.icon, "danger");
+  assert.equal(predicate?.color, "#b54708");
+
+  const contextualPlace = occurrenceComposerSuggestions("@alice warns @bob", options).find(
+    (suggestion) => suggestion.kind === "place" && suggestion.label === "Office",
+  );
+  assert.equal(contextualPlace?.icon, "place");
+  assert.equal(contextualPlace?.color, "#2f6f5f");
+
+  const placeDraft = "@alice warns @bob at Off";
+  const cursorPlace = occurrenceComposerSuggestions(placeDraft, {
+    ...options,
+    cursorOffset: placeDraft.length,
+  }).find((suggestion) => suggestion.kind === "place" && suggestion.label === "Office");
+  assert.equal(cursorPlace?.icon, "place");
+  assert.equal(cursorPlace?.color, "#2f6f5f");
+
+  const category = occurrenceComposerSuggestions(
+    "@alice warns @bob [category: ",
+    options,
+  ).find((suggestion) => suggestion.kind === "category" && suggestion.label === "Incident");
+  assert.equal(category?.icon, "evidence");
+  assert.equal(category?.color, "#b42318");
+
+  const tag = occurrenceComposerSuggestions(
+    "@alice warns @bob [tags: ",
+    options,
+  ).find((suggestion) => suggestion.kind === "tag" && suggestion.label === "urgent");
+  assert.equal(tag?.icon, "danger");
+  assert.equal(tag?.color, "hsl(28 64% 44%)");
+});
+test("composer suggestion rows and deck consume semantic styling", async () => {
+  const [source, app] = await Promise.all([
+    readFile(new URL("../site/components/occurrence-composer.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(source, /data-semantic-color=\$\{String\(Boolean\(deckAccent\)\)\}/);
+  assert.match(source, /--composer-semantic-accent/);
+  assert.match(source, /class="composer-heading-icon"/);
+  assert.match(source, /--suggestion-accent/);
+  assert.match(source, /class="option-color"/);
+  assert.match(source, /\.option\[data-semantic-color="true"\] \.option-icon/);
+  assert.match(source, /background: color-mix\(in srgb, var\(--suggestion-accent\) 9%/);
+  assert.match(source, /normalizeComposerSemanticColor\(suggestion\.color\)/);
+  assert.match(app, /function composerPredicateOptions\(\)/);
+  assert.match(app, /function composerTagOptions\(\)/);
+  assert.match(app, /tags: composerTagOptions\(\)/);
+  assert.match(app, /predicates: composerPredicateOptions\(\)/);
+  assert.match(source, /const semanticSuggestion = this\.previewSuggestion \?\? null;/);
+  assert.match(source, /this\.selectionContext\?\.appearance\?\.color/);
+  assert.match(source, /occurrenceAccent \?\?/);
+  assert.match(app, /const selectedCategory = selectedItem/);
+  assert.match(app, /appearance: \{/);
+});
+
+test("composer-local suggestion glyphs preserve the shared Lucide construction contract", async () => {
+  const source = await readFile(
+    new URL("../site/components/occurrence-composer.ts", import.meta.url),
+    "utf8",
+  );
+  assert.doesNotMatch(source, /stroke-width:\s*1\.8/);
+  assert.match(
+    source,
+    /\.option-icon svg\s*\{[^}]*stroke:\s*currentColor;[^}]*stroke-width:\s*2;[^}]*stroke-linecap:\s*round;[^}]*stroke-linejoin:\s*round;/s,
+  );
 });

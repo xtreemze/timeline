@@ -6,6 +6,15 @@
  * defaults; anything invalid or missing falls back to them.
  */
 
+import {
+  type SemanticColorSource,
+  type SemanticColorState,
+  normalizeSemanticColorSource,
+  semanticColorHex,
+  semanticHue,
+  semanticThemeForSurface,
+} from "../presentation/semantic-color.ts";
+
 export type WorldNodeShape = "circle" | "square" | "diamond" | "hexagon" | "pin";
 
 /** Theme colours, resolved by the host from its light/dark tokens. */
@@ -46,10 +55,14 @@ export const WORLD_NODE_SCALE = 1;
 export const WORLD_ENTITY_MIN_HIT_RADIUS_PX = 22;
 /** Full pixel floor for visible world strokes across device pixel ratios. */
 export const WORLD_MIN_VISIBLE_STROKE_PX = 1;
+/** Slightly stronger default entity outline; authored widths still win. */
+export const WORLD_NODE_DEFAULT_BORDER_WIDTH_PX = 2.5;
 
 export interface WorldNodeStyle {
   readonly fill: string;
   readonly border: string;
+  /** Theme-neutral glyph colour; quiet normally and high-contrast only when active. */
+  readonly foreground: string;
   readonly borderWidth: number;
   readonly shape: WorldNodeShape;
   /** Icon name from the shared icon set, or null for no glyph. */
@@ -67,7 +80,6 @@ export interface WorldEdgeStyle {
   readonly arrow: boolean;
 }
 
-const HEX_COLOR = /^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 const SHAPES: readonly WorldNodeShape[] = ["circle", "square", "diamond", "hexagon", "pin"];
 
 /**
@@ -93,14 +105,15 @@ export function worldNodeShapeVisualRadiusScale(shape: WorldNodeShape): number {
  * force layout, and relationship direction geometry must derive from this
  * footprint so they cannot drift independently.
  *
- * The border itself supplies raster safety around the vector body. Borderless
- * markers reserve one pixel for antialiasing so their atlas edge cannot clip.
+ * The hard collision footprint is exactly the rendered shape extent plus the
+ * authored border. There is no hidden collision padding; connectivity spacing
+ * is modeled separately by the force scene.
  */
 export function worldNodeStyleFootprintRadiusPx(
   style: Pick<WorldNodeStyle, "radius" | "borderWidth" | "shape">,
 ): number {
   const bodyRadius = style.radius * worldNodeShapeVisualRadiusScale(style.shape);
-  return bodyRadius + Math.max(1, style.borderWidth);
+  return bodyRadius + Math.max(0, style.borderWidth);
 }
 
 function record(value: unknown): Readonly<Record<string, unknown>> | null {
@@ -109,8 +122,8 @@ function record(value: unknown): Readonly<Record<string, unknown>> | null {
     : null;
 }
 
-function color(value: unknown): string | null {
-  return typeof value === "string" && HEX_COLOR.test(value.trim()) ? value.trim() : null;
+function color(value: unknown): SemanticColorSource | null {
+  return normalizeSemanticColorSource(value);
 }
 
 function number(value: unknown, min: number, max: number): number | null {
@@ -125,6 +138,29 @@ function text(value: unknown, max = 200): string | null {
 
 function styleOf(attributes: unknown): Readonly<Record<string, unknown>> {
   return record(record(attributes)?.["style"]) ?? {};
+}
+
+function semanticState(
+  selected: boolean | undefined,
+  emphasized: boolean | undefined,
+  subdued = false,
+): SemanticColorState {
+  if (selected || emphasized) return "active";
+  return subdued ? "subdued" : "ambient";
+}
+
+function semanticPresentationColor(
+  value: SemanticColorSource,
+  palette: WorldGraphPalette,
+  state: SemanticColorState,
+  fallbackHue = 30,
+): string {
+  return semanticColorHex(
+    value,
+    semanticThemeForSurface(palette.paper),
+    state,
+    fallbackHue,
+  );
 }
 
 function defaultNodeFill(type: string, palette: WorldGraphPalette): string {
@@ -142,7 +178,7 @@ function defaultNodeFill(type: string, palette: WorldGraphPalette): string {
     case "organization":
       return "#6b526f";
     default:
-      return palette.ink === WORLD_DARK_PALETTE.ink ? "#5d6b82" : palette.ink;
+      return "#5d6b82";
   }
 }
 
@@ -177,7 +213,9 @@ function worldNodeMetrics(input: WorldNodeStyleInput): {
     number(own["radius"], 4, 32) ?? (authoredDiameter === null ? null : authoredDiameter / 2);
   const resolvedRadius = Math.round(authoredRadius ?? baseRadius * WORLD_NODE_SCALE);
   const authoredBorderWidth =
-    number(own["borderWidth"], 0, 8) ?? number(own["strokeWidth"], 0, 8) ?? 2;
+    number(own["borderWidth"], 0, 8) ??
+    number(own["strokeWidth"], 0, 8) ??
+    WORLD_NODE_DEFAULT_BORDER_WIDTH_PX;
   return Object.freeze({
     // Interaction state is presentation-only. Never feed hover/selection into
     // visible geometry or collision/force footprints.
@@ -203,7 +241,7 @@ function worldNodeDisplayMetrics(input: WorldNodeStyleInput): {
   const metrics = worldNodeMetrics(input);
   const shape = worldNodeShape(input);
   const shapeScale = worldNodeShapeVisualRadiusScale(shape);
-  const footprintBorder = Math.max(1, metrics.borderWidth);
+  const footprintBorder = Math.max(0, metrics.borderWidth);
   const minimumBodyRadius = Math.max(
     0,
     (WORLD_ENTITY_MIN_HIT_RADIUS_PX - footprintBorder) / shapeScale,
@@ -235,23 +273,34 @@ export function worldNodeStyle(
   const type = (input.type ?? "").toLowerCase();
   const own = styleOf(input.attributes);
   const metrics = worldNodeDisplayMetrics(input);
-  const fill =
+  const fallbackSource = defaultNodeFill(type, palette);
+  const fallbackHue = semanticHue(fallbackSource, 220);
+  const fillSource =
     color(own["fillColor"]) ??
     color(own["fill"]) ??
     color(own["backgroundColor"]) ??
     color(own["color"]) ??
-    defaultNodeFill(type, palette);
-  const border =
+    fallbackSource;
+  const fillHue = semanticHue(fillSource, fallbackHue);
+  const borderSource =
     color(own["borderColor"]) ??
     color(own["border"]) ??
     color(own["stroke"]) ??
     color(own["strokeColor"]) ??
-    palette.paper;
+    fillSource;
+  const state = semanticState(input.selected, input.emphasized);
+  const fill = semanticPresentationColor(fillSource, palette, state, fallbackHue);
+  const border = semanticPresentationColor(
+    borderSource,
+    palette,
+    state === "active" ? "active" : "subdued",
+    fillHue,
+  );
   return Object.freeze({
-    // Interaction emphasis is applied by the renderer as color/opacity only;
-    // semantic marker geometry remains invariant.
+    // Interaction changes only chroma/lightness; semantic hue and geometry stay invariant.
     fill,
     border,
+    foreground: state === "active" ? palette.paper : palette.line,
     borderWidth: metrics.borderWidth,
     shape: metrics.shape,
     icon: text(own["icon"], 48) ?? (type || null),
@@ -313,30 +362,41 @@ export function worldPlaceFootprintRadiusPx(placeStyle: unknown): number {
 /** Place anchors use the same marker grammar as graph nodes without becoming semantic graph nodes. */
 export function worldPlaceStyle(
   placeStyle: unknown,
-  _selected: boolean,
+  selected: boolean,
   palette: WorldGraphPalette,
-  _emphasized = false,
+  emphasized = false,
 ): WorldNodeStyle {
   const own = record(placeStyle) ?? {};
   const marker = record(own["marker"]) ?? {};
   const metrics = worldPlaceMarkerMetrics(placeStyle);
-  const fill =
+  const semanticSource =
+    color(marker["color"]) ??
+    color(own["color"]) ??
+    defaultNodeFill("place", palette);
+  const fallbackHue = semanticHue(semanticSource, 145);
+  const fillSource =
     color(marker["fillColor"]) ??
     color(marker["fill"]) ??
     color(own["fillColor"]) ??
     color(own["fill"]) ??
-    color(marker["color"]) ??
-    defaultNodeFill("place", palette);
-  const border =
+    semanticSource;
+  const fillHue = semanticHue(fillSource, fallbackHue);
+  const borderSource =
     color(marker["borderColor"]) ??
     color(marker["stroke"]) ??
     color(own["borderColor"]) ??
     color(own["stroke"]) ??
-    color(marker["color"]) ??
-    palette.paper;
+    semanticSource;
+  const state = semanticState(selected, emphasized);
   return Object.freeze({
-    fill,
-    border,
+    fill: semanticPresentationColor(fillSource, palette, state, fallbackHue),
+    border: semanticPresentationColor(
+      borderSource,
+      palette,
+      state === "active" ? "active" : "subdued",
+      fillHue,
+    ),
+    foreground: state === "active" ? palette.paper : palette.line,
     borderWidth: metrics.borderWidth,
     shape: metrics.shape,
     icon: text(marker["icon"] ?? own["icon"], 48) ?? "place",
@@ -390,10 +450,19 @@ export function worldEdgeStyle(
     number(own["strokeWidth"], 0.5, 10) ??
     number(own["lineWidth"], 0.5, 10) ??
     1;
+  const state = semanticState(
+    input.selected,
+    input.emphasized,
+    input.subdued === true || input.inactive === true,
+  );
   return Object.freeze({
-    // Interaction emphasis is renderer-only so edge geometry/routing never
-    // changes on hover or selection.
-    color: (input.subdued || input.inactive) && !input.selected ? palette.muted : semanticColor,
+    // Interaction changes contrast only; routing and semantic hue stay invariant.
+    color: semanticPresentationColor(
+      semanticColor,
+      palette,
+      state,
+      semanticHue(semanticEdgeColor(input.predicate ?? "", palette), 212),
+    ),
     width: authoredWidth,
     dashed:
       lineStyle === "dashed" ||

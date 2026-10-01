@@ -64,12 +64,29 @@ function weightedGlobeEasing(progress: number): number {
 }
 
 type GlobeControllerEvent = Parameters<InstanceType<typeof GlobeController>["handleEvent"]>[0];
+type GlobeControllerCenterEvent = Parameters<InstanceType<typeof GlobeController>["getCenter"]>[0];
+
+function globeEventTimestamp(event: GlobeControllerCenterEvent): number {
+  const candidate = event as GlobeControllerCenterEvent & {
+    readonly timeStamp?: unknown;
+    readonly srcEvent?: { readonly timeStamp?: unknown };
+  };
+  const timestamp = Number(candidate.srcEvent?.timeStamp ?? candidate.timeStamp);
+  if (Number.isFinite(timestamp)) return timestamp;
+  return globalThis.performance?.now?.() ?? Date.now();
+}
 
 interface TouchBearingConstraintState {
   bearing: number | null;
   singleTouchPan: boolean;
   awaitingTransitionEnd: boolean;
   inTransition: boolean;
+}
+
+interface WeightedPanSample {
+  x: number;
+  y: number;
+  time: number;
 }
 
 function pointerTypeForGlobeEvent(event: GlobeControllerEvent): string | undefined {
@@ -84,15 +101,18 @@ function pointerTypeForGlobeEvent(event: GlobeControllerEvent): string | undefin
 }
 
 /**
- * deck.gl owns globe gesture recognition and weighted fling physics. Lūm adds
- * one mobile geographic convention: a one-finger touch pan may change
- * longitude/latitude, but it must not introduce camera roll. Preserve the
- * bearing present at touch-down through direct manipulation and any resulting
- * inertia transition. Explicit two-finger rotation, mouse rotation and
- * keyboard rotation remain untouched.
+ * deck.gl owns globe gesture recognition and globe projection. Lūm filters
+ * ordinary direct pan through the shared weighted response, then derives its
+ * release velocity from that same rendered path including the lift timestamp.
+ * This avoids handing a slowed/stationary pointer to deck.gl's older five-move
+ * history. A one-finger touch pan may change longitude/latitude but must not
+ * introduce camera roll. Explicit rotation and multi-touch remain deck-native.
  */
 class TimelineWeightedGlobeController extends GlobeController {
   readonly #touchBearing: TouchBearingConstraintState;
+  #weightedPanCenter: [number, number] | null = null;
+  #weightedPanLastTime = 0;
+  #weightedPanSamples: WeightedPanSample[] = [];
 
   constructor(options: ConstructorParameters<typeof GlobeController>[0]) {
     const touchBearing: TouchBearingConstraintState = {
@@ -139,6 +159,134 @@ class TimelineWeightedGlobeController extends GlobeController {
     });
   }
 
+  #clearWeightedPan(): void {
+    this.#weightedPanCenter = null;
+    this.#weightedPanLastTime = 0;
+    this.#weightedPanSamples = [];
+  }
+
+  #appendWeightedPanSample(center: [number, number], time: number): void {
+    this.#weightedPanSamples.push({ x: center[0], y: center[1], time });
+    if (this.#weightedPanSamples.length > 24) {
+      this.#weightedPanSamples.splice(0, this.#weightedPanSamples.length - 24);
+    }
+  }
+
+  /**
+   * deck.gl 9.4 applies the pointer center directly during globe pan. Filter
+   * only ordinary one-pointer pan through Lūm's shared response curve. Its
+   * globe controller records the resulting camera states for release inertia,
+   * so the fling naturally continues from the weighted path without a second
+   * inertia implementation. Rotation and multi-touch remain deck-native.
+   */
+  override getCenter(event: GlobeControllerCenterEvent): [number, number] {
+    const raw = super.getCenter(event);
+
+    if (event.type === "panstart") {
+      const candidate = event as GlobeControllerCenterEvent & {
+        readonly rightButton?: boolean;
+      };
+      const directPan = !candidate.rightButton && !this.isFunctionKeyPressed(event);
+      if (!directPan) {
+        this.#clearWeightedPan();
+        return raw;
+      }
+
+      const now = globeEventTimestamp(event);
+      this.#weightedPanCenter = raw;
+      this.#weightedPanLastTime = now;
+      this.#weightedPanSamples = [];
+      this.#appendWeightedPanSample(raw, now);
+      return raw;
+    }
+
+    const current = this.#weightedPanCenter;
+    if (event.type !== "panmove" || !current) return raw;
+    const now = globeEventTimestamp(event);
+    const response = TimelineMotion.responseForElapsed(now - this.#weightedPanLastTime);
+    this.#weightedPanLastTime = now;
+    const weighted: [number, number] = [
+      current[0] + (raw[0] - current[0]) * response,
+      current[1] + (raw[1] - current[1]) * response,
+    ];
+    this.#weightedPanCenter = weighted;
+    return weighted;
+  }
+
+  protected override _onPanMove(event: GlobeControllerCenterEvent): boolean {
+    if (!this.dragPan || !this.#weightedPanCenter) {
+      return super._onPanMove(event as never);
+    }
+
+    const pos = this.getCenter(event);
+    const newControllerState = this.controllerState.pan({ pos } as never);
+    this.updateViewport(
+      newControllerState,
+      { transitionDuration: 0 },
+      { isDragging: true, isPanning: true },
+    );
+    this.#appendWeightedPanSample(pos, globeEventTimestamp(event));
+    return true;
+  }
+
+  protected override _onPanMoveEnd(event: GlobeControllerCenterEvent): boolean {
+    const center = this.#weightedPanCenter;
+    if (!center) return super._onPanMoveEnd(event as never);
+
+    const releaseTime = globeEventTimestamp(event);
+    this.#appendWeightedPanSample(center, releaseTime);
+    const velocity = TimelineMotion.estimatePointerVectorVelocity(this.#weightedPanSamples);
+
+    if (
+      this.dragPan &&
+      this.inertia > 0 &&
+      velocity.magnitude >= TimelineMotion.STOP_VELOCITY_PX_PER_MS
+    ) {
+      const endPos: [number, number] = [
+        center[0] + TimelineMotion.releaseMomentumDistance(velocity.x, this.inertia),
+        center[1] + TimelineMotion.releaseMomentumDistance(velocity.y, this.inertia),
+      ];
+      const newControllerState = this.controllerState.pan({ pos: endPos } as never).panEnd();
+      this.updateViewport(
+        newControllerState,
+        {
+          ...this._getTransitionProps(),
+          transitionDuration: this.inertia,
+          transitionEasing: TimelineMotion.releaseMomentumEasing,
+        },
+        { isDragging: false, isPanning: true },
+      );
+      return true;
+    }
+
+    const newControllerState = this.controllerState.panEnd();
+    this.updateViewport(newControllerState, null, {
+      isDragging: false,
+      isPanning: false,
+    });
+    return true;
+  }
+
+  protected override updateViewport(
+    newControllerState: unknown,
+    extraProps: Record<string, unknown> | null = null,
+    interactionState: { isDragging?: boolean; isPanning?: boolean } = {},
+  ): void {
+    const isPanRelease =
+      interactionState.isDragging === false &&
+      interactionState.isPanning === true &&
+      extraProps !== null &&
+      Number(extraProps.transitionDuration) > 0;
+
+    super.updateViewport(
+      newControllerState as never,
+      isPanRelease
+        ? ({ ...extraProps, transitionEasing: TimelineMotion.releaseMomentumEasing } as never)
+        : (extraProps as never),
+      interactionState as never,
+    );
+  }
+
   override handleEvent(event: GlobeControllerEvent): boolean {
     if (event.type === "panstart") {
       if (pointerTypeForGlobeEvent(event) === "touch") {
@@ -158,7 +306,13 @@ class TimelineWeightedGlobeController extends GlobeController {
       this.#touchBearing.awaitingTransitionEnd = true;
     }
 
+    if (event.type === "pinchstart" || event.type === "multipanstart") {
+      this.#clearWeightedPan();
+    }
+
     const handled = super.handleEvent(event);
+
+    if (event.type === "panend") this.#clearWeightedPan();
 
     if (endsSingleTouchPan) {
       this.#touchBearing.singleTouchPan = false;

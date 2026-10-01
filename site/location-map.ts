@@ -1,5 +1,11 @@
 import { surfacePointerMayStartDirectManipulation } from "../src/interaction/surface-input-policy.ts";
 import { WORLD_ENTITY_MIN_HIT_RADIUS_PX } from "../src/layout/world-graph-style.ts";
+import {
+  semanticColorHex,
+  semanticHue,
+  type SemanticColorState,
+  type SemanticColorTheme,
+} from "../src/presentation/semantic-color.ts";
 import { Leaflet } from "../src/leaflet-entry.js";
 
 /**
@@ -674,11 +680,26 @@ function styleNumber(value: unknown, fallback: number, min: number, max: number)
   return Number.isFinite(numeric) && numeric >= min && numeric <= max ? numeric : fallback;
 }
 
+function currentSemanticTheme(): SemanticColorTheme {
+  return globalThis.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function mapSemanticColor(
+  value: unknown,
+  fallbackHue: number,
+  state: SemanticColorState,
+): string {
+  return semanticColorHex(value, currentSemanticTheme(), state, fallbackHue);
+}
+
 function markerAppearance(style: MapStyle = {}, fallbackColor = "#315fbd") {
   const marker = style.marker || {};
+  const fallbackHue = semanticHue(fallbackColor, 212);
+  const semanticSource = String(marker.color || fallbackColor);
+  const markerHue = semanticHue(semanticSource, fallbackHue);
   return {
-    color: String(marker.color || fallbackColor),
-    fillColor: String(marker.fillColor || ""),
+    color: mapSemanticColor(semanticSource, fallbackHue, "ambient"),
+    fillColor: mapSemanticColor(marker.fillColor || semanticSource, markerHue, "subdued"),
     opacity: styleNumber(marker.opacity, 1, 0, 1),
     size: styleNumber(
       marker.size,
@@ -705,9 +726,12 @@ function leafletPathStyle(
 ) {
   const path = style.path || {};
   const area = style.area || {};
+  const fallbackHue = semanticHue(fallbackColor, 212);
+  const pathSource = String(path.color || defaults.color || fallbackColor);
+  const pathHue = semanticHue(pathSource, fallbackHue);
   return {
     stroke: typeof path.stroke === "boolean" ? path.stroke : (defaults.stroke ?? true),
-    color: String(path.color || defaults.color || fallbackColor),
+    color: mapSemanticColor(pathSource, fallbackHue, "subdued"),
     weight: styleNumber(path.weight, Number(defaults.weight ?? 3), 0, 24),
     opacity: styleNumber(path.opacity, Number(defaults.opacity ?? 0.9), 0, 1),
     lineCap: path.lineCap || defaults.lineCap,
@@ -715,7 +739,11 @@ function leafletPathStyle(
     dashArray: path.dashArray || defaults.dashArray,
     dashOffset: path.dashOffset || defaults.dashOffset,
     fill: typeof area.fill === "boolean" ? area.fill : (defaults.fill ?? true),
-    fillColor: String(area.fillColor || defaults.fillColor || fallbackColor),
+    fillColor: mapSemanticColor(
+      area.fillColor || defaults.fillColor || pathSource,
+      pathHue,
+      "subdued",
+    ),
     fillOpacity: styleNumber(area.fillOpacity, Number(defaults.fillOpacity ?? 0.12), 0, 1),
     fillRule: area.fillRule || defaults.fillRule,
   };
