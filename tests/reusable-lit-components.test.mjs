@@ -32,6 +32,9 @@ test("reusable retained timeline owns Lit lifecycle without owning scene renderi
   assert.match(source, /render\(\)[\s\S]*return noChange/);
   assert.match(source, /protected abstract createTimelineController/);
   assert.match(source, /ensureTimelineController/);
+  assert.match(source, /disconnectedCallback/);
+  assert.match(source, /releaseTimelineController/);
+  assert.match(source, /connectionGeneration/);
   assert.doesNotMatch(source, /timeline-view\.ts|TimelineViewController|Luum/);
 });
 

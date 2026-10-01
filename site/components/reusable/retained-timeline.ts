@@ -14,6 +14,7 @@ export interface RetainedTimelineController {
  */
 export abstract class RetainedTimelineElement<TController extends object> extends LitElement {
   private controllerInstance: TController | null = null;
+  private connectionGeneration = 0;
 
   override createRenderRoot(): HTMLElement {
     return this;
@@ -44,8 +45,17 @@ export abstract class RetainedTimelineElement<TController extends object> extend
 
   override connectedCallback(): void {
     super.connectedCallback();
+    const generation = ++this.connectionGeneration;
     queueMicrotask(() => {
-      if (this.isConnected) this.ensureTimelineController();
+      if (this.isConnected && generation === this.connectionGeneration) {
+        this.ensureTimelineController();
+      }
     });
+  }
+
+  override disconnectedCallback(): void {
+    this.connectionGeneration += 1;
+    this.releaseTimelineController();
+    super.disconnectedCallback();
   }
 }
