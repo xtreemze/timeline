@@ -114,10 +114,10 @@ function explicitIconCandidate(attributes: unknown): unknown {
   if (!attributes || typeof attributes !== "object" || Array.isArray(attributes)) return null;
   const record = attributes as Record<string, unknown>;
   const style =
-    record.style && typeof record.style === "object" && !Array.isArray(record.style)
-      ? (record.style as Record<string, unknown>)
+    record["style"] && typeof record["style"] === "object" && !Array.isArray(record["style"])
+      ? (record["style"] as Record<string, unknown>)
       : {};
-  return style.icon ?? record.icon ?? null;
+  return style["icon"] ?? record["icon"] ?? null;
 }
 
 export function suggestSemanticIconForPlace(place: {
