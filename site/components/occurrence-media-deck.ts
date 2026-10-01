@@ -217,6 +217,13 @@ export class LuumOccurrenceDeckElement extends LitElement {
     this.blobObjectUrls.clear();
   }
 
+  override connectedCallback(): void {
+    super.connectedCallback();
+    if (this.frames.some((frame) => frame.kind !== "context" && frame.blob)) {
+      this.requestUpdate();
+    }
+  }
+
   override disconnectedCallback(): void {
     if (this.imageTransformFrame) cancelAnimationFrame(this.imageTransformFrame);
     this.imageTransformFrame = 0;
