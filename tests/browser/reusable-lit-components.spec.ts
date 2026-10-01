@@ -45,6 +45,9 @@ test("occurrence media deck uses native non-autoplay audio and video controls", 
       setDeck(input: unknown): void;
     };
     deck.id = "native-media-deck";
+    // The contract is the native control surface, not codec decoding. Keep the
+    // intentionally empty data URLs from racing the component's error fallback.
+    deck.addEventListener("error", (event) => event.stopImmediatePropagation(), true);
     document.body.append(deck);
     deck.setDeck({
       occurrenceId: "occ-media",
