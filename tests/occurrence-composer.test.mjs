@@ -472,6 +472,27 @@ test("composer identifies the grammatical section under the caret", () => {
   assert.equal(composerCursorSection(sentence, sentence.indexOf("[category") + 2).kind, "options");
 });
 
+test("caret after a terminal options bracket remains in options for keyboard multi-select", () => {
+  const sentence = "@alice meets @bob [categories: ]";
+
+  assert.equal(composerCursorSection(sentence, sentence.length).kind, "options");
+
+  const suggestions = occurrenceComposerSuggestions(sentence, {
+    entities: [],
+    places: [],
+    categories: [
+      { id: "observation", name: "Observation" },
+      { id: "conflict", name: "Conflict" },
+    ],
+    tags: ["work", "urgent"],
+    cursorOffset: sentence.length,
+  });
+
+  assert.equal(suggestions[0]?.kind, "category");
+  assert.equal(suggestions[0]?.label, "Observation");
+  assert.equal(suggestions[0]?.multiSelect, true);
+});
+
 test("composer stays on the current grammatical token until whitespace advances it", () => {
   const baseOptions = {
     entities: [
