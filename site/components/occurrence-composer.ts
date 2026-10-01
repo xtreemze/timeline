@@ -930,10 +930,13 @@ export class LuumOccurrenceComposerElement extends LitElement {
       .completion-panel {
         position: fixed;
         position-anchor: --occurrence-composer-input;
-        inset-inline-start: anchor(start);
+        inset-inline-start: auto;
         inset-inline-end: auto;
+        left: anchor(center);
+        right: auto;
         inset-block-end: calc(anchor(top) + 0.38rem);
         inline-size: anchor-size(width);
+        transform: translateX(-50%);
         max-inline-size: 100dvi;
         box-sizing: border-box;
       }
@@ -1349,14 +1352,23 @@ export class LuumOccurrenceComposerElement extends LitElement {
       this.cursorOffset = start;
       input.focus({ preventScroll: true });
       input.setSelectionRange(start, end);
-      requestAnimationFrame(() => {
-        const liveInput = this.renderRoot.querySelector<HTMLInputElement>("input");
-        if (liveInput) {
-          liveInput.setSelectionRange(start, end);
-          this.syncInputDecorationScroll(liveInput);
-        }
-        this.programmaticSelection = false;
-      });
+      let remainingFrames = 3;
+      const reinforceSelection = () => {
+        requestAnimationFrame(() => {
+          const liveInput = this.renderRoot.querySelector<HTMLInputElement>("input");
+          if (liveInput) {
+            liveInput.setSelectionRange(start, end);
+            this.syncInputDecorationScroll(liveInput);
+          }
+          remainingFrames -= 1;
+          if (remainingFrames > 0) {
+            reinforceSelection();
+          } else {
+            this.programmaticSelection = false;
+          }
+        });
+      };
+      reinforceSelection();
     });
   }
 
@@ -1405,19 +1417,9 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const delta =
       shellRect.left + shellRect.width / 2 - (viewportLeft + viewportWidth / 2);
     const maximum = Math.max(0, footer.scrollWidth - footer.clientWidth);
-    const previousSnapType = footer.style.scrollSnapType;
-    footer.style.scrollSnapType = "none";
     footer.scrollTo({
       left: Math.max(0, Math.min(maximum, footer.scrollLeft + delta)),
       behavior: "auto",
-    });
-    void footer.offsetWidth;
-    requestAnimationFrame(() => {
-      if (previousSnapType) {
-        footer.style.scrollSnapType = previousSnapType;
-      } else {
-        footer.style.removeProperty("scroll-snap-type");
-      }
     });
   }
 
@@ -1772,6 +1774,17 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.cursorOffset = next;
     this.resetSuggestionSelection();
     this.requestUpdate();
+  }
+
+  private onBeforeInput(event: InputEvent): void {
+    if (event.isComposing || this.composing || event.inputType !== "insertText" || event.data !== " ") {
+      return;
+    }
+    const suggestions = this.suggestions().slice(0, 7);
+    const activeSuggestion = suggestions[this.activeSuggestion] ?? suggestions[0];
+    if (!activeSuggestion?.multiSelect) return;
+    event.preventDefault();
+    this.toggleMultiSelectSuggestion(activeSuggestion);
   }
 
   private onInput(event: Event): void {
@@ -2402,6 +2415,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
               .value=${this.value}
               @compositionstart=${() => this.onCompositionStart()}
               @compositionend=${(event: CompositionEvent) => this.onCompositionEnd(event)}
+              @beforeinput=${(event: InputEvent) => this.onBeforeInput(event)}
               @input=${(event: Event) => this.onInput(event)}
               @focus=${(event: Event) => this.onCaretMove(event)}
               @click=${(event: Event) => this.onCaretMove(event)}
