@@ -158,6 +158,59 @@ test("Lūm LSP navigates canonical references to declarations and back", () => {
   assert.ok(references.some((location) => location.range.start.line === referencePosition.line));
 });
 
+test("Lūm LSP resolves story occurrenceIds to relationship-derived occurrences", () => {
+  const parsed = JSON.parse(source);
+  parsed.project.stories = [
+    {
+      id: "story-1",
+      title: "Warnings",
+      occurrenceIds: ["rel-1"],
+      placeIds: [],
+      attributes: {},
+    },
+  ];
+  const storySource = JSON.stringify(parsed, null, 2);
+  const { server, messages } = createHarness(storySource);
+  const referencePosition = positionOf(
+    storySource,
+    '"occurrenceIds": [\n        "rel-1"',
+    '"occurrenceIds": [\n        "'.length + 2,
+  );
+
+  server.handle({
+    jsonrpc: "2.0",
+    id: 9,
+    method: "textDocument/definition",
+    params: { textDocument: { uri }, position: referencePosition },
+  });
+  const definition = response(messages, 9).result;
+  const relationshipDeclaration = positionOf(
+    storySource,
+    '"id": "rel-1"',
+    '"id": "'.length + 2,
+  );
+  assert.equal(definition.range.start.line, relationshipDeclaration.line);
+
+  const completionSource = storySource.replace(
+    '"occurrenceIds": [\n        "rel-1"\n      ]',
+    '"occurrenceIds": [\n        ""\n      ]',
+  );
+  const completionHarness = createHarness(completionSource);
+  const completionPosition = positionOf(
+    completionSource,
+    '"occurrenceIds": [\n        ""',
+    '"occurrenceIds": [\n        "'.length,
+  );
+  completionHarness.server.handle({
+    jsonrpc: "2.0",
+    id: 10,
+    method: "textDocument/completion",
+    params: { textDocument: { uri }, position: completionPosition },
+  });
+  const labels = response(completionHarness.messages, 10).result.map((item) => item.label);
+  assert.ok(labels.includes("rel-1"));
+});
+
 test("Lūm LSP emits semantic tokens and survives incomplete JSON", () => {
   const { server, messages } = createHarness();
   server.handle({
