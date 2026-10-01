@@ -1235,6 +1235,29 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.requestUpdate();
   }
 
+  setSelectionMedia(
+    context: OccurrenceComposerSelectionContext,
+    media: NonNullable<OccurrenceComposerSelectionContext["media"]>,
+  ): void {
+    const nextContext = this.frozenSelectionContext({ ...context, media });
+    if (!nextContext) return;
+    const nextKey = this.selectionIdentityKey(nextContext);
+
+    if (
+      this.hasPendingSelectionContext &&
+      this.pendingSelectionContext &&
+      this.selectionIdentityKey(this.pendingSelectionContext) === nextKey
+    ) {
+      this.pendingSelectionContext = nextContext;
+      this.requestUpdate();
+      return;
+    }
+
+    if (this.selectionIdentityKey(this.selectionContext) !== nextKey) return;
+    this.selectionContext = nextContext;
+    this.requestUpdate();
+  }
+
   private selectionIdentityKey(context: OccurrenceComposerSelectionContext | null): string {
     return JSON.stringify({
       occurrence: context?.selectedOccurrenceId ?? "",
