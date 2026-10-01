@@ -222,6 +222,13 @@ test("TimelineSurface publishes activation from the logical viewport, never from
   );
 });
 
+test("application composition supplies the same canonical occurrence model to Timeline and World", async () => {
+  const app = await readFile(new URL("../site/app.ts", import.meta.url), "utf8");
+  assert.match(app, /occurrences:\s*canonicalProjectionOccurrences\(\)/);
+  assert.match(app, /occurrences:\s*canonicalActivationOccurrences/);
+  assert.match(app, /groupedRelationshipIds/);
+});
+
 test("TimelineSurface keeps canonical occurrence activation distinct from relationship bands", async () => {
   const view = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
   assert.match(view, /occurrences\?: TimelineOccurrenceIdentity\[\]/);
