@@ -184,3 +184,22 @@ test("timeline focus delegates media presentation to the occurrence deck", async
   assert.doesNotMatch(source, /media\.forEach\(\(_, index\) =>/);
   assert.doesNotMatch(source, /this\.renderFocus\(item, focusHost\).*focusMediaIndex/s);
 });
+
+test("multimedia evidence is fingerprinted, persisted, and projected into the slideshow", async () => {
+  const [app, timeline, markup] = await Promise.all([
+    readFile(new URL("../site/app.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/index.html", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(app, /evidenceStore\.sha256Blob\(file\)/);
+  assert.match(app, /evidenceStore\.putBlob\(blobKey, file\)/);
+  assert.match(app, /fileKind === "audio"/);
+  assert.match(app, /fileKind === "video"/);
+  assert.match(timeline, /getEvidenceBlob\(blobKey\)/);
+  assert.match(timeline, /evidenceMediaKind\(record\)/);
+  assert.match(markup, /<option value="audio">Audio upload<\/option>/);
+  assert.match(markup, /<option value="video">Video upload<\/option>/);
+  assert.match(markup, /audio\/\*/);
+  assert.match(markup, /video\/\*/);
+});
