@@ -149,6 +149,27 @@ test("retained timeline destroys and recreates its controller across disconnects
   await expect(timeline.locator(".demo-timeline-rail")).toHaveCount(1);
 });
 
+test("semantic hue keeps range and number values synchronized", async ({ page }) => {
+  await page.goto("/component-lab.html");
+  const hue = page.locator("component-lab-hue");
+  const number = hue.locator('input[type="number"]');
+  const range = hue.locator('input[type="range"]');
+  await number.fill("275");
+  await expect(range).toHaveValue("275");
+  await expect(hue.locator("output")).toHaveText("275°");
+});
+
+test("media viewer supports keyboard zoom and reset", async ({ page }) => {
+  await page.goto("/component-lab.html");
+  const viewer = page.locator("component-lab-media-viewer");
+  const viewport = viewer.locator('[part="viewport"]');
+  await viewport.focus();
+  await viewport.press("+");
+  await expect(viewer.locator('[part="zoom-level"]')).not.toHaveText("100%");
+  await viewport.press("0");
+  await expect(viewer.locator('[part="zoom-level"]')).toHaveText("100%");
+});
+
 test("occurrence media deck uses native non-autoplay audio and video controls", async ({ page }) => {
   await page.goto("/component-lab.html");
 
