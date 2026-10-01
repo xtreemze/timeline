@@ -279,6 +279,19 @@ function moduleWorkspaceReferenceDiagnostics(modules) {
     });
   };
 
+  const addCanonicalOccurrence = (entry, index, field, id) => {
+    if (!id) return;
+    const key = String(id);
+    if (occurrences.has(key) || relationships.has(key)) return;
+    diagnostics.push({
+      severity: "error",
+      code: "invalid-module-workspace",
+      file: entry.file,
+      path: `/records/${index}/${field}`,
+      message: `${entry.module.collection} record ${String(entry.module.records[index]?.id ?? index)} references unknown canonical occurrence ${key}.`,
+    });
+  };
+
   const relationshipModule = byCollection.get("relationships");
   relationshipModule?.module.records.forEach((record, index) => {
     add(relationshipModule, index, "subjectId", "entities", record?.subjectId);
@@ -309,7 +322,7 @@ function moduleWorkspaceReferenceDiagnostics(modules) {
   const storyModule = byCollection.get("stories");
   storyModule?.module.records.forEach((record, index) => {
     (record?.occurrenceIds ?? []).forEach((id) => {
-      add(storyModule, index, "occurrenceIds", "occurrences", id);
+      addCanonicalOccurrence(storyModule, index, "occurrenceIds", id);
     });
     (record?.placeIds ?? []).forEach((id) => {
       add(storyModule, index, "placeIds", "places", id);
