@@ -1,4 +1,4 @@
-import type { OccurrenceId, PlaceId, SourceId, StoryId } from "./ids.ts";
+import type { CanonicalOccurrenceId, PlaceId, SourceId, StoryId } from "./ids.ts";
 import type { CanonicalSpatialGeometry } from "./geotemporal.ts";
 
 export interface CanonicalPlace {
@@ -33,7 +33,7 @@ export interface CanonicalStory {
   readonly id: StoryId;
   readonly title: string;
   readonly description?: string;
-  readonly occurrenceIds: readonly OccurrenceId[];
+  readonly occurrenceIds: readonly CanonicalOccurrenceId[];
   readonly placeIds: readonly PlaceId[];
   readonly attributes: Readonly<Record<string, unknown>>;
 }
