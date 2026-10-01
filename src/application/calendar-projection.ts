@@ -1,4 +1,5 @@
 import type { CanonicalOccurrence } from "../domain/occurrence.ts";
+import type { CanonicalRelationship } from "../domain/relationship.ts";
 import type { CanonicalProject } from "../domain/project.ts";
 import type { ProjectSnapshot } from "./project-repository.ts";
 
@@ -333,13 +334,44 @@ function projectEndpoint(raw: unknown, occurrenceId: string): EndpointProjection
   };
 }
 
+type CalendarOccurrence = Pick<
+  CanonicalOccurrence,
+  "id" | "title" | "occurrenceType" | "time" | "placeId" | "relationshipIds" | "attributes"
+>;
+
+function relationshipOccurrence(relationship: CanonicalRelationship): CalendarOccurrence {
+  return Object.freeze({
+    id: relationship.id,
+    ...(relationship.occurrenceType ? { occurrenceType: relationship.occurrenceType } : {}),
+    time: relationship.time,
+    ...(relationship.placeId ? { placeId: relationship.placeId } : {}),
+    relationshipIds: Object.freeze([relationship.id]),
+    attributes: relationship.attributes,
+  });
+}
+
+function resolveCalendarOccurrence(
+  project: CanonicalProject,
+  canonicalOccurrenceId: string,
+): CalendarOccurrence | null {
+  const standalone = (project.occurrences ?? []).find(
+    (candidate) => String(candidate.id) === canonicalOccurrenceId,
+  );
+  if (standalone) return standalone;
+
+  const relationship = project.relationships.find(
+    (candidate) => String(candidate.id) === canonicalOccurrenceId,
+  );
+  return relationship ? relationshipOccurrence(relationship) : null;
+}
+
 function entityNameMap(project: CanonicalProject): ReadonlyMap<string, string> {
   return new Map(project.entities.map((entity) => [String(entity.id), entity.name]));
 }
 
 function relationshipText(
   project: CanonicalProject,
-  occurrence: CanonicalOccurrence,
+  occurrence: CalendarOccurrence,
 ): readonly string[] {
   const names = entityNameMap(project);
   const byId = new Map(
@@ -354,7 +386,7 @@ function relationshipText(
   });
 }
 
-function eventSummary(project: CanonicalProject, occurrence: CanonicalOccurrence): string {
+function eventSummary(project: CanonicalProject, occurrence: CalendarOccurrence): string {
   const title = occurrence.title?.trim();
   if (title) return title;
   const relationships = relationshipText(project, occurrence);
@@ -365,7 +397,7 @@ function eventSummary(project: CanonicalProject, occurrence: CanonicalOccurrence
 
 function eventDescription(
   project: CanonicalProject,
-  occurrence: CanonicalOccurrence,
+  occurrence: CalendarOccurrence,
 ): string | undefined {
   const authored =
     typeof occurrence.attributes.description === "string"
@@ -382,7 +414,7 @@ function eventDescription(
 
 function eventLocation(
   project: CanonicalProject,
-  occurrence: CanonicalOccurrence,
+  occurrence: CalendarOccurrence,
 ): string | undefined {
   if (!occurrence.placeId) return undefined;
   const place = (project.places ?? []).find(
@@ -399,7 +431,7 @@ function stableUid(projectKey: string, occurrenceId: string): string {
   return `urn:lum:${encodeURIComponent(projectKey)}:occurrence:${encodeURIComponent(occurrenceId)}`;
 }
 
-function projectTemporal(occurrence: CanonicalOccurrence): {
+function projectTemporal(occurrence: CalendarOccurrence): {
   readonly temporal: CalendarProjectionEvent["temporal"];
   readonly metadata: Pick<
     CalendarProjectionMetadata,
@@ -496,9 +528,7 @@ export function projectOccurrenceToCalendarEvent(
   snapshot: Pick<ProjectSnapshot, "projectKey" | "revision" | "project">,
   occurrenceId: string,
 ): CalendarProjectionEvent {
-  const occurrence = (snapshot.project.occurrences ?? []).find(
-    (candidate) => String(candidate.id) === occurrenceId,
-  );
+  const occurrence = resolveCalendarOccurrence(snapshot.project, occurrenceId);
   if (!occurrence) {
     throw new CalendarProjectionError(
       "calendar-occurrence-not-found",
@@ -556,7 +586,21 @@ function selectedOccurrenceIds(
     return [...new Set(selection.occurrenceIds.map(String))];
   }
 
-  return (snapshot.project.occurrences ?? []).map((occurrence) => String(occurrence.id));
+  const groupedRelationshipIds = new Set(
+    (snapshot.project.occurrences ?? []).flatMap((occurrence) =>
+      occurrence.relationshipIds.map((id) => String(id)),
+    ),
+  );
+  return [
+    ...(snapshot.project.occurrences ?? []).map((occurrence) => String(occurrence.id)),
+    ...snapshot.project.relationships
+      .filter(
+        (relationship) =>
+          relationship.time !== null &&
+          !groupedRelationshipIds.has(String(relationship.id)),
+      )
+      .map((relationship) => String(relationship.id)),
+  ];
 }
 
 export function projectOccurrencesToCalendar(
