@@ -9,6 +9,8 @@ import { ImperativeSurfaceElement } from "./imperative-surface.ts";
  * pointer physics outside reactive rendering.
  */
 export abstract class RetainedTimelineElement<TController extends object> extends ImperativeSurfaceElement<TController> {
+  private connectionGeneration = 0;
+
   protected abstract createTimelineController(): TController;
 
   ensureTimelineController(): TController {
@@ -29,8 +31,17 @@ export abstract class RetainedTimelineElement<TController extends object> extend
 
   override connectedCallback(): void {
     super.connectedCallback();
+    const generation = ++this.connectionGeneration;
     queueMicrotask(() => {
-      if (this.isConnected) this.ensureTimelineController();
+      if (this.isConnected && generation === this.connectionGeneration) {
+        this.ensureTimelineController();
+      }
     });
+  }
+
+  override disconnectedCallback(): void {
+    this.connectionGeneration += 1;
+    this.releaseTimelineController();
+    super.disconnectedCallback();
   }
 }
