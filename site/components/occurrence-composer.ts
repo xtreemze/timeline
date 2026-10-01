@@ -1780,6 +1780,10 @@ export class LuumOccurrenceComposerElement extends LitElement {
     if (event.isComposing || this.composing || event.inputType !== "insertText" || event.data !== " ") {
       return;
     }
+    const target = event.currentTarget;
+    if (target instanceof HTMLInputElement) {
+      this.syncCursorFromInput(target);
+    }
     const suggestions = this.suggestions().slice(0, 7);
     const activeSuggestion = suggestions[this.activeSuggestion] ?? suggestions[0];
     if (!activeSuggestion?.multiSelect) return;
@@ -2033,6 +2037,10 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
   private onKeyDown(event: KeyboardEvent): void {
     if (event.isComposing || this.composing) return;
+    const target = event.currentTarget;
+    if (target instanceof HTMLInputElement) {
+      this.syncCursorFromInput(target);
+    }
     if (event.key === "Escape") {
       event.preventDefault();
       this.requestClose();
