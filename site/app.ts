@@ -1898,7 +1898,74 @@ function occurrenceCompositionForRelationship(
   });
 }
 
+let occurrenceComposerMediaHydrationVersion = 0;
+
+function evidenceRecordMediaKind(record: EvidenceRecord): "image" | "audio" | "video" | null {
+  const file = record.file;
+  if (!file) return null;
+  const mime = String(file.mimeType || "").toLowerCase();
+  const name = String(file.name || "").toLowerCase();
+  if (record.type === "video" || mime.startsWith("video/") || /\.(?:mp4|webm|ogv|mov|m4v)$/.test(name)) {
+    return "video";
+  }
+  if (
+    record.type === "audio" ||
+    mime.startsWith("audio/") ||
+    /\.(?:mp3|m4a|aac|wav|ogg|oga|flac|opus)$/.test(name)
+  ) {
+    return "audio";
+  }
+  if (
+    record.type === "image" ||
+    mime.startsWith("image/") ||
+    /\.(?:png|jpe?g|webp|gif|avif)$/.test(name)
+  ) {
+    return "image";
+  }
+  return null;
+}
+
+async function hydrateOccurrenceComposerEvidenceMedia(
+  item: TimelineItemRecord,
+  baseContext: Parameters<typeof els.occurrenceComposer.setSelectionContext>[0],
+  version: number,
+): Promise<void> {
+  if (!baseContext) return;
+  const records = (item.evidenceIds || [])
+    .map((id) => state.evidence.find((record) => record.id === id))
+    .filter(isEvidenceRecord);
+  const frames = (
+    await Promise.all(
+      records.map(async (record) => {
+        const kind = evidenceRecordMediaKind(record);
+        if (!kind || !record.file?.blobKey) return null;
+        try {
+          const blob = await evidenceStore.getBlob(record.file.blobKey);
+          if (!blob) return null;
+          return {
+            kind,
+            blob,
+            mimeType: record.file.mimeType || blob.type,
+            sha256: record.file.sha256 || "",
+            alt: record.title || record.file.name || `${kind} evidence`,
+            caption: [record.title, record.sourceName || record.file.name].filter(Boolean).join(" · "),
+          };
+        } catch (error) {
+          console.warn("Could not load composer evidence media:", error);
+          return null;
+        }
+      }),
+    )
+  ).filter(Boolean);
+  if (!frames.length || version !== occurrenceComposerMediaHydrationVersion) return;
+  els.occurrenceComposer.setSelectionContext({
+    ...baseContext,
+    media: [...(baseContext.media || []), ...frames],
+  });
+}
+
 function syncOccurrenceComposerSelection(selection = applicationSelection.current): void {
+  const hydrationVersion = ++occurrenceComposerMediaHydrationVersion;
   if (!selection) {
     els.occurrenceComposer.setSelectionContext(null);
     return;
@@ -1951,18 +2018,20 @@ function syncOccurrenceComposerSelection(selection = applicationSelection.curren
     : {};
   const selectedOccurrenceColor = selectedCategory?.color ?? selectedCategoryVisual.color ?? null;
   const selectedOccurrenceIcon = selectedCategoryVisual.icon ?? null;
-  els.occurrenceComposer.setSelectionContext({
+  const selectionContext = {
     selectedOccurrenceId: String(relationship.id),
     ...(selectedItemId ? { selectedItemId } : {}),
     title: selectedItem?.title ?? null,
     description: selectedItem?.description ?? relationship.role ?? null,
-    media: selectedItem?.media
-      ?.filter((entry) => Boolean(entry.src))
-      .map((entry) => ({
-        src: entry.src,
-        alt: entry.alt ?? "",
-        caption: entry.caption ?? "",
-      })) ?? [],
+    media:
+      selectedItem?.media
+        ?.filter((entry) => Boolean(entry.src))
+        .map((entry) => ({
+          kind: "image" as const,
+          src: entry.src,
+          alt: entry.alt ?? "",
+          caption: entry.caption ?? "",
+        })) ?? [],
     composition: occurrenceCompositionForRelationship(relationship, selectedItemId),
     relationship: {
       subjectId: String(relationship.subjectId),
@@ -1970,7 +2039,7 @@ function syncOccurrenceComposerSelection(selection = applicationSelection.curren
     },
     metadata: {
       role: relationship.role ?? null,
-      initialState: relationship.initialState === "inactive" ? "inactive" : "active",
+      initialState: relationship.initialState === "inactive" ? ("inactive" as const) : ("active" as const),
       sourceIds: relationship.sourceIds ?? [],
       confidence: relationship.confidence ?? null,
       attributes: relationship.attributes ?? {},
@@ -1991,7 +2060,11 @@ function syncOccurrenceComposerSelection(selection = applicationSelection.curren
           },
         }
       : {}),
-  });
+  };
+  els.occurrenceComposer.setSelectionContext(selectionContext);
+  if (selectedItem) {
+    void hydrateOccurrenceComposerEvidenceMedia(selectedItem, selectionContext, hydrationVersion);
+  }
 }
 
 let occurrenceComposerReturnFocus: HTMLElement | null = null;
