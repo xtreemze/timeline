@@ -2089,14 +2089,13 @@ export class LuumOccurrenceComposerElement extends LitElement {
     if (qualifiers.length) return "Resolve clue";
 
     const cursor = composerCursorSection(this.value, this.cursorOffset);
-    const editableSection = composerEditableSections(this.value).find(
-      (section) => this.cursorOffset >= section.start && this.cursorOffset <= section.end,
-    );
-    const selectingOptions = suggestions.some(
-      (suggestion) =>
-        suggestion.multiSelect &&
-        (suggestion.kind === "category" || suggestion.kind === "tag"),
-    );
+    const selectingOptions =
+      Boolean(activeSuggestion?.multiSelect) ||
+      suggestions.some(
+        (suggestion) =>
+          suggestion.multiSelect &&
+          (suggestion.kind === "category" || suggestion.kind === "tag"),
+      );
 
     if (selectingOptions) return "Space toggle · Enter next";
     if (suggestions.length && cursor.kind !== "tail") return "↑↓ choose · Enter accept";
