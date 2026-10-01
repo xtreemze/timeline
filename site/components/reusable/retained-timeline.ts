@@ -1,8 +1,4 @@
-import { LitElement, noChange } from "lit";
-
-export interface RetainedTimelineController {
-  destroy?(): void;
-}
+import { ImperativeSurfaceElement } from "./imperative-surface.ts";
 
 /**
  * Reusable Lit lifecycle boundary for a retained/imperative timeline renderer.
@@ -12,34 +8,23 @@ export interface RetainedTimelineController {
  * stable custom-element boundary. This keeps high-frequency geometry and
  * pointer physics outside reactive rendering.
  */
-export abstract class RetainedTimelineElement<TController extends object> extends LitElement {
-  private controllerInstance: TController | null = null;
-
-  override createRenderRoot(): HTMLElement {
-    return this;
-  }
-
-  override render() {
-    return noChange;
-  }
-
+export abstract class RetainedTimelineElement<TController extends object> extends ImperativeSurfaceElement<TController> {
   protected abstract createTimelineController(): TController;
 
   ensureTimelineController(): TController {
-    if (!this.controllerInstance) {
-      this.controllerInstance = this.createTimelineController();
-    }
-    return this.controllerInstance;
+    const current = this.surfaceController;
+    if (current) return current;
+    const controller = this.createTimelineController();
+    this.adoptSurfaceController(controller);
+    return controller;
   }
 
   get controller(): TController | null {
-    return this.controllerInstance;
+    return this.surfaceController;
   }
 
   releaseTimelineController(): void {
-    const controller = this.controllerInstance as RetainedTimelineController | null;
-    controller?.destroy?.();
-    this.controllerInstance = null;
+    this.releaseSurfaceController();
   }
 
   override connectedCallback(): void {
