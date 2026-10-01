@@ -1,4 +1,4 @@
-import { LitElement, noChange } from "lit";
+import { ImperativeSurfaceElement } from "./reusable/imperative-surface.ts";
 
 export interface WorldSurfaceOwnedView {
   destroy: () => void;
@@ -10,32 +10,17 @@ export interface WorldSurfaceOwnedView {
  * The element owns view lifetime only. deck.gl/luma.gl remain responsible for
  * topology, labels, picking and interaction frames; Lit never renders graph nodes.
  */
-export class LuumWorldSurfaceElement extends LitElement {
-  #ownedView: WorldSurfaceOwnedView | null = null;
-
-  override createRenderRoot(): HTMLElement {
-    return this;
-  }
-
-  override render() {
-    return noChange;
-  }
-
+export class LuumWorldSurfaceElement extends ImperativeSurfaceElement<WorldSurfaceOwnedView> {
   adoptView(view: WorldSurfaceOwnedView): void {
-    if (this.#ownedView === view) {
-      return;
-    }
-    this.#ownedView?.destroy();
-    this.#ownedView = view;
+    this.adoptSurfaceController(view);
   }
 
   get ownedView(): WorldSurfaceOwnedView | null {
-    return this.#ownedView;
+    return this.surfaceController;
   }
 
   override disconnectedCallback(): void {
-    this.#ownedView?.destroy();
-    this.#ownedView = null;
+    this.releaseSurfaceController();
     super.disconnectedCallback();
   }
 }
