@@ -1,5 +1,4 @@
 import { WORLD_FORCE_COLLISION_METERS_PER_PX } from "./world-force-simulation.ts";
-import { WORLD_ENTITY_MIN_HIT_RADIUS_PX } from "./world-graph-style.ts";
 import type { WorldRenderPosition } from "./world-geographic-position.ts";
 
 /**
@@ -437,11 +436,7 @@ export function worldPresentationOffsetScale(
   latitude = 0,
   maxRadiusPx = Number.POSITIVE_INFINITY,
 ): number {
-  if (
-    !Number.isFinite(zoom) ||
-    !Number.isFinite(typicalOffsetMeters) ||
-    typicalOffsetMeters <= 0
-  ) {
+  if (!Number.isFinite(zoom) || !Number.isFinite(typicalOffsetMeters) || typicalOffsetMeters <= 0) {
     return 1;
   }
   // Dense scenes may skip expensive/readability-oriented LOD work, but that
@@ -452,8 +447,7 @@ export function worldPresentationOffsetScale(
   const metersPerPixel = (WORLD_METERS_PER_PIXEL_AT_ZOOM_0 * cosine) / 2 ** zoom;
   const viewportRadius =
     Number.isFinite(maxRadiusPx) && maxRadiusPx > 0 ? maxRadiusPx : Number.POSITIVE_INFINITY;
-  const collisionMatchedRadiusPx =
-    typicalOffsetMeters / WORLD_FORCE_COLLISION_METERS_PER_PX;
+  const collisionMatchedRadiusPx = typicalOffsetMeters / WORLD_FORCE_COLLISION_METERS_PER_PX;
   const targetRadiusPx = Math.min(
     worldFloatingGraphRadiusPx(zoom),
     viewportRadius,
