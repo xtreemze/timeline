@@ -1,46 +1,46 @@
-import { LitElement, css, html, nothing, svg } from "lit";
+import { css, html, LitElement, nothing, svg } from "lit";
 import {
   interpretInvestigativeQualifier,
   projectInvestigativeCandidateMatrix,
 } from "../../src/application/investigative-query.ts";
-import { iconPathData } from "../event-presentation.ts";
-import { semanticColorCss } from "../../src/presentation/semantic-color.ts";
-import { LuumOccurrenceDeckElement } from "./occurrence-media-deck.ts";
-import { occurrenceContextDeckFrames } from "../occurrence-context-deck.ts";
 import {
   WORLD_DARK_PALETTE,
   WORLD_LIGHT_PALETTE,
   type WorldGraphPalette,
 } from "../../src/layout/world-graph-style.ts";
+import { semanticColorCss } from "../../src/presentation/semantic-color.ts";
+import { iconPathData } from "../event-presentation.ts";
 import {
-  composerWorldNodeMarker,
-  projectComposerPreview,
-  projectInvestigativeQualifiers,
-} from "../occurrence-composer-preview.ts";
-import {
-  timelineContextFromViewport,
-  worldContextFromCamera,
   type ComposerTimelineContext,
   type ComposerWorldContext,
+  timelineContextFromViewport,
+  worldContextFromCamera,
 } from "../occurrence-composer-context.ts";
 import {
   acceptComposerSuggestion,
   advanceComposerMultiOption,
-  composerEditableSections,
-  composerCompletionSuffix,
-  composerCursorSection,
-  occurrenceComposerSuggestions,
-  parseOccurrenceSentence,
-  normalizeComposerSemanticColor,
-  toggleComposerMultiOption,
   type ComposerCategoryOption,
   type ComposerEntityOption,
   type ComposerPlaceOption,
   type ComposerPredicateOption,
   type ComposerSuggestion,
   type ComposerTagOption,
+  composerCompletionSuffix,
+  composerCursorSection,
+  composerEditableSections,
+  normalizeComposerSemanticColor,
   type OccurrenceSentenceDraft,
+  occurrenceComposerSuggestions,
+  parseOccurrenceSentence,
+  toggleComposerMultiOption,
 } from "../occurrence-composer-model.ts";
+import {
+  composerWorldNodeMarker,
+  projectComposerPreview,
+  projectInvestigativeQualifiers,
+} from "../occurrence-composer-preview.ts";
+import { occurrenceContextDeckFrames } from "../occurrence-context-deck.ts";
+import type { LuumOccurrenceDeckElement } from "./occurrence-media-deck.ts";
 
 export interface ComposerIdentityEvidenceAssessment {
   readonly unknownEntityId: string;
@@ -278,9 +278,14 @@ export class LuumOccurrenceComposerElement extends LitElement {
     }
 
     .stage {
+      /* A stable width sized for the longest hint: changing guidance must never shift the
+         input under the pointer between the two presses of a double-click. */
+      box-sizing: border-box;
       justify-content: center;
-      min-inline-size: max-content;
+      inline-size: 16.5em;
       min-block-size: 32px;
+      overflow: hidden;
+      white-space: nowrap;
       text-transform: none;
     }
 
@@ -370,6 +375,29 @@ export class LuumOccurrenceComposerElement extends LitElement {
       box-shadow:
         0 0 0 2px color-mix(in srgb, var(--focus, #315fbd) 58%, transparent),
         0 1px 2px color-mix(in srgb, #000 8%, transparent);
+    }
+
+    /* The caret's section names itself in the input's top padding: no extra line, and only
+       the active token is labelled so short words never collide with their labels. */
+    .input-token[data-active="true"]::before {
+      content: attr(data-label);
+      position: absolute;
+      inset-block-end: calc(100% + 1px);
+      inset-inline-start: 0.1rem;
+      color: var(--focus, #315fbd);
+      font: 650 0.5rem/1 system-ui, sans-serif;
+      letter-spacing: 0.04em;
+      pointer-events: none;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .composer[data-semantic-color="true"] .input-token[data-active="true"]::before {
+      color: var(--composer-semantic-accent);
+    }
+
+    .input-token[data-investigative="true"][data-active="true"]::before {
+      color: var(--accent, #b7472a);
     }
 
     .input-token[data-active="true"] .input-token-icon {
@@ -537,6 +565,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     .composer[data-semantic-color="true"] .composer-heading-icon { color: var(--composer-semantic-accent); }
     .composer-heading-icon svg { inline-size: 20px; block-size: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
     .composer-card-heading strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .card-details-button { margin-inline-start: auto; }
     .composer-card-meta-chips,
     .composer-context-hints {
       display: flex;
@@ -1164,9 +1193,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
           ...(context.description ? { description: context.description } : {}),
           ...(context.media?.length
             ? {
-                media: Object.freeze(
-                  context.media.map((entry) => Object.freeze({ ...entry })),
-                ),
+                media: Object.freeze(context.media.map((entry) => Object.freeze({ ...entry }))),
               }
             : {}),
           ...(context.metadata
@@ -1317,7 +1344,18 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
   beginSession(): void {
     const nextKey = this.currentContextKey();
-    if (this.sessionKey && this.sessionKey !== nextKey && this.value.trim()) {
+    // Only an untouched (seeded) draft in a closed composer starts over when its context
+    // moved. User-edited text is never discarded here: ambient time/world drift and app code
+    // re-asserting "open" must not wipe it, and real selection changes over a dirty draft go
+    // through the pending-selection prompt instead.
+    const userEdited = Boolean(this.value.trim()) && !this.selectionSeeded;
+    if (
+      !this.active &&
+      !userEdited &&
+      this.sessionKey &&
+      this.sessionKey !== nextKey &&
+      this.value.trim()
+    ) {
       this.resetDraft();
     }
     this.sessionKey = nextKey;
@@ -1376,21 +1414,23 @@ export class LuumOccurrenceComposerElement extends LitElement {
   }
 
   inputHasFocus(): boolean {
-    return this.renderRoot.activeElement instanceof HTMLInputElement;
+    const root = this.renderRoot;
+    const active = root instanceof ShadowRoot ? root.activeElement : document.activeElement;
+    return active instanceof HTMLInputElement;
   }
 
   revealMobileInputLane(): void {
     if (!this.active) return;
-    if (typeof matchMedia === "function" && !matchMedia("(max-width: 699px)").matches) return;
     const footer = this.closest<HTMLElement>(".app-footer-bar");
     const shell = this.renderRoot.querySelector<HTMLElement>(".input-shell");
-    if (!footer || !shell) return;
+    if (!(footer && shell)) return;
+    // Only an overflowing footer lane needs recentring; measure it instead of a breakpoint.
+    if (footer.scrollWidth <= footer.clientWidth) return;
     const visualViewport = window.visualViewport;
     const viewportLeft = visualViewport?.offsetLeft ?? 0;
     const viewportWidth = visualViewport?.width ?? window.innerWidth;
     const shellRect = shell.getBoundingClientRect();
-    const delta =
-      shellRect.left + shellRect.width / 2 - (viewportLeft + viewportWidth / 2);
+    const delta = shellRect.left + shellRect.width / 2 - (viewportLeft + viewportWidth / 2);
     const maximum = Math.max(0, footer.scrollWidth - footer.clientWidth);
     footer.scrollTo({
       left: Math.max(0, Math.min(maximum, footer.scrollLeft + delta)),
@@ -1440,8 +1480,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const preferredEntityIds =
       parsed.stage === "object" && this.selectionContext?.relationship?.objectId
         ? [this.selectionContext.relationship.objectId]
-        : parsed.stage === "subject" && this.selectedSubjectId()
-          ? [this.selectedSubjectId()!]
+        : parsed.stage === "subject"
+          ? [this.selectedSubjectId()].filter((id): id is string => Boolean(id))
           : [];
     return occurrenceComposerSuggestions(this.value, {
       entities: this.data.entities,
@@ -1468,7 +1508,9 @@ export class LuumOccurrenceComposerElement extends LitElement {
     );
   }
 
-  private inputTokenLabel(segment: Readonly<{ kind: string | null; investigative: boolean }>): string {
+  private inputTokenLabel(
+    segment: Readonly<{ kind: string | null; investigative: boolean }>,
+  ): string {
     if (segment.investigative) return "investigate";
     switch (segment.kind) {
       case "subject":
@@ -1603,17 +1645,14 @@ export class LuumOccurrenceComposerElement extends LitElement {
           ? '.option[data-active="true"]'
           : '.candidate-row[data-active="true"]',
       );
-      if (!container || !choice) return;
+      if (!(container && choice)) return;
 
       const containerRect = container.getBoundingClientRect();
       const choiceRect = choice.getBoundingClientRect();
       const choiceCenter =
         choiceRect.top - containerRect.top + container.scrollTop + choiceRect.height / 2;
       const maximum = Math.max(0, container.scrollHeight - container.clientHeight);
-      const target = Math.max(
-        0,
-        Math.min(maximum, choiceCenter - container.clientHeight / 2),
-      );
+      const target = Math.max(0, Math.min(maximum, choiceCenter - container.clientHeight / 2));
       container.scrollTo({ top: target, behavior: "auto" });
 
       const panel =
@@ -1665,11 +1704,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.centerActiveChoice("suggestion");
   }
 
-  private selectCandidate(
-    index: number,
-    candidates: readonly unknown[],
-    wrap = true,
-  ): void {
+  private selectCandidate(index: number, candidates: readonly unknown[], wrap = true): void {
     if (!candidates.length) return;
     this.activeCandidate = wrap
       ? (index + candidates.length) % candidates.length
@@ -1685,10 +1720,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
     event.preventDefault();
     const now = event.timeStamp;
-    if (
-      this.choiceWheelLastStepAt > 0 &&
-      now - this.choiceWheelLastStepAt < 48
-    ) {
+    if (this.choiceWheelLastStepAt > 0 && now - this.choiceWheelLastStepAt < 48) {
       return 0;
     }
 
@@ -1700,7 +1732,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const investigation = this.investigationProjection();
     const candidates = investigation.candidateMatrix?.candidates ?? [];
     const suggestions = investigation.qualifiers.length ? [] : this.suggestions().slice(0, 7);
-    if (!candidates.length && !suggestions.length) return;
+    if (!(candidates.length || suggestions.length)) return;
 
     const step = this.wheelNavigationStep(event);
     if (step === null || step === 0) return;
@@ -1751,6 +1783,16 @@ export class LuumOccurrenceComposerElement extends LitElement {
       return;
     }
     this.setComposerValue(target.value, target.selectionStart ?? target.value.length);
+  }
+
+  private onBeforeInput(event: InputEvent): void {
+    const target = event.currentTarget;
+    if (!(target instanceof HTMLInputElement) || this.composing) return;
+    // Clearing an already-empty field changes no value, so no input event follows;
+    // the explicit delete still means "start over" for the suggestion list.
+    if (target.value === "" && event.inputType.startsWith("delete")) {
+      this.resetSuggestionSelection();
+    }
   }
 
   private onCompositionStart(): void {
@@ -1845,6 +1887,23 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.focusComposerOffset(accepted.cursorOffset);
   }
 
+  private openAdvancedEdit(): void {
+    const relationshipId = this.selectionContext?.selectedOccurrenceId;
+    if (!relationshipId) return;
+    const initialText = this.selectionContext?.composition?.trim() ?? "";
+    if (this.value.trim() !== initialText) {
+      this.commit();
+      if (this.externalError) return;
+    }
+    this.dispatchEvent(
+      new CustomEvent("occurrencecomposeradvancededitrequest", {
+        bubbles: true,
+        composed: true,
+        detail: { relationshipId },
+      }),
+    );
+  }
+
   private commit(): void {
     const draft = this.parsed();
     if (draft.investigation.qualifiers.length) {
@@ -1853,7 +1912,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
       this.requestUpdate();
       return;
     }
-    if (!draft.subject || !draft.predicate || !draft.object || draft.diagnostics.length) {
+    if (!(draft.subject && draft.predicate && draft.object) || draft.diagnostics.length) {
       this.externalError =
         draft.diagnostics[0] ?? "Complete subject, action, and object before committing.";
       this.requestUpdate();
@@ -1862,7 +1921,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const metadata = this.selectionContext?.metadata;
     const normalizedMetadata = Object.freeze({
       role: metadata?.role?.trim() || null,
-      initialState: metadata?.initialState === "inactive" ? "inactive" as const : "active" as const,
+      initialState:
+        metadata?.initialState === "inactive" ? ("inactive" as const) : ("active" as const),
       sourceIds: Object.freeze([
         ...new Set((metadata?.sourceIds ?? []).map((id) => id.trim()).filter(Boolean)),
       ]),
@@ -1916,11 +1976,14 @@ export class LuumOccurrenceComposerElement extends LitElement {
   }
 
   private investigationProjection() {
-    const qualifiers = projectInvestigativeQualifiers(this.value);
+    // Uncommitted IME text is not yet investigative input; compositionend re-projects it.
+    const qualifiers = this.composing ? [] : projectInvestigativeQualifiers(this.value);
     const activeQualifier =
       qualifiers.find(
         (qualifier) => this.cursorOffset >= qualifier.start && this.cursorOffset <= qualifier.end,
-      ) ?? qualifiers[0] ?? null;
+      ) ??
+      qualifiers[0] ??
+      null;
     const investigativeEntities = this.data.entities.map((entity) => ({
       id: entity.id,
       name: entity.name,
@@ -1943,11 +2006,13 @@ export class LuumOccurrenceComposerElement extends LitElement {
         )
       : [];
     const chosenInterpretation =
-      activeInterpretations.find((interpretation) => interpretation.id === this.activeInterpretation) ??
+      activeInterpretations.find(
+        (interpretation) => interpretation.id === this.activeInterpretation,
+      ) ??
       activeInterpretations[0] ??
       null;
     const unknownEntityId = (() => {
-      if (!activeQualifier || !["subject", "object"].includes(activeQualifier.kind)) return null;
+      if (!(activeQualifier && ["subject", "object"].includes(activeQualifier.kind))) return null;
       const clueId = activeQualifier.text.replace(/\?$/, "").replace(/^@/, "").trim();
       if (clueId && this.data.entities.some((entity) => entity.id === clueId)) return clueId;
       const contextualId =
@@ -2007,7 +2072,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
       if ((event.key === "ArrowRight" || event.key === "ArrowLeft") && interpretations.length) {
         event.preventDefault();
         const delta = event.key === "ArrowRight" ? 1 : -1;
-        const next = (currentInterpretation + delta + interpretations.length) % interpretations.length;
+        const next =
+          (currentInterpretation + delta + interpretations.length) % interpretations.length;
         this.activeInterpretation = interpretations[next]?.id ?? "";
         this.resetCandidateSelection();
         this.requestUpdate();
@@ -2030,6 +2096,12 @@ export class LuumOccurrenceComposerElement extends LitElement {
       }
       return;
     }
+    if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+      // Ctrl/Cmd+Enter finalizes the transaction without consuming a highlighted suggestion.
+      event.preventDefault();
+      this.commit();
+      return;
+    }
     const suggestions = this.suggestions().slice(0, 7);
     if (event.key === "ArrowDown" && suggestions.length) {
       event.preventDefault();
@@ -2042,12 +2114,18 @@ export class LuumOccurrenceComposerElement extends LitElement {
       return;
     }
     const activeSuggestion = suggestions[this.activeSuggestion] ?? suggestions[0];
-    if (event.key === " " && activeSuggestion?.multiSelect) {
+    // Space/Enter only operate a multi-select list while the caret is inside its option
+    // block; ambient category/tag hints at the end of a complete sentence must not
+    // swallow Space or turn Enter's commit into a list advance.
+    const editingOptions =
+      Boolean(activeSuggestion?.multiSelect) &&
+      composerCursorSection(this.value, this.cursorOffset).kind === "options";
+    if (event.key === " " && activeSuggestion && editingOptions) {
       event.preventDefault();
       this.toggleMultiSelectSuggestion(activeSuggestion);
       return;
     }
-    if (event.key === "Enter" && activeSuggestion?.multiSelect) {
+    if (event.key === "Enter" && activeSuggestion && editingOptions) {
       event.preventDefault();
       this.advanceMultiSelectSuggestion(activeSuggestion);
       return;
@@ -2063,6 +2141,13 @@ export class LuumOccurrenceComposerElement extends LitElement {
       return;
     }
     this.commit();
+  }
+
+  /** Machine-readable section being authored: the caret's section, else the next one needed. */
+  private authoringStage(parsed: OccurrenceSentenceDraft, investigating: boolean): string {
+    if (investigating) return "investigation";
+    const cursor = composerCursorSection(this.value, this.cursorOffset);
+    return cursor.kind === "tail" ? parsed.stage : cursor.kind;
   }
 
   private stageGuidance(
@@ -2114,13 +2199,20 @@ export class LuumOccurrenceComposerElement extends LitElement {
       return /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(raw) ? raw : value;
     };
     return {
-      ink: token("ink", fallback.ink), muted: token("muted", fallback.muted),
-      paper: token("paper", fallback.paper), focus: token("focus", fallback.focus),
-      story: token("story", fallback.story), line: token("line", fallback.line),
+      ink: token("ink", fallback.ink),
+      muted: token("muted", fallback.muted),
+      paper: token("paper", fallback.paper),
+      focus: token("focus", fallback.focus),
+      story: token("story", fallback.story),
+      line: token("line", fallback.line),
     };
   }
 
-  private previewNode(node: { label: string; icon: string; entityId?: string } | null, label: string, palette: WorldGraphPalette) {
+  private previewNode(
+    node: { label: string; icon: string; entityId?: string } | null,
+    label: string,
+    palette: WorldGraphPalette,
+  ) {
     return node
       ? html`<span class="preview-node"><img alt="" src=${composerWorldNodeMarker(node, this.data.entities, palette).url}>
         <span title=${node.label}>${node.label}</span></span>`
@@ -2222,10 +2314,9 @@ export class LuumOccurrenceComposerElement extends LitElement {
     );
     const occurrenceIcon = this.selectionContext?.appearance?.icon ?? null;
     const predicateVisual = (this.data.predicates ?? [])
-      .map((predicate): ComposerPredicateOption =>
-        typeof predicate === "string"
-          ? { name: predicate }
-          : predicate,
+      .map(
+        (predicate): ComposerPredicateOption =>
+          typeof predicate === "string" ? { name: predicate } : predicate,
       )
       .find((predicate) => predicate.name === preview.edge?.label);
     const subjectEntity = preview.subject
@@ -2307,38 +2398,18 @@ export class LuumOccurrenceComposerElement extends LitElement {
           <span
             class="stage composer-chip"
             data-chip-kind="guidance"
+            data-stage=${this.authoringStage(parsed, qualifiers.length > 0)}
             role="status"
             aria-live="polite"
           >${this.stageGuidance(parsed, qualifiers, suggestions, activeSuggestion)}</span>
           <div class="input-shell">
-            <span class="input-decoration" aria-hidden="true">
-              <span class="input-decoration-content">
-                ${inputSegments.map((segment) =>
-                  segment.kind
-                    ? html`<span
-                        class="input-token"
-                        data-kind=${segment.kind}
-                        data-label=${this.inputTokenLabel(segment)}
-                        data-investigative=${String(segment.investigative)}
-                        data-active=${String(segment.active)}
-                      >
-                        <span
-                          class="input-token-icon"
-                          data-icon=${this.inputTokenIcon(segment)}
-                          aria-hidden="true"
-                        >
-                          <svg viewBox="0 0 24 24" focusable="false">
-                            ${iconPathData(this.inputTokenIcon(segment)).map(
-                              (path) => svg`<path d=${path}></path>`,
-                            )}
-                          </svg>
-                        </span>
-                        <span class="input-token-text">${segment.text}</span>
-                      </span>`
-                    : html`<span class="input-decoration-text">${segment.text}</span>`,
-                )}<span class="ghost-suffix">${ghostSuffix}</span>
-              </span>
-            </span>
+            <span class="input-decoration" aria-hidden="true"><span class="input-decoration-content">${inputSegments.map(
+              (segment) =>
+                segment.kind
+                  ? // white-space: pre renders template whitespace, so token markup has none.
+                    html`<span class="input-token" data-kind=${segment.kind} data-label=${this.inputTokenLabel(segment)} data-investigative=${String(segment.investigative)} data-active=${String(segment.active)}><span class="input-token-icon" data-icon=${this.inputTokenIcon(segment)} aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false">${iconPathData(this.inputTokenIcon(segment)).map((path) => svg`<path d=${path}></path>`)}</svg></span><span class="input-token-text">${segment.text}</span></span>`
+                  : html`<span class="input-decoration-text">${segment.text}</span>`,
+            )}<span class="ghost-suffix">${ghostSuffix}</span></span></span>
             <input
               type="text"
               autocomplete="off"
@@ -2369,6 +2440,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
               .value=${this.value}
               @compositionstart=${() => this.onCompositionStart()}
               @compositionend=${(event: CompositionEvent) => this.onCompositionEnd(event)}
+              @beforeinput=${(event: InputEvent) => this.onBeforeInput(event)}
               @input=${(event: Event) => this.onInput(event)}
               @focus=${(event: Event) => this.onCaretMove(event)}
               @click=${(event: Event) => this.onCaretMove(event)}
@@ -2428,64 +2500,96 @@ export class LuumOccurrenceComposerElement extends LitElement {
           <section class="composer-occurrence-card" aria-label="Occurrence card in composer">
             <div class="composer-card-heading">
               <span class="composer-card-heading-main">
-                ${deckIcon
-                  ? html`<span class="composer-heading-icon" aria-hidden="true">
+                ${
+                  deckIcon
+                    ? html`<span class="composer-heading-icon" aria-hidden="true">
                       <svg viewBox="0 0 24 24" focusable="false">
                         ${iconPathData(deckIcon).map((path) => html`<path d=${path}></path>`)}
                       </svg>
                     </span>`
-                  : nothing}
+                    : nothing
+                }
                 <strong>${this.selectionContext?.title || "New occurrence"}</strong>
               </span>
+              ${
+                this.selectionContext?.selectedOccurrenceId
+                  ? html`<button
+                      class="composer-chip composer-chip-button card-details-button"
+                      type="button"
+                      data-chip-kind="details"
+                      title="Save and open the full edge editor"
+                      @click=${() => this.openAdvancedEdit()}
+                    >Details</button>`
+                  : nothing
+              }
               <span
                 class="composer-chip card-status-chip"
                 data-chip-kind="status"
                 data-chip-tone=${qualifiers.length ? "investigative" : preview.category ? "strong" : "neutral"}
               >${cardStatus}</span>
             </div>
-            ${metadata
-              ? html`<div class="composer-card-meta-chips" aria-label="Occurrence metadata">
-                  ${metadata.role?.trim()
-                    ? html`<span class="composer-chip metadata-chip" data-chip-kind="role">${metadata.role.trim()}</span>`
-                    : nothing}
+            ${
+              metadata
+                ? html`<div class="composer-card-meta-chips" aria-label="Occurrence metadata">
+                  ${
+                    metadata.role?.trim()
+                      ? html`<span class="composer-chip metadata-chip" data-chip-kind="role">${metadata.role.trim()}</span>`
+                      : nothing
+                  }
                   <span class="composer-chip metadata-chip" data-chip-kind="state">${metadata.initialState ?? "active"}</span>
-                  ${metadataConfidence
-                    ? html`<span class="composer-chip metadata-chip" data-chip-kind="confidence">${metadataConfidence}</span>`
-                    : nothing}
+                  ${
+                    metadataConfidence
+                      ? html`<span class="composer-chip metadata-chip" data-chip-kind="confidence">${metadataConfidence}</span>`
+                      : nothing
+                  }
                   ${metadataSourceIds.map(
-                    (sourceId) => html`<span class="composer-chip metadata-chip" data-chip-kind="source">source · ${sourceId}</span>`,
+                    (sourceId) =>
+                      html`<span class="composer-chip metadata-chip" data-chip-kind="source">source · ${sourceId}</span>`,
                   )}
                 </div>`
-              : nothing}
-            ${!hasExplicitPlace || !hasExplicitTime
-              ? html`<div class="composer-context-hints" aria-label="Live composer defaults">
-                  ${!hasExplicitPlace
-                    ? html`<span class="composer-chip" data-chip-kind="live-place" data-chip-variant="ghost">live place · ${placeLabel}</span>`
-                    : nothing}
-                  ${!hasExplicitTime
-                    ? html`<span class="composer-chip" data-chip-kind="live-time" data-chip-variant="ghost">live time · ${timeLabel ?? "timeline center"}</span>`
-                    : nothing}
+                : nothing
+            }
+            ${
+              hasExplicitPlace && hasExplicitTime
+                ? nothing
+                : html`<div class="composer-context-hints" aria-label="Live composer defaults">
+                  ${
+                    hasExplicitPlace
+                      ? nothing
+                      : html`<span class="composer-chip" data-chip-kind="live-place" data-chip-variant="ghost">live place · ${placeLabel}</span>`
+                  }
+                  ${
+                    hasExplicitTime
+                      ? nothing
+                      : html`<span class="composer-chip" data-chip-kind="live-time" data-chip-variant="ghost">live time · ${timeLabel ?? "timeline center"}</span>`
+                  }
                 </div>`
-              : nothing}
-            ${this.contextDeckFrames().length || this.selectionContext?.description?.trim()
-              ? html`<div
+            }
+            ${
+              this.contextDeckFrames().length || this.selectionContext?.description?.trim()
+                ? html`<div
                   class="composer-card-details"
                   data-split=${String(Boolean(this.contextDeckFrames().length && this.selectionContext?.description?.trim()))}
                   aria-label="Occurrence media and context"
                 >
-                  ${this.contextDeckFrames().length
-                    ? html`<div class="composer-card-media" aria-label="Occurrence slideshow">
+                  ${
+                    this.contextDeckFrames().length
+                      ? html`<div class="composer-card-media" aria-label="Occurrence slideshow">
                         <luum-occurrence-deck class="composer-context-deck"></luum-occurrence-deck>
                       </div>`
-                    : nothing}
-                  ${this.selectionContext?.description?.trim()
-                    ? html`<aside class="composer-card-context" aria-label="Occurrence context">
+                      : nothing
+                  }
+                  ${
+                    this.selectionContext?.description?.trim()
+                      ? html`<aside class="composer-card-context" aria-label="Occurrence context">
                         <strong class="composer-card-context-label">Context</strong>
                         <p class="composer-card-context-body">${this.selectionContext.description.trim()}</p>
                       </aside>`
-                    : nothing}
+                      : nothing
+                  }
                 </div>`
-              : nothing}
+                : nothing
+            }
             <div class="composer-world-preview" role="img"
               style=${`--preview-accent: ${deckAccent ?? "var(--accent, #315fbd)"}`}
               aria-label=${`World preview: ${preview.subject?.label ?? "subject pending"}, ${preview.edge?.label ?? "action pending"}, ${preview.object?.label ?? "target pending"}${preview.place ? ` at ${preview.place.label}${preview.place.longitude === null ? " (coordinates unknown)" : ""}` : ""}`}>
@@ -2504,8 +2608,9 @@ export class LuumOccurrenceComposerElement extends LitElement {
               </span>
               ${this.previewNode(preview.object, "Target", previewPalette)}
             </div>
-            ${this.hasPendingSelectionContext
-              ? html`<button
+            ${
+              this.hasPendingSelectionContext
+                ? html`<button
                   class="composer-chip composer-chip-button pending-selection-action"
                   type="button"
                   data-context-kind="pending-selection"
@@ -2513,7 +2618,8 @@ export class LuumOccurrenceComposerElement extends LitElement {
                   title="Replace this draft with the newly selected graph context"
                   @click=${() => this.acceptPendingSelectionContext()}
                 >${this.pendingSelectionContext ? "Use selected context" : "Use no selection"}</button>`
-              : nothing}
+                : nothing
+            }
           </section>
           ${
             qualifiers.length
@@ -2531,11 +2637,14 @@ export class LuumOccurrenceComposerElement extends LitElement {
                 }}>${interpretation.label}</button>`,
               )}
             </div>
-            ${candidateMatrix
-              ? html`<div class="candidate-matrix" role="table" aria-label="Candidate comparison">
+            ${
+              candidateMatrix
+                ? html`<div class="candidate-matrix" role="table" aria-label="Candidate comparison">
                   ${candidateMatrix.candidates.map((candidate, index) => {
                     const cell = candidate.cells[0];
-                    const active = index === Math.min(this.activeCandidate, candidateMatrix.candidates.length - 1);
+                    const active =
+                      index ===
+                      Math.min(this.activeCandidate, candidateMatrix.candidates.length - 1);
                     return html`<div id=${`occurrence-composer-candidate-${index}`} class="candidate-row" role="row" data-scope=${candidate.candidateScope}
                       data-active=${String(active)} aria-current=${active ? "true" : nothing}
                       aria-label=${`${candidate.label}: ${cell?.assessment ?? "unknown"}. ${cell?.reason ?? "No comparison available."}`}>
@@ -2543,25 +2652,34 @@ export class LuumOccurrenceComposerElement extends LitElement {
                         aria-pressed=${String(active)}
                         @pointerdown=${(event: PointerEvent) => event.preventDefault()}
                         @click=${() =>
-                          this.selectCandidate(index, candidateMatrix.candidates, false)
-                        }>${candidate.label}</button></div>
+                          this.selectCandidate(
+                            index,
+                            candidateMatrix.candidates,
+                            false,
+                          )}>${candidate.label}</button></div>
                       <span class="composer-chip candidate-assessment" role="cell" data-chip-kind="assessment"
                         data-assessment=${cell?.assessment ?? "unknown"}>${cell?.assessment ?? "unknown"}</span>
                       <span class="candidate-reason" role="cell">${cell?.reason ?? "No comparison available."}</span>
-                      ${cell?.recordIds.length
-                        ? html`<div class="candidate-sources" aria-label="Sources">
+                      ${
+                        cell?.recordIds.length
+                          ? html`<div class="candidate-sources" aria-label="Sources">
                             ${cell.recordIds.map(
-                              (recordId) => html`<span class="composer-chip source-chip" data-chip-kind="source">${recordId}</span>`,
+                              (recordId) =>
+                                html`<span class="composer-chip source-chip" data-chip-kind="source">${recordId}</span>`,
                             )}
                           </div>`
-                        : nothing}
+                          : nothing
+                      }
                     </div>`;
                   })}
                 </div>
-                ${candidateMatrix.hasMoreKnownCandidates
-                  ? html`<span>${candidateMatrix.visibleKnownCandidates} of ${candidateMatrix.totalKnownCandidates} known candidates shown.</span>`
-                  : nothing}`
-              : html`<span>Select an interpretation to compare known candidates. None known remains possible.</span>`}
+                ${
+                  candidateMatrix.hasMoreKnownCandidates
+                    ? html`<span>${candidateMatrix.visibleKnownCandidates} of ${candidateMatrix.totalKnownCandidates} known candidates shown.</span>`
+                    : nothing
+                }`
+                : html`<span>Select an interpretation to compare known candidates. None known remains possible.</span>`
+            }
             <div class="interpretation-row" aria-label="Investigation methods">
               ${(
                 [
@@ -2574,34 +2692,38 @@ export class LuumOccurrenceComposerElement extends LitElement {
                   ["promote-observation", "Record source observation"],
                   ["promote-assertion", "Record source assertion"],
                 ] as const
-              ).map(
-                ([action, label]) => {
-                  const comparing = action === "compare-candidates";
-                  const promoting = action === "promote-observation" || action === "promote-assertion";
-                  const candidates = candidateMatrix?.candidates
-                    .filter((candidate) => candidate.candidateScope === "entity" && candidate.candidateEntityId)
-                    .map((candidate) => ({
-                      entityId: candidate.candidateEntityId!,
-                      label: candidate.label,
-                    })) ?? [];
-                  const sourceIds = [...(this.selectionContext?.metadata?.sourceIds ?? [])];
-                  const canPromote = Boolean(
-                    activeQualifier && this.selectionContext?.selectedOccurrenceId && sourceIds.length,
-                  );
-                  const disabled =
-                    (comparing && (!unknownEntityId || candidates.length === 0)) ||
-                    (promoting && !canPromote);
-                  const title = comparing && !unknownEntityId
+              ).map(([action, label]) => {
+                const comparing = action === "compare-candidates";
+                const promoting =
+                  action === "promote-observation" || action === "promote-assertion";
+                const candidates =
+                  candidateMatrix?.candidates.flatMap((candidate) =>
+                    candidate.candidateScope === "entity" && candidate.candidateEntityId
+                      ? [{ entityId: candidate.candidateEntityId, label: candidate.label }]
+                      : [],
+                  ) ?? [];
+                const sourceIds = [...(this.selectionContext?.metadata?.sourceIds ?? [])];
+                const canPromote = Boolean(
+                  activeQualifier &&
+                    this.selectionContext?.selectedOccurrenceId &&
+                    sourceIds.length,
+                );
+                const disabled =
+                  (comparing && (!unknownEntityId || candidates.length === 0)) ||
+                  (promoting && !canPromote);
+                const title =
+                  comparing && !unknownEntityId
                     ? "Select a canonical unresolved entity before comparing identities."
                     : promoting && !canPromote
                       ? "Source observation/assertion promotion requires a selected occurrence with source evidence."
                       : label;
-                  const qualifierEntityId = activeQualifier?.kind === "subject"
-                    ? this.selectionContext?.relationship?.subjectId ?? null
+                const qualifierEntityId =
+                  activeQualifier?.kind === "subject"
+                    ? (this.selectionContext?.relationship?.subjectId ?? null)
                     : activeQualifier?.kind === "object"
-                      ? this.selectionContext?.relationship?.objectId ?? null
+                      ? (this.selectionContext?.relationship?.objectId ?? null)
                       : null;
-                  return html`<button class="composer-chip composer-chip-button interpretation-chip"
+                return html`<button class="composer-chip composer-chip-button interpretation-chip"
                     type="button"
                     ?disabled=${disabled}
                     title=${title}
@@ -2628,31 +2750,36 @@ export class LuumOccurrenceComposerElement extends LitElement {
                               relationshipId: this.selectionContext?.selectedOccurrenceId ?? null,
                               itemId: this.selectionContext?.selectedItemId ?? null,
                               entityId: qualifierEntityId,
-                              placeId: activeQualifier?.kind === "place"
-                                ? this.selectionContext?.place?.id ?? null
-                                : null,
+                              placeId:
+                                activeQualifier?.kind === "place"
+                                  ? (this.selectionContext?.place?.id ?? null)
+                                  : null,
                             },
                           },
                         }),
                       )}>${label}</button>`;
-                },
-              )}
+              })}
             </div>
           </section>`
               : nothing
           }
           <span id="occurrence-investigation-status" class="help" aria-live="polite">
-            ${qualifiers.length && candidateMatrix?.candidates.length
-              ? (() => {
-                  const active = candidateMatrix.candidates[
-                    Math.min(this.activeCandidate, candidateMatrix.candidates.length - 1)
-                  ];
-                  const cell = active?.cells[0];
-                  return `Investigation. Interpretation ${chosenInterpretation?.label ?? "unresolved"}. Candidate ${active?.label ?? "none"}: ${cell?.assessment ?? "unknown"}.`;
-                })()
-              : qualifiers.length
-                ? "Investigation mode. Choose an interpretation to compare candidates."
-                : ""}
+            ${
+              qualifiers.length && candidateMatrix?.candidates.length
+                ? (
+                    () => {
+                      const active =
+                        candidateMatrix.candidates[
+                          Math.min(this.activeCandidate, candidateMatrix.candidates.length - 1)
+                        ];
+                      const cell = active?.cells[0];
+                      return `Investigation. Interpretation ${chosenInterpretation?.label ?? "unresolved"}. Candidate ${active?.label ?? "none"}: ${cell?.assessment ?? "unknown"}.`;
+                    }
+                  )()
+                : qualifiers.length
+                  ? "Investigation mode. Choose an interpretation to compare candidates."
+                  : ""
+            }
           </span>
           ${
             diagnostic
