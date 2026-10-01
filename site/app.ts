@@ -1963,10 +1963,10 @@ async function hydrateOccurrenceComposerEvidenceMedia(
     ): frame is NonNullable<OccurrenceComposerSelectionContext["media"]>[number] => frame !== null,
   );
   if (!frames.length || version !== occurrenceComposerMediaHydrationVersion) return;
-  els.occurrenceComposer.setSelectionContext({
-    ...baseContext,
-    media: [...(baseContext.media || []), ...frames],
-  });
+  els.occurrenceComposer.setSelectionMedia(baseContext, [
+    ...(baseContext.media || []),
+    ...frames,
+  ]);
 }
 
 function syncOccurrenceComposerSelection(selection = applicationSelection.current): void {
