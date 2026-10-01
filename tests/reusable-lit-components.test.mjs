@@ -20,19 +20,20 @@ test("reusable composer stays domain-neutral and exposes interaction contracts",
   assert.doesNotMatch(source, /src\/application|occurrence-composer-model|timeline-view|world-graph/);
 });
 
-test("reusable retained timeline owns Lit lifecycle without owning scene rendering", async () => {
-  const source = await readFile(
-    new URL("../site/components/reusable/retained-timeline.ts", import.meta.url),
-    "utf8",
-  );
+test("reusable retained timeline owns lifecycle through the generic imperative surface host", async () => {
+  const [surface, timeline] = await Promise.all([
+    readFile(new URL("../site/components/reusable/imperative-surface.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/components/reusable/retained-timeline.ts", import.meta.url), "utf8"),
+  ]);
 
-  assert.match(source, /abstract class RetainedTimelineElement/);
-  assert.match(source, /extends LitElement/);
-  assert.match(source, /createRenderRoot\(\): HTMLElement[\s\S]*return this/);
-  assert.match(source, /render\(\)[\s\S]*return noChange/);
-  assert.match(source, /protected abstract createTimelineController/);
-  assert.match(source, /ensureTimelineController/);
-  assert.doesNotMatch(source, /timeline-view\.ts|TimelineViewController|Luum/);
+  assert.match(surface, /extends LitElement/);
+  assert.match(surface, /createRenderRoot\(\): HTMLElement[\s\S]*return this/);
+  assert.match(surface, /render\(\)[\s\S]*return noChange/);
+  assert.match(timeline, /abstract class RetainedTimelineElement/);
+  assert.match(timeline, /extends ImperativeSurfaceElement/);
+  assert.match(timeline, /protected abstract createTimelineController/);
+  assert.match(timeline, /ensureTimelineController/);
+  assert.doesNotMatch(timeline, /timeline-view\.ts|TimelineViewController|Luum/);
 });
 
 test("component lab exercises reusable composer and retained timeline", async () => {
@@ -50,7 +51,6 @@ test("component lab exercises reusable composer and retained timeline", async ()
   assert.match(script, /selectOnSpace = true/);
   assert.match(script, /wheelSelection = true/);
 });
-
 
 test("imperative surface host stays renderer-neutral and is reused by timeline", async () => {
   const [surface, timeline] = await Promise.all([
