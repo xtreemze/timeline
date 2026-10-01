@@ -40,9 +40,10 @@ test("retained timeline controller populates the host without Lit scene reconcil
 test("occurrence media deck uses native non-autoplay audio and video controls", async ({ page }) => {
   await page.goto("/component-lab.html");
 
-  await page.evaluate(async () => {
-    await import("/components/occurrence-media-deck.ts");
-    const deck = document.createElement("luum-occurrence-deck");
+  await page.evaluate(() => {
+    const deck = document.createElement("luum-occurrence-deck") as HTMLElement & {
+      setDeck(input: unknown): void;
+    };
     deck.id = "native-media-deck";
     document.body.append(deck);
     deck.setDeck({
@@ -57,14 +58,13 @@ test("occurrence media deck uses native non-autoplay audio and video controls", 
   const deck = page.locator("#native-media-deck");
   const video = deck.locator("video");
   await expect(video).toHaveCount(1);
-  await expect(
-    video.evaluate((element) => ({
-      controls: element.controls,
-      autoplay: element.autoplay,
-      playsInline: element.playsInline,
-      preload: element.preload,
-    })),
-  ).resolves.toEqual({
+  const videoState = await video.evaluate((element) => ({
+    controls: element.controls,
+    autoplay: element.autoplay,
+    playsInline: element.playsInline,
+    preload: element.preload,
+  }));
+  expect(videoState).toEqual({
     controls: true,
     autoplay: false,
     playsInline: true,
@@ -74,13 +74,12 @@ test("occurrence media deck uses native non-autoplay audio and video controls", 
   await deck.getByRole("button", { name: "Next frame" }).click();
   const audio = deck.locator("audio");
   await expect(audio).toHaveCount(1);
-  await expect(
-    audio.evaluate((element) => ({
-      controls: element.controls,
-      autoplay: element.autoplay,
-      preload: element.preload,
-    })),
-  ).resolves.toEqual({
+  const audioState = await audio.evaluate((element) => ({
+    controls: element.controls,
+    autoplay: element.autoplay,
+    preload: element.preload,
+  }));
+  expect(audioState).toEqual({
     controls: true,
     autoplay: false,
     preload: "metadata",
