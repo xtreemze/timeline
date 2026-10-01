@@ -53,7 +53,13 @@ test("occurrence media deck uses native non-autoplay audio and video controls", 
       occurrenceId: "occ-media",
       frames: [
         { kind: "video", src: "data:video/mp4;base64,", alt: "Video evidence" },
-        { kind: "audio", src: "data:audio/mpeg;base64,", alt: "Audio evidence" },
+        {
+          kind: "audio",
+          blob: new Blob([], { type: "audio/mpeg" }),
+          mimeType: "audio/mpeg",
+          sha256: "a".repeat(64),
+          alt: "Audio evidence",
+        },
       ],
     });
   });
@@ -93,4 +99,18 @@ test("occurrence media deck uses native non-autoplay audio and video controls", 
     autoplay: false,
     preload: "metadata",
   });
+  const audioSource = await audio.getAttribute("src");
+  expect(audioSource).toMatch(/^blob:/);
+
+  await deck.evaluate((element) => element.remove());
+  const revoked = await page.evaluate(async (source) => {
+    if (!source) return false;
+    try {
+      await fetch(source);
+      return false;
+    } catch {
+      return true;
+    }
+  }, audioSource);
+  expect(revoked).toBe(true);
 });
