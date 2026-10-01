@@ -41,6 +41,7 @@ import {
 import type {
   LuumOccurrenceComposerElement,
   OccurrenceCommitDetail,
+  OccurrenceComposerSelectionContext,
 } from "./components/occurrence-composer.ts";
 import {
   formatOccurrenceComposition,
@@ -1927,7 +1928,7 @@ function evidenceRecordMediaKind(record: EvidenceRecord): "image" | "audio" | "v
 
 async function hydrateOccurrenceComposerEvidenceMedia(
   item: TimelineItemRecord,
-  baseContext: Parameters<typeof els.occurrenceComposer.setSelectionContext>[0],
+  baseContext: OccurrenceComposerSelectionContext | null,
   version: number,
 ): Promise<void> {
   if (!baseContext) return;
@@ -1956,7 +1957,11 @@ async function hydrateOccurrenceComposerEvidenceMedia(
         }
       }),
     )
-  ).filter(Boolean);
+  ).filter(
+    (
+      frame,
+    ): frame is NonNullable<OccurrenceComposerSelectionContext["media"]>[number] => frame !== null,
+  );
   if (!frames.length || version !== occurrenceComposerMediaHydrationVersion) return;
   els.occurrenceComposer.setSelectionContext({
     ...baseContext,
