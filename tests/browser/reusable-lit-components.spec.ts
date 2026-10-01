@@ -57,3 +57,81 @@ test("media viewer supports keyboard zoom and reset", async ({ page }) => {
   await viewport.press("0");
   await expect(viewer.locator('[part="zoom-level"]')).toHaveText("100%");
 });
+
+test("occurrence media deck uses native non-autoplay audio and video controls", async ({ page }) => {
+  await page.goto("/component-lab.html");
+
+  await page.evaluate(() => {
+    const deck = document.createElement("luum-occurrence-deck") as HTMLElement & {
+      setDeck(input: unknown): void;
+    };
+    deck.id = "native-media-deck";
+    // The contract is the native control surface, not codec decoding. Keep the
+    // intentionally empty data URLs from racing the component's error fallback.
+    deck.addEventListener("error", (event) => event.stopImmediatePropagation(), true);
+    document.body.append(deck);
+    deck.setDeck({
+      occurrenceId: "occ-media",
+      frames: [
+        { kind: "video", src: "data:video/mp4;base64,", alt: "Video evidence" },
+        {
+          kind: "audio",
+          blob: new Blob([], { type: "audio/mpeg" }),
+          mimeType: "audio/mpeg",
+          sha256: "a".repeat(64),
+          alt: "Audio evidence",
+        },
+      ],
+    });
+  });
+
+  const deck = page.locator("#native-media-deck");
+  const video = deck.locator("video");
+  await expect(video).toHaveCount(1);
+  const videoState = await video.evaluate((element) => {
+    const media = element as HTMLVideoElement;
+    return {
+      controls: media.controls,
+      autoplay: media.autoplay,
+      playsInline: media.playsInline,
+      preload: media.preload,
+    };
+  });
+  expect(videoState).toEqual({
+    controls: true,
+    autoplay: false,
+    playsInline: true,
+    preload: "metadata",
+  });
+
+  await deck.getByRole("button", { name: "Next frame" }).click();
+  const audio = deck.locator("audio");
+  await expect(audio).toHaveCount(1);
+  const audioState = await audio.evaluate((element) => {
+    const media = element as HTMLAudioElement;
+    return {
+      controls: media.controls,
+      autoplay: media.autoplay,
+      preload: media.preload,
+    };
+  });
+  expect(audioState).toEqual({
+    controls: true,
+    autoplay: false,
+    preload: "metadata",
+  });
+  const audioSource = await audio.getAttribute("src");
+  expect(audioSource).toMatch(/^blob:/);
+
+  await deck.evaluate((element) => element.remove());
+  const revoked = await page.evaluate(async (source) => {
+    if (!source) return false;
+    try {
+      await fetch(source);
+      return false;
+    } catch {
+      return true;
+    }
+  }, audioSource);
+  expect(revoked).toBe(true);
+});
