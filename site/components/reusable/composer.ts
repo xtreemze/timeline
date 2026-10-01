@@ -159,6 +159,7 @@ export class ReusableComposerElement extends LitElement {
     if (event.isComposing) return;
 
     const options = this.options;
+    const activeOption = options[this.activeIndex];
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
       this.move(event.key === "ArrowDown" ? 1 : -1);
@@ -170,13 +171,12 @@ export class ReusableComposerElement extends LitElement {
       event.preventDefault();
       const reverseIndex = [...options].reverse().findIndex((option) => !option.disabled);
       this.activeIndex = reverseIndex < 0 ? 0 : options.length - 1 - reverseIndex;
-    } else if (event.key === " " && this.multiple && this.selectOnSpace && this.value.trim() && options[this.activeIndex]) {
+    } else if (event.key === " " && this.multiple && this.selectOnSpace && this.value.trim() && activeOption) {
       event.preventDefault();
-      this.choose(options[this.activeIndex]);
+      this.choose(activeOption);
     } else if (event.key === "Enter") {
       event.preventDefault();
-      const active = options[this.activeIndex];
-      if (active) this.choose(active);
+      if (activeOption) this.choose(activeOption);
       else this.dispatchEvent(new CustomEvent("composer-commit", {
         bubbles:true, composed:true, detail:Object.freeze({ value:this.value, selected:this.selected }),
       }));
