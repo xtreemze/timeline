@@ -1174,12 +1174,31 @@ export class LuumOccurrenceComposerElement extends LitElement {
   }
 
   setTimelineViewport(start: number | null, end: number | null): void {
-    this.timelineContext = timelineContextFromViewport(start, end);
+    const previous = this.timelineContext;
+    const next = timelineContextFromViewport(start, end);
+    this.timelineContext = next;
+    if (!this.active) return;
+    if (
+      previous?.value === next?.value &&
+      previous?.precision === next?.precision &&
+      previous?.label === next?.label
+    ) {
+      return;
+    }
     this.requestUpdate();
   }
 
   setWorldContext(longitude: number | null, latitude: number | null, zoom: number | null): void {
-    this.worldContext = worldContextFromCamera({ longitude, latitude, zoom });
+    const previous = this.worldContext;
+    const next = worldContextFromCamera({ longitude, latitude, zoom });
+    this.worldContext = next;
+    if (!this.active) return;
+    if (
+      previous?.label === next?.label &&
+      previous?.accuracyMeters === next?.accuracyMeters
+    ) {
+      return;
+    }
     this.requestUpdate();
   }
 
