@@ -1108,6 +1108,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
   private activeCandidate = 0;
   private choiceWheelLastStepAt = 0;
   private composing = false;
+  private programmaticSelection = false;
   private cursorOffset = 0;
   private externalError = "";
   private explicitPlaceContext: ComposerWorldContext | null = null;
@@ -1332,20 +1333,29 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const section = composerEditableSections(this.value).find(
       (candidate) => candidate.kind === field,
     );
-    this.cursorOffset = section?.start ?? this.value.length;
+    const start = section?.start ?? this.value.length;
+    const end = section?.end ?? this.value.length;
+    this.cursorOffset = start;
     this.resetSuggestionSelection();
     this.requestUpdate();
+    this.focusInputRange(start, end);
+  }
+
+  private focusInputRange(start: number, end = start): void {
     void this.updateComplete.then(() => {
       const input = this.renderRoot.querySelector<HTMLInputElement>("input");
       if (!input) return;
-      const start = section?.start ?? this.value.length;
-      const end = section?.end ?? this.value.length;
+      this.programmaticSelection = true;
+      this.cursorOffset = start;
       input.focus({ preventScroll: true });
       input.setSelectionRange(start, end);
       requestAnimationFrame(() => {
         const liveInput = this.renderRoot.querySelector<HTMLInputElement>("input");
-        if (!liveInput || !this.inputHasFocus()) return;
-        liveInput.setSelectionRange(start, end);
+        if (liveInput) {
+          liveInput.setSelectionRange(start, end);
+          this.syncInputDecorationScroll(liveInput);
+        }
+        this.programmaticSelection = false;
       });
     });
   }
@@ -1395,9 +1405,19 @@ export class LuumOccurrenceComposerElement extends LitElement {
     const delta =
       shellRect.left + shellRect.width / 2 - (viewportLeft + viewportWidth / 2);
     const maximum = Math.max(0, footer.scrollWidth - footer.clientWidth);
+    const previousSnapType = footer.style.scrollSnapType;
+    footer.style.scrollSnapType = "none";
     footer.scrollTo({
       left: Math.max(0, Math.min(maximum, footer.scrollLeft + delta)),
       behavior: "auto",
+    });
+    void footer.offsetWidth;
+    requestAnimationFrame(() => {
+      if (previousSnapType) {
+        footer.style.scrollSnapType = previousSnapType;
+      } else {
+        footer.style.removeProperty("scroll-snap-type");
+      }
     });
   }
 
@@ -1780,6 +1800,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
   }
 
   private onCaretMove(event: Event): void {
+    if (this.programmaticSelection) return;
     const target = event.currentTarget;
     if (!(target instanceof HTMLInputElement)) return;
     this.syncCursorFromInput(target);
@@ -1811,12 +1832,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
   }
 
   private focusComposerOffset(cursorOffset: number): void {
-    void this.updateComplete.then(() => {
-      const input = this.renderRoot.querySelector<HTMLInputElement>("input");
-      if (!input) return;
-      input.focus({ preventScroll: true });
-      input.setSelectionRange(cursorOffset, cursorOffset);
-    });
+    this.focusInputRange(cursorOffset);
   }
 
   private toggleMultiSelectSuggestion(suggestion: ComposerSuggestion): void {
@@ -2057,7 +2073,9 @@ export class LuumOccurrenceComposerElement extends LitElement {
       return;
     }
     const activeSuggestion = suggestions[this.activeSuggestion] ?? suggestions[0];
-    if (event.key === " " && activeSuggestion?.multiSelect) {
+    const spacePressed =
+      event.key === " " || event.key === "Spacebar" || event.code === "Space";
+    if (spacePressed && activeSuggestion?.multiSelect) {
       event.preventDefault();
       this.toggleMultiSelectSuggestion(activeSuggestion);
       return;
