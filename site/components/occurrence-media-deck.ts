@@ -412,6 +412,8 @@ export class LuumOccurrenceDeckElement extends LitElement {
     if (!previous) return;
     const viewport = event.currentTarget;
     if (!(viewport instanceof HTMLElement)) return;
+    const previousX = previous.x;
+    const previousY = previous.y;
     previous.x = event.clientX;
     previous.y = event.clientY;
 
@@ -442,8 +444,8 @@ export class LuumOccurrenceDeckElement extends LitElement {
     if (this.imageZoomValue > IMAGE_RESET_ZOOM + 0.001) {
       event.preventDefault();
       this.setImagePan(
-        this.imagePanX + event.clientX - previous.x,
-        this.imagePanY + event.clientY - previous.y,
+        this.imagePanX + event.clientX - previousX,
+        this.imagePanY + event.clientY - previousY,
         viewport,
       );
     }
