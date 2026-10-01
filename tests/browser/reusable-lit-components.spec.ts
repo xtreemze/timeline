@@ -61,12 +61,15 @@ test("occurrence media deck uses native non-autoplay audio and video controls", 
   const deck = page.locator("#native-media-deck");
   const video = deck.locator("video");
   await expect(video).toHaveCount(1);
-  const videoState = await video.evaluate((element) => ({
-    controls: element.controls,
-    autoplay: element.autoplay,
-    playsInline: element.playsInline,
-    preload: element.preload,
-  }));
+  const videoState = await video.evaluate((element) => {
+    const media = element as HTMLVideoElement;
+    return {
+      controls: media.controls,
+      autoplay: media.autoplay,
+      playsInline: media.playsInline,
+      preload: media.preload,
+    };
+  });
   expect(videoState).toEqual({
     controls: true,
     autoplay: false,
@@ -77,11 +80,14 @@ test("occurrence media deck uses native non-autoplay audio and video controls", 
   await deck.getByRole("button", { name: "Next frame" }).click();
   const audio = deck.locator("audio");
   await expect(audio).toHaveCount(1);
-  const audioState = await audio.evaluate((element) => ({
-    controls: element.controls,
-    autoplay: element.autoplay,
-    preload: element.preload,
-  }));
+  const audioState = await audio.evaluate((element) => {
+    const media = element as HTMLAudioElement;
+    return {
+      controls: media.controls,
+      autoplay: media.autoplay,
+      preload: media.preload,
+    };
+  });
   expect(audioState).toEqual({
     controls: true,
     autoplay: false,
