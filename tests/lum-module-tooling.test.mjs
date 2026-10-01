@@ -142,6 +142,74 @@ test("lum check-modules performs whole-project validation across module files", 
   assert.equal(payload.moduleCount, 3);
 });
 
+test("check-modules accepts story references to relationship-derived occurrences", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "lum-modules-story-rel-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+
+  const files = [
+    [
+      "entities.module.lum.json",
+      validModule("entities", [
+        {
+          id: "alice",
+          type: "person",
+          name: "Alice",
+          alternateNames: [],
+          sourceIds: [],
+          attributes: {},
+        },
+        {
+          id: "bob",
+          type: "person",
+          name: "Bob",
+          alternateNames: [],
+          sourceIds: [],
+          attributes: {},
+        },
+      ]),
+    ],
+    [
+      "relationships.module.lum.json",
+      validModule("relationships", [
+        {
+          id: "rel-1",
+          subjectId: "alice",
+          predicate: "warns",
+          objectId: "bob",
+          itemIds: [],
+          sourceIds: [],
+          confidence: 1,
+          time: { type: "instant", start: { value: "2026-09-28" } },
+          attributes: {},
+        },
+      ]),
+    ],
+    [
+      "stories.module.lum.json",
+      validModule("stories", [
+        {
+          id: "story-1",
+          title: "Warning story",
+          occurrenceIds: ["rel-1"],
+          placeIds: [],
+          attributes: {},
+        },
+      ]),
+    ],
+  ];
+  for (const [name, source] of files) {
+    await writeFile(path.join(directory, name), source, "utf8");
+  }
+
+  const result = runLum([
+    "check-modules",
+    ...files.map(([name]) => path.join(directory, name)),
+    "--json",
+  ]);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(JSON.parse(result.stdout).valid, true);
+});
+
 test("LSP dispatches module diagnostics and formatting by format discriminator", () => {
   const outbound = [];
   const server = createLumLanguageServer((message) => outbound.push(message));
