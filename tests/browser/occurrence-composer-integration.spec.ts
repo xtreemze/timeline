@@ -345,6 +345,15 @@ test("mobile composer fills one viewport lane, follows pan, and snaps centered",
     element.scrollLeft = Math.min(element.scrollLeft + 96, Math.max(1, available));
   });
   await expect.poll(async () => (await geometry()).shellLeft).toBeLessThan(initial.shellLeft - 1);
+  // The anchored panel is updated on the following layout turn. Wait for it to
+  // follow the panned shell before sampling geometry, otherwise the assertion
+  // can observe the shell's new position with the panel's previous position.
+  await expect
+    .poll(async () => {
+      const panned = await geometry();
+      return Math.abs(panned.panelLeft - panned.shellLeft);
+    })
+    .toBeLessThanOrEqual(2);
 
   const panned = await geometry();
   expect(panned.footerScrollLeft).toBeGreaterThan(0);
