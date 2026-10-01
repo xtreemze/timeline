@@ -4097,6 +4097,23 @@ export class TimelineViewController {
         }
         const url = recordString(record, "url");
         const file = isRecord(record.file) ? record.file : null;
+        const fileName = recordString(file, "name");
+        const sha256 = recordString(file, "sha256");
+        if (fileName || sha256) {
+          const fileMetadata = document.createElement("p");
+          fileMetadata.className = "timeline-focus-evidence-file-meta";
+          if (fileName) {
+            const name = document.createElement("span");
+            name.textContent = fileName;
+            fileMetadata.append(name);
+          }
+          if (sha256) {
+            const fingerprint = document.createElement("code");
+            fingerprint.textContent = `SHA-256 ${sha256}`;
+            fileMetadata.append(fingerprint);
+          }
+          card.append(fileMetadata);
+        }
         if (url || recordString(file, "blobKey")) {
           const evidenceActions = document.createElement("div");
           evidenceActions.className = "timeline-focus-evidence-actions";
