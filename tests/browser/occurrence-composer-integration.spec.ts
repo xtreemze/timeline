@@ -995,6 +995,71 @@ test("IME composition cannot accept or commit investigative text before composit
   await expect(composer.locator('input[role="combobox"]')).toHaveCount(1);
 });
 
+
+test("IME composition is inert across subject, action, and multi-word entity input", async ({
+  page,
+}) => {
+  const composer = page.locator("#occurrence-composer");
+  await composer.locator(".compact").click();
+  const input = composer.locator('input[role="combobox"]');
+
+  await composer.evaluate((element) => {
+    (element as HTMLElement & { dataset: DOMStringMap }).dataset.imeCommitCount = "0";
+    element.addEventListener("occurrencecommit", () => {
+      const host = element as HTMLElement;
+      host.dataset.imeCommitCount = String(Number(host.dataset.imeCommitCount ?? "0") + 1);
+    });
+  });
+
+  const cases = [
+    { label: "subject", value: '"María José"' },
+    { label: "action", value: '@alice "met with"' },
+    { label: "multi-word object", value: '@alice meets "María José"' },
+  ] as const;
+
+  for (const scenario of cases) {
+    await input.evaluate((element: HTMLInputElement, value) => {
+      element.value = "";
+      element.dispatchEvent(new InputEvent("input", {
+        bubbles: true,
+        data: null,
+        inputType: "deleteContentBackward",
+      }));
+      element.dispatchEvent(new CompositionEvent("compositionstart", {
+        bubbles: true,
+        data: value,
+      }));
+      element.value = value;
+      element.setSelectionRange(value.length, value.length);
+      element.dispatchEvent(new InputEvent("input", {
+        bubbles: true,
+        data: value,
+        inputType: "insertCompositionText",
+        isComposing: true,
+      }));
+    }, scenario.value);
+
+    await input.press("Enter");
+    await expect(input, scenario.label).toHaveValue(scenario.value);
+    await expect(composer, scenario.label).toHaveAttribute("data-ime-commit-count", "0");
+
+    await input.evaluate((element: HTMLInputElement, value) => {
+      element.dispatchEvent(new CompositionEvent("compositionend", {
+        bubbles: true,
+        data: value,
+      }));
+    }, scenario.value);
+
+    await expect(input, scenario.label).toHaveValue(scenario.value);
+    await expect
+      .poll(
+        () => input.evaluate((element: HTMLInputElement) => element.selectionStart),
+        scenario.label,
+      )
+      .toBe(scenario.value.length);
+  }
+});
+
 test("same-occurrence media and context refresh preserve a dirty investigative draft", async ({
   page,
 }) => {
