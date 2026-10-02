@@ -4382,6 +4382,17 @@ export class DeckWorldSurface implements WorldSurface {
     this.#render();
   }
 
+  previewProjection(projection: WorldProjection): void {
+    this.#assertAlive();
+    // Timeline travel owns only transient presentation here. Keep camera fit,
+    // clustering/force coordination and projection-handoff convergence on the
+    // last committed projection until the timeline settles.
+    this.#projection = projection;
+    this.#topologyIndex.replace(projection);
+    this.#pruneRevealedClusterPlaces();
+    this.#render();
+  }
+
   applyProjectionDelta(delta: WorldProjectionDelta): void {
     this.#assertAlive();
     this.#projection = applyWorldProjectionDelta(this.#projection, delta);

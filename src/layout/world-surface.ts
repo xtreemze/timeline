@@ -76,6 +76,11 @@ export interface WorldSurfaceCapabilities {
 
 export interface WorldSurface {
   setProjection(projection: WorldProjection): void;
+  /**
+   * Presentation-only transient projection used while the timeline viewport is moving.
+   * It must not become canonical/force ownership or trigger automatic reframing.
+   */
+  previewProjection?(projection: WorldProjection): void;
   applyProjectionDelta?(delta: WorldProjectionDelta): void;
   /** Presentation-only local DAG routing hints; canonical topology stays in WorldProjection. */
   setRelationshipRoutes?(routes: readonly WorldRelationshipRouteHint[]): void;
