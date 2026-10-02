@@ -148,6 +148,11 @@ test("standalone participant roles remain renderer-neutral metadata on the canon
     },
   ]);
   assert.equal(projection.instances.filter((instance) => instance.canonicalId === "alice").length, 1);
+  assert.equal(
+    projection.instances.some((instance) => String(instance.canonicalId) === "hearing"),
+    false,
+    "standalone occurrence identity never becomes a World graph node",
+  );
   assert.equal(projection.edges.length, 0);
 });
 
