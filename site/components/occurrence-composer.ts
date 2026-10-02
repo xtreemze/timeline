@@ -1457,6 +1457,11 @@ export class LuumOccurrenceComposerElement extends LitElement {
     this.sessionKey = this.currentContextKey();
     this.active = false;
     this.externalError = "";
+    // Revealing the input lane pans the narrow dock; closing the lane must pan it back so the
+    // primary actions are not left scrolled out of view.
+    void this.updateComplete.then(() => {
+      this.closest<HTMLElement>(".app-footer-bar")?.scrollTo({ left: 0, behavior: "auto" });
+    });
   }
 
   setError(message: string): void {

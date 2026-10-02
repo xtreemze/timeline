@@ -688,6 +688,30 @@
       max(0.18rem, env(safe-area-inset-right));
   }
 
+  /* The dock itself is the scroller here, so it owns the edge fade. The active composer lane
+     is excluded: it fills the viewport by design and its input must not be masked. */
+  #app-shell:not(:has(#occurrence-composer[active])) > .app-tool-dock.app-footer-bar {
+    mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      #000 var(--dock-fade-start),
+      #000 calc(100% - var(--dock-fade-end)),
+      transparent 100%
+    );
+    animation: dock-edge-fade linear both;
+    animation-timeline: scroll(self inline);
+  }
+
+  #app-shell:not(:has(#occurrence-composer[active])) > .app-tool-dock.app-footer-bar:dir(rtl) {
+    mask-image: linear-gradient(
+      to left,
+      transparent 0,
+      #000 var(--dock-fade-start),
+      #000 calc(100% - var(--dock-fade-end)),
+      transparent 100%
+    );
+  }
+
   #app-shell:has(#timeline-view[data-orientation="landscape"]) > .app-tool-dock.app-footer-bar,
   #app-shell:has(#timeline-view[data-orientation="portrait"]) > .app-tool-dock.app-footer-bar,
   #app-shell #presentation-stage:fullscreen:has(#timeline-view) > .app-tool-dock.app-footer-bar {

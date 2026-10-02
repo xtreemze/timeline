@@ -388,6 +388,20 @@ test("mobile composer fills one viewport lane, follows pan, and snaps centered",
   await expect(approve).toBeVisible();
 });
 
+test("closing the mobile composer returns the dock to its first controls", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  const footer = page.locator(".app-footer-bar");
+  const composer = page.locator("#occurrence-composer");
+  await composer.locator(".compact").click();
+  await expect(composer).toHaveAttribute("active", "");
+  await expect.poll(() => footer.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
+
+  await page.keyboard.press("Escape");
+  await expect(composer).not.toHaveAttribute("active", "");
+  await expect.poll(() => footer.evaluate((element) => element.scrollLeft)).toBe(0);
+  await expect(page.getByRole("button", { name: "Project actions" })).toBeInViewport();
+});
+
 test("one native composer input decorates semantic ranges inline and keeps exact editing spans", async ({
   page,
 }) => {

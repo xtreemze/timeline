@@ -446,3 +446,18 @@ test("overflowing view controls fade at whichever scroll edge hides more control
 
   assert.match(shell, /\.app-footer-view:dir\(rtl\)\s*\{[^}]*mask-image:/);
 });
+
+test("narrow dock fades at its scroll edges, but never while the composer lane is active", async () => {
+  const shell = await readFile(shellUrl, "utf8");
+  const narrow = shell.match(/@media \(max-width: 699px\)\s*\{[\s\S]*?\n\}\n/g) ?? [];
+  const rule = narrow
+    .join("\n")
+    .match(
+      /#app-shell:not\(:has\(#occurrence-composer\[active\]\)\)\s*>\s*\.app-tool-dock\.app-footer-bar\s*\{[^}]*\}/,
+    )?.[0];
+
+  assert.ok(rule, "narrow screens fade the dock itself because it is the scroller there");
+  assert.match(rule, /mask-image:[^;]*var\(--dock-fade-start\)[^;]*var\(--dock-fade-end\)/);
+  assert.match(rule, /animation:\s*dock-edge-fade/);
+  assert.match(rule, /animation-timeline:\s*scroll\(self inline\)/);
+});
