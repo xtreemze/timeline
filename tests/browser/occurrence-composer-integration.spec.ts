@@ -108,11 +108,36 @@ test("composer keeps active suggestions visible across keyboard, wheel, and rese
   await expect.poll(async () => (await choiceGeometry()).listboxScrollTop).toBe(0);
 
   await input.fill("Alice");
-  await input.press("Home");
+  // Suggestions must never hijack caret navigation keys. macOS text fields use Cmd+Arrow for
+  // line start/end (Home/End scroll there), so drive the platform's own caret commands.
+  const mac = process.platform === "darwin";
+  const lineStart = mac ? "Meta+ArrowLeft" : "Home";
+  const lineEnd = mac ? "Meta+ArrowRight" : "End";
+  const swallowed = await input.evaluate((element: HTMLInputElement) => {
+    const seen: boolean[] = [];
+    element.addEventListener(
+      "keydown",
+      (event) => {
+        if (event.key === "Home" || event.key === "End") {
+          queueMicrotask(() => seen.push(event.defaultPrevented));
+        }
+      },
+      { once: false },
+    );
+    element.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Home", bubbles: true, cancelable: true }),
+    );
+    element.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "End", bubbles: true, cancelable: true }),
+    );
+    return new Promise<boolean[]>((resolve) => setTimeout(() => resolve(seen), 0));
+  });
+  expect(swallowed).toEqual([false, false]);
+  await input.press(lineStart);
   await expect
     .poll(() => input.evaluate((element: HTMLInputElement) => element.selectionStart))
     .toBe(0);
-  await input.press("End");
+  await input.press(lineEnd);
   await expect
     .poll(() =>
       input.evaluate((element: HTMLInputElement) => ({
@@ -334,6 +359,8 @@ test("mobile composer fills one viewport lane, follows pan, and snaps centered",
     element.scrollLeft = Math.min(available, element.scrollLeft + Math.min(96, available));
   });
   await expect.poll(async () => (await geometry()).shellLeft).toBeLessThan(initial.shellLeft - 1);
+  // The completion panel repositions on its own frame after the shell moves.
+  await expect.poll(async () => (await geometry()).panelLeft).toBeLessThan(initial.panelLeft - 1);
 
   const panned = await geometry();
   expect(panned.footerScrollLeft).toBeGreaterThan(0);

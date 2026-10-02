@@ -891,7 +891,10 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
     @media (min-width: 721px) {
       .composer-card-details[data-split="true"] {
-        grid-template-columns: minmax(0, 1.15fr) minmax(16rem, 0.85fr);
+        /* Both columns keep a usable floor: the composer panel can be far narrower than the
+           viewport (landscape phones), and a larger context floor starved the media column
+           until its controls were clipped away. */
+        grid-template-columns: minmax(8.5rem, 1.15fr) minmax(8rem, 0.85fr);
       }
 
       .composer-card-details[data-split="true"] .composer-card-media {
