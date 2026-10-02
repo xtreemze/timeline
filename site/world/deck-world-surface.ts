@@ -164,6 +164,15 @@ function deckCameraInteractionActive(state: DeckRuntimeInteractionState | undefi
   );
 }
 
+function deckViewStateStartsTransition(viewState: DeckRuntimeViewState): boolean {
+  const duration = (viewState as DeckRuntimeViewState & { readonly transitionDuration?: unknown })
+    .transitionDuration;
+  return (
+    duration === "auto" ||
+    (typeof duration === "number" && Number.isFinite(duration) && duration > 0)
+  );
+}
+
 export interface DeckRuntimePickingInfo {
   readonly object?: unknown;
   readonly layer?: { readonly id?: string };
@@ -3757,14 +3766,23 @@ export class DeckWorldSurface implements WorldSurface {
           // controller alive until deck reports that interaction has settled.
           this.#syncSpatialMode({ deferDuringInteraction: true });
           this.#syncClusterLifecycle();
-          // The camera is controlled (`viewState` prop): hand deck the new
-          // state or the globe snaps back and cannot be rotated or panned.
-          // Any semantic-layer rebuild in this callback competes directly with the
-          // pointer stream. Pan used to rebuild at camera-facing quantization steps,
-          // while pinch/wheel zoom could rebuild on nearly every event because
-          // screen scale, local-offset magnification and altitude are zoom-derived.
-          // Keep the entire owned camera gesture viewState-only; spatial mode,
-          // clustering and presentation LOD are reconciled once interaction settles.
+
+          // A controller-generated inertia/smooth-zoom target carries transition
+          // metadata on the incoming viewState. Preserve that object verbatim so
+          // deck.gl can start the transition instead of receiving a reconstructed
+          // zero-duration camera state. Once the transition is running, its
+          // interpolated frames are controller-owned: echoing a plain controlled
+          // viewState would interrupt the transition after the first frame.
+          if (deckViewStateStartsTransition(viewState)) {
+            this.#deck.setProps({ viewState });
+            return;
+          }
+          if (interactionState?.inTransition === true) return;
+
+          // Outside transitions the camera is controlled (`viewState` prop):
+          // hand deck the new state or the globe snaps back and cannot be rotated
+          // or panned. Semantic-layer rebuilds remain deferred while direct camera
+          // interaction owns the pointer stream.
           if (!cameraInteractionActive && this.#zoomNeedsRender()) this.#render(true);
           else this.#deck.setProps({ viewState: deckViewState(this.#camera) });
         }
