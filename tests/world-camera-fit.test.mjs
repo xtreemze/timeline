@@ -137,6 +137,23 @@ test("default startup begins zoomed out and flies once to readable content", () 
   assert.equal(r.views.length, viewStateCount, "later projection updates never replay startup flight");
 });
 
+test("reduced motion skips the startup flight while keeping the readable fit", (t) => {
+  const originalMatchMedia = globalThis.matchMedia;
+  globalThis.matchMedia = (query) => ({ matches: query === "(prefers-reduced-motion: reduce)" });
+  t.after(() => {
+    globalThis.matchMedia = originalMatchMedia;
+  });
+
+  const flyToInterpolator = { kind: "fly-to" };
+  const r = runtime({ flyToInterpolator });
+  const surface = new DeckWorldSurface({ clientWidth: 1000, clientHeight: 600 }, r);
+  surface.setProjection(placed(30, 40));
+
+  assert.equal(surface.getCamera().zoom, 6);
+  assert.equal(r.views.at(-1).transitionInterpolator, undefined);
+  assert.equal(r.views.at(-1).transitionDuration, undefined);
+});
+
 test("without a caller camera startup zooms to readable content exactly once", () => {
   const r = runtime();
   const surface = new DeckWorldSurface({ clientWidth: 1000, clientHeight: 600 }, r);
