@@ -306,5 +306,7 @@ test("world marker memoization is bounded so authored styles cannot retain unlim
   assert.match(source, /WORLD_NODE_MARKER_CACHE_LIMIT = 192/);
   assert.match(source, /if \(markers\.size >= WORLD_NODE_MARKER_CACHE_LIMIT\)/);
   assert.match(source, /markers\.delete\(oldest\)/);
-  assert.match(source, /return cacheMarker\(key, marker\)/);
+  assert.match(source, /markers\.set\(key, marker\)/);
+  assert.match(source, /return marker/);
+  assert.doesNotMatch(source, /return cacheMarker\(key, marker\)/);
 });
