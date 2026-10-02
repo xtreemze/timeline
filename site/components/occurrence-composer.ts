@@ -2859,7 +2859,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
                               ? html`<span class="option-icon" aria-hidden="true">
                                 <svg viewBox="0 0 24 24" focusable="false">
                                   ${iconPathData(suggestion.icon).map(
-                                    (path) => html`<path d=${path}></path>`,
+                                    (path) => svg`<path d=${path}></path>`,
                                   )}
                                 </svg>
                               </span>`
