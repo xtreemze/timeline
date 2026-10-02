@@ -328,7 +328,7 @@ test("authorOccurrence rejects unsupported semantic icons before mutation", () =
   assert.equal(state.entities.length, 1);
 });
 
-test("updateOccurrence edits the canonical relationship in place and preserves unrepresented metadata", () => {
+test("updateOccurrence flags material predicate edits for semantic-support review", () => {
   const original = editableState();
   const originalRelationship = structuredClone(original.relationships[0]);
   const originalItem = structuredClone(original.items[0]);
@@ -348,8 +348,16 @@ test("updateOccurrence edits the canonical relationship in place and preserves u
   assert.deepEqual(relationship.semanticMappings, originalRelationship.semanticMappings);
   assert.equal(relationship.initialState, originalRelationship.initialState);
   assert.deepEqual(relationship.sourceIds, originalRelationship.sourceIds);
-  assert.equal(relationship.confidence, originalRelationship.confidence);
-  assert.deepEqual(relationship.attributes, originalRelationship.attributes);
+  assert.equal(relationship.confidence, null, "material fact edits invalidate prior confidence");
+  assert.deepEqual(relationship.attributes, {
+    ...originalRelationship.attributes,
+    semanticReview: {
+      required: true,
+      reasons: ["predicate-changed"],
+    },
+  });
+  assert.equal(result.semanticReviewRequired, true);
+  assert.deepEqual(result.semanticReviewReasons, ["predicate-changed"]);
   assert.deepEqual(
     relationship.time,
     originalRelationship.time,
@@ -370,6 +378,50 @@ test("updateOccurrence edits the canonical relationship in place and preserves u
   assert.deepEqual(item.extensions, originalItem.extensions);
   assert.deepEqual(item.tags, originalItem.tags);
   assert.deepEqual(item.time, originalItem.time);
+});
+
+test("updateOccurrence clears endpoint-bound participation context when an endpoint changes", () => {
+  const state = editableState();
+  const result = updateOccurrence(
+    state,
+    editRequest({
+      subject: { name: "Carol", properties: { type: "person" } },
+      predicate: "meets",
+    }),
+    dependencies(),
+  );
+
+  const relationship = result.state.relationships[0];
+  assert.equal(relationship.subjectId.startsWith("entity-"), true);
+  assert.equal(relationship.subjectContext, undefined);
+  assert.deepEqual(
+    relationship.objectContext,
+    state.relationships[0].objectContext,
+    "unchanged endpoint context remains attached to the same canonical actor",
+  );
+  assert.equal(relationship.confidence, null);
+  assert.deepEqual(relationship.attributes?.semanticReview, {
+    required: true,
+    reasons: ["subject-changed"],
+  });
+  assert.deepEqual(result.semanticReviewReasons, ["subject-changed"]);
+});
+
+test("updateOccurrence does not require semantic review for chronology-only category and tag edits", () => {
+  const state = editableState();
+  const result = updateOccurrence(
+    state,
+    editRequest({
+      predicate: "meets",
+      categoryName: "Decision",
+      tags: ["reviewed"],
+    }),
+    dependencies(),
+  );
+
+  assert.equal(result.semanticReviewRequired, undefined);
+  assert.equal(result.state.relationships[0].confidence, 0.72);
+  assert.deepEqual(result.state.relationships[0].attributes, { retained: true });
 });
 
 test("updateOccurrence updates explicit place, time, category, and tags only for the exact item", () => {
@@ -407,6 +459,38 @@ test("updateOccurrence updates explicit place, time, category, and tags only for
   assert.equal(item.start, replacementTime.startValue);
   assert.equal(item.end, replacementTime.endValue);
   assert.deepEqual(item.time, replacementTime.extent);
+});
+
+test("updateOccurrence propagates canonical time edits to every linked chronology projection", () => {
+  const state = editableState({ multipleItems: true });
+  const replacementTime = {
+    extent: {
+      type: "instant",
+      start: { value: "2099-01-15", precision: "day" },
+      end: null,
+    },
+    kind: "event",
+    startValue: "2099-01-15",
+    endValue: null,
+  };
+
+  const result = updateOccurrence(
+    state,
+    editRequest({
+      itemId: "item-b",
+      predicate: "meets",
+      time: replacementTime,
+    }),
+    dependencies(),
+  );
+
+  assert.deepEqual(result.state.relationships[0].time, replacementTime.extent);
+  for (const itemId of ["item-a", "item-b"]) {
+    const item = result.state.items.find((candidate) => candidate.id === itemId);
+    assert.equal(item?.start, replacementTime.startValue);
+    assert.equal(item?.end, replacementTime.endValue);
+    assert.deepEqual(item?.time, replacementTime.extent);
+  }
 });
 
 test("updateOccurrence requires exact chronology context before changing item-level fields on multi-item relationships", () => {

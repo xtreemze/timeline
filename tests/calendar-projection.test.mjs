@@ -252,6 +252,7 @@ test("story and explicit selectors export relationship-derived canonical occurre
 
   const direct = projectOccurrenceToCalendarEvent(input, "rel-1");
   assert.equal(direct.occurrenceId, "rel-1");
+  assert.equal(direct.uid, "urn:lum:calendar-case:occurrence:rel-1");
   assert.equal(direct.summary, "Alice warns Bob");
 });
 
