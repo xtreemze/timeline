@@ -974,6 +974,86 @@ test("active pinch defers zoom-derived semantic layer rebuilds until interaction
   );
 });
 
+test("force deltas during camera zoom keep semantic presentation frozen until interaction settles", () => {
+  const { calls, runtime } = harness();
+  const surface = new DeckWorldSurface({}, runtime, {
+    longitude: 18.0686,
+    latitude: 59.3293,
+    zoom: 6,
+    bearing: 0,
+    pitch: 20,
+  });
+  const initial = projection();
+  surface.setProjection(initial);
+
+  const bobId = worldInstanceId("bob", "meeting");
+  const before = surface.getRenderedInstanceContinuity().get(bobId);
+  assert.ok(before);
+  assert.ok(before.offsetScale > 1, "fixture must exercise semantic offset magnification");
+  assert.ok(before.floatMeters > 0, "fixture must exercise presentation altitude");
+
+  calls.deckProps.onViewStateChange({
+    viewState: {
+      longitude: 18.0686,
+      latitude: 59.3293,
+      zoom: 9,
+      bearing: 0,
+      pitch: 20,
+    },
+    interactionState: { isZooming: true },
+  });
+  assert.equal(surface.getCamera().zoom, 9, "camera itself must continue through the zoom gesture");
+
+  const moved = createWorldProjection({
+    instances: initial.instances.map((instance) =>
+      instance.id === bobId
+        ? createProjectedWorldInstance({
+            ...instance,
+            localOffset: { eastMeters: 320, northMeters: 40 },
+          })
+        : instance,
+    ),
+    edges: initial.edges,
+  });
+  surface.applyProjectionDelta(diffWorldProjection(initial, moved));
+
+  const during = surface.getRenderedInstanceContinuity().get(bobId);
+  assert.ok(during);
+  assert.notEqual(
+    during.position.longitude,
+    before.position.longitude,
+    "D3/force-resolved position updates must keep rendering while the camera owns zoom",
+  );
+  assert.equal(
+    during.offsetScale,
+    before.offsetScale,
+    "force-driven renders must not recompute semantic offset magnification from live zoom",
+  );
+  assert.equal(
+    during.floatMeters,
+    before.floatMeters,
+    "force-driven renders must not recompute presentation altitude from live zoom",
+  );
+
+  calls.deckProps.onInteractionStateChange({
+    isZooming: false,
+    inTransition: false,
+  });
+
+  const settled = surface.getRenderedInstanceContinuity().get(bobId);
+  assert.ok(settled);
+  assert.notEqual(
+    settled.offsetScale,
+    before.offsetScale,
+    "semantic offset magnification reconciles once after camera motion settles",
+  );
+  assert.notEqual(
+    settled.floatMeters,
+    before.floatMeters,
+    "presentation altitude reconciles once after camera motion settles",
+  );
+});
+
 test("inertial globe release settles before globe-to-local controller handoff", () => {
   const { calls, runtime } = harness();
   class WeightedGlobeController {}
