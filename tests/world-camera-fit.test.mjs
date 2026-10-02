@@ -126,7 +126,12 @@ test("default startup begins zoomed out and flies once to readable content", () 
     viewStateCount,
     "controlled camera handoff must not overwrite deck's in-flight startup transition",
   );
-
+  r.deckProps[0].onInteractionStateChange({ inTransition: false });
+  assert.equal(
+    r.views.length,
+    viewStateCount,
+    "transition settlement must wait for deck's final view-state frame instead of echoing control",
+  );
 
   surface.setProjection(placed(-60, -10));
   assert.equal(r.views.length, viewStateCount, "later projection updates never replay startup flight");
