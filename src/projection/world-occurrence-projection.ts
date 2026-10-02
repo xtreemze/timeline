@@ -11,6 +11,7 @@ import {
   type ProjectedWorldInstance,
   type SpatialAnchor,
   type WorldInstanceId,
+  type WorldProjectedParticipation,
   type WorldProjection,
   worldInstanceId,
 } from "./world-projection.ts";
@@ -53,6 +54,7 @@ interface WorldInstanceAccumulator {
   readonly presentation?: WorldEntityPresentation;
   readonly geographicAnchors: SpatialAnchor[];
   readonly occurrenceIds: CanonicalOccurrenceId[];
+  readonly participations: WorldProjectedParticipation[];
   temporalWeight: number;
   visualWeight: number;
   retained: boolean;
@@ -88,6 +90,7 @@ function accumulateInstance(
   visualWeight: number,
   retained: boolean,
   presentation: WorldEntityPresentation | undefined,
+  participations: readonly WorldProjectedParticipation[] = Object.freeze([]),
 ): WorldInstanceId {
   const id = canonicalWorldInstanceId(canonicalId);
   const existing = instances.get(id);
@@ -96,6 +99,20 @@ function accumulateInstance(
       existing.occurrenceIds.push(occurrenceId);
     }
     mergeGeographicAnchors(existing.geographicAnchors, geographicAnchors);
+    for (const participation of participations) {
+      if (
+        !existing.participations.some(
+          (candidate) =>
+            candidate.occurrenceId === participation.occurrenceId &&
+            candidate.participantEntityId === participation.participantEntityId &&
+            candidate.roleType === participation.roleType &&
+            candidate.representedEntityId === participation.representedEntityId &&
+            candidate.organizationId === participation.organizationId,
+        )
+      ) {
+        existing.participations.push(participation);
+      }
+    }
     existing.temporalWeight = Math.max(existing.temporalWeight, temporalWeight);
     existing.visualWeight = Math.max(existing.visualWeight, visualWeight);
     existing.retained ||= retained;
@@ -108,6 +125,7 @@ function accumulateInstance(
     ...(presentation ? { presentation } : {}),
     geographicAnchors: [...geographicAnchors],
     occurrenceIds: [occurrenceId],
+    participations: [...participations],
     temporalWeight,
     visualWeight,
     retained,
@@ -173,6 +191,23 @@ export function projectCanonicalWorldOccurrences(
         visualWeight,
         retained,
         options.entityPresentation?.get(entity),
+        standalone
+          ? standalone.participantContexts
+              .filter((participant) => participant.entityId === entity)
+              .map((participant) =>
+                Object.freeze({
+                  occurrenceId,
+                  participantEntityId: participant.entityId,
+                  ...(participant.roleType ? { roleType: participant.roleType } : {}),
+                  ...(participant.representedEntityId
+                    ? { representedEntityId: participant.representedEntityId }
+                    : {}),
+                  ...(participant.organizationId
+                    ? { organizationId: participant.organizationId }
+                    : {}),
+                }),
+              )
+          : Object.freeze([]),
       );
     }
 
@@ -222,6 +257,16 @@ export function projectCanonicalWorldOccurrences(
       ...(presentation?.style ? { style: presentation.style } : {}),
       ...(occurrenceIds.length === 1 ? { occurrenceId: occurrenceIds[0] } : {}),
       occurrenceIds,
+      ...(instance.participations.length
+        ? {
+            participations: [...instance.participations].sort(
+              (left, right) =>
+                String(left.occurrenceId).localeCompare(String(right.occurrenceId)) ||
+                String(left.participantEntityId).localeCompare(String(right.participantEntityId)) ||
+                String(left.roleType ?? "").localeCompare(String(right.roleType ?? "")),
+            ),
+          }
+        : {}),
       geographicAnchors,
       temporalWeight: instance.temporalWeight,
       visualWeight: instance.visualWeight,
