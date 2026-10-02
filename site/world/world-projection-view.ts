@@ -46,6 +46,7 @@ import { TimelineTemporal } from "../temporal-standards.ts";
 
 export interface WorldProjectionRuntime {
   setProjection(projection: WorldProjection): void;
+  previewProjection?(projection: WorldProjection): void;
   setTemporalWindow(window: WorldViewViewport): void;
   setContextRelationships?(ids: readonly RelationshipId[]): void;
   focusEntity(id: EntityId): void;
@@ -645,6 +646,12 @@ export class WorldProjectionView {
         ? Object.freeze({ start: viewport.start, end: viewport.end })
         : null;
     if (next) this.#runtime.setTemporalWindow(next);
+    if (!this.#runtime.previewProjection) return;
+
+    const nextActiveIds = Array.isArray(viewport?.activeOccurrenceIds)
+      ? Object.freeze(viewport.activeOccurrenceIds.map(String))
+      : null;
+    this.#runtime.previewProjection(this.#projectionFor(next, nextActiveIds).projection);
   }
 
   setWindow(viewport: WorldViewViewport | null): boolean {
@@ -728,10 +735,16 @@ export class WorldProjectionView {
     this.#runtime.destroy();
   }
 
-  #render(): void {
-    const base = this.#sharedActiveIds
-      ? this.#sharedActivation(this.#sharedActiveIds)
-      : this.#standaloneActivation();
+  #projectionFor(
+    viewport: WorldTemporalWindow | null,
+    sharedActiveIds: readonly string[] | null,
+  ): {
+    readonly projection: WorldProjection;
+    readonly contextualIds: readonly RelationshipId[] | undefined;
+  } {
+    const base = sharedActiveIds
+      ? this.#sharedActivation(sharedActiveIds, viewport)
+      : this.#standaloneActivation(viewport);
     const contextualIds = this.#focusId
       ? this.#relationshipIdsByItem.get(this.#focusId)
       : undefined;
@@ -747,17 +760,27 @@ export class WorldProjectionView {
       ? new Map(activeIds.map((id) => [id, base.weights.get(id) ?? 1] as const))
       : base.weights;
 
-    const projection = projectCanonicalWorldOccurrences(
-      {
-        relationships: this.#relationships,
-        occurrences: this.#occurrences,
-      },
-      activeIds,
-      this.#spatialAnchors,
-      {
-        entityPresentation: this.#entityPresentationFor(activeIds, contextualIds),
-        temporalWeights: weights,
-      },
+    return Object.freeze({
+      projection: projectCanonicalWorldOccurrences(
+        {
+          relationships: this.#relationships,
+          occurrences: this.#occurrences,
+        },
+        activeIds,
+        this.#spatialAnchors,
+        {
+          entityPresentation: this.#entityPresentationFor(activeIds, contextualIds),
+          temporalWeights: weights,
+        },
+      ),
+      contextualIds,
+    });
+  }
+
+  #render(): void {
+    const { projection, contextualIds } = this.#projectionFor(
+      this.#viewport,
+      this.#sharedActiveIds,
     );
 
     this.#runtime.setProjection(projection);
@@ -814,7 +837,10 @@ export class WorldProjectionView {
     return result;
   }
 
-  #sharedActivation(ids: readonly string[]): {
+  #sharedActivation(
+    ids: readonly string[],
+    viewport: WorldTemporalWindow | null = this.#viewport,
+  ): {
     readonly activeIds: readonly CanonicalOccurrenceId[];
     readonly weights: ReadonlyMap<CanonicalOccurrenceId, number>;
   } {
@@ -834,20 +860,20 @@ export class WorldProjectionView {
       // Weight is presentation emphasis only; it never gates membership, so an
       // occurrence the shared set activates keeps a visible floor weight.
       const weight =
-        occurrence && this.#viewport
-          ? occurrenceViewportWeight(occurrence, { time: this.#viewport })
-          : 1;
+        occurrence && viewport ? occurrenceViewportWeight(occurrence, { time: viewport }) : 1;
       weights.set(id, weight > 0 ? weight : 1);
     }
     return { activeIds, weights };
   }
 
-  #standaloneActivation(): {
+  #standaloneActivation(
+    viewport: WorldTemporalWindow | null = this.#viewport,
+  ): {
     readonly activeIds: readonly CanonicalOccurrenceId[];
     readonly weights: ReadonlyMap<CanonicalOccurrenceId, number>;
   } {
-    const activeTimed = this.#viewport
-      ? this.#temporalIndex.query({ time: this.#viewport })
+    const activeTimed = viewport
+      ? this.#temporalIndex.query({ time: viewport })
       : this.#temporalIndex.query({
           time: { start: Number.NEGATIVE_INFINITY, end: Number.POSITIVE_INFINITY },
         });
@@ -858,9 +884,9 @@ export class WorldProjectionView {
     ]);
 
     const weights = new Map<CanonicalOccurrenceId, number>();
-    if (this.#viewport) {
+    if (viewport) {
       for (const occurrence of activeTimed) {
-        weights.set(occurrence.id, occurrenceViewportWeight(occurrence, { time: this.#viewport }));
+        weights.set(occurrence.id, occurrenceViewportWeight(occurrence, { time: viewport }));
       }
     }
     for (const id of this.#timelessIds) weights.set(id, 1);
