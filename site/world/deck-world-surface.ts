@@ -224,6 +224,7 @@ export interface DeckRuntimeInstance {
 export interface DeckWorldRuntime {
   createGlobeView(props: Readonly<Record<string, unknown>>): unknown;
   createGlobeControllerType?(): unknown;
+  createFlyToInterpolator?(): unknown;
   createMapControllerType?(): unknown;
   createMapView?(props: Readonly<Record<string, unknown>>): unknown;
   createScatterplotLayer(props: Readonly<Record<string, unknown>>): unknown;
@@ -1277,7 +1278,7 @@ const EARTH_POLYGON = Object.freeze([
 const DEFAULT_CAMERA = createWorldCameraState({
   longitude: 0,
   latitude: 20,
-  zoom: 1,
+  zoom: WORLD_CAMERA_MIN_ZOOM,
   bearing: 0,
   pitch: 20,
 });
@@ -3060,6 +3061,10 @@ export class DeckWorldSurface implements WorldSurface {
   // it since; a resize then re-fits (the first fit can run before layout).
   #autoFitted = false;
   #autoFitMode: "globe" | "content" = "content";
+  // Only the first automatic content fit may use the deck-owned startup flight.
+  // Explicit cameras, user navigation, resize refits, and toolbar reframing stay direct.
+  #startupFlightPending = false;
+  #startupFlightTarget: WorldCameraState | null = null;
   // Equatorial reference values used only to detect zoom-driven presentation changes.
   // Actual node geometry derives its scale/float from each instance's primary anchor latitude.
   #offsetScale = 1;
@@ -3680,6 +3685,7 @@ export class DeckWorldSurface implements WorldSurface {
     // A caller-chosen camera is authoritative; otherwise the first projected
     // content fits the camera once (see #autoFitCamera).
     this.#cameraOwned = initialCamera !== undefined;
+    this.#startupFlightPending = initialCamera === undefined;
     this.#camera = boundedWorldCamera(initialCamera ?? DEFAULT_CAMERA);
 
     this.#globeView = runtime.createGlobeView({ id: "lum-world" });
@@ -3726,6 +3732,32 @@ export class DeckWorldSurface implements WorldSurface {
         }
         const next = cameraFromRuntime(viewState, this.#camera);
         if (next) {
+          if (this.#startupFlightTarget) {
+            if (interactionState?.inTransition === true) {
+              // deck.gl owns the startup FlyToInterpolator. Track its visible
+              // camera for zoom-dependent presentation, but do not echo a
+              // controlled viewState back or that would interrupt the flight.
+              this.#camera = next;
+              this.#publishCameraContext();
+              this.#syncClusterLifecycle();
+              if (this.#zoomNeedsRender()) this.#render();
+              return;
+            }
+            if (!cameraInteractionActive) {
+              // The transition settled without a user gesture. Preserve the
+              // automatic-fit ownership so resize may still reframe it.
+              this.#startupFlightTarget = null;
+              this.#camera = next;
+              this.#publishCameraContext();
+              this.#syncClusterLifecycle();
+              if (this.#zoomNeedsRender()) this.#render();
+              return;
+            }
+            // A user gesture interrupted the startup flight; normal camera
+            // ownership resumes from the interrupted visible state.
+            this.#startupFlightTarget = null;
+          }
+          this.#startupFlightPending = false;
           this.#discardProjectionHandoffPresentation();
           this.#cameraOwned = true;
           this.#autoFitted = false;
@@ -4059,6 +4091,8 @@ export class DeckWorldSurface implements WorldSurface {
 
   #reframe(mode: "globe" | "content"): void {
     this.#assertAlive();
+    this.#startupFlightPending = false;
+    this.#startupFlightTarget = null;
     this.#cameraOwned = false;
     this.#autoFitCamera(mode);
     this.#reclusterIfZoomCrossedThreshold();
@@ -4335,8 +4369,9 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   /**
-   * Automatic framing when the host supplied no camera: start at the readable
-   * content view. Whole-globe framing remains an explicit user command.
+   * Automatic framing when the host supplied no camera. The first non-empty
+   * content fit flies in from the default minimum-zoom globe when motion is
+   * allowed; subsequent resize/tool reframes remain direct.
    */
   #autoFitCamera(mode: "globe" | "content" = "content"): void {
     if (this.#cameraOwned) return;
@@ -4352,13 +4387,31 @@ export class DeckWorldSurface implements WorldSurface {
         ? this.#readableContentCamera(fitWorldCamera(positions, { width, height }, this.#camera))
         : globeOverviewCamera(positions, { width, height }, this.#camera);
     if (!fitted) return;
+    const startupInterpolator =
+      mode === "content" && this.#startupFlightPending && !prefersReducedMotion()
+        ? (this.#runtime.createFlyToInterpolator?.() ?? null)
+        : null;
+    this.#startupFlightPending = false;
     this.#cameraOwned = true;
     this.#autoFitted = true;
     this.#autoFitMode = mode;
     this.#camera = boundedWorldCamera(fitted);
     this.#publishCameraContext();
     this.#syncSpatialMode();
-    this.#deck.setProps({ viewState: deckViewState(this.#camera) });
+    const viewState = deckViewState(this.#camera);
+    if (startupInterpolator) {
+      this.#startupFlightTarget = this.#camera;
+      this.#deck.setProps({
+        viewState: {
+          ...viewState,
+          transitionInterpolator: startupInterpolator,
+          transitionDuration: "auto",
+        },
+      });
+    } else {
+      this.#startupFlightTarget = null;
+      this.#deck.setProps({ viewState });
+    }
   }
 
   setTemporalWindow(window: WorldTemporalWindow): void {
@@ -4469,6 +4522,8 @@ export class DeckWorldSurface implements WorldSurface {
 
   setCamera(camera: WorldCameraState): void {
     this.#assertAlive();
+    this.#startupFlightPending = false;
+    this.#startupFlightTarget = null;
     this.#discardProjectionHandoffPresentation();
     this.#cameraOwned = true;
     this.#autoFitted = false;
