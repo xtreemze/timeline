@@ -1029,25 +1029,25 @@ test("inertial globe release settles before globe-to-local controller handoff", 
   assert.equal(swap.viewState.zoom, 11.6);
 });
 
-test("hover raises entity presentation without moving canonical relationship geometry", async () => {
+test("hover and drag keep entity altitude stable", async () => {
   const source = await readFile(
     new URL("../site/world/deck-world-surface.ts", import.meta.url),
     "utf8",
   );
-  assert.match(source, /const WORLD_HOVER_LIFT_PX = 4;/);
-  assert.match(source, /function liftedEntityInteractionPosition\([\s\S]*hovered: boolean/);
+  assert.doesNotMatch(source, /WORLD_HOVER_LIFT_PX|WORLD_DRAG_PICKUP_LIFT_PX/);
+  assert.doesNotMatch(source, /function liftedEntityInteractionPosition\(/);
   assert.match(
     source,
-    /hovered[\s\S]*\? WORLD_HOVER_LIFT_PX[\s\S]*liftedPositionByPixels\(position, zoom, liftPx\)/,
+    /id: DECK_WORLD_LAYER_IDS\.entities[\s\S]*getPosition: \(datum: DeckWorldEntityRenderDatum\) => datum\.position/,
   );
   assert.match(
     source,
-    /liftedEntityInteractionPosition\([\s\S]*this\.#hoverSelection\?\.kind === "entity"[\s\S]*this\.#hoverSelection\.id === datum\.entityId/,
+    /id: DECK_WORLD_LAYER_IDS\.entityIcons[\s\S]*getPosition: \(datum: DeckWorldEntityDatum\) => datum\.position/,
   );
-  assert.doesNotMatch(
+  assert.match(
     source,
-    /relationshipDatums\([\s\S]{0,800}WORLD_HOVER_LIFT_PX/,
-    "hover lift must stay out of canonical relationship routing",
+    /const WORLD_PLACE_ICON_LIFT_PX = 2;/,
+    "place-icon globe clearance remains separate from entity interaction feedback",
   );
 });
 
