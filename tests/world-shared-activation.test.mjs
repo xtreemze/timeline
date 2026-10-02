@@ -7,10 +7,15 @@ import { activeOccurrenceIds } from "../src/projection/spatiotemporal-projection
 
 function harness() {
   let projection = null;
+  let previewProjection = null;
   const windows = [];
   const runtime = {
     setProjection(value) {
       projection = value;
+      previewProjection = null;
+    },
+    previewProjection(value) {
+      previewProjection = value;
     },
     setTemporalWindow(value) {
       windows.push(value);
@@ -26,7 +31,8 @@ function harness() {
   };
   return {
     view: new WorldProjectionView(runtime),
-    getProjection: () => projection,
+    getProjection: () => previewProjection ?? projection,
+    getCommittedProjection: () => projection,
     windows,
   };
 }
@@ -153,11 +159,12 @@ test("the temporal window forwarded to the renderer stays purely temporal", () =
   assert.deepEqual(windows.at(-1), window);
 });
 
-test("world temporal previews do not rebuild the spatial projection before commit", () => {
-  const { view, getProjection, windows } = harness();
+test("world temporal previews activate the visible node/edge set without committing force state", () => {
+  const { view, getProjection, getCommittedProjection, windows } = harness();
   view.setModel(model);
   view.setWindow({ ...window, activeOccurrenceIds: ["meeting"] });
-  const committedProjection = getProjection();
+  const committedProjection = getCommittedProjection();
+  assert.deepEqual(edgeIds(committedProjection), ["meeting"]);
   const rendersBeforePreview = windows.length;
 
   const preview = {
@@ -167,15 +174,21 @@ test("world temporal previews do not rebuild the spatial projection before commi
   };
   view.previewWindow(preview);
 
+  assert.deepEqual(
+    edgeIds(getProjection()),
+    ["later"],
+    "transient timeline motion must immediately expose the logically active world topology",
+  );
   assert.equal(
-    getProjection(),
+    getCommittedProjection(),
     committedProjection,
-    "preview preserves expensive projection state",
+    "preview must not replace the committed force/projection epoch",
   );
   assert.equal(windows.length, rendersBeforePreview + 1);
   assert.deepEqual(windows.at(-1), { start: preview.start, end: preview.end });
 
   view.setWindow(preview);
+  assert.deepEqual(edgeIds(getCommittedProjection()), ["later"]);
   assert.deepEqual(edgeIds(getProjection()), ["later"]);
 });
 
