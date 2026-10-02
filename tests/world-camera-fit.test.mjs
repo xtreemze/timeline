@@ -134,7 +134,11 @@ test("default startup begins zoomed out and flies once to readable content", () 
   );
 
   surface.setProjection(placed(-60, -10));
-  assert.equal(r.views.length, viewStateCount, "later projection updates never replay startup flight");
+  assert.equal(
+    r.views.length,
+    viewStateCount,
+    "later projection updates never replay startup flight",
+  );
 });
 
 test("reduced motion skips the startup flight while keeping the readable fit", (t) => {
