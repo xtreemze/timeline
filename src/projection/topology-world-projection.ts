@@ -12,7 +12,7 @@ export function projectTopologyWorld(
   relationships: readonly CanonicalRelationship[],
   topology: TopologyProjection,
   spatialAnchors: SpatialAnchorIndex,
-  options: WorldOccurrenceProjectionOptions = {},
+  options: WorldOccurrenceProjectionOptions<RelationshipId> = {},
 ): WorldProjection {
   const relationshipIds = topology.edges
     .map((edge) => edge.id)
