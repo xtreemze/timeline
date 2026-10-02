@@ -60,8 +60,8 @@ import {
   WORLD_CLUSTER_MERGE_PX,
   WORLD_LOCAL_GRAPH_MAX_PLACE_SHARE,
   WORLD_LOCAL_GRAPH_RADIUS_PX,
-  worldArrowLengthDegreesForNodeRadius,
-  worldArrowStrokeWidthPxForNodeRadius,
+  worldArrowLengthDegrees,
+  worldArrowStrokeWidthPx,
   worldEntityFloatPx,
   worldFloatingGraphRadiusPx,
   worldLabelBudget,
@@ -5755,10 +5755,9 @@ export class DeckWorldSurface implements WorldSurface {
       this.#focus,
       this.#directionDatumCache,
       (edge) => {
-        const targetRadiusPx = renderedEntityRadiusPx(edge.targetInstanceId);
         const target = edge.path[edge.path.length - 1];
         const latitude = target?.[1] ?? this.#camera.latitude;
-        return worldArrowLengthDegreesForNodeRadius(targetRadiusPx, this.#camera.zoom, latitude);
+        return worldArrowLengthDegrees(this.#camera.zoom, latitude);
       },
       (edge) => {
         const targetRadiusPx = renderedEntityRadiusPx(edge.targetInstanceId);
@@ -6266,15 +6265,8 @@ export class DeckWorldSurface implements WorldSurface {
         jointRounded: true,
         capRounded: true,
         getPath: (datum: DeckWorldDirectionDatum) => datum.path,
-        getWidth: (datum: DeckWorldDirectionDatum) => {
-          const targetRadiusPx = renderedEntityRadiusPx(datum.targetInstanceId);
-          return (
-            worldArrowStrokeWidthPxForNodeRadius(
-              targetRadiusPx,
-              this.#edgeStyle(datum.edge, edgeFallbackColor(datum.edge)).width,
-            ) * edgeExpansion(datum)
-          );
-        },
+        getWidth: (datum: DeckWorldDirectionDatum) =>
+          worldArrowStrokeWidthPx() * edgeExpansion(datum),
         getColor: (datum: DeckWorldDirectionDatum) =>
           worldColorBytes(
             this.#edgeStyle(datum.edge, edgeFallbackColor(datum.edge)).color,
