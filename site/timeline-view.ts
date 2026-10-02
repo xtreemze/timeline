@@ -967,13 +967,16 @@ export class TimelineViewController {
     const abortSurfaceGesture = (): void => {
       const pointerIds = new Set(this.touchPointers.keys());
       if (this.pointerDrag) pointerIds.add(this.pointerDrag.pointerId);
-      const interrupted = Boolean(this.pointerDrag || this.pinch || this.touchPointers.size);
+      const interrupted = Boolean(
+        this.pointerDrag || this.pinch || this.touchPointers.size || this.wheelGestureMode,
+      );
 
       this.touchPointers.clear();
       this.pinch = null;
       this.touchTap = null;
       this.lastTouchTap = null;
       this.pointerDrag = null;
+      this.cancelWheelGesture();
       this.cancelInertia();
       for (const pointerId of pointerIds) releasePointerCapture(pointerId);
 
@@ -1216,7 +1219,9 @@ export class TimelineViewController {
     window.addEventListener("orientationchange", abortSurfaceGesture);
     globalThis.screen?.orientation?.addEventListener?.("change", abortSurfaceGesture);
     window.visualViewport?.addEventListener("resize", () => {
-      if (this.pointerDrag || this.pinch || this.touchPointers.size) abortSurfaceGesture();
+      if (this.pointerDrag || this.pinch || this.touchPointers.size || this.wheelGestureMode) {
+        abortSurfaceGesture();
+      }
     });
 
     this.surface.addEventListener("keydown", (event) => {
@@ -1328,6 +1333,7 @@ export class TimelineViewController {
     this.refreshCanonicalSelectionProjection();
 
     if (!this.items.length) {
+      this.cancelWheelGesture();
       this.cancelInertia();
       this.pointerDrag = null;
       this.touchPointers.clear();
