@@ -337,10 +337,7 @@ test.describe("contextual world authoring certification", () => {
 
     await input.fill(`@${subjectId} rece`);
     await expect(guidance).toHaveText("↑↓ choose · Enter accept");
-    const keyboardAction = composer
-      .getByRole("option")
-      .filter({ hasText: /^receives/ })
-      .first();
+    const keyboardAction = composer.getByRole("option", { name: /^receives\b/ }).first();
     await expect(keyboardAction).toBeVisible();
     await input.press("Enter");
 
@@ -348,10 +345,7 @@ test.describe("contextual world authoring certification", () => {
     await expect(composer.getByRole("option").first()).toBeVisible();
 
     await input.fill(`@${subjectId} rece`);
-    const pointerAction = composer
-      .getByRole("option")
-      .filter({ hasText: /^receives/ })
-      .first();
+    const pointerAction = composer.getByRole("option", { name: /^receives\b/ }).first();
     await expect(pointerAction).toBeVisible();
     if (testInfo.project.use.hasTouch) {
       await pointerAction.tap();
@@ -614,20 +608,12 @@ test.describe("contextual world authoring certification", () => {
     });
     test.skip(!fixture, "Example project needs a simple event-backed relationship.");
 
-    await page.evaluate((itemId) => {
-      const timeline = document.querySelector("#timeline-view") as HTMLElement & {
-        focusItem?: (id: string) => void;
-      };
-      timeline.focusItem?.(itemId);
-    }, fixture!.copyId);
-
-    await expect
-      .poll(async () =>
-        page
-          .locator(`.timeline-semantic-occurrence[data-id="${fixture!.copyId}"][data-selected]`)
-          .count(),
-      )
-      .toBeGreaterThan(0);
+    const copiedProjection = page.locator(
+      `.timeline-semantic-occurrence[data-id="${fixture!.copyId}"]`,
+    );
+    await expect(copiedProjection).toBeVisible();
+    await copiedProjection.click();
+    await expect(copiedProjection).toHaveAttribute("data-selected", "");
 
     const composer = await openPersistentComposer(page);
     const input = composer.locator("input");
