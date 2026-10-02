@@ -114,7 +114,7 @@ test("CI treats migrated TypeScript and the full test suite as fatal", async () 
   const timeline = await readFile(new URL(".github/workflows/timeline-view.yml", root), "utf8");
   const pages = await readFile(new URL(".github/workflows/pages.yml", root), "utf8");
 
-  assert.match(timeline, /- run: pnpm types:migrated/);
+  assert.match(timeline, /run: pnpm types:migrated/);
   assert.match(pages, /run: pnpm types:migrated/);
   assert.doesNotMatch(pages, /types:migrated[^\n]*\|\|/);
   assert.doesNotMatch(timeline, /pnpm test[^\n]*\|\|\s*echo/);

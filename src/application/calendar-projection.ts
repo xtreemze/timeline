@@ -298,6 +298,15 @@ function projectEndpoint(raw: unknown, occurrenceId: string): EndpointProjection
     );
   }
 
+  const declaredPrecision = typeof record["precision"] === "string" ? record["precision"] : "";
+  if (declaredPrecision && !["day", "minute", "second"].includes(declaredPrecision)) {
+    throw new CalendarProjectionError(
+      "calendar-temporal-precision",
+      `Calendar export will not silently promote ${declaredPrecision} precision to a more exact calendar time.`,
+      occurrenceId,
+    );
+  }
+
   const parsed = parseIsoCalendarValue(value);
   if (!parsed) {
     throw new CalendarProjectionError(

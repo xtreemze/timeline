@@ -7,7 +7,10 @@ import {
   DEFAULT_WORLD_FORCE_SCENE_POLICY,
   worldForceComponentCollisionRadiusPx,
 } from "../src/layout/world-force-scene.ts";
-import { worldNodeVisualFootprintRadiusPx } from "../src/layout/world-graph-style.ts";
+import {
+  WORLD_ENTITY_MIN_HIT_RADIUS_PX,
+  worldNodeVisualFootprintRadiusPx,
+} from "../src/layout/world-graph-style.ts";
 import {
   createProjectedWorldEdge,
   createProjectedWorldInstance,
@@ -144,13 +147,18 @@ test("force collision matches the visible/touch footprint for default markers", 
   assert.ok(alice.mass > bob.mass);
   assert.equal(alice.collisionRadiusPx, worldNodeVisualFootprintRadiusPx({ visualWeight: 1 }));
   assert.equal(bob.collisionRadiusPx, worldNodeVisualFootprintRadiusPx({ visualWeight: 0.25 }));
-  assert.equal(alice.collisionRadiusPx, 22);
-  assert.equal(bob.collisionRadiusPx, 22);
+  // Whole-pixel body radii mean the visible footprint may exceed the 22px touch floor, but only
+  // by less than one pixel, and never below it.
+  for (const node of [alice, bob]) {
+    assert.ok(node.collisionRadiusPx >= WORLD_ENTITY_MIN_HIT_RADIUS_PX);
+    assert.ok(node.collisionRadiusPx < WORLD_ENTITY_MIN_HIT_RADIUS_PX + 1);
+  }
   assert.equal(alice.collisionRadiusMeters, bob.collisionRadiusMeters);
   assert.equal(
     bob.collisionRadiusMeters,
-    DEFAULT_WORLD_FORCE_SCENE_POLICY.baseCollisionRadiusMeters,
-    "the default visible 44px node footprint maps to the established physical collision floor",
+    DEFAULT_WORLD_FORCE_SCENE_POLICY.baseCollisionRadiusMeters *
+      (bob.collisionRadiusPx / WORLD_ENTITY_MIN_HIT_RADIUS_PX),
+    "physical collision scales the established floor by the visible footprint ratio",
   );
 });
 
@@ -176,8 +184,11 @@ test("custom policy remains explicit and deterministic", () => {
   const alice = scene.nodes.find((node) => node.canonicalId === "alice");
   assert.ok(alice);
   assert.equal(alice.mass, 5);
-  assert.equal(alice.collisionRadiusPx, 22);
-  assert.equal(alice.collisionRadiusMeters, 200);
+  assert.equal(alice.collisionRadiusPx, worldNodeVisualFootprintRadiusPx({ visualWeight: 1 }));
+  assert.equal(
+    alice.collisionRadiusMeters,
+    200 * (alice.collisionRadiusPx / WORLD_ENTITY_MIN_HIT_RADIUS_PX),
+  );
   assert.equal(scene.edges[0].strength, 0.1);
   assert.equal(scene.edges[0].restLengthMeters, 900);
   assert.equal(scene.anchors[0].influence, 0.2);

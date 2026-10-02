@@ -155,17 +155,23 @@ test("serialized project snapshots round-trip canonical state and revision metad
 });
 
 test("serialized project snapshots preserve unresolved identity state", () => {
+  const unresolvedId = entityId("unknown-person-a");
+  const base = project();
   const unresolvedProject = {
-    ...project(),
+    ...base,
     entities: [
       {
         ...alice,
-        id: entityId("unknown-person-a"),
+        id: unresolvedId,
         name: "Unidentified person A",
         identityResolution: "unresolved",
       },
       bob,
     ],
+    // Relationship endpoints must keep resolving to canonical entities after the rename.
+    relationships: base.relationships.map((candidate) =>
+      candidate.subjectId === alice.id ? { ...candidate, subjectId: unresolvedId } : candidate,
+    ),
   };
   const serialized = serializeProjectSnapshot({
     projectKey: "case-unresolved",
@@ -355,7 +361,6 @@ test("canonical project validation rejects unresolved contextual representation"
     }),
   );
 });
-
 
 test("canonical project validation rejects place references when the place registry is omitted", () => {
   assert.throws(

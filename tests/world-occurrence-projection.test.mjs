@@ -131,7 +131,10 @@ test("unary standalone occurrences render participants without inventing self-lo
     spatialAnchors,
   );
 
-  assert.deepEqual(projection.instances.map((instance) => instance.canonicalId), ["alice"]);
+  assert.deepEqual(
+    projection.instances.map((instance) => instance.canonicalId),
+    ["alice"],
+  );
   assert.deepEqual(projection.edges, []);
 });
 
@@ -292,7 +295,7 @@ test("unknown active occurrence IDs are rejected", () => {
 
   assert.throws(
     () => projectWorldOccurrences(relationships, ["missing"], spatialAnchors),
-    /not a canonical relationship/,
+    /Active occurrence missing is not canonical/,
   );
 });
 

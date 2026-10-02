@@ -126,9 +126,9 @@ test("projects exact timed instants without inventing a duration", () => {
   assert.deepEqual(event.temporal, {
     kind: "date-time",
     start: "20260928T103000Z",
-    end: undefined,
     floating: false,
   });
+  assert.equal(event.temporal.end, undefined, "an exact instant has no invented end");
   assert.equal(event.metadata.timeZone, "Europe/Stockholm");
   assert.equal(
     JSON.stringify(input),
@@ -152,8 +152,8 @@ test("projects an exact day instant as an all-day event", () => {
   assert.deepEqual(event.temporal, {
     kind: "date",
     start: "20260928",
-    end: undefined,
   });
+  assert.equal(event.temporal.end, undefined, "an exact day instant has no invented end");
 
   const ics = serializeICalendar(projectOccurrencesToCalendar(input));
   assert.match(ics, /DTSTART;VALUE=DATE:20260928\r\n/);

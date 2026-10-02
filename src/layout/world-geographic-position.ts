@@ -157,6 +157,17 @@ export function resolveWorldLocalLayoutPosition(
  * This runs only at committed projection boundaries. High-frequency temporal
  * previews remain presentation-only and never pay this O(n) reconciliation.
  */
+const LOGICAL_METERS_NOISE = 1e-6;
+
+/**
+ * Inverting a rendered geographic position accumulates ~1e-12 m of floating-point noise. When the
+ * recovered offset is within a micrometre of the previous logical value the anchor did not move,
+ * so keep the previous value bit-identical instead of reporting a spurious layout change.
+ */
+function settleLogicalMeters(recovered: number, previous: number): number {
+  return Math.abs(recovered - previous) < LOGICAL_METERS_NOISE ? previous : recovered;
+}
+
 export function preserveWorldProjectionRenderContinuity(
   previous: WorldProjection,
   next: WorldProjection,
@@ -194,25 +205,28 @@ export function preserveWorldProjectionRenderContinuity(
       continuity?.floatMeters ?? 0,
     );
     if (!local) return instance;
+    const eastMeters = settleLogicalMeters(local.eastMeters, prior.localOffset?.eastMeters ?? 0);
+    const northMeters = settleLogicalMeters(local.northMeters, prior.localOffset?.northMeters ?? 0);
+    const visualAltitudeMeters = settleLogicalMeters(
+      local.visualAltitudeMeters,
+      prior.visualAltitude ?? 0,
+    );
 
     // Skip rebasing when the computed local position exactly matches what is
     // already stored. This prevents diffWorldProjection from seeing spurious
     // changes when only an unrelated attribute (e.g. visualWeight) changed.
     if (
-      local.eastMeters === (instance.localOffset?.eastMeters ?? 0) &&
-      local.northMeters === (instance.localOffset?.northMeters ?? 0) &&
-      local.visualAltitudeMeters === (instance.visualAltitude ?? 0)
+      eastMeters === (instance.localOffset?.eastMeters ?? 0) &&
+      northMeters === (instance.localOffset?.northMeters ?? 0) &&
+      visualAltitudeMeters === (instance.visualAltitude ?? 0)
     ) {
       return instance;
     }
 
     const rebased = createProjectedWorldInstance({
       ...instance,
-      localOffset: Object.freeze({
-        eastMeters: local.eastMeters,
-        northMeters: local.northMeters,
-      }),
-      visualAltitude: local.visualAltitudeMeters,
+      localOffset: Object.freeze({ eastMeters, northMeters }),
+      visualAltitude: visualAltitudeMeters,
     });
     changed ||= rebased !== instance;
     return rebased;

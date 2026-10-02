@@ -18,6 +18,16 @@ function baseProject() {
 
 test("Lūm interchange round-trips canonical places, sources, categories, and stories", () => {
   const doc = baseProject();
+  doc.project.entities = [
+    {
+      id: "alice",
+      type: "person",
+      name: "Alice",
+      alternateNames: [],
+      sourceIds: [],
+      attributes: {},
+    },
+  ];
   doc.project.places = [
     {
       id: "forest",
@@ -43,7 +53,7 @@ test("Lūm interchange round-trips canonical places, sources, categories, and st
       title: "Alice enters the forest",
       time: null,
       placeId: "forest",
-      participantContexts: [],
+      participantContexts: [{ entityId: "alice" }],
       relationshipIds: [],
       sourceIds: ["source-story"],
       confidence: 1,
@@ -71,7 +81,6 @@ test("Lūm interchange round-trips canonical places, sources, categories, and st
   assert.equal(validation.snapshot.project.categories?.[0]?.id, "movement");
   assert.deepEqual(validation.snapshot.project.stories?.[0]?.occurrenceIds, ["occurrence-1"]);
 });
-
 
 test("stories may reference relationship-derived canonical occurrences", () => {
   const doc = baseProject();
@@ -124,13 +133,23 @@ test("stories may reference relationship-derived canonical occurrences", () => {
 
 test("strict composition validation rejects dangling story and place references", () => {
   const doc = baseProject();
+  doc.project.entities = [
+    {
+      id: "alice",
+      type: "person",
+      name: "Alice",
+      alternateNames: [],
+      sourceIds: [],
+      attributes: {},
+    },
+  ];
   doc.project.places = [];
   doc.project.occurrences = [
     {
       id: "occurrence-1",
       time: null,
       placeId: "missing-place",
-      participantContexts: [],
+      participantContexts: [{ entityId: "alice" }],
       relationshipIds: [],
       sourceIds: [],
       confidence: null,

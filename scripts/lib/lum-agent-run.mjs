@@ -41,9 +41,9 @@ export function runLumAgentAdapter({
   const proposalSource = String(result.stdout ?? "").trim();
   if (!proposalSource) throw new Error("Agent adapter returned no proposal output.");
 
-  const validation = validateLumChangeProposal(proposalSource, projectSource, {
-    fileName: "agent-adapter-output",
-  });
+  // Adapter output arrives on stdout, not as a named file, so the proposal suffix rule does not
+  // apply; "-" is the stream marker the validator already exempts.
+  const validation = validateLumChangeProposal(proposalSource, projectSource, { fileName: "-" });
   return Object.freeze({
     valid: validation.valid,
     diagnostics: validation.diagnostics,
