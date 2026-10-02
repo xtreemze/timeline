@@ -2535,7 +2535,7 @@ export class LuumOccurrenceComposerElement extends LitElement {
                   deckIcon
                     ? html`<span class="composer-heading-icon" aria-hidden="true">
                       <svg viewBox="0 0 24 24" focusable="false">
-                        ${iconPathData(deckIcon).map((path) => html`<path d=${path}></path>`)}
+                        ${iconPathData(deckIcon).map((path) => svg`<path d=${path}></path>`)}
                       </svg>
                     </span>`
                     : nothing
