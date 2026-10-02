@@ -1004,6 +1004,7 @@ test("inertial globe release settles before globe-to-local controller handoff", 
 
   assert.equal(calls.deckProps.views[0].type, "globe");
 
+  const transitionEasing = (progress) => progress * (2 - progress);
   calls.deckProps.onViewStateChange({
     viewState: {
       longitude: 18.0686,
@@ -1011,6 +1012,8 @@ test("inertial globe release settles before globe-to-local controller handoff", 
       zoom: 11.6,
       bearing: 0,
       pitch: 20,
+      transitionDuration: 420,
+      transitionEasing,
     },
     interactionState: { inTransition: true, isPanning: true },
   });
@@ -1019,6 +1022,34 @@ test("inertial globe release settles before globe-to-local controller handoff", 
     calls.setProps.some((props) => Array.isArray(props.views)),
     false,
     "crossing the threshold during release inertia must not swap controllers mid-flight",
+  );
+  const releaseTarget = calls.setProps.at(-1)?.viewState;
+  assert.equal(
+    releaseTarget?.transitionDuration,
+    420,
+    "controlled camera feedback must preserve the controller's release duration",
+  );
+  assert.equal(
+    releaseTarget?.transitionEasing,
+    transitionEasing,
+    "controlled camera feedback must preserve the controller's release easing",
+  );
+
+  const releaseStartUpdates = calls.setProps.length;
+  calls.deckProps.onViewStateChange({
+    viewState: {
+      longitude: 18.1186,
+      latitude: 59.3293,
+      zoom: 11.58,
+      bearing: 0,
+      pitch: 20,
+    },
+    interactionState: { inTransition: true, isPanning: true },
+  });
+  assert.equal(
+    calls.setProps.length,
+    releaseStartUpdates,
+    "intermediate inertia frames must not overwrite the transition with a plain viewState",
   );
 
   calls.deckProps.onInteractionStateChange({ inTransition: false, isPanning: false });
