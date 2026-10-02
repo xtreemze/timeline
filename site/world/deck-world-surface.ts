@@ -5683,7 +5683,7 @@ export class DeckWorldSurface implements WorldSurface {
       edge: Pick<DeckWorldRelationshipDatum, "sourceInstanceId" | "targetInstanceId">,
     ): boolean => memberIds.has(edge.sourceInstanceId) || memberIds.has(edge.targetInstanceId);
 
-    const activeTemporalRelationships = temporalRelationships.filter((datum) => {
+    const clusterEligibleTemporalRelationships = temporalRelationships.filter((datum) => {
       const edge = this.#temporalRelationshipStateFor(datum).edge;
       return (
         !edgeIsClusterAffected(edge) ||
@@ -5692,7 +5692,7 @@ export class DeckWorldSurface implements WorldSurface {
         this.#contextRelationshipIds.has(edge.relationshipId)
       );
     });
-    const releasingRelationships = showReleasingClusterEdges
+    const clusterReleasingRelationships = showReleasingClusterEdges
       ? relationships.filter(
           (relationship) =>
             edgeIsClusterAffected(relationship) &&
@@ -5700,7 +5700,6 @@ export class DeckWorldSurface implements WorldSurface {
             !this.#contextRelationshipIds.has(relationship.relationshipId),
         )
       : Object.freeze([] as DeckWorldRelationshipDatum[]);
-    const releasingSegments = releasingRelationshipSegments(releasingRelationships);
     const placeMarkerClusters =
       clusterPhase !== "collapsed" && presentationZoom < WORLD_CLUSTER_DETAIL_ZOOM_CEILING
         ? Object.freeze(
@@ -5727,6 +5726,52 @@ export class DeckWorldSurface implements WorldSurface {
       renderedPlaceClusters,
       this.#focus,
     );
+
+    const focus = this.#focus;
+    const pinnedEntity = (entity: DeckWorldEntityDatum) =>
+      (focus?.kind === "entity" && focus.id === entity.entityId) ||
+      (this.#selection?.kind === "entity" && this.#selection.id === entity.entityId);
+    const iconSource = entities.filter(
+      (datum): datum is DeckWorldEntityDatum => datum.kind === "entity",
+    );
+    const nodeMarkerDatums = selectPrioritizedLabels(iconSource, {
+      budget:
+        iconSource.length >= DENSE_CLUSTER_ENTITY_THRESHOLD
+          ? worldLabelBudget(presentationZoom)
+          : Number.POSITIVE_INFINITY,
+      isPinned: pinnedEntity,
+      importance: (entity) => entity.visualWeight,
+      key: (entity) => entity.worldInstanceId,
+    });
+    const visibleNodeMarkerDatums = this.#cameraFacingEntities(nodeMarkerDatums);
+    const visibleNodeInstanceIds = new Set(
+      visibleNodeMarkerDatums.map((datum) => datum.worldInstanceId),
+    );
+    const edgeEndpointVisibility = (
+      edge: Pick<DeckWorldRelationshipDatum, "sourceInstanceId" | "targetInstanceId">,
+    ): number => {
+      if (
+        !visibleNodeInstanceIds.has(edge.sourceInstanceId) ||
+        !visibleNodeInstanceIds.has(edge.targetInstanceId)
+      ) {
+        return 0;
+      }
+      const source = entityResult.byId.get(edge.sourceInstanceId);
+      const target = entityResult.byId.get(edge.targetInstanceId);
+      if (!source || !target) return 0;
+      return Math.min(
+        this.#cameraFacingOpacity(source.position),
+        this.#cameraFacingOpacity(target.position),
+      );
+    };
+    const edgeHasVisibleEndpoints = (
+      edge: Pick<DeckWorldRelationshipDatum, "sourceInstanceId" | "targetInstanceId">,
+    ): boolean => edgeEndpointVisibility(edge) > 0;
+    const activeTemporalRelationships = clusterEligibleTemporalRelationships.filter((datum) =>
+      edgeHasVisibleEndpoints(this.#temporalRelationshipStateFor(datum).edge),
+    );
+    const releasingRelationships = clusterReleasingRelationships.filter(edgeHasVisibleEndpoints);
+    const releasingSegments = releasingRelationshipSegments(releasingRelationships);
 
     this.#placeDatumCache = placeResult.byId;
     this.#relationshipDatumCache = relationshipResult.byId;
@@ -5774,10 +5819,11 @@ export class DeckWorldSurface implements WorldSurface {
           : WORLD_INACTIVE_EDGE_ALPHA;
     const visibleDirectionRelationships = relationships.filter(
       (relationship) =>
-        !edgeIsClusterAffected(relationship) ||
-        showActiveClusterEdges ||
-        placeReveal.relationshipIds.has(relationship.relationshipId) ||
-        this.#contextRelationshipIds.has(relationship.relationshipId),
+        edgeHasVisibleEndpoints(relationship) &&
+        (!edgeIsClusterAffected(relationship) ||
+          showActiveClusterEdges ||
+          placeReveal.relationshipIds.has(relationship.relationshipId) ||
+          this.#contextRelationshipIds.has(relationship.relationshipId)),
     );
     const directionResult = directionDatums(
       visibleDirectionRelationships,
@@ -5797,20 +5843,17 @@ export class DeckWorldSurface implements WorldSurface {
       },
     );
     this.#directionDatumCache = directionResult.byId;
-    const focus = this.#focus;
-    const pinnedEntity = (entity: DeckWorldEntityDatum) =>
-      (focus?.kind === "entity" && focus.id === entity.entityId) ||
-      (this.#selection?.kind === "entity" && this.#selection.id === entity.entityId);
     const edgeExpansion = (
       edge: Pick<
         DeckWorldRelationshipDatum,
         "relationshipId" | "sourceInstanceId" | "targetInstanceId"
       >,
     ): number =>
-      !edgeIsClusterAffected(edge) ||
-      showActiveClusterEdges ||
-      placeReveal.relationshipIds.has(edge.relationshipId) ||
-      this.#contextRelationshipIds.has(edge.relationshipId)
+      edgeHasVisibleEndpoints(edge) &&
+      (!edgeIsClusterAffected(edge) ||
+        showActiveClusterEdges ||
+        placeReveal.relationshipIds.has(edge.relationshipId) ||
+        this.#contextRelationshipIds.has(edge.relationshipId))
         ? 1
         : 0;
     const entityExpansion = (entity: DeckWorldEntityDatum): number =>
@@ -5821,9 +5864,6 @@ export class DeckWorldSurface implements WorldSurface {
         : 1;
     const clusterVisibility =
       clusterPhase === "collapsed" || placeMarkerClusters.length > 0 ? 1 : 0;
-    const iconSource = entities.filter(
-      (datum): datum is DeckWorldEntityDatum => datum.kind === "entity",
-    );
 
     const labelInteractionKey = [
       this.#selection?.kind ?? "",
@@ -5855,17 +5895,7 @@ export class DeckWorldSurface implements WorldSurface {
       );
     };
 
-    const iconDatums = this.#runtime.createIconLayer
-      ? selectPrioritizedLabels(iconSource, {
-          budget:
-            iconSource.length >= DENSE_CLUSTER_ENTITY_THRESHOLD
-              ? worldLabelBudget(presentationZoom)
-              : Number.POSITIVE_INFINITY,
-          isPinned: pinnedEntity,
-          importance: (entity) => entity.visualWeight,
-          key: (entity) => entity.worldInstanceId,
-        })
-      : null;
+    const iconDatums = this.#runtime.createIconLayer ? visibleNodeMarkerDatums : null;
     // Ordinary labels follow the rendered/LOD entity set. Hidden clustered members
     // are resolved through entityResult.byEntityId only when interaction/focus needs
     // a specific canonical entity, avoiding an extra all-entity label pass on hover.
@@ -5875,14 +5905,15 @@ export class DeckWorldSurface implements WorldSurface {
     );
     const labelRelationships = relationships.filter(
       (relationship) =>
-        !edgeIsClusterAffected(relationship) ||
-        showActiveClusterEdges ||
-        showReleasingClusterEdges ||
-        (this.#selection?.kind === "relationship" &&
-          this.#selection.id === relationship.relationshipId) ||
-        (this.#hoverSelection?.kind === "relationship" &&
-          this.#hoverSelection.id === relationship.relationshipId) ||
-        this.#contextRelationshipIds.has(relationship.relationshipId),
+        edgeHasVisibleEndpoints(relationship) &&
+        (!edgeIsClusterAffected(relationship) ||
+          showActiveClusterEdges ||
+          showReleasingClusterEdges ||
+          (this.#selection?.kind === "relationship" &&
+            this.#selection.id === relationship.relationshipId) ||
+          (this.#hoverSelection?.kind === "relationship" &&
+            this.#hoverSelection.id === relationship.relationshipId) ||
+          this.#contextRelationshipIds.has(relationship.relationshipId)),
     );
     const labelResult = this.#runtime.createTextLayer
       ? labelDatums({
@@ -6198,7 +6229,7 @@ export class DeckWorldSurface implements WorldSurface {
         ? [
             this.#runtime.createIconLayer({
               id: DECK_WORLD_LAYER_IDS.entityIcons,
-              data: this.#cameraFacingEntities(iconDatums),
+              data: iconDatums,
               dataComparator: sameDatumSequence,
               _dataDiff: changedEntityDatumRanges,
               pickable: true,
