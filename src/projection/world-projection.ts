@@ -161,8 +161,8 @@ export function createProjectedWorldInstance(
       : Object.freeze(
           [
             ...new Set(
-              instance.occurrenceIds.map((id) =>
-                nonEmpty(id, "Occurrence ID") as CanonicalOccurrenceId,
+              instance.occurrenceIds.map(
+                (id) => nonEmpty(id, "Occurrence ID") as CanonicalOccurrenceId,
               ),
             ),
           ].sort((left, right) => String(left).localeCompare(String(right))),

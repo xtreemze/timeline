@@ -426,6 +426,9 @@ export function authorOccurrence<TExtent, TState extends OccurrenceAuthoringStat
     dependencies,
   );
   const category = categories[0];
+  if (!category) {
+    throw new Error("Timeline items require at least one category.");
+  }
   const itemId = dependencies.newId("item");
   const item = {
     id: itemId,
@@ -567,6 +570,9 @@ export function updateOccurrence<TExtent, TState extends OccurrenceAuthoringStat
     throw new Error(`Occurrence “${relationshipId}” no longer exists.`);
   }
   const existing = draft.relationships[existingIndex];
+  if (!existing) {
+    throw new Error(`Occurrence “${relationshipId}” no longer exists.`);
+  }
   const oldTitle = derivedRelationshipTitle(draft, existing);
 
   const subject = resolveEntity(request.subject, draft, dependencies);
@@ -720,9 +726,15 @@ export function updateOccurrence<TExtent, TState extends OccurrenceAuthoringStat
         );
       }
       const categories = resolveCategories(names, undefined, draft, dependencies);
-      updatedItem["categoryId"] = categories[0].id;
+      const [primaryCategory] = categories;
+      if (!primaryCategory) {
+        throw new Error(
+          "Timeline items require at least one category. Choose another category instead.",
+        );
+      }
+      updatedItem["categoryId"] = primaryCategory.id;
       updatedItem["categoryIds"] = categories.map((category) => category.id);
-      categoryId = categories[0].id;
+      categoryId = primaryCategory.id;
     } else if (typeof currentItem["categoryId"] === "string") {
       categoryId = currentItem["categoryId"];
     }
@@ -760,7 +772,7 @@ export function updateOccurrence<TExtent, TState extends OccurrenceAuthoringStat
 
   return {
     state: dependencies.normalizeState(draft),
-    itemId,
+    itemId: itemId ?? "",
     relationshipId,
     subjectId: subject.id,
     objectId: object.id,

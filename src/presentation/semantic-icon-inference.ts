@@ -112,10 +112,10 @@ function normalizedName(value: unknown): string {
 
 function explicitIconCandidate(attributes: unknown): unknown {
   if (!attributes || typeof attributes !== "object" || Array.isArray(attributes)) return null;
-  const record = attributes as Record<string, unknown>;
-  const style =
+  const record = attributes as { readonly style?: unknown; readonly icon?: unknown };
+  const style: { readonly icon?: unknown } =
     record.style && typeof record.style === "object" && !Array.isArray(record.style)
-      ? (record.style as Record<string, unknown>)
+      ? (record.style as { readonly icon?: unknown })
       : {};
   return style.icon ?? record.icon ?? null;
 }

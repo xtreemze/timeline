@@ -20,7 +20,52 @@ import { serializeProjectInterchange, validateProjectInterchange } from "./proje
 import { createProjectModule } from "./project-module.ts";
 import { CURRENT_PROJECT_SCHEMA_VERSION, type ProjectSnapshot } from "./project-repository.ts";
 
-type JsonRecord = Record<string, unknown>;
+/** Authored story fields read by name; declared so dot access stays legal under index-signature rules. */
+type StoryField =
+  | "address"
+  | "alternateNames"
+  | "appellations"
+  | "attributes"
+  | "categoryId"
+  | "categoryIds"
+  | "color"
+  | "confidence"
+  | "description"
+  | "evidenceIds"
+  | "extensions"
+  | "geographicIdentifier"
+  | "geometry"
+  | "id"
+  | "identifiers"
+  | "identityResolution"
+  | "initialState"
+  | "itemIds"
+  | "kind"
+  | "legacyInitialState"
+  | "media"
+  | "name"
+  | "note"
+  | "objectContext"
+  | "objectId"
+  | "occurrenceType"
+  | "placeId"
+  | "predicate"
+  | "presentation"
+  | "publishedAt"
+  | "relationChanges"
+  | "role"
+  | "semanticMappings"
+  | "sourceIds"
+  | "sourceName"
+  | "storyId"
+  | "subjectContext"
+  | "subjectId"
+  | "tags"
+  | "time"
+  | "title"
+  | "type"
+  | "url";
+type JsonRecord = Record<string, unknown> & { [K in StoryField]?: unknown };
 
 export interface LegacyExampleStory {
   readonly id: string;
@@ -223,7 +268,7 @@ function canonicalOccurrence(
       item.time && typeof item.time === "object"
         ? (structuredClone(item.time) as CanonicalOccurrence["time"])
         : null,
-    ...(linkedPlaces.length === 1 ? { placeId: placeId(linkedPlaces[0]) } : {}),
+    ...(linkedPlaces.length === 1 && linkedPlaces[0] ? { placeId: placeId(linkedPlaces[0]) } : {}),
     participantContexts: participantIds.map((id) => ({ entityId: entityId(id) })),
     relationshipIds: linked.map((relationship) => relationship.id),
     sourceIds: strings(item.evidenceIds).map(sourceId),

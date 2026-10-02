@@ -1,3 +1,4 @@
+import type { CanonicalOccurrenceId } from "../domain/ids.ts";
 import type { CanonicalOccurrence } from "../domain/occurrence.ts";
 import type { CanonicalProject } from "../domain/project.ts";
 import type { CanonicalRelationship } from "../domain/relationship.ts";
@@ -229,6 +230,17 @@ function basicDate(parts: ParsedIsoDateTime): string {
   return `${pad(parts.year, 4)}${pad(parts.month)}${pad(parts.day)}`;
 }
 
+function requireParsed(value: string): ParsedIsoDateTime {
+  const parsed = parseIsoCalendarValue(value);
+  if (!parsed) {
+    throw new CalendarProjectionError(
+      "calendar-invalid-time",
+      `Calendar value "${value}" is not representable by iCalendar v2.`,
+    );
+  }
+  return parsed;
+}
+
 function addCalendarDays(value: string, days: number): string {
   const parsed = parseIsoCalendarValue(value);
   if (!parsed || parsed.hour !== null) {
@@ -274,10 +286,14 @@ function projectEndpoint(raw: unknown, occurrenceId: string): EndpointProjection
     );
   }
 
-  if (typeof record.calendar === "string" && record.calendar && record.calendar !== "gregorian") {
+  if (
+    typeof record["calendar"] === "string" &&
+    record["calendar"] &&
+    record["calendar"] !== "gregorian"
+  ) {
     throw new CalendarProjectionError(
       "calendar-temporal-calendar",
-      `Calendar export currently supports Gregorian endpoints, not "${record.calendar}".`,
+      `Calendar export currently supports Gregorian endpoints, not "${record["calendar"]}".`,
       occurrenceId,
     );
   }
@@ -301,8 +317,8 @@ function projectEndpoint(raw: unknown, occurrenceId: string): EndpointProjection
   }
 
   const timeZone =
-    typeof record.timeZone === "string" && record.timeZone.trim()
-      ? record.timeZone.trim()
+    typeof record["timeZone"] === "string" && record["timeZone"].trim()
+      ? record["timeZone"].trim()
       : undefined;
 
   if (precision === "day") {
@@ -338,8 +354,8 @@ function projectEndpoint(raw: unknown, occurrenceId: string): EndpointProjection
 
 type CalendarOccurrence = Pick<
   CanonicalOccurrence,
-  "id" | "title" | "occurrenceType" | "time" | "placeId" | "relationshipIds" | "attributes"
->;
+  "title" | "occurrenceType" | "time" | "placeId" | "relationshipIds" | "attributes"
+> & { readonly id: CanonicalOccurrenceId };
 
 function relationshipOccurrence(relationship: CanonicalRelationship): CalendarOccurrence {
   return Object.freeze({
@@ -401,10 +417,9 @@ function eventDescription(
   project: CanonicalProject,
   occurrence: CalendarOccurrence,
 ): string | undefined {
-  const authored =
-    typeof occurrence.attributes.description === "string"
-      ? occurrence.attributes.description.trim()
-      : "";
+  const authoredDescription = (occurrence.attributes as { readonly description?: unknown })
+    .description;
+  const authored = typeof authoredDescription === "string" ? authoredDescription.trim() : "";
   const facts = relationshipText(project, occurrence);
   const lines = [
     ...(authored ? [authored] : []),
@@ -492,9 +507,7 @@ function projectTemporal(occurrence: CalendarOccurrence): {
       temporal: {
         kind: "date",
         start: start.value,
-        ...(end
-          ? { end: basicDate(parseIsoCalendarValue(addCalendarDays(end.canonicalValue, 1))) }
-          : {}),
+        ...(end ? { end: basicDate(requireParsed(addCalendarDays(end.canonicalValue, 1))) } : {}),
       },
       metadata: {
         ...commonMetadata,

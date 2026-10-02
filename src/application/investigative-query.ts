@@ -358,6 +358,9 @@ function explicitCell(
   const contradiction = relevant.find((assessment) => assessment.assessment === "contradicts");
   const consistent = relevant.find((assessment) => assessment.assessment === "consistent");
   const chosen = contradiction ?? consistent ?? relevant[0];
+  if (!chosen) {
+    throw new Error("Qualifier assessment requires at least one relevant assessment.");
+  }
   const recordIds = [
     ...new Set(relevant.flatMap((assessment) => assessment.recordIds ?? [])),
   ].sort();

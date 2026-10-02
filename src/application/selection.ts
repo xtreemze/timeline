@@ -96,8 +96,9 @@ export function selectionForTimelineFocus(
     .filter(Boolean);
 
   const uniqueOwners = [...new Set(owners)];
-  return uniqueOwners.length === 1
-    ? Object.freeze({ kind: "relationship", id: uniqueOwners[0], itemId: id })
+  const [owner] = uniqueOwners;
+  return uniqueOwners.length === 1 && owner
+    ? Object.freeze({ kind: "relationship", id: owner, itemId: id })
     : null;
 }
 
