@@ -10,11 +10,20 @@ import type { WorldSelection } from "../../src/layout/world-surface.ts";
  * canonical object on the surface; surface selection is mirrored back.
  */
 
+interface OutlineSnapshotParticipation {
+  readonly occurrenceId: string;
+  readonly participantEntityId: string;
+  readonly roleType?: string;
+  readonly representedEntityId?: string;
+  readonly organizationId?: string;
+}
+
 interface OutlineSnapshotEntity {
   readonly entityId: string;
   readonly worldInstanceId: string;
   readonly selected: boolean;
   readonly label?: string;
+  readonly participations?: readonly OutlineSnapshotParticipation[];
 }
 
 interface OutlineSnapshotPlace {
@@ -135,13 +144,61 @@ export function buildWorldAccessibleOutline(snapshot: WorldOutlineSnapshot): Wor
     ),
   );
 
-  const entities = [...entityOccurrences].map(([id, occurrences]) =>
-    item(
+  const participationsByEntity = new Map<string, OutlineSnapshotParticipation[]>();
+  for (const entity of snapshot.entities) {
+    if (!entity.participations?.length) continue;
+    const current = participationsByEntity.get(entity.entityId) ?? [];
+    for (const participation of entity.participations) {
+      if (
+        !current.some(
+          (candidate) =>
+            candidate.occurrenceId === participation.occurrenceId &&
+            candidate.participantEntityId === participation.participantEntityId &&
+            candidate.roleType === participation.roleType &&
+            candidate.representedEntityId === participation.representedEntityId &&
+            candidate.organizationId === participation.organizationId,
+        )
+      ) {
+        current.push(participation);
+      }
+    }
+    participationsByEntity.set(entity.entityId, current);
+  }
+
+  const participationText = (id: string): string => {
+    const contexts = [...(participationsByEntity.get(id) ?? [])].sort(
+      (left, right) =>
+        left.occurrenceId.localeCompare(right.occurrenceId) ||
+        String(left.roleType ?? "").localeCompare(String(right.roleType ?? "")),
+    );
+    if (!contexts.length) return "";
+    return contexts
+      .map((context) =>
+        [
+          context.occurrenceId,
+          context.roleType ? `role ${context.roleType}` : "",
+          context.representedEntityId
+            ? `represents ${entityName(context.representedEntityId)}`
+            : "",
+          context.organizationId
+            ? `organization ${entityName(context.organizationId)}`
+            : "",
+        ]
+          .filter(Boolean)
+          .join(" · "),
+      )
+      .join(" · ");
+  };
+
+  const entities = [...entityOccurrences].map(([id, occurrences]) => {
+    const base = occurrences > 1 ? `${entityName(id)} (${occurrences} occurrences)` : entityName(id);
+    const participation = participationText(id);
+    return item(
       Object.freeze({ kind: "entity" as const, id }) as WorldSelection,
-      occurrences > 1 ? `${entityName(id)} (${occurrences} occurrences)` : entityName(id),
+      participation ? `${base} · ${participation}` : base,
       snapshot.selection,
-    ),
-  );
+    );
+  });
 
   return Object.freeze({
     groups: Object.freeze([
