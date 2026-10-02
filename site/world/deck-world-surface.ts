@@ -772,8 +772,6 @@ const WORLD_PLACE_ICON_LIFT_PX = 2;
 /** Place pins closer than this remain one aggregate marker even when nodes can expand. */
 const WORLD_PLACE_MARKER_CLUSTER_MERGE_PX = 64;
 /** Pickup feedback is presentation-only and never feeds back into force state. */
-const WORLD_HOVER_LIFT_PX = 4;
-const WORLD_DRAG_PICKUP_LIFT_PX = 7;
 const WORLD_DRAG_PICKUP_FLASH_MS = 160;
 const WORLD_DRAG_PICKUP_FLASH_SCALE = 1.16;
 const WORLD_PROJECTION_HANDOFF_PRESENTATION_BLEND = 0.45;
@@ -791,16 +789,6 @@ function liftedPositionByPixels(
 
 function liftedPlaceIconPosition(position: WorldRenderPosition, zoom: number): WorldRenderPosition {
   return liftedPositionByPixels(position, zoom, WORLD_PLACE_ICON_LIFT_PX);
-}
-
-function liftedEntityInteractionPosition(
-  position: WorldRenderPosition,
-  zoom: number,
-  dragging: boolean,
-  hovered: boolean,
-): WorldRenderPosition {
-  const liftPx = dragging ? WORLD_DRAG_PICKUP_LIFT_PX : hovered ? WORLD_HOVER_LIFT_PX : 0;
-  return liftPx > 0 ? liftedPositionByPixels(position, zoom, liftPx) : position;
 }
 
 export function shouldClusterEntityDatums(
@@ -6090,16 +6078,7 @@ export class DeckWorldSurface implements WorldSurface {
         _dataDiff: changedEntityDatumRanges,
         pickable: true,
         radiusUnits: "pixels",
-        getPosition: (datum: DeckWorldEntityRenderDatum) =>
-          datum.kind === "entity"
-            ? liftedEntityInteractionPosition(
-                datum.position,
-                this.#camera.zoom,
-                this.#activeDragInstanceId === datum.worldInstanceId,
-                this.#hoverSelection?.kind === "entity" &&
-                  this.#hoverSelection.id === datum.entityId,
-              )
-            : datum.position,
+        getPosition: (datum: DeckWorldEntityRenderDatum) => datum.position,
         // Individual entities are drawn by the styled marker layer; this
         // layer mirrors that exact visible footprint for picking/dragging.
         // A collapsed cluster is the aggregate marker for both its member
@@ -6133,11 +6112,7 @@ export class DeckWorldSurface implements WorldSurface {
         getFillColor: (datum: DeckWorldEntityRenderDatum) =>
           datum.kind === "cluster" ? scaleAlpha(this.#theme.cluster, 0) : this.#theme.hit,
         updateTriggers: {
-          getPosition: [
-            this.#dragPresentationRevision,
-            screenScaleZoomStep(this.#camera.zoom),
-            this.#hoverSelection?.kind === "entity" ? this.#hoverSelection.id : "",
-          ],
+          getPosition: [this.#dragPresentationRevision],
           getRadius: [this.#palette, clusterPhase],
           getLineWidth: [clusterPhase],
           getLineColor: [this.#palette, clusterPhase],
@@ -6187,14 +6162,7 @@ export class DeckWorldSurface implements WorldSurface {
               pickable: true,
               billboard: true,
               sizeUnits: "pixels",
-              getPosition: (datum: DeckWorldEntityDatum) =>
-                liftedEntityInteractionPosition(
-                  datum.position,
-                  this.#camera.zoom,
-                  this.#activeDragInstanceId === datum.worldInstanceId,
-                  this.#hoverSelection?.kind === "entity" &&
-                    this.#hoverSelection.id === datum.entityId,
-                ),
+              getPosition: (datum: DeckWorldEntityDatum) => datum.position,
               // Styled node markers: shape, fill, border and icon/image from
               // the entity's own style or the type default.
               getIcon: (datum: DeckWorldEntityDatum) =>
@@ -6221,11 +6189,7 @@ export class DeckWorldSurface implements WorldSurface {
                 ] as Rgba;
               },
               updateTriggers: {
-                getPosition: [
-                  this.#dragPresentationRevision,
-                  screenScaleZoomStep(this.#camera.zoom),
-                  this.#hoverSelection?.kind === "entity" ? this.#hoverSelection.id : "",
-                ],
+                getPosition: [this.#dragPresentationRevision],
                 getIcon: this.#palette,
                 getSize: [
                   this.#palette,
