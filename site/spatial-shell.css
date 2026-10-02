@@ -786,10 +786,10 @@
 
   #app-shell:has(#occurrence-composer[active]) .app-footer-bar > #occurrence-composer[active] {
     order: 2;
-    flex: 0 0 auto;
-    inline-size: max-content;
-    min-inline-size: 100dvi;
-    max-inline-size: none;
+    flex: 0 0 100dvi;
+    inline-size: 100dvi;
+    min-inline-size: 0;
+    max-inline-size: 100dvi;
   }
 
   #app-shell:has(#occurrence-composer[active]) .app-footer-bar > .app-footer-view {
