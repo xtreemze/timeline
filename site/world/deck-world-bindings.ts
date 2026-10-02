@@ -9,6 +9,7 @@
  */
 import {
   Deck,
+  FlyToInterpolator,
   _GlobeController as GlobeController,
   _GlobeView as GlobeView,
   MapController,
@@ -364,6 +365,9 @@ function createRealDeckWorldBindings(webgpuAdapter?: WebGpuAdapter): DeckWorldBi
     },
     globeControllerType() {
       return TimelineWeightedGlobeController;
+    },
+    flyToInterpolator() {
+      return new FlyToInterpolator();
     },
     mapControllerType() {
       return MapController;
