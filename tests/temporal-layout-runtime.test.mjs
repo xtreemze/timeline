@@ -482,6 +482,12 @@ test("timeline interaction uses one padded coordinate system and direct pointer 
   const wheelBody = source.slice(wheelStart, wheelEnd);
   assert.match(wheelBody, /const padding = this\.axisPadding\(length\)/);
   assert.match(wheelBody, /const usable = Math\.max\(1, length - padding \* 2\)/);
+  assert.match(wheelBody, /timelineWheelInput\(event, this\.orientation, length, this\.wheelGestureMode\)/);
+  assert.match(wheelBody, /if \(input\.mode === "pan"\)/);
+  assert.match(wheelBody, /const temporalDelta = \(input\.deltaPixels \/ usable\) \* span/);
+  assert.match(wheelBody, /motion\.estimatePointerVelocity\(this\.wheelPanSamples\)/);
+  assert.match(wheelBody, /this\.startInertia\(-releaseVelocity, releaseUsableLength\)/);
+  assert.match(wheelBody, /const factor = wheelZoomFactor\(input\.deltaPixels\)/);
   assert.match(wheelBody, /clamp\(\(primary - padding\) \/ usable, 0, 1\)/);
 
   const dragStart = source.indexOf('    this.surface.addEventListener("pointermove"');
