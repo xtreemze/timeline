@@ -55,6 +55,33 @@ test("deck world runtime factory forwards every adapter construction through exp
   ]);
 });
 
+test("deck world runtime exposes an optional fly-to interpolator lazily", () => {
+  const interpolator = { kind: "fly-to" };
+  let calls = 0;
+  const runtime = createDeckWorldRuntime({
+    deck() {
+      throw new Error("not used");
+    },
+    globeView() {
+      throw new Error("not used");
+    },
+    flyToInterpolator() {
+      calls += 1;
+      return interpolator;
+    },
+    scatterplotLayer() {
+      throw new Error("not used");
+    },
+    pathLayer() {
+      throw new Error("not used");
+    },
+  });
+
+  assert.equal(calls, 0);
+  assert.equal(runtime.createFlyToInterpolator(), interpolator);
+  assert.equal(calls, 1);
+});
+
 test("runtime creation does not instantiate any deck resource eagerly", () => {
   let calls = 0;
   const runtime = createDeckWorldRuntime({
