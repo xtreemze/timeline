@@ -1030,6 +1030,33 @@ test.describe("contextual world authoring certification", () => {
     ).not.toBe("");
   });
 
+  test("promoted occurrence-card heading renders its semantic glyph in the SVG namespace", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const composer = await openPersistentComposer(page);
+
+    await page.evaluate(() => {
+      const liveComposer = document.querySelector("#occurrence-composer") as HTMLElement & {
+        setSelectionContext?: (context: unknown) => void;
+      };
+      liveComposer.setSelectionContext?.({
+        selectedOccurrenceId: "icon-contract-occurrence",
+        title: "Icon Contract Occurrence",
+        appearance: { icon: "evidence", color: "#8a5a42" },
+      });
+    });
+
+    const headingIcon = composer.locator(".composer-heading-icon");
+    await expect(headingIcon).toBeVisible();
+    await expect
+      .poll(async () => headingIcon.locator("path").count())
+      .toBeGreaterThan(0);
+    expect(
+      await headingIcon.locator("path").first().evaluate((path) => path.namespaceURI),
+    ).toBe("http://www.w3.org/2000/svg");
+  });
+
   test("S23-class portrait and landscape keep contextual composer fully contained without document scroll", async ({
     page,
   }, testInfo) => {
