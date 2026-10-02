@@ -227,6 +227,16 @@ test("application composition supplies the same canonical occurrence model to Ti
   assert.match(app, /occurrences:\s*canonicalProjectionOccurrences\(\)/);
   assert.match(app, /occurrences:\s*canonicalActivationOccurrences/);
   assert.match(app, /groupedRelationshipIds/);
+
+  const renderGraphEditorStart = app.indexOf("function renderGraphEditor()");
+  const renderGraphEditorEnd = app.indexOf("\n}\n\nif (els.presentationStage", renderGraphEditorStart);
+  assert.ok(renderGraphEditorStart >= 0 && renderGraphEditorEnd > renderGraphEditorStart);
+  const renderGraphEditor = app.slice(renderGraphEditorStart, renderGraphEditorEnd);
+  assert.match(
+    renderGraphEditor,
+    /temporalGraphView\?\.setModel\(\{[\s\S]*occurrences:\s*canonicalProjectionOccurrences\(\)/,
+    "every World model refresh must include standalone canonical occurrences used by Timeline activation",
+  );
 });
 
 test("TimelineSurface keeps canonical occurrence activation distinct from relationship bands", async () => {
