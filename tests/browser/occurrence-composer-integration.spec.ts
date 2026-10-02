@@ -995,7 +995,6 @@ test("IME composition cannot accept or commit investigative text before composit
   await expect(composer.locator('input[role="combobox"]')).toHaveCount(1);
 });
 
-
 test("IME composition is inert across subject, action, and multi-word entity input", async ({
   page,
 }) => {
@@ -1020,23 +1019,29 @@ test("IME composition is inert across subject, action, and multi-word entity inp
   for (const scenario of cases) {
     await input.evaluate((element: HTMLInputElement, value) => {
       element.value = "";
-      element.dispatchEvent(new InputEvent("input", {
-        bubbles: true,
-        data: null,
-        inputType: "deleteContentBackward",
-      }));
-      element.dispatchEvent(new CompositionEvent("compositionstart", {
-        bubbles: true,
-        data: value,
-      }));
+      element.dispatchEvent(
+        new InputEvent("input", {
+          bubbles: true,
+          data: null,
+          inputType: "deleteContentBackward",
+        }),
+      );
+      element.dispatchEvent(
+        new CompositionEvent("compositionstart", {
+          bubbles: true,
+          data: value,
+        }),
+      );
       element.value = value;
       element.setSelectionRange(value.length, value.length);
-      element.dispatchEvent(new InputEvent("input", {
-        bubbles: true,
-        data: value,
-        inputType: "insertCompositionText",
-        isComposing: true,
-      }));
+      element.dispatchEvent(
+        new InputEvent("input", {
+          bubbles: true,
+          data: value,
+          inputType: "insertCompositionText",
+          isComposing: true,
+        }),
+      );
     }, scenario.value);
 
     await input.press("Enter");
@@ -1044,10 +1049,12 @@ test("IME composition is inert across subject, action, and multi-word entity inp
     await expect(composer, scenario.label).toHaveAttribute("data-ime-commit-count", "0");
 
     await input.evaluate((element: HTMLInputElement, value) => {
-      element.dispatchEvent(new CompositionEvent("compositionend", {
-        bubbles: true,
-        data: value,
-      }));
+      element.dispatchEvent(
+        new CompositionEvent("compositionend", {
+          bubbles: true,
+          data: value,
+        }),
+      );
     }, scenario.value);
 
     await expect(input, scenario.label).toHaveValue(scenario.value);
