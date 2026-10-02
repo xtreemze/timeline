@@ -525,29 +525,25 @@ export function worldPixelsToDegrees(pixels: number, zoom: number): number {
   return (pixels * 360) / (512 * 2 ** zoom);
 }
 
-/** Arrow length as a fraction of the visible target-node radius. */
-export const WORLD_EDGE_ARROW_NODE_RADIUS_RATIO = 0.7;
-/** Arrow stroke width relative to the target-node radius, with edge width as a floor. */
-export const WORLD_EDGE_ARROW_STROKE_NODE_RADIUS_RATIO = 0.12;
-/** Prevent a large endpoint from making its chevron visually detach from a thin edge. */
-export const WORLD_EDGE_ARROW_MAX_EDGE_WIDTH_RATIO = 2;
+/** Fixed screen-space direction-arrow length. */
+export const WORLD_EDGE_ARROW_LENGTH_PX = 8;
+/** Fixed screen-space direction-arrow stroke width. */
+export const WORLD_EDGE_ARROW_STROKE_WIDTH_PX = 2;
 
 /**
- * Converts a node-relative screen-pixel arrow length into the local angular
- * metric used by relationship geometry. This keeps arrowheads visually tied
- * to pixel-sized nodes instead of growing or shrinking with the edge chord.
+ * Converts the fixed screen-pixel arrow length into the local angular metric
+ * used by relationship geometry. The world-space length changes with camera
+ * zoom only so the rendered marker remains the same size on screen.
  */
-export function worldArrowLengthDegreesForNodeRadius(
-  nodeRadiusPx: number,
+export function worldArrowLengthDegrees(
   zoom: number,
   latitude = 0,
 ): number {
-  const radiusPx = Number.isFinite(nodeRadiusPx) && nodeRadiusPx > 0 ? nodeRadiusPx : 1;
   const latitudeScale = Math.max(
     0.2,
     Math.cos((Math.max(-89.9, Math.min(89.9, latitude)) * Math.PI) / 180),
   );
-  return worldPixelsToDegrees(radiusPx * WORLD_EDGE_ARROW_NODE_RADIUS_RATIO, zoom) * latitudeScale;
+  return worldPixelsToDegrees(WORLD_EDGE_ARROW_LENGTH_PX, zoom) * latitudeScale;
 }
 
 /** Screen-space node radius converted to the same local angular metric as edge geometry. */
@@ -564,20 +560,9 @@ export function worldNodeClearanceDegreesForRadius(
   return worldPixelsToDegrees(radiusPx, zoom) * latitudeScale;
 }
 
-/**
- * Keeps a direction chevron's line weight visually proportional to the nodes
- * it connects while never making it thinner than the relationship itself.
- */
-export function worldArrowStrokeWidthPxForNodeRadius(
-  nodeRadiusPx: number,
-  edgeWidthPx: number,
-): number {
-  const radiusPx = Number.isFinite(nodeRadiusPx) && nodeRadiusPx > 0 ? nodeRadiusPx : 1;
-  const widthPx = Number.isFinite(edgeWidthPx) && edgeWidthPx > 0 ? edgeWidthPx : 1;
-  return Math.min(
-    widthPx * WORLD_EDGE_ARROW_MAX_EDGE_WIDTH_RATIO,
-    Math.max(widthPx, radiusPx * WORLD_EDGE_ARROW_STROKE_NODE_RADIUS_RATIO),
-  );
+/** Fixed screen-space line weight for direction chevrons. */
+export function worldArrowStrokeWidthPx(): number {
+  return WORLD_EDGE_ARROW_STROKE_WIDTH_PX;
 }
 
 /**
