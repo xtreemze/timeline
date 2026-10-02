@@ -1498,6 +1498,8 @@ test("direction marker clears the target marker footprint", () => {
     const distanceToTarget = Math.hypot(apex[0] - targetPosition[0], apex[1] - targetPosition[1]);
     return {
       targetClearanceDegrees: marker.targetClearanceDegrees,
+      arrowLengthDegrees: marker.arrowLengthDegrees,
+      strokeWidthPx: directions.props.getWidth(marker),
       distanceToTarget,
       wingA,
       wingB,
@@ -1507,6 +1509,16 @@ test("direction marker clears the target marker footprint", () => {
   const ordinary = clearanceFor(undefined);
   const large = clearanceFor({ radius: 32 });
   assert.ok(large.targetClearanceDegrees > ordinary.targetClearanceDegrees);
+  assert.equal(
+    large.arrowLengthDegrees,
+    ordinary.arrowLengthDegrees,
+    "target-node size changes clearance but never arrow size",
+  );
+  assert.equal(
+    large.strokeWidthPx,
+    ordinary.strokeWidthPx,
+    "target-node size never changes arrow stroke width",
+  );
   assert.ok(
     large.distanceToTarget > ordinary.distanceToTarget,
     "larger target nodes push the arrow apex farther from the node center",
@@ -1529,11 +1541,11 @@ test("interactive zoom refreshes world-space arrow geometry before LOD threshold
   assert.ok(after < before, "zooming in refreshes the angular arrow size");
   assert.ok(
     Math.abs(after / before - 2 ** -0.04) < 0.01,
-    "arrow geometry tracks the pixel-sized node scale between semantic LOD thresholds",
+    "world-space geometry compensates for zoom to preserve fixed screen-space arrow size",
   );
 });
 
-test("direction marker length stays node-relative across camera zoom", () => {
+test("direction marker length stays constant in screen space across camera zoom", () => {
   const markerLength = (zoom) => {
     const h = harness();
     const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom });
@@ -1548,7 +1560,7 @@ test("direction marker length stays node-relative across camera zoom", () => {
   assert.ok(zoom8 > 0);
   assert.ok(
     Math.abs(zoom7 / zoom8 - 2) < 1e-9,
-    "pixel-sized nodes imply halved angular arrow length for each +1 zoom",
+    "fixed screen-space arrows require halved angular length for each +1 zoom",
   );
 });
 
