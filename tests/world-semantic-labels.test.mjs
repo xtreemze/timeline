@@ -1439,9 +1439,9 @@ test("each rendered directed relationship has a visible marker preserving source
 });
 
 test("direction markers remain compact relative to target nodes", () => {
-  assert.equal(WORLD_EDGE_ARROW_NODE_RADIUS_RATIO, 0.7);
+  assert.equal(WORLD_EDGE_ARROW_NODE_RADIUS_RATIO, 0.4);
   assert.equal(WORLD_EDGE_ARROW_STROKE_NODE_RADIUS_RATIO, 0.12);
-  assert.equal(worldArrowLengthDegreesForNodeRadius(20, 0, 0), worldPixelsToDegrees(14, 0));
+  assert.equal(worldArrowLengthDegreesForNodeRadius(20, 0, 0), worldPixelsToDegrees(8, 0));
   assert.equal(worldArrowStrokeWidthPxForNodeRadius(20, 1), 2);
 });
 
