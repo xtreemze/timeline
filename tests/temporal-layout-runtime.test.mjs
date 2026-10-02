@@ -482,7 +482,34 @@ test("timeline interaction uses one padded coordinate system and direct pointer 
   const wheelBody = source.slice(wheelStart, wheelEnd);
   assert.match(wheelBody, /const padding = this\.axisPadding\(length\)/);
   assert.match(wheelBody, /const usable = Math\.max\(1, length - padding \* 2\)/);
+  assert.match(wheelBody, /timelineWheelInput\(event, this\.orientation, length, this\.wheelGestureMode\)/);
+  assert.match(wheelBody, /if \(input\.mode === "pan"\)/);
+  assert.match(wheelBody, /const temporalDelta = \(input\.deltaPixels \/ usable\) \* span/);
+  assert.match(wheelBody, /motion\.estimatePointerVelocity\(this\.wheelPanSamples\)/);
+  assert.match(wheelBody, /\(\) => this\.finishWheelGesture\(\)/);
+  assert.match(wheelBody, /const factor = wheelZoomFactor\(input\.deltaPixels\)/);
   assert.match(wheelBody, /clamp\(\(primary - padding\) \/ usable, 0, 1\)/);
+
+  const wheelReleaseStart = source.indexOf("  finishWheelGesture(): void {");
+  const wheelReleaseEnd = source.indexOf("  cancelInertia(): void {", wheelReleaseStart);
+  const wheelReleaseBody = source.slice(wheelReleaseStart, wheelReleaseEnd);
+  assert.match(wheelReleaseBody, /motion\.estimatePointerVelocity\(this\.wheelPanSamples\)/);
+  assert.match(
+    wheelReleaseBody,
+    /Math\.abs\(releaseVelocity\) >= motion\.STOP_VELOCITY_PX_PER_MS/,
+  );
+  assert.match(wheelReleaseBody, /this\.startInertia\(-releaseVelocity, releaseUsableLength\)/);
+
+  const abortStart = source.indexOf("    const abortSurfaceGesture = (): void => {");
+  const abortEnd = source.indexOf('    this.surface.addEventListener(\n      "click"', abortStart);
+  const abortBody = source.slice(abortStart, abortEnd);
+  assert.match(abortBody, /this\.cancelWheelGesture\(\)/);
+  assert.match(abortBody, /this\.wheelGestureMode/);
+
+  assert.match(
+    source,
+    /if \(!this\.items\.length\) \{[\s\S]{0,180}this\.cancelWheelGesture\(\)/,
+  );
 
   const dragStart = source.indexOf('    this.surface.addEventListener("pointermove"');
   const dragEnd = source.indexOf("    const finishPointer", dragStart);
