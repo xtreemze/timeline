@@ -1,3 +1,4 @@
+import type { CanonicalOccurrenceId } from "../domain/ids.ts";
 import type { CanonicalOccurrence } from "../domain/occurrence.ts";
 import type { CanonicalRelationship } from "../domain/relationship.ts";
 import type { CanonicalProject } from "../domain/project.ts";
@@ -334,10 +335,15 @@ function projectEndpoint(raw: unknown, occurrenceId: string): EndpointProjection
   };
 }
 
-type CalendarOccurrence = Pick<
-  CanonicalOccurrence,
-  "id" | "title" | "occurrenceType" | "time" | "placeId" | "relationshipIds" | "attributes"
->;
+type CalendarOccurrence = Omit<
+  Pick<
+    CanonicalOccurrence,
+    "id" | "title" | "occurrenceType" | "time" | "placeId" | "relationshipIds" | "attributes"
+  >,
+  "id"
+> & {
+  readonly id: CanonicalOccurrenceId;
+};
 
 function relationshipOccurrence(relationship: CanonicalRelationship): CalendarOccurrence {
   return Object.freeze({
