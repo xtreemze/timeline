@@ -3070,6 +3070,11 @@ export class DeckWorldSurface implements WorldSurface {
   #projectionHandoffFresh = false;
   #spatialMode: WorldSpatialMode = "globe";
   #cameraInteractionActive = false;
+  // Zoom-derived semantic presentation stays fixed for the lifetime of one
+  // camera gesture/transition. D3 may keep updating positions underneath it,
+  // but node magnification/float/LOD/clustering reconcile only after camera
+  // ownership settles so two independent transforms never fight each other.
+  #cameraPresentationZoom: number | null = null;
   #cameraInteractionSink: DeckWorldCameraInteractionSink | null = null;
   #pendingSpatialModeSync = false;
   #pendingClusterLifecycleSync = false;
@@ -4132,8 +4137,19 @@ export class DeckWorldSurface implements WorldSurface {
 
   #setCameraInteractionActive(active: boolean): void {
     if (this.#cameraInteractionActive === active) return;
+    if (active) {
+      // This runs before the incoming deck viewState is committed, so the
+      // snapshot is the last fully rendered semantic zoom at gesture start.
+      this.#cameraPresentationZoom = this.#camera.zoom;
+    } else {
+      this.#cameraPresentationZoom = null;
+    }
     this.#cameraInteractionActive = active;
     this.#cameraInteractionSink?.setCameraInteractionActive(active);
+  }
+
+  #presentationZoom(): number {
+    return this.#cameraPresentationZoom ?? this.#camera.zoom;
   }
 
   #scheduleHoverRender(): void {
@@ -5207,24 +5223,25 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   #zoomNeedsRender(includeCameraFacing = true): boolean {
-    const budget = worldLabelBudget(this.#camera.zoom);
+    const presentationZoom = this.#presentationZoom();
+    const budget = worldLabelBudget(presentationZoom);
     const lodChanged =
       budget !== this.#labelBudgetLastRender &&
       Math.min(budget, this.#labelBudgetLastRender) < this.#lodCandidateCountLastRender;
     const screenScaleChanged =
-      screenScaleZoomStep(this.#camera.zoom) !== this.#screenScaleZoomLastRender;
+      screenScaleZoomStep(presentationZoom) !== this.#screenScaleZoomLastRender;
     const cameraFacingChanged =
       includeCameraFacing && cameraFacingStep(this.#camera) !== this.#cameraFacingStepLastRender;
     const placeLabelVisibilityChanged =
-      worldShowsOrdinaryPlaceLabels(this.#camera.zoom) !== this.#placeLabelsVisibleLastRender;
+      worldShowsOrdinaryPlaceLabels(presentationZoom) !== this.#placeLabelsVisibleLastRender;
     return (
       this.#clusterPhase !== this.#clusterPhaseLastRender ||
       lodChanged ||
       placeLabelVisibilityChanged ||
       screenScaleChanged ||
       cameraFacingChanged ||
-      this.#nextOffsetScale() !== this.#offsetScale ||
-      this.#nextFloatMeters() !== this.#floatMeters
+      this.#nextOffsetScale(presentationZoom) !== this.#offsetScale ||
+      this.#nextFloatMeters(presentationZoom) !== this.#floatMeters
     );
   }
 
@@ -5324,7 +5341,10 @@ export class DeckWorldSurface implements WorldSurface {
     return this.#nextFloatMeters(zoom, this.#instanceLatitude(instance));
   }
 
-  #offsetScaleForInstance(instance: ProjectedWorldInstance, zoom = this.#camera.zoom): number {
+  #offsetScaleForInstance(
+    instance: ProjectedWorldInstance,
+    zoom = this.#presentationZoom(),
+  ): number {
     if (zoom === this.#camera.zoom) {
       const handoff = this.#projectionHandoffPresentation.get(instance.id);
       if (handoff) return handoff.offsetScale;
@@ -5332,7 +5352,10 @@ export class DeckWorldSurface implements WorldSurface {
     return this.#baseOffsetScaleForInstance(instance, zoom);
   }
 
-  #floatMetersForInstance(instance: ProjectedWorldInstance, zoom = this.#camera.zoom): number {
+  #floatMetersForInstance(
+    instance: ProjectedWorldInstance,
+    zoom = this.#presentationZoom(),
+  ): number {
     if (zoom === this.#camera.zoom) {
       const handoff = this.#projectionHandoffPresentation.get(instance.id);
       if (handoff) return handoff.floatMeters;
@@ -5568,8 +5591,9 @@ export class DeckWorldSurface implements WorldSurface {
 
   #render(withCamera = false): void {
     this.#cancelHoverRender();
-    this.#offsetScale = this.#nextOffsetScale();
-    this.#floatMeters = this.#nextFloatMeters();
+    const presentationZoom = this.#presentationZoom();
+    this.#offsetScale = this.#nextOffsetScale(presentationZoom);
+    this.#floatMeters = this.#nextFloatMeters(presentationZoom);
     const neighborhood = this.#topologyIndex.interactionNeighborhood([
       this.#selection,
       this.#hoverSelection,
@@ -5639,7 +5663,7 @@ export class DeckWorldSurface implements WorldSurface {
     const placeClusters = clusterEntityDatumsByPlace(
       clusteredEntitySource,
       this.#projection.instances,
-      worldPixelsToDegrees(this.#clusterMergeRadiusPx(), this.#camera.zoom),
+      worldPixelsToDegrees(this.#clusterMergeRadiusPx(), presentationZoom),
     );
     const topologyClusters = placeClusters.filter(
       (datum): datum is DeckWorldClusterDatum => datum.kind === "cluster",
@@ -5678,12 +5702,12 @@ export class DeckWorldSurface implements WorldSurface {
       : Object.freeze([] as DeckWorldRelationshipDatum[]);
     const releasingSegments = releasingRelationshipSegments(releasingRelationships);
     const placeMarkerClusters =
-      clusterPhase !== "collapsed" && this.#camera.zoom < WORLD_CLUSTER_DETAIL_ZOOM_CEILING
+      clusterPhase !== "collapsed" && presentationZoom < WORLD_CLUSTER_DETAIL_ZOOM_CEILING
         ? Object.freeze(
             clusterEntityDatumsByPlace(
               entityResult.datums,
               this.#projection.instances,
-              worldPixelsToDegrees(WORLD_PLACE_MARKER_CLUSTER_MERGE_PX, this.#camera.zoom),
+              worldPixelsToDegrees(WORLD_PLACE_MARKER_CLUSTER_MERGE_PX, presentationZoom),
             ).filter((datum): datum is DeckWorldClusterDatum => datum.kind === "cluster"),
           )
         : Object.freeze([] as DeckWorldClusterDatum[]);
@@ -5708,10 +5732,10 @@ export class DeckWorldSurface implements WorldSurface {
     this.#relationshipDatumCache = relationshipResult.byId;
     this.#entityDatumCache = entityResult.byId;
     this.#clusterPhaseLastRender = clusterPhase;
-    this.#screenScaleZoomLastRender = screenScaleZoomStep(this.#camera.zoom);
+    this.#screenScaleZoomLastRender = screenScaleZoomStep(presentationZoom);
     this.#cameraFacingStepLastRender = cameraFacingStep(this.#camera);
-    this.#labelBudgetLastRender = worldLabelBudget(this.#camera.zoom);
-    this.#placeLabelsVisibleLastRender = worldShowsOrdinaryPlaceLabels(this.#camera.zoom);
+    this.#labelBudgetLastRender = worldLabelBudget(presentationZoom);
+    this.#placeLabelsVisibleLastRender = worldShowsOrdinaryPlaceLabels(presentationZoom);
     this.#lodCandidateCountLastRender = Math.max(
       places.length,
       relationships.length,
@@ -5757,7 +5781,7 @@ export class DeckWorldSurface implements WorldSurface {
     );
     const directionResult = directionDatums(
       visibleDirectionRelationships,
-      this.#camera.zoom,
+      presentationZoom,
       this.#focus,
       this.#directionDatumCache,
       (edge) => {
@@ -5835,7 +5859,7 @@ export class DeckWorldSurface implements WorldSurface {
       ? selectPrioritizedLabels(iconSource, {
           budget:
             iconSource.length >= DENSE_CLUSTER_ENTITY_THRESHOLD
-              ? worldLabelBudget(this.#camera.zoom)
+              ? worldLabelBudget(presentationZoom)
               : Number.POSITIVE_INFINITY,
           isPinned: pinnedEntity,
           importance: (entity) => entity.visualWeight,
@@ -5868,7 +5892,7 @@ export class DeckWorldSurface implements WorldSurface {
           entities: labelEntities,
           entitiesByEntityId: entityResult.byEntityId,
           clustered: clusterPhase === "collapsed",
-          zoom: this.#camera.zoom,
+          zoom: presentationZoom,
           focus: this.#focus,
           selection: this.#selection,
           hoverSelection: this.#hoverSelection,
