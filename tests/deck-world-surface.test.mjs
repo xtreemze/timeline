@@ -1140,6 +1140,112 @@ test("inertial globe release settles before globe-to-local controller handoff", 
   assert.equal(swap.viewState.zoom, 11.6);
 });
 
+test("relationships are hidden when either endpoint node marker is not rendered", () => {
+  const { calls, runtime } = harness();
+  const markerRuntime = {
+    ...runtime,
+    createIconLayer(props) {
+      return { type: "icon", props };
+    },
+    createTextLayer(props) {
+      return { type: "text", props };
+    },
+  };
+
+  const visibleId = worldInstanceId("visible", "linked");
+  const hiddenId = worldInstanceId("hidden", "linked");
+  const visible = createProjectedWorldInstance({
+    id: visibleId,
+    canonicalId: "visible",
+    occurrenceId: "linked",
+    label: "Visible",
+    geographicAnchors: [
+      {
+        placeId: "front",
+        longitude: 0,
+        latitude: 0,
+        sourceAltitude: 0,
+        influence: 1,
+      },
+    ],
+    temporalWeight: 1,
+    visualWeight: 1,
+    retained: false,
+  });
+  const hidden = createProjectedWorldInstance({
+    id: hiddenId,
+    canonicalId: "hidden",
+    occurrenceId: "linked",
+    label: "Hidden",
+    geographicAnchors: [
+      {
+        placeId: "back",
+        longitude: 180,
+        latitude: 0,
+        sourceAltitude: 0,
+        influence: 1,
+      },
+    ],
+    temporalWeight: 1,
+    visualWeight: 1,
+    retained: false,
+  });
+
+  const surface = new DeckWorldSurface({}, markerRuntime, {
+    longitude: 0,
+    latitude: 0,
+    zoom: 6,
+    bearing: 0,
+    pitch: 0,
+  });
+  surface.setProjection(
+    createWorldProjection({
+      instances: [visible, hidden],
+      edges: [
+        createProjectedWorldEdge({
+          id: "visible-to-hidden",
+          label: "links",
+          sourceInstanceId: visibleId,
+          targetInstanceId: hiddenId,
+          temporalWeight: 1,
+          visible: true,
+          retained: false,
+        }),
+      ],
+    }),
+  );
+
+  const icons = renderedLayer(calls, DECK_WORLD_LAYER_IDS.entityIcons);
+  assert.deepEqual(
+    icons.props.data.map((datum) => datum.worldInstanceId),
+    [visibleId],
+    "far-side endpoint marker is not rendered",
+  );
+
+  const relationships = renderedLayer(calls, DECK_WORLD_LAYER_IDS.relationships);
+  assert.equal(
+    relationships.props.data.length,
+    0,
+    "an edge with a hidden endpoint must not remain visible or pickable",
+  );
+
+  const directions = renderedLayer(calls, DECK_WORLD_LAYER_IDS.relationshipDirections);
+  assert.equal(
+    directions.props.data.length,
+    0,
+    "direction markers follow the same endpoint-visibility contract",
+  );
+
+  const labels = renderedLayers(calls).find(
+    (candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.labels,
+  );
+  assert.equal(
+    labels?.props.data.some((datum) => datum.kind === "relationship-label") ?? false,
+    false,
+    "relationship labels cannot outlive a hidden edge",
+  );
+});
+
 test("hover and drag keep entity altitude stable", async () => {
   const source = await readFile(
     new URL("../site/world/deck-world-surface.ts", import.meta.url),
