@@ -500,6 +500,17 @@ test("timeline interaction uses one padded coordinate system and direct pointer 
   );
   assert.match(wheelReleaseBody, /this\.startInertia\(-releaseVelocity, releaseUsableLength\)/);
 
+  const abortStart = source.indexOf("    const abortSurfaceGesture = (): void => {");
+  const abortEnd = source.indexOf('    this.surface.addEventListener(\n      "click"', abortStart);
+  const abortBody = source.slice(abortStart, abortEnd);
+  assert.match(abortBody, /this\.cancelWheelGesture\(\)/);
+  assert.match(abortBody, /this\.wheelGestureMode/);
+
+  assert.match(
+    source,
+    /if \(!this\.items\.length\) \{[\s\S]{0,180}this\.cancelWheelGesture\(\)/,
+  );
+
   const dragStart = source.indexOf('    this.surface.addEventListener("pointermove"');
   const dragEnd = source.indexOf("    const finishPointer", dragStart);
   const dragBody = source.slice(dragStart, dragEnd);
