@@ -49,9 +49,11 @@ test("a single point fits at a bounded regional zoom; nothing to fit returns nul
 function runtime({ flyToInterpolator } = {}) {
   const views = [];
   const initialViewStates = [];
+  const deckProps = [];
   return {
     views,
     initialViewStates,
+    deckProps,
     ...(flyToInterpolator
       ? {
           createFlyToInterpolator: () => flyToInterpolator,
@@ -62,6 +64,7 @@ function runtime({ flyToInterpolator } = {}) {
     createPathLayer: (props) => ({ props }),
     createDeck(props) {
       initialViewStates.push(props.initialViewState);
+      deckProps.push(props);
       return {
         setProps(props) {
           if (props.viewState) views.push(props.viewState);
@@ -114,6 +117,17 @@ test("default startup begins zoomed out and flies once to readable content", () 
   assert.equal(startupFlight.transitionDuration, "auto");
 
   const viewStateCount = r.views.length;
+  r.deckProps[0].onViewStateChange({
+    viewState: { longitude: 15, latitude: 30, zoom: 2, bearing: 0, pitch: 20 },
+    interactionState: { inTransition: true },
+  });
+  assert.equal(
+    r.views.length,
+    viewStateCount,
+    "controlled camera handoff must not overwrite deck's in-flight startup transition",
+  );
+
+
   surface.setProjection(placed(-60, -10));
   assert.equal(r.views.length, viewStateCount, "later projection updates never replay startup flight");
 });
