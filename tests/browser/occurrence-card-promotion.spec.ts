@@ -107,9 +107,7 @@ test("composer-owned occurrence detail stays in the visual viewport in both chro
     const box = await composer.evaluate((element) => {
       const panel = element.shadowRoot?.querySelector(".completion-panel");
       const rect = panel?.getBoundingClientRect();
-      return rect
-        ? { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
-        : null;
+      return rect ? { x: rect.x, y: rect.y, width: rect.width, height: rect.height } : null;
     });
     expect(box).not.toBeNull();
     if (!box) continue;

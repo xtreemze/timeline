@@ -167,7 +167,6 @@ test("category filters match any category on a multi-category occurrence", () =>
   assert.deepEqual(result.occurrenceIds, ["o1"]);
 });
 
-
 test("one place and temporal window produce consistent graph/map/timeline IDs", () => {
   const result = evaluateAnalyticalLens(
     lens({

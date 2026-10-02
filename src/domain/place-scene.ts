@@ -77,7 +77,7 @@ export function validatePlaceScene3D(scene: CanonicalPlaceScene3D): readonly str
   if (assetBacked && !scene.assetId?.trim()) {
     findings.push("Asset-backed 3D place scenes require an asset ID.");
   }
-  if (assetBacked && (!scene.dimensionsMeters || !finiteVector3(scene.dimensionsMeters))) {
+  if (assetBacked && !(scene.dimensionsMeters && finiteVector3(scene.dimensionsMeters))) {
     findings.push("Asset-backed 3D place scenes require finite meter dimensions.");
   }
   if (

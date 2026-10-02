@@ -17,7 +17,10 @@ test("mobile keyboard occlusion moves only the focused composer footer", async (
   assert.match(styles, /#app-shell\s*\{[\s\S]*inset:\s*0[\s\S]*height:\s*100dvh/);
   assert.match(app, /const composerFocused = els\.occurrenceComposer\.inputHasFocus\(\)/);
   assert.match(app, /visualViewport\?\.scale/);
-  assert.match(app, /mobileKeyboardOcclusionPx\(\{[\s\S]*layoutHeight[\s\S]*visualHeight:\s*height[\s\S]*scale/);
+  assert.match(
+    app,
+    /mobileKeyboardOcclusionPx\(\{[\s\S]*layoutHeight[\s\S]*visualHeight:\s*height[\s\S]*scale/,
+  );
   assert.match(
     app,
     /composerKeyboardInsetPx\([\s\S]*measuredOcclusion[\s\S]*composerFocused[\s\S]*occurrenceComposerKeyboardInset/,
@@ -31,7 +34,10 @@ test("mobile keyboard occlusion moves only the focused composer footer", async (
   assert.match(occlusion, /inputFocused \|\| previous > 0/);
   assert.match(app, /--app-visual-viewport-bottom/);
   assert.match(app, /composerFocused[\s\S]*revealMobileInputLane\(\)/);
-  assert.match(app, /occurrenceComposer\.addEventListener\("focusin", syncComposerVisualViewport\)/);
+  assert.match(
+    app,
+    /occurrenceComposer\.addEventListener\("focusin", syncComposerVisualViewport\)/,
+  );
   assert.match(composer, /inputHasFocus\(\): boolean/);
   assert.match(composer, /revealMobileInputLane\(\): void/);
   assert.match(composer, /footer\.scrollTo\(\{[\s\S]*left:/);

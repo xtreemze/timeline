@@ -1151,8 +1151,7 @@ function curvedEdgePoints(
     );
     const midpoint = Object.freeze({
       eastMeters:
-        (source.eastMeters + target.eastMeters) / 2 +
-        (orientation === "top-to-bottom" ? bend : 0),
+        (source.eastMeters + target.eastMeters) / 2 + (orientation === "top-to-bottom" ? bend : 0),
       northMeters:
         (source.northMeters + target.northMeters) / 2 +
         (orientation === "left-to-right" ? bend : 0),
@@ -1609,8 +1608,7 @@ function layoutPlace(
   const strategy = placeOverride?.strategy ?? options.strategy ?? "auto";
   const coordinate = placeOverride?.coordinate ?? options.coordinate ?? "greedy";
   const edgeStyle = placeOverride?.edgeStyle ?? options.edgeStyle ?? "routed";
-  const reorganize =
-    options.reorganize === true || options.reorganizePlaceId === placeId;
+  const reorganize = options.reorganize === true || options.reorganizePlaceId === placeId;
   const nodeIds = instances.map((instance) => instance.id);
   const nodeIdSet = new Set(nodeIds);
   const sizes = nodeSizeMap(nodeIds, options.nodeSizes);
@@ -1842,14 +1840,12 @@ function layoutCrossPlaceTopology(
     options.reorganizePlaceId === undefined
       ? undefined
       : options.placeOverrides?.get(options.reorganizePlaceId);
-  const orientation =
-    selectedOverride?.orientation ?? options.orientation ?? "top-to-bottom";
+  const orientation = selectedOverride?.orientation ?? options.orientation ?? "top-to-bottom";
   const algorithm = selectedOverride?.algorithm ?? options.algorithm ?? "sugiyama";
   const strategy = selectedOverride?.strategy ?? options.strategy ?? "auto";
   const coordinate = selectedOverride?.coordinate ?? options.coordinate ?? "greedy";
   const edgeStyle = selectedOverride?.edgeStyle ?? options.edgeStyle ?? "routed";
-  const reorganize =
-    options.reorganize === true || options.reorganizePlaceId !== undefined;
+  const reorganize = options.reorganize === true || options.reorganizePlaceId !== undefined;
   const connectedIds = layoutNeighborhoodNodeIds(index, options);
   if (connectedIds.size === 0) {
     crossPlaceCache = null;

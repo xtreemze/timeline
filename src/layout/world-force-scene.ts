@@ -13,11 +13,11 @@ import {
   type WorldDagLayoutTarget,
 } from "./world-dag-layout.ts";
 import {
+  WORLD_FORCE_COLLISION_METERS_PER_PX,
   type WorldForceAnchor,
   type WorldForceEdge,
   type WorldForceNode,
   type WorldForceScene,
-  WORLD_FORCE_COLLISION_METERS_PER_PX,
   worldForceNodePreferredRadiusMeters,
 } from "./world-force-simulation.ts";
 import {
@@ -72,8 +72,7 @@ const CONNECTIVITY_CLEARANCE_MAX_RADIUS_SCALE = 1.5;
 export const DEFAULT_WORLD_FORCE_SCENE_POLICY: WorldForceScenePolicy = Object.freeze({
   baseMass: 1,
   visualWeightMassScale: 1,
-  baseCollisionRadiusMeters:
-    WORLD_ENTITY_MIN_HIT_RADIUS_PX * WORLD_FORCE_COLLISION_METERS_PER_PX,
+  baseCollisionRadiusMeters: WORLD_ENTITY_MIN_HIT_RADIUS_PX * WORLD_FORCE_COLLISION_METERS_PER_PX,
   edgeStrength: 0.035,
   edgeRestLengthMeters: 900 * WORLD_FORCE_LAYOUT_SCALE,
   anchorInfluenceScale: 0.75,

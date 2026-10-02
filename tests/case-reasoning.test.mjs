@@ -430,19 +430,19 @@ test("projects explicit identity reasoning into categorical candidate evidence w
     ],
   );
   assert.ok(
-    assessments.find((entry) => entry.candidateEntityId === "alice").recordIds.includes(
-      "cite-route-alice",
-    ),
+    assessments
+      .find((entry) => entry.candidateEntityId === "alice")
+      .recordIds.includes("cite-route-alice"),
   );
   assert.ok(
-    assessments.find((entry) => entry.candidateEntityId === "alice").recordIds.includes(
-      "ev-route-camera",
-    ),
+    assessments
+      .find((entry) => entry.candidateEntityId === "alice")
+      .recordIds.includes("ev-route-camera"),
   );
   assert.ok(
-    assessments.find((entry) => entry.candidateEntityId === "bob").recordIds.includes(
-      "alibi-contradicts-bob",
-    ),
+    assessments
+      .find((entry) => entry.candidateEntityId === "bob")
+      .recordIds.includes("alibi-contradicts-bob"),
   );
   assert.equal("score" in assessments[0], false);
   assert.equal("probability" in assessments[0], false);

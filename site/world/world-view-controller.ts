@@ -25,12 +25,12 @@ import {
   createWorldForceScene,
   type WorldForceScenePolicy,
 } from "../../src/layout/world-force-scene.ts";
-import { preserveWorldProjectionRenderContinuity } from "../../src/layout/world-geographic-position.ts";
 import {
   createWorldSimulationCoordinator,
   type WorldForceSimulationBackend,
   type WorldForceTuning,
 } from "../../src/layout/world-force-simulation.ts";
+import { preserveWorldProjectionRenderContinuity } from "../../src/layout/world-geographic-position.ts";
 import type {
   WorldRenderContinuitySample,
   WorldSelection,
@@ -314,8 +314,7 @@ export class WorldViewRuntimeController {
       }
     } else {
       if (settings.orientation !== undefined) {
-        this.#globalDagOrientation =
-          settings.orientation === "auto" ? null : settings.orientation;
+        this.#globalDagOrientation = settings.orientation === "auto" ? null : settings.orientation;
       }
       if (settings.algorithm !== undefined) this.#globalDagAlgorithm = settings.algorithm;
       if (settings.strategy !== undefined) this.#globalDagStrategy = settings.strategy;

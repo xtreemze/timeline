@@ -39,7 +39,8 @@
         "noUnknownAtRules": "error"
       },
       "style": {
-        "noNonNullAssertion": "off"
+        "noNonNullAssertion": "off",
+        "noDescendingSpecificity": "off"
       },
       "nursery": {
         "noReturnInFinally": "error",
@@ -99,6 +100,9 @@
       "linter": {
         "rules": {
           "preset": "all",
+          "correctness": {
+            "useQwikValidLexicalScope": "off"
+          },
           "nursery": {
             "preset": "recommended"
           }

@@ -18,6 +18,7 @@ import {
   worldLabelCollisionPriority,
 } from "../site/world/deck-world-surface.ts";
 import { WorldRenderTopologyIndex } from "../site/world/world-render-topology.ts";
+import { preserveWorldProjectionRenderContinuity } from "../src/layout/world-geographic-position.ts";
 import { WORLD_ENTITY_MIN_HIT_RADIUS_PX } from "../src/layout/world-graph-style.ts";
 import {
   DEFAULT_WORLD_SPATIAL_MODE_POLICY,
@@ -32,7 +33,6 @@ import {
   worldInstanceId,
 } from "../src/projection/world-projection.ts";
 import { diffWorldProjection } from "../src/projection/world-projection-delta.ts";
-import { preserveWorldProjectionRenderContinuity } from "../src/layout/world-geographic-position.ts";
 
 const DEFAULT_CLUSTER_NODE_RADIUS_PX = WORLD_ENTITY_MIN_HIT_RADIUS_PX;
 
@@ -1167,17 +1167,11 @@ test("real globe direct pan applies the shared timeline-weighted response", asyn
     source,
     /directPan = !candidate\.rightButton && !this\.isFunctionKeyPressed\(event\)/,
   );
-  assert.match(
-    source,
-    /TimelineMotion\.responseForElapsed\(now - this\.#weightedPanLastTime\)/,
-  );
+  assert.match(source, /TimelineMotion\.responseForElapsed\(now - this\.#weightedPanLastTime\)/);
   assert.match(source, /current\[0\] \+ \(raw\[0\] - current\[0\]\) \* response/);
   assert.match(source, /current\[1\] \+ \(raw\[1\] - current\[1\]\) \* response/);
   assert.match(source, /event\.type === "panend"\) this\.#clearWeightedPan\(\)/);
-  assert.match(
-    source,
-    /event\.type === "pinchstart" \|\| event\.type === "multipanstart"/,
-  );
+  assert.match(source, /event\.type === "pinchstart" \|\| event\.type === "multipanstart"/);
   assert.doesNotMatch(source, /function velocityContinuousGlobeInertiaEasing/);
   assert.match(source, /TimelineMotion\.releaseMomentumEasing/);
   assert.match(source, /interactionState\.isDragging === false/);
@@ -3612,5 +3606,8 @@ test("world renderer bounds semantic style memoization and releases retained gra
   assert.match(source, /setBoundedCache\(this\.#edgeStyles, key, style, WORLD_STYLE_CACHE_LIMIT\)/);
   assert.match(source, /destroy\(\): void \{[\s\S]*this\.#nodeStyles\.clear\(\)/);
   assert.match(source, /destroy\(\): void \{[\s\S]*this\.#lineClipCache\.clear\(\)/);
-  assert.match(source, /destroy\(\): void \{[\s\S]*this\.#topologyIndex\.replace\(this\.#projection\)/);
+  assert.match(
+    source,
+    /destroy\(\): void \{[\s\S]*this\.#topologyIndex\.replace\(this\.#projection\)/,
+  );
 });

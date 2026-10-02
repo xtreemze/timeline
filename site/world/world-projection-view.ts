@@ -1,21 +1,38 @@
 import type { CanonicalSpatialGeometry } from "../../src/domain/geotemporal.ts";
 import { validateSpatialGeometry } from "../../src/domain/geotemporal.ts";
-import type { CanonicalOccurrenceId, EntityId, PlaceId, RelationshipId } from "../../src/domain/ids.ts";
+import type {
+  CanonicalOccurrenceId,
+  EntityId,
+  PlaceId,
+  RelationshipId,
+} from "../../src/domain/ids.ts";
 import { entityId, occurrenceId, placeId, relationshipId } from "../../src/domain/ids.ts";
-import type { CanonicalOccurrence, CanonicalOccurrenceParticipant } from "../../src/domain/occurrence.ts";
+import type {
+  CanonicalOccurrence,
+  CanonicalOccurrenceParticipant,
+} from "../../src/domain/occurrence.ts";
 import type {
   CanonicalRelationship,
   CanonicalTemporalExtent,
 } from "../../src/domain/relationship.ts";
 import {
+  mergeOccurrenceNodeSemanticStyle,
+  type OccurrenceNodeSemanticStyle,
+  occurrenceNodeSemanticStyle,
+} from "../../src/presentation/occurrence-semantic-color.ts";
+import {
+  canonicalSemanticHueColor,
+  normalizeSemanticColorSource,
+} from "../../src/presentation/semantic-color.ts";
+import {
+  type CanonicalProjectedOccurrence,
+  projectCanonicalOccurrences,
+} from "../../src/projection/canonical-occurrence-projection.ts";
+import {
   SpatialAnchorIndex,
   type SpatialPlaceRecord,
 } from "../../src/projection/spatial-anchor-index.ts";
 import { occurrenceViewportWeight } from "../../src/projection/spatiotemporal-projection.ts";
-import {
-  projectCanonicalOccurrences,
-  type CanonicalProjectedOccurrence,
-} from "../../src/projection/canonical-occurrence-projection.ts";
 import {
   createTemporalOccurrenceIndex,
   type TemporalOccurrenceIndex,
@@ -25,15 +42,6 @@ import {
   type WorldEntityPresentation,
 } from "../../src/projection/world-occurrence-projection.ts";
 import type { WorldProjection } from "../../src/projection/world-projection.ts";
-import {
-  mergeOccurrenceNodeSemanticStyle,
-  occurrenceNodeSemanticStyle,
-  type OccurrenceNodeSemanticStyle,
-} from "../../src/presentation/occurrence-semantic-color.ts";
-import {
-  canonicalSemanticHueColor,
-  normalizeSemanticColorSource,
-} from "../../src/presentation/semantic-color.ts";
 import { TimelineTemporal } from "../temporal-standards.ts";
 
 export interface WorldProjectionRuntime {
@@ -135,7 +143,6 @@ interface WorldTemporalWindow {
   readonly end: number;
 }
 
-
 function text(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -153,10 +160,9 @@ function itemNodeSemanticStyle(
   item: InputItem,
   categoryColors: ReadonlyMap<string, string>,
 ): OccurrenceNodeSemanticStyle | null {
-  const categoryIds = [
-    text(item.categoryId),
-    ...stringList(item.categoryIds),
-  ].filter((id, index, values) => Boolean(id) && values.indexOf(id) === index);
+  const categoryIds = [text(item.categoryId), ...stringList(item.categoryIds)].filter(
+    (id, index, values) => Boolean(id) && values.indexOf(id) === index,
+  );
   const categorySemanticColors = categoryIds
     .map((id) => categoryColors.get(id) ?? "")
     .filter(Boolean);
@@ -368,9 +374,8 @@ function canonicalOccurrences(
     const id = text(raw.id);
     if (!id) continue;
 
-    const participantContexts = (Array.isArray(raw.participantContexts)
-      ? raw.participantContexts
-      : []
+    const participantContexts = (
+      Array.isArray(raw.participantContexts) ? raw.participantContexts : []
     )
       .map((value) => {
         if (!isRecord(value)) return null;
@@ -514,12 +519,13 @@ export class WorldProjectionView {
           const style = itemNodeSemanticStyle(item, categoryColors);
           return style && id ? ([id, style] as const) : null;
         })
-        .filter(
-          (entry): entry is readonly [string, OccurrenceNodeSemanticStyle] => entry !== null,
-        ),
+        .filter((entry): entry is readonly [string, OccurrenceNodeSemanticStyle] => entry !== null),
     );
     const categoryColorByRelationshipId = new Map<string, string>();
-    const nodeSemanticStyleByRelationshipId = new Map<RelationshipId, OccurrenceNodeSemanticStyle>();
+    const nodeSemanticStyleByRelationshipId = new Map<
+      RelationshipId,
+      OccurrenceNodeSemanticStyle
+    >();
     for (const relationship of Array.isArray(model.relationships) ? model.relationships : []) {
       const id = text(relationship.id);
       if (!id || !Array.isArray(relationship.itemIds)) continue;
@@ -586,11 +592,7 @@ export class WorldProjectionView {
     this.#occurrenceByStringId = new Map(
       this.#occurrences.map((occurrence) => [String(occurrence.id), occurrence] as const),
     );
-    this.#spatialAnchors = new SpatialAnchorIndex(
-      places,
-      this.#relationships,
-      this.#occurrences,
-    );
+    this.#spatialAnchors = new SpatialAnchorIndex(places, this.#relationships, this.#occurrences);
 
     const projected = projectCanonicalOccurrences(
       {
@@ -607,9 +609,7 @@ export class WorldProjectionView {
     );
 
     const groupedRelationshipIds = new Set(
-      this.#occurrences.flatMap((occurrence) =>
-        occurrence.relationshipIds.map((id) => String(id)),
-      ),
+      this.#occurrences.flatMap((occurrence) => occurrence.relationshipIds.map((id) => String(id))),
     );
     const projectedIds = new Set(projected.map((occurrence) => String(occurrence.id)));
     const timelessStandaloneIds = this.#occurrences
@@ -626,8 +626,7 @@ export class WorldProjectionView {
         ...this.#relationships
           .filter(
             (relationship) =>
-              relationship.time === null &&
-              !groupedRelationshipIds.has(String(relationship.id)),
+              relationship.time === null && !groupedRelationshipIds.has(String(relationship.id)),
           )
           .map((relationship) => relationship.id),
       ].sort((left, right) => String(left).localeCompare(String(right))),
@@ -803,9 +802,7 @@ export class WorldProjectionView {
       // Focused occurrence semantics outrank ambient context. Conflicts
       // deliberately resolve to null so the entity falls back to authored/type
       // presentation instead of choosing an arbitrary active occurrence hue.
-      const inherited = contextualStyles.has(id)
-        ? contextualStyles.get(id)
-        : ambientStyles.get(id);
+      const inherited = contextualStyles.has(id) ? contextualStyles.get(id) : ambientStyles.get(id);
       if (!inherited) {
         result.set(id, presentation);
         continue;

@@ -1,7 +1,7 @@
 {
   "typescript": {
     "site/case-reasoning.ts": {
-      "any": 84,
+      "any": 73,
       "asAny": 8,
       "nonNull": 7
     },
@@ -16,13 +16,13 @@
       "nonNull": 1
     },
     "site/evidence-store.ts": {
-      "any": 46,
-      "asAny": 46,
+      "any": 0,
+      "asAny": 0,
       "nonNull": 0
     },
     "site/interchange-adapter.ts": {
-      "any": 34,
-      "asAny": 18,
+      "any": 2,
+      "asAny": 0,
       "nonNull": 1
     },
     "site/memgraph-interchange.ts": {
@@ -78,7 +78,7 @@
     "site/occurrence-composer-model.ts": {
       "any": 0,
       "asAny": 0,
-      "nonNull": 3
+      "nonNull": 1
     },
     "site/ui/investigation-workspace.ts": {
       "any": 0,
@@ -91,7 +91,7 @@
       "nonNull": 0
     },
     "site/world/deck-world-bindings.ts": {
-      "any": 1,
+      "any": 0,
       "asAny": 0,
       "nonNull": 0
     },
@@ -244,6 +244,21 @@
       "any": 0,
       "asAny": 0,
       "nonNull": 1
+    },
+    "tests/browser/contextual-authoring.spec.ts": {
+      "any": 25,
+      "asAny": 0,
+      "nonNull": 52
+    },
+    "tests/browser/occurrence-composer-integration.spec.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 6
+    },
+    "tests/playwright/mobile-screen.spec.ts": {
+      "any": 0,
+      "asAny": 0,
+      "nonNull": 2
     }
   },
   "css": {
@@ -298,8 +313,8 @@
       },
       "hoverOnlySelectors": {},
       "physicalInlineProperties": {
-        "right": 32,
-        "left": 48,
+        "right": 34,
+        "left": 49,
         "border-left": 6,
         "border-right": 3
       },
@@ -370,18 +385,16 @@
       "maxWidthMedia": {
         "@media (max-width: 699px)": 2
       },
+      "maxWidthContainer": {
+        "@container (width <= 520px)": 1
+      },
       "hoverOnlySelectors": {},
       "physicalInlineProperties": {},
-      "viewportWidthSizing": {
-        "inline-size: clamp(104px, 12vw, 148px);": 1
-      },
+      "viewportWidthSizing": {},
       "overflowXHidden": {},
       "rootMinWidth": {},
       "legacy100vh": 0,
-      "maxWidthContainer": {},
-      "primarySurfaceOverflow": {
-        "#app-shell:has(#occurrence-composer[active]) > .app-tool-dock.app-footer-bar, #app-shell:has(#occurrence-composer[active]) #presentation-stage:fullscreen > .app-tool-dock.app-footer-bar => overflow: hidden;": 1
-      }
+      "primarySurfaceOverflow": {}
     }
   },
   "architecture": {
@@ -399,7 +412,6 @@
       "site/time-scale-shim.ts": 1,
       "site/timeline-clustering-shim.ts": 1,
       "site/timeline-migration-shim.ts": 1,
-      "site/timeline-motion-shim.ts": 1,
       "site/timeline-navigation-shim.ts": 1,
       "site/webmcp-shim.ts": 1,
       "site/graph-inference-shim.ts": 1,
@@ -411,11 +423,14 @@
       "site/timeline-graph-shim.ts": 1,
       "site/timeline-graph.ts": 8,
       "site/timeline-view-shim.ts": 1,
-      "site/timeline-view.ts": 0
+      "site/timeline-view.ts": 0,
+      "tests/browser/occurrence-composer-integration.spec.ts": 1,
+      "site/timeline-motion-shim.ts": 1
     },
     "directCanonicalMutations": {
       "site/app.ts": 13,
-      "site/webmcp.ts": 0
+      "site/webmcp.ts": 0,
+      "tests/browser/contextual-authoring.spec.ts": 2
     },
     "legacyInputHandlers": {
       "src/orb-graph-entry.js": {

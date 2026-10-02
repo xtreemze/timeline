@@ -214,7 +214,9 @@ test("composer media context remains authoritative for selected occurrence", asy
   }
 });
 
-test("timeline and world geometry stay stable while composer owns occurrence detail", async ({ page }) => {
+test("timeline and world geometry stay stable while composer owns occurrence detail", async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 1280, height: 800 });
 
   for (const orientation of ["landscape", "portrait"] as const) {
@@ -239,7 +241,14 @@ test("timeline and world geometry stay stable while composer owns occurrence det
     expect(timelineAfter).not.toBeNull();
     expect(graphAfter).not.toBeNull();
     expect(stageAfter).not.toBeNull();
-    if (!timelineBefore || !graphBefore || !stageBefore || !timelineAfter || !graphAfter || !stageAfter) {
+    if (
+      !timelineBefore ||
+      !graphBefore ||
+      !stageBefore ||
+      !timelineAfter ||
+      !graphAfter ||
+      !stageAfter
+    ) {
       throw new Error("Presentation geometry is unavailable.");
     }
 

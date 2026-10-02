@@ -329,8 +329,9 @@ test.describe("Mobile-first Timeline layout contracts", () => {
     });
   }
 
-
-  test("D3 layout buttons disclose advanced controls by keyboard and long press", async ({ page }) => {
+  test("D3 layout buttons disclose advanced controls by keyboard and long press", async ({
+    page,
+  }) => {
     await page.setViewportSize(DESKTOP_LANDSCAPE);
     await page.goto("/");
     await ensureTimelineOrientation(page, "landscape");

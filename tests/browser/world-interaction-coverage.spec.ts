@@ -161,10 +161,7 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
         camera: window.__worldPerfHarness.surface.getCamera(),
         time: performance.now(),
       }));
-    const cameraDistance = (
-      from: typeof startCamera,
-      to: typeof startCamera,
-    ) =>
+    const cameraDistance = (from: typeof startCamera, to: typeof startCamera) =>
       Math.hypot(
         (to.longitude - from.longitude) *
           Math.cos((((from.latitude + to.latitude) / 2) * Math.PI) / 180),
@@ -230,10 +227,7 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
       y: Math.round(viewport.height * 0.5),
     };
     const distance = Math.min(180, Math.round(viewport.width * 0.22));
-    const cameraDistance = (
-      from: typeof startCamera,
-      to: typeof startCamera,
-    ) =>
+    const cameraDistance = (from: typeof startCamera, to: typeof startCamera) =>
       Math.hypot(
         (to.longitude - from.longitude) *
           Math.cos((((from.latitude + to.latitude) / 2) * Math.PI) / 180),

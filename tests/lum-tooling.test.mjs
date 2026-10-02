@@ -4,7 +4,9 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-
+import { attachLumDiagnosticRanges } from "../scripts/lib/lum-diagnostics.mjs";
+import { createLumLanguageServer } from "../scripts/lum-lsp.mjs";
+import { parseOccurrenceSentence } from "../site/occurrence-composer-model.ts";
 import {
   createEmptyProjectInterchange,
   formatProjectInterchange,
@@ -12,9 +14,6 @@ import {
   LUM_PROJECT_SCHEMA_ID,
   validateProjectInterchange,
 } from "../src/application/project-interchange.ts";
-import { parseOccurrenceSentence } from "../site/occurrence-composer-model.ts";
-import { createLumLanguageServer } from "../scripts/lum-lsp.mjs";
-import { attachLumDiagnosticRanges } from "../scripts/lib/lum-diagnostics.mjs";
 
 const repoRoot = path.resolve(new URL("..", import.meta.url).pathname);
 

@@ -94,7 +94,7 @@ export function parseNarrativeRelativeTime(value) {
   const source = String(value ?? "").trim();
   if (!source) return null;
 
-  const dayMatch = source.match(/^day\s+(\d+)(?:\s*[·,\-]?\s*(\d{1,2}):(\d{2}))?$/i);
+  const dayMatch = source.match(/^day\s+(\d+)(?:\s*[·,-]?\s*(\d{1,2}):(\d{2}))?$/i);
   if (dayMatch) {
     const day = Number(dayMatch[1]);
     const hour = dayMatch[2] === undefined ? null : Number(dayMatch[2]);

@@ -291,44 +291,45 @@ function wholeNumber(value: unknown, minimum: number = 0): number | null {
   return Number.isInteger(number) && number >= minimum ? number : null;
 }
 
-export function normalizeCitationLocator(raw: any): Record<string, any> | null {
+export function normalizeCitationLocator(raw: unknown): Record<string, unknown> | null {
   if (!raw || typeof raw !== "object") return null;
-  const type = CITATION_LOCATOR_TYPES.includes(raw.type) ? raw.type : "";
+  const obj = raw as Record<string, unknown>;
+  const type = CITATION_LOCATOR_TYPES.includes(obj.type as string) ? (obj.type as string) : "";
   if (!type) return null;
-  const locator: Record<string, any> = { type };
-  const label = text(raw.label, 500);
+  const locator: Record<string, unknown> = { type };
+  const label = text(obj.label, 500);
   if (label) locator.label = label;
 
   if (type === "page") {
-    const page = wholeNumber(raw.page ?? raw.start, 1);
+    const page = wholeNumber(obj.page ?? obj.start, 1);
     if (page === null) return null;
     locator.page = page;
-    const pageEnd = wholeNumber(raw.pageEnd ?? raw.end, 1);
+    const pageEnd = wholeNumber(obj.pageEnd ?? obj.end, 1);
     if (pageEnd !== null && pageEnd >= page) locator.pageEnd = pageEnd;
   } else if (type === "bates") {
-    const value = text(raw.value ?? raw.bates, 500);
+    const value = text(obj.value ?? obj.bates, 500);
     if (!value) return null;
     locator.value = value;
-    const endValue = text(raw.endValue ?? raw.batesEnd, 500);
+    const endValue = text(obj.endValue ?? obj.batesEnd, 500);
     if (endValue) locator.endValue = endValue;
   } else if (type === "paragraph") {
-    const value = text(raw.value ?? raw.paragraph, 500);
+    const value = text(obj.value ?? obj.paragraph, 500);
     if (!value) return null;
     locator.value = value;
   } else if (type === "line") {
-    const lineStart = wholeNumber(raw.lineStart ?? raw.start, 1);
+    const lineStart = wholeNumber(obj.lineStart ?? obj.start, 1);
     if (lineStart === null) return null;
     locator.lineStart = lineStart;
-    const lineEnd = wholeNumber(raw.lineEnd ?? raw.end, 1);
+    const lineEnd = wholeNumber(obj.lineEnd ?? obj.end, 1);
     if (lineEnd !== null && lineEnd >= lineStart) locator.lineEnd = lineEnd;
   } else if (type === "time") {
-    const startMs = wholeNumber(raw.startMs ?? raw.start, 0);
+    const startMs = wholeNumber(obj.startMs ?? obj.start, 0);
     if (startMs === null) return null;
     locator.startMs = startMs;
-    const endMs = wholeNumber(raw.endMs ?? raw.end, 0);
+    const endMs = wholeNumber(obj.endMs ?? obj.end, 0);
     if (endMs !== null && endMs >= startMs) locator.endMs = endMs;
   } else {
-    const value = text(raw.value ?? raw.pointer ?? raw.key ?? raw.fragment, 4000);
+    const value = text(obj.value ?? obj.pointer ?? obj.key ?? obj.fragment, 4000);
     if (!value) return null;
     locator.value = value;
   }
@@ -336,29 +337,30 @@ export function normalizeCitationLocator(raw: any): Record<string, any> | null {
 }
 
 export function normalizeRecord(
-  raw: any,
+  raw: unknown,
   type: string,
   index: number = 0,
-): Record<string, any> | null {
+): Record<string, unknown> | null {
   if (!raw || typeof raw !== "object") return null;
-  const id = text(raw.id, 160) || `${type}-${index + 1}`;
-  const record: Record<string, any> = {
+  const obj = raw as Record<string, unknown>;
+  const id = text(obj.id, 160) || `${type}-${index + 1}`;
+  const record: Record<string, unknown> = {
     id,
     type,
-    text: text(raw.text ?? raw.title ?? raw.description, 12000),
-    status: normalizedStatus(raw.status),
-    rationale: text(raw.rationale, 12000),
-    limitations: text(raw.limitations, 12000),
-    authorEntityId: text(raw.authorEntityId ?? raw.recordedByEntityId, 160),
-    createdAt: text(raw.createdAt, 80),
-    modifiedAt: text(raw.modifiedAt, 80),
-    auditRefs: idList(raw.auditRefs),
-    sourceIds: idList(raw.sourceIds),
-    inputIds: idList(raw.inputIds),
-    supersedesIds: idList(raw.supersedesIds ?? raw.supersedes),
-    supersededByIds: idList(raw.supersededByIds ?? raw.supersededBy),
-    questionIds: idList(raw.questionIds),
-    assumptionIds: idList(raw.assumptionIds),
+    text: text(obj.text ?? obj.title ?? obj.description, 12000),
+    status: normalizedStatus(obj.status),
+    rationale: text(obj.rationale, 12000),
+    limitations: text(obj.limitations, 12000),
+    authorEntityId: text(obj.authorEntityId ?? obj.recordedByEntityId, 160),
+    createdAt: text(obj.createdAt, 80),
+    modifiedAt: text(obj.modifiedAt, 80),
+    auditRefs: idList(obj.auditRefs),
+    sourceIds: idList(obj.sourceIds),
+    inputIds: idList(obj.inputIds),
+    supersedesIds: idList(obj.supersedesIds ?? obj.supersedes),
+    supersededByIds: idList(obj.supersededByIds ?? obj.supersededBy),
+    questionIds: idList(obj.questionIds),
+    assumptionIds: idList(obj.assumptionIds),
   };
 
   if (type === "assumption") {
@@ -482,43 +484,46 @@ export function normalizeRecord(
   return record;
 }
 
-function normalizeCollection(value: unknown, type: string): Record<string, any>[] {
+function normalizeCollection(value: unknown, type: string): Record<string, unknown>[] {
   const source = Array.isArray(value) ? value : [];
   const seen = new Set<string>();
-  const records: Record<string, any>[] = [];
+  const records: Record<string, unknown>[] = [];
   source.forEach((raw, index) => {
     const record = normalizeRecord(raw, type, index);
-    if (!record || seen.has(record.id)) return;
-    seen.add(record.id);
+    if (!record || seen.has(record.id as string)) return;
+    seen.add(record.id as string);
     records.push(record);
   });
   return records;
 }
 
-export function normalizeEdge(raw: any, index: number = 0): Record<string, any> | null {
+export function normalizeEdge(raw: unknown, index: number = 0): Record<string, unknown> | null {
   if (!raw || typeof raw !== "object") return null;
-  const fromId = text(raw.fromId, 160);
-  const toId = text(raw.toId, 160);
+  const obj = raw as Record<string, unknown>;
+  const fromId = text(obj.fromId, 160);
+  const toId = text(obj.toId, 160);
   if (!fromId || !toId) return null;
-  const predicate = EDGE_PREDICATES.includes(raw.predicate) ? raw.predicate : "reliesOn";
+  const predicate = EDGE_PREDICATES.includes(obj.predicate as string)
+    ? (obj.predicate as string)
+    : "reliesOn";
   return {
-    id: text(raw.id, 160) || `reasoning-edge-${index + 1}`,
+    id: text(obj.id, 160) || `reasoning-edge-${index + 1}`,
     fromId,
     toId,
     predicate,
-    rationale: text(raw.rationale, 12000),
-    authorEntityId: text(raw.authorEntityId, 160),
-    createdAt: text(raw.createdAt, 80),
+    rationale: text(obj.rationale, 12000),
+    authorEntityId: text(obj.authorEntityId, 160),
+    createdAt: text(obj.createdAt, 80),
     temporalScope:
-      raw.temporalScope && typeof raw.temporalScope === "object"
-        ? structuredClone(raw.temporalScope)
+      obj.temporalScope && typeof obj.temporalScope === "object"
+        ? structuredClone(obj.temporalScope)
         : null,
   };
 }
 
-export function normalizeReasoning(raw: any): Record<string, any> {
-  const source = raw && typeof raw === "object" ? raw : {};
-  const result: Record<string, any> = {};
+export function normalizeReasoning(raw: unknown): Record<string, unknown> {
+  const source = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const result: Record<string, unknown> = {};
   for (const [collection, type] of Object.entries(COLLECTION_TYPES)) {
     result[collection] = normalizeCollection(source[collection], type as string);
   }
@@ -533,14 +538,15 @@ export function normalizeReasoning(raw: any): Record<string, any> {
   return result;
 }
 
-export function recordsOf(reasoning: any): Record<string, any>[] {
+export function recordsOf(reasoning: unknown): Record<string, unknown>[] {
   const normalized = normalizeReasoning(reasoning);
-  const records: Record<string, any>[] = [];
-  for (const collection of Object.keys(COLLECTION_TYPES)) records.push(...normalized[collection]);
+  const records: Record<string, unknown>[] = [];
+  for (const collection of Object.keys(COLLECTION_TYPES))
+    records.push(...(normalized[collection] as Record<string, unknown>[]));
   return records;
 }
 
-export function dependencyIds(record: Record<string, any>): string[] {
+export function dependencyIds(record: Record<string, unknown>): string[] {
   const fields = [
     "sourceIds",
     "inputIds",
@@ -586,7 +592,7 @@ export function dependencyIds(record: Record<string, any>): string[] {
   return result;
 }
 
-function indexReasoning(reasoning: any, externalIds: unknown[] = []) {
+function indexReasoning(reasoning: unknown, externalIds: unknown[] = []) {
   const normalized = normalizeReasoning(reasoning);
   const records = recordsOf(normalized);
   const recordById = new Map(records.map((record) => [record.id, record]));
@@ -596,19 +602,19 @@ function indexReasoning(reasoning: any, externalIds: unknown[] = []) {
 
 function hypothesisCell(
   evidenceId: string,
-  hypothesis: Record<string, any>,
-  normalized: Record<string, any>,
+  hypothesis: Record<string, unknown>,
+  normalized: Record<string, unknown>,
 ) {
-  const edges = normalized.edges.filter(
-    (edge: any) => edge.fromId === evidenceId && edge.toId === hypothesis.id,
+  const edges = (normalized.edges as Record<string, unknown>[]).filter(
+    (edge) => edge.fromId === evidenceId && edge.toId === hypothesis.id,
   );
-  const predicates = new Set<string>(edges.map((edge: any) => String(edge.predicate ?? "")));
+  const predicates = new Set<string>(edges.map((edge) => String(edge.predicate ?? "")));
   const supports = [...predicates].some((predicate) => SUPPORT_PREDICATES.has(predicate));
   const contradicts = [...predicates].some((predicate) => CONTRADICTION_PREDICATES.has(predicate));
   const explicitlyLinked =
-    hypothesis.observationIds?.includes(evidenceId) ||
-    hypothesis.assertionIds?.includes(evidenceId) ||
-    hypothesis.inputIds?.includes(evidenceId);
+    (hypothesis.observationIds as string[] | undefined)?.includes(evidenceId) ||
+    (hypothesis.assertionIds as string[] | undefined)?.includes(evidenceId) ||
+    (hypothesis.inputIds as string[] | undefined)?.includes(evidenceId);
   let assessment = "unknown";
   if (supports && contradicts) assessment = "mixed";
   else if (contradicts) assessment = "contradicts";
@@ -618,7 +624,7 @@ function hypothesisCell(
   return {
     hypothesisId: hypothesis.id,
     assessment,
-    edgeIds: edges.map((edge: any) => edge.id).sort(),
+    edgeIds: edges.map((edge) => edge.id).sort(),
   };
 }
 
@@ -656,10 +662,7 @@ function expandedEvidenceReferenceIds(
   const direct = evidenceReferenceIds(record);
   return Object.freeze(
     [
-      ...new Set([
-        ...direct,
-        ...direct.flatMap((id) => evidenceReferenceIds(recordsById.get(id))),
-      ]),
+      ...new Set([...direct, ...direct.flatMap((id) => evidenceReferenceIds(recordsById.get(id)))]),
     ].sort(),
   );
 }

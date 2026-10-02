@@ -212,7 +212,6 @@ test("Sugiyama flow follows viewport orientation", () => {
   );
 });
 
-
 test("operator can select a bounded DAG strategy explicitly", () => {
   const source = instance("strategy-source");
   const middle = instance("strategy-middle");
@@ -256,7 +255,11 @@ test("operator can switch D3 DAG layout families and coordinate assignment", () 
       strategy: "longest-two-layer-greedy",
       coordinate,
     });
-    assert.equal(layout.targets.length, 3, `${coordinate} coordinate assignment should lay out all nodes`);
+    assert.equal(
+      layout.targets.length,
+      3,
+      `${coordinate} coordinate assignment should lay out all nodes`,
+    );
   }
 });
 
@@ -284,7 +287,10 @@ test("operator can switch relationship edge routing without changing canonical t
   assert.equal(straight.routes.length, 1);
   assert.equal(straight.routes[0].points.length, 2);
   assert.equal(curved.routes.length, 1);
-  assert.ok(curved.routes[0].points.length >= 5, "curved routing should provide a smooth sampled path");
+  assert.ok(
+    curved.routes[0].points.length >= 5,
+    "curved routing should provide a smooth sampled path",
+  );
   const curvedSource = curved.routes[0].points[0];
   const curvedTarget = curved.routes[0].points.at(-1);
   assert.ok(curvedSource && curvedTarget);

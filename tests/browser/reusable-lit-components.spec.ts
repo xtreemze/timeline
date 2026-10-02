@@ -1,5 +1,10 @@
 import { expect, test } from "@playwright/test";
 
+type LabWindow = Window & {
+  __detachedTimeline?: HTMLElement;
+  __timelineParent?: Element;
+};
+
 test("composer supports filtered keyboard and multi-select interaction", async ({ page }) => {
   await page.goto("/component-lab.html");
 
@@ -35,7 +40,8 @@ test("multiple composer instances own unique ARIA relationships", async ({ page 
     const first = document.querySelector("component-lab-composer");
     if (!first) throw new Error("missing composer");
     const second = document.createElement("component-lab-composer") as typeof first;
-    (second as any).suggestions = (first as any).suggestions;
+    const withSuggestions = (element: Element) => element as Element & { suggestions?: unknown };
+    withSuggestions(second).suggestions = withSuggestions(first).suggestions;
     first.parentElement?.append(second);
   });
 
@@ -64,21 +70,29 @@ test("IME composition never selects or commits intermediate text", async ({ page
   const result = await input.evaluate((element) => {
     let selections = 0;
     let commits = 0;
-    element.closest("component-lab-composer")?.addEventListener("composer-selection-change", () => { selections += 1; });
-    element.closest("component-lab-composer")?.addEventListener("composer-commit", () => { commits += 1; });
+    element.closest("component-lab-composer")?.addEventListener("composer-selection-change", () => {
+      selections += 1;
+    });
+    element.closest("component-lab-composer")?.addEventListener("composer-commit", () => {
+      commits += 1;
+    });
 
-    element.dispatchEvent(new KeyboardEvent("keydown", {
-      key: "Enter",
-      bubbles: true,
-      composed: true,
-      isComposing: true,
-    }));
-    element.dispatchEvent(new KeyboardEvent("keydown", {
-      key: " ",
-      bubbles: true,
-      composed: true,
-      isComposing: true,
-    }));
+    element.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Enter",
+        bubbles: true,
+        composed: true,
+        isComposing: true,
+      }),
+    );
+    element.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: " ",
+        bubbles: true,
+        composed: true,
+        isComposing: true,
+      }),
+    );
 
     return { selections, commits };
   });
@@ -90,7 +104,7 @@ test("keyboard navigation skips disabled suggestions and supports boundaries", a
   await page.goto("/component-lab.html");
 
   const composer = page.locator("component-lab-composer");
-  await composer.evaluate((element: any) => {
+  await composer.evaluate((element: HTMLElement & { suggestions?: unknown; value?: string }) => {
     element.suggestions = [
       { id: "first", label: "First" },
       { id: "disabled", label: "Unavailable", disabled: true },
@@ -111,7 +125,9 @@ test("keyboard navigation skips disabled suggestions and supports boundaries", a
   await expect(composer.locator('[part="option"][data-active="true"]')).toContainText("Last");
 });
 
-test("retained timeline controller populates the host without Lit scene reconciliation", async ({ page }) => {
+test("retained timeline controller populates the host without Lit scene reconciliation", async ({
+  page,
+}) => {
   await page.goto("/component-lab.html");
 
   const timeline = page.locator("component-lab-timeline");
@@ -119,7 +135,9 @@ test("retained timeline controller populates the host without Lit scene reconcil
   await expect(timeline.getByRole("button")).toHaveCount(3);
 });
 
-test("retained timeline destroys and recreates its controller across disconnects", async ({ page }) => {
+test("retained timeline destroys and recreates its controller across disconnects", async ({
+  page,
+}) => {
   await page.goto("/component-lab.html");
 
   const timeline = page.locator("component-lab-timeline");
@@ -131,21 +149,29 @@ test("retained timeline destroys and recreates its controller across disconnects
     const parent = element.parentElement;
     if (!parent) throw new Error("timeline has no parent");
     element.remove();
-    (window as any).__detachedTimeline = element;
-    (window as any).__timelineParent = parent;
+    const lab = window as LabWindow;
+    lab.__detachedTimeline = element;
+    lab.__timelineParent = parent;
   });
 
-  await expect.poll(async () =>
-    page.evaluate(() => (window as any).__detachedTimeline?.dataset.controllerDestroyed),
-  ).toBe("true");
+  await expect
+    .poll(async () =>
+      page.evaluate(() => (window as LabWindow).__detachedTimeline?.dataset.controllerDestroyed),
+    )
+    .toBe("true");
 
   await page.evaluate(() => {
-    (window as any).__timelineParent.append((window as any).__detachedTimeline);
+    const lab = window as LabWindow;
+    if (lab.__timelineParent && lab.__detachedTimeline) {
+      lab.__timelineParent.append(lab.__detachedTimeline);
+    }
   });
 
   await expect(timeline.locator(".demo-timeline-rail")).toBeVisible();
   await expect(timeline.getByRole("button")).toHaveCount(3);
-  await expect.poll(() => timeline.getAttribute("data-controller-generation")).not.toBe(firstGeneration);
+  await expect
+    .poll(() => timeline.getAttribute("data-controller-generation"))
+    .not.toBe(firstGeneration);
   await expect(timeline.locator(".demo-timeline-rail")).toHaveCount(1);
 });
 
@@ -170,7 +196,9 @@ test("media viewer supports keyboard zoom and reset", async ({ page }) => {
   await expect(viewer.locator('[part="zoom-level"]')).toHaveText("100%");
 });
 
-test("occurrence media deck uses native non-autoplay audio and video controls", async ({ page }) => {
+test("occurrence media deck uses native non-autoplay audio and video controls", async ({
+  page,
+}) => {
   await page.goto("/component-lab.html");
 
   await page.evaluate(() => {

@@ -4,8 +4,8 @@ import { occurrenceParticipantEntityIds } from "../domain/occurrence.ts";
 import type { CanonicalProject } from "../domain/project.ts";
 import type { CanonicalRelationship } from "../domain/relationship.ts";
 import {
-  relationshipOccurrenceExtent,
   type ProjectableOccurrence,
+  relationshipOccurrenceExtent,
 } from "./spatiotemporal-projection.ts";
 
 export type CanonicalProjectedOccurrenceId = CanonicalOccurrenceId;

@@ -49,10 +49,7 @@ test("occurrence options preserve multiple categories and tags with a primary co
     categories: ["Observation", "Conflict"],
     tags: ["work", "urgent"],
   });
-  assert.equal(
-    sentence,
-    "@alice meets @bob [categories: Observation|Conflict, tags: work|urgent]",
-  );
+  assert.equal(sentence, "@alice meets @bob [categories: Observation|Conflict, tags: work|urgent]");
 
   const parsed = parseOccurrenceSentence(sentence);
   assert.deepEqual(parsed.options.categories, ["Observation", "Conflict"]);
@@ -1062,7 +1059,7 @@ test("Lit composer is a touch-safe ARIA combobox with live-context guidance", as
   assert.match(source, /accuracyMeters/);
   assert.match(source, /setTimelineViewport/);
   assert.match(source, /setWorldContext/);
-  assert.match(source, /placeholder=\$\{\`Who did what to whom · at/);
+  assert.match(source, /placeholder=\$\{`Who did what to whom · at/);
   assert.match(source, /private cursorOffset = 0/);
   assert.match(source, /selectionStart/);
   assert.match(source, /@focus=\$\{\(event: Event\) => this\.onCaretMove\(event\)\}/);
@@ -1415,7 +1412,6 @@ test("live composer preserves project tags for option completion", async () => {
   assert.match(source, /editSentenceSection\(section\)/);
 });
 
-
 test("composer-local glyphs preserve the shared Lucide construction contract", async () => {
   const source = await readFile(
     new URL("../site/components/occurrence-composer.ts", import.meta.url),
@@ -1444,9 +1440,7 @@ test("composer suggestions preserve authored semantic icon and color metadata", 
       { id: "bob", name: "Bob", type: "person", icon: "child" },
     ],
     places: [{ id: "office", name: "Office", icon: "place", color: "#2f6f5f" }],
-    categories: [
-      { id: "incident", name: "Incident", color: "#b42318", icon: "evidence" },
-    ],
+    categories: [{ id: "incident", name: "Incident", color: "#b42318", icon: "evidence" }],
     predicates: [{ name: "warns", icon: "danger", color: "#b54708" }],
     tags: [{ label: "urgent", icon: "danger", color: "hsl(28 64% 44%)" }],
   };
@@ -1477,17 +1471,15 @@ test("composer suggestions preserve authored semantic icon and color metadata", 
   assert.equal(cursorPlace?.icon, "place");
   assert.equal(cursorPlace?.color, "#2f6f5f");
 
-  const category = occurrenceComposerSuggestions(
-    "@alice warns @bob [category: ",
-    options,
-  ).find((suggestion) => suggestion.kind === "category" && suggestion.label === "Incident");
+  const category = occurrenceComposerSuggestions("@alice warns @bob [category: ", options).find(
+    (suggestion) => suggestion.kind === "category" && suggestion.label === "Incident",
+  );
   assert.equal(category?.icon, "evidence");
   assert.equal(category?.color, "#b42318");
 
-  const tag = occurrenceComposerSuggestions(
-    "@alice warns @bob [tags: ",
-    options,
-  ).find((suggestion) => suggestion.kind === "tag" && suggestion.label === "urgent");
+  const tag = occurrenceComposerSuggestions("@alice warns @bob [tags: ", options).find(
+    (suggestion) => suggestion.kind === "tag" && suggestion.label === "urgent",
+  );
   assert.equal(tag?.icon, "danger");
   assert.equal(tag?.color, "hsl(28 64% 44%)");
 });

@@ -141,7 +141,9 @@ test("investigation owns Home/End candidate navigation without stealing native s
     /if \(investigation\.qualifiers\.length\)[\s\S]*\(event\.key === "Home" \|\| event\.key === "End"\) && candidates\.length[\s\S]*selectCandidate\(event\.key === "Home" \? 0 : candidates\.length - 1, candidates, false\)/,
   );
   const suggestionNavigation =
-    composer.match(/const suggestions = this\.suggestions\(\)\.slice\(0, 7\);[\s\S]*?if \(event\.key !== "Enter"\) return;/)?.[0] ?? "";
+    composer.match(
+      /const suggestions = this\.suggestions\(\)\.slice\(0, 7\);[\s\S]*?if \(event\.key !== "Enter"\) return;/,
+    )?.[0] ?? "";
   assert.doesNotMatch(suggestionNavigation, /event\.key === "Home"|event\.key === "End"/);
 });
 
@@ -156,8 +158,14 @@ test("composer keeps active suggestions and investigation candidates visibly cen
   assert.match(composer, /choiceCenter[\s\S]*container\.clientHeight \/ 2/);
   assert.match(composer, /container\.scrollTo\(\{ top: target, behavior: "auto" \}\)/);
   assert.match(composer, /visibleChoiceRect[\s\S]*panel\.scrollTo\(\{/);
-  assert.match(composer, /private resetSuggestionSelection\(\)[\s\S]*centerActiveChoice\("suggestion"\)/);
-  assert.match(composer, /private resetCandidateSelection\(\)[\s\S]*centerActiveChoice\("candidate"\)/);
+  assert.match(
+    composer,
+    /private resetSuggestionSelection\(\)[\s\S]*centerActiveChoice\("suggestion"\)/,
+  );
+  assert.match(
+    composer,
+    /private resetCandidateSelection\(\)[\s\S]*centerActiveChoice\("candidate"\)/,
+  );
   assert.match(composer, /@wheel=\$\{\(event: WheelEvent\) => this\.onSuggestionWheel\(event\)\}/);
   assert.match(composer, /vertical <= horizontal \* 1\.25/);
   assert.doesNotMatch(composer, /choiceWheelDelta|choiceWheelLastAt/);
@@ -183,7 +191,6 @@ test("contextual composer returns focus to its connected invoker on close", asyn
   );
   assert.match(app, /syncApplicationSurfaces\(\)[\s\S]*restoreComposerFocus/);
 });
-
 
 test("focused occurrence opens the composer directly and suppresses legacy detail", async () => {
   const [app, css] = await Promise.all([

@@ -152,7 +152,10 @@ test("occurrence deck surfaces use theme tokens and expose touch-safe image mani
   );
   assert.match(css, /\.timeline-occurrence-deck-video\s*\{[\s\S]*object-fit:\s*contain/);
   assert.match(css, /\.timeline-occurrence-deck-audio\s*\{[\s\S]*inline-size:/);
-  assert.match(css, /\.timeline-focus-hero-fallback\s*\{[\s\S]*var\(--paper\)[\s\S]*var\(--panel\)/);
+  assert.match(
+    css,
+    /\.timeline-focus-hero-fallback\s*\{[\s\S]*var\(--paper\)[\s\S]*var\(--panel\)/,
+  );
   assert.match(
     composer,
     /\.composer-context-deck \.timeline-occurrence-deck-image-viewport\s*\{[\s\S]*touch-action:\s*none/,
@@ -214,21 +217,23 @@ test("occurrence deck bounds hot-path DOM work and releases transient state", as
 
   assert.match(source, /createRef, ref/);
   assert.match(source, /occurrenceDeckFramesEqual/);
-  assert.match(
-    source,
-    /if \(!occurrenceChanged && !framesChanged && !indexChanged\) return;/,
-  );
+  assert.match(source, /if \(!occurrenceChanged && !framesChanged && !indexChanged\) return;/);
   assert.match(source, /if \(framesChanged\) \{[\s\S]*releaseUnusedBlobUrls\(nextFrames\)/);
   assert.match(source, /imageTransformFrame = requestAnimationFrame/);
   assert.match(source, /cancelAnimationFrame\(this\.imageTransformFrame\)/);
-  assert.match(source, /connectedCallback\(\): void \{[\s\S]*frame\.blob[\s\S]*this\.requestUpdate\(\)/);
+  assert.match(
+    source,
+    /connectedCallback\(\): void \{[\s\S]*frame\.blob[\s\S]*this\.requestUpdate\(\)/,
+  );
   assert.match(source, /this\.resetGestureState\(\);[\s\S]*this\.releaseBlobUrls\(\);/);
   assert.match(source, /gestureViewportRect = viewport\.getBoundingClientRect\(\)/);
   assert.match(source, /previous\.x = event\.clientX;[\s\S]*previous\.y = event\.clientY;/);
   assert.doesNotMatch(source, /\[\.\.\.this\.activePointers\.values\(\)\]/);
 
   const pointerMove =
-    source.match(/private onImagePointerMove\([\s\S]*?\n  \}\n\n  private releasePointer/)?.[0] ?? "";
+    source.match(
+      /private onImagePointerMove\([\s\S]*?\n {2}\}\n\n {2}private releasePointer/,
+    )?.[0] ?? "";
   assert.ok(pointerMove);
   assert.doesNotMatch(pointerMove, /getBoundingClientRect/);
   assert.doesNotMatch(pointerMove, /requestUpdate/);

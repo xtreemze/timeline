@@ -9,7 +9,6 @@ import {
   surfaceCursor,
 } from "../../src/interaction/surface-input-policy.ts";
 import type { WorldNodeDragPosition } from "../../src/interaction/world-node-drag-controller.ts";
-import { createIcon } from "../event-presentation.ts";
 import { resolveWorldNodeDragPosition } from "../../src/interaction/world-node-drag-geometry.ts";
 import { worldPointerDragMayStart } from "../../src/interaction/world-pointer-policy.ts";
 import {
@@ -59,11 +58,11 @@ import {
   selectPrioritizedLabels,
   typicalLocalOffsetMeters,
   WORLD_CLUSTER_MERGE_PX,
-  worldEntityFloatPx,
   WORLD_LOCAL_GRAPH_MAX_PLACE_SHARE,
   WORLD_LOCAL_GRAPH_RADIUS_PX,
   worldArrowLengthDegreesForNodeRadius,
   worldArrowStrokeWidthPxForNodeRadius,
+  worldEntityFloatPx,
   worldFloatingGraphRadiusPx,
   worldLabelBudget,
   worldLabelTierFloor,
@@ -106,6 +105,7 @@ import {
   applyWorldProjectionDelta,
   type WorldProjectionDelta,
 } from "../../src/projection/world-projection-delta.ts";
+import { createIcon } from "../event-presentation.ts";
 import { pulseHaptic, TimelineMotion } from "../timeline-motion.ts";
 import { buildWorldAccessibleOutline, WorldAccessibleMirror } from "./world-accessible-mirror.ts";
 import {
@@ -798,11 +798,7 @@ function liftedEntityInteractionPosition(
   dragging: boolean,
   hovered: boolean,
 ): WorldRenderPosition {
-  const liftPx = dragging
-    ? WORLD_DRAG_PICKUP_LIFT_PX
-    : hovered
-      ? WORLD_HOVER_LIFT_PX
-      : 0;
+  const liftPx = dragging ? WORLD_DRAG_PICKUP_LIFT_PX : hovered ? WORLD_HOVER_LIFT_PX : 0;
   return liftPx > 0 ? liftedPositionByPixels(position, zoom, liftPx) : position;
 }
 

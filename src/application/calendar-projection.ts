@@ -1,6 +1,6 @@
 import type { CanonicalOccurrence } from "../domain/occurrence.ts";
-import type { CanonicalRelationship } from "../domain/relationship.ts";
 import type { CanonicalProject } from "../domain/project.ts";
+import type { CanonicalRelationship } from "../domain/relationship.ts";
 import type { ProjectSnapshot } from "./project-repository.ts";
 
 export const LUM_ICALENDAR_MEDIA_TYPE = "text/calendar;charset=utf-8";
@@ -171,15 +171,17 @@ function endpointRecord(value: unknown): Readonly<Record<string, unknown>> | nul
 }
 
 function exactCertainty(record: Readonly<Record<string, unknown>>): string {
-  return typeof record.certainty === "string" && record.certainty ? record.certainty : "exact";
+  return typeof record["certainty"] === "string" && record["certainty"]
+    ? String(record["certainty"])
+    : "exact";
 }
 
 function endpointPrecision(
   record: Readonly<Record<string, unknown>>,
   parsed: ParsedIsoDateTime,
 ): string {
-  return typeof record.precision === "string" && record.precision
-    ? record.precision
+  return typeof record["precision"] === "string" && record["precision"]
+    ? String(record["precision"])
     : parsed.precision;
 }
 
@@ -252,7 +254,7 @@ function projectEndpoint(raw: unknown, occurrenceId: string): EndpointProjection
     );
   }
 
-  const value = typeof record.value === "string" ? record.value.trim() : "";
+  const value = typeof record["value"] === "string" ? String(record["value"]).trim() : "";
   const certainty = exactCertainty(record);
   if (!value) {
     throw new CalendarProjectionError(
@@ -491,7 +493,7 @@ function projectTemporal(occurrence: CalendarOccurrence): {
         kind: "date",
         start: start.value,
         ...(end
-          ? { end: basicDate(parseIsoCalendarValue(addCalendarDays(end.canonicalValue, 1))!) }
+          ? { end: basicDate(parseIsoCalendarValue(addCalendarDays(end.canonicalValue, 1))) }
           : {}),
       },
       metadata: {
@@ -596,8 +598,7 @@ function selectedOccurrenceIds(
     ...snapshot.project.relationships
       .filter(
         (relationship) =>
-          relationship.time !== null &&
-          !groupedRelationshipIds.has(String(relationship.id)),
+          relationship.time !== null && !groupedRelationshipIds.has(String(relationship.id)),
       )
       .map((relationship) => String(relationship.id)),
   ];

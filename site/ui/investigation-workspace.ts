@@ -640,9 +640,7 @@ export function createInvestigationWorkspace(
 
     const coverage = createElement("section", "investigation-review-group");
     coverage.append(createElement("h3", "", "Disconfirming-test coverage"));
-    if (!review.disconfirmingCoverage.length) {
-      coverage.append(emptyState("No alternative groups are currently defined."));
-    } else {
+    if (review.disconfirmingCoverage.length) {
       for (const entry of review.disconfirmingCoverage) {
         const card = createElement("article", "investigation-review-card");
         card.append(
@@ -675,6 +673,8 @@ export function createInvestigationWorkspace(
         }
         coverage.append(card);
       }
+    } else {
+      coverage.append(emptyState("No alternative groups are currently defined."));
     }
     root.append(coverage);
 

@@ -4,17 +4,16 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-
-import {
-  createEmptyProjectInterchange,
-  formatProjectInterchange,
-  validateProjectInterchange,
-} from "../src/application/project-interchange.ts";
 import {
   applyLumChangeProposal,
   LUM_CHANGE_PROPOSAL_SCHEMA_ID,
   validateLumChangeProposal,
 } from "../scripts/lib/lum-agent-proposal.mjs";
+import {
+  createEmptyProjectInterchange,
+  formatProjectInterchange,
+  validateProjectInterchange,
+} from "../src/application/project-interchange.ts";
 
 const repoRoot = path.resolve(new URL("..", import.meta.url).pathname);
 

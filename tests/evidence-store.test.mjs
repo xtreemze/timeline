@@ -40,10 +40,7 @@ test("fingerprints uploaded multimedia evidence and preserves media metadata", a
   assert.equal(video.file.sha256, "b".repeat(64));
 
   const digest = await evidence.sha256Blob(new Blob(["abc"]));
-  assert.equal(
-    digest,
-    "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
-  );
+  assert.equal(digest, "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
 });
 
 test("rejects malformed file SHA-256 metadata", () => {

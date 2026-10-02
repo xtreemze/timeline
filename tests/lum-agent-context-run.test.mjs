@@ -4,12 +4,11 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-
+import { buildLumAgentContext, parseLumAgentSelectors } from "../scripts/lib/lum-agent-context.mjs";
 import {
   createEmptyProjectInterchange,
   formatProjectInterchange,
 } from "../src/application/project-interchange.ts";
-import { buildLumAgentContext, parseLumAgentSelectors } from "../scripts/lib/lum-agent-context.mjs";
 
 const repoRoot = path.resolve(new URL("..", import.meta.url).pathname);
 
@@ -160,12 +159,21 @@ test("story and occurrence selectors resolve relationship-derived canonical occu
 
   const story = buildLumAgentContext(source, { storyIds: ["story-1"] });
   assert.deepEqual(story.project.occurrences, []);
-  assert.deepEqual(story.project.relationships.map((record) => record.id), ["r1"]);
-  assert.deepEqual(story.project.entities.map((record) => record.id), ["alice", "bob"]);
+  assert.deepEqual(
+    story.project.relationships.map((record) => record.id),
+    ["r1"],
+  );
+  assert.deepEqual(
+    story.project.entities.map((record) => record.id),
+    ["alice", "bob"],
+  );
 
   const selected = buildLumAgentContext(source, { occurrenceIds: ["r1"] });
   assert.deepEqual(selected.project.occurrences, []);
-  assert.deepEqual(selected.project.relationships.map((record) => record.id), ["r1"]);
+  assert.deepEqual(
+    selected.project.relationships.map((record) => record.id),
+    ["r1"],
+  );
   assert.equal(selected.unresolvedReferences.length, 0);
 });
 

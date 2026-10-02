@@ -7,9 +7,9 @@
  */
 
 import {
+  normalizeSemanticColorSource,
   type SemanticColorSource,
   type SemanticColorState,
-  normalizeSemanticColorSource,
   semanticColorHex,
   semanticHue,
   semanticThemeForSurface,
@@ -155,12 +155,7 @@ function semanticPresentationColor(
   state: SemanticColorState,
   fallbackHue = 30,
 ): string {
-  return semanticColorHex(
-    value,
-    semanticThemeForSurface(palette.paper),
-    state,
-    fallbackHue,
-  );
+  return semanticColorHex(value, semanticThemeForSurface(palette.paper), state, fallbackHue);
 }
 
 function defaultNodeFill(type: string, palette: WorldGraphPalette): string {
@@ -370,9 +365,7 @@ export function worldPlaceStyle(
   const marker = record(own["marker"]) ?? {};
   const metrics = worldPlaceMarkerMetrics(placeStyle);
   const semanticSource =
-    color(marker["color"]) ??
-    color(own["color"]) ??
-    defaultNodeFill("place", palette);
+    color(marker["color"]) ?? color(own["color"]) ?? defaultNodeFill("place", palette);
   const fallbackHue = semanticHue(semanticSource, 145);
   const fillSource =
     color(marker["fillColor"]) ??

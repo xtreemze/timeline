@@ -15,7 +15,13 @@ test("occurrence context deck preserves all media and appends context", () => {
   assert.deepEqual(frames, [
     { kind: "image", src: "one.jpg", alt: "One", caption: "First" },
     { kind: "video", src: "clip.webm", mimeType: "video/webm", alt: undefined, caption: "Second" },
-    { kind: "audio", src: "interview.ogg", mimeType: "audio/ogg", alt: "Interview", caption: undefined },
+    {
+      kind: "audio",
+      src: "interview.ogg",
+      mimeType: "audio/ogg",
+      alt: "Interview",
+      caption: undefined,
+    },
     { kind: "context", label: "Context", body: "Shared context" },
   ]);
   assert.equal(Object.isFrozen(frames), true);

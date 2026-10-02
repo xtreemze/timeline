@@ -592,44 +592,41 @@ test("manual DAG reorganization rebuilds targets and routes while retaining geog
   assert.ok(applyCall[1].excitation > 0);
 });
 
-test(
-  "selected-place DAG settings reorganize only disposable layout while retaining authored anchors",
-  () => {
-    const { calls, controller } = harness();
-    controller.setProjection(projection());
-    const initialScene = calls.find(([name]) => name === "force:scene")?.[1];
-    assert.ok(initialScene);
+test("selected-place DAG settings reorganize only disposable layout while retaining authored anchors", () => {
+  const { calls, controller } = harness();
+  controller.setProjection(projection());
+  const initialScene = calls.find(([name]) => name === "force:scene")?.[1];
+  assert.ok(initialScene);
 
-    calls.length = 0;
-    assert.equal(
-      controller.reorganizeDag({
-        placeId: "stockholm",
-        orientation: "left-to-right",
-        algorithm: "sugiyama",
-        strategy: "simplex-two-layer-greedy",
-        coordinate: "quad",
-        edgeStyle: "orthogonal",
-      }),
-      true,
-    );
+  calls.length = 0;
+  assert.equal(
+    controller.reorganizeDag({
+      placeId: "stockholm",
+      orientation: "left-to-right",
+      algorithm: "sugiyama",
+      strategy: "simplex-two-layer-greedy",
+      coordinate: "quad",
+      edgeStyle: "orthogonal",
+    }),
+    true,
+  );
 
-    const sceneCall = calls.find(([name]) => name === "force:scene");
-    const applyCall = calls.find(([name]) => name === "force:apply");
-    assert.ok(sceneCall);
-    assert.ok(applyCall);
-    assert.deepEqual(
-      sceneCall[1].anchors,
-      initialScene.anchors,
-      "place-scoped organization must not rewrite geographic evidence",
-    );
-    assert.ok(
-      sceneCall[1].relationshipRoutes[0].points.length >= 3,
-      "selected-place edge routing should reach the disposable render route",
-    );
-    assert.equal(applyCall[1].reason, "topology");
-    assert.equal(applyCall[1].reheat, true);
-  },
-);
+  const sceneCall = calls.find(([name]) => name === "force:scene");
+  const applyCall = calls.find(([name]) => name === "force:apply");
+  assert.ok(sceneCall);
+  assert.ok(applyCall);
+  assert.deepEqual(
+    sceneCall[1].anchors,
+    initialScene.anchors,
+    "place-scoped organization must not rewrite geographic evidence",
+  );
+  assert.ok(
+    sceneCall[1].relationshipRoutes[0].points.length >= 3,
+    "selected-place edge routing should reach the disposable render route",
+  );
+  assert.equal(applyCall[1].reason, "topology");
+  assert.equal(applyCall[1].reheat, true);
+});
 
 test("force tuning can target a selected place without rebuilding the canonical scene", () => {
   const { calls, controller } = harness();

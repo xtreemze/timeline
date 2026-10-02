@@ -1,12 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-
+import { validateProjectInterchange } from "../src/application/project-interchange.ts";
 import {
   assembleProjectModules,
   createProjectModule,
   validateProjectModule,
 } from "../src/application/project-module.ts";
-import { validateProjectInterchange } from "../src/application/project-interchange.ts";
 
 const base = {
   projectKey: "classic-tales-three-little-pigs",

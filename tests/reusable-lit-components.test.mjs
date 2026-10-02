@@ -22,7 +22,10 @@ test("reusable composer stays domain-neutral and exposes interaction contracts",
   assert.match(source, /aria-multiselectable/);
   assert.match(source, /event\.key === "Home"/);
   assert.match(source, /event\.key === "End"/);
-  assert.doesNotMatch(source, /src\/application|occurrence-composer-model|timeline-view|world-graph/);
+  assert.doesNotMatch(
+    source,
+    /src\/application|occurrence-composer-model|timeline-view|world-graph/,
+  );
 });
 
 test("reusable retained timeline owns lifecycle through the generic imperative surface host", async () => {
@@ -73,7 +76,10 @@ test("imperative surface host stays renderer-neutral and is reused by timeline",
 });
 
 test("semantic hue control owns hue only and emits portable events", async () => {
-  const source = await readFile(new URL("../site/components/reusable/semantic-hue.ts", import.meta.url), "utf8");
+  const source = await readFile(
+    new URL("../site/components/reusable/semantic-hue.ts", import.meta.url),
+    "utf8",
+  );
   assert.match(source, /class SemanticHueElement extends LitElement/);
   assert.match(source, /semantic-hue-input/);
   assert.match(source, /semantic-hue-change/);
@@ -83,12 +89,28 @@ test("semantic hue control owns hue only and emits portable events", async () =>
 });
 
 test("media viewer owns image navigation without occurrence or timeline dependencies", async () => {
-  const source = await readFile(new URL("../site/components/reusable/media-viewer.ts", import.meta.url), "utf8");
+  const source = await readFile(
+    new URL("../site/components/reusable/media-viewer.ts", import.meta.url),
+    "utf8",
+  );
   assert.match(source, /class ReusableMediaViewerElement extends LitElement/);
   assert.match(source, /@pointerdown/);
   assert.match(source, /@wheel/);
   assert.match(source, /@dblclick/);
   assert.match(source, /media-viewer-zoom/);
   assert.match(source, /\[0\.5, 0\.75, 1, 1\.25, 1\.5, 2, 3\]/);
-  assert.doesNotMatch(source, /from "\.\.\/|occurrence-media|timeline-view|world-graph|src\/application/);
+  assert.doesNotMatch(
+    source,
+    /from "\.\.\/|occurrence-media|timeline-view|world-graph|src\/application/,
+  );
+});
+
+test("media viewer discards a pending double-tap when a captured pointer is cancelled or lost", async () => {
+  const source = await readFile(
+    new URL("../site/components/reusable/media-viewer.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /["']pointercancel["']/);
+  assert.match(source, /["']lostpointercapture["']/);
+  assert.match(source, /this\.lastTap = null/);
 });

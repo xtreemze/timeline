@@ -1,6 +1,6 @@
 import {
-  DOCUMENT_STORY_GUIDE,
   authoringGuideResult,
+  DOCUMENT_STORY_GUIDE,
   stageStoryProject,
   validateStoryFragment,
 } from "./story-authoring.ts";

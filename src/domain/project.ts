@@ -1,18 +1,18 @@
-import type { CanonicalEntity } from "./entity.ts";
 import type {
   CanonicalCategory,
   CanonicalPlace,
   CanonicalSource,
   CanonicalStory,
 } from "./composition.ts";
+import type { CanonicalEntity } from "./entity.ts";
 import type { OccurrenceId, RelationshipId, TrajectoryId } from "./ids.ts";
 import type { CanonicalOccurrence } from "./occurrence.ts";
-import type { TrajectoryArtifact } from "./trajectory.ts";
-import { validateTrajectoryArtifact } from "./trajectory.ts";
 import { validateOccurrence } from "./occurrence.ts";
 import type { CanonicalRelationship } from "./relationship.ts";
 import { relationshipFactKey, validateRelationship } from "./relationship.ts";
 import type { ActorParticipationContext, ExternalSemanticMapping } from "./semantics.ts";
+import type { TrajectoryArtifact } from "./trajectory.ts";
+import { validateTrajectoryArtifact } from "./trajectory.ts";
 
 export interface CanonicalProject {
   readonly schemaVersion: number;

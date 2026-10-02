@@ -35,8 +35,7 @@ export function occurrenceContextDeckFrames(
   const frames: OccurrenceContextDeckFrame[] = (media ?? [])
     .filter(
       (entry) =>
-        Boolean(entry?.src?.trim()) ||
-        (typeof Blob !== "undefined" && entry?.blob instanceof Blob),
+        Boolean(entry?.src?.trim()) || (typeof Blob !== "undefined" && entry?.blob instanceof Blob),
     )
     .map((entry) => {
       const kind: OccurrenceContextMediaKind =
@@ -44,9 +43,7 @@ export function occurrenceContextDeckFrames(
       return Object.freeze({
         kind,
         ...(entry.src?.trim() ? { src: entry.src } : {}),
-        ...(typeof Blob !== "undefined" && entry.blob instanceof Blob
-          ? { blob: entry.blob }
-          : {}),
+        ...(typeof Blob !== "undefined" && entry.blob instanceof Blob ? { blob: entry.blob } : {}),
         ...(entry.mimeType?.trim() ? { mimeType: entry.mimeType } : {}),
         ...(entry.sha256?.trim() ? { sha256: entry.sha256 } : {}),
         alt: entry.alt,

@@ -213,7 +213,6 @@ test("authorOccurrence persists multiple categories with the first as primary co
   assert.equal(result.categoryId, "incident");
 });
 
-
 test("authorOccurrence rejects ambiguous endpoint names instead of guessing", () => {
   const state = baseState();
   state.entities.push({

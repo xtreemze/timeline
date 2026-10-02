@@ -10,7 +10,10 @@ test("composer owns one sentence-first inline semantic editor and contextual pre
   assert.match(source, /projectComposerPreview\(\s*this\.value/);
   assert.match(source, /class="composer-occurrence-card"/);
   assert.match(source, /class="completion-context-scroll"/);
-  assert.match(source, /\.completion-panel\s*\{[\s\S]*grid-template-rows:\s*minmax\(0, 1fr\) auto[\s\S]*overflow:\s*hidden/);
+  assert.match(
+    source,
+    /\.completion-panel\s*\{[\s\S]*grid-template-rows:\s*minmax\(0, 1fr\) auto[\s\S]*overflow:\s*hidden/,
+  );
   assert.match(source, /\.completion-context-scroll\s*\{[\s\S]*overflow-y:\s*auto/);
   assert.match(source, /\.listbox\s*\{[\s\S]*border-block-start:/);
   assert.match(
@@ -25,7 +28,10 @@ test("composer owns one sentence-first inline semantic editor and contextual pre
   assert.match(source, /class="composer-world-preview"/);
   assert.match(source, /class="mini-world-pin"/);
   assert.match(source, /composerEditableSections\(this\.value\)/);
-  assert.match(source, /focusSection\([\s\S]*input\.setSelectionRange\(section\.start, section\.end\)/);
+  assert.match(
+    source,
+    /focusSection\([\s\S]*input\.setSelectionRange\(section\.start, section\.end\)/,
+  );
   assert.match(source, /onInputDoubleClick\(event: MouseEvent\)/);
   assert.match(source, /target\.setSelectionRange\(range\.start, range\.end\)/);
   assert.match(
@@ -34,8 +40,14 @@ test("composer owns one sentence-first inline semantic editor and contextual pre
   );
   assert.match(source, /aria-label="Approve occurrence"/);
   assert.match(source, /import \{ LitElement, css, html, nothing, svg \} from "lit"/);
-  assert.match(source, /iconPathData\("close"\)\.map\(\(path\) => svg`<path d=\$\{path\}><\/path>`\)/);
-  assert.match(source, /iconPathData\("check"\)\.map\(\(path\) => svg`<path d=\$\{path\}><\/path>`\)/);
+  assert.match(
+    source,
+    /iconPathData\("close"\)\.map\(\(path\) => svg`<path d=\$\{path\}><\/path>`\)/,
+  );
+  assert.match(
+    source,
+    /iconPathData\("check"\)\.map\(\(path\) => svg`<path d=\$\{path\}><\/path>`\)/,
+  );
   assert.match(source, /projectInvestigativeQualifiers\(this\.value\)/);
   assert.match(source, /draft\.investigation\.qualifiers\.length/);
   assert.match(source, /interpretInvestigativeQualifier/);
@@ -117,10 +129,16 @@ test("composer owns one sentence-first inline semantic editor and contextual pre
   assert.doesNotMatch(source, /preview\.tags\.map/);
   assert.match(source, /class="composer-card-media"/);
   assert.match(source, /class="composer-card-context"/);
-  assert.match(source, /\.composer-context-deck \.timeline-focus-hero-image \{[\s\S]*object-fit:\s*contain/);
+  assert.match(
+    source,
+    /\.composer-context-deck \.timeline-focus-hero-image \{[\s\S]*object-fit:\s*contain/,
+  );
   assert.match(source, /transform:\s*scale\(var\(--occurrence-image-zoom, 1\)\)/);
   assert.match(source, /timeline-occurrence-deck-zoom-controls/);
-  assert.match(source, /\.composer-card-details \{[\s\S]*background:\s*var\(--paper[\s\S]*color:\s*var\(--ink[\s\S]*color-scheme:\s*light dark/);
+  assert.match(
+    source,
+    /\.composer-card-details \{[\s\S]*background:\s*var\(--paper[\s\S]*color:\s*var\(--ink[\s\S]*color-scheme:\s*light dark/,
+  );
   assert.doesNotMatch(source, /\.composer-card-details \{[\s\S]{0,420}background:\s*#171716/);
   assert.match(
     source,
@@ -145,7 +163,10 @@ test("composer owns one sentence-first inline semantic editor and contextual pre
   );
   assert.match(source, /revealMobileInputLane\(\): void/);
   assert.match(source, /footer\.scrollTo\(\{[\s\S]*?left:/);
-  assert.match(source, /show\(\): void[\s\S]*?revealMobileInputLane\(\)[\s\S]*?focus\(\{ preventScroll: true \}\)[\s\S]*?requestAnimationFrame/);
+  assert.match(
+    source,
+    /show\(\): void[\s\S]*?revealMobileInputLane\(\)[\s\S]*?focus\(\{ preventScroll: true \}\)[\s\S]*?requestAnimationFrame/,
+  );
   assert.doesNotMatch(source, /\.input-shell"\)\?\.scrollIntoView/);
 });
 

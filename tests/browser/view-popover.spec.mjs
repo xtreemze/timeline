@@ -329,7 +329,10 @@ test("composer exposes live context, pins explicit context, and leaves Tab for f
     const icon = button.locator(":scope > svg.semantic-icon");
     await expect(icon).toBeVisible();
     expect(await icon.locator("path").count()).toBeGreaterThan(0);
-    const namespace = await icon.locator("path").first().evaluate((path) => path.namespaceURI);
+    const namespace = await icon
+      .locator("path")
+      .first()
+      .evaluate((path) => path.namespaceURI);
     expect(namespace).toBe("http://www.w3.org/2000/svg");
   }
 

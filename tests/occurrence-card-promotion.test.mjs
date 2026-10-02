@@ -45,10 +45,7 @@ test("rendered timeline occurrence carries the canonical relationship identity u
     view,
     /timelinefocuschange[\s\S]*relationshipId: item\.relationshipId[\s\S]*presentationSurface: "card"/,
   );
-  assert.match(
-    view,
-    /timelineoccurrenceeditrequest[\s\S]*relationshipId: item\.relationshipId/,
-  );
+  assert.match(view, /timelineoccurrenceeditrequest[\s\S]*relationshipId: item\.relationshipId/);
 });
 
 test("card focus retains the temporal anchor without engaging the old workspace detail layout", async () => {

@@ -1,27 +1,27 @@
 import type { ApplicationSelection } from "../../src/application/selection.ts";
-import { entityId, placeId, relationshipId, type PlaceId } from "../../src/domain/ids.ts";
-import type { WorldDagLayoutOrientation } from "../../src/layout/world-dag-layout.ts";
+import { entityId, type PlaceId, placeId, relationshipId } from "../../src/domain/ids.ts";
 import { D3WorldForceSimulation } from "../../src/layout/d3-world-force-simulation.ts";
+import type { WorldDagLayoutOrientation } from "../../src/layout/world-dag-layout.ts";
 import type { WorldForceLayoutSample } from "../../src/layout/world-force-layout.ts";
-import type { WorldCameraState } from "../../src/layout/world-surface.ts";
 import type {
   WorldForceSimulationBackend,
   WorldForceTuning,
 } from "../../src/layout/world-force-simulation.ts";
+import type { WorldCameraState } from "../../src/layout/world-surface.ts";
 import { LuumWorldSurfaceElement } from "../components/world-surface-element.ts";
 import { createDeckWorldRuntime, type DeckWorldBindings } from "./deck-world-runtime.ts";
 import { DeckWorldSurface } from "./deck-world-surface.ts";
 import { loadWorldBasemap } from "./world-basemap.ts";
+import { createWorldLayoutControls } from "./world-layout-inspector.ts";
 import {
   WorldProjectionView,
   type WorldViewModel,
   type WorldViewViewport,
 } from "./world-projection-view.ts";
 import {
-  WorldViewRuntimeController,
   type WorldDagOperatorSettings,
+  WorldViewRuntimeController,
 } from "./world-view-controller.ts";
-import { createWorldLayoutControls } from "./world-layout-inspector.ts";
 
 export interface WorldFrameScheduler {
   request(callback: (timestamp: number) => void): number;

@@ -6,8 +6,8 @@ import {
   compileExampleStoryModules,
   compileExampleStoryProject,
 } from "../src/application/example-story-compiler.ts";
-import { assembleProjectModules } from "../src/application/project-module.ts";
 import { validateProjectInterchange } from "../src/application/project-interchange.ts";
+import { assembleProjectModules } from "../src/application/project-module.ts";
 
 await import("../site/timeline-graph-shim.ts");
 await import("../site/sample-case-shim.ts");

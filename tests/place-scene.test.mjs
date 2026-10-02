@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-
-import { validatePlaceScene3D } from "../src/domain/place-scene.ts";
 import { placeId } from "../src/domain/ids.ts";
+import { validatePlaceScene3D } from "../src/domain/place-scene.ts";
 import {
   PLACE_SCENE_LOD_THRESHOLDS_PX,
   placeSceneLodForProjectedPixels,

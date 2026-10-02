@@ -1,12 +1,11 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-
+import { validateProjectInterchange } from "../../src/application/project-interchange.ts";
 import {
   assembleProjectModules,
   validateProjectModule,
 } from "../../src/application/project-module.ts";
-import { validateProjectInterchange } from "../../src/application/project-interchange.ts";
 import {
   lumDocumentIndex,
   lumDocumentMetadata,

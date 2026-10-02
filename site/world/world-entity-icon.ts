@@ -4,9 +4,9 @@
  */
 
 import {
-  type SemanticIconName,
   defaultSemanticIconForEntityType,
   normalizeSemanticIconName,
+  type SemanticIconName,
 } from "../../src/presentation/semantic-icons.ts";
 
 export type WorldEntityIconName = SemanticIconName;

@@ -1,7 +1,4 @@
-import {
-  canonicalSemanticHueColor,
-  normalizeSemanticColorSource,
-} from "./semantic-color.ts";
+import { canonicalSemanticHueColor, normalizeSemanticColorSource } from "./semantic-color.ts";
 
 export interface OccurrenceNodeSemanticStyle {
   readonly fillColor: string;
@@ -23,9 +20,7 @@ export function occurrenceNodeSemanticStyle(
   const categories = categoryColors
     .map(semanticHueCarrier)
     .filter((value): value is string => Boolean(value));
-  const tags = tagColors
-    .map(semanticHueCarrier)
-    .filter((value): value is string => Boolean(value));
+  const tags = tagColors.map(semanticHueCarrier).filter((value): value is string => Boolean(value));
 
   const fillColor = categories[0] ?? tags[0] ?? null;
   if (!fillColor) return null;
@@ -33,10 +28,7 @@ export function occurrenceNodeSemanticStyle(
   return Object.freeze({ fillColor, borderColor });
 }
 
-function hasAny(
-  style: Readonly<Record<string, unknown>>,
-  keys: readonly string[],
-): boolean {
+function hasAny(style: Readonly<Record<string, unknown>>, keys: readonly string[]): boolean {
   return keys.some((key) => {
     const value = style[key];
     return value !== undefined && value !== null && value !== "";

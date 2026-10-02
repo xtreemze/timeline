@@ -1,4 +1,3 @@
-import type { CanonicalEntity } from "../domain/entity.ts";
 import type {
   CanonicalCategory,
   CanonicalPlace,
@@ -11,9 +10,10 @@ import {
   validateSource,
   validateStory,
 } from "../domain/composition.ts";
+import type { CanonicalEntity } from "../domain/entity.ts";
+import { validateEntity } from "../domain/entity.ts";
 import type { CanonicalSpatialGeometry } from "../domain/geotemporal.ts";
 import { validateSpatialGeometry } from "../domain/geotemporal.ts";
-import { validateEntity } from "../domain/entity.ts";
 import type { TimelineId } from "../domain/ids.ts";
 import {
   entityId,
@@ -278,10 +278,10 @@ function assertEntityShape(value: unknown): CanonicalEntity {
         }
       : {}),
     ...(identifiers
-      ? { identifiers: identifiers as unknown as NonNullable<CanonicalEntity["identifiers"]> }
+      ? { identifiers: identifiers as NonNullable<CanonicalEntity["identifiers"]> }
       : {}),
     ...(appellations
-      ? { appellations: appellations as unknown as NonNullable<CanonicalEntity["appellations"]> }
+      ? { appellations: appellations as NonNullable<CanonicalEntity["appellations"]> }
       : {}),
     ...(semanticMappings
       ? {
@@ -453,7 +453,7 @@ function assertTrajectoryShape(
     bounds: value.bounds as TrajectoryBounds | null,
     channels: value.channels as readonly TrajectoryChannel[],
     levels: value.levels as readonly TrajectoryLevel[],
-    storage: value.storage as unknown as TrajectoryStorageReference,
+    storage: value.storage as TrajectoryStorageReference,
     ...(semanticMappings
       ? {
           externalMappings: semanticMappings as NonNullable<TrajectoryArtifact["externalMappings"]>,

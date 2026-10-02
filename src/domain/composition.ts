@@ -1,5 +1,5 @@
-import type { CanonicalOccurrenceId, PlaceId, SourceId, StoryId } from "./ids.ts";
 import type { CanonicalSpatialGeometry } from "./geotemporal.ts";
+import type { CanonicalOccurrenceId, PlaceId, SourceId, StoryId } from "./ids.ts";
 
 export interface CanonicalPlace {
   readonly id: PlaceId;

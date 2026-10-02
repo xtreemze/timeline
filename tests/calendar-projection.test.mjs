@@ -6,8 +6,8 @@ import path from "node:path";
 import test from "node:test";
 
 import {
-  projectOccurrenceToCalendarEvent,
   projectOccurrencesToCalendar,
+  projectOccurrenceToCalendarEvent,
   serializeICalendar,
 } from "../src/application/calendar-projection.ts";
 import { serializeProjectInterchange } from "../src/application/project-interchange.ts";
@@ -244,7 +244,10 @@ test("story and explicit selectors export relationship-derived canonical occurre
   input.project.stories[0].occurrenceIds = ["rel-1"];
 
   const story = projectOccurrencesToCalendar(input, { storyId: "story-1" });
-  assert.deepEqual(story.events.map((event) => event.occurrenceId), ["rel-1"]);
+  assert.deepEqual(
+    story.events.map((event) => event.occurrenceId),
+    ["rel-1"],
+  );
   assert.equal(story.events[0].summary, "Alice warns Bob");
 
   const direct = projectOccurrenceToCalendarEvent(input, "rel-1");

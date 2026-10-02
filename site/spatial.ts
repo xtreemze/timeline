@@ -5,8 +5,8 @@
  */
 
 import {
-  SEMANTIC_ICON_NAMES,
   normalizeSemanticIconName,
+  SEMANTIC_ICON_NAMES,
 } from "../src/presentation/semantic-icons.ts";
 
 type UnknownRecord = Record<string, unknown>;

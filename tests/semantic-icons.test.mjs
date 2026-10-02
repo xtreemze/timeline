@@ -1,21 +1,20 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-
-import {
-  SEMANTIC_ICON_NAMES,
-  defaultSemanticIconForEntityType,
-  normalizeEntityPresentationAttributes,
-  normalizeSemanticIconName,
-  semanticIconLabel,
-} from "../src/presentation/semantic-icons.ts";
+import { iconPathData, TimelinePresentation } from "../site/event-presentation.ts";
+import { TimelineGraph } from "../site/timeline-graph.ts";
 import {
   auditSemanticIconQuality,
   suggestSemanticIcon,
   suggestSemanticIconForPlace,
 } from "../src/presentation/semantic-icon-inference.ts";
-import { TimelinePresentation, iconPathData } from "../site/event-presentation.ts";
-import { TimelineGraph } from "../site/timeline-graph.ts";
+import {
+  defaultSemanticIconForEntityType,
+  normalizeEntityPresentationAttributes,
+  normalizeSemanticIconName,
+  SEMANTIC_ICON_NAMES,
+  semanticIconLabel,
+} from "../src/presentation/semantic-icons.ts";
 
 test("semantic icon registry is the single rendered vocabulary", () => {
   assert.deepEqual([...TimelinePresentation.ICON_NAMES], [...SEMANTIC_ICON_NAMES]);
@@ -185,7 +184,6 @@ test("semantic icon quality audit separates data validity from presentation qual
   assert.equal(audit.explicitCount, 1);
 });
 
-
 test("shared semantic icons follow one Lucide-compatible monochrome stroke contract", async () => {
   const presentation = await readFile(
     new URL("../site/event-presentation.ts", import.meta.url),
@@ -206,13 +204,14 @@ test("shared semantic icons follow one Lucide-compatible monochrome stroke contr
   for (const stylesheet of ["styles.css", "timeline-view.css", "spatial-shell.css"]) {
     const css = await readFile(new URL(`../site/${stylesheet}`, import.meta.url), "utf8");
     const overrides = css.match(/\.semantic-icon[^{}]*\{[^}]*stroke-width\s*:/gs) ?? [];
-    assert.deepEqual(overrides, [], `${stylesheet}: semantic icons must inherit the shared 2px stroke`);
+    assert.deepEqual(
+      overrides,
+      [],
+      `${stylesheet}: semantic icons must inherit the shared 2px stroke`,
+    );
   }
 
-  const orbAdapter = await readFile(
-    new URL("../src/orb-graph-entry.js", import.meta.url),
-    "utf8",
-  );
+  const orbAdapter = await readFile(new URL("../src/orb-graph-entry.js", import.meta.url), "utf8");
   assert.match(orbAdapter, /color="white" stroke="currentColor" stroke-width="2"/);
   assert.doesNotMatch(orbAdapter, /stroke="white"/);
 });

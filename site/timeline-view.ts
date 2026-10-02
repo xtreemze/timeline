@@ -7,11 +7,8 @@
  */
 
 import type { ApplicationSelection } from "../src/application/selection.ts";
-import { composerEditableSections } from "./occurrence-composer-model.ts";
 import { projectTimelineSelection } from "../src/application/timeline-selection.ts";
 import { surfacePointerMayStartDirectManipulation } from "../src/interaction/surface-input-policy.ts";
-import { TimelinePresentation } from "./event-presentation.ts";
-import { TimelineScale } from "./time-scale.ts";
 import {
   geometryMeasurementKey,
   planAggregateLanes,
@@ -41,23 +38,26 @@ import {
   tickSceneKey,
   visibleIntervalAnchor,
 } from "../src/projection/temporal-scene.ts";
-import { LuumEventCardElement } from "./components/timeline-event-card.ts";
 import {
   LuumOccurrenceDeckElement,
   type OccurrenceDeckChangeDetail,
 } from "./components/occurrence-media-deck.ts";
+import { LuumEventCardElement } from "./components/timeline-event-card.ts";
+import { TimelinePresentation } from "./event-presentation.ts";
+import { getBlob as getEvidenceBlob } from "./evidence-store.ts";
+import { composerEditableSections } from "./occurrence-composer-model.ts";
 import {
-  occurrenceContextDeckFrames,
   type OccurrenceContextMediaFrame,
   type OccurrenceContextMediaKind,
+  occurrenceContextDeckFrames,
 } from "./occurrence-context-deck.ts";
-import { getBlob as getEvidenceBlob } from "./evidence-store.ts";
 import {
   createOccurrenceInteractionSession,
   resolveOccurrencePresentation,
   setPresentation,
   switchOccurrenceSelection,
 } from "./occurrence-interaction-session.ts";
+import { TimelineScale } from "./time-scale.ts";
 import { TimelineClustering as clustering } from "./timeline-clustering.ts";
 import { TimelineMotion as motion } from "./timeline-motion.ts";
 
@@ -507,13 +507,25 @@ function evidenceMediaKind(record: Record<string, unknown>): OccurrenceContextMe
   const type = recordString(record, "type").toLowerCase();
   const mimeType = recordString(file, "mimeType").toLowerCase();
   const name = recordString(file, "name").toLowerCase();
-  if (type === "video" || mimeType.startsWith("video/") || /\.(?:mp4|webm|ogv|mov|m4v)$/.test(name)) {
+  if (
+    type === "video" ||
+    mimeType.startsWith("video/") ||
+    /\.(?:mp4|webm|ogv|mov|m4v)$/.test(name)
+  ) {
     return "video";
   }
-  if (type === "audio" || mimeType.startsWith("audio/") || /\.(?:mp3|m4a|aac|wav|ogg|oga|flac|opus)$/.test(name)) {
+  if (
+    type === "audio" ||
+    mimeType.startsWith("audio/") ||
+    /\.(?:mp3|m4a|aac|wav|ogg|oga|flac|opus)$/.test(name)
+  ) {
     return "audio";
   }
-  if (type === "image" || mimeType.startsWith("image/") || /\.(?:png|jpe?g|webp|gif|avif)$/.test(name)) {
+  if (
+    type === "image" ||
+    mimeType.startsWith("image/") ||
+    /\.(?:png|jpe?g|webp|gif|avif)$/.test(name)
+  ) {
     return "image";
   }
   return null;
@@ -2264,10 +2276,7 @@ export class TimelineViewController {
       };
       this.scheduleInteractionRender();
 
-      if (
-        progress < 1 &&
-        Math.abs(remainingVelocity) >= motion.STOP_VELOCITY_PX_PER_MS
-      ) {
+      if (progress < 1 && Math.abs(remainingVelocity) >= motion.STOP_VELOCITY_PX_PER_MS) {
         this.inertiaAnimationFrame = requestAnimationFrame(step);
       } else {
         this.interactionVelocity = 0;
@@ -3880,26 +3889,26 @@ export class TimelineViewController {
       await Promise.all(
         descriptors.map(
           async ({ record, file, kind, blobKey }): Promise<OccurrenceContextMediaFrame | null> => {
-          try {
-            const blob = await getEvidenceBlob(blobKey);
-            if (!blob) return null;
-            const title = recordString(record, "title");
-            const sourceName = recordString(record, "sourceName");
-            const fileName = recordString(file, "name");
-            const caption = [title, sourceName || fileName].filter(Boolean).join(" · ");
-            return {
-              kind,
-              blob,
-              mimeType: recordString(file, "mimeType") || blob.type,
-              sha256: recordString(file, "sha256"),
-              alt: title || fileName || `${kind} evidence`,
-              caption,
-            } satisfies OccurrenceContextMediaFrame;
-          } catch (error) {
-            console.warn("Could not load local evidence media:", error);
-            return null;
-          }
-        },
+            try {
+              const blob = await getEvidenceBlob(blobKey);
+              if (!blob) return null;
+              const title = recordString(record, "title");
+              const sourceName = recordString(record, "sourceName");
+              const fileName = recordString(file, "name");
+              const caption = [title, sourceName || fileName].filter(Boolean).join(" · ");
+              return {
+                kind,
+                blob,
+                mimeType: recordString(file, "mimeType") || blob.type,
+                sha256: recordString(file, "sha256"),
+                alt: title || fileName || `${kind} evidence`,
+                caption,
+              } satisfies OccurrenceContextMediaFrame;
+            } catch (error) {
+              console.warn("Could not load local evidence media:", error);
+              return null;
+            }
+          },
         ),
       )
     ).filter((entry): entry is OccurrenceContextMediaFrame => entry !== null);
@@ -3928,10 +3937,7 @@ export class TimelineViewController {
       frames,
       activeIndex: deck.activeIndex,
     });
-    hero.classList.toggle(
-      "has-no-media",
-      !frames.some((frame) => frame.kind !== "context"),
-    );
+    hero.classList.toggle("has-no-media", !frames.some((frame) => frame.kind !== "context"));
     if (frames.some((frame) => frame.kind !== "context")) {
       hero.querySelector<HTMLElement>("[data-empty-media]")?.remove();
     }
