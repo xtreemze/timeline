@@ -72,6 +72,7 @@ const WHEEL_ZOOM_SENSITIVITY = 0.00065;
 const OVERSCAN_RATIO = 0.6;
 const POINTER_PREDICTION_HORIZON_MS = 260;
 const WHEEL_COMMIT_DELAY_MS = 150;
+const WHEEL_PAN_RELEASE_DELAY_MS = 48;
 const DOUBLE_TAP_ZOOM_FACTOR = 0.5;
 const TOUCH_DOUBLE_TAP_MS = 320;
 const TOUCH_DOUBLE_TAP_DISTANCE_PX = 28;
@@ -106,6 +107,12 @@ const EDGE_ACCENT_VERTICAL_MIN_GAP_PX = 72;
 const EDGE_ACCENT_HYSTERESIS_PX = 12;
 
 type Orientation = "horizontal" | "vertical";
+type WheelGestureMode = "pan" | "zoom";
+
+interface TimelineWheelInput {
+  mode: WheelGestureMode;
+  deltaPixels: number;
+}
 
 interface TimelineItem {
   id: string;
@@ -298,6 +305,17 @@ function fallbackLaneIndex(id: string, maxLanes: number): number {
   return Math.min(capacity - 1, stableIndex);
 }
 
+function normalizeWheelAxisDelta(
+  deltaValue: unknown,
+  deltaMode: number,
+  pageLength: number,
+): number {
+  let delta = Number(deltaValue) || 0;
+  if (deltaMode === 1) delta *= 16;
+  if (deltaMode === 2) delta *= Math.max(1, pageLength);
+  return delta;
+}
+
 function normalizeWheelDelta(
   event: Pick<WheelEvent, "deltaY" | "deltaMode" | "ctrlKey">,
   pageLength: number,
@@ -310,6 +328,29 @@ function normalizeWheelDelta(
   // exponent cap keep the actual zoom response deliberately conservative.
   if (event.ctrlKey) delta *= 10;
   return delta;
+}
+
+function timelineWheelInput(
+  event: Pick<WheelEvent, "deltaX" | "deltaY" | "deltaMode" | "ctrlKey">,
+  orientation: Orientation,
+  pageLength: number,
+  lockedMode: WheelGestureMode | null,
+): TimelineWheelInput | null {
+  // A browser trackpad pinch is semantically zoom regardless of timeline
+  // orientation; Chromium exposes it as a Ctrl-modified vertical wheel delta.
+  if (event.ctrlKey) {
+    const deltaPixels = normalizeWheelDelta(event, pageLength);
+    return Math.abs(deltaPixels) > Number.EPSILON ? { mode: "zoom", deltaPixels } : null;
+  }
+
+  const deltaX = normalizeWheelAxisDelta(event.deltaX, event.deltaMode, pageLength);
+  const deltaY = normalizeWheelAxisDelta(event.deltaY, event.deltaMode, pageLength);
+  const primary = orientation === "horizontal" ? deltaX : deltaY;
+  const perpendicular = orientation === "horizontal" ? deltaY : deltaX;
+  const mode =
+    lockedMode ?? (Math.abs(primary) >= Math.abs(perpendicular) ? ("pan" as const) : ("zoom" as const));
+  const deltaPixels = mode === "pan" ? primary : perpendicular;
+  return Math.abs(deltaPixels) > Number.EPSILON ? { mode, deltaPixels } : null;
 }
 
 function loadViewPreferences(): { orientation: Orientation } {
@@ -652,6 +693,10 @@ export class TimelineViewController {
     { animation: Animation; deltaX: number; deltaY: number }
   >();
   wheelCommitTimer: ReturnType<typeof globalThis.setTimeout> | 0 = 0;
+  wheelGestureMode: WheelGestureMode | null = null;
+  wheelPanSamples: Array<{ coordinate: number; time: number }> = [];
+  wheelPanCoordinate = 0;
+  wheelPanUsableLength = 1;
   viewportInitialized = false;
   reducedMotionQuery: MediaQueryList | null =
     typeof globalThis.matchMedia === "function"
@@ -728,33 +773,66 @@ export class TimelineViewController {
       (event) => {
         if (!this.items.length) return;
         event.preventDefault();
+
+        const rect = this.interactionRect();
+        const length = Math.max(1, this.orientation === "horizontal" ? rect.width : rect.height);
+        const input = timelineWheelInput(event, this.orientation, length, this.wheelGestureMode);
+        if (!input) return;
+
         this.cancelInertia();
         this.beginInteraction();
-        const rect = this.interactionRect();
-        const primary =
-          this.orientation === "horizontal" ? event.clientX - rect.left : event.clientY - rect.top;
-        const length = Math.max(1, this.orientation === "horizontal" ? rect.width : rect.height);
+
         const padding = this.axisPadding(length);
         const usable = Math.max(1, length - padding * 2);
-        const ratio = clamp((primary - padding) / usable, 0, 1);
-        const deltaPixels = normalizeWheelDelta(event, length);
-        const factor = wheelZoomFactor(deltaPixels);
-        const span = Math.max(MIN_SPAN_MS, (this.viewport.end - this.viewport.start) * factor);
-        const anchor = this.viewport.start + (this.viewport.end - this.viewport.start) * ratio;
-        const next = {
-          start: anchor - span * ratio,
-          end: anchor + span * (1 - ratio),
-        };
+        if (input.mode !== this.wheelGestureMode) {
+          this.wheelGestureMode = input.mode;
+          this.wheelPanSamples.length = 0;
+          this.wheelPanCoordinate = 0;
+        }
 
-        this.viewport = next;
-        this.interactionVelocity = 0;
+        if (input.mode === "pan") {
+          const span = this.viewport.end - this.viewport.start;
+          const temporalDelta = (input.deltaPixels / usable) * span;
+          this.viewport = {
+            start: this.viewport.start + temporalDelta,
+            end: this.viewport.end + temporalDelta,
+          };
+
+          this.wheelPanCoordinate += input.deltaPixels;
+          this.wheelPanUsableLength = usable;
+          this.wheelPanSamples.push({
+            coordinate: this.wheelPanCoordinate,
+            time: Number(event.timeStamp) || performance.now(),
+          });
+          if (this.wheelPanSamples.length > 24) {
+            this.wheelPanSamples.splice(0, this.wheelPanSamples.length - 24);
+          }
+          const wheelVelocity = motion.estimatePointerVelocity(this.wheelPanSamples);
+          this.interactionVelocity = (wheelVelocity / usable) * span;
+        } else {
+          const primary =
+            this.orientation === "horizontal"
+              ? event.clientX - rect.left
+              : event.clientY - rect.top;
+          const ratio = clamp((primary - padding) / usable, 0, 1);
+          const factor = wheelZoomFactor(input.deltaPixels);
+          const currentSpan = this.viewport.end - this.viewport.start;
+          const span = Math.max(MIN_SPAN_MS, currentSpan * factor);
+          const anchor = this.viewport.start + currentSpan * ratio;
+          this.viewport = {
+            start: anchor - span * ratio,
+            end: anchor + span * (1 - ratio),
+          };
+          this.interactionVelocity = 0;
+        }
+
         this.markInputForNextRender();
         this.scheduleInteractionRender();
 
         globalThis.clearTimeout(this.wheelCommitTimer);
         this.wheelCommitTimer = globalThis.setTimeout(
-          () => this.commitInteraction(),
-          WHEEL_COMMIT_DELAY_MS,
+          () => this.finishWheelGesture(),
+          input.mode === "pan" ? WHEEL_PAN_RELEASE_DELAY_MS : WHEEL_COMMIT_DELAY_MS,
         );
       },
       { passive: false },
@@ -774,6 +852,7 @@ export class TimelineViewController {
       point: { x: number; y: number },
       sourceEvent: PointerEvent | null = null,
     ): void => {
+      this.cancelWheelGesture();
       this.cancelInertia();
       this.beginInteraction();
       const rect = this.interactionRect();
@@ -821,6 +900,7 @@ export class TimelineViewController {
     const beginPinch = (): boolean => {
       const geometry = pinchGeometry();
       if (!geometry) return false;
+      this.cancelWheelGesture();
       this.cancelInertia();
       this.beginInteraction();
       this.touchTap = null;
@@ -852,6 +932,7 @@ export class TimelineViewController {
       const span = Math.max(MIN_SPAN_MS, this.viewport.end - this.viewport.start);
       const nextSpan = Math.max(MIN_SPAN_MS, span * DOUBLE_TAP_ZOOM_FACTOR);
       const anchor = this.viewport.start + span * ratio;
+      this.cancelWheelGesture();
       this.cancelInertia();
       this.viewport = {
         start: anchor - nextSpan * ratio,
@@ -898,13 +979,16 @@ export class TimelineViewController {
     const abortSurfaceGesture = (): void => {
       const pointerIds = new Set(this.touchPointers.keys());
       if (this.pointerDrag) pointerIds.add(this.pointerDrag.pointerId);
-      const interrupted = Boolean(this.pointerDrag || this.pinch || this.touchPointers.size);
+      const interrupted = Boolean(
+        this.pointerDrag || this.pinch || this.touchPointers.size || this.wheelGestureMode,
+      );
 
       this.touchPointers.clear();
       this.pinch = null;
       this.touchTap = null;
       this.lastTouchTap = null;
       this.pointerDrag = null;
+      this.cancelWheelGesture();
       this.cancelInertia();
       for (const pointerId of pointerIds) releasePointerCapture(pointerId);
 
@@ -1147,7 +1231,9 @@ export class TimelineViewController {
     window.addEventListener("orientationchange", abortSurfaceGesture);
     globalThis.screen?.orientation?.addEventListener?.("change", abortSurfaceGesture);
     window.visualViewport?.addEventListener("resize", () => {
-      if (this.pointerDrag || this.pinch || this.touchPointers.size) abortSurfaceGesture();
+      if (this.pointerDrag || this.pinch || this.touchPointers.size || this.wheelGestureMode) {
+        abortSurfaceGesture();
+      }
     });
 
     this.surface.addEventListener("keydown", (event) => {
@@ -1259,6 +1345,7 @@ export class TimelineViewController {
     this.refreshCanonicalSelectionProjection();
 
     if (!this.items.length) {
+      this.cancelWheelGesture();
       this.cancelInertia();
       this.pointerDrag = null;
       this.touchPointers.clear();
@@ -2237,6 +2324,29 @@ export class TimelineViewController {
     return clamp(length * 0.075, 48, 80);
   }
 
+  cancelWheelGesture(): void {
+    globalThis.clearTimeout(this.wheelCommitTimer);
+    this.wheelCommitTimer = 0;
+    this.wheelGestureMode = null;
+    this.wheelPanSamples.length = 0;
+    this.wheelPanCoordinate = 0;
+    this.wheelPanUsableLength = 1;
+  }
+
+  finishWheelGesture(): void {
+    const mode = this.wheelGestureMode;
+    const releaseVelocity =
+      mode === "pan" ? motion.estimatePointerVelocity(this.wheelPanSamples) : 0;
+    const releaseUsableLength = this.wheelPanUsableLength;
+    this.cancelWheelGesture();
+
+    if (mode === "pan" && Math.abs(releaseVelocity) >= motion.STOP_VELOCITY_PX_PER_MS) {
+      this.startInertia(-releaseVelocity, releaseUsableLength);
+      return;
+    }
+    this.commitInteraction();
+  }
+
   cancelInertia(): void {
     if (this.inertiaAnimationFrame) cancelAnimationFrame(this.inertiaAnimationFrame);
     this.inertiaAnimationFrame = 0;
@@ -2244,6 +2354,7 @@ export class TimelineViewController {
   }
 
   startInertia(initialVelocityPxPerMs: number, usableLength: number): void {
+    this.cancelWheelGesture();
     if (this.reducedMotionQuery?.matches) {
       this.commitInteraction();
       return;
@@ -2317,6 +2428,7 @@ export class TimelineViewController {
   }
 
   commitInteraction(): void {
+    this.cancelWheelGesture();
     const hadRetainedScene = this.retention.active;
     const hadPendingInteractionRender = hadRetainedScene && Boolean(this.renderFrame);
     this.cancelInertia();
@@ -3821,6 +3933,7 @@ export class TimelineViewController {
   }
 
   runStructuralTransaction(update: () => void): void {
+    this.cancelWheelGesture();
     this.cancelInertia();
     this.beginInteraction();
     this.root.dataset.sceneState = "settling";
@@ -4507,6 +4620,7 @@ export const TimelineView = Object.freeze({
     visibleIntervalAnchor,
     itemOverlapsViewport,
     normalizeWheelDelta,
+    timelineWheelInput,
     wheelZoomFactor,
     selectEdgeAccents,
     axisCrossFromCss,
