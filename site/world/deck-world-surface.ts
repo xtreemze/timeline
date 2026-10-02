@@ -98,6 +98,7 @@ import {
 import type {
   ProjectedWorldInstance,
   WorldInstanceId,
+  WorldProjectedParticipation,
   WorldPresentationStyle,
   WorldProjection,
 } from "../../src/projection/world-projection.ts";
@@ -1138,6 +1139,7 @@ export interface AccessibleWorldEntity {
   readonly worldInstanceId: WorldInstanceId;
   readonly selected: boolean;
   readonly label?: string;
+  readonly participations?: readonly WorldProjectedParticipation[];
 }
 
 export interface AccessibleWorldPlace {
@@ -4835,20 +4837,27 @@ export class DeckWorldSurface implements WorldSurface {
         targetEntityId: datum.targetEntityId,
       }),
     );
+    const participationsByInstance = new Map(
+      this.#projection.instances.map(
+        (instance) => [instance.id, instance.participations ?? Object.freeze([])] as const,
+      ),
+    );
     const entities = entityDatums(
       this.#projection.instances,
       this.#selection,
       this.#entityDatumCache,
       (instance) => this.#offsetScaleForInstance(instance),
       (instance) => this.#floatMetersForInstance(instance),
-    ).datums.map((datum) =>
-      Object.freeze({
+    ).datums.map((datum) => {
+      const participations = participationsByInstance.get(datum.worldInstanceId) ?? Object.freeze([]);
+      return Object.freeze({
         entityId: datum.entityId,
         worldInstanceId: datum.worldInstanceId,
         selected: datum.selected,
         ...(datum.label === undefined ? {} : { label: datum.label }),
-      }),
-    );
+        ...(participations.length ? { participations } : {}),
+      });
+    });
 
     return Object.freeze({
       entities: Object.freeze(entities),
