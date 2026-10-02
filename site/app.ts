@@ -5703,14 +5703,65 @@ function repositionOpenProjectMenu() {
 els.projectMenu?.addEventListener("beforetoggle", (event) => {
   if (event.newState === "open") positionProjectMenu();
 });
+function projectMenuItems(): HTMLElement[] {
+  if (!els.projectMenu) return [];
+  return [...els.projectMenu.querySelectorAll<HTMLElement>('[role="menuitem"]')].filter(
+    (item) => !item.hidden && item.getClientRects().length > 0 && !item.matches(":disabled"),
+  );
+}
+
+/** Roving tabindex: exactly one menu item is a tab stop and it is the one that has focus. */
+function focusProjectMenuItem(target: HTMLElement | undefined) {
+  if (!target) return;
+  for (const item of els.projectMenu?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []) {
+    item.tabIndex = item === target ? 0 : -1;
+  }
+  target.focus({ preventScroll: true });
+}
+
 els.projectMenu?.addEventListener("toggle", (event) => {
   const open = event.newState === "open";
-  const label = open ? "Close project actions" : "Project actions";
+  // The accessible name stays stable; aria-expanded carries the open state.
   els.projectMenuToggle?.setAttribute("aria-expanded", String(open));
-  els.projectMenuToggle?.setAttribute("aria-label", label);
-  if (els.projectMenuToggle) els.projectMenuToggle.title = label;
+  if (els.projectMenuToggle) {
+    els.projectMenuToggle.title = open ? "Close project actions" : "Project actions";
+  }
   if (!open) return;
+  // Focus must not wait for a frame: hidden or throttled pages never run requestAnimationFrame,
+  // and the popover is already rendered when "toggle" fires.
+  focusProjectMenuItem(projectMenuItems()[0]);
   requestAnimationFrame(positionProjectMenu);
+});
+els.projectMenu?.addEventListener("keydown", (event) => {
+  if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
+  if (event.key === "Tab") {
+    // A menu is one composite widget: Tab leaves it, and focus returns to its trigger.
+    event.preventDefault();
+    closeProjectMenu();
+    els.projectMenuToggle?.focus({ preventScroll: true });
+    return;
+  }
+  const items = projectMenuItems();
+  if (!items.length) return;
+  const current = items.indexOf(document.activeElement as HTMLElement);
+  const last = items.length - 1;
+  const next =
+    event.key === "ArrowDown"
+      ? current >= last
+        ? 0
+        : current + 1
+      : event.key === "ArrowUp"
+        ? current <= 0
+          ? last
+          : current - 1
+        : event.key === "Home"
+          ? 0
+          : event.key === "End"
+            ? last
+            : -1;
+  if (next < 0) return;
+  event.preventDefault();
+  focusProjectMenuItem(items[next]);
 });
 window.addEventListener("resize", repositionOpenProjectMenu);
 window.visualViewport?.addEventListener("resize", repositionOpenProjectMenu);

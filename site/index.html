@@ -1338,19 +1338,19 @@
                 <span id="story-count">0 stories</span>
                 <span id="category-count">0 categories</span>
               </div>
-            <div id="project-menu" class="project-menu" popover="auto" role="menu" aria-label="Project actions">
-              <header class="project-menu-header">
+            <div id="project-menu" class="project-menu" popover="auto" role="menu" aria-label="Project actions" aria-describedby="project-menu-description">
+              <header class="project-menu-header" aria-hidden="true">
                 <strong>Project</strong>
-                <span>Local project file and workspace actions</span>
+                <span id="project-menu-description">Local project file and workspace actions</span>
               </header>
               <div class="project-actions">
-                <section class="project-menu-group" aria-labelledby="project-start-label">
+                <section class="project-menu-group" role="group" aria-labelledby="project-start-label">
                   <p id="project-start-label" class="project-menu-label">Start</p>
                   <button id="load-sample" class="project-menu-action" type="button" role="menuitem" data-semantic-icon="magic" aria-label="Load example" title="Load example" data-project-menu-close>
                     <span>Load example</span><small>Replace this project with the example case</small>
                   </button>
                 </section>
-                <section class="project-menu-group" aria-labelledby="project-import-label">
+                <section class="project-menu-group" role="group" aria-labelledby="project-import-label">
                   <p id="project-import-label" class="project-menu-label">Import</p>
                   <button id="import-json-trigger" class="project-menu-action" type="button" role="menuitem" data-semantic-icon="object" aria-label="Open project" title="Open project" data-project-menu-close>
                     <span>Open project</span><small>Lūm project or compatible JSON</small>
@@ -1361,7 +1361,7 @@
                   <input id="import-json" type="file" accept="application/vnd.lum.project+json,application/json,application/x-luum+json,.lum.json,.luum,.json" hidden>
                   <input id="import-interchange" type="file" accept="application/json,application/xml,text/xml,.json,.xml" hidden>
                 </section>
-                <section class="project-menu-group" aria-labelledby="project-export-label">
+                <section class="project-menu-group" role="group" aria-labelledby="project-export-label">
                   <p id="project-export-label" class="project-menu-label">Export</p>
                   <button id="export-json" class="project-menu-action" type="button" role="menuitem" data-semantic-icon="object" aria-label="Save project" title="Save project" data-project-menu-close>
                     <span>Save project</span><small>Canonical Lūm project file</small>
@@ -1376,7 +1376,7 @@
                     <span>Markdown</span><small>Readable chronology document</small>
                   </button>
                 </section>
-                <section class="project-menu-group" aria-labelledby="project-other-label">
+                <section class="project-menu-group" role="group" aria-labelledby="project-other-label">
                   <p id="project-other-label" class="project-menu-label">Project</p>
                   <button id="install-app" class="project-menu-action" type="button" role="menuitem" data-semantic-icon="magic" aria-label="Install Lūm" title="Install Lūm" data-project-menu-close hidden>
                     <span>Install Lūm</span><small>Open as a standalone app on this device</small>
