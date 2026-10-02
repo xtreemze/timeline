@@ -723,30 +723,44 @@ export function updateOccurrence<TExtent, TState extends OccurrenceAuthoringStat
     }
   }
 
-  const itemContextChanged =
-    request.time !== undefined ||
+  const itemScopedContextChanged =
     request.categoryName !== undefined ||
     request.categoryNames !== undefined ||
     request.tags !== undefined;
-  if (itemContextChanged && linkedItemIds.length > 1 && !exactItemId) {
+  if (itemScopedContextChanged && linkedItemIds.length > 1 && !exactItemId) {
     throw new Error(
-      "This occurrence is linked to multiple chronology items. Focus the exact timeline item before editing time, category, or tags.",
+      "This occurrence is linked to multiple chronology items. Focus the exact timeline item before editing category or tags.",
     );
   }
-  if (
-    (request.categoryName !== undefined ||
-      request.categoryNames !== undefined ||
-      request.tags !== undefined) &&
-    linkedItemIds.length === 0
-  ) {
+  if (itemScopedContextChanged && linkedItemIds.length === 0) {
     throw new Error(
       "This occurrence has no linked chronology item. Category and tags require an exact timeline item.",
     );
   }
-  if (request.time === null && exactItemId) {
+  if (request.time === null && linkedItemIds.length > 0) {
     throw new Error(
-      "A linked chronology item requires time. Unlink that timeline item before making the canonical relationship timeless.",
+      "A linked chronology item requires time. Unlink all timeline items before making the canonical relationship timeless.",
     );
+  }
+
+  if (request.time) {
+    for (const linkedItemId of linkedItemIds) {
+      const linkedIndex = draft.items.findIndex((item) => itemIdOf(item) === linkedItemId);
+      if (linkedIndex < 0) {
+        throw new Error(`Chronology item “${linkedItemId}” no longer exists.`);
+      }
+      const linkedRecord = itemRecord(draft.items[linkedIndex]);
+      if (!linkedRecord) {
+        throw new Error(`Chronology item “${linkedItemId}” is invalid.`);
+      }
+      draft.items[linkedIndex] = {
+        ...linkedRecord,
+        kind: request.time.kind,
+        start: request.time.startValue,
+        end: request.time.endValue,
+        time: request.time.extent,
+      };
+    }
   }
 
   let categoryId = "";
@@ -761,13 +775,6 @@ export function updateOccurrence<TExtent, TState extends OccurrenceAuthoringStat
       throw new Error(`Chronology item “${exactItemId}” is invalid.`);
     }
     const updatedItem: Record<string, unknown> = { ...currentItem };
-
-    if (request.time) {
-      updatedItem["kind"] = request.time.kind;
-      updatedItem["start"] = request.time.startValue;
-      updatedItem["end"] = request.time.endValue;
-      updatedItem["time"] = request.time.extent;
-    }
 
     if (request.categoryNames !== undefined || request.categoryName !== undefined) {
       const names =
