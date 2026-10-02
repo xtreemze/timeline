@@ -11,10 +11,10 @@ import {
 import {
   directedEdgePathArrowhead,
   relationshipEdgePath,
-  WORLD_EDGE_ARROW_NODE_RADIUS_RATIO,
-  WORLD_EDGE_ARROW_STROKE_NODE_RADIUS_RATIO,
-  worldArrowLengthDegreesForNodeRadius,
-  worldArrowStrokeWidthPxForNodeRadius,
+  WORLD_EDGE_ARROW_LENGTH_PX,
+  WORLD_EDGE_ARROW_STROKE_WIDTH_PX,
+  worldArrowLengthDegrees,
+  worldArrowStrokeWidthPx,
   worldPixelsToDegrees,
 } from "../src/layout/world-semantic-presentation.ts";
 import {
@@ -1438,11 +1438,12 @@ test("each rendered directed relationship has a visible marker preserving source
   assert.notDeepEqual(wingA, wingB);
 });
 
-test("direction markers remain compact relative to target nodes", () => {
-  assert.equal(WORLD_EDGE_ARROW_NODE_RADIUS_RATIO, 0.4);
-  assert.equal(WORLD_EDGE_ARROW_STROKE_NODE_RADIUS_RATIO, 0.12);
-  assert.equal(worldArrowLengthDegreesForNodeRadius(20, 0, 0), worldPixelsToDegrees(8, 0));
-  assert.equal(worldArrowStrokeWidthPxForNodeRadius(20, 1), 2);
+test("direction markers keep a constant screen-space size", () => {
+  assert.equal(WORLD_EDGE_ARROW_LENGTH_PX, 8);
+  assert.equal(WORLD_EDGE_ARROW_STROKE_WIDTH_PX, 2);
+  assert.equal(worldArrowLengthDegrees(0, 0), worldPixelsToDegrees(8, 0));
+  assert.equal(worldArrowLengthDegrees(4, 0), worldPixelsToDegrees(8, 4));
+  assert.equal(worldArrowStrokeWidthPx(), 2);
 });
 
 test("direction marker altitude scales with its actual head length on sloped edges", () => {
