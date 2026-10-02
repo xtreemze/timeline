@@ -3785,7 +3785,7 @@ export class DeckWorldSurface implements WorldSurface {
         this.#setCameraInteractionActive(deckCameraInteractionActive(interactionState));
         if (this.#startupFlightTarget) {
           // Transition state may settle before deck emits its final view-state
-          // frame. Keep any presentation refresh camera-free until that frame
+          // frame. Keep presentation refreshes camera-free until that frame
           // clears the startup-flight marker.
           if (!this.#cameraInteractionActive && this.#zoomNeedsRender()) this.#render();
           return;
