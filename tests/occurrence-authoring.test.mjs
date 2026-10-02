@@ -462,6 +462,38 @@ test("updateOccurrence updates explicit place, time, category, and tags only for
   assert.deepEqual(item.time, replacementTime.extent);
 });
 
+test("updateOccurrence propagates canonical time edits to every linked chronology projection", () => {
+  const state = editableState({ multipleItems: true });
+  const replacementTime = {
+    extent: {
+      type: "instant",
+      start: { value: "2099-01-15", precision: "day" },
+      end: null,
+    },
+    kind: "event",
+    startValue: "2099-01-15",
+    endValue: null,
+  };
+
+  const result = updateOccurrence(
+    state,
+    editRequest({
+      itemId: "item-b",
+      predicate: "meets",
+      time: replacementTime,
+    }),
+    dependencies(),
+  );
+
+  assert.deepEqual(result.state.relationships[0].time, replacementTime.extent);
+  for (const itemId of ["item-a", "item-b"]) {
+    const item = result.state.items.find((candidate) => candidate.id === itemId);
+    assert.equal(item?.start, replacementTime.startValue);
+    assert.equal(item?.end, replacementTime.endValue);
+    assert.deepEqual(item?.time, replacementTime.extent);
+  }
+});
+
 test("updateOccurrence requires exact chronology context before changing item-level fields on multi-item relationships", () => {
   const state = editableState({ multipleItems: true });
 
