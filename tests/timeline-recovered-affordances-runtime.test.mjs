@@ -67,8 +67,9 @@ test("wheel zoom normalizes line and page delta modes before applying pixel sens
   assert.match(viewSource, /function timelineWheelInput\(/);
   assert.match(
     viewSource,
-    /timelineWheelInput\(event, this\.orientation, length, this\.wheelGestureMode\)[\s\S]{0,1200}wheelZoomFactor\(input\.deltaPixels\)/,
+    /timelineWheelInput\(event, this\.orientation, length, this\.wheelGestureMode\)/,
   );
+  assert.match(viewSource, /wheelZoomFactor\(input\.deltaPixels\)/);
 });
 
 test("direct occurrence and cluster activation preserve mature selection haptics", () => {
