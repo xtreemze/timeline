@@ -116,7 +116,7 @@ test.describe("Narrow mobile screen contracts", () => {
       await compact.click();
       await expect(composer).toHaveAttribute("active", "");
       await expect(input).toBeVisible();
-      await expect(composer.locator(".context-row")).toBeVisible();
+      await expect(composer.locator(".composer-occurrence-card")).toBeVisible();
       const visualViewportHeight = await page.evaluate(
         () => window.visualViewport?.height ?? innerHeight,
       );
