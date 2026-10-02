@@ -30,6 +30,14 @@ export interface WorldLocalOffset {
   readonly northMeters: number;
 }
 
+export interface WorldProjectedParticipation {
+  readonly occurrenceId: CanonicalOccurrenceId;
+  readonly participantEntityId: EntityId;
+  readonly roleType?: string;
+  readonly representedEntityId?: EntityId;
+  readonly organizationId?: EntityId;
+}
+
 export interface ProjectedWorldInstance {
   readonly id: WorldInstanceId;
   readonly canonicalId: EntityId;
@@ -38,6 +46,11 @@ export interface ProjectedWorldInstance {
   readonly occurrenceId?: CanonicalOccurrenceId;
   /** All active canonical occurrences represented by this rendered spatial instance. */
   readonly occurrenceIds?: readonly CanonicalOccurrenceId[];
+  /**
+   * Renderer-neutral participation semantics for standalone occurrences.
+   * These annotate canonical entity nodes; they never create occurrence nodes.
+   */
+  readonly participations?: readonly WorldProjectedParticipation[];
   readonly geographicAnchors: readonly SpatialAnchor[];
   readonly temporalWeight: number;
   readonly visualWeight: number;
@@ -167,6 +180,46 @@ export function createProjectedWorldInstance(
             ),
           ].sort((left, right) => String(left).localeCompare(String(right))),
         );
+  const participations =
+    instance.participations === undefined
+      ? undefined
+      : Object.freeze(
+          instance.participations
+            .map((participation) =>
+              Object.freeze({
+                occurrenceId: nonEmpty(participation.occurrenceId, "Participation occurrence ID") as CanonicalOccurrenceId,
+                participantEntityId: nonEmpty(
+                  participation.participantEntityId,
+                  "Participation entity ID",
+                ) as EntityId,
+                ...(optionalText(participation.roleType, 120)
+                  ? { roleType: optionalText(participation.roleType, 120)! }
+                  : {}),
+                ...(participation.representedEntityId
+                  ? {
+                      representedEntityId: nonEmpty(
+                        participation.representedEntityId,
+                        "Represented entity ID",
+                      ) as EntityId,
+                    }
+                  : {}),
+                ...(participation.organizationId
+                  ? {
+                      organizationId: nonEmpty(
+                        participation.organizationId,
+                        "Participation organization ID",
+                      ) as EntityId,
+                    }
+                  : {}),
+              }),
+            )
+            .sort(
+              (left, right) =>
+                String(left.occurrenceId).localeCompare(String(right.occurrenceId)) ||
+                String(left.participantEntityId).localeCompare(String(right.participantEntityId)) ||
+                String(left.roleType ?? "").localeCompare(String(right.roleType ?? "")),
+            ),
+        );
   const id = instance.id ?? worldInstanceId(canonicalId, occurrenceId);
   const label = optionalText(instance.label, 180);
   const kind = optionalText(instance.kind, 80);
@@ -192,6 +245,7 @@ export function createProjectedWorldInstance(
     ...(kind === undefined ? {} : { kind }),
     ...(occurrenceId === undefined ? {} : { occurrenceId }),
     ...(occurrenceIds === undefined ? {} : { occurrenceIds }),
+    ...(participations === undefined ? {} : { participations }),
     geographicAnchors: Object.freeze(instance.geographicAnchors.map(createSpatialAnchor)),
     temporalWeight: unitInterval(instance.temporalWeight, "Temporal weight"),
     visualWeight: unitInterval(instance.visualWeight, "Visual weight"),
