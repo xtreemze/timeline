@@ -32,8 +32,7 @@ function cacheMarker(key: string, marker: WorldNodeMarker): WorldNodeMarker {
     const oldest = markers.keys().next().value;
     if (oldest !== undefined) markers.delete(oldest);
   }
-  markers.set(key, marker);
-  return marker;
+  return cacheMarker(key, marker);
 }
 
 function escapeAttribute(value: string): string {
