@@ -112,6 +112,53 @@ test("standalone occurrence identity drives world nodes while child relationship
   );
 });
 
+test("standalone participant roles remain renderer-neutral metadata on the canonical entity node", () => {
+  const occurrences = [
+    {
+      id: "hearing",
+      time: { type: "instant", start: { value: "2026-09-28T10:00:00Z" } },
+      participantContexts: [
+        {
+          entityId: "alice",
+          roleType: "counsel",
+          representedEntityId: "client",
+          organizationId: "firm",
+        },
+      ],
+      relationshipIds: [],
+      sourceIds: [],
+      confidence: 1,
+      attributes: {},
+    },
+  ];
+  const projection = projectCanonicalWorldOccurrences(
+    { relationships: [], occurrences },
+    ["hearing"],
+    new SpatialAnchorIndex([], [], occurrences),
+  );
+
+  const alice = projection.instances.find((instance) => instance.canonicalId === "alice");
+  assert.deepEqual(alice?.participations, [
+    {
+      occurrenceId: "hearing",
+      participantEntityId: "alice",
+      roleType: "counsel",
+      representedEntityId: "client",
+      organizationId: "firm",
+    },
+  ]);
+  assert.equal(
+    projection.instances.filter((instance) => instance.canonicalId === "alice").length,
+    1,
+  );
+  assert.equal(
+    projection.instances.some((instance) => String(instance.canonicalId) === "hearing"),
+    false,
+    "standalone occurrence identity never becomes a World graph node",
+  );
+  assert.equal(projection.edges.length, 0);
+});
+
 test("unary standalone occurrences render participants without inventing self-loop edges", () => {
   const occurrences = [
     {

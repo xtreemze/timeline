@@ -57,6 +57,38 @@ test("the outline groups places, directed relationships and canonical entities",
   assert.deepEqual(entities.items[0].selection, { kind: "entity", id: "alice" });
 });
 
+test("entity outline announces projected role and represented actor context", () => {
+  const outline = buildWorldAccessibleOutline(
+    snapshot({
+      entities: [
+        {
+          entityId: "alice",
+          worldInstanceId: "alice",
+          selected: false,
+          label: "Alice",
+          participations: [
+            {
+              occurrenceId: "hearing",
+              participantEntityId: "alice",
+              roleType: "counsel",
+              representedEntityId: "client",
+              organizationId: "firm",
+            },
+          ],
+        },
+        { entityId: "client", worldInstanceId: "client", selected: false, label: "Client" },
+        { entityId: "firm", worldInstanceId: "firm", selected: false, label: "Firm" },
+      ],
+    }),
+  );
+
+  const entities = outline.groups[2];
+  assert.equal(
+    entities.items.find((item) => item.selection.id === "alice")?.text,
+    "Alice · hearing · role counsel · represents Client · organization Firm",
+  );
+});
+
 test("items carry stable canonical keys and the current selection", () => {
   const outline = buildWorldAccessibleOutline(
     snapshot({ selection: { kind: "entity", id: "bob" } }),
