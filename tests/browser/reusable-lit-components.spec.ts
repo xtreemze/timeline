@@ -196,6 +196,66 @@ test("media viewer supports keyboard zoom and reset", async ({ page }) => {
   await expect(viewer.locator('[part="zoom-level"]')).toHaveText("100%");
 });
 
+test("occurrence media deck degrades broken images without losing navigation state", async ({
+  page,
+}) => {
+  await page.goto("/component-lab.html");
+  // The lab page does not ship the app stylesheet that gives the fallback its
+  // full-bleed box; load the real one so visibility is certified, not assumed.
+  await page.addStyleTag({ url: "/timeline-view.css" });
+
+  await page.evaluate(() => {
+    const deck = document.createElement("luum-occurrence-deck") as HTMLElement & {
+      setDeck(input: unknown): void;
+    };
+    deck.id = "broken-media-deck";
+    deck.style.display = "block";
+    deck.style.inlineSize = "320px";
+    deck.style.blockSize = "220px";
+    document.body.append(deck);
+    deck.setDeck({
+      occurrenceId: "occ-broken-media",
+      frames: [
+        {
+          kind: "image",
+          src: "data:image/png;base64,definitely-not-a-valid-png",
+          alt: "Broken evidence image",
+          caption: "Broken evidence",
+        },
+        { kind: "context", label: "Context", body: "Still navigable after media failure." },
+      ],
+    });
+  });
+
+  const deck = page.locator("#broken-media-deck");
+  await expect(deck).toHaveAttribute("data-frame-count", "2");
+  const before = await deck.boundingBox();
+  if (!before) throw new Error("broken media deck has no layout bounds");
+
+  await expect(deck.locator(".timeline-focus-hero-fallback")).toBeVisible();
+  await expect(deck.locator(".timeline-focus-hero-fallback")).toHaveAttribute(
+    "aria-label",
+    "Broken evidence image",
+  );
+  await expect(deck.getByRole("button", { name: "Next frame" })).toBeVisible();
+
+  await deck.getByRole("button", { name: "Next frame" }).click();
+  await expect(deck.locator(".timeline-occurrence-deck-context")).toContainText(
+    "Still navigable after media failure.",
+  );
+  await expect(deck.locator('.timeline-focus-slide-dot[aria-current="true"]')).toHaveAttribute(
+    "data-slide-index",
+    "1",
+  );
+
+  await deck.getByRole("button", { name: "Previous frame" }).click();
+  await expect(deck.locator(".timeline-focus-hero-fallback")).toBeVisible();
+  const after = await deck.boundingBox();
+  if (!after) throw new Error("broken media deck lost layout bounds");
+  expect(after.width).toBe(before.width);
+  expect(after.height).toBe(before.height);
+});
+
 test("occurrence media deck uses native non-autoplay audio and video controls", async ({
   page,
 }) => {
