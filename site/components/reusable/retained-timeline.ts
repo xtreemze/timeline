@@ -8,7 +8,9 @@ import { ImperativeSurfaceElement } from "./imperative-surface.ts";
  * stable custom-element boundary. This keeps high-frequency geometry and
  * pointer physics outside reactive rendering.
  */
-export abstract class RetainedTimelineElement<TController extends object> extends ImperativeSurfaceElement<TController> {
+export abstract class RetainedTimelineElement<
+  TController extends object,
+> extends ImperativeSurfaceElement<TController> {
   private connectionGeneration = 0;
 
   protected abstract createTimelineController(): TController;

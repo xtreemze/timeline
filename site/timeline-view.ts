@@ -348,7 +348,8 @@ function timelineWheelInput(
   const primary = orientation === "horizontal" ? deltaX : deltaY;
   const perpendicular = orientation === "horizontal" ? deltaY : deltaX;
   const mode =
-    lockedMode ?? (Math.abs(primary) >= Math.abs(perpendicular) ? ("pan" as const) : ("zoom" as const));
+    lockedMode ??
+    (Math.abs(primary) >= Math.abs(perpendicular) ? ("pan" as const) : ("zoom" as const));
   const deltaPixels = mode === "pan" ? primary : perpendicular;
   return Math.abs(deltaPixels) > Number.EPSILON ? { mode, deltaPixels } : null;
 }

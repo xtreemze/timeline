@@ -482,7 +482,10 @@ test("timeline interaction uses one padded coordinate system and direct pointer 
   const wheelBody = source.slice(wheelStart, wheelEnd);
   assert.match(wheelBody, /const padding = this\.axisPadding\(length\)/);
   assert.match(wheelBody, /const usable = Math\.max\(1, length - padding \* 2\)/);
-  assert.match(wheelBody, /timelineWheelInput\(event, this\.orientation, length, this\.wheelGestureMode\)/);
+  assert.match(
+    wheelBody,
+    /timelineWheelInput\(event, this\.orientation, length, this\.wheelGestureMode\)/,
+  );
   assert.match(wheelBody, /if \(input\.mode === "pan"\)/);
   assert.match(wheelBody, /const temporalDelta = \(input\.deltaPixels \/ usable\) \* span/);
   assert.match(wheelBody, /motion\.estimatePointerVelocity\(this\.wheelPanSamples\)/);
@@ -494,10 +497,7 @@ test("timeline interaction uses one padded coordinate system and direct pointer 
   const wheelReleaseEnd = source.indexOf("  cancelInertia(): void {", wheelReleaseStart);
   const wheelReleaseBody = source.slice(wheelReleaseStart, wheelReleaseEnd);
   assert.match(wheelReleaseBody, /motion\.estimatePointerVelocity\(this\.wheelPanSamples\)/);
-  assert.match(
-    wheelReleaseBody,
-    /Math\.abs\(releaseVelocity\) >= motion\.STOP_VELOCITY_PX_PER_MS/,
-  );
+  assert.match(wheelReleaseBody, /Math\.abs\(releaseVelocity\) >= motion\.STOP_VELOCITY_PX_PER_MS/);
   assert.match(wheelReleaseBody, /this\.startInertia\(-releaseVelocity, releaseUsableLength\)/);
 
   const abortStart = source.indexOf("    const abortSurfaceGesture = (): void => {");
@@ -506,10 +506,7 @@ test("timeline interaction uses one padded coordinate system and direct pointer 
   assert.match(abortBody, /this\.cancelWheelGesture\(\)/);
   assert.match(abortBody, /this\.wheelGestureMode/);
 
-  assert.match(
-    source,
-    /if \(!this\.items\.length\) \{[\s\S]{0,180}this\.cancelWheelGesture\(\)/,
-  );
+  assert.match(source, /if \(!this\.items\.length\) \{[\s\S]{0,180}this\.cancelWheelGesture\(\)/);
 
   const dragStart = source.indexOf('    this.surface.addEventListener("pointermove"');
   const dragEnd = source.indexOf("    const finishPointer", dragStart);

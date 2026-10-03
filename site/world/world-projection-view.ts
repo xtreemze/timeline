@@ -866,9 +866,7 @@ export class WorldProjectionView {
     return { activeIds, weights };
   }
 
-  #standaloneActivation(
-    viewport: WorldTemporalWindow | null = this.#viewport,
-  ): {
+  #standaloneActivation(viewport: WorldTemporalWindow | null = this.#viewport): {
     readonly activeIds: readonly CanonicalOccurrenceId[];
     readonly weights: ReadonlyMap<CanonicalOccurrenceId, number>;
   } {

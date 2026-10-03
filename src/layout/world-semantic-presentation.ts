@@ -535,10 +535,7 @@ export const WORLD_EDGE_ARROW_STROKE_WIDTH_PX = 2;
  * used by relationship geometry. The world-space length changes with camera
  * zoom only so the rendered marker remains the same size on screen.
  */
-export function worldArrowLengthDegrees(
-  zoom: number,
-  latitude = 0,
-): number {
+export function worldArrowLengthDegrees(zoom: number, latitude = 0): number {
   const latitudeScale = Math.max(
     0.2,
     Math.cos((Math.max(-89.9, Math.min(89.9, latitude)) * Math.PI) / 180),

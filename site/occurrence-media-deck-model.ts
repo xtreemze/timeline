@@ -71,8 +71,7 @@ export function normalizeOccurrenceDeckFrames(
     }
 
     const src = frame.src?.trim() ?? "";
-    const blob =
-      typeof Blob !== "undefined" && frame.blob instanceof Blob ? frame.blob : undefined;
+    const blob = typeof Blob !== "undefined" && frame.blob instanceof Blob ? frame.blob : undefined;
     if (!src && !blob) continue;
     const mimeType = frame.mimeType?.trim() ?? "";
     const sha256 = frame.sha256?.trim().toLowerCase() ?? "";

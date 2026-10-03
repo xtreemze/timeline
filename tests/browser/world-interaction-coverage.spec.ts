@@ -533,7 +533,9 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
       await page.mouse.wheel(0, -100);
     }
 
-    const afterZoomIn = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera().zoom);
+    const afterZoomIn = await page.evaluate(
+      () => window.__worldPerfHarness.surface.getCamera().zoom,
+    );
     expect(afterZoomIn, "rapid wheel zoom-in should increase zoom").toBeGreaterThan(5);
 
     await page.waitForTimeout(100);
@@ -543,7 +545,9 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
       await page.mouse.wheel(0, 100);
     }
 
-    const afterZoomOut = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera().zoom);
+    const afterZoomOut = await page.evaluate(
+      () => window.__worldPerfHarness.surface.getCamera().zoom,
+    );
     expect(afterZoomOut, "rapid wheel zoom-out should decrease zoom").toBeLessThan(afterZoomIn);
 
     // Check that the zoom level is reasonable (not NaN or Infinity due to glitching)
@@ -1587,60 +1591,60 @@ test.describe("mobile viewport containment (issue #445 Priority 8, item 7)", () 
 // in `site/world-perf-harness.ts`.
 import type {} from "../../site/world-perf-harness.ts";
 
-  test("globe touch drag rotate applies smooth inertial easing on release", async ({
-    page,
-    browserName,
-    isMobile,
-  }) => {
-    test.skip(!isMobile, "Mobile touch gesture test.");
-    test.skip(browserName !== "chromium", "Chromium multi-touch requires CDP.");
-    test.skip(!(await gotoHarness(page)), "WebGL2 unavailable in this environment.");
+test("globe touch drag rotate applies smooth inertial easing on release", async ({
+  page,
+  browserName,
+  isMobile,
+}) => {
+  test.skip(!isMobile, "Mobile touch gesture test.");
+  test.skip(browserName !== "chromium", "Chromium multi-touch requires CDP.");
+  test.skip(!(await gotoHarness(page)), "WebGL2 unavailable in this environment.");
 
-    const viewport = page.viewportSize();
-    if (!viewport) {
-      throw new Error("WorldSurface touch rotate momentum test requires a viewport.");
-    }
+  const viewport = page.viewportSize();
+  if (!viewport) {
+    throw new Error("WorldSurface touch rotate momentum test requires a viewport.");
+  }
 
-    // Record initial bearing
-    const initialBearing = await page.evaluate(
-      () => window.__worldPerfHarness.surface.getCamera().bearing,
-    );
+  // Record initial bearing
+  const initialBearing = await page.evaluate(
+    () => window.__worldPerfHarness.surface.getCamera().bearing,
+  );
 
-    // Perform a swift drag gesture on the globe to rotate
-    const startX = Math.round(viewport.width * 0.4);
-    const endX = Math.round(viewport.width * 0.6);
-    const y = Math.round(viewport.height * 0.5);
+  // Perform a swift drag gesture on the globe to rotate
+  const startX = Math.round(viewport.width * 0.4);
+  const endX = Math.round(viewport.width * 0.6);
+  const y = Math.round(viewport.height * 0.5);
 
-    // Quick drag to build up momentum
-    await page.mouse.move(startX, y);
-    await page.mouse.down();
-    for (let i = 0; i < 5; i += 1) {
-      const x = startX + ((endX - startX) * (i + 1)) / 5;
-      await page.mouse.move(x, y);
-      await page.waitForTimeout(8); // ~40ms total drag
-    }
-    await page.mouse.up();
+  // Quick drag to build up momentum
+  await page.mouse.move(startX, y);
+  await page.mouse.down();
+  for (let i = 0; i < 5; i += 1) {
+    const x = startX + ((endX - startX) * (i + 1)) / 5;
+    await page.mouse.move(x, y);
+    await page.waitForTimeout(8); // ~40ms total drag
+  }
+  await page.mouse.up();
 
-    // After release, bearing should continue changing due to momentum
-    await page.waitForTimeout(100);
-    const afterRelease = await page.evaluate(
-      () => window.__worldPerfHarness.surface.getCamera().bearing,
-    );
+  // After release, bearing should continue changing due to momentum
+  await page.waitForTimeout(100);
+  const afterRelease = await page.evaluate(
+    () => window.__worldPerfHarness.surface.getCamera().bearing,
+  );
 
-    expect(
-      Math.abs(afterRelease - initialBearing),
-      "bearing should change from initial after momentum drag release",
-    ).toBeGreaterThan(2);
+  expect(
+    Math.abs(afterRelease - initialBearing),
+    "bearing should change from initial after momentum drag release",
+  ).toBeGreaterThan(2);
 
-    // Wait more for momentum to decay (~420ms)
-    await page.waitForTimeout(350);
-    const afterDecay = await page.evaluate(
-      () => window.__worldPerfHarness.surface.getCamera().bearing,
-    );
+  // Wait more for momentum to decay (~420ms)
+  await page.waitForTimeout(350);
+  const afterDecay = await page.evaluate(
+    () => window.__worldPerfHarness.surface.getCamera().bearing,
+  );
 
-    // Bearing should have stabilized (stopped changing), not jump abruptly
-    expect(
-      Math.abs(afterDecay - afterRelease),
-      "bearing momentum should decay smoothly over ~420ms",
-    ).toBeLessThan(1);
-  });
+  // Bearing should have stabilized (stopped changing), not jump abruptly
+  expect(
+    Math.abs(afterDecay - afterRelease),
+    "bearing momentum should decay smoothly over ~420ms",
+  ).toBeLessThan(1);
+});

@@ -60,7 +60,8 @@ const FIELD_DOCS = Object.freeze({
   placeId: "Canonical place reference.",
   sourceIds: "Canonical source/evidence references.",
   relationshipIds: "Canonical relationship references.",
-  occurrenceIds: "Canonical occurrence references: standalone occurrences or relationship-derived occurrences.",
+  occurrenceIds:
+    "Canonical occurrence references: standalone occurrences or relationship-derived occurrences.",
   trajectoryIds: "Canonical trajectory references.",
   placeIds: "Canonical place references.",
   categoryId: "Canonical category reference.",
@@ -477,11 +478,8 @@ export function lumCompletions(source, position) {
   const declarations = declarationIndex(source);
   const candidates =
     context.field === "occurrenceIds"
-      ? [
-          ...(declarations.get("occurrences") ?? []),
-          ...(declarations.get("relationships") ?? []),
-        ]
-      : declarations.get(context.targetCollection) ?? [];
+      ? [...(declarations.get("occurrences") ?? []), ...(declarations.get("relationships") ?? [])]
+      : (declarations.get(context.targetCollection) ?? []);
   return candidates
     .sort((left, right) => left.id.localeCompare(right.id))
     .map((declaration) => ({

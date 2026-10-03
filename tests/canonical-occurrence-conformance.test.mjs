@@ -46,11 +46,7 @@ function occurrence(id, occurrenceType, participantContexts, relationshipIds = [
 const CASES = Object.freeze([
   Object.freeze({
     name: "birth/family",
-    entities: [
-      entity("child"),
-      entity("mother"),
-      entity("father"),
-    ],
+    entities: [entity("child"), entity("mother"), entity("father")],
     relationships: [],
     occurrence: occurrence("birth-1", "birth", [
       { entityId: entityId("child"), roleType: "born-person" },
@@ -69,11 +65,7 @@ const CASES = Object.freeze([
   }),
   Object.freeze({
     name: "organizational formation",
-    entities: [
-      entity("new-co", "organization"),
-      entity("founder-a"),
-      entity("founder-b"),
-    ],
+    entities: [entity("new-co", "organization"), entity("founder-a"), entity("founder-b")],
     relationships: [],
     occurrence: occurrence("formation-1", "formation", [
       { entityId: entityId("new-co"), roleType: "formed-group" },

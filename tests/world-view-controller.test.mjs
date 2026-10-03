@@ -235,7 +235,11 @@ test("transient world projection previews update the surface without replacing f
 
   controller.previewProjection(preview);
 
-  assert.equal(controller.state().projectionRevision, 1, "preview is not a committed projection revision");
+  assert.equal(
+    controller.state().projectionRevision,
+    1,
+    "preview is not a committed projection revision",
+  );
   assert.equal(
     calls.some(([name]) => name === "force:scene"),
     false,
