@@ -910,9 +910,10 @@ export class LuumOccurrenceComposerElement extends LitElement {
 
     @media (max-width: 699px) {
       .composer {
-        inline-size: max-content;
+        inline-size: 100dvi;
         min-inline-size: 100dvi;
-        max-inline-size: none;
+        max-inline-size: 100dvi;
+        overflow: visible;
       }
 
       .input-row {

@@ -1033,7 +1033,7 @@ test("World authoring context labels coordinates at accuracy-appropriate precisi
   assert.ok(fine.label.length > coarse.label.length);
 });
 
-test("Lit composer is a touch-safe ARIA combobox with live-context guidance", async () => {
+test("Lit composer is a touch-safe ARIA combobox with inline semantic context", async () => {
   const source = await readFile(
     new URL("../site/components/occurrence-composer.ts", import.meta.url),
     "utf8",
@@ -1044,7 +1044,6 @@ test("Lit composer is a touch-safe ARIA combobox with live-context guidance", as
   assert.match(source, /role="combobox"/);
   assert.match(source, /role="listbox"/);
   assert.match(source, /min-block-size:\s*44px/);
-  assert.match(source, /Move the timeline or World while this is open/);
   assert.match(source, /class="compact"/);
   assert.match(source, /class="ghost-completion"/);
   assert.match(source, /aria-autocomplete="both"/);
@@ -1052,34 +1051,25 @@ test("Lit composer is a touch-safe ARIA combobox with live-context guidance", as
   assert.match(source, /Open occurrence composer/);
   assert.match(source, /occurrencecomposeropenrequest/);
   assert.doesNotMatch(source, /:host\(:not\(\[active\]\)\)\s*\{[\s\S]*display:\s*none/);
-  assert.doesNotMatch(source, /position:\s*fixed/);
-  assert.match(source, /\.completion-panel[\s\S]*position:\s*absolute/);
   assert.match(source, /occurrencecommit/);
-  assert.match(source, /explicitPlaceContext/);
-  assert.match(source, /accuracyMeters/);
   assert.match(source, /setTimelineViewport/);
   assert.match(source, /setWorldContext/);
   assert.match(source, /placeholder=\$\{`Who did what to whom · at/);
   assert.match(source, /private cursorOffset = 0/);
   assert.match(source, /selectionStart/);
-  assert.match(source, /@focus=\$\{\(event: Event\) => this\.onCaretMove\(event\)\}/);
-  assert.match(source, /@click=\$\{\(event: Event\) => this\.onCaretMove\(event\)\}/);
-  assert.match(source, /@keyup=\$\{\(event: Event\) => this\.onCaretMove\(event\)\}/);
   assert.match(source, /replaceRange/);
-  assert.match(source, /class="context-row"/);
-  assert.match(source, /data-context-kind="place"[\s\S]*activateContext\("place"\)/);
-  assert.match(source, /data-context-kind="time"[\s\S]*activateContext\("time"\)/);
-  assert.match(source, /class="commit"/);
-  assert.match(source, /aria-label=\$\{commitLabel\}/);
+  assert.match(source, /class="input-decoration"/);
+  assert.match(source, /class="input-token"/);
+  assert.match(source, /class="composer-occurrence-card"/);
+  assert.match(source, /class="composer-context-hints"/);
+  assert.match(source, /data-chip-kind="live-place"/);
+  assert.match(source, /data-chip-kind="live-time"/);
+  assert.match(source, /class="approval"/);
+  assert.match(source, /aria-label="Approve occurrence"/);
   assert.match(source, /event\.metaKey \|\| event\.ctrlKey/);
-  assert.match(source, /private onContextChipKeyDown/);
-  assert.match(source, /data-context-kind="details"/);
-  assert.match(source, /id="occurrence-composer-metadata"/);
-  assert.match(source, /Evidence \/ source IDs/);
-  assert.match(source, /Open full edge editor/);
-  assert.match(source, /occurrencecomposeradvancededitrequest/);
-  assert.match(source, /metadataValue\(\)/);
-  assert.match(source, /explicitTimelineContext/);
+  assert.match(source, /event\.isComposing \|\| this\.composing/);
+  assert.match(source, /@compositionstart=/);
+  assert.match(source, /@compositionend=/);
   assert.match(source, /private sessionKey = ""/);
   assert.match(source, /hasPendingSelectionContext/);
   assert.match(source, /Use selected context/);
@@ -1089,10 +1079,12 @@ test("Lit composer is a touch-safe ARIA combobox with live-context guidance", as
   assert.match(source, /currentContextKey\(\)/);
   assert.match(source, /resetDraft\(\)/);
   assert.match(source, /hide\(\): void \{[\s\S]*sessionKey = this\.currentContextKey\(\)/);
+  assert.doesNotMatch(source, /class="context-row"/);
+  assert.doesNotMatch(source, /data-context-kind="details"/);
+  assert.doesNotMatch(source, /id="occurrence-composer-metadata"/);
   assert.doesNotMatch(source, /event\.key === "Tab"/);
   assert.doesNotMatch(source, /event\.key === "Home"/);
   assert.doesNotMatch(source, /event\.key === "End"/);
-  assert.match(source, /Tab moves focus/);
   assert.match(source, /--composer-completion-max-height/);
 });
 

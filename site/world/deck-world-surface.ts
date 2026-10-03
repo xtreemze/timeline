@@ -782,6 +782,8 @@ const WORLD_PLACE_ICON_LIFT_PX = 2;
 const WORLD_PLACE_MARKER_CLUSTER_MERGE_PX = 64;
 /** Pickup feedback is presentation-only and never feeds back into force state. */
 const WORLD_DRAG_PICKUP_FLASH_MS = 160;
+/** Window in which the post-release compatibility mousedown is swallowed. */
+const WORLD_AUTHORING_FOCUS_GUARD_MS = 700;
 const WORLD_DRAG_PICKUP_FLASH_SCALE = 1.16;
 const WORLD_PROJECTION_HANDOFF_PRESENTATION_BLEND = 0.45;
 const WORLD_PROJECTION_HANDOFF_PRESENTATION_EPSILON = 0.001;
@@ -3090,6 +3092,8 @@ export class DeckWorldSurface implements WorldSurface {
   #clusterSettleTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
   #activeDragPointerId: number | null = null;
   #authoringContextPointerId: number | null = null;
+  #authoringFocusGuard: (() => void) | null = null;
+  #authoringFocusGuardTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
   #activeDragInstanceId: WorldInstanceId | null = null;
   #dragFlashInstanceId: WorldInstanceId | null = null;
   #dragFlashTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
@@ -3271,6 +3275,7 @@ export class DeckWorldSurface implements WorldSurface {
       this.#clearTouchHoldTimer();
       this.#authoringContextPointerId = null;
       this.#setTouchDragState(null);
+      this.#keepFocusAcrossAuthoringRelease();
       return;
     }
 
@@ -4897,6 +4902,8 @@ export class DeckWorldSurface implements WorldSurface {
     );
     this.#clearTouchHoldTimer();
     this.#authoringContextPointerId = null;
+    this.#authoringFocusGuard?.();
+    this.#authoringFocusGuard = null;
     this.#touchDrag.clear();
     this.#clearClusterTimers();
     this.#clearDragFlash({ render: false });
@@ -5104,6 +5111,27 @@ export class DeckWorldSurface implements WorldSurface {
     this.#dragCameraLock = null;
     void pulseHaptic("release");
     return released;
+  }
+
+  /**
+   * Releasing a long-press that opened authoring makes the browser replay a
+   * compatibility `mousedown` on this canvas, which would move focus off the
+   * composer input the hold just focused. Swallow that one event.
+   */
+  #keepFocusAcrossAuthoringRelease(): void {
+    const container = this.#container;
+    const keep = (event: Event): void => event.preventDefault();
+    const stop = (): void => {
+      container.removeEventListener?.("mousedown", keep, true);
+      if (this.#authoringFocusGuardTimer !== null) {
+        globalThis.clearTimeout(this.#authoringFocusGuardTimer);
+        this.#authoringFocusGuardTimer = null;
+      }
+    };
+    stop();
+    container.addEventListener?.("mousedown", keep, true);
+    this.#authoringFocusGuard = stop;
+    this.#authoringFocusGuardTimer = globalThis.setTimeout(stop, WORLD_AUTHORING_FOCUS_GUARD_MS);
   }
 
   #clearTouchHoldTimer(): void {

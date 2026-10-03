@@ -5307,6 +5307,7 @@ function renderGraphEditor() {
     // occurrences to; without them nothing can be placed on the globe.
     places: state.places,
     relationships: state.relationships,
+    occurrences: canonicalProjectionOccurrences(),
     items: state.items,
     categories: state.categories,
   });
