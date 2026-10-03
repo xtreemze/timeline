@@ -187,7 +187,10 @@ export function createProjectedWorldInstance(
           instance.participations
             .map((participation) =>
               Object.freeze({
-                occurrenceId: nonEmpty(participation.occurrenceId, "Participation occurrence ID") as CanonicalOccurrenceId,
+                occurrenceId: nonEmpty(
+                  participation.occurrenceId,
+                  "Participation occurrence ID",
+                ) as CanonicalOccurrenceId,
                 participantEntityId: nonEmpty(
                   participation.participantEntityId,
                   "Participation entity ID",

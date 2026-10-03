@@ -180,9 +180,7 @@ export function buildWorldAccessibleOutline(snapshot: WorldOutlineSnapshot): Wor
           context.representedEntityId
             ? `represents ${entityName(context.representedEntityId)}`
             : "",
-          context.organizationId
-            ? `organization ${entityName(context.organizationId)}`
-            : "",
+          context.organizationId ? `organization ${entityName(context.organizationId)}` : "",
         ]
           .filter(Boolean)
           .join(" · "),
@@ -191,7 +189,8 @@ export function buildWorldAccessibleOutline(snapshot: WorldOutlineSnapshot): Wor
   };
 
   const entities = [...entityOccurrences].map(([id, occurrences]) => {
-    const base = occurrences > 1 ? `${entityName(id)} (${occurrences} occurrences)` : entityName(id);
+    const base =
+      occurrences > 1 ? `${entityName(id)} (${occurrences} occurrences)` : entityName(id);
     const participation = participationText(id);
     return item(
       Object.freeze({ kind: "entity" as const, id }) as WorldSelection,

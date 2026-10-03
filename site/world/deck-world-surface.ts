@@ -98,8 +98,8 @@ import {
 import type {
   ProjectedWorldInstance,
   WorldInstanceId,
-  WorldProjectedParticipation,
   WorldPresentationStyle,
+  WorldProjectedParticipation,
   WorldProjection,
 } from "../../src/projection/world-projection.ts";
 import {
@@ -4849,7 +4849,8 @@ export class DeckWorldSurface implements WorldSurface {
       (instance) => this.#offsetScaleForInstance(instance),
       (instance) => this.#floatMetersForInstance(instance),
     ).datums.map((datum) => {
-      const participations = participationsByInstance.get(datum.worldInstanceId) ?? Object.freeze([]);
+      const participations =
+        participationsByInstance.get(datum.worldInstanceId) ?? Object.freeze([]);
       return Object.freeze({
         entityId: datum.entityId,
         worldInstanceId: datum.worldInstanceId,

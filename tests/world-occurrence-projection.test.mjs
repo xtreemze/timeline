@@ -147,7 +147,10 @@ test("standalone participant roles remain renderer-neutral metadata on the canon
       organizationId: "firm",
     },
   ]);
-  assert.equal(projection.instances.filter((instance) => instance.canonicalId === "alice").length, 1);
+  assert.equal(
+    projection.instances.filter((instance) => instance.canonicalId === "alice").length,
+    1,
+  );
   assert.equal(
     projection.instances.some((instance) => String(instance.canonicalId) === "hearing"),
     false,
