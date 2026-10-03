@@ -200,6 +200,9 @@ test("occurrence media deck degrades broken images without losing navigation sta
   page,
 }) => {
   await page.goto("/component-lab.html");
+  // The lab page does not ship the app stylesheet that gives the fallback its
+  // full-bleed box; load the real one so visibility is certified, not assumed.
+  await page.addStyleTag({ url: "/timeline-view.css" });
 
   await page.evaluate(() => {
     const deck = document.createElement("luum-occurrence-deck") as HTMLElement & {
