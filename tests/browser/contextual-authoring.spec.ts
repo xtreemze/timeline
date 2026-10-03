@@ -14,7 +14,12 @@ async function certifyWebGlWorld(page: Page): Promise<boolean> {
     }
   });
   if (webgl2) {
-    await expect(page.locator(".temporal-graph-canvas canvas").first()).toBeVisible();
+    // The World bundle loads lazily (deck.gl from source under the dev server
+    // takes ~8.5s cold), so startup gets its own budget instead of the 5s
+    // interaction default. Behavioural assertions keep their normal timeouts.
+    await expect(page.locator(".temporal-graph-canvas canvas").first()).toBeVisible({
+      timeout: 30_000,
+    });
   }
   return webgl2;
 }
@@ -176,6 +181,12 @@ async function relationshipFocuses(page: Page): Promise<RelationshipFocus[]> {
   });
 }
 
+/** Skips the test when an optional fixture is absent and narrows it otherwise. */
+function requireFixture<T>(value: T | null | undefined, reason: string): T {
+  if (value === null || value === undefined) test.skip(true, reason);
+  return value as T;
+}
+
 async function focusRelationship(page: Page, relationship: RelationshipFocus): Promise<void> {
   const semantic = page.locator(`.timeline-semantic-occurrence[data-id="${relationship.focusId}"]`);
   await semantic.evaluate((button: HTMLButtonElement) => button.click());
@@ -333,7 +344,7 @@ test.describe("contextual world authoring certification", () => {
     const composer = await openPersistentComposer(page);
     const input = composer.locator("input");
     const guidance = composer.locator(".stage");
-    const subjectId = entityIds[0]!;
+    const subjectId = requireFixture(entityIds[0], "World exposes no entity to compose with.");
 
     await input.fill(`@${subjectId} rece`);
     await expect(guidance).toHaveText("↑↓ choose · Enter accept");
@@ -361,16 +372,18 @@ test.describe("contextual world authoring certification", () => {
     page,
   }) => {
     await page.goto("/");
-    const [relationship] = await relationshipFocuses(page);
-    if (!relationship)
-      test.skip(true, "Example project exposes no focusable relationship occurrence.");
+    const [candidate] = await relationshipFocuses(page);
+    const relationship = requireFixture(
+      candidate,
+      "Example project exposes no focusable relationship occurrence.",
+    );
 
-    await focusRelationship(page, relationship!);
+    await focusRelationship(page, relationship);
     const composer = await openPersistentComposer(page);
     const input = composer.locator("input");
     const initial = await input.inputValue();
     expect(initial).toContain(
-      `@${relationship!.subjectId} ${relationship!.predicate} @${relationship!.objectId}`,
+      `@${relationship.subjectId} ${relationship.predicate} @${relationship.objectId}`,
     );
 
     const beforeCount = await page.evaluate(
@@ -381,10 +394,10 @@ test.describe("contextual world authoring certification", () => {
           }
         ).TimelineAgentAPI?.getProject?.()?.relationships?.length ?? 0,
     );
-    const replacementPredicate = relationship!.predicate === "reframes" ? "recounts" : "reframes";
+    const replacementPredicate = relationship.predicate === "reframes" ? "recounts" : "reframes";
     const edited = initial.replace(
-      `@${relationship!.subjectId} ${relationship!.predicate} @${relationship!.objectId}`,
-      `@${relationship!.subjectId} ${replacementPredicate} @${relationship!.objectId}`,
+      `@${relationship.subjectId} ${relationship.predicate} @${relationship.objectId}`,
+      `@${relationship.subjectId} ${replacementPredicate} @${relationship.objectId}`,
     );
     expect(edited).not.toBe(initial);
     await input.fill(edited);
@@ -410,7 +423,7 @@ test.describe("contextual world authoring certification", () => {
                 ?.predicate ?? "",
             ),
           };
-        }, relationship!.relationshipId),
+        }, relationship.relationshipId),
       )
       .toEqual({
         count: beforeCount,
@@ -429,17 +442,15 @@ test.describe("contextual world authoring certification", () => {
           }
         ).TimelineAgentAPI?.getProject?.()?.relationships ?? [];
       return relationships.filter((candidate) => String(candidate.id) === relationshipId);
-    }, relationship!.relationshipId);
+    }, relationship.relationshipId);
     expect(persisted).toHaveLength(1);
     expect(String(persisted[0]?.predicate)).toBe(replacementPredicate);
     expect(await input.inputValue()).toContain(
-      `@${relationship!.subjectId} ${replacementPredicate} @${relationship!.objectId}`,
+      `@${relationship.subjectId} ${replacementPredicate} @${relationship.objectId}`,
     );
   });
 
-  test("compatibility item links do not impose false canonical time equality", async ({
-    page,
-  }) => {
+  test("compatibility item links do not impose false canonical time equality", async ({ page }) => {
     await page.goto("/");
     const validation = await page.evaluate(() => {
       const api = (
@@ -477,10 +488,13 @@ test.describe("contextual world authoring certification", () => {
       };
       return api.validateProject(project);
     });
-    test.skip(!validation, "Example project needs an event-backed relationship.");
+    const checked = requireFixture(
+      validation,
+      "Example project needs an event-backed relationship.",
+    );
 
-    expect(validation!.valid).toBe(true);
-    expect(validation!.errors ?? []).not.toContainEqual(
+    expect(checked.valid).toBe(true);
+    expect(checked.errors ?? []).not.toContainEqual(
       expect.stringMatching(/Canonical occurrence time and its linked projections must agree/i),
     );
   });
@@ -489,9 +503,11 @@ test.describe("contextual world authoring certification", () => {
     page,
   }) => {
     await page.goto("/");
-    const [relationship] = await relationshipFocuses(page);
-    if (!relationship)
-      test.skip(true, "Example project exposes no focusable relationship occurrence.");
+    const [candidate] = await relationshipFocuses(page);
+    const relationship = requireFixture(
+      candidate,
+      "Example project exposes no focusable relationship occurrence.",
+    );
 
     await page.evaluate((relationshipId) => {
       const api = (
@@ -510,16 +526,16 @@ test.describe("contextual world authoring certification", () => {
       if (!candidate) throw new Error("Relationship fixture disappeared.");
       candidate.confidence = 0.91;
       api.replaceProject(project);
-    }, relationship!.relationshipId);
+    }, relationship.relationshipId);
 
-    await focusRelationship(page, relationship!);
+    await focusRelationship(page, relationship);
     const composer = await openPersistentComposer(page);
     const input = composer.locator("input");
     const initial = await input.inputValue();
-    const replacementPredicate = relationship!.predicate === "reframes" ? "recounts" : "reframes";
+    const replacementPredicate = relationship.predicate === "reframes" ? "recounts" : "reframes";
     const edited = initial.replace(
-      `@${relationship!.subjectId} ${relationship!.predicate} @${relationship!.objectId}`,
-      `@${relationship!.subjectId} ${replacementPredicate} @${relationship!.objectId}`,
+      `@${relationship.subjectId} ${relationship.predicate} @${relationship.objectId}`,
+      `@${relationship.subjectId} ${replacementPredicate} @${relationship.objectId}`,
     );
     expect(edited).not.toBe(initial);
 
@@ -543,7 +559,7 @@ test.describe("contextual world authoring certification", () => {
             confidence: relationship?.confidence ?? null,
             review: relationship?.attributes?.semanticReview ?? null,
           };
-        }, relationship!.relationshipId),
+        }, relationship.relationshipId),
       )
       .toEqual({
         confidence: null,
@@ -606,22 +622,27 @@ test.describe("contextual world authoring certification", () => {
         oldStart: String(relationship.time?.start?.value ?? sourceItem.start),
       };
     });
-    test.skip(!fixture, "Example project needs a simple event-backed relationship.");
+    const seeded = requireFixture(
+      fixture,
+      "Example project needs a simple event-backed relationship.",
+    );
 
     const copiedProjection = page.locator(
-      `.timeline-semantic-occurrence[data-id="${fixture!.copyId}"]`,
+      `.timeline-semantic-occurrence[data-id="${seeded.copyId}"]`,
     );
     await expect(copiedProjection).toBeVisible();
-    await copiedProjection.click();
+    // Semantic occurrence buttons are the timeline's accessibility mirror and sit
+    // under the World canvas; activate them the way focusRelationship() does.
+    await copiedProjection.evaluate((button: HTMLButtonElement) => button.click());
     await expect(copiedProjection).toHaveAttribute("data-selected", "");
 
     const composer = await openPersistentComposer(page);
     const input = composer.locator("input");
     const initial = await input.inputValue();
-    expect(initial).toContain(` on ${fixture!.oldStart}`);
+    expect(initial).toContain(` on ${seeded.oldStart}`);
 
     const replacementStart = "2099-01-15";
-    const edited = initial.replace(` on ${fixture!.oldStart}`, ` on ${replacementStart}`);
+    const edited = initial.replace(` on ${seeded.oldStart}`, ` on ${replacementStart}`);
     expect(edited).not.toBe(initial);
     await input.fill(edited);
     await input.press("Enter");
@@ -653,16 +674,16 @@ test.describe("contextual world authoring certification", () => {
             };
           },
           {
-            relationshipId: fixture!.relationshipId,
-            itemIds: [fixture!.sourceId, fixture!.copyId],
+            relationshipId: seeded.relationshipId,
+            itemIds: [seeded.sourceId, seeded.copyId],
           },
         ),
       )
       .toEqual({
         relationshipStart: replacementStart,
         items: [
-          { id: fixture!.sourceId, start: replacementStart, timeStart: replacementStart },
-          { id: fixture!.copyId, start: replacementStart, timeStart: replacementStart },
+          { id: seeded.sourceId, start: replacementStart, timeStart: replacementStart },
+          { id: seeded.copyId, start: replacementStart, timeStart: replacementStart },
         ],
       });
   });
@@ -673,11 +694,14 @@ test.describe("contextual world authoring certification", () => {
     await page.goto("/");
     const relationships = await relationshipFocuses(page);
     test.skip(relationships.length < 2, "Example project needs two focusable relationships.");
-    const first = relationships[0]!;
-    const second = relationships.find(
-      (relationship) => relationship.relationshipId !== first.relationshipId,
+    const first = requireFixture(
+      relationships[0],
+      "Example project needs two focusable relationships.",
     );
-    test.skip(!second, "Example project needs two distinct focusable relationships.");
+    const second = requireFixture(
+      relationships.find((relationship) => relationship.relationshipId !== first.relationshipId),
+      "Example project needs two distinct focusable relationships.",
+    );
 
     await focusRelationship(page, first);
     const composer = await openPersistentComposer(page);
@@ -688,7 +712,7 @@ test.describe("contextual world authoring certification", () => {
     await input.press("Escape");
     await expect(composer).not.toHaveAttribute("active", "");
 
-    await focusRelationship(page, second!);
+    await focusRelationship(page, second);
     await openPersistentComposer(page);
 
     await expect(input).toHaveValue(dirty);
@@ -699,7 +723,7 @@ test.describe("contextual world authoring certification", () => {
     await pending.click();
     await expect(input).not.toHaveValue(dirty);
     const adopted = await input.inputValue();
-    expect(adopted).toContain(`@${second!.subjectId} ${second!.predicate} @${second!.objectId}`);
+    expect(adopted).toContain(`@${second.subjectId} ${second.predicate} @${second.objectId}`);
   });
 
   test("canonical World selection propagates to timeline and survives as the composer @id seed", async ({
@@ -794,24 +818,27 @@ test.describe("contextual world authoring certification", () => {
     await expect(place).toHaveAttribute("data-chip-variant", "ghost");
     await expect(time).toHaveAttribute("data-chip-variant", "ghost");
     await expect(composer.locator(".context-row")).toHaveCount(0);
-    await expect(composer.locator('button.context-chip')).toHaveCount(0);
+    await expect(composer.locator("button.context-chip")).toHaveCount(0);
   });
 
   test("visible Approve occurrence control commits a sentence edit without pressing Enter", async ({
     page,
   }) => {
     await page.goto("/");
-    const [relationship] = await relationshipFocuses(page);
-    test.skip(!relationship, "Example project exposes no focusable relationship occurrence.");
+    const [candidate] = await relationshipFocuses(page);
+    const relationship = requireFixture(
+      candidate,
+      "Example project exposes no focusable relationship occurrence.",
+    );
 
-    await focusRelationship(page, relationship!);
+    await focusRelationship(page, relationship);
     const composer = await openPersistentComposer(page);
     const input = composer.locator("input");
     const initial = await input.inputValue();
-    const replacementPredicate = relationship!.predicate === "reframes" ? "recounts" : "reframes";
+    const replacementPredicate = relationship.predicate === "reframes" ? "recounts" : "reframes";
     const edited = initial.replace(
-      `@${relationship!.subjectId} ${relationship!.predicate} @${relationship!.objectId}`,
-      `@${relationship!.subjectId} ${replacementPredicate} @${relationship!.objectId}`,
+      `@${relationship.subjectId} ${relationship.predicate} @${relationship.objectId}`,
+      `@${relationship.subjectId} ${replacementPredicate} @${relationship.objectId}`,
     );
     expect(edited).not.toBe(initial);
     await input.fill(edited);
@@ -831,7 +858,7 @@ test.describe("contextual world authoring certification", () => {
             (candidate: any) => String(candidate.id) === relationshipId,
           );
           return relationship?.predicate ?? null;
-        }, relationship!.relationshipId),
+        }, relationship.relationshipId),
       )
       .toBe(replacementPredicate);
   });
@@ -840,17 +867,20 @@ test.describe("contextual world authoring certification", () => {
     page,
   }) => {
     await page.goto("/");
-    const [relationship] = await relationshipFocuses(page);
-    test.skip(!relationship, "Example project exposes no focusable relationship occurrence.");
+    const [candidate] = await relationshipFocuses(page);
+    const relationship = requireFixture(
+      candidate,
+      "Example project exposes no focusable relationship occurrence.",
+    );
 
-    await focusRelationship(page, relationship!);
+    await focusRelationship(page, relationship);
     const composer = await openPersistentComposer(page);
     const input = composer.locator('input[role="combobox"]');
     const initial = await input.inputValue();
-    const replacementPredicate = relationship!.predicate === "reframes" ? "recounts" : "reframes";
+    const replacementPredicate = relationship.predicate === "reframes" ? "recounts" : "reframes";
     const edited = initial.replace(
-      `@${relationship!.subjectId} ${relationship!.predicate} @${relationship!.objectId}`,
-      `@${relationship!.subjectId} ${replacementPredicate} @${relationship!.objectId}`,
+      `@${relationship.subjectId} ${relationship.predicate} @${relationship.objectId}`,
+      `@${relationship.subjectId} ${replacementPredicate} @${relationship.objectId}`,
     );
     expect(edited).not.toBe(initial);
     await input.fill(edited);
@@ -867,21 +897,26 @@ test.describe("contextual world authoring certification", () => {
             (candidate: any) => String(candidate.id) === relationshipId,
           );
           return relationship?.predicate ?? null;
-        }, relationship!.relationshipId),
+        }, relationship.relationshipId),
       )
       .toBe(replacementPredicate);
   });
 
   test("selected occurrence context stays inside the promoted composer card", async ({ page }) => {
     await page.goto("/");
-    const [relationship] = await relationshipFocuses(page);
-    test.skip(!relationship, "Example project exposes no focusable relationship occurrence.");
+    const [candidate] = await relationshipFocuses(page);
+    const relationship = requireFixture(
+      candidate,
+      "Example project exposes no focusable relationship occurrence.",
+    );
 
-    await focusRelationship(page, relationship!);
+    await focusRelationship(page, relationship);
     const composer = await openPersistentComposer(page);
     await expect(composer.locator(".composer-occurrence-card")).toBeVisible();
     await expect(composer.locator(".composer-card-heading")).toBeVisible();
-    await expect(composer.locator('button.context-chip[data-context-kind="details"]')).toHaveCount(0);
+    await expect(composer.locator('button.context-chip[data-context-kind="details"]')).toHaveCount(
+      0,
+    );
     await expect(page.locator("#graph-edge-id")).not.toBeVisible();
   });
 
@@ -893,17 +928,20 @@ test.describe("contextual world authoring certification", () => {
       "Touch parity is certified on Mobile Chrome.",
     );
     await page.goto("/");
-    const [relationship] = await relationshipFocuses(page);
-    test.skip(!relationship, "Example project exposes no focusable relationship occurrence.");
+    const [candidate] = await relationshipFocuses(page);
+    const relationship = requireFixture(
+      candidate,
+      "Example project exposes no focusable relationship occurrence.",
+    );
 
-    await focusRelationship(page, relationship!);
+    await focusRelationship(page, relationship);
     const composer = await openPersistentComposer(page);
     const input = composer.locator("input");
     const initial = await input.inputValue();
-    const replacementPredicate = relationship!.predicate === "reframes" ? "recounts" : "reframes";
+    const replacementPredicate = relationship.predicate === "reframes" ? "recounts" : "reframes";
     const edited = initial.replace(
-      `@${relationship!.subjectId} ${relationship!.predicate} @${relationship!.objectId}`,
-      `@${relationship!.subjectId} ${replacementPredicate} @${relationship!.objectId}`,
+      `@${relationship.subjectId} ${relationship.predicate} @${relationship.objectId}`,
+      `@${relationship.subjectId} ${replacementPredicate} @${relationship.objectId}`,
     );
     expect(edited).not.toBe(initial);
     await input.fill(edited);
@@ -921,7 +959,7 @@ test.describe("contextual world authoring certification", () => {
             (candidate: any) => String(candidate.id) === relationshipId,
           );
           return relationship?.predicate ?? null;
-        }, relationship!.relationshipId),
+        }, relationship.relationshipId),
       )
       .toBe(replacementPredicate);
   });
@@ -991,11 +1029,12 @@ test.describe("contextual world authoring certification", () => {
 
     const icon = option.locator(".option-icon");
     await expect(icon).toBeVisible();
-    await expect
-      .poll(async () => icon.locator("path").count())
-      .toBeGreaterThan(0);
+    await expect.poll(async () => icon.locator("path").count()).toBeGreaterThan(0);
     expect(
-      await icon.locator("path").first().evaluate((path) => path.namespaceURI),
+      await icon
+        .locator("path")
+        .first()
+        .evaluate((path) => path.namespaceURI),
     ).toBe("http://www.w3.org/2000/svg");
     expect(
       await option.evaluate((element) =>
@@ -1023,11 +1062,12 @@ test.describe("contextual world authoring certification", () => {
 
     const headingIcon = composer.locator(".composer-heading-icon");
     await expect(headingIcon).toBeVisible();
-    await expect
-      .poll(async () => headingIcon.locator("path").count())
-      .toBeGreaterThan(0);
+    await expect.poll(async () => headingIcon.locator("path").count()).toBeGreaterThan(0);
     expect(
-      await headingIcon.locator("path").first().evaluate((path) => path.namespaceURI),
+      await headingIcon
+        .locator("path")
+        .first()
+        .evaluate((path) => path.namespaceURI),
     ).toBe("http://www.w3.org/2000/svg");
   });
 
@@ -1038,6 +1078,8 @@ test.describe("contextual world authoring certification", () => {
       testInfo.project.name !== "Mobile Chrome",
       "Run the explicit S23-size certification once on the touch/mobile project.",
     );
+    // Two sequential cold app loads (one per orientation) exceed the 30s default.
+    test.setTimeout(90_000);
 
     const cases = [
       { name: "portrait", width: 360, height: 780 },
@@ -1104,12 +1146,13 @@ test.describe("contextual world authoring certification", () => {
       expect(visualContainment.composer.bottom, viewport.name).toBeLessThanOrEqual(
         visualContainment.visualHeight + 1,
       );
-      expect(visualContainment.shell, viewport.name).not.toBeNull();
-      expect(visualContainment.shell!.top, viewport.name).toBeGreaterThanOrEqual(-1);
-      expect(visualContainment.shell!.bottom, viewport.name).toBeGreaterThanOrEqual(
+      const { shell } = visualContainment;
+      if (!shell) throw new Error(`App shell is missing in ${viewport.name}.`);
+      expect(shell.top, viewport.name).toBeGreaterThanOrEqual(-1);
+      expect(shell.bottom, viewport.name).toBeGreaterThanOrEqual(
         visualContainment.visualHeight - 1,
       );
-      expect(visualContainment.shell!.height, viewport.name).toBeGreaterThanOrEqual(
+      expect(shell.height, viewport.name).toBeGreaterThanOrEqual(
         visualContainment.visualHeight - 1,
       );
       expect(visualContainment.scrollWidth, viewport.name).toBeLessThanOrEqual(viewport.width + 2);
@@ -1119,7 +1162,9 @@ test.describe("contextual world authoring certification", () => {
 
       await input.press("Escape");
       await expect(composer).not.toHaveAttribute("active", "");
-      await expect(page.locator(".temporal-graph-canvas")).toBeFocused();
+      // Focus returns to the World invoker: the root or its deck canvas, depending
+      // on which element the pointer interaction focused.
+      await expect(page.locator(".temporal-graph-canvas:focus-within")).toHaveCount(1);
 
       // Start the next orientation from a settled, closed authoring state.
       await page.goto("/");

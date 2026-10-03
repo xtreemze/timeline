@@ -248,7 +248,7 @@
     "tests/browser/contextual-authoring.spec.ts": {
       "any": 25,
       "asAny": 0,
-      "nonNull": 52
+      "nonNull": 0
     },
     "tests/browser/occurrence-composer-integration.spec.ts": {
       "any": 0,

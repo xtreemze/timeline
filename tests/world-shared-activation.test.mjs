@@ -242,7 +242,10 @@ test("application composition supplies the same canonical occurrence model to Ti
   assert.match(app, /groupedRelationshipIds/);
 
   const renderGraphEditorStart = app.indexOf("function renderGraphEditor()");
-  const renderGraphEditorEnd = app.indexOf("\n}\n\nif (els.presentationStage", renderGraphEditorStart);
+  const renderGraphEditorEnd = app.indexOf(
+    "\n}\n\nif (els.presentationStage",
+    renderGraphEditorStart,
+  );
   assert.ok(renderGraphEditorStart >= 0 && renderGraphEditorEnd > renderGraphEditorStart);
   const renderGraphEditor = app.slice(renderGraphEditorStart, renderGraphEditorEnd);
   assert.match(
