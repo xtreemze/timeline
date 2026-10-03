@@ -107,7 +107,7 @@ import {
   type WorldProjectionDelta,
 } from "../../src/projection/world-projection-delta.ts";
 import { createIcon } from "../event-presentation.ts";
-import { pulseHaptic, TimelineMotion } from "../timeline-motion.ts";
+import { pulseHaptic, releaseMomentumEasing, TimelineMotion } from "../timeline-motion.ts";
 import { buildWorldAccessibleOutline, WorldAccessibleMirror } from "./world-accessible-mirror.ts";
 import {
   clipWorldLines,
@@ -3118,6 +3118,11 @@ export class DeckWorldSurface implements WorldSurface {
   #dragCameraLock: WorldCameraState | null = null;
   #hoverRenderFrame: number | null = null;
   #destroyed = false;
+  // Touch momentum: smooth inertial easing for globe rotate/drag on release
+  #touchMomentumFrameId: number | null = null;
+  #touchMomentumStartTime: number | null = null;
+  #touchMomentumLastBearing: number | null = null;
+  #touchMomentumLastPitch: number | null = null;
 
   // Priority 3 (issue #445): previous frame's datum-by-id maps, kept so
   // #render can reuse unchanged datum object references across frames.
@@ -3815,6 +3820,7 @@ export class DeckWorldSurface implements WorldSurface {
         }
       },
       onInteractionStateChange: (interactionState: DeckRuntimeInteractionState) => {
+        const wasActive = this.#cameraInteractionActive;
         this.#setCameraInteractionActive(deckCameraInteractionActive(interactionState));
         if (interactionState.inTransition === true) this.#clearTransitionStartPending();
         if (deckCameraInteractionActive(interactionState)) this.#cancelSpatialModeFlush();
@@ -3826,6 +3832,10 @@ export class DeckWorldSurface implements WorldSurface {
           return;
         }
         if (!this.#cameraInteractionActive) {
+          // Touch drag released: apply smooth momentum easing if this is a rotate/drag
+          if (wasActive && !interactionState.inTransition) {
+            this.#startTouchMomentumEasing();
+          }
           if (this.#pendingSpatialModeSync && !this.#transitionStartPending) {
             this.#scheduleSpatialModeFlush();
           }
@@ -6781,6 +6791,66 @@ export class DeckWorldSurface implements WorldSurface {
   /** True when a position is at least partially visible on the camera-facing hemisphere. */
   #facesCamera(position: WorldRenderPosition): boolean {
     return this.#cameraFacingOpacity(position) > 0;
+  }
+
+  #startTouchMomentumEasing(): void {
+    // Cancel any in-flight momentum animation
+    if (this.#touchMomentumFrameId !== null) {
+      cancelAnimationFrame(this.#touchMomentumFrameId);
+      this.#touchMomentumFrameId = null;
+    }
+
+    // Store the current bearing/pitch as the momentum start point
+    this.#touchMomentumStartTime = performance.now();
+    this.#touchMomentumLastBearing = this.#camera.bearing;
+    this.#touchMomentumLastPitch = this.#camera.pitch;
+
+    // Begin smooth momentum easing
+    this.#applyTouchMomentumFrame();
+  }
+
+  #applyTouchMomentumFrame(): void {
+    if (!this.#touchMomentumStartTime || this.#touchMomentumLastBearing === null) return;
+
+    const now = performance.now();
+    const elapsed = now - this.#touchMomentumStartTime;
+    const duration = TimelineMotion.INERTIA_TAU_MS;
+    const progress = Math.min(1, elapsed / duration);
+
+    // Smooth easing: t * (2 - t) begins at velocity 2 and ends at 0
+    const easing = releaseMomentumEasing(progress);
+
+    // Bearing and pitch continue to change briefly before settling
+    // The momentum is applied as a small additional rotation that eases out
+    const momentumBearingDelta = 15 * (1 - progress); // Decays from ~15° momentum
+    const momentumPitchDelta = 8 * (1 - progress); // Decays from ~8° momentum
+
+    const nextCamera: WorldCameraState = {
+      ...this.#camera,
+      bearing: (this.#touchMomentumLastBearing + momentumBearingDelta * easing + 360) % 360,
+      pitch: Math.max(
+        -85,
+        Math.min(85, this.#touchMomentumLastPitch! + momentumPitchDelta * easing),
+      ),
+    };
+
+    this.#camera = boundedWorldCamera(nextCamera);
+    this.#publishCameraContext();
+    this.#syncClusterLifecycle();
+    if (this.#zoomNeedsRender()) this.#render();
+
+    if (progress < 1) {
+      // Continue momentum easing
+      this.#touchMomentumFrameId = requestAnimationFrame(() => {
+        this.#applyTouchMomentumFrame();
+      });
+    } else {
+      // Momentum complete
+      this.#touchMomentumFrameId = null;
+      this.#touchMomentumStartTime = null;
+      this.#touchMomentumLastBearing = null;
+      this.#touchMomentumLastPitch = null;
+    }
   }
 
   #assertAlive(): void {
