@@ -1,13 +1,13 @@
 import type { CanonicalProject } from "../domain/project.ts";
-import { CURRENT_PROJECT_SCHEMA_VERSION, type ProjectSnapshot } from "./project-repository.ts";
 import {
   formatProjectInterchange,
   LUM_PROJECT_SCHEMA_ID,
+  type ProjectInterchangeDiagnostic,
   projectCollectionShapeDiagnostics,
   serializeProjectInterchange,
   validateProjectInterchange,
-  type ProjectInterchangeDiagnostic,
 } from "./project-interchange.ts";
+import { CURRENT_PROJECT_SCHEMA_VERSION, type ProjectSnapshot } from "./project-repository.ts";
 
 export const LUM_PROJECT_MODULE_FORMAT = "lum-project-module";
 export const LUM_PROJECT_MODULE_VERSION = 1;
@@ -170,9 +170,7 @@ export function validateProjectModule(serialized: string): ProjectModuleValidati
       ),
     );
   }
-  if (!Array.isArray(envelope["records"])) {
-    diagnostics.push(diagnostic("invalid-module-records", "/records", "records must be an array."));
-  } else {
+  if (Array.isArray(envelope["records"])) {
     envelope["records"].forEach((entry, index) => {
       if (!record(entry)) {
         diagnostics.push(
@@ -195,6 +193,8 @@ export function validateProjectModule(serialized: string): ProjectModuleValidati
         ),
       );
     }
+  } else {
+    diagnostics.push(diagnostic("invalid-module-records", "/records", "records must be an array."));
   }
 
   if (diagnostics.length > 0) return { valid: false, diagnostics };
@@ -334,17 +334,29 @@ export function assembleProjectModules(
     byCollection.set(module.collection, module.records);
   }
 
-  const project = {
+  const project: CanonicalProject = {
     schemaVersion: CURRENT_PROJECT_SCHEMA_VERSION,
-    entities: byCollection.get("entities") ?? [],
-    relationships: byCollection.get("relationships") ?? [],
-    ...(byCollection.has("occurrences") ? { occurrences: byCollection.get("occurrences") } : {}),
-    ...(byCollection.has("trajectories") ? { trajectories: byCollection.get("trajectories") } : {}),
-    ...(byCollection.has("places") ? { places: byCollection.get("places") } : {}),
-    ...(byCollection.has("sources") ? { sources: byCollection.get("sources") } : {}),
-    ...(byCollection.has("categories") ? { categories: byCollection.get("categories") } : {}),
-    ...(byCollection.has("stories") ? { stories: byCollection.get("stories") } : {}),
-  } as unknown as CanonicalProject;
+    entities: (byCollection.get("entities") ?? []) as CanonicalProject["entities"],
+    relationships: (byCollection.get("relationships") ?? []) as CanonicalProject["relationships"],
+    ...(byCollection.has("occurrences")
+      ? { occurrences: byCollection.get("occurrences") as CanonicalProject["occurrences"] }
+      : {}),
+    ...(byCollection.has("trajectories")
+      ? { trajectories: byCollection.get("trajectories") as CanonicalProject["trajectories"] }
+      : {}),
+    ...(byCollection.has("places")
+      ? { places: byCollection.get("places") as CanonicalProject["places"] }
+      : {}),
+    ...(byCollection.has("sources")
+      ? { sources: byCollection.get("sources") as CanonicalProject["sources"] }
+      : {}),
+    ...(byCollection.has("categories")
+      ? { categories: byCollection.get("categories") as CanonicalProject["categories"] }
+      : {}),
+    ...(byCollection.has("stories")
+      ? { stories: byCollection.get("stories") as CanonicalProject["stories"] }
+      : {}),
+  };
 
   const snapshot: ProjectSnapshot = {
     projectKey: first.projectKey,

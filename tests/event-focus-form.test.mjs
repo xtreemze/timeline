@@ -52,10 +52,7 @@ test("item Edit exposes hue controls for every supported tag and assigned catego
   assert.match(app, /fillItemCategoryHue\(item\.categoryId\)/);
   assert.match(app, /fillSecondaryItemCategoryHues\(item\)/);
   assert.match(app, /applyItemCategoryHuesToDraft\(draft, item\)/);
-  assert.match(
-    app,
-    /timelineItemIdForRelationshipSelection\([\s\S]*selection\.itemId \?\? null/,
-  );
+  assert.match(app, /timelineItemIdForRelationshipSelection\([\s\S]*selection\.itemId \?\? null/);
 });
 
 test("form and focus markup use one range input and no small popover detail", async () => {

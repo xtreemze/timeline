@@ -17,17 +17,17 @@ import {
 } from "d3-force";
 import type { PlaceId } from "../domain/ids.ts";
 import type { WorldInstanceId } from "../projection/world-projection.ts";
-import {
-  type WorldForceAnchor,
-  type WorldForceEdge,
-  type WorldForceNode,
-  type WorldForcePin,
-  type WorldForceScene,
-  type WorldForceSimulationBackend,
-  type WorldForceTuning,
-  type WorldForceTuningScope,
-  type WorldSimulationDiagnostics,
-  type WorldSimulationRequest,
+import type {
+  WorldForceAnchor,
+  WorldForceEdge,
+  WorldForceNode,
+  WorldForcePin,
+  WorldForceScene,
+  WorldForceSimulationBackend,
+  WorldForceTuning,
+  WorldForceTuningScope,
+  WorldSimulationDiagnostics,
+  WorldSimulationRequest,
 } from "./world-force-simulation.ts";
 
 const NORMAL_MANY_BODY_STRENGTH = -2_600;
@@ -246,10 +246,7 @@ function geographicFromTangentOffset(
   return Object.freeze([wrapLongitude(origin[0] + longitudeDelta), latitude]);
 }
 
-function stateNeighborhoodRadiusMeters(
-  state: D3WorldNodeState,
-  tuning: WorldForceTuning,
-): number {
+function stateNeighborhoodRadiusMeters(state: D3WorldNodeState, tuning: WorldForceTuning): number {
   const collisionRadius = Math.max(1, tunedPreferredRadiusMeters(state.node, tuning));
   const precisionRadius = Math.max(0, state.anchor?.precisionRadiusMeters ?? 0);
   const targetEast = state.node.layoutTargetEastMeters ?? 0;
@@ -400,11 +397,12 @@ function validatedTuning(tuning: WorldForceTuning): WorldForceTuning {
   }
   const collisionStrength = finiteNonNegative(tuning.collisionStrength, "Collision strength");
   if (collisionStrength > 1) throw new Error("Collision strength must not exceed 1.");
-  const collisionIterations = finiteNonNegative(
-    tuning.collisionIterations,
-    "Collision iterations",
-  );
-  if (!Number.isInteger(collisionIterations) || collisionIterations < 1 || collisionIterations > 12) {
+  const collisionIterations = finiteNonNegative(tuning.collisionIterations, "Collision iterations");
+  if (
+    !Number.isInteger(collisionIterations) ||
+    collisionIterations < 1 ||
+    collisionIterations > 12
+  ) {
     throw new Error("Collision iterations must be an integer from 1 to 12.");
   }
   const connectivityClearanceScale = finiteNonNegative(
@@ -998,8 +996,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
 
     const leftTuning = this.#tuningForState(left);
     const rightTuning = this.#tuningForState(right);
-    const collisionDistance =
-      left.node.collisionRadiusMeters + right.node.collisionRadiusMeters;
+    const collisionDistance = left.node.collisionRadiusMeters + right.node.collisionRadiusMeters;
     const preferredDistance =
       tunedPreferredRadiusMeters(left.node, leftTuning) +
       tunedPreferredRadiusMeters(right.node, rightTuning);

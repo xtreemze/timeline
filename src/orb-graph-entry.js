@@ -8,16 +8,16 @@ import {
 import { iconPathData } from "../site/event-presentation.ts";
 import { TimelineMotion } from "../site/timeline-motion.ts";
 import {
-  defaultSemanticIconForEntityType,
-  normalizeSemanticIconName,
-} from "./presentation/semantic-icons.ts";
-import {
   connectedGraphComponents,
   graphComponentTopologySignature,
   packComponentRects,
 } from "./graph-component-packing.js";
 import { surfacePointerMayStartDirectManipulation } from "./interaction/surface-input-policy.ts";
 import { createGraphSimulationCoordinator } from "./layout/graph-simulation-coordinator.ts";
+import {
+  defaultSemanticIconForEntityType,
+  normalizeSemanticIconName,
+} from "./presentation/semantic-icons.ts";
 
 const FORCE_DENSE_NODE_THRESHOLD = 1000;
 const LARGE_GRAPH_NODE_THRESHOLD = 1200;

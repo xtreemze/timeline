@@ -101,85 +101,79 @@ test("footer exposes view controls directly and keeps one primary Edit entry", a
   assert.doesNotMatch(factory, /function createWorldLayoutControls\(/);
 });
 
-test(
-  "graph layout buttons expose advanced options with input-modality parity and place scope",
-  async () => {
-    const [inspector, css] = await Promise.all([
-      readFile(layoutInspectorUrl, "utf8"),
-      readFile(shellUrl, "utf8"),
-    ]);
+test("graph layout buttons expose advanced options with input-modality parity and place scope", async () => {
+  const [inspector, css] = await Promise.all([
+    readFile(layoutInspectorUrl, "utf8"),
+    readFile(shellUrl, "utf8"),
+  ]);
 
-    assert.match(inspector, /const LONG_PRESS_MS = 500/);
-    assert.match(
-      inspector,
-      /addEventListener\("pointerdown"[\s\S]*setTimeout\(open, LONG_PRESS_MS\)/,
-    );
-    assert.match(inspector, /addEventListener\("contextmenu"[\s\S]*open\(\)/);
-    assert.match(
-      inspector,
-      /event\.key === "ArrowDown"[\s\S]*event\.key === "F10" && event\.shiftKey/,
-    );
-    assert.match(inspector, /aria-haspopup", "dialog"/);
-    assert.match(
-      inspector,
-      /getSelectedPlaceId\(\)[\s\S]*state\.scope\.value = placeId === null \? "global" : "place"/,
-    );
+  assert.match(inspector, /const LONG_PRESS_MS = 500/);
+  assert.match(
+    inspector,
+    /addEventListener\("pointerdown"[\s\S]*setTimeout\(open, LONG_PRESS_MS\)/,
+  );
+  assert.match(inspector, /addEventListener\("contextmenu"[\s\S]*open\(\)/);
+  assert.match(
+    inspector,
+    /event\.key === "ArrowDown"[\s\S]*event\.key === "F10" && event\.shiftKey/,
+  );
+  assert.match(inspector, /aria-haspopup", "dialog"/);
+  assert.match(
+    inspector,
+    /getSelectedPlaceId\(\)[\s\S]*state\.scope\.value = placeId === null \? "global" : "place"/,
+  );
 
-    assert.match(inspector, /"sugiyama", "Sugiyama · layered"/);
-    assert.match(inspector, /"zherebko", "Zherebko · linear"/);
-    assert.match(inspector, /"grid", "Grid · topological"/);
-    assert.match(inspector, /"longest-opt-greedy", "Longest path \+ optimal decross"/);
-    assert.match(inspector, /"longest-two-layer-greedy", "Longest path \+ two-layer"/);
-    assert.match(inspector, /"simplex-two-layer-greedy", "Simplex \+ two-layer"/);
-    assert.match(inspector, /"greedy", "Greedy"/);
-    assert.match(inspector, /"simplex", "Simplex"/);
-    assert.match(inspector, /"quad", "Quadratic"/);
-    assert.match(inspector, /"center", "Centered"/);
-    assert.match(inspector, /"routed", "D3 routed"/);
-    assert.match(inspector, /"curved", "Curved"/);
-    assert.match(inspector, /"straight", "Straight"/);
-    assert.match(inspector, /"orthogonal", "Orthogonal"/);
-    assert.match(inspector, /"top-to-bottom", "Top → bottom"/);
-    assert.match(inspector, /"left-to-right", "Left → right"/);
-    assert.match(
-      inspector,
-      /algorithm\.select\.value === "sugiyama"[\s\S]*strategy\.select\.disabled = !sugiyama[\s\S]*coordinate\.select\.disabled = !sugiyama/,
-    );
+  assert.match(inspector, /"sugiyama", "Sugiyama · layered"/);
+  assert.match(inspector, /"zherebko", "Zherebko · linear"/);
+  assert.match(inspector, /"grid", "Grid · topological"/);
+  assert.match(inspector, /"longest-opt-greedy", "Longest path \+ optimal decross"/);
+  assert.match(inspector, /"longest-two-layer-greedy", "Longest path \+ two-layer"/);
+  assert.match(inspector, /"simplex-two-layer-greedy", "Simplex \+ two-layer"/);
+  assert.match(inspector, /"greedy", "Greedy"/);
+  assert.match(inspector, /"simplex", "Simplex"/);
+  assert.match(inspector, /"quad", "Quadratic"/);
+  assert.match(inspector, /"center", "Centered"/);
+  assert.match(inspector, /"routed", "D3 routed"/);
+  assert.match(inspector, /"curved", "Curved"/);
+  assert.match(inspector, /"straight", "Straight"/);
+  assert.match(inspector, /"orthogonal", "Orthogonal"/);
+  assert.match(inspector, /"top-to-bottom", "Top → bottom"/);
+  assert.match(inspector, /"left-to-right", "Left → right"/);
+  assert.match(
+    inspector,
+    /algorithm\.select\.value === "sugiyama"[\s\S]*strategy\.select\.disabled = !sugiyama[\s\S]*coordinate\.select\.disabled = !sugiyama/,
+  );
 
-    for (const label of [
-      "Center force",
-      "Center strength",
-      "Center east",
-      "Center north",
-      "Collide force",
-      "Collision strength",
-      "Collision passes",
-      "Connectivity clearance",
-      "Link force",
-      "Link strength",
-      "Link distance ×",
-      "Link passes",
-      "Repulsion",
-      "Place attraction",
-      "DAG guidance",
-    ]) {
-      assert.match(inspector, new RegExp(label));
-    }
-    assert.match(inspector, /"Collision radius", "Rendered node \+ border · fixed"/);
-    assert.match(inspector, /collision radius stays exact/);
-    assert.match(inspector, /linkDistanceScale: Number\(linkDistance\.input\.value\)/);
-    assert.match(inspector, /linkIterations: Number\(linkIterations\.input\.value\)/);
-    assert.match(inspector, /centerStrength: Number\(centerStrength\.input\.value\)/);
-    assert.match(
-      inspector,
-      /addEventListener\("pointermove"[\s\S]*Math\.hypot[\s\S]*> 8[\s\S]*clearTimer\(\)/,
-    );
-    assert.match(
-      css,
-      /\.world-layout-inspector\s*\{[\s\S]*position:\s*fixed[\s\S]*z-index:\s*2200/,
-    );
-  },
-);
+  for (const label of [
+    "Center force",
+    "Center strength",
+    "Center east",
+    "Center north",
+    "Collide force",
+    "Collision strength",
+    "Collision passes",
+    "Connectivity clearance",
+    "Link force",
+    "Link strength",
+    "Link distance ×",
+    "Link passes",
+    "Repulsion",
+    "Place attraction",
+    "DAG guidance",
+  ]) {
+    assert.match(inspector, new RegExp(label));
+  }
+  assert.match(inspector, /"Collision radius", "Rendered node \+ border · fixed"/);
+  assert.match(inspector, /collision radius stays exact/);
+  assert.match(inspector, /linkDistanceScale: Number\(linkDistance\.input\.value\)/);
+  assert.match(inspector, /linkIterations: Number\(linkIterations\.input\.value\)/);
+  assert.match(inspector, /centerStrength: Number\(centerStrength\.input\.value\)/);
+  assert.match(
+    inspector,
+    /addEventListener\("pointermove"[\s\S]*Math\.hypot[\s\S]*> 8[\s\S]*clearTimer\(\)/,
+  );
+  assert.match(css, /\.world-layout-inspector\s*\{[\s\S]*position:\s*fixed[\s\S]*z-index:\s*2200/);
+});
 test("footer zoom controls neutralize legacy timeline grid geometry", async () => {
   const [shellCss, timelineCss] = await Promise.all([
     readFile(shellUrl, "utf8"),
@@ -312,16 +306,15 @@ test("narrow toolbar keeps the composer and controls in one horizontal command s
 });
 
 test("toolbar actions use one direct semantic icon with explicit tooltips", async () => {
-  const [index, presentation, css, world, factory, layoutInspector, timeline] =
-    await Promise.all([
-      readFile(indexUrl, "utf8"),
-      readFile(new URL("../site/event-presentation.ts", import.meta.url), "utf8"),
-      readFile(shellUrl, "utf8"),
-      readFile(worldUrl, "utf8"),
-      readFile(factoryUrl, "utf8"),
-      readFile(layoutInspectorUrl, "utf8"),
-      readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
-    ]);
+  const [index, presentation, css, world, factory, layoutInspector, timeline] = await Promise.all([
+    readFile(indexUrl, "utf8"),
+    readFile(new URL("../site/event-presentation.ts", import.meta.url), "utf8"),
+    readFile(shellUrl, "utf8"),
+    readFile(worldUrl, "utf8"),
+    readFile(factoryUrl, "utf8"),
+    readFile(layoutInspectorUrl, "utf8"),
+    readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8"),
+  ]);
 
   for (const [id, icon, label] of [
     ["project-menu-toggle", "folder", "Project actions"],
@@ -433,4 +426,38 @@ test("every persistent toolbar button family has an executable interaction path"
   );
   assert.match(investigation, /toggle\.addEventListener\("click"[\s\S]*onRequestOpen\(!open\)/);
   assert.match(investigation, /Close investigation methodology/);
+});
+
+test("overflowing view controls fade at whichever scroll edge hides more controls", async () => {
+  const shell = await readFile(shellUrl, "utf8");
+
+  assert.match(shell, /@property --dock-fade-start\s*\{[^}]*syntax:\s*"<length>"/);
+  assert.match(shell, /@property --dock-fade-end\s*\{[^}]*syntax:\s*"<length>"/);
+
+  const rule = shell.match(/\.app-footer-view\s*\{[^}]*\}/)?.[0] ?? "";
+  assert.match(rule, /mask-image:[^;]*var\(--dock-fade-start\)[^;]*var\(--dock-fade-end\)/);
+  assert.match(rule, /animation-timeline:\s*scroll\(self inline\)/);
+
+  // Scroll-driven keyframes widen each fade only while content is hidden beyond that edge,
+  // so a non-overflowing strip stays unmasked.
+  const keyframes = shell.match(/@keyframes dock-edge-fade\s*\{[\s\S]*?\n\}/)?.[0] ?? "";
+  assert.match(keyframes, /0%\s*\{[^}]*--dock-fade-start:\s*0px[^}]*--dock-fade-end:\s*[1-9]/);
+  assert.match(keyframes, /100%\s*\{[^}]*--dock-fade-start:\s*[1-9][^}]*--dock-fade-end:\s*0px/);
+
+  assert.match(shell, /\.app-footer-view:dir\(rtl\)\s*\{[^}]*mask-image:/);
+});
+
+test("narrow dock fades at its scroll edges, but never while the composer lane is active", async () => {
+  const shell = await readFile(shellUrl, "utf8");
+  const narrow = shell.match(/@media \(max-width: 699px\)\s*\{[\s\S]*?\n\}\n/g) ?? [];
+  const rule = narrow
+    .join("\n")
+    .match(
+      /#app-shell:not\(:has\(#occurrence-composer\[active\]\)\)\s*>\s*\.app-tool-dock\.app-footer-bar\s*\{[^}]*\}/,
+    )?.[0];
+
+  assert.ok(rule, "narrow screens fade the dock itself because it is the scroller there");
+  assert.match(rule, /mask-image:[^;]*var\(--dock-fade-start\)[^;]*var\(--dock-fade-end\)/);
+  assert.match(rule, /animation:\s*dock-edge-fade/);
+  assert.match(rule, /animation-timeline:\s*scroll\(self inline\)/);
 });

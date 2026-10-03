@@ -1,5 +1,12 @@
 import type { CanonicalSpatialGeometry, GeoPosition } from "../domain/geotemporal.ts";
-import type { CanonicalOccurrenceId, EntityId, OccurrenceId, PlaceId, RelationshipId } from "../domain/ids.ts";
+import type {
+  CanonicalOccurrenceId,
+  EntityId,
+  OccurrenceId,
+  PlaceId,
+  RelationshipId,
+} from "../domain/ids.ts";
+import { relationshipId } from "../domain/ids.ts";
 import type { CanonicalOccurrence } from "../domain/occurrence.ts";
 import { occurrenceParticipantEntityIds } from "../domain/occurrence.ts";
 import type { CanonicalRelationship } from "../domain/relationship.ts";
@@ -195,7 +202,7 @@ export class SpatialAnchorIndex {
       if (this.#occurrences.has(occurrence.id)) {
         throw new Error(`Duplicate occurrence ID: ${String(occurrence.id)}`);
       }
-      if (this.#relationships.has(occurrence.id as unknown as RelationshipId)) {
+      if (this.#relationships.has(relationshipId(String(occurrence.id)))) {
         throw new Error(`Occurrence ID collides with relationship ID: ${String(occurrence.id)}`);
       }
       this.#occurrences.set(occurrence.id, occurrence);
@@ -211,8 +218,7 @@ export class SpatialAnchorIndex {
         ),
       ];
       const effectivePlaceId =
-        occurrence.placeId ??
-        (childPlaceIds.length === 1 ? childPlaceIds[0] : undefined);
+        occurrence.placeId ?? (childPlaceIds.length === 1 ? childPlaceIds[0] : undefined);
       if (!effectivePlaceId) continue;
 
       const place = this.#places.get(effectivePlaceId);

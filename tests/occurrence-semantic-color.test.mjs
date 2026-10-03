@@ -37,20 +37,14 @@ test("tag semantics can color an otherwise uncategorized occurrence", () => {
 
 test("authored entity channels remain authoritative independently", () => {
   const semantic = occurrenceNodeSemanticStyle(["#b42318"], ["hsl(145 64% 50%)"]);
-  assert.deepEqual(
-    mergeOccurrenceNodeSemanticStyle({ fillColor: "#112233" }, semantic),
-    {
-      fillColor: "#112233",
-      borderColor: canonicalSemanticHueColor("hsl(145 64% 50%)"),
-    },
-  );
-  assert.deepEqual(
-    mergeOccurrenceNodeSemanticStyle({ borderColor: "#445566" }, semantic),
-    {
-      fillColor: canonicalSemanticHueColor("#b42318"),
-      borderColor: "#445566",
-    },
-  );
+  assert.deepEqual(mergeOccurrenceNodeSemanticStyle({ fillColor: "#112233" }, semantic), {
+    fillColor: "#112233",
+    borderColor: canonicalSemanticHueColor("hsl(145 64% 50%)"),
+  });
+  assert.deepEqual(mergeOccurrenceNodeSemanticStyle({ borderColor: "#445566" }, semantic), {
+    fillColor: canonicalSemanticHueColor("#b42318"),
+    borderColor: "#445566",
+  });
   const authored = Object.freeze({ color: "#112233", stroke: "#445566" });
   assert.equal(mergeOccurrenceNodeSemanticStyle(authored, semantic), authored);
 });

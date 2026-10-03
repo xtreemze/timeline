@@ -1,3 +1,9 @@
+import type {
+  CanonicalCategory,
+  CanonicalPlace,
+  CanonicalSource,
+  CanonicalStory,
+} from "../domain/composition.ts";
 import type { CanonicalEntity } from "../domain/entity.ts";
 import {
   entityId,
@@ -10,17 +16,56 @@ import {
 import type { CanonicalOccurrence } from "../domain/occurrence.ts";
 import type { CanonicalProject } from "../domain/project.ts";
 import type { CanonicalRelationship } from "../domain/relationship.ts";
-import type {
-  CanonicalCategory,
-  CanonicalPlace,
-  CanonicalSource,
-  CanonicalStory,
-} from "../domain/composition.ts";
-import { CURRENT_PROJECT_SCHEMA_VERSION, type ProjectSnapshot } from "./project-repository.ts";
 import { serializeProjectInterchange, validateProjectInterchange } from "./project-interchange.ts";
 import { createProjectModule } from "./project-module.ts";
+import { CURRENT_PROJECT_SCHEMA_VERSION, type ProjectSnapshot } from "./project-repository.ts";
 
-type JsonRecord = Record<string, unknown>;
+/** Authored story fields read by name; declared so dot access stays legal under index-signature rules. */
+type StoryField =
+  | "address"
+  | "alternateNames"
+  | "appellations"
+  | "attributes"
+  | "categoryId"
+  | "categoryIds"
+  | "color"
+  | "confidence"
+  | "description"
+  | "evidenceIds"
+  | "extensions"
+  | "geographicIdentifier"
+  | "geometry"
+  | "id"
+  | "identifiers"
+  | "identityResolution"
+  | "initialState"
+  | "itemIds"
+  | "kind"
+  | "legacyInitialState"
+  | "media"
+  | "name"
+  | "note"
+  | "objectContext"
+  | "objectId"
+  | "occurrenceType"
+  | "placeId"
+  | "predicate"
+  | "presentation"
+  | "publishedAt"
+  | "relationChanges"
+  | "role"
+  | "semanticMappings"
+  | "sourceIds"
+  | "sourceName"
+  | "storyId"
+  | "subjectContext"
+  | "subjectId"
+  | "tags"
+  | "time"
+  | "title"
+  | "type"
+  | "url";
+type JsonRecord = Record<string, unknown> & { [K in StoryField]?: unknown };
 
 export interface LegacyExampleStory {
   readonly id: string;
@@ -197,9 +242,7 @@ function canonicalOccurrence(
   const attributes: JsonRecord = {
     description: typeof item.description === "string" ? item.description : "",
     ...(typeof item.categoryId === "string" ? { categoryId: item.categoryId } : {}),
-    ...(Array.isArray(item.categoryIds)
-      ? { categoryIds: strings(item.categoryIds) }
-      : {}),
+    ...(Array.isArray(item.categoryIds) ? { categoryIds: strings(item.categoryIds) } : {}),
     ...(Array.isArray(item.tags) ? { tags: structuredClone(item.tags) } : {}),
     ...(item.presentation && typeof item.presentation === "object"
       ? { presentation: structuredClone(item.presentation) }
@@ -225,7 +268,7 @@ function canonicalOccurrence(
       item.time && typeof item.time === "object"
         ? (structuredClone(item.time) as CanonicalOccurrence["time"])
         : null,
-    ...(linkedPlaces.length === 1 ? { placeId: placeId(linkedPlaces[0]!) } : {}),
+    ...(linkedPlaces.length === 1 && linkedPlaces[0] ? { placeId: placeId(linkedPlaces[0]) } : {}),
     participantContexts: participantIds.map((id) => ({ entityId: entityId(id) })),
     relationshipIds: linked.map((relationship) => relationship.id),
     sourceIds: strings(item.evidenceIds).map(sourceId),
@@ -299,7 +342,9 @@ export function compileExampleStoryProject(
       `Example story ${selectedStoryId} is missing items: ${missingItems.join(", ")}.`,
     );
   }
-  const items = story.itemIds.map((id) => itemById.get(id)!);
+  const items = story.itemIds.map(
+    (id) => itemById.get(id) as typeof itemById extends Map<string, infer T> ? T : never,
+  );
 
   const relationshipRows = sample.relationships.filter((relationship) => {
     const attributes = record(relationship.attributes);

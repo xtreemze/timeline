@@ -9,10 +9,10 @@ function finitePositive(value: unknown, fallback: number): number {
 }
 
 /**
- * Measure bottom occlusion in layout CSS pixels without treating pinch zoom as a keyboard.
+ * Measure bottom occlusion in layout pixels without treating pinch zoom as a keyboard.
  *
  * VisualViewport.height shrinks for both IME occlusion and user zoom. Multiplying the visible
- * height by VisualViewport.scale converts the zoomed visual viewport back into layout CSS pixels,
+ * height by VisualViewport.scale converts the zoomed visual viewport back into layout pixels,
  * leaving only genuine vertical occlusion. Viewport pan offsets are intentionally irrelevant here:
  * they describe which part of the layout viewport is visible, not how much of it is covered.
  */

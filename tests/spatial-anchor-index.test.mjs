@@ -123,7 +123,9 @@ test("standalone occurrences anchor all canonical participants without creating 
   assert.ok(
     index
       .anchorsForEntity("witness")
-      .some(({ occurrenceId, role }) => occurrenceId === "signing-ceremony" && role === "participant"),
+      .some(
+        ({ occurrenceId, role }) => occurrenceId === "signing-ceremony" && role === "participant",
+      ),
   );
 });
 

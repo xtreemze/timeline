@@ -171,7 +171,7 @@ test("composer commit path refuses unresolved investigative qualifiers", async (
     "utf8",
   );
 
-  const commit = source.match(/private commit\(\): void \{[\s\S]*?\n  \}/)?.[0] ?? "";
+  const commit = source.match(/private commit\(\): void \{[\s\S]*?\n {2}\}/)?.[0] ?? "";
   assert.match(commit, /draft\.investigation\.qualifiers\.length/);
   assert.match(commit, /Resolve or persist the investigative clue/);
 });

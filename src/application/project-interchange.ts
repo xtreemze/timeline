@@ -592,7 +592,7 @@ export function validateProjectInterchange(
       code: "unsupported-interchange-version",
       path: "/interchangeVersion",
       message: `Expected interchangeVersion ${LUM_PROJECT_INTERCHANGE_VERSION}.`,
-      remediation: "Migrate the document to a supported interchange version before import.",
+      remediation: "Migrate the interchange to a supported interchange version before import.",
     });
   }
 

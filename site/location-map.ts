@@ -1,12 +1,12 @@
 import { surfacePointerMayStartDirectManipulation } from "../src/interaction/surface-input-policy.ts";
 import { WORLD_ENTITY_MIN_HIT_RADIUS_PX } from "../src/layout/world-graph-style.ts";
+import { Leaflet } from "../src/leaflet-entry.js";
 import {
-  semanticColorHex,
-  semanticHue,
   type SemanticColorState,
   type SemanticColorTheme,
+  semanticColorHex,
+  semanticHue,
 } from "../src/presentation/semantic-color.ts";
-import { Leaflet } from "../src/leaflet-entry.js";
 
 /**
  * Leaflet-based location map viewer and editor
@@ -684,11 +684,7 @@ function currentSemanticTheme(): SemanticColorTheme {
   return globalThis.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
-function mapSemanticColor(
-  value: unknown,
-  fallbackHue: number,
-  state: SemanticColorState,
-): string {
+function mapSemanticColor(value: unknown, fallbackHue: number, state: SemanticColorState): string {
   return semanticColorHex(value, currentSemanticTheme(), state, fallbackHue);
 }
 

@@ -276,7 +276,10 @@ function occurrenceMatches(
     ...(occurrence.categoryIds ?? []),
     ...(occurrence.categoryId ? [occurrence.categoryId] : []),
   ];
-  if (categories.size > 0 && !occurrenceCategories.some((categoryId) => categories.has(categoryId))) {
+  if (
+    categories.size > 0 &&
+    !occurrenceCategories.some((categoryId) => categories.has(categoryId))
+  ) {
     return false;
   }
 

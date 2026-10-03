@@ -391,9 +391,7 @@ function resolveCategories<TState extends OccurrenceAuthoringState<TExtent>, TEx
   if (!normalized.length) {
     return Object.freeze([resolveCategory(undefined, draft, dependencies)]);
   }
-  return Object.freeze(
-    normalized.map((name) => resolveCategory(name, draft, dependencies)),
-  );
+  return Object.freeze(normalized.map((name) => resolveCategory(name, draft, dependencies)));
 }
 
 export function authorOccurrence<TExtent, TState extends OccurrenceAuthoringState<TExtent>>(
@@ -404,7 +402,7 @@ export function authorOccurrence<TExtent, TState extends OccurrenceAuthoringStat
   const subjectReference = request.subject;
   const objectReference = request.object;
   const predicate = request.predicate?.trim() || "";
-  if (!subjectReference || !objectReference || !predicate) {
+  if (!(subjectReference && objectReference && predicate)) {
     throw new Error("Complete subject, action, and object before committing.");
   }
 
@@ -427,7 +425,10 @@ export function authorOccurrence<TExtent, TState extends OccurrenceAuthoringStat
     draft,
     dependencies,
   );
-  const category = categories[0]!;
+  const category = categories[0];
+  if (!category) {
+    throw new Error("Timeline items require at least one category.");
+  }
   const itemId = dependencies.newId("item");
   const item = {
     id: itemId,
@@ -552,7 +553,7 @@ export function updateOccurrence<TExtent, TState extends OccurrenceAuthoringStat
   const relationshipId = request.relationshipId.trim();
   const predicate = request.predicate?.trim() || "";
   if (!relationshipId) throw new Error("An occurrence edit target is required.");
-  if (!request.subject || !request.object || !predicate) {
+  if (!(request.subject && request.object && predicate)) {
     throw new Error("Complete subject, action, and object before committing.");
   }
 
@@ -568,7 +569,10 @@ export function updateOccurrence<TExtent, TState extends OccurrenceAuthoringStat
   if (existingIndex < 0) {
     throw new Error(`Occurrence “${relationshipId}” no longer exists.`);
   }
-  const existing = draft.relationships[existingIndex]!;
+  const existing = draft.relationships[existingIndex];
+  if (!existing) {
+    throw new Error(`Occurrence “${relationshipId}” no longer exists.`);
+  }
   const oldTitle = derivedRelationshipTitle(draft, existing);
   const linkedItemIds = [...new Set((existing.itemIds ?? []).map(String).filter(Boolean))];
 
@@ -646,30 +650,23 @@ export function updateOccurrence<TExtent, TState extends OccurrenceAuthoringStat
   ) {
     semanticChangeReasons.push("time-changed");
   }
-  if (
-    request.role !== undefined &&
-    (existing.role?.trim() ?? "") !== (next.role?.trim() ?? "")
-  ) {
+  if (request.role !== undefined && (existing.role?.trim() ?? "") !== (next.role?.trim() ?? "")) {
     semanticChangeReasons.push("role-changed");
   }
 
   const linkedEvidenceExists = linkedItemIds.some((linkedItemId) => {
-    const linkedRecord = itemRecord(
-      draft.items.find((item) => itemIdOf(item) === linkedItemId),
-    );
+    const linkedRecord = itemRecord(draft.items.find((item) => itemIdOf(item) === linkedItemId));
     return Array.isArray(linkedRecord?.["evidenceIds"]) && linkedRecord["evidenceIds"].length > 0;
   });
   const existingSemanticSupport =
     (existing.sourceIds?.length ?? 0) > 0 ||
-    existing.confidence !== null && existing.confidence !== undefined ||
+    (existing.confidence !== null && existing.confidence !== undefined) ||
     (existing.semanticMappings?.length ?? 0) > 0 ||
     Boolean(existing.subjectContext) ||
     Boolean(existing.objectContext) ||
     linkedEvidenceExists;
   const semanticReviewReasons =
-    semanticChangeReasons.length > 0 && existingSemanticSupport
-      ? semanticChangeReasons
-      : [];
+    semanticChangeReasons.length > 0 && existingSemanticSupport ? semanticChangeReasons : [];
 
   const duplicate = dependencies.findDuplicateRelationship(
     next,
@@ -706,7 +703,7 @@ export function updateOccurrence<TExtent, TState extends OccurrenceAuthoringStat
       `Chronology item “${requestedItemId}” is not linked to occurrence “${relationshipId}”.`,
     );
   }
-  const exactItemId = requestedItemId || (linkedItemIds.length === 1 ? linkedItemIds[0]! : "");
+  const exactItemId = requestedItemId || (linkedItemIds.length === 1 ? linkedItemIds[0] : "");
 
   // Relationship endpoint/action edits affect every linked chronology projection.
   // Update only titles that are still mechanically derived from the old fact;
@@ -781,12 +778,20 @@ export function updateOccurrence<TExtent, TState extends OccurrenceAuthoringStat
         request.categoryNames ??
         (request.categoryName === null ? [] : request.categoryName ? [request.categoryName] : []);
       if (!names.length || names.every((name) => !name.trim())) {
-        throw new Error("Timeline items require at least one category. Choose another category instead.");
+        throw new Error(
+          "Timeline items require at least one category. Choose another category instead.",
+        );
       }
       const categories = resolveCategories(names, undefined, draft, dependencies);
-      updatedItem["categoryId"] = categories[0]!.id;
+      const [primaryCategory] = categories;
+      if (!primaryCategory) {
+        throw new Error(
+          "Timeline items require at least one category. Choose another category instead.",
+        );
+      }
+      updatedItem["categoryId"] = primaryCategory.id;
       updatedItem["categoryIds"] = categories.map((category) => category.id);
-      categoryId = categories[0]!.id;
+      categoryId = primaryCategory.id;
     } else if (typeof currentItem["categoryId"] === "string") {
       categoryId = currentItem["categoryId"];
     }
@@ -824,7 +829,7 @@ export function updateOccurrence<TExtent, TState extends OccurrenceAuthoringStat
 
   return {
     state: dependencies.normalizeState(draft),
-    itemId,
+    itemId: itemId ?? "",
     relationshipId,
     subjectId: subject.id,
     objectId: object.id,

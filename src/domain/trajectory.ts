@@ -83,10 +83,12 @@ export function validateTrajectoryArtifact(
   if (trajectory.bounds) {
     const b = trajectory.bounds;
     if (
-      !finite(b.minLongitude) ||
-      !finite(b.maxLongitude) ||
-      !finite(b.minLatitude) ||
-      !finite(b.maxLatitude) ||
+      !(
+        finite(b.minLongitude) &&
+        finite(b.maxLongitude) &&
+        finite(b.minLatitude) &&
+        finite(b.maxLatitude)
+      ) ||
       b.minLongitude < -180 ||
       b.maxLongitude > 180 ||
       b.minLatitude < -90 ||

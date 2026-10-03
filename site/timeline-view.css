@@ -1246,15 +1246,12 @@ luum-occurrence-deck {
   object-fit: contain;
   object-position: center;
   pointer-events: none;
-  transform:
-    translate3d(
-      var(--occurrence-image-pan-x, 0px),
-      var(--occurrence-image-pan-y, 0px),
-      0
-    )
+  transform: translate3d(var(--occurrence-image-pan-x, 0px), var(--occurrence-image-pan-y, 0px), 0)
     scale(var(--occurrence-image-zoom, 1));
   transform-origin: center;
-  transition: transform 160ms ease;
+  transition-property: transform;
+  transition-duration: 160ms;
+  transition-timing-function: ease;
   will-change: transform;
 }
 .timeline-focus-hero-fallback {
@@ -5529,9 +5526,7 @@ luum-occurrence-deck {
   transform: translateX(-50%);
 }
 
-#app-shell
-  luum-occurrence-deck[data-active-kind="video"]
-  .timeline-focus-slideshow-controls {
+#app-shell luum-occurrence-deck[data-active-kind="video"] .timeline-focus-slideshow-controls {
   bottom: 3.75rem;
 }
 
@@ -5707,9 +5702,10 @@ luum-occurrence-deck {
   flex-direction: row;
 }
 
-
 @media (prefers-reduced-motion: reduce) {
   .timeline-focus-hero-image {
-    transition: none;
+    transition-property: none;
+    transition-duration: 0ms;
+    transition-timing-function: linear;
   }
 }

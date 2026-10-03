@@ -35,7 +35,6 @@ test("card field selection opens the shared composer at the matching sentence se
   assert.match(composer, /input\.setSelectionRange\(section\.start, section\.end\)/);
 });
 
-
 test("direct occurrence activation always requests the composer, including an already-focused card", async () => {
   const view = await readFile(new URL("../site/timeline-view.ts", import.meta.url), "utf8");
 
@@ -51,10 +50,7 @@ test("direct occurrence activation always requests the composer, including an al
     view,
     /if \(this\.focusedId === item\.id\) \{\s*this\.ensureFocusPopover\(\);/,
   );
-  assert.match(
-    view,
-    /timeline-semantic-occurrence[\s\S]*timelineoccurrenceeditrequest/,
-  );
+  assert.match(view, /timeline-semantic-occurrence[\s\S]*timelineoccurrenceeditrequest/);
   assert.match(
     view,
     /activateCommittedCluster[\s\S]*timelineoccurrenceeditrequest[\s\S]*relationshipId: this\.items\.find\(\(item\) => item\.id === selectedId\)\?\.relationshipId/,

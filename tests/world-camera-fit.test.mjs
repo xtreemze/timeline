@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { DeckWorldSurface } from "../site/world/deck-world-surface.ts";
 import { fitWorldCamera } from "../src/layout/world-camera-fit.ts";
+import { WORLD_CAMERA_MIN_ZOOM } from "../src/layout/world-spatial-mode.ts";
 import {
   createProjectedWorldInstance,
   createWorldProjection,
@@ -45,14 +46,25 @@ test("a single point fits at a bounded regional zoom; nothing to fit returns nul
   assert.equal(fitWorldCamera([], VIEWPORT, CURRENT), null);
 });
 
-function runtime() {
+function runtime({ flyToInterpolator } = {}) {
   const views = [];
+  const initialViewStates = [];
+  const deckProps = [];
   return {
     views,
+    initialViewStates,
+    deckProps,
+    ...(flyToInterpolator
+      ? {
+          createFlyToInterpolator: () => flyToInterpolator,
+        }
+      : {}),
     createGlobeView: (props) => ({ props }),
     createScatterplotLayer: (props) => ({ props }),
     createPathLayer: (props) => ({ props }),
-    createDeck() {
+    createDeck(props) {
+      initialViewStates.push(props.initialViewState);
+      deckProps.push(props);
       return {
         setProps(props) {
           if (props.viewState) views.push(props.viewState);
@@ -82,6 +94,69 @@ function placed(longitude, latitude) {
     edges: [],
   });
 }
+
+test("default startup begins zoomed out and flies once to readable content", () => {
+  const flyToInterpolator = { kind: "fly-to" };
+  const r = runtime({ flyToInterpolator });
+  const surface = new DeckWorldSurface({ clientWidth: 1000, clientHeight: 600 }, r);
+
+  assert.equal(r.initialViewStates.length, 1);
+  assert.equal(
+    r.initialViewStates[0].zoom,
+    WORLD_CAMERA_MIN_ZOOM,
+    "the default world camera starts at the minimum zoom before content is available",
+  );
+
+  surface.setProjection(placed(30, 40));
+  assert.equal(surface.getCamera().longitude, 30);
+  assert.equal(surface.getCamera().latitude, 40);
+  assert.equal(surface.getCamera().zoom, 6);
+
+  const startupFlight = r.views.at(-1);
+  assert.equal(startupFlight.transitionInterpolator, flyToInterpolator);
+  assert.equal(startupFlight.transitionDuration, "auto");
+
+  const viewStateCount = r.views.length;
+  r.deckProps[0].onViewStateChange({
+    viewState: { longitude: 15, latitude: 30, zoom: 2, bearing: 0, pitch: 20 },
+    interactionState: { inTransition: true },
+  });
+  assert.equal(
+    r.views.length,
+    viewStateCount,
+    "controlled camera handoff must not overwrite deck's in-flight startup transition",
+  );
+  r.deckProps[0].onInteractionStateChange({ inTransition: false });
+  assert.equal(
+    r.views.length,
+    viewStateCount,
+    "transition settlement must wait for deck's final view-state frame instead of echoing control",
+  );
+
+  surface.setProjection(placed(-60, -10));
+  assert.equal(
+    r.views.length,
+    viewStateCount,
+    "later projection updates never replay startup flight",
+  );
+});
+
+test("reduced motion skips the startup flight while keeping the readable fit", (t) => {
+  const originalMatchMedia = globalThis.matchMedia;
+  globalThis.matchMedia = (query) => ({ matches: query === "(prefers-reduced-motion: reduce)" });
+  t.after(() => {
+    globalThis.matchMedia = originalMatchMedia;
+  });
+
+  const flyToInterpolator = { kind: "fly-to" };
+  const r = runtime({ flyToInterpolator });
+  const surface = new DeckWorldSurface({ clientWidth: 1000, clientHeight: 600 }, r);
+  surface.setProjection(placed(30, 40));
+
+  assert.equal(surface.getCamera().zoom, 6);
+  assert.equal(r.views.at(-1).transitionInterpolator, undefined);
+  assert.equal(r.views.at(-1).transitionDuration, undefined);
+});
 
 test("without a caller camera startup zooms to readable content exactly once", () => {
   const r = runtime();

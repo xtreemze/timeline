@@ -1,7 +1,7 @@
 import type { ComposerOption } from "./components/reusable/composer.ts";
 import { ReusableComposerElement } from "./components/reusable/composer.ts";
-import { RetainedTimelineElement } from "./components/reusable/retained-timeline.ts";
 import { ReusableMediaViewerElement } from "./components/reusable/media-viewer.ts";
+import { RetainedTimelineElement } from "./components/reusable/retained-timeline.ts";
 import { SemanticHueElement } from "./components/reusable/semantic-hue.ts";
 import "./components/occurrence-media-deck.ts";
 
@@ -34,7 +34,11 @@ class LabTimelineController {
       const item = document.createElement("button");
       item.type = "button";
       item.className = "demo-timeline-event";
-      item.innerHTML = `<strong>${label}</strong><span>${year}</span>`;
+      const strong = document.createElement("strong");
+      strong.textContent = label;
+      const span = document.createElement("span");
+      span.textContent = year;
+      item.append(strong, span);
       rail.append(item);
     }
     host.append(rail);

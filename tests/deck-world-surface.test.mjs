@@ -18,6 +18,7 @@ import {
   worldLabelCollisionPriority,
 } from "../site/world/deck-world-surface.ts";
 import { WorldRenderTopologyIndex } from "../site/world/world-render-topology.ts";
+import { preserveWorldProjectionRenderContinuity } from "../src/layout/world-geographic-position.ts";
 import { WORLD_ENTITY_MIN_HIT_RADIUS_PX } from "../src/layout/world-graph-style.ts";
 import {
   DEFAULT_WORLD_SPATIAL_MODE_POLICY,
@@ -32,7 +33,6 @@ import {
   worldInstanceId,
 } from "../src/projection/world-projection.ts";
 import { diffWorldProjection } from "../src/projection/world-projection-delta.ts";
-import { preserveWorldProjectionRenderContinuity } from "../src/layout/world-geographic-position.ts";
 
 const DEFAULT_CLUSTER_NODE_RADIUS_PX = WORLD_ENTITY_MIN_HIT_RADIUS_PX;
 
@@ -974,6 +974,86 @@ test("active pinch defers zoom-derived semantic layer rebuilds until interaction
   );
 });
 
+test("force deltas during camera zoom keep semantic presentation frozen until interaction settles", () => {
+  const { calls, runtime } = harness();
+  const surface = new DeckWorldSurface({}, runtime, {
+    longitude: 18.0686,
+    latitude: 59.3293,
+    zoom: 6,
+    bearing: 0,
+    pitch: 20,
+  });
+  const initial = projection();
+  surface.setProjection(initial);
+
+  const bobId = worldInstanceId("bob", "meeting");
+  const before = surface.getRenderedInstanceContinuity().get(bobId);
+  assert.ok(before);
+  assert.ok(before.offsetScale > 1, "fixture must exercise semantic offset magnification");
+  assert.ok(before.floatMeters > 0, "fixture must exercise presentation altitude");
+
+  calls.deckProps.onViewStateChange({
+    viewState: {
+      longitude: 18.0686,
+      latitude: 59.3293,
+      zoom: 9,
+      bearing: 0,
+      pitch: 20,
+    },
+    interactionState: { isZooming: true },
+  });
+  assert.equal(surface.getCamera().zoom, 9, "camera itself must continue through the zoom gesture");
+
+  const moved = createWorldProjection({
+    instances: initial.instances.map((instance) =>
+      instance.id === bobId
+        ? createProjectedWorldInstance({
+            ...instance,
+            localOffset: { eastMeters: 320, northMeters: 40 },
+          })
+        : instance,
+    ),
+    edges: initial.edges,
+  });
+  surface.applyProjectionDelta(diffWorldProjection(initial, moved));
+
+  const during = surface.getRenderedInstanceContinuity().get(bobId);
+  assert.ok(during);
+  assert.notEqual(
+    during.position.longitude,
+    before.position.longitude,
+    "D3/force-resolved position updates must keep rendering while the camera owns zoom",
+  );
+  assert.equal(
+    during.offsetScale,
+    before.offsetScale,
+    "force-driven renders must not recompute semantic offset magnification from live zoom",
+  );
+  assert.equal(
+    during.floatMeters,
+    before.floatMeters,
+    "force-driven renders must not recompute presentation altitude from live zoom",
+  );
+
+  calls.deckProps.onInteractionStateChange({
+    isZooming: false,
+    inTransition: false,
+  });
+
+  const settled = surface.getRenderedInstanceContinuity().get(bobId);
+  assert.ok(settled);
+  assert.notEqual(
+    settled.offsetScale,
+    before.offsetScale,
+    "semantic offset magnification reconciles once after camera motion settles",
+  );
+  assert.notEqual(
+    settled.floatMeters,
+    before.floatMeters,
+    "presentation altitude reconciles once after camera motion settles",
+  );
+});
+
 test("inertial globe release settles before globe-to-local controller handoff", () => {
   const { calls, runtime } = harness();
   class WeightedGlobeController {}
@@ -1004,6 +1084,7 @@ test("inertial globe release settles before globe-to-local controller handoff", 
 
   assert.equal(calls.deckProps.views[0].type, "globe");
 
+  const transitionEasing = (progress) => progress * (2 - progress);
   calls.deckProps.onViewStateChange({
     viewState: {
       longitude: 18.0686,
@@ -1011,6 +1092,8 @@ test("inertial globe release settles before globe-to-local controller handoff", 
       zoom: 11.6,
       bearing: 0,
       pitch: 20,
+      transitionDuration: 420,
+      transitionEasing,
     },
     interactionState: { inTransition: true, isPanning: true },
   });
@@ -1019,6 +1102,34 @@ test("inertial globe release settles before globe-to-local controller handoff", 
     calls.setProps.some((props) => Array.isArray(props.views)),
     false,
     "crossing the threshold during release inertia must not swap controllers mid-flight",
+  );
+  const releaseTarget = calls.setProps.at(-1)?.viewState;
+  assert.equal(
+    releaseTarget?.transitionDuration,
+    420,
+    "controlled camera feedback must preserve the controller's release duration",
+  );
+  assert.equal(
+    releaseTarget?.transitionEasing,
+    transitionEasing,
+    "controlled camera feedback must preserve the controller's release easing",
+  );
+
+  const releaseStartUpdates = calls.setProps.length;
+  calls.deckProps.onViewStateChange({
+    viewState: {
+      longitude: 18.1186,
+      latitude: 59.3293,
+      zoom: 11.58,
+      bearing: 0,
+      pitch: 20,
+    },
+    interactionState: { inTransition: true, isPanning: true },
+  });
+  assert.equal(
+    calls.setProps.length,
+    releaseStartUpdates,
+    "intermediate inertia frames must not overwrite the transition with a plain viewState",
   );
 
   calls.deckProps.onInteractionStateChange({ inTransition: false, isPanning: false });
@@ -1029,25 +1140,131 @@ test("inertial globe release settles before globe-to-local controller handoff", 
   assert.equal(swap.viewState.zoom, 11.6);
 });
 
-test("hover raises entity presentation without moving canonical relationship geometry", async () => {
+test("relationships are hidden when either endpoint node marker is not rendered", () => {
+  const { calls, runtime } = harness();
+  const markerRuntime = {
+    ...runtime,
+    createIconLayer(props) {
+      return { type: "icon", props };
+    },
+    createTextLayer(props) {
+      return { type: "text", props };
+    },
+  };
+
+  const visibleId = worldInstanceId("visible", "linked");
+  const hiddenId = worldInstanceId("hidden", "linked");
+  const visible = createProjectedWorldInstance({
+    id: visibleId,
+    canonicalId: "visible",
+    occurrenceId: "linked",
+    label: "Visible",
+    geographicAnchors: [
+      {
+        placeId: "front",
+        longitude: 0,
+        latitude: 0,
+        sourceAltitude: 0,
+        influence: 1,
+      },
+    ],
+    temporalWeight: 1,
+    visualWeight: 1,
+    retained: false,
+  });
+  const hidden = createProjectedWorldInstance({
+    id: hiddenId,
+    canonicalId: "hidden",
+    occurrenceId: "linked",
+    label: "Hidden",
+    geographicAnchors: [
+      {
+        placeId: "back",
+        longitude: 180,
+        latitude: 0,
+        sourceAltitude: 0,
+        influence: 1,
+      },
+    ],
+    temporalWeight: 1,
+    visualWeight: 1,
+    retained: false,
+  });
+
+  const surface = new DeckWorldSurface({}, markerRuntime, {
+    longitude: 0,
+    latitude: 0,
+    zoom: 6,
+    bearing: 0,
+    pitch: 0,
+  });
+  surface.setProjection(
+    createWorldProjection({
+      instances: [visible, hidden],
+      edges: [
+        createProjectedWorldEdge({
+          id: "visible-to-hidden",
+          label: "links",
+          sourceInstanceId: visibleId,
+          targetInstanceId: hiddenId,
+          temporalWeight: 1,
+          visible: true,
+          retained: false,
+        }),
+      ],
+    }),
+  );
+
+  const icons = renderedLayer(calls, DECK_WORLD_LAYER_IDS.entityIcons);
+  assert.deepEqual(
+    icons.props.data.map((datum) => datum.worldInstanceId),
+    [visibleId],
+    "far-side endpoint marker is not rendered",
+  );
+
+  const relationships = renderedLayer(calls, DECK_WORLD_LAYER_IDS.relationships);
+  assert.equal(
+    relationships.props.data.length,
+    0,
+    "an edge with a hidden endpoint must not remain visible or pickable",
+  );
+
+  const directions = renderedLayer(calls, DECK_WORLD_LAYER_IDS.relationshipDirections);
+  assert.equal(
+    directions.props.data.length,
+    0,
+    "direction markers follow the same endpoint-visibility contract",
+  );
+
+  const labels = renderedLayers(calls).find(
+    (candidate) => candidate.props.id === DECK_WORLD_LAYER_IDS.labels,
+  );
+  assert.equal(
+    labels?.props.data.some((datum) => datum.kind === "relationship-label") ?? false,
+    false,
+    "relationship labels cannot outlive a hidden edge",
+  );
+});
+
+test("hover and drag keep entity altitude stable", async () => {
   const source = await readFile(
     new URL("../site/world/deck-world-surface.ts", import.meta.url),
     "utf8",
   );
-  assert.match(source, /const WORLD_HOVER_LIFT_PX = 4;/);
-  assert.match(source, /function liftedEntityInteractionPosition\([\s\S]*hovered: boolean/);
+  assert.doesNotMatch(source, /WORLD_HOVER_LIFT_PX|WORLD_DRAG_PICKUP_LIFT_PX/);
+  assert.doesNotMatch(source, /function liftedEntityInteractionPosition\(/);
   assert.match(
     source,
-    /hovered[\s\S]*\? WORLD_HOVER_LIFT_PX[\s\S]*liftedPositionByPixels\(position, zoom, liftPx\)/,
+    /id: DECK_WORLD_LAYER_IDS\.entities[\s\S]*getPosition: \(datum: DeckWorldEntityRenderDatum\) => datum\.position/,
   );
   assert.match(
     source,
-    /liftedEntityInteractionPosition\([\s\S]*this\.#hoverSelection\?\.kind === "entity"[\s\S]*this\.#hoverSelection\.id === datum\.entityId/,
+    /id: DECK_WORLD_LAYER_IDS\.entityIcons[\s\S]*getPosition: \(datum: DeckWorldEntityDatum\) => datum\.position/,
   );
-  assert.doesNotMatch(
+  assert.match(
     source,
-    /relationshipDatums\([\s\S]{0,800}WORLD_HOVER_LIFT_PX/,
-    "hover lift must stay out of canonical relationship routing",
+    /const WORLD_PLACE_ICON_LIFT_PX = 2;/,
+    "place-icon globe clearance remains separate from entity interaction feedback",
   );
 });
 
@@ -1167,17 +1384,11 @@ test("real globe direct pan applies the shared timeline-weighted response", asyn
     source,
     /directPan = !candidate\.rightButton && !this\.isFunctionKeyPressed\(event\)/,
   );
-  assert.match(
-    source,
-    /TimelineMotion\.responseForElapsed\(now - this\.#weightedPanLastTime\)/,
-  );
+  assert.match(source, /TimelineMotion\.responseForElapsed\(now - this\.#weightedPanLastTime\)/);
   assert.match(source, /current\[0\] \+ \(raw\[0\] - current\[0\]\) \* response/);
   assert.match(source, /current\[1\] \+ \(raw\[1\] - current\[1\]\) \* response/);
   assert.match(source, /event\.type === "panend"\) this\.#clearWeightedPan\(\)/);
-  assert.match(
-    source,
-    /event\.type === "pinchstart" \|\| event\.type === "multipanstart"/,
-  );
+  assert.match(source, /event\.type === "pinchstart" \|\| event\.type === "multipanstart"/);
   assert.doesNotMatch(source, /function velocityContinuousGlobeInertiaEasing/);
   assert.match(source, /TimelineMotion\.releaseMomentumEasing/);
   assert.match(source, /interactionState\.isDragging === false/);
@@ -3612,5 +3823,8 @@ test("world renderer bounds semantic style memoization and releases retained gra
   assert.match(source, /setBoundedCache\(this\.#edgeStyles, key, style, WORLD_STYLE_CACHE_LIMIT\)/);
   assert.match(source, /destroy\(\): void \{[\s\S]*this\.#nodeStyles\.clear\(\)/);
   assert.match(source, /destroy\(\): void \{[\s\S]*this\.#lineClipCache\.clear\(\)/);
-  assert.match(source, /destroy\(\): void \{[\s\S]*this\.#topologyIndex\.replace\(this\.#projection\)/);
+  assert.match(
+    source,
+    /destroy\(\): void \{[\s\S]*this\.#topologyIndex\.replace\(this\.#projection\)/,
+  );
 });

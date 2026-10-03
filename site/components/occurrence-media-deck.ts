@@ -4,9 +4,9 @@ import { createIcon } from "../event-presentation.ts";
 import {
   deckNavigationMode,
   normalizeOccurrenceDeckFrames,
+  type OccurrenceDeckFrame,
   resolveOccurrenceDeckIndex,
   stepOccurrenceDeckIndex,
-  type OccurrenceDeckFrame,
 } from "../occurrence-media-deck-model.ts";
 
 export interface OccurrenceDeckChangeDetail {
@@ -41,7 +41,10 @@ const DOUBLE_TAP_MAX_DELAY_MS = 320;
 const DOUBLE_TAP_MAX_DISTANCE_PX = 28;
 const KEYBOARD_PAN_PX = 36;
 
-type PointerPoint = { x: number; y: number };
+const POINTER_CANCEL_EVENT = "pointercancel";
+const LOST_POINTER_CAPTURE_EVENT = "lostpointercapture";
+
+type PointerPoint = Readonly<{ x: number; y: number }>;
 
 function occurrenceDeckFramesEqual(
   previous: readonly OccurrenceDeckFrame[],
@@ -82,9 +85,12 @@ export class LuumOccurrenceDeckElement extends LitElement {
   private imagePanX = 0;
   private imagePanY = 0;
   private readonly activePointers = new Map<number, PointerPoint>();
-  private gestureOrigin:
-    | Readonly<{ x: number; y: number; startedAt: number; pointerType: string }>
-    | null = null;
+  private gestureOrigin: Readonly<{
+    x: number;
+    y: number;
+    startedAt: number;
+    pointerType: string;
+  }> | null = null;
   private gestureWasPinch = false;
   private pinchDistance = 0;
   private pinchCenter: PointerPoint | null = null;
@@ -121,7 +127,7 @@ export class LuumOccurrenceDeckElement extends LitElement {
     const occurrenceChanged = nextOccurrenceId !== this.occurrenceId;
     const framesChanged = !occurrenceDeckFramesEqual(this.frames, nextFrames);
     const indexChanged = nextIndex !== this.activeIndex;
-    if (!occurrenceChanged && !framesChanged && !indexChanged) return;
+    if (!(occurrenceChanged || framesChanged || indexChanged)) return;
 
     if (occurrenceChanged || framesChanged) {
       this.failedMediaIndexes.clear();
@@ -314,7 +320,11 @@ export class LuumOccurrenceDeckElement extends LitElement {
     this.imagePanY = Math.max(-maxY, Math.min(maxY, this.imagePanY));
   }
 
-  private setImagePan(x: number, y: number, viewport: HTMLElement | null = this.imageViewport()): void {
+  private setImagePan(
+    x: number,
+    y: number,
+    viewport: HTMLElement | null = this.imageViewport(),
+  ): void {
     this.imagePanX = x;
     this.imagePanY = y;
     this.clampImagePan(viewport);
@@ -354,9 +364,8 @@ export class LuumOccurrenceDeckElement extends LitElement {
       delta > 0
         ? (IMAGE_ZOOM_STEPS.find((value) => value > this.imageZoomValue + epsilon) ??
           IMAGE_MAX_ZOOM)
-        : ([...IMAGE_ZOOM_STEPS]
-            .reverse()
-            .find((value) => value < this.imageZoomValue - epsilon) ?? IMAGE_MIN_ZOOM);
+        : ([...IMAGE_ZOOM_STEPS].reverse().find((value) => value < this.imageZoomValue - epsilon) ??
+          IMAGE_MIN_ZOOM);
     this.setImageZoom(target);
   }
 
@@ -364,7 +373,7 @@ export class LuumOccurrenceDeckElement extends LitElement {
     const iterator = this.activePointers.values();
     const first = iterator.next().value;
     const second = iterator.next().value;
-    if (!first || !second) return null;
+    if (!(first && second)) return null;
     const dx = second.x - first.x;
     const dy = second.y - first.y;
     this.pinchMetricScratch.distance = Math.hypot(dx, dy);
@@ -425,8 +434,7 @@ export class LuumOccurrenceDeckElement extends LitElement {
       const previousCenterY = this.pinchCenter?.y ?? metrics.centerY;
       this.imagePanX += metrics.centerX - previousCenterX;
       this.imagePanY += metrics.centerY - previousCenterY;
-      const distanceRatio =
-        this.pinchDistance > 0 ? metrics.distance / this.pinchDistance : 1;
+      const distanceRatio = this.pinchDistance > 0 ? metrics.distance / this.pinchDistance : 1;
       this.setImageZoom(this.imageZoomValue * distanceRatio, viewport, {
         x: metrics.centerX,
         y: metrics.centerY,
@@ -547,11 +555,10 @@ export class LuumOccurrenceDeckElement extends LitElement {
           ? Math.max(1, viewport.clientHeight)
           : 1;
     const factor = Math.exp(-event.deltaY * unit * 0.0015);
-    this.setImageZoom(
-      this.imageZoomValue * factor,
-      viewport,
-      { x: event.clientX, y: event.clientY },
-    );
+    this.setImageZoom(this.imageZoomValue * factor, viewport, {
+      x: event.clientX,
+      y: event.clientY,
+    });
   }
 
   private onImageDoubleClick(event: MouseEvent): void {
@@ -847,7 +854,8 @@ export class LuumOccurrenceDeckElement extends LitElement {
         name !== "chevron-right" &&
         name !== "zoom-in" &&
         name !== "zoom-out"
-      ) continue;
+      )
+        continue;
       slot.replaceChildren(createIcon(name, { size: 20 }));
     }
   }

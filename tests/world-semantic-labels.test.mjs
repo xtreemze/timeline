@@ -11,10 +11,10 @@ import {
 import {
   directedEdgePathArrowhead,
   relationshipEdgePath,
-  WORLD_EDGE_ARROW_NODE_RADIUS_RATIO,
-  WORLD_EDGE_ARROW_STROKE_NODE_RADIUS_RATIO,
-  worldArrowLengthDegreesForNodeRadius,
-  worldArrowStrokeWidthPxForNodeRadius,
+  WORLD_EDGE_ARROW_LENGTH_PX,
+  WORLD_EDGE_ARROW_STROKE_WIDTH_PX,
+  worldArrowLengthDegrees,
+  worldArrowStrokeWidthPx,
   worldPixelsToDegrees,
 } from "../src/layout/world-semantic-presentation.ts";
 import {
@@ -1438,11 +1438,12 @@ test("each rendered directed relationship has a visible marker preserving source
   assert.notDeepEqual(wingA, wingB);
 });
 
-test("direction markers remain compact relative to target nodes", () => {
-  assert.equal(WORLD_EDGE_ARROW_NODE_RADIUS_RATIO, 0.7);
-  assert.equal(WORLD_EDGE_ARROW_STROKE_NODE_RADIUS_RATIO, 0.12);
-  assert.equal(worldArrowLengthDegreesForNodeRadius(20, 0, 0), worldPixelsToDegrees(14, 0));
-  assert.equal(worldArrowStrokeWidthPxForNodeRadius(20, 1), 2);
+test("direction markers keep a constant screen-space size", () => {
+  assert.equal(WORLD_EDGE_ARROW_LENGTH_PX, 8);
+  assert.equal(WORLD_EDGE_ARROW_STROKE_WIDTH_PX, 2);
+  assert.equal(worldArrowLengthDegrees(0, 0), worldPixelsToDegrees(8, 0));
+  assert.equal(worldArrowLengthDegrees(4, 0), worldPixelsToDegrees(8, 4));
+  assert.equal(worldArrowStrokeWidthPx(), 2);
 });
 
 test("direction marker altitude scales with its actual head length on sloped edges", () => {
@@ -1497,6 +1498,8 @@ test("direction marker clears the target marker footprint", () => {
     const distanceToTarget = Math.hypot(apex[0] - targetPosition[0], apex[1] - targetPosition[1]);
     return {
       targetClearanceDegrees: marker.targetClearanceDegrees,
+      arrowLengthDegrees: marker.arrowLengthDegrees,
+      strokeWidthPx: directions.props.getWidth(marker),
       distanceToTarget,
       wingA,
       wingB,
@@ -1506,6 +1509,16 @@ test("direction marker clears the target marker footprint", () => {
   const ordinary = clearanceFor(undefined);
   const large = clearanceFor({ radius: 32 });
   assert.ok(large.targetClearanceDegrees > ordinary.targetClearanceDegrees);
+  assert.equal(
+    large.arrowLengthDegrees,
+    ordinary.arrowLengthDegrees,
+    "target-node size changes clearance but never arrow size",
+  );
+  assert.equal(
+    large.strokeWidthPx,
+    ordinary.strokeWidthPx,
+    "target-node size never changes arrow stroke width",
+  );
   assert.ok(
     large.distanceToTarget > ordinary.distanceToTarget,
     "larger target nodes push the arrow apex farther from the node center",
@@ -1528,11 +1541,11 @@ test("interactive zoom refreshes world-space arrow geometry before LOD threshold
   assert.ok(after < before, "zooming in refreshes the angular arrow size");
   assert.ok(
     Math.abs(after / before - 2 ** -0.04) < 0.01,
-    "arrow geometry tracks the pixel-sized node scale between semantic LOD thresholds",
+    "world-space geometry compensates for zoom to preserve fixed screen-space arrow size",
   );
 });
 
-test("direction marker length stays node-relative across camera zoom", () => {
+test("direction marker length stays constant in screen space across camera zoom", () => {
   const markerLength = (zoom) => {
     const h = harness();
     const surface = new DeckWorldSurface({}, h.runtime, { ...WORKING_CAMERA, zoom });
@@ -1547,7 +1560,7 @@ test("direction marker length stays node-relative across camera zoom", () => {
   assert.ok(zoom8 > 0);
   assert.ok(
     Math.abs(zoom7 / zoom8 - 2) < 1e-9,
-    "pixel-sized nodes imply halved angular arrow length for each +1 zoom",
+    "fixed screen-space arrows require halved angular length for each +1 zoom",
   );
 });
 

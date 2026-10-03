@@ -76,6 +76,21 @@ test("strict changed-file config ratchets style debt without weakening new work"
   assert.match(script, /ls-files/);
 });
 
+test("descending-specificity debt is baselined per file and never raised", async () => {
+  const strict = await readJson("biome.strict.json");
+  const exempt = (strict.overrides ?? []).filter(
+    (override) => override.linter?.rules?.style?.noDescendingSpecificity === "off",
+  );
+
+  assert.equal(strict.linter?.rules?.style?.noDescendingSpecificity, "error");
+  assert.equal(exempt.length, 1, "one explicit baseline override");
+  assert.deepEqual(
+    [...exempt[0].includes].sort(),
+    ["**/site/spatial-shell.css", "**/site/timeline-view.css"],
+    "baseline is limited to the two stylesheets that already carried the debt",
+  );
+});
+
 test("package scripts expose one Biome quality pipeline plus architecture policy", async () => {
   const pkg = await readJson("package.json");
   const scripts = pkg.scripts ?? {};
@@ -99,7 +114,7 @@ test("CI treats migrated TypeScript and the full test suite as fatal", async () 
   const timeline = await readFile(new URL(".github/workflows/timeline-view.yml", root), "utf8");
   const pages = await readFile(new URL(".github/workflows/pages.yml", root), "utf8");
 
-  assert.match(timeline, /- run: pnpm types:migrated/);
+  assert.match(timeline, /run: pnpm types:migrated/);
   assert.match(pages, /run: pnpm types:migrated/);
   assert.doesNotMatch(pages, /types:migrated[^\n]*\|\|/);
   assert.doesNotMatch(timeline, /pnpm test[^\n]*\|\|\s*echo/);

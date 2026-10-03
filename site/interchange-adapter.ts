@@ -12,8 +12,8 @@ import {
   serializeProjectInterchange,
   validateProjectInterchange,
 } from "../src/application/project-interchange.ts";
-import type { CanonicalProject } from "../src/domain/project.ts";
 import type { ProjectSnapshot } from "../src/application/project-repository.ts";
+import type { CanonicalProject } from "../src/domain/project.ts";
 
 const FORMAT = "timeline.interchange";
 const SCHEMA_VERSION = 1;
@@ -55,16 +55,18 @@ function clonedRecord(value: unknown): Record<string, unknown> {
 
 function firstDefined(object: unknown, keys: string[]): unknown {
   if (!object || typeof object !== "object") return undefined;
+  const obj = object as Record<string, unknown>;
   for (const key of keys) {
-    const value = (object as any)[key];
+    const value = obj[key];
     if (value !== undefined && value !== null && value !== "") return value;
   }
   return undefined;
 }
 
 function firstArray(object: unknown, keys: string[]): unknown[] {
+  const obj = object as Record<string, unknown>;
   for (const key of keys) {
-    if (Array.isArray((object as any)?.[key])) return (object as any)[key];
+    if (Array.isArray(obj[key])) return obj[key] as unknown[];
   }
   return [];
 }
@@ -165,11 +167,14 @@ function normalizeTemporalValue(
 
 function sourceRoot(payload: unknown): Record<string, unknown> {
   if (!payload || typeof payload !== "object") return {};
-  const obj = payload as any;
-  if (obj.timeline && typeof obj.timeline === "object") return obj.timeline;
-  if (obj.data?.timeline && typeof obj.data.timeline === "object") return obj.data.timeline;
-  if (obj.data && typeof obj.data === "object" && !Array.isArray(obj.data)) return obj.data;
-  if (obj.project && typeof obj.project === "object") return obj.project;
+  const obj = payload as Record<string, unknown>;
+  if (obj.timeline && typeof obj.timeline === "object")
+    return obj.timeline as Record<string, unknown>;
+  if (obj.data?.timeline && typeof obj.data.timeline === "object")
+    return obj.data.timeline as Record<string, unknown>;
+  if (obj.data && typeof obj.data === "object" && !Array.isArray(obj.data))
+    return obj.data as Record<string, unknown>;
+  if (obj.project && typeof obj.project === "object") return obj.project as Record<string, unknown>;
   return obj;
 }
 
@@ -301,7 +306,7 @@ function extractItem(
       externalInterchange: collectPreservedFields(raw, sourceType, sourceId),
     },
   };
-  const rawObj = raw as any;
+  const rawObj = raw as Record<string, unknown>;
   if (Array.isArray(rawObj.media)) item.media = boundedClone(rawObj.media);
   if (Array.isArray(rawObj.tags)) item.tags = boundedClone(rawObj.tags);
   if (rawObj.location && typeof rawObj.location === "object")
@@ -345,7 +350,7 @@ function importObject(payload: unknown): ImportResult {
   const warnings: string[] = [];
   const root = sourceRoot(payload);
   const rawGroups = firstArray(root, ["groups", "categories", "tags"]);
-  const categories: any[] = [];
+  const categories: Array<Record<string, unknown>> = [];
   const groupMap = new Map<string, string>();
   const usedCategoryIds = new Set<string>();
 
@@ -379,7 +384,10 @@ function importObject(payload: unknown): ImportResult {
 
   rawGroups.forEach((raw, index) => {
     if (raw && typeof raw === "object")
-      addCategory(firstDefined(raw, ["id", "_id", "uid", "name", "title"]), raw as any);
+      addCategory(
+        firstDefined(raw, ["id", "_id", "uid", "name", "title"]),
+        raw as Record<string, unknown>,
+      );
     else addCategory(raw, { id: String(raw), name: String(raw) || `Group ${index + 1}` });
   });
 
@@ -437,10 +445,12 @@ function importObject(payload: unknown): ImportResult {
     rawMetadata: boundedClone(firstDefined(root, ["metadata", "settings", "config", "options"])),
   };
 
-  const timelineMetadata =
-    (payload as any)?._timeline && typeof (payload as any)._timeline === "object"
-      ? (payload as any)._timeline
-      : {};
+  const timelineMetadata = (
+    (payload as Record<string, unknown>)?._timeline &&
+    typeof (payload as Record<string, unknown>)._timeline === "object"
+      ? (payload as Record<string, unknown>)._timeline
+      : {}
+  ) as Record<string, unknown>;
 
   return {
     timeline: {
@@ -478,11 +488,11 @@ function importObject(payload: unknown): ImportResult {
   };
 }
 
-function xmlText(node: any, names: string[]): string | undefined {
+function xmlText(node: Element | null, names: string[]): string | undefined {
   for (const name of names) {
-    const attribute = node.getAttribute?.(name);
+    const attribute = node?.getAttribute?.(name);
     if (attribute !== null && attribute !== undefined && attribute !== "") return attribute;
-    const child = (Array.from(node.children || []) as Element[]).find(
+    const child = (Array.from(node?.children || []) as Element[]).find(
       (candidate) => candidate.localName?.toLowerCase() === name.toLowerCase(),
     );
     if (child?.textContent?.trim()) return child.textContent.trim();
@@ -502,7 +512,7 @@ interface XmlRecord {
   color?: string;
 }
 
-function xmlRecord(node: any, kind: string): XmlRecord {
+function xmlRecord(node: Element | null, kind: string): XmlRecord {
   return {
     id: xmlText(node, ["id", "uid", "key"]),
     type: kind,
@@ -521,7 +531,7 @@ interface ParsedXml {
   description?: string;
   events: XmlRecord[];
   periods: XmlRecord[];
-  groups: any[];
+  groups: Array<Record<string, unknown>>;
 }
 
 function parseXml(xml: string): ParsedXml {
@@ -532,17 +542,17 @@ function parseXml(xml: string): ParsedXml {
     throw new Error("The external XML file is not well formed.");
 
   const root = document.documentElement;
-  const lowerName = (node: any) => node.localName?.toLowerCase() || "";
+  const lowerName = (node: Element | null) => node?.localName?.toLowerCase() || "";
   const all = Array.from(root.querySelectorAll("*"));
   const events = all
-    .filter((node: any) => ["event", "point", "milestone"].includes(lowerName(node)))
-    .map((node: any) => xmlRecord(node, "event"));
+    .filter((node: Element) => ["event", "point", "milestone"].includes(lowerName(node)))
+    .map((node: Element) => xmlRecord(node, "event"));
   const periods = all
-    .filter((node: any) => ["period", "range", "interval", "era"].includes(lowerName(node)))
-    .map((node: any) => xmlRecord(node, "period"));
+    .filter((node: Element) => ["period", "range", "interval", "era"].includes(lowerName(node)))
+    .map((node: Element) => xmlRecord(node, "period"));
   const groups = all
-    .filter((node: any) => ["group", "category", "tag"].includes(lowerName(node)))
-    .map((node: any) => ({
+    .filter((node: Element) => ["group", "category", "tag"].includes(lowerName(node)))
+    .map((node: Element) => ({
       id: xmlText(node, ["id", "uid", "key"]) || node.textContent?.trim(),
       name: xmlText(node, ["name", "title", "label"]) || node.textContent?.trim(),
       color: xmlText(node, ["color", "backgroundColor"]),
@@ -571,7 +581,10 @@ export function isLikelyInterchange(input: unknown): boolean {
   if (!input || typeof input !== "object") return false;
   const root = sourceRoot(input);
   const format = text(
-    firstDefined((input as any)?._timeline || input, ["format", "source", "application"]),
+    firstDefined(
+      ((input as Record<string, unknown>)?._timeline || input) as Record<string, unknown>,
+      ["format", "source", "application"],
+    ),
     80,
   ).toLowerCase();
   if (/timeline[._ -]?interchange/.test(format)) return true;
@@ -583,10 +596,10 @@ export function isLikelyInterchange(input: unknown): boolean {
   );
 }
 
-function sourceExtension(record: any): Record<string, unknown> {
+function sourceExtension(record: Record<string, unknown>): Record<string, unknown> {
   return record?.extensions?.externalInterchange &&
     typeof record.extensions.externalInterchange === "object"
-    ? record.extensions.externalInterchange
+    ? (record.extensions.externalInterchange as Record<string, unknown>)
     : {};
 }
 
@@ -614,46 +627,61 @@ interface ExportCategory {
   };
 }
 
-function exportItem(item: any, categoriesById: Map<string, ExportCategory>): ExportItem {
+function exportItem(
+  item: Record<string, unknown>,
+  categoriesById: Map<string, ExportCategory>,
+): ExportItem {
   const extension = sourceExtension(item);
   const raw =
     extension.raw && typeof extension.raw === "object" && !Array.isArray(extension.raw)
       ? cloneJson(extension.raw)
       : {};
-  const category = categoriesById.get(item.categoryId);
+  const category = categoriesById.get(item.categoryId as string);
   const base: ExportItem = {
-    ...(raw as any),
+    ...(raw as Record<string, unknown>),
     id: extension.sourceId ?? item.id,
-    title: item.title,
-    description: item.description || "",
+    title: item.title as string,
+    description: (item.description as string) || "",
     group: category?.extensions?.externalInterchange?.sourceId ?? category?.name ?? item.categoryId,
   };
   if (item.time) base.time = cloneJson(item.time);
   if (item.location) base.location = cloneJson(item.location);
-  if (item.tags?.length) base.tags = cloneJson(item.tags);
+  if (Array.isArray(item.tags) && item.tags.length) base.tags = cloneJson(item.tags);
   if (item.presentation) base.presentation = cloneJson(item.presentation);
-  if (item.relationChanges?.length) base.relationChanges = cloneJson(item.relationChanges);
-  if (item.evidenceIds?.length) base.evidenceIds = cloneJson(item.evidenceIds);
+  if (Array.isArray(item.relationChanges) && item.relationChanges.length)
+    base.relationChanges = cloneJson(item.relationChanges);
+  if (Array.isArray(item.evidenceIds) && item.evidenceIds.length)
+    base.evidenceIds = cloneJson(item.evidenceIds);
 
-  if (item.media?.length) {
-    base.media = item.media.map((entry: any) => ({
-      url: entry.src,
-      alt: entry.alt || "",
-      caption: entry.caption || "",
+  if (Array.isArray(item.media) && item.media.length) {
+    base.media = item.media.map((entry: unknown) => ({
+      url: (entry as Record<string, unknown>).src,
+      alt: (entry as Record<string, unknown>).alt || "",
+      caption: (entry as Record<string, unknown>).caption || "",
     }));
-  } else if ((extension as any).media?.length) {
-    base.media = cloneJson((extension as any).media);
+  } else if (
+    Array.isArray((extension as Record<string, unknown>).media) &&
+    (extension as Record<string, unknown>).media.length
+  ) {
+    base.media = cloneJson((extension as Record<string, unknown>).media);
   }
-  if ((extension as any).comments?.length) base.comments = cloneJson((extension as any).comments);
-  if ((extension as any).statistics !== undefined && (extension as any).statistics !== null)
-    base.statistics = cloneJson((extension as any).statistics);
+  if (
+    Array.isArray((extension as Record<string, unknown>).comments) &&
+    (extension as Record<string, unknown>).comments.length
+  )
+    base.comments = cloneJson((extension as Record<string, unknown>).comments);
+  if (
+    (extension as Record<string, unknown>).statistics !== undefined &&
+    (extension as Record<string, unknown>).statistics !== null
+  )
+    base.statistics = cloneJson((extension as Record<string, unknown>).statistics);
 
   if (item.kind === "range") {
-    base.start = item.start;
-    base.end = item.end;
+    base.start = item.start as string;
+    base.end = item.end as string;
     delete base.date;
   } else {
-    base.date = item.start;
+    base.date = item.start as string;
     delete base.start;
     delete base.end;
   }
@@ -662,7 +690,7 @@ function exportItem(item: any, categoriesById: Map<string, ExportCategory>): Exp
 
 interface ExportResult {
   title: string;
-  groups: any[];
+  groups: Array<Record<string, unknown>>;
   events: ExportItem[];
   periods: ExportItem[];
   _timeline: {
@@ -680,12 +708,12 @@ interface ExportResult {
   };
 }
 
-export function exportData(timeline: any): ExportResult {
+export function exportData(timeline: Record<string, unknown>): ExportResult {
   if (!timeline || typeof timeline !== "object") throw new Error("Expected a Timeline document.");
   const categories: ExportCategory[] = Array.isArray(timeline.categories)
-    ? timeline.categories
+    ? (timeline.categories as ExportCategory[])
     : [];
-  const items = Array.isArray(timeline.items) ? timeline.items : [];
+  const items = Array.isArray(timeline.items) ? (timeline.items as TimelineItem[]) : [];
   const categoriesById = new Map<string, ExportCategory>(
     categories.map((category): [string, ExportCategory] => [String(category.id), category]),
   );
@@ -713,7 +741,7 @@ export function exportData(timeline: any): ExportResult {
   }
 
   return {
-    title: text(timeline.title, 120),
+    title: text(timeline.title as string, 120),
     groups,
     events,
     periods,
@@ -747,7 +775,7 @@ export interface LegacyCanonicalBridgeResult {
   readonly warnings: readonly string[];
 }
 
-function itemWithCanonicalTime(item: any): any {
+function itemWithCanonicalTime(item: Record<string, unknown>): Record<string, unknown> {
   if (item?.time && typeof item.time === "object") return item;
   const start = typeof item?.start === "string" && item.start.trim() ? item.start.trim() : null;
   if (!start) return item;
@@ -777,11 +805,11 @@ function stableJson(value: unknown): string {
 
 function mergeCanonicalRecords(
   collection: string,
-  target: Map<string, any>,
-  records: readonly any[],
+  target: Map<string, unknown>,
+  records: readonly unknown[],
 ): void {
   for (const record of records) {
-    const id = String(record?.id ?? "");
+    const id = String((record as Record<string, unknown>).id ?? "");
     if (!id) throw new Error(`Legacy ${collection} contains a record without a canonical ID.`);
     const existing = target.get(id);
     if (existing && stableJson(existing) !== stableJson(record)) {
@@ -793,7 +821,7 @@ function mergeCanonicalRecords(
   }
 }
 
-function timelineStoryItemIds(story: any): string[] {
+function timelineStoryItemIds(story: Record<string, unknown>): string[] {
   return Array.isArray(story?.itemIds)
     ? story.itemIds.filter(
         (id: unknown): id is string => typeof id === "string" && id.trim().length > 0,
@@ -802,13 +830,15 @@ function timelineStoryItemIds(story: any): string[] {
 }
 
 export function timelineToLumInterchange(
-  timeline: any,
+  timeline: Record<string, unknown>,
   options: LegacyCanonicalBridgeOptions,
 ): LegacyCanonicalBridgeResult {
   if (!timeline || typeof timeline !== "object") {
     throw new Error("Expected a legacy Timeline document to canonicalize.");
   }
-  const stories = Array.isArray(timeline.stories) ? timeline.stories : [];
+  const stories = Array.isArray(timeline.stories)
+    ? (timeline.stories as Record<string, unknown>[])
+    : [];
   if (stories.length === 0) {
     throw new Error(
       "Legacy chronology cannot become canonical Lūm without an explicit story/occurrence ownership context. The adapter will not invent actors, relationships, or story membership.",
@@ -821,7 +851,9 @@ export function timelineToLumInterchange(
   }
 
   const items = (Array.isArray(timeline.items) ? timeline.items : []).map(itemWithCanonicalTime);
-  const itemIds = new Set(items.map((item: any) => String(item?.id ?? "")).filter(Boolean));
+  const itemIds = new Set(
+    items.map((item: Record<string, unknown>) => String(item?.id ?? "")).filter(Boolean),
+  );
   const coveredItemIds = new Set(stories.flatMap(timelineStoryItemIds));
   const uncoveredItems = [...itemIds].filter((id) => !coveredItemIds.has(id));
   if (uncoveredItems.length > 0) {
@@ -832,22 +864,30 @@ export function timelineToLumInterchange(
 
   const sample: LegacyExampleSample = {
     title: typeof timeline.title === "string" ? timeline.title : "",
-    entities: Array.isArray(timeline.entities) ? timeline.entities : [],
-    relationships: Array.isArray(timeline.relationships) ? timeline.relationships : [],
-    items,
-    places: Array.isArray(timeline.places) ? timeline.places : [],
-    evidence: Array.isArray(timeline.evidence) ? timeline.evidence : [],
-    categories: Array.isArray(timeline.categories) ? timeline.categories : [],
+    entities: Array.isArray(timeline.entities)
+      ? (timeline.entities as Record<string, unknown>[])
+      : [],
+    relationships: Array.isArray(timeline.relationships)
+      ? (timeline.relationships as Record<string, unknown>[])
+      : [],
+    items: items as Record<string, unknown>[],
+    places: Array.isArray(timeline.places) ? (timeline.places as Record<string, unknown>[]) : [],
+    evidence: Array.isArray(timeline.evidence)
+      ? (timeline.evidence as Record<string, unknown>[])
+      : [],
+    categories: Array.isArray(timeline.categories)
+      ? (timeline.categories as Record<string, unknown>[])
+      : [],
     stories,
   };
 
-  const entities = new Map<string, any>();
-  const relationships = new Map<string, any>();
-  const occurrences = new Map<string, any>();
-  const places = new Map<string, any>();
-  const sources = new Map<string, any>();
-  const categories = new Map<string, any>();
-  const canonicalStories = new Map<string, any>();
+  const entities = new Map<string, unknown>();
+  const relationships = new Map<string, unknown>();
+  const occurrences = new Map<string, unknown>();
+  const places = new Map<string, unknown>();
+  const sources = new Map<string, unknown>();
+  const categories = new Map<string, unknown>();
+  const canonicalStories = new Map<string, unknown>();
   let schemaVersion: number | null = null;
 
   for (const story of stories) {
@@ -869,7 +909,9 @@ export function timelineToLumInterchange(
   }
 
   const rawRelationshipIds = new Set(
-    sample.relationships.map((relationship: any) => String(relationship?.id ?? "")).filter(Boolean),
+    (sample.relationships as Record<string, unknown>[])
+      .map((relationship) => String(relationship?.id ?? ""))
+      .filter(Boolean),
   );
   const droppedRelationships = [...rawRelationshipIds].filter((id) => !relationships.has(id));
   if (droppedRelationships.length > 0) {
@@ -879,7 +921,9 @@ export function timelineToLumInterchange(
   }
 
   const rawEntityIds = new Set(
-    sample.entities.map((entity: any) => String(entity?.id ?? "")).filter(Boolean),
+    (sample.entities as Record<string, unknown>[])
+      .map((entity) => String(entity?.id ?? ""))
+      .filter(Boolean),
   );
   const droppedEntities = [...rawEntityIds].filter((id) => !entities.has(id));
   if (droppedEntities.length > 0) {
@@ -889,7 +933,9 @@ export function timelineToLumInterchange(
   }
 
   const rawPlaceIds = new Set(
-    sample.places.map((place: any) => String(place?.id ?? "")).filter(Boolean),
+    (sample.places as Record<string, unknown>[])
+      .map((place) => String(place?.id ?? ""))
+      .filter(Boolean),
   );
   const droppedPlaces = [...rawPlaceIds].filter((id) => !places.has(id));
   if (droppedPlaces.length > 0) {

@@ -5,8 +5,8 @@
 
 import {
   authorOccurrence,
-  updateOccurrence,
   type OccurrenceAuthoringDependencies,
+  updateOccurrence,
 } from "../src/application/occurrence-authoring.ts";
 import {
   type StagedProjectImport,
@@ -23,47 +23,47 @@ import {
   mobileKeyboardOcclusionPx,
 } from "../src/layout/mobile-viewport-occlusion.ts";
 import {
-  defaultSemanticIconForEntityType,
-  normalizeEntityPresentationAttributes,
-  normalizeSemanticIconName,
-  semanticIconLabel,
-} from "../src/presentation/semantic-icons.ts";
-import { suggestSemanticIconForPlace } from "../src/presentation/semantic-icon-inference.ts";
-import {
   canonicalSemanticHueColor,
   normalizeSemanticColorSource,
   semanticColorCss,
   semanticColorHex,
   semanticHue,
 } from "../src/presentation/semantic-color.ts";
+import { suggestSemanticIconForPlace } from "../src/presentation/semantic-icon-inference.ts";
+import {
+  defaultSemanticIconForEntityType,
+  normalizeEntityPresentationAttributes,
+  normalizeSemanticIconName,
+  semanticIconLabel,
+} from "../src/presentation/semantic-icons.ts";
 import { projectTimelineOccurrences } from "../src/projection/timeline-projection.ts";
 import "./components/occurrence-composer.ts";
-import {
-  shouldOpenComposerForSelection,
-  timelineItemIdForRelationshipSelection,
-} from "./occurrence-composer-selection.ts";
-import type {
-  LuumOccurrenceComposerElement,
-  OccurrenceCommitDetail,
-  OccurrenceComposerSelectionContext,
-} from "./components/occurrence-composer.ts";
-import {
-  formatOccurrenceComposition,
-  parseOccurrenceSentence,
-  type ComposerTimeReference,
-} from "./occurrence-composer-model.ts";
 import {
   buildAssertionDraft,
   buildIdentityHypothesisDrafts,
   buildObservationDraft,
 } from "../src/application/investigative-query.ts";
-import { proposeInvestigationAction } from "./occurrence-composer-preview.ts";
+import type {
+  LuumOccurrenceComposerElement,
+  OccurrenceCommitDetail,
+  OccurrenceComposerSelectionContext,
+} from "./components/occurrence-composer.ts";
+import { createIcon } from "./event-presentation.ts";
 import { TimelineEvidence } from "./evidence-store.ts";
 import { TimelineGraphInference } from "./graph-inference.ts";
 import { TimelineInterchangeAdapter } from "./interchange-adapter.ts";
-import { createIcon } from "./event-presentation.ts";
 import { createLocalLlmAgent } from "./local-llm-agent.ts";
 import { createMcpRelayBridge, type McpRelayConnectOptions } from "./mcp-relay.ts";
+import {
+  type ComposerTimeReference,
+  formatOccurrenceComposition,
+  parseOccurrenceSentence,
+} from "./occurrence-composer-model.ts";
+import { proposeInvestigationAction } from "./occurrence-composer-preview.ts";
+import {
+  shouldOpenComposerForSelection,
+  timelineItemIdForRelationshipSelection,
+} from "./occurrence-composer-selection.ts";
 import {
   canShareProjectFile,
   observeInstallAvailability,
@@ -1384,12 +1384,14 @@ function normalizeTimeline(
       categoryId: ensureCategory(raw.categoryId || ("category" in raw ? raw.category : undefined)),
       categoryIds: [
         ...new Set(
-          (
-            Array.isArray(raw.categoryIds)
-              ? raw.categoryIds
-              : [raw.categoryId || ("category" in raw ? raw.category : undefined)]
+          (Array.isArray(raw.categoryIds)
+            ? raw.categoryIds
+            : [raw.categoryId || ("category" in raw ? raw.category : undefined)]
           )
-            .filter((value): value is string | number => typeof value === "string" || typeof value === "number")
+            .filter(
+              (value): value is string | number =>
+                typeof value === "string" || typeof value === "number",
+            )
             .map((value) => ensureCategory(value)),
         ),
       ],
@@ -1899,8 +1901,7 @@ function occurrenceCompositionForRelationship(
     : [];
   const categoryNames = categoryIds
     .map(
-      (id) =>
-        state.categories.find((candidate) => String(candidate.id) === String(id))?.name ?? "",
+      (id) => state.categories.find((candidate) => String(candidate.id) === String(id))?.name ?? "",
     )
     .filter(Boolean);
   const extent = relationship.time ?? linkedItem?.time ?? null;
@@ -1923,7 +1924,11 @@ function evidenceRecordMediaKind(record: EvidenceRecord): "image" | "audio" | "v
   if (!file) return null;
   const mime = String(file.mimeType || "").toLowerCase();
   const name = String(file.name || "").toLowerCase();
-  if (record.type === "video" || mime.startsWith("video/") || /\.(?:mp4|webm|ogv|mov|m4v)$/.test(name)) {
+  if (
+    record.type === "video" ||
+    mime.startsWith("video/") ||
+    /\.(?:mp4|webm|ogv|mov|m4v)$/.test(name)
+  ) {
     return "video";
   }
   if (
@@ -1966,7 +1971,9 @@ async function hydrateOccurrenceComposerEvidenceMedia(
             mimeType: record.file.mimeType || blob.type,
             sha256: record.file.sha256 || "",
             alt: record.title || record.file.name || `${kind} evidence`,
-            caption: [record.title, record.sourceName || record.file.name].filter(Boolean).join(" · "),
+            caption: [record.title, record.sourceName || record.file.name]
+              .filter(Boolean)
+              .join(" · "),
           };
         } catch (error) {
           console.warn("Could not load composer evidence media:", error);
@@ -1974,12 +1981,12 @@ async function hydrateOccurrenceComposerEvidenceMedia(
         }
       }),
     )
-  ).filter((frame) => frame !== null);
+  ).filter(
+    (frame): frame is NonNullable<OccurrenceComposerSelectionContext["media"]>[number] =>
+      frame !== null,
+  );
   if (!frames.length || version !== occurrenceComposerMediaHydrationVersion) return;
-  els.occurrenceComposer.setSelectionMedia(baseContext, [
-    ...(baseContext.media || []),
-    ...frames,
-  ]);
+  els.occurrenceComposer.setSelectionMedia(baseContext, [...(baseContext.media || []), ...frames]);
 }
 
 function syncOccurrenceComposerSelection(selection = applicationSelection.current): void {
@@ -2027,9 +2034,7 @@ function syncOccurrenceComposerSelection(selection = applicationSelection.curren
     ? state.items.find((item) => String(item.id) === selectedItemId)
     : null;
   const selectedCategory = selectedItem
-    ? state.categories.find(
-        (candidate) => String(candidate.id) === String(selectedItem.categoryId),
-      )
+    ? state.categories.find((candidate) => String(candidate.id) === String(selectedItem.categoryId))
     : null;
   const selectedCategoryVisual: Readonly<{ color?: string; icon?: string }> = selectedCategory
     ? composerSemanticVisual(selectedCategory.extensions)
@@ -2057,7 +2062,8 @@ function syncOccurrenceComposerSelection(selection = applicationSelection.curren
     },
     metadata: {
       role: relationship.role ?? null,
-      initialState: relationship.initialState === "inactive" ? ("inactive" as const) : ("active" as const),
+      initialState:
+        relationship.initialState === "inactive" ? ("inactive" as const) : ("active" as const),
       sourceIds: relationship.sourceIds ?? [],
       confidence: relationship.confidence ?? null,
       attributes: relationship.attributes ?? {},
@@ -2147,24 +2153,24 @@ function composerSemanticVisual(attributes: unknown): Readonly<{ color?: string;
       ? (attributes as Readonly<Record<string, unknown>>)
       : {};
   const nestedStyle =
-    record["style"] && typeof record["style"] === "object" && !Array.isArray(record["style"])
-      ? (record["style"] as Readonly<Record<string, unknown>>)
+    record.style && typeof record.style === "object" && !Array.isArray(record.style)
+      ? (record.style as Readonly<Record<string, unknown>>)
       : record;
   const marker =
-    nestedStyle["marker"] &&
-    typeof nestedStyle["marker"] === "object" &&
-    !Array.isArray(nestedStyle["marker"])
-      ? (nestedStyle["marker"] as Readonly<Record<string, unknown>>)
+    nestedStyle.marker &&
+    typeof nestedStyle.marker === "object" &&
+    !Array.isArray(nestedStyle.marker)
+      ? (nestedStyle.marker as Readonly<Record<string, unknown>>)
       : null;
   const style = marker ?? nestedStyle;
   const rawColor =
-    style["categoryColor"] ??
-    style["color"] ??
-    style["stroke"] ??
-    style["lineColor"] ??
-    style["fillColor"] ??
-    style["fill"] ??
-    style["borderColor"];
+    style.categoryColor ??
+    style.color ??
+    style.stroke ??
+    style.lineColor ??
+    style.fillColor ??
+    style.fill ??
+    style.borderColor;
   const normalizedColor = normalizeSemanticColorSource(rawColor);
   const color =
     normalizedColor === null
@@ -2172,7 +2178,7 @@ function composerSemanticVisual(attributes: unknown): Readonly<{ color?: string;
       : typeof normalizedColor === "number"
         ? canonicalSemanticHueColor(normalizedColor)
         : normalizedColor;
-  const icon = normalizeSemanticIconName(style["icon"] ?? record["icon"]) ?? undefined;
+  const icon = normalizeSemanticIconName(style.icon ?? record.icon) ?? undefined;
   return Object.freeze({
     ...(color ? { color } : {}),
     ...(icon ? { icon } : {}),
@@ -2251,7 +2257,9 @@ function syncOccurrenceComposerData(): void {
     }),
     categories: state.categories.map((category) => {
       const visual = composerSemanticVisual(
-        "attributes" in category ? (category as unknown as { attributes?: unknown }).attributes : category.extensions,
+        "attributes" in category
+          ? (category as { attributes?: unknown }).attributes
+          : category.extensions,
       );
       return {
         id: category.id,
@@ -3378,14 +3386,9 @@ function evidenceFileKind(file) {
   const name = "name" in file ? String(file.name || "").toLowerCase() : "";
   if (mime === "application/pdf" || /\.pdf$/i.test(name)) return "pdf";
   if (mime.startsWith("image/") || /\.(?:png|jpe?g|webp|gif|avif)$/i.test(name)) return "image";
-  if (
-    mime.startsWith("audio/") ||
-    /\.(?:mp3|m4a|aac|wav|ogg|oga|flac|opus)$/i.test(name)
-  ) return "audio";
-  if (
-    mime.startsWith("video/") ||
-    /\.(?:mp4|webm|ogv|mov|m4v)$/i.test(name)
-  ) return "video";
+  if (mime.startsWith("audio/") || /\.(?:mp3|m4a|aac|wav|ogg|oga|flac|opus)$/i.test(name))
+    return "audio";
+  if (mime.startsWith("video/") || /\.(?:mp4|webm|ogv|mov|m4v)$/i.test(name)) return "video";
   return null;
 }
 
@@ -4047,9 +4050,7 @@ function fillLocationForm(location) {
   if (location) locationMap?.refresh();
 }
 
-function syncItemCategoryHuePreview(
-  source: HTMLInputElement = els.itemCategoryHue,
-): void {
+function syncItemCategoryHuePreview(source: HTMLInputElement = els.itemCategoryHue): void {
   if (source === els.itemCategoryHueNumber && !els.itemCategoryHueNumber.value.trim()) return;
   const category = getCategory(els.itemCategory.value);
   const fallbackHue = category ? semanticHue(category.color, 220) : 220;
@@ -4073,21 +4074,17 @@ function itemSecondaryCategoryIds(item: TimelineItemRecord | undefined): string[
   const primaryId = els.itemCategory.value;
   return [
     ...new Set(
-      (item.categoryIds ?? [])
-        .filter(
-          (categoryId) =>
-            categoryId !== item.categoryId &&
-            categoryId !== primaryId &&
-            state.categories.some((category) => category.id === categoryId),
-        ),
+      (item.categoryIds ?? []).filter(
+        (categoryId) =>
+          categoryId !== item.categoryId &&
+          categoryId !== primaryId &&
+          state.categories.some((category) => category.id === categoryId),
+      ),
     ),
   ];
 }
 
-function syncSecondaryItemCategoryHueRow(
-  row: HTMLElement,
-  source: HTMLInputElement,
-): void {
+function syncSecondaryItemCategoryHueRow(row: HTMLElement, source: HTMLInputElement): void {
   const range = requiredDescendant<HTMLInputElement>(row, 'input[type="range"]');
   const number = requiredDescendant<HTMLInputElement>(row, 'input[type="number"]');
   const output = requiredDescendant<HTMLOutputElement>(row, "output");
@@ -4162,7 +4159,10 @@ function applyItemCategoryHuesToDraft(draft: TimelineState, item: TimelineItemRe
     const category = draft.categories.find((candidate) => candidate.id === categoryId);
     const range = row.querySelector<HTMLInputElement>('input[type="range"]');
     if (!category || !range) continue;
-    category.color = canonicalSemanticHueColor(Number(range.value), semanticHue(category.color, 220));
+    category.color = canonicalSemanticHueColor(
+      Number(range.value),
+      semanticHue(category.color, 220),
+    );
   }
 }
 
@@ -4583,9 +4583,7 @@ function exitStoryFocus(render = true) {
   if (render) renderTimeline();
 }
 
-function syncCategoryHuePreview(
-  source: HTMLInputElement = els.categoryHue,
-): void {
+function syncCategoryHuePreview(source: HTMLInputElement = els.categoryHue): void {
   if (source === els.categoryHueNumber && !els.categoryHueNumber.value.trim()) return;
   const hue = Math.round(semanticHue(Number(source.value), 220));
   els.categoryHue.value = String(hue);
@@ -5249,14 +5247,11 @@ function canonicalProjectionOccurrences(): ProjectionOccurrenceRecord[] {
     if (linked.length === 0) return [];
 
     const participantIds = [
-      ...new Set(
-        linked.flatMap((relationship) => [relationship.subjectId, relationship.objectId]),
-      ),
+      ...new Set(linked.flatMap((relationship) => [relationship.subjectId, relationship.objectId])),
     ];
     const start = temporal.sortKey(item.time?.start || item.start);
-    const endCandidate = item.kind === "range"
-      ? temporal.sortKey(item.time?.end || item.end)
-      : start;
+    const endCandidate =
+      item.kind === "range" ? temporal.sortKey(item.time?.end || item.end) : start;
     if (!Number.isFinite(start)) return [];
     const end = Number.isFinite(endCandidate) ? endCandidate : start;
     const linkedPlaceIds = [
@@ -5709,14 +5704,65 @@ function repositionOpenProjectMenu() {
 els.projectMenu?.addEventListener("beforetoggle", (event) => {
   if (event.newState === "open") positionProjectMenu();
 });
+function projectMenuItems(): HTMLElement[] {
+  if (!els.projectMenu) return [];
+  return [...els.projectMenu.querySelectorAll<HTMLElement>('[role="menuitem"]')].filter(
+    (item) => !item.hidden && item.getClientRects().length > 0 && !item.matches(":disabled"),
+  );
+}
+
+/** Roving tabindex: exactly one menu item is a tab stop and it is the one that has focus. */
+function focusProjectMenuItem(target: HTMLElement | undefined) {
+  if (!target) return;
+  for (const item of els.projectMenu?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []) {
+    item.tabIndex = item === target ? 0 : -1;
+  }
+  target.focus({ preventScroll: true });
+}
+
 els.projectMenu?.addEventListener("toggle", (event) => {
   const open = event.newState === "open";
-  const label = open ? "Close project actions" : "Project actions";
+  // The accessible name stays stable; aria-expanded carries the open state.
   els.projectMenuToggle?.setAttribute("aria-expanded", String(open));
-  els.projectMenuToggle?.setAttribute("aria-label", label);
-  if (els.projectMenuToggle) els.projectMenuToggle.title = label;
+  if (els.projectMenuToggle) {
+    els.projectMenuToggle.title = open ? "Close project actions" : "Project actions";
+  }
   if (!open) return;
+  // Focus must not wait for a frame: hidden or throttled pages never run requestAnimationFrame,
+  // and the popover is already rendered when "toggle" fires.
+  focusProjectMenuItem(projectMenuItems()[0]);
   requestAnimationFrame(positionProjectMenu);
+});
+els.projectMenu?.addEventListener("keydown", (event) => {
+  if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
+  if (event.key === "Tab") {
+    // A menu is one composite widget: Tab leaves it, and focus returns to its trigger.
+    event.preventDefault();
+    closeProjectMenu();
+    els.projectMenuToggle?.focus({ preventScroll: true });
+    return;
+  }
+  const items = projectMenuItems();
+  if (!items.length) return;
+  const current = items.indexOf(document.activeElement as HTMLElement);
+  const last = items.length - 1;
+  const next =
+    event.key === "ArrowDown"
+      ? current >= last
+        ? 0
+        : current + 1
+      : event.key === "ArrowUp"
+        ? current <= 0
+          ? last
+          : current - 1
+        : event.key === "Home"
+          ? 0
+          : event.key === "End"
+            ? last
+            : -1;
+  if (next < 0) return;
+  event.preventDefault();
+  focusProjectMenuItem(items[next]);
 });
 window.addEventListener("resize", repositionOpenProjectMenu);
 window.visualViewport?.addEventListener("resize", repositionOpenProjectMenu);
@@ -6299,13 +6345,12 @@ els.itemForm.addEventListener("submit", async (event) => {
   if (media.length) item.media = media;
   if (tags.length) item.tags = tags;
   const existingItem = state.items.find((candidate) => candidate.id === item.id);
-  const retainedSecondaryCategoryIds = (existingItem?.categoryIds ?? [])
-    .filter(
-      (categoryId) =>
-        categoryId !== existingItem?.categoryId &&
-        categoryId !== item.categoryId &&
-        state.categories.some((category) => category.id === categoryId),
-    );
+  const retainedSecondaryCategoryIds = (existingItem?.categoryIds ?? []).filter(
+    (categoryId) =>
+      categoryId !== existingItem?.categoryId &&
+      categoryId !== item.categoryId &&
+      state.categories.some((category) => category.id === categoryId),
+  );
   item.categoryIds = [item.categoryId, ...retainedSecondaryCategoryIds];
   if (existingItem?.extensions) item.extensions = clone(existingItem.extensions);
 
@@ -6793,32 +6838,33 @@ els.occurrenceComposer.addEventListener("occurrenceinvestigationactionrequest", 
     candidates = [],
     qualifier = null,
     provenance = null,
-  } =
-    (
-      event as CustomEvent<{
+  } = (
+    event as CustomEvent<{
+      text?: string;
+      action?: string;
+      unknownEntityId?: string | null;
+      candidates?: readonly { entityId: string; label: string }[];
+      qualifier?: {
+        kind?: string;
         text?: string;
-        action?: string;
-        unknownEntityId?: string | null;
-        candidates?: readonly { entityId: string; label: string }[];
-        qualifier?: {
-          kind?: string;
-          text?: string;
-          normalizedText?: string;
-          scope?: "section" | "sentence" | "ambiguous";
-        } | null;
-        provenance?: {
-          sourceIds?: readonly string[];
-          relationshipId?: string | null;
-          itemId?: string | null;
-          entityId?: string | null;
-          placeId?: string | null;
-        } | null;
-      }>
-    ).detail ?? {};
+        normalizedText?: string;
+        scope?: "section" | "sentence" | "ambiguous";
+      } | null;
+      provenance?: {
+        sourceIds?: readonly string[];
+        relationshipId?: string | null;
+        itemId?: string | null;
+        entityId?: string | null;
+        placeId?: string | null;
+      } | null;
+    }>
+  ).detail ?? {};
   const current = caseReasoning.normalizeReasoning(state.reasoning);
   if (action === "promote-observation" || action === "promote-assertion") {
     const knownEvidenceIds = new Set(state.evidence.map((record) => record.id));
-    const sourceIds = [...new Set((provenance?.sourceIds ?? []).filter((id) => knownEvidenceIds.has(id)))];
+    const sourceIds = [
+      ...new Set((provenance?.sourceIds ?? []).filter((id) => knownEvidenceIds.has(id))),
+    ];
     const relationshipId = provenance?.relationshipId ?? null;
     const qualifierText = String(qualifier?.normalizedText ?? qualifier?.text ?? "")
       .replace(/\?$/, "")
@@ -6841,15 +6887,16 @@ els.occurrenceComposer.addEventListener("occurrenceinvestigationactionrequest", 
       entityIds: provenance?.entityId ? [provenance.entityId] : [],
       placeIds: provenance?.placeId ? [provenance.placeId] : [],
     });
-    const assertion = action === "promote-assertion"
-      ? buildAssertionDraft({
-          id: `assertion-${crypto.randomUUID()}`,
-          text: `The selected source describes the ${qualifierKind} as “${qualifierText}”.`,
-          sourceIds,
-          inputIds: [observationId],
-          itemIds: provenance?.itemId ? [provenance.itemId] : [],
-        })
-      : null;
+    const assertion =
+      action === "promote-assertion"
+        ? buildAssertionDraft({
+            id: `assertion-${crypto.randomUUID()}`,
+            text: `The selected source describes the ${qualifierKind} as “${qualifierText}”.`,
+            sourceIds,
+            inputIds: [observationId],
+            itemIds: provenance?.itemId ? [provenance.itemId] : [],
+          })
+        : null;
     const next = caseReasoning.normalizeReasoning({
       ...current,
       observations: [...current.observations, observation],
@@ -6862,12 +6909,16 @@ els.occurrenceComposer.addEventListener("occurrenceinvestigationactionrequest", 
       })
       .filter((finding) => finding.severity === "error");
     if (errors.length) {
-      els.occurrenceComposer.setError(errors[0]?.message ?? "Cannot promote the source-backed clue.");
+      els.occurrenceComposer.setError(
+        errors[0]?.message ?? "Cannot promote the source-backed clue.",
+      );
       return;
     }
     applyInvestigationReasoning(
       next,
-      assertion ? "Source-backed observation and assertion recorded." : "Source-backed observation recorded.",
+      assertion
+        ? "Source-backed observation and assertion recorded."
+        : "Source-backed observation recorded.",
     );
     return;
   }
@@ -6880,7 +6931,10 @@ els.occurrenceComposer.addEventListener("occurrenceinvestigationactionrequest", 
     }
     const candidateIds = new Set(state.entities.map((entity) => entity.id));
     const boundedCandidates = candidates
-      .filter((candidate) => candidateIds.has(candidate.entityId) && candidate.entityId !== unknownEntityId)
+      .filter(
+        (candidate) =>
+          candidateIds.has(candidate.entityId) && candidate.entityId !== unknownEntityId,
+      )
       .slice(0, 50);
     if (!boundedCandidates.length) {
       els.occurrenceComposer.setError("No canonical identity candidates are available to compare.");
@@ -7059,9 +7113,9 @@ function renderProjectImportReview(review: StagedProjectImport<TimelineState>): 
   els.projectImportReviewFingerprint.textContent = review.fingerprint;
 
   const sourceItems = review.sources.map((source) => {
-    const id = String(source["id"] ?? "source");
-    const title = String(source["title"] ?? id);
-    const locator = String(source["locator"] ?? "").trim();
+    const id = String(source.id ?? "source");
+    const title = String(source.title ?? id);
+    const locator = String(source.locator ?? "").trim();
     return reviewListItem(locator ? `${title} · ${locator}` : title);
   });
   els.projectImportReviewSources.replaceChildren(

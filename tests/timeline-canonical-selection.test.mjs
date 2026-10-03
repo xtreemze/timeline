@@ -49,10 +49,7 @@ test("relationship item identity selects only the corresponding timeline card", 
   ];
 
   assert.deepEqual(
-    projectTimelineSelection(
-      { kind: "relationship", id: "shared", itemId: "item-c" },
-      shared,
-    ),
+    projectTimelineSelection({ kind: "relationship", id: "shared", itemId: "item-c" }, shared),
     {
       itemIds: ["item-c"],
       relationshipId: "shared",
@@ -93,7 +90,7 @@ test("timeline controller keeps canonical selection separate from focus semantic
   assert.match(timeline, /aria-label[\s\S]*Selected:/);
   const selectionMethod =
     timeline.match(
-      /setSelection\(selection: ApplicationSelection \| null\): void \{[\s\S]*?\n  \}/,
+      /setSelection\(selection: ApplicationSelection \| null\): void \{[\s\S]*?\n {2}\}/,
     )?.[0] ?? "";
   assert.match(selectionMethod, /itemId/);
   assert.doesNotMatch(selectionMethod, /focusItem|emitViewport|timelinefocuschange|dispatchEvent/);
@@ -101,7 +98,7 @@ test("timeline controller keeps canonical selection separate from focus semantic
   assert.match(card, /setFocused\(focused: boolean\)/);
   assert.match(card, /aria-expanded/);
   assert.doesNotMatch(
-    card.match(/setSelected\(selected: boolean\)[\s\S]*?\n  \}/)?.[0] ?? "",
+    card.match(/setSelected\(selected: boolean\)[\s\S]*?\n {2}\}/)?.[0] ?? "",
     /aria-expanded/,
   );
 

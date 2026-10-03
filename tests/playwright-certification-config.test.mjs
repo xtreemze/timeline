@@ -267,7 +267,7 @@ test("generated project import review has a fatal full Chromium certification la
   }
   assert.match(workflow, /project-import-review-browser:\n\s+runs-on:/);
   assert.doesNotMatch(
-    workflow.match(/project-import-review-browser:[\s\S]*?(?=\n  [a-z-]+-browser:)/)?.[0] ?? "",
+    workflow.match(/project-import-review-browser:[\s\S]*?(?=\n {2}[a-z-]+-browser:)/)?.[0] ?? "",
     /continue-on-error:\s*true/,
   );
   assert.match(workflow, /run:\s*pnpm test:project-import-review-browser/);

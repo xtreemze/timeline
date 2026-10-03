@@ -1,7 +1,7 @@
 import type { CanonicalOccurrenceId } from "../domain/ids.ts";
 import type { CanonicalOccurrence } from "../domain/occurrence.ts";
-import type { CanonicalRelationship } from "../domain/relationship.ts";
 import type { CanonicalProject } from "../domain/project.ts";
+import type { CanonicalRelationship } from "../domain/relationship.ts";
 import type { ProjectSnapshot } from "./project-repository.ts";
 
 export const LUM_ICALENDAR_MEDIA_TYPE = "text/calendar;charset=utf-8";
@@ -172,15 +172,17 @@ function endpointRecord(value: unknown): Readonly<Record<string, unknown>> | nul
 }
 
 function exactCertainty(record: Readonly<Record<string, unknown>>): string {
-  return typeof record.certainty === "string" && record.certainty ? record.certainty : "exact";
+  return typeof record["certainty"] === "string" && record["certainty"]
+    ? String(record["certainty"])
+    : "exact";
 }
 
 function endpointPrecision(
   record: Readonly<Record<string, unknown>>,
   parsed: ParsedIsoDateTime,
 ): string {
-  return typeof record.precision === "string" && record.precision
-    ? record.precision
+  return typeof record["precision"] === "string" && record["precision"]
+    ? String(record["precision"])
     : parsed.precision;
 }
 
@@ -228,6 +230,17 @@ function basicDate(parts: ParsedIsoDateTime): string {
   return `${pad(parts.year, 4)}${pad(parts.month)}${pad(parts.day)}`;
 }
 
+function requireParsed(value: string): ParsedIsoDateTime {
+  const parsed = parseIsoCalendarValue(value);
+  if (!parsed) {
+    throw new CalendarProjectionError(
+      "calendar-invalid-time",
+      `Calendar value "${value}" is not representable by iCalendar v2.`,
+    );
+  }
+  return parsed;
+}
+
 function addCalendarDays(value: string, days: number): string {
   const parsed = parseIsoCalendarValue(value);
   if (!parsed || parsed.hour !== null) {
@@ -253,7 +266,7 @@ function projectEndpoint(raw: unknown, occurrenceId: string): EndpointProjection
     );
   }
 
-  const value = typeof record.value === "string" ? record.value.trim() : "";
+  const value = typeof record["value"] === "string" ? String(record["value"]).trim() : "";
   const certainty = exactCertainty(record);
   if (!value) {
     throw new CalendarProjectionError(
@@ -273,10 +286,23 @@ function projectEndpoint(raw: unknown, occurrenceId: string): EndpointProjection
     );
   }
 
-  if (typeof record.calendar === "string" && record.calendar && record.calendar !== "gregorian") {
+  if (
+    typeof record["calendar"] === "string" &&
+    record["calendar"] &&
+    record["calendar"] !== "gregorian"
+  ) {
     throw new CalendarProjectionError(
       "calendar-temporal-calendar",
-      `Calendar export currently supports Gregorian endpoints, not "${record.calendar}".`,
+      `Calendar export currently supports Gregorian endpoints, not "${record["calendar"]}".`,
+      occurrenceId,
+    );
+  }
+
+  const declaredPrecision = typeof record["precision"] === "string" ? record["precision"] : "";
+  if (declaredPrecision && !["day", "minute", "second"].includes(declaredPrecision)) {
+    throw new CalendarProjectionError(
+      "calendar-temporal-precision",
+      `Calendar export will not silently promote ${declaredPrecision} precision to a more exact calendar time.`,
       occurrenceId,
     );
   }
@@ -300,8 +326,8 @@ function projectEndpoint(raw: unknown, occurrenceId: string): EndpointProjection
   }
 
   const timeZone =
-    typeof record.timeZone === "string" && record.timeZone.trim()
-      ? record.timeZone.trim()
+    typeof record["timeZone"] === "string" && record["timeZone"].trim()
+      ? record["timeZone"].trim()
       : undefined;
 
   if (precision === "day") {
@@ -335,15 +361,10 @@ function projectEndpoint(raw: unknown, occurrenceId: string): EndpointProjection
   };
 }
 
-type CalendarOccurrence = Omit<
-  Pick<
-    CanonicalOccurrence,
-    "id" | "title" | "occurrenceType" | "time" | "placeId" | "relationshipIds" | "attributes"
-  >,
-  "id"
-> & {
-  readonly id: CanonicalOccurrenceId;
-};
+type CalendarOccurrence = Pick<
+  CanonicalOccurrence,
+  "title" | "occurrenceType" | "time" | "placeId" | "relationshipIds" | "attributes"
+> & { readonly id: CanonicalOccurrenceId };
 
 function relationshipOccurrence(relationship: CanonicalRelationship): CalendarOccurrence {
   return Object.freeze({
@@ -405,10 +426,9 @@ function eventDescription(
   project: CanonicalProject,
   occurrence: CalendarOccurrence,
 ): string | undefined {
-  const authored =
-    typeof occurrence.attributes.description === "string"
-      ? occurrence.attributes.description.trim()
-      : "";
+  const authoredDescription = (occurrence.attributes as { readonly description?: unknown })
+    .description;
+  const authored = typeof authoredDescription === "string" ? authoredDescription.trim() : "";
   const facts = relationshipText(project, occurrence);
   const lines = [
     ...(authored ? [authored] : []),
@@ -496,9 +516,7 @@ function projectTemporal(occurrence: CalendarOccurrence): {
       temporal: {
         kind: "date",
         start: start.value,
-        ...(end
-          ? { end: basicDate(parseIsoCalendarValue(addCalendarDays(end.canonicalValue, 1))!) }
-          : {}),
+        ...(end ? { end: basicDate(requireParsed(addCalendarDays(end.canonicalValue, 1))) } : {}),
       },
       metadata: {
         ...commonMetadata,
@@ -602,8 +620,7 @@ function selectedOccurrenceIds(
     ...snapshot.project.relationships
       .filter(
         (relationship) =>
-          relationship.time !== null &&
-          !groupedRelationshipIds.has(String(relationship.id)),
+          relationship.time !== null && !groupedRelationshipIds.has(String(relationship.id)),
       )
       .map((relationship) => String(relationship.id)),
   ];

@@ -65,7 +65,10 @@ test("kernel excludes items without finite temporal evidence instead of inventin
     { id: "known", start: 10 },
     { id: "unknown", start: Number.NaN },
   ];
-  assert.deepEqual(queryTemporalItems(items, { start: 0, end: 20 }).map((item) => item.id), ["known"]);
+  assert.deepEqual(
+    queryTemporalItems(items, { start: 0, end: 20 }).map((item) => item.id),
+    ["known"],
+  );
 });
 
 test("stable scene keys are namespaced and reject blank identity", () => {

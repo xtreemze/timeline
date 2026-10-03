@@ -84,6 +84,9 @@ function harness({
     setProjection(value) {
       calls.push(["surface:projection", value]);
     },
+    previewProjection(value) {
+      calls.push(["surface:preview", value]);
+    },
     setRelationshipRoutes(value) {
       calls.push(["surface:routes", value]);
     },
@@ -217,6 +220,60 @@ test("projection updates feed force scene and WorldSurface from one revision", (
   assert.ok(calls[1][1].length > 0, "local DAG route hints reach the renderer");
   assert.equal(calls[2][0], "force:apply");
   assert.deepEqual(calls[3], ["surface:projection", input]);
+});
+
+test("transient world projection previews update the surface without replacing force ownership", () => {
+  const { calls, controller } = harness({ readback: true, delta: true });
+  const committed = projection();
+  const preview = createWorldProjection({
+    instances: committed.instances.slice(0, 1),
+    edges: [],
+  });
+
+  controller.setProjection(committed);
+  calls.length = 0;
+
+  controller.previewProjection(preview);
+
+  assert.equal(controller.state().projectionRevision, 1, "preview is not a committed projection revision");
+  assert.equal(
+    calls.some(([name]) => name === "force:scene"),
+    false,
+    "timeline preview must not rebuild the D3 force scene",
+  );
+  assert.deepEqual(
+    calls.find(([name]) => name === "surface:preview"),
+    ["surface:preview", preview],
+    "preview topology is rendered immediately",
+  );
+  assert.equal(
+    controller.getRenderProjection().edges.length,
+    committed.edges.length,
+    "committed render projection remains authoritative for force state",
+  );
+
+  calls.length = 0;
+  controller.step(60);
+  assert.ok(
+    calls.some(([name]) => name === "force:step"),
+    "physics continues advancing during timeline preview",
+  );
+  assert.equal(
+    calls.some(([name]) => name === "surface:delta"),
+    false,
+    "committed-force readback must not overwrite preview-only topology",
+  );
+
+  calls.length = 0;
+  controller.setProjection(preview);
+  assert.ok(
+    calls.some(([name]) => name === "force:scene"),
+    "settled timeline commit installs the new force scene once",
+  );
+  assert.ok(
+    calls.some(([name]) => name === "surface:projection"),
+    "preview lifecycle is committed through the normal surface projection path",
+  );
 });
 
 test("committed temporal anchor changes preserve exact Deck presentation for force handoff", () => {
@@ -592,44 +649,41 @@ test("manual DAG reorganization rebuilds targets and routes while retaining geog
   assert.ok(applyCall[1].excitation > 0);
 });
 
-test(
-  "selected-place DAG settings reorganize only disposable layout while retaining authored anchors",
-  () => {
-    const { calls, controller } = harness();
-    controller.setProjection(projection());
-    const initialScene = calls.find(([name]) => name === "force:scene")?.[1];
-    assert.ok(initialScene);
+test("selected-place DAG settings reorganize only disposable layout while retaining authored anchors", () => {
+  const { calls, controller } = harness();
+  controller.setProjection(projection());
+  const initialScene = calls.find(([name]) => name === "force:scene")?.[1];
+  assert.ok(initialScene);
 
-    calls.length = 0;
-    assert.equal(
-      controller.reorganizeDag({
-        placeId: "stockholm",
-        orientation: "left-to-right",
-        algorithm: "sugiyama",
-        strategy: "simplex-two-layer-greedy",
-        coordinate: "quad",
-        edgeStyle: "orthogonal",
-      }),
-      true,
-    );
+  calls.length = 0;
+  assert.equal(
+    controller.reorganizeDag({
+      placeId: "stockholm",
+      orientation: "left-to-right",
+      algorithm: "sugiyama",
+      strategy: "simplex-two-layer-greedy",
+      coordinate: "quad",
+      edgeStyle: "orthogonal",
+    }),
+    true,
+  );
 
-    const sceneCall = calls.find(([name]) => name === "force:scene");
-    const applyCall = calls.find(([name]) => name === "force:apply");
-    assert.ok(sceneCall);
-    assert.ok(applyCall);
-    assert.deepEqual(
-      sceneCall[1].anchors,
-      initialScene.anchors,
-      "place-scoped organization must not rewrite geographic evidence",
-    );
-    assert.ok(
-      sceneCall[1].relationshipRoutes[0].points.length >= 3,
-      "selected-place edge routing should reach the disposable render route",
-    );
-    assert.equal(applyCall[1].reason, "topology");
-    assert.equal(applyCall[1].reheat, true);
-  },
-);
+  const sceneCall = calls.find(([name]) => name === "force:scene");
+  const applyCall = calls.find(([name]) => name === "force:apply");
+  assert.ok(sceneCall);
+  assert.ok(applyCall);
+  assert.deepEqual(
+    sceneCall[1].anchors,
+    initialScene.anchors,
+    "place-scoped organization must not rewrite geographic evidence",
+  );
+  assert.ok(
+    sceneCall[1].relationshipRoutes[0].points.length >= 3,
+    "selected-place edge routing should reach the disposable render route",
+  );
+  assert.equal(applyCall[1].reason, "topology");
+  assert.equal(applyCall[1].reheat, true);
+});
 
 test("force tuning can target a selected place without rebuilding the canonical scene", () => {
   const { calls, controller } = harness();

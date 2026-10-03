@@ -1,4 +1,5 @@
 import type { PlaceId } from "../../src/domain/ids.ts";
+import { DEFAULT_D3_WORLD_FORCE_TUNING } from "../../src/layout/d3-world-force-simulation.ts";
 import type {
   WorldDagCoordinateStrategy,
   WorldDagEdgeStyle,
@@ -7,9 +8,6 @@ import type {
   WorldDagLayoutStrategy,
 } from "../../src/layout/world-dag-layout.ts";
 import type { WorldForceTuning } from "../../src/layout/world-force-simulation.ts";
-import {
-  DEFAULT_D3_WORLD_FORCE_TUNING,
-} from "../../src/layout/d3-world-force-simulation.ts";
 import { createIcon } from "../event-presentation.ts";
 
 const LONG_PRESS_MS = 500;
@@ -40,10 +38,7 @@ function positionPanel(panel: HTMLElement, button: HTMLButtonElement): void {
   const gap = 8;
   const buttonRect = button.getBoundingClientRect();
   const panelRect = panel.getBoundingClientRect();
-  const left = Math.max(
-    gap,
-    Math.min(buttonRect.left, viewportWidth - panelRect.width - gap),
-  );
+  const left = Math.max(gap, Math.min(buttonRect.left, viewportWidth - panelRect.width - gap));
   const above = buttonRect.top - panelRect.height - gap;
   const top =
     above >= gap
@@ -378,8 +373,7 @@ export function createWorldLayoutControls(
   );
 
   const dagApply = (): void => {
-    const placeId =
-      dagScope.state.scope.value === "place" ? actions.getSelectedPlaceId() : null;
+    const placeId = dagScope.state.scope.value === "place" ? actions.getSelectedPlaceId() : null;
     actions.reorganizeDag({
       orientation: direction.select.value as WorldDagLayoutOrientation | "auto",
       algorithm: algorithm.select.value as WorldDagLayoutAlgorithm,
@@ -554,8 +548,7 @@ export function createWorldLayoutControls(
     for (const entry of forceRows) entry.output.value = entry.input.value;
   };
   const forceApply = (): void => {
-    const placeId =
-      forceScope.state.scope.value === "place" ? actions.getSelectedPlaceId() : null;
+    const placeId = forceScope.state.scope.value === "place" ? actions.getSelectedPlaceId() : null;
     actions.setForceTuning(currentForceTuning(), placeId ?? undefined);
     hidePanel(forcePanel, forceButton);
   };

@@ -797,10 +797,7 @@ geolocation {
 .hue-field input[type="range"] {
   width: 100%;
   min-width: 0;
-  accent-color: light-dark(
-    hsl(var(--tag-hue, 30) 62% 38%),
-    hsl(var(--tag-hue, 30) 66% 68%)
-  );
+  accent-color: light-dark(hsl(var(--tag-hue, 30) 62% 38%), hsl(var(--tag-hue, 30) 66% 68%));
 }
 .category-hue-field input[type="range"],
 .item-category-hue-field input[type="range"] {
@@ -820,10 +817,7 @@ geolocation {
     monospace;
 }
 .event-tag {
-  --tag-color: light-dark(
-    hsl(var(--tag-hue, 30) 30% 84%),
-    hsl(var(--tag-hue, 30) 28% 27%)
-  );
+  --tag-color: light-dark(hsl(var(--tag-hue, 30) 30% 84%), hsl(var(--tag-hue, 30) 28% 27%));
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
@@ -3157,7 +3151,10 @@ body {
   position: fixed;
   z-index: 1200;
   inset-inline-start: 50%;
-  inset-block-end: calc(max(0.45rem, env(safe-area-inset-bottom)) + var(--app-visual-viewport-bottom, 0px));
+  inset-block-end: calc(
+    max(0.45rem, env(safe-area-inset-bottom)) +
+    var(--app-visual-viewport-bottom, 0px)
+  );
   display: flex;
   align-items: stretch;
   justify-content: stretch;

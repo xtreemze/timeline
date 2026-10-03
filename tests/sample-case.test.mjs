@@ -1,11 +1,8 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { canonicalSemanticHueColor, semanticHue } from "../src/presentation/semantic-color.ts";
 import { suggestSemanticIconForPlace } from "../src/presentation/semantic-icon-inference.ts";
-import {
-  canonicalSemanticHueColor,
-  semanticHue,
-} from "../src/presentation/semantic-color.ts";
 
 await import("../site/temporal-standards-shim.ts");
 await import("../site/event-presentation-shim.ts");

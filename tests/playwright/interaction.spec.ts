@@ -41,6 +41,15 @@ async function settleTimeline(page) {
     .not.toBe("interacting");
 }
 
+async function ensureTimelineOrientation(page, orientation: "landscape" | "portrait") {
+  const root = page.locator("#timeline-view");
+  if ((await root.getAttribute("data-orientation")) !== orientation) {
+    await page.locator("#timeline-orientation-toggle").click();
+  }
+  await expect(root).toHaveAttribute("data-orientation", orientation);
+  await settleTimeline(page);
+}
+
 /**
  * Real input is hit-tested with Chromium's touch adjustment, which snaps a
  * fingertip to nearby controls inside its contact area. These helpers find a
@@ -143,6 +152,52 @@ test.describe("Timeline interaction contracts", () => {
     await expect
       .poll(async () => (await viewportEvents(page)).some((event) => event.committed))
       .toBeTruthy();
+  });
+
+  test("wheel axes pan and zoom according to the rendered timeline orientation", async ({
+    page,
+  }) => {
+    const surface = page.locator(".timeline-surface");
+
+    for (const orientation of ["landscape", "portrait"] as const) {
+      await ensureTimelineOrientation(page, orientation);
+      await surface.focus();
+      await page.keyboard.press("Home");
+      await waitForViewportEvents(page);
+      await settleTimeline(page);
+      const baseline = (await viewportEvents(page)).at(-1);
+      if (!baseline) throw new Error("Timeline has no baseline viewport event.");
+      await clearViewportEvents(page);
+
+      const box = await surface.boundingBox();
+      if (!box) throw new Error("Timeline surface has no layout box.");
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+
+      const alongAxis = orientation === "landscape" ? [96, 0] : [0, 96];
+      await page.mouse.wheel(alongAxis[0], alongAxis[1]);
+      await waitForViewportEvents(page);
+      await settleTimeline(page);
+      const panned = (await viewportEvents(page)).at(-1);
+      if (!panned) throw new Error("Along-axis wheel input emitted no viewport event.");
+      expect(span(panned)).toBe(span(baseline));
+      expect(panned.viewport.start).not.toBe(baseline.viewport.start);
+
+      await surface.focus();
+      await page.keyboard.press("Home");
+      await waitForViewportEvents(page);
+      await settleTimeline(page);
+      const zoomBaseline = (await viewportEvents(page)).at(-1);
+      if (!zoomBaseline) throw new Error("Timeline has no zoom baseline viewport event.");
+      await clearViewportEvents(page);
+
+      const perpendicular = orientation === "landscape" ? [0, 96] : [96, 0];
+      await page.mouse.wheel(perpendicular[0], perpendicular[1]);
+      await waitForViewportEvents(page);
+      await settleTimeline(page);
+      const zoomed = (await viewportEvents(page)).at(-1);
+      if (!zoomed) throw new Error("Perpendicular wheel input emitted no viewport event.");
+      expect(span(zoomed)).not.toBe(span(zoomBaseline));
+    }
   });
 
   test("touch drag can begin on an occurrence card without activating it", async ({

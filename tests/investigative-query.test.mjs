@@ -1,19 +1,18 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-
+import { normalizeReasoning, validateReasoning } from "../site/case-reasoning.ts";
 import {
+  buildAssertionDraft,
   buildAssumptionDraft,
   buildDisconfirmationEnquiryDraft,
   buildIdentityHypothesisDrafts,
   buildInformationReviewDraft,
-  buildObservationDraft,
-  buildAssertionDraft,
   buildLineOfEnquiryDraft,
+  buildObservationDraft,
   buildQuestionDraft,
   interpretInvestigativeQualifier,
   projectInvestigativeCandidateMatrix,
 } from "../src/application/investigative-query.ts";
-import { normalizeReasoning, validateReasoning } from "../site/case-reasoning.ts";
 
 const entities = [
   {
@@ -132,10 +131,9 @@ test("candidate matrix uses categorical clue cells and keeps missing information
     bob.cells.find((cell) => cell.qualifierId === "q-jacket")?.assessment,
     "contradicts",
   );
-  assert.deepEqual(
-    bob.cells.find((cell) => cell.qualifierId === "q-jacket")?.recordIds,
-    ["source-bob-profile"],
-  );
+  assert.deepEqual(bob.cells.find((cell) => cell.qualifierId === "q-jacket")?.recordIds, [
+    "source-bob-profile",
+  ]);
   assert.equal(
     charlie.cells.find((cell) => cell.qualifierId === "q-jacket")?.assessment,
     "unknown",

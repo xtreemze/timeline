@@ -5,7 +5,12 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-
+import { parseOccurrenceSentence } from "../site/occurrence-composer-model.ts";
+import {
+  LUM_ICALENDAR_FILE_EXTENSION,
+  projectOccurrencesToCalendar,
+  serializeICalendar,
+} from "../src/application/calendar-projection.ts";
 import {
   createEmptyProjectInterchange,
   formatProjectInterchange,
@@ -19,29 +24,23 @@ import {
   assembleProjectModules,
   createProjectModule,
   formatProjectModule,
-  lintProjectModule,
   LUM_PROJECT_MODULE_COLLECTIONS,
   LUM_PROJECT_MODULE_FILE_EXTENSION,
   LUM_PROJECT_MODULE_SCHEMA_ID,
+  lintProjectModule,
   validateProjectModule,
 } from "../src/application/project-module.ts";
-import {
-  LUM_ICALENDAR_FILE_EXTENSION,
-  projectOccurrencesToCalendar,
-  serializeICalendar,
-} from "../src/application/calendar-projection.ts";
 import { CURRENT_PROJECT_SCHEMA_VERSION } from "../src/application/project-repository.ts";
-import { parseOccurrenceSentence } from "../site/occurrence-composer-model.ts";
-import { runLumLanguageServer } from "./lum-lsp.mjs";
-import { attachLumDiagnosticRanges } from "./lib/lum-diagnostics.mjs";
 import { buildLumAgentContext, parseLumAgentSelectors } from "./lib/lum-agent-context.mjs";
-import { runLumAgentAdapter } from "./lib/lum-agent-run.mjs";
 import {
   applyLumChangeProposal,
   createLumChangeProposalScaffold,
   LUM_CHANGE_PROPOSAL_SCHEMA_ID,
   validateLumChangeProposal,
 } from "./lib/lum-agent-proposal.mjs";
+import { runLumAgentAdapter } from "./lib/lum-agent-run.mjs";
+import { attachLumDiagnosticRanges } from "./lib/lum-diagnostics.mjs";
+import { runLumLanguageServer } from "./lum-lsp.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SCHEMA_PATH = path.join(ROOT, "schemas", "lum-project-v1.schema.json");

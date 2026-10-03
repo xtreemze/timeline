@@ -1,4 +1,3 @@
-import type { CanonicalEntity } from "../domain/entity.ts";
 import type {
   CanonicalCategory,
   CanonicalPlace,
@@ -11,9 +10,10 @@ import {
   validateSource,
   validateStory,
 } from "../domain/composition.ts";
+import type { CanonicalEntity } from "../domain/entity.ts";
+import { validateEntity } from "../domain/entity.ts";
 import type { CanonicalSpatialGeometry } from "../domain/geotemporal.ts";
 import { validateSpatialGeometry } from "../domain/geotemporal.ts";
-import { validateEntity } from "../domain/entity.ts";
 import type { TimelineId } from "../domain/ids.ts";
 import {
   entityId,
@@ -157,15 +157,23 @@ function isStringArray(value: unknown): value is readonly string[] {
   return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
 
-function optionalRecordArray(
+/**
+ * Validates that every element is an object. The caller names the canonical element shape;
+ * field-level validation stays with the domain validators that run on the assembled record.
+ */
+function optionalRecordArray<T = PersistedRecord>(
   value: unknown,
   label: string,
-): readonly PersistedRecord[] | undefined {
+): readonly T[] | undefined {
   if (value === undefined) return undefined;
   if (!Array.isArray(value) || value.some((item) => !isRecord(item))) {
     throw new Error(`${label} must be an array of objects when present.`);
   }
   return value;
+}
+
+function persistedAs<T>(value: PersistedRecord): T {
+  return value as T;
 }
 
 function optionalRecord(value: unknown, label: string): PersistedRecord | undefined {
@@ -261,8 +269,14 @@ function assertEntityShape(value: unknown): CanonicalEntity {
     throw new Error("Entity attributes must be an object.");
   }
 
-  const identifiers = optionalRecordArray(value.identifiers, "Entity identifiers");
-  const appellations = optionalRecordArray(value.appellations, "Entity appellations");
+  const identifiers = optionalRecordArray<NonNullable<CanonicalEntity["identifiers"]>[number]>(
+    value.identifiers,
+    "Entity identifiers",
+  );
+  const appellations = optionalRecordArray<NonNullable<CanonicalEntity["appellations"]>[number]>(
+    value.appellations,
+    "Entity appellations",
+  );
   const semanticMappings = optionalRecordArray(value.semanticMappings, "Entity semanticMappings");
 
   const entity: CanonicalEntity = {
@@ -277,12 +291,8 @@ function assertEntityShape(value: unknown): CanonicalEntity {
           >,
         }
       : {}),
-    ...(identifiers
-      ? { identifiers: identifiers as unknown as NonNullable<CanonicalEntity["identifiers"]> }
-      : {}),
-    ...(appellations
-      ? { appellations: appellations as unknown as NonNullable<CanonicalEntity["appellations"]> }
-      : {}),
+    ...(identifiers ? { identifiers } : {}),
+    ...(appellations ? { appellations } : {}),
     ...(semanticMappings
       ? {
           semanticMappings: semanticMappings as NonNullable<CanonicalEntity["semanticMappings"]>,
@@ -453,7 +463,7 @@ function assertTrajectoryShape(
     bounds: value.bounds as TrajectoryBounds | null,
     channels: value.channels as readonly TrajectoryChannel[],
     levels: value.levels as readonly TrajectoryLevel[],
-    storage: value.storage as unknown as TrajectoryStorageReference,
+    storage: persistedAs<TrajectoryStorageReference>(value.storage),
     ...(semanticMappings
       ? {
           externalMappings: semanticMappings as NonNullable<TrajectoryArtifact["externalMappings"]>,

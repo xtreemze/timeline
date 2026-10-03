@@ -173,7 +173,7 @@ function projectPropertyInterpretations(
   for (const entity of entities) {
     for (const [property, rawValue] of Object.entries(entity.attributes ?? {})) {
       const value = text(rawValue);
-      if (!value || !semanticallyEqual(clue, value)) continue;
+      if (!(value && semanticallyEqual(clue, value))) continue;
       const id = `property:${property}:${normalized(value)}`;
       if (candidates.has(id)) continue;
       candidates.set(
@@ -261,15 +261,10 @@ export function interpretInvestigativeQualifier(
 }
 
 function sourceRecordIds(entity: InvestigativeEntity): readonly string[] {
-  return Object.freeze(
-    [...new Set((entity.sourceIds ?? []).map(text).filter(Boolean))].sort(),
-  );
+  return Object.freeze([...new Set((entity.sourceIds ?? []).map(text).filter(Boolean))].sort());
 }
 
-function scalarAttributeValue(
-  entity: InvestigativeEntity,
-  property: string,
-): string | null {
+function scalarAttributeValue(entity: InvestigativeEntity, property: string): string | null {
   const value = entity.attributes?.[property];
   if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
     return String(value);
@@ -362,7 +357,10 @@ function explicitCell(
 
   const contradiction = relevant.find((assessment) => assessment.assessment === "contradicts");
   const consistent = relevant.find((assessment) => assessment.assessment === "consistent");
-  const chosen = contradiction ?? consistent ?? relevant[0]!;
+  const chosen = contradiction ?? consistent ?? relevant[0];
+  if (!chosen) {
+    throw new Error("Qualifier assessment requires at least one relevant assessment.");
+  }
   const recordIds = [
     ...new Set(relevant.flatMap((assessment) => assessment.recordIds ?? [])),
   ].sort();

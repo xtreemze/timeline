@@ -36,15 +36,16 @@ test("composer keeps active suggestions visible across keyboard, wheel, and rese
         panelScrollTop: panel.scrollTop,
         listboxScrollTop: listbox.scrollTop,
         centerDelta:
-          activeRect.top + activeRect.height / 2 -
-          (listboxRect.top + listboxRect.height / 2),
+          activeRect.top + activeRect.height / 2 - (listboxRect.top + listboxRect.height / 2),
       };
     });
 
   await input.press("ArrowDown");
   await input.press("ArrowDown");
   await input.press("ArrowDown");
-  await expect.poll(async () => Math.abs((await choiceGeometry()).centerDelta)).toBeLessThanOrEqual(24);
+  await expect
+    .poll(async () => Math.abs((await choiceGeometry()).centerDelta))
+    .toBeLessThanOrEqual(24);
   const keyboardState = await choiceGeometry();
   expect(keyboardState.listboxScrollTop).toBeGreaterThan(0);
   expect(keyboardState.panelScrollTop).toBe(0);
@@ -61,7 +62,9 @@ test("composer keeps active suggestions visible across keyboard, wheel, and rese
   });
   expect(tinyWheelPrevented).toBe(true);
   await expect.poll(async () => (await choiceGeometry()).id).not.toBe(keyboardState.id);
-  await expect.poll(async () => Math.abs((await choiceGeometry()).centerDelta)).toBeLessThanOrEqual(24);
+  await expect
+    .poll(async () => Math.abs((await choiceGeometry()).centerDelta))
+    .toBeLessThanOrEqual(24);
 
   await page.waitForTimeout(55);
   const tinyWheelState = await choiceGeometry();
@@ -105,11 +108,36 @@ test("composer keeps active suggestions visible across keyboard, wheel, and rese
   await expect.poll(async () => (await choiceGeometry()).listboxScrollTop).toBe(0);
 
   await input.fill("Alice");
-  await input.press("Home");
+  // Suggestions must never hijack caret navigation keys. macOS text fields use Cmd+Arrow for
+  // line start/end (Home/End scroll there), so drive the platform's own caret commands.
+  const mac = process.platform === "darwin";
+  const lineStart = mac ? "Meta+ArrowLeft" : "Home";
+  const lineEnd = mac ? "Meta+ArrowRight" : "End";
+  const swallowed = await input.evaluate((element: HTMLInputElement) => {
+    const seen: boolean[] = [];
+    element.addEventListener(
+      "keydown",
+      (event) => {
+        if (event.key === "Home" || event.key === "End") {
+          queueMicrotask(() => seen.push(event.defaultPrevented));
+        }
+      },
+      { once: false },
+    );
+    element.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Home", bubbles: true, cancelable: true }),
+    );
+    element.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "End", bubbles: true, cancelable: true }),
+    );
+    return new Promise<boolean[]>((resolve) => setTimeout(() => resolve(seen), 0));
+  });
+  expect(swallowed).toEqual([false, false]);
+  await input.press(lineStart);
   await expect
     .poll(() => input.evaluate((element: HTMLInputElement) => element.selectionStart))
     .toBe(0);
-  await input.press("End");
+  await input.press(lineEnd);
   await expect
     .poll(() =>
       input.evaluate((element: HTMLInputElement) => ({
@@ -120,7 +148,9 @@ test("composer keeps active suggestions visible across keyboard, wheel, and rese
     .toEqual({ selectionStart: 5, length: 5 });
 });
 
-test("selecting an occurrence through the visible card opens its composer-owned context", async ({ page }) => {
+test("selecting an occurrence through the visible card opens its composer-owned context", async ({
+  page,
+}) => {
   const occurrence = page
     .locator(
       ".timeline-event:not(.timeline-cluster):not(.is-buffered) .timeline-event-terminal:visible",
@@ -215,7 +245,9 @@ test("multi-owned chronology item opens the exact rendered occurrence in the com
   await expect(page.locator("#timeline-focus-view:visible")).toHaveCount(0);
 });
 
-test("selecting a World edge selects its timeline event and opens that event context", async ({ page }) => {
+test("selecting a World edge selects its timeline event and opens that event context", async ({
+  page,
+}) => {
   await page.locator("#temporal-graph-view").evaluate((root) => {
     root.dispatchEvent(
       new CustomEvent("worldselectionchange", {
@@ -265,7 +297,9 @@ test("selecting a World edge selects its timeline event and opens that event con
   );
 });
 
-test("mobile composer fills one viewport lane, follows pan, and snaps centered", async ({ page }) => {
+test("mobile composer fills one viewport lane, follows pan, and snaps centered", async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const footer = page.locator(".app-footer-bar");
   const composer = page.locator("#occurrence-composer");
@@ -324,9 +358,9 @@ test("mobile composer fills one viewport lane, follows pan, and snaps centered",
     const available = element.scrollWidth - element.clientWidth;
     element.scrollLeft = Math.min(available, element.scrollLeft + Math.min(96, available));
   });
-  await expect
-    .poll(async () => (await geometry()).shellLeft)
-    .toBeLessThan(initial.shellLeft - 1);
+  await expect.poll(async () => (await geometry()).shellLeft).toBeLessThan(initial.shellLeft - 1);
+  // The completion panel repositions on its own frame after the shell moves.
+  await expect.poll(async () => (await geometry()).panelLeft).toBeLessThan(initial.panelLeft - 1);
 
   const panned = await geometry();
   expect(panned.footerScrollLeft).toBeGreaterThan(0);
@@ -381,6 +415,20 @@ test("mobile composer fills one viewport lane, follows pan, and snaps centered",
   await expect(approve).toBeVisible();
 });
 
+test("closing the mobile composer returns the dock to its first controls", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  const footer = page.locator(".app-footer-bar");
+  const composer = page.locator("#occurrence-composer");
+  await composer.locator(".compact").click();
+  await expect(composer).toHaveAttribute("active", "");
+  await expect.poll(() => footer.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
+
+  await page.keyboard.press("Escape");
+  await expect(composer).not.toHaveAttribute("active", "");
+  await expect.poll(() => footer.evaluate((element) => element.scrollLeft)).toBe(0);
+  await expect(page.getByRole("button", { name: "Project actions" })).toBeInViewport();
+});
+
 test("one native composer input decorates semantic ranges inline and keeps exact editing spans", async ({
   page,
 }) => {
@@ -406,17 +454,33 @@ test("one native composer input decorates semantic ranges inline and keeps exact
   expect(after).not.toBe(before);
   expect(decodeURIComponent(after ?? "")).toContain("<svg");
 
-  await input.fill("@alice meets @bob at Stockholm on 2026-09-29 [category: Family, tags: important]");
+  await input.fill(
+    "@alice meets @bob at Stockholm on 2026-09-29 [category: Family, tags: important]",
+  );
   await expect(composer.locator(".context-row")).toHaveCount(0);
   const tokens = composer.locator(".input-token");
   await expect(tokens).not.toHaveCount(0);
-  await expect(composer.locator('.input-token[data-kind="subject"] .input-token-text')).toHaveText("@alice");
-  await expect(composer.locator('.input-token[data-kind="predicate"] .input-token-text')).toHaveText("meets");
-  await expect(composer.locator('.input-token[data-kind="object"] .input-token-text')).toHaveText("@bob");
-  await expect(composer.locator('.input-token[data-kind="place"] .input-token-text')).toHaveText("Stockholm");
-  await expect(composer.locator('.input-token[data-kind="time"] .input-token-text')).toContainText("2026-09-29");
-  await expect(composer.locator('.input-token[data-kind="category"] .input-token-text')).toHaveText("Family");
-  await expect(composer.locator('.input-token[data-kind="tag"] .input-token-text')).toHaveText("important");
+  await expect(composer.locator('.input-token[data-kind="subject"] .input-token-text')).toHaveText(
+    "@alice",
+  );
+  await expect(
+    composer.locator('.input-token[data-kind="predicate"] .input-token-text'),
+  ).toHaveText("meets");
+  await expect(composer.locator('.input-token[data-kind="object"] .input-token-text')).toHaveText(
+    "@bob",
+  );
+  await expect(composer.locator('.input-token[data-kind="place"] .input-token-text')).toHaveText(
+    "Stockholm",
+  );
+  await expect(composer.locator('.input-token[data-kind="time"] .input-token-text')).toContainText(
+    "2026-09-29",
+  );
+  await expect(composer.locator('.input-token[data-kind="category"] .input-token-text')).toHaveText(
+    "Family",
+  );
+  await expect(composer.locator('.input-token[data-kind="tag"] .input-token-text')).toHaveText(
+    "important",
+  );
   await expect(composer.locator('.input-token[data-kind="subject"]')).toHaveAttribute(
     "data-label",
     "subject",
@@ -445,13 +509,28 @@ test("one native composer input decorates semantic ranges inline and keeps exact
     "data-label",
     "tag",
   );
-  await expect(composer.locator('.input-token[data-kind="subject"] .input-token-icon')).toHaveAttribute("data-icon", "person");
-  await expect(composer.locator('.input-token[data-kind="predicate"] .input-token-icon')).toHaveAttribute("data-icon", "relation");
-  await expect(composer.locator('.input-token[data-kind="object"] .input-token-icon')).toHaveAttribute("data-icon", "object");
-  await expect(composer.locator('.input-token[data-kind="place"] .input-token-icon')).toHaveAttribute("data-icon", "place");
-  await expect(composer.locator('.input-token[data-kind="time"] .input-token-icon')).toHaveAttribute("data-icon", "timeline");
-  await expect(composer.locator('.input-token[data-kind="category"] .input-token-icon')).toHaveAttribute("data-icon", "folder");
-  await expect(composer.locator('.input-token[data-kind="tag"] .input-token-icon')).toHaveAttribute("data-icon", "note");
+  await expect(
+    composer.locator('.input-token[data-kind="subject"] .input-token-icon'),
+  ).toHaveAttribute("data-icon", "person");
+  await expect(
+    composer.locator('.input-token[data-kind="predicate"] .input-token-icon'),
+  ).toHaveAttribute("data-icon", "relation");
+  await expect(
+    composer.locator('.input-token[data-kind="object"] .input-token-icon'),
+  ).toHaveAttribute("data-icon", "object");
+  await expect(
+    composer.locator('.input-token[data-kind="place"] .input-token-icon'),
+  ).toHaveAttribute("data-icon", "place");
+  await expect(
+    composer.locator('.input-token[data-kind="time"] .input-token-icon'),
+  ).toHaveAttribute("data-icon", "timeline");
+  await expect(
+    composer.locator('.input-token[data-kind="category"] .input-token-icon'),
+  ).toHaveAttribute("data-icon", "folder");
+  await expect(composer.locator('.input-token[data-kind="tag"] .input-token-icon')).toHaveAttribute(
+    "data-icon",
+    "note",
+  );
 
   const iconLayout = await composer.locator(".input-shell").evaluate((shell) => {
     const input = shell.querySelector("input");
@@ -555,19 +634,23 @@ test("one native composer input decorates semantic ranges inline and keeps exact
   await composer.evaluate((element) => {
     (element as HTMLElement & { focusSection(field: "place"): void }).focusSection("place");
   });
-  await expect.poll(() =>
-    input.evaluate((element: HTMLInputElement) =>
-      element.value.slice(element.selectionStart ?? 0, element.selectionEnd ?? 0),
-    ),
-  ).toBe("Stockholm");
+  await expect
+    .poll(() =>
+      input.evaluate((element: HTMLInputElement) =>
+        element.value.slice(element.selectionStart ?? 0, element.selectionEnd ?? 0),
+      ),
+    )
+    .toBe("Stockholm");
   await composer.evaluate((element) => {
     (element as HTMLElement & { focusSection(field: "tag"): void }).focusSection("tag");
   });
-  await expect.poll(() =>
-    input.evaluate((element: HTMLInputElement) =>
-      element.value.slice(element.selectionStart ?? 0, element.selectionEnd ?? 0),
-    ),
-  ).toBe("important");
+  await expect
+    .poll(() =>
+      input.evaluate((element: HTMLInputElement) =>
+        element.value.slice(element.selectionStart ?? 0, element.selectionEnd ?? 0),
+      ),
+    )
+    .toBe("important");
 
   await input.fill(
     "@alice meets @bob at Stockholm on 2026-09-29 [category: Family, tags: important|investigation|long-context-token]",
@@ -588,7 +671,9 @@ test("one native composer input decorates semantic ranges inline and keeps exact
   await expect(composer.locator('input[role="combobox"]')).toHaveCount(1);
 });
 
-test("Space toggles multiple categories and tags while Enter advances option parts", async ({ page }) => {
+test("Space toggles multiple categories and tags while Enter advances option parts", async ({
+  page,
+}) => {
   const composer = page.locator("#occurrence-composer");
   await composer.locator(".compact").click();
   await composer.evaluate((element) => {
@@ -634,7 +719,9 @@ test("Space toggles multiple categories and tags while Enter advances option par
 
   await input.press("Enter");
   await expect(input).toHaveValue(/\[categories: Observation\|Conflict, tags: \]$/);
-  await expect(composer.locator('.option[data-multiselect="true"]').filter({ hasText: "work" })).toBeVisible();
+  await expect(
+    composer.locator('.option[data-multiselect="true"]').filter({ hasText: "work" }),
+  ).toBeVisible();
 
   await input.press(" ");
   await expect(input).toHaveValue(/tags: work\]$/);
@@ -735,7 +822,9 @@ test("unresolved clue remains editable and cannot be approved as a fact", async 
   });
   const firstCandidate = await composer.locator('.candidate-row[data-active="true"]').textContent();
   await input.press("ArrowDown");
-  const secondCandidate = await composer.locator('.candidate-row[data-active="true"]').textContent();
+  const secondCandidate = await composer
+    .locator('.candidate-row[data-active="true"]')
+    .textContent();
   expect(secondCandidate).not.toBe(firstCandidate);
   await input.press("End");
   const activeCandidate = composer.locator('.candidate-row[data-active="true"]');
@@ -759,7 +848,8 @@ test("unresolved clue remains editable and cannot be approved as a fact", async 
     .locator('.interpretation-chip[aria-pressed="true"]')
     .textContent();
   expect(interpretationAfter).not.toBe(interpretationBefore);
-  const pointerCandidate = (await composer.locator(".candidate-select").first().textContent()) ?? "";
+  const pointerCandidate =
+    (await composer.locator(".candidate-select").first().textContent()) ?? "";
   await composer.locator(".candidate-select").first().click();
   await expect(composer.locator('.candidate-row[data-active="true"]')).toContainText(
     pointerCandidate,
@@ -767,7 +857,6 @@ test("unresolved clue remains editable and cannot be approved as a fact", async 
   await input.press("Escape");
   await expect(composer.locator(".compact")).toBeVisible();
 });
-
 
 test("multiple investigative qualifiers retain exact ranges and exit without damaging the sentence", async ({
   page,
@@ -811,7 +900,9 @@ test("multiple investigative qualifiers retain exact ranges and exit without dam
   await expect(input).not.toHaveAttribute("aria-controls", "occurrence-investigation-panel");
 });
 
-test("investigation stays inside the visual viewport and announces active state", async ({ page }) => {
+test("investigation stays inside the visual viewport and announces active state", async ({
+  page,
+}) => {
   const composer = page.locator("#occurrence-composer");
   await composer.locator(".compact").click();
   const input = composer.locator('input[role="combobox"]');
@@ -847,15 +938,18 @@ test("investigation stays inside the visual viewport and announces active state"
   expect(containment.scrollWidth).toBeLessThanOrEqual(containment.innerWidth + 2);
   expect(containment.scrollHeight).toBeLessThanOrEqual(containment.innerHeight + 2);
 
-  const activeBefore = await composer.locator('.candidate-row[data-active="true"]').getAttribute("aria-label");
+  const activeBefore = await composer
+    .locator('.candidate-row[data-active="true"]')
+    .getAttribute("aria-label");
   await input.press("ArrowDown");
-  const activeAfter = await composer.locator('.candidate-row[data-active="true"]').getAttribute("aria-label");
+  const activeAfter = await composer
+    .locator('.candidate-row[data-active="true"]')
+    .getAttribute("aria-label");
   expect(activeAfter).not.toBe(activeBefore);
   await expect(status).toContainText("Candidate");
   await expect(status).not.toContainText(/Candidate \\d+ of \\d+/);
   await expect(input).toHaveValue("man? calls @alice");
 });
-
 
 test("IME composition cannot accept or commit investigative text before compositionend", async ({
   page,
@@ -865,17 +959,21 @@ test("IME composition cannot accept or commit investigative text before composit
   const input = composer.locator('input[role="combobox"]');
 
   await input.evaluate((element: HTMLInputElement) => {
-    element.dispatchEvent(new CompositionEvent("compositionstart", {
-      bubbles: true,
-      data: "man?",
-    }));
+    element.dispatchEvent(
+      new CompositionEvent("compositionstart", {
+        bubbles: true,
+        data: "man?",
+      }),
+    );
     element.value = "man? calls @alice";
     element.setSelectionRange(element.value.length, element.value.length);
-    element.dispatchEvent(new InputEvent("input", {
-      bubbles: true,
-      data: "?",
-      inputType: "insertCompositionText",
-    }));
+    element.dispatchEvent(
+      new InputEvent("input", {
+        bubbles: true,
+        data: "?",
+        inputType: "insertCompositionText",
+      }),
+    );
   });
 
   await input.press("Enter");
@@ -885,16 +983,17 @@ test("IME composition cannot accept or commit investigative text before composit
   await expect(input).not.toHaveAttribute("aria-controls", "occurrence-investigation-panel");
 
   await input.evaluate((element: HTMLInputElement) => {
-    element.dispatchEvent(new CompositionEvent("compositionend", {
-      bubbles: true,
-      data: "man?",
-    }));
+    element.dispatchEvent(
+      new CompositionEvent("compositionend", {
+        bubbles: true,
+        data: "man?",
+      }),
+    );
   });
   await expect(composer.locator("#occurrence-investigation-panel")).toBeVisible();
   await expect(input).toHaveValue("man? calls @alice");
   await expect(composer.locator('input[role="combobox"]')).toHaveCount(1);
 });
-
 
 test("same-occurrence media and context refresh preserve a dirty investigative draft", async ({
   page,
@@ -912,11 +1011,13 @@ test("same-occurrence media and context refresh preserve a dirty investigative d
       composition: "@alice calls @bob",
       title: "Initial context",
       description: "Initial description",
-      media: [{
-        src: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==",
-        alt: "Initial evidence",
-        caption: "Initial caption",
-      }],
+      media: [
+        {
+          src: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==",
+          alt: "Initial evidence",
+          caption: "Initial caption",
+        },
+      ],
       relationship: { subjectId: "alice", objectId: "bob" },
     });
   });
@@ -985,9 +1086,27 @@ test("same-occurrence media and context refresh preserve a dirty investigative d
   await imageViewport.evaluate((viewport) => {
     const emit = (type: string, init: PointerEventInit) =>
       viewport.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, ...init }));
-    emit("pointerdown", { pointerId: 11, pointerType: "mouse", button: 0, clientX: 120, clientY: 90 });
-    emit("pointermove", { pointerId: 11, pointerType: "mouse", button: 0, clientX: 154, clientY: 112 });
-    emit("pointerup", { pointerId: 11, pointerType: "mouse", button: 0, clientX: 154, clientY: 112 });
+    emit("pointerdown", {
+      pointerId: 11,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 120,
+      clientY: 90,
+    });
+    emit("pointermove", {
+      pointerId: 11,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 154,
+      clientY: 112,
+    });
+    emit("pointerup", {
+      pointerId: 11,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 154,
+      clientY: 112,
+    });
   });
   await expect
     .poll(() =>
@@ -1061,9 +1180,15 @@ test("same-occurrence media and context refresh preserve a dirty investigative d
     emit("pointermove", 90);
     emit("pointerup", 90);
   });
-  await expect(deck.locator(".timeline-focus-hero-image")).toHaveAttribute("alt", "Updated evidence B");
+  await expect(deck.locator(".timeline-focus-hero-image")).toHaveAttribute(
+    "alt",
+    "Updated evidence B",
+  );
   await deck.getByRole("button", { name: "Previous frame" }).click();
-  await expect(deck.locator(".timeline-focus-hero-image")).toHaveAttribute("alt", "Updated evidence A");
+  await expect(deck.locator(".timeline-focus-hero-image")).toHaveAttribute(
+    "alt",
+    "Updated evidence A",
+  );
 
   const context = composer.locator(".composer-card-context");
   await expect(context).toContainText("Updated description");
@@ -1074,7 +1199,12 @@ test("same-occurrence media and context refresh preserve a dirty investigative d
       width: window.innerWidth,
       media: media ? { x: media.x, y: media.y, right: media.right, bottom: media.bottom } : null,
       context: contextPane
-        ? { x: contextPane.x, y: contextPane.y, right: contextPane.right, bottom: contextPane.bottom }
+        ? {
+            x: contextPane.x,
+            y: contextPane.y,
+            right: contextPane.right,
+            bottom: contextPane.bottom,
+          }
         : null,
     };
   });
@@ -1087,14 +1217,21 @@ test("same-occurrence media and context refresh preserve a dirty investigative d
     expect(layout.context!.y).toBeGreaterThanOrEqual(layout.media!.bottom - 2);
   }
   await deck.getByRole("button", { name: "Next frame" }).click();
-  await expect(deck.locator(".timeline-focus-hero-image")).toHaveAttribute("alt", "Updated evidence B");
+  await expect(deck.locator(".timeline-focus-hero-image")).toHaveAttribute(
+    "alt",
+    "Updated evidence B",
+  );
   await deck.getByRole("button", { name: "Next frame" }).click();
-  await expect(deck.locator(".timeline-focus-hero-image")).toHaveAttribute("alt", "Updated evidence A");
+  await expect(deck.locator(".timeline-focus-hero-image")).toHaveAttribute(
+    "alt",
+    "Updated evidence A",
+  );
   await expect(context).toContainText("Updated description");
 });
 
-
-test("different occurrence selection cannot overwrite a dirty investigative draft", async ({ page }) => {
+test("different occurrence selection cannot overwrite a dirty investigative draft", async ({
+  page,
+}) => {
   const composer = page.locator("#occurrence-composer");
   await composer.locator(".compact").click();
   const input = composer.locator('input[role="combobox"]');

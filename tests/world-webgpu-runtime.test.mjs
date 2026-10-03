@@ -186,7 +186,6 @@ test("WebGPU async picking preserves long-press entity drag semantics", async (t
   });
 });
 
-
 test("WebGPU async non-entity picks do not retain the touch hold", async (t) => {
   t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: 10_000 });
   const harness = asyncPickingSurfaceHarness();

@@ -142,7 +142,7 @@ export function projectCanonicalWorldOccurrences(
   for (const occurrenceId of activeIds) {
     const standalone = occurrencesById.get(String(occurrenceId));
     const relationship = relationshipsById.get(occurrenceId as RelationshipId);
-    if (!standalone && !relationship) {
+    if (!(standalone || relationship)) {
       throw new Error(`Active occurrence ${String(occurrenceId)} is not canonical.`);
     }
 
@@ -154,10 +154,14 @@ export function projectCanonicalWorldOccurrences(
 
     const entityIds = standalone
       ? occurrenceParticipantEntityIds(standalone, project.relationships)
-      : Object.freeze([relationship!.subjectId, relationship!.objectId]);
+      : relationship
+        ? Object.freeze([relationship.subjectId, relationship.objectId])
+        : Object.freeze([]);
     const relationshipIds = standalone
       ? standalone.relationshipIds
-      : Object.freeze([relationship!.id]);
+      : relationship
+        ? Object.freeze([relationship.id])
+        : Object.freeze([]);
 
     for (const entity of entityIds) {
       accumulateInstance(

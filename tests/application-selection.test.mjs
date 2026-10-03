@@ -110,7 +110,7 @@ test("world user selection publishes while programmatic propagation stays silent
   assert.match(surface, /new CustomEvent\("worldselectionchange"[\s\S]*selection:/);
   assert.match(surface, /setSelection\(selection: WorldSelection \| null\): void/);
   assert.doesNotMatch(
-    surface.match(/setSelection\(selection: WorldSelection \| null\): void[\s\S]*?\n  \}/)?.[0] ??
+    surface.match(/setSelection\(selection: WorldSelection \| null\): void[\s\S]*?\n {2}\}/)?.[0] ??
       "",
     /worldselectionchange/,
   );

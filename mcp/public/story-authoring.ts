@@ -4,8 +4,8 @@ import {
   LUM_PROJECT_INTERCHANGE_FORMAT,
   LUM_PROJECT_INTERCHANGE_VERSION,
   LUM_PROJECT_SCHEMA_ID,
-  validateProjectInterchange,
   type ProjectInterchangeDiagnostic,
+  validateProjectInterchange,
 } from "../../src/application/project-interchange.ts";
 import {
   createProjectModule,

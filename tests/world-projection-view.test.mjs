@@ -286,7 +286,11 @@ test("conflicting ambient occurrence hues do not arbitrarily recolor a shared en
   const bob = projection.instances.find((candidate) => candidate.canonicalId === "bob");
   const charlie = projection.instances.find((candidate) => candidate.canonicalId === "charlie");
 
-  assert.equal(alice?.style, undefined, "shared entity keeps authored/type fallback on semantic conflict");
+  assert.equal(
+    alice?.style,
+    undefined,
+    "shared entity keeps authored/type fallback on semantic conflict",
+  );
   assert.equal(bob?.style?.fillColor, canonicalSemanticHueColor("#b42318"));
   assert.equal(
     charlie?.style?.fillColor,
@@ -421,7 +425,7 @@ test("timeline occurrence focus scopes and frames its related world nodes", () =
 });
 
 test("focused standalone occurrence keeps parent identity while emphasizing child topology", () => {
-  const { view, getProjection } = harness();
+  const { calls, view, getProjection } = harness();
   view.setModel({
     ...model,
     items: [{ id: "meeting-item" }],
@@ -447,7 +451,10 @@ test("focused standalone occurrence keeps parent identity while emphasizing chil
     ["focus:occurrence", "meeting-item"],
     "focus keeps the standalone canonical occurrence identity",
   );
-  assert.deepEqual(getProjection().edges.map((edge) => edge.id), ["meeting"]);
+  assert.deepEqual(
+    getProjection().edges.map((edge) => edge.id),
+    ["meeting"],
+  );
   assert.ok(
     getProjection().instances.every((instance) =>
       instance.occurrenceIds?.some((id) => String(id) === "meeting-item"),
@@ -474,7 +481,10 @@ test("timeless unary standalone occurrences remain available as world-only conte
 
   const projection = getProjection();
   assert.deepEqual(projection.edges, []);
-  assert.deepEqual(projection.instances.map((instance) => instance.canonicalId), ["alice"]);
+  assert.deepEqual(
+    projection.instances.map((instance) => instance.canonicalId),
+    ["alice"],
+  );
   assert.deepEqual(projection.instances[0].occurrenceIds, ["status"]);
 });
 

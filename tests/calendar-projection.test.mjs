@@ -6,8 +6,8 @@ import path from "node:path";
 import test from "node:test";
 
 import {
-  projectOccurrenceToCalendarEvent,
   projectOccurrencesToCalendar,
+  projectOccurrenceToCalendarEvent,
   serializeICalendar,
 } from "../src/application/calendar-projection.ts";
 import { serializeProjectInterchange } from "../src/application/project-interchange.ts";
@@ -126,9 +126,9 @@ test("projects exact timed instants without inventing a duration", () => {
   assert.deepEqual(event.temporal, {
     kind: "date-time",
     start: "20260928T103000Z",
-    end: undefined,
     floating: false,
   });
+  assert.equal(event.temporal.end, undefined, "an exact instant has no invented end");
   assert.equal(event.metadata.timeZone, "Europe/Stockholm");
   assert.equal(
     JSON.stringify(input),
@@ -152,8 +152,8 @@ test("projects an exact day instant as an all-day event", () => {
   assert.deepEqual(event.temporal, {
     kind: "date",
     start: "20260928",
-    end: undefined,
   });
+  assert.equal(event.temporal.end, undefined, "an exact day instant has no invented end");
 
   const ics = serializeICalendar(projectOccurrencesToCalendar(input));
   assert.match(ics, /DTSTART;VALUE=DATE:20260928\r\n/);
@@ -244,7 +244,10 @@ test("story and explicit selectors export relationship-derived canonical occurre
   input.project.stories[0].occurrenceIds = ["rel-1"];
 
   const story = projectOccurrencesToCalendar(input, { storyId: "story-1" });
-  assert.deepEqual(story.events.map((event) => event.occurrenceId), ["rel-1"]);
+  assert.deepEqual(
+    story.events.map((event) => event.occurrenceId),
+    ["rel-1"],
+  );
   assert.equal(story.events[0].summary, "Alice warns Bob");
 
   const direct = projectOccurrenceToCalendarEvent(input, "rel-1");

@@ -103,19 +103,23 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
       }
       const held = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera());
       await page.mouse.up();
+      await page.waitForTimeout(32);
+      const earlyRelease = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera());
       await page.waitForTimeout(120);
       const inertial = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera());
-      await page.waitForTimeout(350);
-      return { held, inertial };
+      await page.waitForTimeout(320);
+      return { held, earlyRelease, inertial };
     };
 
     const fast = await drag(3, 4);
     const slow = await drag(8, 24);
-    const cameraDistance = (sample: typeof camera) =>
+    const cameraDistanceBetween = (from: typeof camera, to: typeof camera) =>
       Math.hypot(
-        (sample.longitude - camera.longitude) * Math.cos((camera.latitude * Math.PI) / 180),
-        sample.latitude - camera.latitude,
+        (to.longitude - from.longitude) *
+          Math.cos((((from.latitude + to.latitude) / 2) * Math.PI) / 180),
+        to.latitude - from.latitude,
       );
+    const cameraDistance = (sample: typeof camera) => cameraDistanceBetween(camera, sample);
     const fastHeldDistance = cameraDistance(fast.held);
     const slowHeldDistance = cameraDistance(slow.held);
 
@@ -128,6 +132,13 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
       cameraDistance(slow.inertial),
       "release inertia should continue the weighted globe path after pointer-up",
     ).toBeGreaterThan(slowHeldDistance);
+    const initialReleaseTravel = cameraDistanceBetween(slow.held, slow.earlyRelease);
+    const continuedReleaseTravel = cameraDistanceBetween(slow.earlyRelease, slow.inertial);
+    expect(initialReleaseTravel, "pointer-up should begin measurable release motion").toBeGreaterThan(0);
+    expect(
+      continuedReleaseTravel,
+      "globe momentum must continue for multiple frames instead of stopping immediately after release",
+    ).toBeGreaterThan(initialReleaseTravel * 0.2);
   });
 
   test("globe release inertia does not accelerate beyond the held drag velocity", async ({
@@ -161,10 +172,7 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
         camera: window.__worldPerfHarness.surface.getCamera(),
         time: performance.now(),
       }));
-    const cameraDistance = (
-      from: typeof startCamera,
-      to: typeof startCamera,
-    ) =>
+    const cameraDistance = (from: typeof startCamera, to: typeof startCamera) =>
       Math.hypot(
         (to.longitude - from.longitude) *
           Math.cos((((from.latitude + to.latitude) / 2) * Math.PI) / 180),
@@ -230,10 +238,7 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
       y: Math.round(viewport.height * 0.5),
     };
     const distance = Math.min(180, Math.round(viewport.width * 0.22));
-    const cameraDistance = (
-      from: typeof startCamera,
-      to: typeof startCamera,
-    ) =>
+    const cameraDistance = (from: typeof startCamera, to: typeof startCamera) =>
       Math.hypot(
         (to.longitude - from.longitude) *
           Math.cos((((from.latitude + to.latitude) / 2) * Math.PI) / 180),

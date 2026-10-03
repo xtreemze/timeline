@@ -1,21 +1,38 @@
 import type { CanonicalSpatialGeometry } from "../../src/domain/geotemporal.ts";
 import { validateSpatialGeometry } from "../../src/domain/geotemporal.ts";
-import type { CanonicalOccurrenceId, EntityId, PlaceId, RelationshipId } from "../../src/domain/ids.ts";
+import type {
+  CanonicalOccurrenceId,
+  EntityId,
+  PlaceId,
+  RelationshipId,
+} from "../../src/domain/ids.ts";
 import { entityId, occurrenceId, placeId, relationshipId } from "../../src/domain/ids.ts";
-import type { CanonicalOccurrence, CanonicalOccurrenceParticipant } from "../../src/domain/occurrence.ts";
+import type {
+  CanonicalOccurrence,
+  CanonicalOccurrenceParticipant,
+} from "../../src/domain/occurrence.ts";
 import type {
   CanonicalRelationship,
   CanonicalTemporalExtent,
 } from "../../src/domain/relationship.ts";
 import {
+  mergeOccurrenceNodeSemanticStyle,
+  type OccurrenceNodeSemanticStyle,
+  occurrenceNodeSemanticStyle,
+} from "../../src/presentation/occurrence-semantic-color.ts";
+import {
+  canonicalSemanticHueColor,
+  normalizeSemanticColorSource,
+} from "../../src/presentation/semantic-color.ts";
+import {
+  type CanonicalProjectedOccurrence,
+  projectCanonicalOccurrences,
+} from "../../src/projection/canonical-occurrence-projection.ts";
+import {
   SpatialAnchorIndex,
   type SpatialPlaceRecord,
 } from "../../src/projection/spatial-anchor-index.ts";
 import { occurrenceViewportWeight } from "../../src/projection/spatiotemporal-projection.ts";
-import {
-  projectCanonicalOccurrences,
-  type CanonicalProjectedOccurrence,
-} from "../../src/projection/canonical-occurrence-projection.ts";
 import {
   createTemporalOccurrenceIndex,
   type TemporalOccurrenceIndex,
@@ -25,19 +42,11 @@ import {
   type WorldEntityPresentation,
 } from "../../src/projection/world-occurrence-projection.ts";
 import type { WorldProjection } from "../../src/projection/world-projection.ts";
-import {
-  mergeOccurrenceNodeSemanticStyle,
-  occurrenceNodeSemanticStyle,
-  type OccurrenceNodeSemanticStyle,
-} from "../../src/presentation/occurrence-semantic-color.ts";
-import {
-  canonicalSemanticHueColor,
-  normalizeSemanticColorSource,
-} from "../../src/presentation/semantic-color.ts";
 import { TimelineTemporal } from "../temporal-standards.ts";
 
 export interface WorldProjectionRuntime {
   setProjection(projection: WorldProjection): void;
+  previewProjection?(projection: WorldProjection): void;
   setTemporalWindow(window: WorldViewViewport): void;
   setContextRelationships?(ids: readonly RelationshipId[]): void;
   focusEntity(id: EntityId): void;
@@ -135,7 +144,6 @@ interface WorldTemporalWindow {
   readonly end: number;
 }
 
-
 function text(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -153,10 +161,9 @@ function itemNodeSemanticStyle(
   item: InputItem,
   categoryColors: ReadonlyMap<string, string>,
 ): OccurrenceNodeSemanticStyle | null {
-  const categoryIds = [
-    text(item.categoryId),
-    ...stringList(item.categoryIds),
-  ].filter((id, index, values) => Boolean(id) && values.indexOf(id) === index);
+  const categoryIds = [text(item.categoryId), ...stringList(item.categoryIds)].filter(
+    (id, index, values) => Boolean(id) && values.indexOf(id) === index,
+  );
   const categorySemanticColors = categoryIds
     .map((id) => categoryColors.get(id) ?? "")
     .filter(Boolean);
@@ -368,9 +375,8 @@ function canonicalOccurrences(
     const id = text(raw.id);
     if (!id) continue;
 
-    const participantContexts = (Array.isArray(raw.participantContexts)
-      ? raw.participantContexts
-      : []
+    const participantContexts = (
+      Array.isArray(raw.participantContexts) ? raw.participantContexts : []
     )
       .map((value) => {
         if (!isRecord(value)) return null;
@@ -514,12 +520,13 @@ export class WorldProjectionView {
           const style = itemNodeSemanticStyle(item, categoryColors);
           return style && id ? ([id, style] as const) : null;
         })
-        .filter(
-          (entry): entry is readonly [string, OccurrenceNodeSemanticStyle] => entry !== null,
-        ),
+        .filter((entry): entry is readonly [string, OccurrenceNodeSemanticStyle] => entry !== null),
     );
     const categoryColorByRelationshipId = new Map<string, string>();
-    const nodeSemanticStyleByRelationshipId = new Map<RelationshipId, OccurrenceNodeSemanticStyle>();
+    const nodeSemanticStyleByRelationshipId = new Map<
+      RelationshipId,
+      OccurrenceNodeSemanticStyle
+    >();
     for (const relationship of Array.isArray(model.relationships) ? model.relationships : []) {
       const id = text(relationship.id);
       if (!id || !Array.isArray(relationship.itemIds)) continue;
@@ -586,11 +593,7 @@ export class WorldProjectionView {
     this.#occurrenceByStringId = new Map(
       this.#occurrences.map((occurrence) => [String(occurrence.id), occurrence] as const),
     );
-    this.#spatialAnchors = new SpatialAnchorIndex(
-      places,
-      this.#relationships,
-      this.#occurrences,
-    );
+    this.#spatialAnchors = new SpatialAnchorIndex(places, this.#relationships, this.#occurrences);
 
     const projected = projectCanonicalOccurrences(
       {
@@ -607,9 +610,7 @@ export class WorldProjectionView {
     );
 
     const groupedRelationshipIds = new Set(
-      this.#occurrences.flatMap((occurrence) =>
-        occurrence.relationshipIds.map((id) => String(id)),
-      ),
+      this.#occurrences.flatMap((occurrence) => occurrence.relationshipIds.map((id) => String(id))),
     );
     const projectedIds = new Set(projected.map((occurrence) => String(occurrence.id)));
     const timelessStandaloneIds = this.#occurrences
@@ -626,8 +627,7 @@ export class WorldProjectionView {
         ...this.#relationships
           .filter(
             (relationship) =>
-              relationship.time === null &&
-              !groupedRelationshipIds.has(String(relationship.id)),
+              relationship.time === null && !groupedRelationshipIds.has(String(relationship.id)),
           )
           .map((relationship) => relationship.id),
       ].sort((left, right) => String(left).localeCompare(String(right))),
@@ -646,6 +646,12 @@ export class WorldProjectionView {
         ? Object.freeze({ start: viewport.start, end: viewport.end })
         : null;
     if (next) this.#runtime.setTemporalWindow(next);
+    if (!this.#runtime.previewProjection) return;
+
+    const nextActiveIds = Array.isArray(viewport?.activeOccurrenceIds)
+      ? Object.freeze(viewport.activeOccurrenceIds.map(String))
+      : null;
+    this.#runtime.previewProjection(this.#projectionFor(next, nextActiveIds).projection);
   }
 
   setWindow(viewport: WorldViewViewport | null): boolean {
@@ -729,10 +735,16 @@ export class WorldProjectionView {
     this.#runtime.destroy();
   }
 
-  #render(): void {
-    const base = this.#sharedActiveIds
-      ? this.#sharedActivation(this.#sharedActiveIds)
-      : this.#standaloneActivation();
+  #projectionFor(
+    viewport: WorldTemporalWindow | null,
+    sharedActiveIds: readonly string[] | null,
+  ): {
+    readonly projection: WorldProjection;
+    readonly contextualIds: readonly RelationshipId[] | undefined;
+  } {
+    const base = sharedActiveIds
+      ? this.#sharedActivation(sharedActiveIds, viewport)
+      : this.#standaloneActivation(viewport);
     const contextualIds = this.#focusId
       ? this.#relationshipIdsByItem.get(this.#focusId)
       : undefined;
@@ -748,17 +760,27 @@ export class WorldProjectionView {
       ? new Map(activeIds.map((id) => [id, base.weights.get(id) ?? 1] as const))
       : base.weights;
 
-    const projection = projectCanonicalWorldOccurrences(
-      {
-        relationships: this.#relationships,
-        occurrences: this.#occurrences,
-      },
-      activeIds,
-      this.#spatialAnchors,
-      {
-        entityPresentation: this.#entityPresentationFor(activeIds, contextualIds),
-        temporalWeights: weights,
-      },
+    return Object.freeze({
+      projection: projectCanonicalWorldOccurrences(
+        {
+          relationships: this.#relationships,
+          occurrences: this.#occurrences,
+        },
+        activeIds,
+        this.#spatialAnchors,
+        {
+          entityPresentation: this.#entityPresentationFor(activeIds, contextualIds),
+          temporalWeights: weights,
+        },
+      ),
+      contextualIds,
+    });
+  }
+
+  #render(): void {
+    const { projection, contextualIds } = this.#projectionFor(
+      this.#viewport,
+      this.#sharedActiveIds,
     );
 
     this.#runtime.setProjection(projection);
@@ -803,9 +825,7 @@ export class WorldProjectionView {
       // Focused occurrence semantics outrank ambient context. Conflicts
       // deliberately resolve to null so the entity falls back to authored/type
       // presentation instead of choosing an arbitrary active occurrence hue.
-      const inherited = contextualStyles.has(id)
-        ? contextualStyles.get(id)
-        : ambientStyles.get(id);
+      const inherited = contextualStyles.has(id) ? contextualStyles.get(id) : ambientStyles.get(id);
       if (!inherited) {
         result.set(id, presentation);
         continue;
@@ -817,7 +837,10 @@ export class WorldProjectionView {
     return result;
   }
 
-  #sharedActivation(ids: readonly string[]): {
+  #sharedActivation(
+    ids: readonly string[],
+    viewport: WorldTemporalWindow | null = this.#viewport,
+  ): {
     readonly activeIds: readonly CanonicalOccurrenceId[];
     readonly weights: ReadonlyMap<CanonicalOccurrenceId, number>;
   } {
@@ -837,20 +860,20 @@ export class WorldProjectionView {
       // Weight is presentation emphasis only; it never gates membership, so an
       // occurrence the shared set activates keeps a visible floor weight.
       const weight =
-        occurrence && this.#viewport
-          ? occurrenceViewportWeight(occurrence, { time: this.#viewport })
-          : 1;
+        occurrence && viewport ? occurrenceViewportWeight(occurrence, { time: viewport }) : 1;
       weights.set(id, weight > 0 ? weight : 1);
     }
     return { activeIds, weights };
   }
 
-  #standaloneActivation(): {
+  #standaloneActivation(
+    viewport: WorldTemporalWindow | null = this.#viewport,
+  ): {
     readonly activeIds: readonly CanonicalOccurrenceId[];
     readonly weights: ReadonlyMap<CanonicalOccurrenceId, number>;
   } {
-    const activeTimed = this.#viewport
-      ? this.#temporalIndex.query({ time: this.#viewport })
+    const activeTimed = viewport
+      ? this.#temporalIndex.query({ time: viewport })
       : this.#temporalIndex.query({
           time: { start: Number.NEGATIVE_INFINITY, end: Number.POSITIVE_INFINITY },
         });
@@ -861,9 +884,9 @@ export class WorldProjectionView {
     ]);
 
     const weights = new Map<CanonicalOccurrenceId, number>();
-    if (this.#viewport) {
+    if (viewport) {
       for (const occurrence of activeTimed) {
-        weights.set(occurrence.id, occurrenceViewportWeight(occurrence, { time: this.#viewport }));
+        weights.set(occurrence.id, occurrenceViewportWeight(occurrence, { time: viewport }));
       }
     }
     for (const id of this.#timelessIds) weights.set(id, 1);

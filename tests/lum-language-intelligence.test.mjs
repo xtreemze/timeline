@@ -111,7 +111,7 @@ test("Lūm LSP provides field hover and document symbols", () => {
     method: "textDocument/hover",
     params: { textDocument: { uri }, position: hoverPosition },
   });
-  assert.match(response(messages, 3).result.contents.value, /subject.*entity/i);
+  assert.match(response(messages, 3).result.contents.value, /entity.*subject/i);
 
   server.handle({
     jsonrpc: "2.0",
@@ -184,11 +184,7 @@ test("Lūm LSP resolves story occurrenceIds to relationship-derived occurrences"
     params: { textDocument: { uri }, position: referencePosition },
   });
   const definition = response(messages, 9).result;
-  const relationshipDeclaration = positionOf(
-    storySource,
-    '"id": "rel-1"',
-    '"id": "'.length + 2,
-  );
+  const relationshipDeclaration = positionOf(storySource, '"id": "rel-1"', '"id": "'.length + 2);
   assert.equal(definition.range.start.line, relationshipDeclaration.line);
 
   const completionSource = storySource.replace(

@@ -4,6 +4,7 @@ export interface DeckWorldBindings {
   readonly deck: (props: Readonly<Record<string, unknown>>) => DeckRuntimeInstance;
   readonly globeView: (props: Readonly<Record<string, unknown>>) => unknown;
   readonly globeControllerType?: () => unknown;
+  readonly flyToInterpolator?: () => unknown;
   readonly mapControllerType?: () => unknown;
   readonly mapView?: (props: Readonly<Record<string, unknown>>) => unknown;
   readonly scatterplotLayer: (props: Readonly<Record<string, unknown>>) => unknown;
@@ -26,6 +27,13 @@ export function createDeckWorldRuntime(bindings: DeckWorldBindings): DeckWorldRu
       ? {
           createGlobeControllerType() {
             return bindings.globeControllerType?.() ?? null;
+          },
+        }
+      : {}),
+    ...(bindings.flyToInterpolator
+      ? {
+          createFlyToInterpolator() {
+            return bindings.flyToInterpolator?.() ?? null;
           },
         }
       : {}),

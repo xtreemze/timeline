@@ -5,6 +5,11 @@ import {
   type TemporalWindow,
 } from "../../packages/temporal-kernel/src/index.ts";
 
+export type {
+  RenderWindowOptions,
+  TemporalRetentionState,
+  TemporalWindow,
+} from "../../packages/temporal-kernel/src/index.ts";
 export {
   beginRetention,
   commitRetention,
@@ -15,12 +20,6 @@ export {
   unionWindows,
   visibleIntervalAnchor,
   windowSpan,
-} from "../../packages/temporal-kernel/src/index.ts";
-
-export type {
-  RenderWindowOptions,
-  TemporalRetentionState,
-  TemporalWindow,
 } from "../../packages/temporal-kernel/src/index.ts";
 
 export interface TemporalOccurrence extends TemporalItem {}

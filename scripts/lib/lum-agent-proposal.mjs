@@ -1,8 +1,8 @@
+import { parseOccurrenceSentence } from "../../site/occurrence-composer-model.ts";
 import {
   serializeProjectInterchange,
   validateProjectInterchange,
 } from "../../src/application/project-interchange.ts";
-import { parseOccurrenceSentence } from "../../site/occurrence-composer-model.ts";
 
 export const LUM_CHANGE_PROPOSAL_SCHEMA_ID =
   "https://xtreemze.github.io/timeline/schemas/lum-change-proposal-v1.schema.json";

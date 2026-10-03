@@ -78,24 +78,21 @@ test("cluster lifecycle contains no renderer position interpolation contract", a
   assert.match(source, /#clusterPhase = "expanding"/);
 });
 
-test(
-  "production footer exposes contextual DAG and force controls without changing primary click actions",
-  async () => {
-    const [factory, inspector] = await Promise.all([
-      readFile(new URL("../site/world/world-view-factory.ts", import.meta.url), "utf8"),
-      readFile(new URL("../site/world/world-layout-inspector.ts", import.meta.url), "utf8"),
-    ]);
+test("production footer exposes contextual DAG and force controls without changing primary click actions", async () => {
+  const [factory, inspector] = await Promise.all([
+    readFile(new URL("../site/world/world-view-factory.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/world/world-layout-inspector.ts", import.meta.url), "utf8"),
+  ]);
 
-    assert.match(inspector, /aria-label", "Graph layout controls"/);
-    assert.match(inspector, /D3 DAG options/);
-    assert.match(inspector, /D3 force options/);
-    assert.match(inspector, /label: "Arrange relationships"[\s\S]*actions\.reorganizeDag/);
-    assert.match(inspector, /label: "Settle relationships"[\s\S]*actions\.relaxForce/);
-    assert.match(inspector, /addEventListener\("pointerdown"[\s\S]*LONG_PRESS_MS/);
-    assert.match(inspector, /addEventListener\("contextmenu"/);
-    assert.match(inspector, /event\.key === "ArrowDown"/);
-    assert.match(factory, /scheduledView\.reorganizeDag\(settings\)/);
-    assert.match(factory, /scheduledView\.setForceTuning\(tuning, selectedPlaceId\)/);
-    assert.match(factory, /scheduledView\.relaxForce\(\)/);
-  },
-);
+  assert.match(inspector, /aria-label", "Graph layout controls"/);
+  assert.match(inspector, /D3 DAG options/);
+  assert.match(inspector, /D3 force options/);
+  assert.match(inspector, /label: "Arrange relationships"[\s\S]*actions\.reorganizeDag/);
+  assert.match(inspector, /label: "Settle relationships"[\s\S]*actions\.relaxForce/);
+  assert.match(inspector, /addEventListener\("pointerdown"[\s\S]*LONG_PRESS_MS/);
+  assert.match(inspector, /addEventListener\("contextmenu"/);
+  assert.match(inspector, /event\.key === "ArrowDown"/);
+  assert.match(factory, /scheduledView\.reorganizeDag\(settings\)/);
+  assert.match(factory, /scheduledView\.setForceTuning\(tuning, selectedPlaceId\)/);
+  assert.match(factory, /scheduledView\.relaxForce\(\)/);
+});

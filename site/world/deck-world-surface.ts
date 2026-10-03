@@ -9,7 +9,6 @@ import {
   surfaceCursor,
 } from "../../src/interaction/surface-input-policy.ts";
 import type { WorldNodeDragPosition } from "../../src/interaction/world-node-drag-controller.ts";
-import { createIcon } from "../event-presentation.ts";
 import { resolveWorldNodeDragPosition } from "../../src/interaction/world-node-drag-geometry.ts";
 import { worldPointerDragMayStart } from "../../src/interaction/world-pointer-policy.ts";
 import {
@@ -59,11 +58,11 @@ import {
   selectPrioritizedLabels,
   typicalLocalOffsetMeters,
   WORLD_CLUSTER_MERGE_PX,
-  worldEntityFloatPx,
   WORLD_LOCAL_GRAPH_MAX_PLACE_SHARE,
   WORLD_LOCAL_GRAPH_RADIUS_PX,
-  worldArrowLengthDegreesForNodeRadius,
-  worldArrowStrokeWidthPxForNodeRadius,
+  worldArrowLengthDegrees,
+  worldArrowStrokeWidthPx,
+  worldEntityFloatPx,
   worldFloatingGraphRadiusPx,
   worldLabelBudget,
   worldLabelTierFloor,
@@ -106,6 +105,7 @@ import {
   applyWorldProjectionDelta,
   type WorldProjectionDelta,
 } from "../../src/projection/world-projection-delta.ts";
+import { createIcon } from "../event-presentation.ts";
 import { pulseHaptic, TimelineMotion } from "../timeline-motion.ts";
 import { buildWorldAccessibleOutline, WorldAccessibleMirror } from "./world-accessible-mirror.ts";
 import {
@@ -161,6 +161,15 @@ function deckCameraInteractionActive(state: DeckRuntimeInteractionState | undefi
     state?.isPanning === true ||
     state?.isRotating === true ||
     state?.isZooming === true
+  );
+}
+
+function deckViewStateStartsTransition(viewState: DeckRuntimeViewState): boolean {
+  const duration = (viewState as DeckRuntimeViewState & { readonly transitionDuration?: unknown })
+    .transitionDuration;
+  return (
+    duration === "auto" ||
+    (typeof duration === "number" && Number.isFinite(duration) && duration > 0)
   );
 }
 
@@ -224,6 +233,7 @@ export interface DeckRuntimeInstance {
 export interface DeckWorldRuntime {
   createGlobeView(props: Readonly<Record<string, unknown>>): unknown;
   createGlobeControllerType?(): unknown;
+  createFlyToInterpolator?(): unknown;
   createMapControllerType?(): unknown;
   createMapView?(props: Readonly<Record<string, unknown>>): unknown;
   createScatterplotLayer(props: Readonly<Record<string, unknown>>): unknown;
@@ -771,8 +781,6 @@ const WORLD_PLACE_ICON_LIFT_PX = 2;
 /** Place pins closer than this remain one aggregate marker even when nodes can expand. */
 const WORLD_PLACE_MARKER_CLUSTER_MERGE_PX = 64;
 /** Pickup feedback is presentation-only and never feeds back into force state. */
-const WORLD_HOVER_LIFT_PX = 4;
-const WORLD_DRAG_PICKUP_LIFT_PX = 7;
 const WORLD_DRAG_PICKUP_FLASH_MS = 160;
 const WORLD_DRAG_PICKUP_FLASH_SCALE = 1.16;
 const WORLD_PROJECTION_HANDOFF_PRESENTATION_BLEND = 0.45;
@@ -790,20 +798,6 @@ function liftedPositionByPixels(
 
 function liftedPlaceIconPosition(position: WorldRenderPosition, zoom: number): WorldRenderPosition {
   return liftedPositionByPixels(position, zoom, WORLD_PLACE_ICON_LIFT_PX);
-}
-
-function liftedEntityInteractionPosition(
-  position: WorldRenderPosition,
-  zoom: number,
-  dragging: boolean,
-  hovered: boolean,
-): WorldRenderPosition {
-  const liftPx = dragging
-    ? WORLD_DRAG_PICKUP_LIFT_PX
-    : hovered
-      ? WORLD_HOVER_LIFT_PX
-      : 0;
-  return liftPx > 0 ? liftedPositionByPixels(position, zoom, liftPx) : position;
 }
 
 export function shouldClusterEntityDatums(
@@ -1281,7 +1275,7 @@ const EARTH_POLYGON = Object.freeze([
 const DEFAULT_CAMERA = createWorldCameraState({
   longitude: 0,
   latitude: 20,
-  zoom: 1,
+  zoom: WORLD_CAMERA_MIN_ZOOM,
   bearing: 0,
   pitch: 20,
 });
@@ -3064,6 +3058,10 @@ export class DeckWorldSurface implements WorldSurface {
   // it since; a resize then re-fits (the first fit can run before layout).
   #autoFitted = false;
   #autoFitMode: "globe" | "content" = "content";
+  // Only the first automatic content fit may use the deck-owned startup flight.
+  // Explicit cameras, user navigation, resize refits, and toolbar reframing stay direct.
+  #startupFlightPending = false;
+  #startupFlightTarget: WorldCameraState | null = null;
   // Equatorial reference values used only to detect zoom-driven presentation changes.
   // Actual node geometry derives its scale/float from each instance's primary anchor latitude.
   #offsetScale = 1;
@@ -3072,6 +3070,11 @@ export class DeckWorldSurface implements WorldSurface {
   #projectionHandoffFresh = false;
   #spatialMode: WorldSpatialMode = "globe";
   #cameraInteractionActive = false;
+  // Zoom-derived semantic presentation stays fixed for the lifetime of one
+  // camera gesture/transition. D3 may keep updating positions underneath it,
+  // but node magnification/float/LOD/clustering reconcile only after camera
+  // ownership settles so two independent transforms never fight each other.
+  #cameraPresentationZoom: number | null = null;
   #cameraInteractionSink: DeckWorldCameraInteractionSink | null = null;
   #pendingSpatialModeSync = false;
   #pendingClusterLifecycleSync = false;
@@ -3684,6 +3687,7 @@ export class DeckWorldSurface implements WorldSurface {
     // A caller-chosen camera is authoritative; otherwise the first projected
     // content fits the camera once (see #autoFitCamera).
     this.#cameraOwned = initialCamera !== undefined;
+    this.#startupFlightPending = initialCamera === undefined;
     this.#camera = boundedWorldCamera(initialCamera ?? DEFAULT_CAMERA);
 
     this.#globeView = runtime.createGlobeView({ id: "lum-world" });
@@ -3730,6 +3734,32 @@ export class DeckWorldSurface implements WorldSurface {
         }
         const next = cameraFromRuntime(viewState, this.#camera);
         if (next) {
+          if (this.#startupFlightTarget) {
+            if (interactionState?.inTransition === true) {
+              // deck.gl owns the startup FlyToInterpolator. Track its visible
+              // camera for zoom-dependent presentation, but do not echo a
+              // controlled viewState back or that would interrupt the flight.
+              this.#camera = next;
+              this.#publishCameraContext();
+              this.#syncClusterLifecycle();
+              if (this.#zoomNeedsRender()) this.#render();
+              return;
+            }
+            if (!cameraInteractionActive) {
+              // The transition settled without a user gesture. Preserve the
+              // automatic-fit ownership so resize may still reframe it.
+              this.#startupFlightTarget = null;
+              this.#camera = next;
+              this.#publishCameraContext();
+              this.#syncClusterLifecycle();
+              if (this.#zoomNeedsRender()) this.#render();
+              return;
+            }
+            // A user gesture interrupted the startup flight; normal camera
+            // ownership resumes from the interrupted visible state.
+            this.#startupFlightTarget = null;
+          }
+          this.#startupFlightPending = false;
           this.#discardProjectionHandoffPresentation();
           this.#cameraOwned = true;
           this.#autoFitted = false;
@@ -3741,20 +3771,36 @@ export class DeckWorldSurface implements WorldSurface {
           // controller alive until deck reports that interaction has settled.
           this.#syncSpatialMode({ deferDuringInteraction: true });
           this.#syncClusterLifecycle();
-          // The camera is controlled (`viewState` prop): hand deck the new
-          // state or the globe snaps back and cannot be rotated or panned.
-          // Any semantic-layer rebuild in this callback competes directly with the
-          // pointer stream. Pan used to rebuild at camera-facing quantization steps,
-          // while pinch/wheel zoom could rebuild on nearly every event because
-          // screen scale, local-offset magnification and altitude are zoom-derived.
-          // Keep the entire owned camera gesture viewState-only; spatial mode,
-          // clustering and presentation LOD are reconciled once interaction settles.
+
+          // A controller-generated inertia/smooth-zoom target carries transition
+          // metadata on the incoming viewState. Preserve that object verbatim so
+          // deck.gl can start the transition instead of receiving a reconstructed
+          // zero-duration camera state. Once the transition is running, its
+          // interpolated frames are controller-owned: echoing a plain controlled
+          // viewState would interrupt the transition after the first frame.
+          if (deckViewStateStartsTransition(viewState)) {
+            this.#deck.setProps({ viewState });
+            return;
+          }
+          if (interactionState?.inTransition === true) return;
+
+          // Outside transitions the camera is controlled (`viewState` prop):
+          // hand deck the new state or the globe snaps back and cannot be rotated
+          // or panned. Semantic-layer rebuilds remain deferred while direct camera
+          // interaction owns the pointer stream.
           if (!cameraInteractionActive && this.#zoomNeedsRender()) this.#render(true);
           else this.#deck.setProps({ viewState: deckViewState(this.#camera) });
         }
       },
       onInteractionStateChange: (interactionState: DeckRuntimeInteractionState) => {
         this.#setCameraInteractionActive(deckCameraInteractionActive(interactionState));
+        if (this.#startupFlightTarget) {
+          // Transition state may settle before deck emits its final view-state
+          // frame. Keep presentation refreshes camera-free until that frame
+          // clears the startup-flight marker.
+          if (!this.#cameraInteractionActive && this.#zoomNeedsRender()) this.#render();
+          return;
+        }
         if (!this.#cameraInteractionActive) {
           if (this.#pendingSpatialModeSync) this.#syncSpatialMode();
           if (this.#pendingClusterLifecycleSync) this.#syncClusterLifecycle();
@@ -4063,6 +4109,8 @@ export class DeckWorldSurface implements WorldSurface {
 
   #reframe(mode: "globe" | "content"): void {
     this.#assertAlive();
+    this.#startupFlightPending = false;
+    this.#startupFlightTarget = null;
     this.#cameraOwned = false;
     this.#autoFitCamera(mode);
     this.#reclusterIfZoomCrossedThreshold();
@@ -4089,8 +4137,19 @@ export class DeckWorldSurface implements WorldSurface {
 
   #setCameraInteractionActive(active: boolean): void {
     if (this.#cameraInteractionActive === active) return;
+    if (active) {
+      // This runs before the incoming deck viewState is committed, so the
+      // snapshot is the last fully rendered semantic zoom at gesture start.
+      this.#cameraPresentationZoom = this.#camera.zoom;
+    } else {
+      this.#cameraPresentationZoom = null;
+    }
     this.#cameraInteractionActive = active;
     this.#cameraInteractionSink?.setCameraInteractionActive(active);
+  }
+
+  #presentationZoom(): number {
+    return this.#cameraPresentationZoom ?? this.#camera.zoom;
   }
 
   #scheduleHoverRender(): void {
@@ -4323,6 +4382,17 @@ export class DeckWorldSurface implements WorldSurface {
     this.#render();
   }
 
+  previewProjection(projection: WorldProjection): void {
+    this.#assertAlive();
+    // Timeline travel owns only transient presentation here. Keep camera fit,
+    // clustering/force coordination and projection-handoff convergence on the
+    // last committed projection until the timeline settles.
+    this.#projection = projection;
+    this.#topologyIndex.replace(projection);
+    this.#pruneRevealedClusterPlaces();
+    this.#render();
+  }
+
   applyProjectionDelta(delta: WorldProjectionDelta): void {
     this.#assertAlive();
     this.#projection = applyWorldProjectionDelta(this.#projection, delta);
@@ -4339,8 +4409,9 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   /**
-   * Automatic framing when the host supplied no camera: start at the readable
-   * content view. Whole-globe framing remains an explicit user command.
+   * Automatic framing when the host supplied no camera. The first non-empty
+   * content fit flies in from the default minimum-zoom globe when motion is
+   * allowed; subsequent resize/tool reframes remain direct.
    */
   #autoFitCamera(mode: "globe" | "content" = "content"): void {
     if (this.#cameraOwned) return;
@@ -4356,13 +4427,31 @@ export class DeckWorldSurface implements WorldSurface {
         ? this.#readableContentCamera(fitWorldCamera(positions, { width, height }, this.#camera))
         : globeOverviewCamera(positions, { width, height }, this.#camera);
     if (!fitted) return;
+    const startupInterpolator =
+      mode === "content" && this.#startupFlightPending && !prefersReducedMotion()
+        ? (this.#runtime.createFlyToInterpolator?.() ?? null)
+        : null;
+    this.#startupFlightPending = false;
     this.#cameraOwned = true;
     this.#autoFitted = true;
     this.#autoFitMode = mode;
     this.#camera = boundedWorldCamera(fitted);
     this.#publishCameraContext();
     this.#syncSpatialMode();
-    this.#deck.setProps({ viewState: deckViewState(this.#camera) });
+    const viewState = deckViewState(this.#camera);
+    if (startupInterpolator) {
+      this.#startupFlightTarget = this.#camera;
+      this.#deck.setProps({
+        viewState: {
+          ...viewState,
+          transitionInterpolator: startupInterpolator,
+          transitionDuration: "auto",
+        },
+      });
+    } else {
+      this.#startupFlightTarget = null;
+      this.#deck.setProps({ viewState });
+    }
   }
 
   setTemporalWindow(window: WorldTemporalWindow): void {
@@ -4473,6 +4562,8 @@ export class DeckWorldSurface implements WorldSurface {
 
   setCamera(camera: WorldCameraState): void {
     this.#assertAlive();
+    this.#startupFlightPending = false;
+    this.#startupFlightTarget = null;
     this.#discardProjectionHandoffPresentation();
     this.#cameraOwned = true;
     this.#autoFitted = false;
@@ -5143,24 +5234,25 @@ export class DeckWorldSurface implements WorldSurface {
   }
 
   #zoomNeedsRender(includeCameraFacing = true): boolean {
-    const budget = worldLabelBudget(this.#camera.zoom);
+    const presentationZoom = this.#presentationZoom();
+    const budget = worldLabelBudget(presentationZoom);
     const lodChanged =
       budget !== this.#labelBudgetLastRender &&
       Math.min(budget, this.#labelBudgetLastRender) < this.#lodCandidateCountLastRender;
     const screenScaleChanged =
-      screenScaleZoomStep(this.#camera.zoom) !== this.#screenScaleZoomLastRender;
+      screenScaleZoomStep(presentationZoom) !== this.#screenScaleZoomLastRender;
     const cameraFacingChanged =
       includeCameraFacing && cameraFacingStep(this.#camera) !== this.#cameraFacingStepLastRender;
     const placeLabelVisibilityChanged =
-      worldShowsOrdinaryPlaceLabels(this.#camera.zoom) !== this.#placeLabelsVisibleLastRender;
+      worldShowsOrdinaryPlaceLabels(presentationZoom) !== this.#placeLabelsVisibleLastRender;
     return (
       this.#clusterPhase !== this.#clusterPhaseLastRender ||
       lodChanged ||
       placeLabelVisibilityChanged ||
       screenScaleChanged ||
       cameraFacingChanged ||
-      this.#nextOffsetScale() !== this.#offsetScale ||
-      this.#nextFloatMeters() !== this.#floatMeters
+      this.#nextOffsetScale(presentationZoom) !== this.#offsetScale ||
+      this.#nextFloatMeters(presentationZoom) !== this.#floatMeters
     );
   }
 
@@ -5260,7 +5352,10 @@ export class DeckWorldSurface implements WorldSurface {
     return this.#nextFloatMeters(zoom, this.#instanceLatitude(instance));
   }
 
-  #offsetScaleForInstance(instance: ProjectedWorldInstance, zoom = this.#camera.zoom): number {
+  #offsetScaleForInstance(
+    instance: ProjectedWorldInstance,
+    zoom = this.#presentationZoom(),
+  ): number {
     if (zoom === this.#camera.zoom) {
       const handoff = this.#projectionHandoffPresentation.get(instance.id);
       if (handoff) return handoff.offsetScale;
@@ -5268,7 +5363,10 @@ export class DeckWorldSurface implements WorldSurface {
     return this.#baseOffsetScaleForInstance(instance, zoom);
   }
 
-  #floatMetersForInstance(instance: ProjectedWorldInstance, zoom = this.#camera.zoom): number {
+  #floatMetersForInstance(
+    instance: ProjectedWorldInstance,
+    zoom = this.#presentationZoom(),
+  ): number {
     if (zoom === this.#camera.zoom) {
       const handoff = this.#projectionHandoffPresentation.get(instance.id);
       if (handoff) return handoff.floatMeters;
@@ -5504,8 +5602,9 @@ export class DeckWorldSurface implements WorldSurface {
 
   #render(withCamera = false): void {
     this.#cancelHoverRender();
-    this.#offsetScale = this.#nextOffsetScale();
-    this.#floatMeters = this.#nextFloatMeters();
+    const presentationZoom = this.#presentationZoom();
+    this.#offsetScale = this.#nextOffsetScale(presentationZoom);
+    this.#floatMeters = this.#nextFloatMeters(presentationZoom);
     const neighborhood = this.#topologyIndex.interactionNeighborhood([
       this.#selection,
       this.#hoverSelection,
@@ -5575,7 +5674,7 @@ export class DeckWorldSurface implements WorldSurface {
     const placeClusters = clusterEntityDatumsByPlace(
       clusteredEntitySource,
       this.#projection.instances,
-      worldPixelsToDegrees(this.#clusterMergeRadiusPx(), this.#camera.zoom),
+      worldPixelsToDegrees(this.#clusterMergeRadiusPx(), presentationZoom),
     );
     const topologyClusters = placeClusters.filter(
       (datum): datum is DeckWorldClusterDatum => datum.kind === "cluster",
@@ -5595,7 +5694,7 @@ export class DeckWorldSurface implements WorldSurface {
       edge: Pick<DeckWorldRelationshipDatum, "sourceInstanceId" | "targetInstanceId">,
     ): boolean => memberIds.has(edge.sourceInstanceId) || memberIds.has(edge.targetInstanceId);
 
-    const activeTemporalRelationships = temporalRelationships.filter((datum) => {
+    const clusterEligibleTemporalRelationships = temporalRelationships.filter((datum) => {
       const edge = this.#temporalRelationshipStateFor(datum).edge;
       return (
         !edgeIsClusterAffected(edge) ||
@@ -5604,7 +5703,7 @@ export class DeckWorldSurface implements WorldSurface {
         this.#contextRelationshipIds.has(edge.relationshipId)
       );
     });
-    const releasingRelationships = showReleasingClusterEdges
+    const clusterReleasingRelationships = showReleasingClusterEdges
       ? relationships.filter(
           (relationship) =>
             edgeIsClusterAffected(relationship) &&
@@ -5612,14 +5711,13 @@ export class DeckWorldSurface implements WorldSurface {
             !this.#contextRelationshipIds.has(relationship.relationshipId),
         )
       : Object.freeze([] as DeckWorldRelationshipDatum[]);
-    const releasingSegments = releasingRelationshipSegments(releasingRelationships);
     const placeMarkerClusters =
-      clusterPhase !== "collapsed" && this.#camera.zoom < WORLD_CLUSTER_DETAIL_ZOOM_CEILING
+      clusterPhase !== "collapsed" && presentationZoom < WORLD_CLUSTER_DETAIL_ZOOM_CEILING
         ? Object.freeze(
             clusterEntityDatumsByPlace(
               entityResult.datums,
               this.#projection.instances,
-              worldPixelsToDegrees(WORLD_PLACE_MARKER_CLUSTER_MERGE_PX, this.#camera.zoom),
+              worldPixelsToDegrees(WORLD_PLACE_MARKER_CLUSTER_MERGE_PX, presentationZoom),
             ).filter((datum): datum is DeckWorldClusterDatum => datum.kind === "cluster"),
           )
         : Object.freeze([] as DeckWorldClusterDatum[]);
@@ -5640,14 +5738,60 @@ export class DeckWorldSurface implements WorldSurface {
       this.#focus,
     );
 
+    const focus = this.#focus;
+    const pinnedEntity = (entity: DeckWorldEntityDatum) =>
+      (focus?.kind === "entity" && focus.id === entity.entityId) ||
+      (this.#selection?.kind === "entity" && this.#selection.id === entity.entityId);
+    const iconSource = entities.filter(
+      (datum): datum is DeckWorldEntityDatum => datum.kind === "entity",
+    );
+    const nodeMarkerDatums = selectPrioritizedLabels(iconSource, {
+      budget:
+        iconSource.length >= DENSE_CLUSTER_ENTITY_THRESHOLD
+          ? worldLabelBudget(presentationZoom)
+          : Number.POSITIVE_INFINITY,
+      isPinned: pinnedEntity,
+      importance: (entity) => entity.visualWeight,
+      key: (entity) => entity.worldInstanceId,
+    });
+    const visibleNodeMarkerDatums = this.#cameraFacingEntities(nodeMarkerDatums);
+    const visibleNodeInstanceIds = new Set(
+      visibleNodeMarkerDatums.map((datum) => datum.worldInstanceId),
+    );
+    const edgeEndpointVisibility = (
+      edge: Pick<DeckWorldRelationshipDatum, "sourceInstanceId" | "targetInstanceId">,
+    ): number => {
+      if (
+        !visibleNodeInstanceIds.has(edge.sourceInstanceId) ||
+        !visibleNodeInstanceIds.has(edge.targetInstanceId)
+      ) {
+        return 0;
+      }
+      const source = entityResult.byId.get(edge.sourceInstanceId);
+      const target = entityResult.byId.get(edge.targetInstanceId);
+      if (!source || !target) return 0;
+      return Math.min(
+        this.#cameraFacingOpacity(source.position),
+        this.#cameraFacingOpacity(target.position),
+      );
+    };
+    const edgeHasVisibleEndpoints = (
+      edge: Pick<DeckWorldRelationshipDatum, "sourceInstanceId" | "targetInstanceId">,
+    ): boolean => edgeEndpointVisibility(edge) > 0;
+    const activeTemporalRelationships = clusterEligibleTemporalRelationships.filter((datum) =>
+      edgeHasVisibleEndpoints(this.#temporalRelationshipStateFor(datum).edge),
+    );
+    const releasingRelationships = clusterReleasingRelationships.filter(edgeHasVisibleEndpoints);
+    const releasingSegments = releasingRelationshipSegments(releasingRelationships);
+
     this.#placeDatumCache = placeResult.byId;
     this.#relationshipDatumCache = relationshipResult.byId;
     this.#entityDatumCache = entityResult.byId;
     this.#clusterPhaseLastRender = clusterPhase;
-    this.#screenScaleZoomLastRender = screenScaleZoomStep(this.#camera.zoom);
+    this.#screenScaleZoomLastRender = screenScaleZoomStep(presentationZoom);
     this.#cameraFacingStepLastRender = cameraFacingStep(this.#camera);
-    this.#labelBudgetLastRender = worldLabelBudget(this.#camera.zoom);
-    this.#placeLabelsVisibleLastRender = worldShowsOrdinaryPlaceLabels(this.#camera.zoom);
+    this.#labelBudgetLastRender = worldLabelBudget(presentationZoom);
+    this.#placeLabelsVisibleLastRender = worldShowsOrdinaryPlaceLabels(presentationZoom);
     this.#lodCandidateCountLastRender = Math.max(
       places.length,
       relationships.length,
@@ -5686,21 +5830,21 @@ export class DeckWorldSurface implements WorldSurface {
           : WORLD_INACTIVE_EDGE_ALPHA;
     const visibleDirectionRelationships = relationships.filter(
       (relationship) =>
-        !edgeIsClusterAffected(relationship) ||
-        showActiveClusterEdges ||
-        placeReveal.relationshipIds.has(relationship.relationshipId) ||
-        this.#contextRelationshipIds.has(relationship.relationshipId),
+        edgeHasVisibleEndpoints(relationship) &&
+        (!edgeIsClusterAffected(relationship) ||
+          showActiveClusterEdges ||
+          placeReveal.relationshipIds.has(relationship.relationshipId) ||
+          this.#contextRelationshipIds.has(relationship.relationshipId)),
     );
     const directionResult = directionDatums(
       visibleDirectionRelationships,
-      this.#camera.zoom,
+      presentationZoom,
       this.#focus,
       this.#directionDatumCache,
       (edge) => {
-        const targetRadiusPx = renderedEntityRadiusPx(edge.targetInstanceId);
         const target = edge.path[edge.path.length - 1];
         const latitude = target?.[1] ?? this.#camera.latitude;
-        return worldArrowLengthDegreesForNodeRadius(targetRadiusPx, this.#camera.zoom, latitude);
+        return worldArrowLengthDegrees(this.#camera.zoom, latitude);
       },
       (edge) => {
         const targetRadiusPx = renderedEntityRadiusPx(edge.targetInstanceId);
@@ -5710,20 +5854,17 @@ export class DeckWorldSurface implements WorldSurface {
       },
     );
     this.#directionDatumCache = directionResult.byId;
-    const focus = this.#focus;
-    const pinnedEntity = (entity: DeckWorldEntityDatum) =>
-      (focus?.kind === "entity" && focus.id === entity.entityId) ||
-      (this.#selection?.kind === "entity" && this.#selection.id === entity.entityId);
     const edgeExpansion = (
       edge: Pick<
         DeckWorldRelationshipDatum,
         "relationshipId" | "sourceInstanceId" | "targetInstanceId"
       >,
     ): number =>
-      !edgeIsClusterAffected(edge) ||
-      showActiveClusterEdges ||
-      placeReveal.relationshipIds.has(edge.relationshipId) ||
-      this.#contextRelationshipIds.has(edge.relationshipId)
+      edgeHasVisibleEndpoints(edge) &&
+      (!edgeIsClusterAffected(edge) ||
+        showActiveClusterEdges ||
+        placeReveal.relationshipIds.has(edge.relationshipId) ||
+        this.#contextRelationshipIds.has(edge.relationshipId))
         ? 1
         : 0;
     const entityExpansion = (entity: DeckWorldEntityDatum): number =>
@@ -5734,9 +5875,6 @@ export class DeckWorldSurface implements WorldSurface {
         : 1;
     const clusterVisibility =
       clusterPhase === "collapsed" || placeMarkerClusters.length > 0 ? 1 : 0;
-    const iconSource = entities.filter(
-      (datum): datum is DeckWorldEntityDatum => datum.kind === "entity",
-    );
 
     const labelInteractionKey = [
       this.#selection?.kind ?? "",
@@ -5768,17 +5906,7 @@ export class DeckWorldSurface implements WorldSurface {
       );
     };
 
-    const iconDatums = this.#runtime.createIconLayer
-      ? selectPrioritizedLabels(iconSource, {
-          budget:
-            iconSource.length >= DENSE_CLUSTER_ENTITY_THRESHOLD
-              ? worldLabelBudget(this.#camera.zoom)
-              : Number.POSITIVE_INFINITY,
-          isPinned: pinnedEntity,
-          importance: (entity) => entity.visualWeight,
-          key: (entity) => entity.worldInstanceId,
-        })
-      : null;
+    const iconDatums = this.#runtime.createIconLayer ? visibleNodeMarkerDatums : null;
     // Ordinary labels follow the rendered/LOD entity set. Hidden clustered members
     // are resolved through entityResult.byEntityId only when interaction/focus needs
     // a specific canonical entity, avoiding an extra all-entity label pass on hover.
@@ -5788,14 +5916,15 @@ export class DeckWorldSurface implements WorldSurface {
     );
     const labelRelationships = relationships.filter(
       (relationship) =>
-        !edgeIsClusterAffected(relationship) ||
-        showActiveClusterEdges ||
-        showReleasingClusterEdges ||
-        (this.#selection?.kind === "relationship" &&
-          this.#selection.id === relationship.relationshipId) ||
-        (this.#hoverSelection?.kind === "relationship" &&
-          this.#hoverSelection.id === relationship.relationshipId) ||
-        this.#contextRelationshipIds.has(relationship.relationshipId),
+        edgeHasVisibleEndpoints(relationship) &&
+        (!edgeIsClusterAffected(relationship) ||
+          showActiveClusterEdges ||
+          showReleasingClusterEdges ||
+          (this.#selection?.kind === "relationship" &&
+            this.#selection.id === relationship.relationshipId) ||
+          (this.#hoverSelection?.kind === "relationship" &&
+            this.#hoverSelection.id === relationship.relationshipId) ||
+          this.#contextRelationshipIds.has(relationship.relationshipId)),
     );
     const labelResult = this.#runtime.createTextLayer
       ? labelDatums({
@@ -5805,7 +5934,7 @@ export class DeckWorldSurface implements WorldSurface {
           entities: labelEntities,
           entitiesByEntityId: entityResult.byEntityId,
           clustered: clusterPhase === "collapsed",
-          zoom: this.#camera.zoom,
+          zoom: presentationZoom,
           focus: this.#focus,
           selection: this.#selection,
           hoverSelection: this.#hoverSelection,
@@ -6033,16 +6162,7 @@ export class DeckWorldSurface implements WorldSurface {
         _dataDiff: changedEntityDatumRanges,
         pickable: true,
         radiusUnits: "pixels",
-        getPosition: (datum: DeckWorldEntityRenderDatum) =>
-          datum.kind === "entity"
-            ? liftedEntityInteractionPosition(
-                datum.position,
-                this.#camera.zoom,
-                this.#activeDragInstanceId === datum.worldInstanceId,
-                this.#hoverSelection?.kind === "entity" &&
-                  this.#hoverSelection.id === datum.entityId,
-              )
-            : datum.position,
+        getPosition: (datum: DeckWorldEntityRenderDatum) => datum.position,
         // Individual entities are drawn by the styled marker layer; this
         // layer mirrors that exact visible footprint for picking/dragging.
         // A collapsed cluster is the aggregate marker for both its member
@@ -6076,11 +6196,7 @@ export class DeckWorldSurface implements WorldSurface {
         getFillColor: (datum: DeckWorldEntityRenderDatum) =>
           datum.kind === "cluster" ? scaleAlpha(this.#theme.cluster, 0) : this.#theme.hit,
         updateTriggers: {
-          getPosition: [
-            this.#dragPresentationRevision,
-            screenScaleZoomStep(this.#camera.zoom),
-            this.#hoverSelection?.kind === "entity" ? this.#hoverSelection.id : "",
-          ],
+          getPosition: [this.#dragPresentationRevision],
           getRadius: [this.#palette, clusterPhase],
           getLineWidth: [clusterPhase],
           getLineColor: [this.#palette, clusterPhase],
@@ -6124,20 +6240,13 @@ export class DeckWorldSurface implements WorldSurface {
         ? [
             this.#runtime.createIconLayer({
               id: DECK_WORLD_LAYER_IDS.entityIcons,
-              data: this.#cameraFacingEntities(iconDatums),
+              data: iconDatums,
               dataComparator: sameDatumSequence,
               _dataDiff: changedEntityDatumRanges,
               pickable: true,
               billboard: true,
               sizeUnits: "pixels",
-              getPosition: (datum: DeckWorldEntityDatum) =>
-                liftedEntityInteractionPosition(
-                  datum.position,
-                  this.#camera.zoom,
-                  this.#activeDragInstanceId === datum.worldInstanceId,
-                  this.#hoverSelection?.kind === "entity" &&
-                    this.#hoverSelection.id === datum.entityId,
-                ),
+              getPosition: (datum: DeckWorldEntityDatum) => datum.position,
               // Styled node markers: shape, fill, border and icon/image from
               // the entity's own style or the type default.
               getIcon: (datum: DeckWorldEntityDatum) =>
@@ -6164,11 +6273,7 @@ export class DeckWorldSurface implements WorldSurface {
                 ] as Rgba;
               },
               updateTriggers: {
-                getPosition: [
-                  this.#dragPresentationRevision,
-                  screenScaleZoomStep(this.#camera.zoom),
-                  this.#hoverSelection?.kind === "entity" ? this.#hoverSelection.id : "",
-                ],
+                getPosition: [this.#dragPresentationRevision],
                 getIcon: this.#palette,
                 getSize: [
                   this.#palette,
@@ -6208,15 +6313,8 @@ export class DeckWorldSurface implements WorldSurface {
         jointRounded: true,
         capRounded: true,
         getPath: (datum: DeckWorldDirectionDatum) => datum.path,
-        getWidth: (datum: DeckWorldDirectionDatum) => {
-          const targetRadiusPx = renderedEntityRadiusPx(datum.targetInstanceId);
-          return (
-            worldArrowStrokeWidthPxForNodeRadius(
-              targetRadiusPx,
-              this.#edgeStyle(datum.edge, edgeFallbackColor(datum.edge)).width,
-            ) * edgeExpansion(datum)
-          );
-        },
+        getWidth: (datum: DeckWorldDirectionDatum) =>
+          worldArrowStrokeWidthPx() * edgeExpansion(datum),
         getColor: (datum: DeckWorldDirectionDatum) =>
           worldColorBytes(
             this.#edgeStyle(datum.edge, edgeFallbackColor(datum.edge)).color,

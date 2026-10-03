@@ -408,6 +408,40 @@
   max-inline-size: 320px;
 }
 
+/* The scrollbar is hidden, so a fade at each scrollable edge is the only cue that more
+   controls exist. Scroll-driven keyframes grow each fade only while content is hidden
+   beyond that edge; a strip that fits has no scroll timeline and stays unmasked. */
+@property --dock-fade-start {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --dock-fade-end {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@keyframes dock-edge-fade {
+  0% {
+    --dock-fade-start: 0px;
+    --dock-fade-end: 1.75rem;
+  }
+  4% {
+    --dock-fade-start: 1.75rem;
+    --dock-fade-end: 1.75rem;
+  }
+  96% {
+    --dock-fade-start: 1.75rem;
+    --dock-fade-end: 1.75rem;
+  }
+  100% {
+    --dock-fade-start: 1.75rem;
+    --dock-fade-end: 0px;
+  }
+}
+
 .app-footer-view {
   grid-column: 3;
   justify-content: flex-start;
@@ -415,6 +449,25 @@
   overflow-y: hidden;
   overscroll-behavior-inline: contain;
   scrollbar-width: none;
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 var(--dock-fade-start),
+    #000 calc(100% - var(--dock-fade-end)),
+    transparent 100%
+  );
+  animation: dock-edge-fade linear both;
+  animation-timeline: scroll(self inline);
+}
+
+.app-footer-view:dir(rtl) {
+  mask-image: linear-gradient(
+    to left,
+    transparent 0,
+    #000 var(--dock-fade-start),
+    #000 calc(100% - var(--dock-fade-end)),
+    transparent 100%
+  );
 }
 
 /* Direct view-control groups must retain their intrinsic width. If these flex
@@ -539,7 +592,6 @@
   block-size: 20px;
 }
 
-
 @media (hover: hover) and (pointer: fine) {
   .app-footer-bar
     :is(.toolbar-control, .toolbar-compound-control):is(:hover, :focus-visible, :focus-within) {
@@ -634,6 +686,30 @@
   #app-shell .app-tool-dock.app-footer-bar {
     scroll-padding-inline: max(0.18rem, env(safe-area-inset-left))
       max(0.18rem, env(safe-area-inset-right));
+  }
+
+  /* The dock itself is the scroller here, so it owns the edge fade. The active composer lane
+     is excluded: it fills the viewport by design and its input must not be masked. */
+  #app-shell:not(:has(#occurrence-composer[active])) > .app-tool-dock.app-footer-bar {
+    mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      #000 var(--dock-fade-start),
+      #000 calc(100% - var(--dock-fade-end)),
+      transparent 100%
+    );
+    animation: dock-edge-fade linear both;
+    animation-timeline: scroll(self inline);
+  }
+
+  #app-shell:not(:has(#occurrence-composer[active])) > .app-tool-dock.app-footer-bar:dir(rtl) {
+    mask-image: linear-gradient(
+      to left,
+      transparent 0,
+      #000 var(--dock-fade-start),
+      #000 calc(100% - var(--dock-fade-end)),
+      transparent 100%
+    );
   }
 
   #app-shell:has(#timeline-view[data-orientation="landscape"]) > .app-tool-dock.app-footer-bar,
@@ -814,11 +890,9 @@
   }
 }
 
-
 #app-shell:has(#occurrence-composer[active]) #timeline-focus-view,
 #app-shell:has(#occurrence-composer[active]) .timeline-event-detail {
-  /* biome-ignore lint/complexity/noImportantStyles: intentional cascade override — suppresses legacy detail surfaces while composer is active */
-  display: none !important;
+  display: none;
 }
 
 /* Focus detail is a compact card extension. It follows the retained occurrence card
@@ -1161,13 +1235,12 @@
   min-block-size: 44px;
 }
 
-
 /* Contextual graph-layout inspectors opened from long-press/right-click/keyboard. */
 .world-layout-inspector {
   position: fixed;
   z-index: 2200;
   inset: auto;
-  inline-size: min(360px, calc(100vw - 16px));
+  inline-size: min(360px, calc(100% - 16px));
   max-block-size: min(560px, calc(100dvh - 16px));
   margin: 0;
   padding: 0.7rem;
@@ -1178,6 +1251,7 @@
   background: color-mix(in srgb, var(--paper) 97%, transparent);
   box-shadow: 0 14px 42px color-mix(in srgb, var(--ink) 18%, transparent);
   backdrop-filter: blur(18px);
+  container-type: inline-size;
 }
 
 .world-layout-inspector::backdrop {
@@ -1254,9 +1328,9 @@
   font-weight: 650;
 }
 
-@media (max-width: 520px) {
+@container (width <= 520px) {
   .world-layout-inspector {
-    inline-size: calc(100vw - 12px);
+    inline-size: calc(100% - 12px);
     max-block-size: min(70dvh, 560px);
     padding: 0.62rem;
   }

@@ -955,6 +955,82 @@ test.describe("contextual world authoring certification", () => {
     expect(subjectActionObject.length).toBeGreaterThan(subjectAndAction.length);
   });
 
+  test("suggestion rows render semantic glyphs in the SVG namespace with their accent styling", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const composer = await openPersistentComposer(page);
+    const input = composer.locator("input");
+
+    await page.evaluate(() => {
+      const liveComposer = document.querySelector("#occurrence-composer") as HTMLElement & {
+        setData?: (data: unknown) => void;
+      };
+      liveComposer.setData?.({
+        entities: [
+          {
+            id: "icon-contract-alice",
+            name: "Icon Contract Alice",
+            type: "person",
+            icon: "person",
+            attributes: { style: { color: "#42658a" } },
+          },
+        ],
+        places: [],
+        categories: [],
+        tags: [],
+        predicates: [],
+      });
+    });
+
+    await input.fill("");
+    await input.focus();
+    const option = composer.getByRole("option", { name: /Icon Contract Alice/ }).first();
+    await expect(option).toBeVisible();
+    await expect(option).toHaveAttribute("data-semantic-color", "true");
+
+    const icon = option.locator(".option-icon");
+    await expect(icon).toBeVisible();
+    await expect
+      .poll(async () => icon.locator("path").count())
+      .toBeGreaterThan(0);
+    expect(
+      await icon.locator("path").first().evaluate((path) => path.namespaceURI),
+    ).toBe("http://www.w3.org/2000/svg");
+    expect(
+      await option.evaluate((element) =>
+        getComputedStyle(element).getPropertyValue("--suggestion-accent").trim(),
+      ),
+    ).not.toBe("");
+  });
+
+  test("promoted occurrence-card heading renders its semantic glyph in the SVG namespace", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const composer = await openPersistentComposer(page);
+
+    await page.evaluate(() => {
+      const liveComposer = document.querySelector("#occurrence-composer") as HTMLElement & {
+        setSelectionContext?: (context: unknown) => void;
+      };
+      liveComposer.setSelectionContext?.({
+        selectedOccurrenceId: "icon-contract-occurrence",
+        title: "Icon Contract Occurrence",
+        appearance: { icon: "evidence", color: "#8a5a42" },
+      });
+    });
+
+    const headingIcon = composer.locator(".composer-heading-icon");
+    await expect(headingIcon).toBeVisible();
+    await expect
+      .poll(async () => headingIcon.locator("path").count())
+      .toBeGreaterThan(0);
+    expect(
+      await headingIcon.locator("path").first().evaluate((path) => path.namespaceURI),
+    ).toBe("http://www.w3.org/2000/svg");
+  });
+
   test("S23-class portrait and landscape keep contextual composer fully contained without document scroll", async ({
     page,
   }, testInfo) => {

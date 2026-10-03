@@ -25,12 +25,12 @@ import {
   createWorldForceScene,
   type WorldForceScenePolicy,
 } from "../../src/layout/world-force-scene.ts";
-import { preserveWorldProjectionRenderContinuity } from "../../src/layout/world-geographic-position.ts";
 import {
   createWorldSimulationCoordinator,
   type WorldForceSimulationBackend,
   type WorldForceTuning,
 } from "../../src/layout/world-force-simulation.ts";
+import { preserveWorldProjectionRenderContinuity } from "../../src/layout/world-geographic-position.ts";
 import type {
   WorldRenderContinuitySample,
   WorldSelection,
@@ -110,6 +110,7 @@ export class WorldViewRuntimeController {
 
   #sourceProjection: WorldProjection | null = null;
   #renderProjection: WorldProjection | null = null;
+  #previewProjection: WorldProjection | null = null;
   #sourceInstances = new Map<WorldInstanceId, ProjectedWorldInstance>();
   #renderOverrides = new Map<WorldInstanceId, ProjectedWorldInstance>();
   #renderProjectionDirty = false;
@@ -149,9 +150,12 @@ export class WorldViewRuntimeController {
   setProjection(projection: WorldProjection): void {
     this.#assertAlive();
 
-    // Materialize the currently rendered force state only at a committed
-    // projection boundary. Timeline scrubbing/previews never call this path.
-    const previous = this.#sourceProjection ? this.getRenderProjection() : null;
+    // A settled timeline commit reconciles from the exact transient frame the
+    // user was seeing, while force ownership remains on the prior committed
+    // projection until this method installs the new scene.
+    const hadPreview = this.#previewProjection !== null;
+    const previous =
+      this.#previewProjection ?? (this.#sourceProjection ? this.getRenderProjection() : null);
     const renderedContinuity:
       | ReadonlyMap<WorldInstanceId, WorldRenderContinuitySample>
       | undefined = previous ? this.#surface.getRenderedInstanceContinuity?.() : undefined;
@@ -183,6 +187,7 @@ export class WorldViewRuntimeController {
       if (source && source !== instance) this.#renderOverrides.set(instance.id, instance);
     }
     this.#renderProjectionDirty = false;
+    this.#previewProjection = null;
     this.#projectionRevision += 1;
 
     // Canonical/new projection data owns force targets, topology, and DAG
@@ -206,12 +211,46 @@ export class WorldViewRuntimeController {
       reheat: true,
     });
 
+    if (hadPreview) {
+      // Commit the preview through the ordinary surface path even when the
+      // visible topology is identical, so deferred clustering/fit lifecycle
+      // reconciles exactly once at the settled boundary.
+      this.#surface.setProjection(renderProjection);
+      return;
+    }
+
     if (previous && this.#surface.applyProjectionDelta) {
       const delta = diffWorldProjection(previous, renderProjection);
       if (!isEmptyWorldProjectionDelta(delta)) this.#surface.applyProjectionDelta(delta);
       return;
     }
 
+    this.#surface.setProjection(renderProjection);
+  }
+
+  previewProjection(projection: WorldProjection): void {
+    this.#assertAlive();
+    const previous =
+      this.#previewProjection ?? (this.#sourceProjection ? this.getRenderProjection() : null);
+    const renderedContinuity:
+      | ReadonlyMap<WorldInstanceId, WorldRenderContinuitySample>
+      | undefined = previous ? this.#surface.getRenderedInstanceContinuity?.() : undefined;
+    const legacyRenderedPositions =
+      previous && !renderedContinuity ? this.#surface.getRenderedInstancePositions?.() : undefined;
+    const renderProjection = previous
+      ? preserveWorldProjectionRenderContinuity(
+          previous,
+          projection,
+          renderedContinuity,
+          legacyRenderedPositions,
+        )
+      : projection;
+
+    this.#previewProjection = renderProjection;
+    if (this.#surface.previewProjection) {
+      this.#surface.previewProjection(renderProjection);
+      return;
+    }
     this.#surface.setProjection(renderProjection);
   }
 
@@ -314,8 +353,7 @@ export class WorldViewRuntimeController {
       }
     } else {
       if (settings.orientation !== undefined) {
-        this.#globalDagOrientation =
-          settings.orientation === "auto" ? null : settings.orientation;
+        this.#globalDagOrientation = settings.orientation === "auto" ? null : settings.orientation;
       }
       if (settings.algorithm !== undefined) this.#globalDagAlgorithm = settings.algorithm;
       if (settings.strategy !== undefined) this.#globalDagStrategy = settings.strategy;
@@ -519,6 +557,7 @@ export class WorldViewRuntimeController {
 
       if (updatedInstances.length > 0) {
         this.#renderProjectionDirty = true;
+        if (this.#previewProjection) return;
         this.#surface.applyProjectionDelta(
           Object.freeze({
             addedInstances: Object.freeze([]),
@@ -538,6 +577,7 @@ export class WorldViewRuntimeController {
     const previous = this.#renderProjection ?? this.#sourceProjection;
     const update = applyWorldForceLayoutUpdate(previous, samples);
     this.#renderProjection = update.projection;
+    if (this.#previewProjection) return;
     this.#surface.setProjection(update.projection);
   }
 
@@ -568,6 +608,7 @@ export class WorldViewRuntimeController {
     this.#sourceInstances.clear();
     this.#renderOverrides.clear();
     this.#renderProjectionDirty = false;
+    this.#previewProjection = null;
     this.#forceBackend.destroy();
     this.#surface.destroy();
   }

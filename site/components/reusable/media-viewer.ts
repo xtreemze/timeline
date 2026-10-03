@@ -1,4 +1,4 @@
-import { LitElement, css, html, nothing } from "lit";
+import { css, html, LitElement, nothing } from "lit";
 
 export interface MediaViewerZoomDetail {
   readonly zoom: number;
@@ -113,7 +113,11 @@ export class ReusableMediaViewerElement extends LitElement {
     this.syncTransform();
   }
 
-  private setZoom(next: number, viewport: HTMLElement | null = this.viewport, focal: Point | null = null): void {
+  private setZoom(
+    next: number,
+    viewport: HTMLElement | null = this.viewport,
+    focal: Point | null = null,
+  ): void {
     const minimum = Math.min(this.minZoom, this.maxZoom);
     const maximum = Math.max(this.minZoom, this.maxZoom);
     const previous = this.zoom;
@@ -130,9 +134,13 @@ export class ReusableMediaViewerElement extends LitElement {
     this.zoom = zoom;
     this.clampPan(viewport);
     this.syncTransform();
-    this.dispatchEvent(new CustomEvent<MediaViewerZoomDetail>("media-viewer-zoom", {
-      bubbles:true, composed:true, detail:Object.freeze({ zoom }),
-    }));
+    this.dispatchEvent(
+      new CustomEvent<MediaViewerZoomDetail>("media-viewer-zoom", {
+        bubbles: true,
+        composed: true,
+        detail: Object.freeze({ zoom }),
+      }),
+    );
   }
 
   resetView(): void {
@@ -151,23 +159,26 @@ export class ReusableMediaViewerElement extends LitElement {
       this.setZoom(this.zoom + delta * 0.25);
       return;
     }
-    const target = delta > 0
-      ? steps.find((value) => value > this.zoom + 0.001) ?? steps.at(-1) ?? this.maxZoom
-      : [...steps].reverse().find((value) => value < this.zoom - 0.001) ?? steps[0] ?? this.minZoom;
+    const target =
+      delta > 0
+        ? (steps.find((value) => value > this.zoom + 0.001) ?? steps.at(-1) ?? this.maxZoom)
+        : ([...steps].reverse().find((value) => value < this.zoom - 0.001) ??
+          steps[0] ??
+          this.minZoom);
     this.setZoom(target);
   }
 
-  private pinchMetrics(): Readonly<{ distance:number; center:Point }> | null {
+  private pinchMetrics(): Readonly<{ distance: number; center: Point }> | null {
     const points = [...this.pointers.values()];
     if (points.length < 2) return null;
     const first = points[0];
     const second = points[1];
-    if (!first || !second) return null;
+    if (!(first && second)) return null;
     const dx = second.x - first.x;
     const dy = second.y - first.y;
     return Object.freeze({
-      distance:Math.hypot(dx,dy),
-      center:Object.freeze({ x:(first.x + second.x) / 2, y:(first.y + second.y) / 2 }),
+      distance: Math.hypot(dx, dy),
+      center: Object.freeze({ x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 }),
     });
   }
 
@@ -176,11 +187,13 @@ export class ReusableMediaViewerElement extends LitElement {
     const viewport = event.currentTarget;
     if (!(viewport instanceof HTMLElement)) return;
     event.preventDefault();
-    viewport.focus({ preventScroll:true });
-    try { viewport.setPointerCapture(event.pointerId); } catch {
+    viewport.focus({ preventScroll: true });
+    try {
+      viewport.setPointerCapture(event.pointerId);
+    } catch {
       // Synthetic pointer events may not own native capture.
     }
-    this.pointers.set(event.pointerId, Object.freeze({ x:event.clientX, y:event.clientY }));
+    this.pointers.set(event.pointerId, Object.freeze({ x: event.clientX, y: event.clientY }));
     const metrics = this.pinchMetrics();
     if (metrics) {
       this.pinchDistance = Math.max(1, metrics.distance);
@@ -193,7 +206,7 @@ export class ReusableMediaViewerElement extends LitElement {
     if (!previous) return;
     const viewport = event.currentTarget;
     if (!(viewport instanceof HTMLElement)) return;
-    this.pointers.set(event.pointerId, Object.freeze({ x:event.clientX, y:event.clientY }));
+    this.pointers.set(event.pointerId, Object.freeze({ x: event.clientX, y: event.clientY }));
     const metrics = this.pinchMetrics();
     if (metrics) {
       event.preventDefault();
@@ -208,7 +221,11 @@ export class ReusableMediaViewerElement extends LitElement {
     }
     if (this.zoom > RESET_ZOOM + 0.001) {
       event.preventDefault();
-      this.setPan(this.panX + event.clientX - previous.x, this.panY + event.clientY - previous.y, viewport);
+      this.setPan(
+        this.panX + event.clientX - previous.x,
+        this.panY + event.clientY - previous.y,
+        viewport,
+      );
     }
   }
 
@@ -217,7 +234,8 @@ export class ReusableMediaViewerElement extends LitElement {
     if (!(viewport instanceof HTMLElement)) return;
     this.pointers.delete(event.pointerId);
     try {
-      if (viewport.hasPointerCapture(event.pointerId)) viewport.releasePointerCapture(event.pointerId);
+      if (viewport.hasPointerCapture(event.pointerId))
+        viewport.releasePointerCapture(event.pointerId);
     } catch {
       // Ignore capture differences for synthetic or cancelled pointers.
     }
@@ -225,15 +243,26 @@ export class ReusableMediaViewerElement extends LitElement {
       this.pinchDistance = 0;
       this.pinchCenter = null;
     }
+    if (event.type === "pointercancel" || event.type === "lostpointercapture") {
+      // An interrupted gesture is not a tap, so it must not pair with the next one.
+      this.lastTap = null;
+    }
     if (event.type === "pointerup" && event.pointerType === "touch" && this.pointers.size === 0) {
       const now = Date.now();
       const previous = this.lastTap;
-      if (previous && now - previous.at <= DOUBLE_TAP_MAX_DELAY_MS &&
-        Math.hypot(event.clientX - previous.x, event.clientY - previous.y) <= DOUBLE_TAP_MAX_DISTANCE_PX) {
+      if (
+        previous &&
+        now - previous.at <= DOUBLE_TAP_MAX_DELAY_MS &&
+        Math.hypot(event.clientX - previous.x, event.clientY - previous.y) <=
+          DOUBLE_TAP_MAX_DISTANCE_PX
+      ) {
         this.lastTap = null;
-        this.setZoom(this.zoom > RESET_ZOOM + 0.001 ? RESET_ZOOM : 2, viewport, { x:event.clientX, y:event.clientY });
+        this.setZoom(this.zoom > RESET_ZOOM + 0.001 ? RESET_ZOOM : 2, viewport, {
+          x: event.clientX,
+          y: event.clientY,
+        });
       } else {
-        this.lastTap = Object.freeze({ x:event.clientX, y:event.clientY, at:now });
+        this.lastTap = Object.freeze({ x: event.clientX, y: event.clientY, at: now });
       }
     }
   }
@@ -243,25 +272,56 @@ export class ReusableMediaViewerElement extends LitElement {
     const viewport = event.currentTarget;
     if (!(viewport instanceof HTMLElement)) return;
     event.preventDefault();
-    const unit = event.deltaMode === WheelEvent.DOM_DELTA_LINE ? 16 :
-      event.deltaMode === WheelEvent.DOM_DELTA_PAGE ? Math.max(1, viewport.clientHeight) : 1;
-    this.setZoom(this.zoom * Math.exp(-event.deltaY * unit * 0.0015), viewport, { x:event.clientX, y:event.clientY });
+    const unit =
+      event.deltaMode === WheelEvent.DOM_DELTA_LINE
+        ? 16
+        : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
+          ? Math.max(1, viewport.clientHeight)
+          : 1;
+    this.setZoom(this.zoom * Math.exp(-event.deltaY * unit * 0.0015), viewport, {
+      x: event.clientX,
+      y: event.clientY,
+    });
   }
 
   private onDoubleClick(event: MouseEvent): void {
     event.preventDefault();
-    this.setZoom(this.zoom > RESET_ZOOM + 0.001 ? RESET_ZOOM : 2, this.viewport, { x:event.clientX, y:event.clientY });
+    this.setZoom(this.zoom > RESET_ZOOM + 0.001 ? RESET_ZOOM : 2, this.viewport, {
+      x: event.clientX,
+      y: event.clientY,
+    });
   }
 
   private onKeyDown(event: KeyboardEvent): void {
-    if (event.key === "+" || event.key === "=") { event.preventDefault(); this.stepZoom(1); return; }
-    if (event.key === "-" || event.key === "_") { event.preventDefault(); this.stepZoom(-1); return; }
-    if (event.key === "0" || event.key === "Escape") { event.preventDefault(); this.resetView(); return; }
+    if (event.key === "+" || event.key === "=") {
+      event.preventDefault();
+      this.stepZoom(1);
+      return;
+    }
+    if (event.key === "-" || event.key === "_") {
+      event.preventDefault();
+      this.stepZoom(-1);
+      return;
+    }
+    if (event.key === "0" || event.key === "Escape") {
+      event.preventDefault();
+      this.resetView();
+      return;
+    }
     if (this.zoom <= RESET_ZOOM + 0.001) return;
-    if (event.key === "ArrowLeft") { event.preventDefault(); this.setPan(this.panX + KEYBOARD_PAN_PX, this.panY); }
-    else if (event.key === "ArrowRight") { event.preventDefault(); this.setPan(this.panX - KEYBOARD_PAN_PX, this.panY); }
-    else if (event.key === "ArrowUp") { event.preventDefault(); this.setPan(this.panX, this.panY + KEYBOARD_PAN_PX); }
-    else if (event.key === "ArrowDown") { event.preventDefault(); this.setPan(this.panX, this.panY - KEYBOARD_PAN_PX); }
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      this.setPan(this.panX + KEYBOARD_PAN_PX, this.panY);
+    } else if (event.key === "ArrowRight") {
+      event.preventDefault();
+      this.setPan(this.panX - KEYBOARD_PAN_PX, this.panY);
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      this.setPan(this.panX, this.panY + KEYBOARD_PAN_PX);
+    } else if (event.key === "ArrowDown") {
+      event.preventDefault();
+      this.setPan(this.panX, this.panY - KEYBOARD_PAN_PX);
+    }
   }
 
   protected override updated(changed: Map<PropertyKey, unknown>): void {

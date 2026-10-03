@@ -2,11 +2,10 @@ import assert from "node:assert/strict";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
 import test from "node:test";
-
-import { createProjectModule } from "../src/application/project-module.ts";
+import { pathToFileURL } from "node:url";
 import { createLumLanguageServer } from "../scripts/lum-lsp.mjs";
+import { createProjectModule } from "../src/application/project-module.ts";
 
 function positionOf(text, needle, innerOffset = 0) {
   const offset = text.indexOf(needle);

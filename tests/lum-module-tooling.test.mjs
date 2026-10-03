@@ -4,15 +4,14 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-
+import { createLumLanguageServer } from "../scripts/lum-lsp.mjs";
 import {
   createProjectModule,
   formatProjectModule,
-  lintProjectModule,
   LUM_PROJECT_MODULE_FILE_EXTENSION,
   LUM_PROJECT_MODULE_SCHEMA_ID,
+  lintProjectModule,
 } from "../src/application/project-module.ts";
-import { createLumLanguageServer } from "../scripts/lum-lsp.mjs";
 
 const repoRoot = path.resolve(new URL("..", import.meta.url).pathname);
 

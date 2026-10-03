@@ -44,6 +44,84 @@ test("trackpad pinch keeps wheel units but amplifies Ctrl-modified deltas like d
   assert.equal(geometry.normalizeWheelDelta({ deltaY: 1, deltaMode: 2, ctrlKey: false }, 800), 800);
 });
 
+test("wheel input follows the rendered timeline axis while perpendicular input zooms", () => {
+  assert.deepEqual(
+    geometry.timelineWheelInput(
+      { deltaX: 120, deltaY: 8, deltaMode: 0, ctrlKey: false },
+      "horizontal",
+      800,
+      null,
+    ),
+    { mode: "pan", deltaPixels: 120 },
+  );
+  assert.deepEqual(
+    geometry.timelineWheelInput(
+      { deltaX: 8, deltaY: 120, deltaMode: 0, ctrlKey: false },
+      "horizontal",
+      800,
+      null,
+    ),
+    { mode: "zoom", deltaPixels: 120 },
+  );
+  assert.deepEqual(
+    geometry.timelineWheelInput(
+      { deltaX: 8, deltaY: 120, deltaMode: 0, ctrlKey: false },
+      "vertical",
+      800,
+      null,
+    ),
+    { mode: "pan", deltaPixels: 120 },
+  );
+  assert.deepEqual(
+    geometry.timelineWheelInput(
+      { deltaX: 120, deltaY: 8, deltaMode: 0, ctrlKey: false },
+      "vertical",
+      800,
+      null,
+    ),
+    { mode: "zoom", deltaPixels: 120 },
+  );
+});
+
+test("wheel gesture axis stays locked through diagonal jitter and pinch always zooms", () => {
+  assert.deepEqual(
+    geometry.timelineWheelInput(
+      { deltaX: 18, deltaY: 96, deltaMode: 0, ctrlKey: false },
+      "horizontal",
+      800,
+      "pan",
+    ),
+    { mode: "pan", deltaPixels: 18 },
+  );
+  assert.deepEqual(
+    geometry.timelineWheelInput(
+      { deltaX: 96, deltaY: 18, deltaMode: 0, ctrlKey: false },
+      "horizontal",
+      800,
+      "zoom",
+    ),
+    { mode: "zoom", deltaPixels: 18 },
+  );
+  assert.deepEqual(
+    geometry.timelineWheelInput(
+      { deltaX: 0, deltaY: -2, deltaMode: 0, ctrlKey: true },
+      "vertical",
+      800,
+      "pan",
+    ),
+    { mode: "zoom", deltaPixels: -20 },
+  );
+  assert.deepEqual(
+    geometry.timelineWheelInput(
+      { deltaX: 1, deltaY: 0, deltaMode: 1, ctrlKey: false },
+      "horizontal",
+      800,
+      null,
+    ),
+    { mode: "pan", deltaPixels: 16 },
+  );
+});
+
 test("timeline axis placement resolves CSS percentages and pixels without JavaScript overriding layout", () => {
   assert.ok(Math.abs(geometry.axisCrossFromCss("46%", 253.2, 0.5) - 116.472) < 0.001);
   assert.equal(geometry.axisCrossFromCss("68%", 300, 0.58), 204);

@@ -7,5 +7,17 @@
         "noDescendingSpecificity": "error"
       }
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["**/site/spatial-shell.css", "**/site/timeline-view.css"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noDescendingSpecificity": "off"
+          }
+        }
+      }
+    }
+  ]
 }

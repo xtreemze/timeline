@@ -47,9 +47,7 @@ export function timelineItemIdForRelationshipSelection(
   requestedItemId?: string | null,
 ): string | null {
   const itemsById = new Map(
-    items
-      .map((item) => [selectionText(item.id), item] as const)
-      .filter(([id]) => Boolean(id)),
+    items.map((item) => [selectionText(item.id), item] as const).filter(([id]) => Boolean(id)),
   );
   const linkedItemIds = [
     ...new Set(
@@ -70,10 +68,10 @@ export function timelineItemIdForRelationshipSelection(
         temporalEndpoint(item, "end") === relationshipEnd
       );
     });
-    if (exactTemporalMatches.length === 1) return exactTemporalMatches[0]!;
+    if (exactTemporalMatches.length === 1) return exactTemporalMatches[0];
   }
 
   const requested = selectionText(requestedItemId);
   if (requested && linkedItemIds.includes(requested)) return requested;
-  return linkedItemIds.length === 1 ? linkedItemIds[0]! : null;
+  return linkedItemIds.length === 1 ? linkedItemIds[0] : null;
 }
