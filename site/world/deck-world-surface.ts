@@ -783,6 +783,8 @@ const WORLD_PLACE_ICON_LIFT_PX = 2;
 const WORLD_PLACE_MARKER_CLUSTER_MERGE_PX = 64;
 /** Pickup feedback is presentation-only and never feeds back into force state. */
 const WORLD_DRAG_PICKUP_FLASH_MS = 160;
+/** Duration of the presentation-zoom ease that follows a camera gesture. */
+const WORLD_PRESENTATION_EASE_MS = 260;
 /** Window in which the post-release compatibility mousedown is swallowed. */
 const WORLD_AUTHORING_FOCUS_GUARD_MS = 700;
 /** Longest wait for a handed-off camera transition to report that it started. */
@@ -3083,6 +3085,7 @@ export class DeckWorldSurface implements WorldSurface {
   // but node magnification/float/LOD/clustering reconcile only after camera
   // ownership settles so two independent transforms never fight each other.
   #cameraPresentationZoom: number | null = null;
+  #presentationEaseFrame: number | null = null;
   #cameraInteractionSink: DeckWorldCameraInteractionSink | null = null;
   #pendingSpatialModeSync = false;
   // A controller-generated transition target has been handed to deck.gl but the
@@ -4162,14 +4165,61 @@ export class DeckWorldSurface implements WorldSurface {
   #setCameraInteractionActive(active: boolean): void {
     if (this.#cameraInteractionActive === active) return;
     if (active) {
-      // This runs before the incoming deck viewState is committed, so the
-      // snapshot is the last fully rendered semantic zoom at gesture start.
-      this.#cameraPresentationZoom = this.#camera.zoom;
-    } else {
+      // A gesture that begins mid-ease freezes at the eased value on screen.
+      // Otherwise this runs before the incoming deck viewState is committed, so
+      // the snapshot is the last fully rendered semantic zoom at gesture start.
+      this.#cancelPresentationEase();
+      this.#cameraPresentationZoom = this.#cameraPresentationZoom ?? this.#camera.zoom;
+    } else if (!this.#beginPresentationEase()) {
       this.#cameraPresentationZoom = null;
     }
     this.#cameraInteractionActive = active;
     this.#cameraInteractionSink?.setCameraInteractionActive(active);
+  }
+
+  /**
+   * Nodes stay geographically pinned (and so under the pointer) while a gesture
+   * owns the camera. When it settles, ease the frozen presentation zoom to the
+   * live zoom instead of snapping the whole local graph to its new size.
+   * Returns false when there is nothing to animate or no way to animate it.
+   */
+  #beginPresentationEase(): boolean {
+    const from = this.#cameraPresentationZoom;
+    if (from === null || Math.abs(from - this.#camera.zoom) < 1e-3) return false;
+    if (prefersReducedMotion()) return false;
+    const view = this.#container.ownerDocument?.defaultView;
+    const requestFrame =
+      view?.requestAnimationFrame?.bind(view) ?? globalThis.requestAnimationFrame?.bind(globalThis);
+    if (!requestFrame) return false;
+
+    let startedAt: number | null = null;
+    const step = (timestamp?: number): void => {
+      this.#presentationEaseFrame = null;
+      if (this.#destroyed || this.#cameraInteractionActive) return;
+      const now = Number.isFinite(timestamp) ? Number(timestamp) : globalThis.performance.now();
+      startedAt ??= now;
+      const progress = Math.min(1, Math.max(0, (now - startedAt) / WORLD_PRESENTATION_EASE_MS));
+      if (progress >= 1) {
+        this.#cameraPresentationZoom = null;
+        this.#render(true);
+        return;
+      }
+      const eased = 1 - (1 - progress) ** 3;
+      this.#cameraPresentationZoom = from + (this.#camera.zoom - from) * eased;
+      this.#render();
+      this.#presentationEaseFrame = requestFrame(step);
+    };
+    this.#presentationEaseFrame = requestFrame(step);
+    return true;
+  }
+
+  #cancelPresentationEase(): void {
+    if (this.#presentationEaseFrame === null) return;
+    const view = this.#container.ownerDocument?.defaultView;
+    const cancelFrame =
+      view?.cancelAnimationFrame?.bind(view) ?? globalThis.cancelAnimationFrame?.bind(globalThis);
+    cancelFrame?.(this.#presentationEaseFrame);
+    this.#presentationEaseFrame = null;
   }
 
   #presentationZoom(): number {
@@ -4931,6 +4981,7 @@ export class DeckWorldSurface implements WorldSurface {
     this.#authoringContextPointerId = null;
     this.#clearTransitionStartPending();
     this.#cancelSpatialModeFlush();
+    this.#cancelPresentationEase();
     this.#authoringFocusGuard?.();
     this.#authoringFocusGuard = null;
     this.#touchDrag.clear();

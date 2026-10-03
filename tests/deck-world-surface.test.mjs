@@ -1054,6 +1054,64 @@ test("force deltas during camera zoom keep semantic presentation frozen until in
   );
 });
 
+test("zoom presentation eases from its frozen value to the live zoom instead of snapping when the gesture settles", () => {
+  const frames = [];
+  const container = {
+    ownerDocument: {
+      defaultView: {
+        requestAnimationFrame(callback) {
+          frames.push(callback);
+          return frames.length;
+        },
+        cancelAnimationFrame() {},
+      },
+    },
+  };
+  const runFrame = (timestamp) => {
+    const callback = frames.shift();
+    assert.ok(callback, "an animation frame must be pending");
+    callback(timestamp);
+  };
+  const camera = { longitude: 18.0686, latitude: 59.3293, zoom: 6, bearing: 0, pitch: 20 };
+  const { calls, runtime } = harness();
+  const surface = new DeckWorldSurface(container, runtime, camera);
+  const initial = projection();
+  surface.setProjection(initial);
+  const bobId = worldInstanceId("bob", "meeting");
+  const before = surface.getRenderedInstanceContinuity().get(bobId);
+  assert.ok(before);
+
+  calls.deckProps.onViewStateChange({
+    viewState: { ...camera, zoom: 9 },
+    interactionState: { isZooming: true },
+  });
+  calls.deckProps.onInteractionStateChange({ isZooming: false, inTransition: false });
+
+  const atSettle = surface.getRenderedInstanceContinuity().get(bobId);
+  assert.equal(
+    atSettle.offsetScale,
+    before.offsetScale,
+    "settling a gesture must not snap the offset magnification",
+  );
+
+  runFrame(1000);
+  runFrame(1130);
+  const midway = surface.getRenderedInstanceContinuity().get(bobId);
+  runFrame(2000);
+  const finished = surface.getRenderedInstanceContinuity().get(bobId);
+
+  const reference = new DeckWorldSurface({}, harness().runtime, { ...camera, zoom: 9 });
+  reference.setProjection(projection());
+  const live = reference.getRenderedInstanceContinuity().get(bobId);
+
+  assert.equal(finished.offsetScale, live.offsetScale, "the ease must end on the live zoom value");
+  assert.ok(
+    Math.min(before.offsetScale, live.offsetScale) < midway.offsetScale &&
+      midway.offsetScale < Math.max(before.offsetScale, live.offsetScale),
+    "midway through the ease the magnification sits between the frozen and live values",
+  );
+});
+
 test("inertial globe release settles before globe-to-local controller handoff", () => {
   const { calls, runtime } = harness();
   class WeightedGlobeController {}
