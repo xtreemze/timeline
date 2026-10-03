@@ -785,6 +785,10 @@ const WORLD_PLACE_MARKER_CLUSTER_MERGE_PX = 64;
 const WORLD_DRAG_PICKUP_FLASH_MS = 160;
 /** Window in which the post-release compatibility mousedown is swallowed. */
 const WORLD_AUTHORING_FOCUS_GUARD_MS = 700;
+/** Longest wait for a handed-off camera transition to report that it started. */
+const WORLD_TRANSITION_START_GRACE_MS = 250;
+/** Camera input must stay quiet this long before a deferred globe/local view swap. */
+const WORLD_SPATIAL_MODE_QUIET_MS = 180;
 const WORLD_DRAG_PICKUP_FLASH_SCALE = 1.16;
 const WORLD_PROJECTION_HANDOFF_PRESENTATION_BLEND = 0.45;
 const WORLD_PROJECTION_HANDOFF_PRESENTATION_EPSILON = 0.001;
@@ -3081,6 +3085,13 @@ export class DeckWorldSurface implements WorldSurface {
   #cameraPresentationZoom: number | null = null;
   #cameraInteractionSink: DeckWorldCameraInteractionSink | null = null;
   #pendingSpatialModeSync = false;
+  // A controller-generated transition target has been handed to deck.gl but the
+  // transition has not reported itself running yet. deck.gl briefly reports the
+  // interrupted transition as settled in between, which must not flush a
+  // deferred view swap underneath the transition that is about to start.
+  #transitionStartPending = false;
+  #spatialModeFlushTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
+  #transitionStartTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
   #pendingClusterLifecycleSync = false;
   #nodeDragSink: DeckWorldNodeDragSink | null = null;
   #clusterForceSink: DeckWorldClusterForceSink | null = null;
@@ -3732,6 +3743,7 @@ export class DeckWorldSurface implements WorldSurface {
       }) => {
         const cameraInteractionActive = deckCameraInteractionActive(interactionState);
         this.#setCameraInteractionActive(cameraInteractionActive);
+        this.#cancelSpatialModeFlush();
         // At close/detail zoom direct manipulation owns the gesture. Reject
         // controller inertia/orbit updates until the node drag ends so the
         // geographic frame and its place anchors stay visually locked.
@@ -3786,6 +3798,7 @@ export class DeckWorldSurface implements WorldSurface {
           // interpolated frames are controller-owned: echoing a plain controlled
           // viewState would interrupt the transition after the first frame.
           if (deckViewStateStartsTransition(viewState)) {
+            this.#markTransitionStartPending();
             this.#deck.setProps({ viewState });
             return;
           }
@@ -3801,6 +3814,8 @@ export class DeckWorldSurface implements WorldSurface {
       },
       onInteractionStateChange: (interactionState: DeckRuntimeInteractionState) => {
         this.#setCameraInteractionActive(deckCameraInteractionActive(interactionState));
+        if (interactionState.inTransition === true) this.#clearTransitionStartPending();
+        if (deckCameraInteractionActive(interactionState)) this.#cancelSpatialModeFlush();
         if (this.#startupFlightTarget) {
           // Transition state may settle before deck emits its final view-state
           // frame. Keep presentation refreshes camera-free until that frame
@@ -3809,7 +3824,9 @@ export class DeckWorldSurface implements WorldSurface {
           return;
         }
         if (!this.#cameraInteractionActive) {
-          if (this.#pendingSpatialModeSync) this.#syncSpatialMode();
+          if (this.#pendingSpatialModeSync && !this.#transitionStartPending) {
+            this.#scheduleSpatialModeFlush();
+          }
           if (this.#pendingClusterLifecycleSync) this.#syncClusterLifecycle();
           // Flush any camera-facing presentation work deferred while the gesture
           // was active. If cluster synchronization already rendered, this is a
@@ -4912,6 +4929,8 @@ export class DeckWorldSurface implements WorldSurface {
     );
     this.#clearTouchHoldTimer();
     this.#authoringContextPointerId = null;
+    this.#clearTransitionStartPending();
+    this.#cancelSpatialModeFlush();
     this.#authoringFocusGuard?.();
     this.#authoringFocusGuard = null;
     this.#touchDrag.clear();
@@ -5221,6 +5240,46 @@ export class DeckWorldSurface implements WorldSurface {
     else dataset.worldTouchDrag = state;
   }
 
+  /**
+   * A deferred globe/local swap replaces deck.gl's controller. Wheel and
+   * trackpad streams keep delivering events straight after deck.gl first
+   * reports the camera idle, and those land on a controller that is being torn
+   * down. Flush only after the camera input has stayed quiet.
+   */
+  #scheduleSpatialModeFlush(): void {
+    this.#cancelSpatialModeFlush();
+    this.#spatialModeFlushTimer = globalThis.setTimeout(() => {
+      this.#spatialModeFlushTimer = null;
+      if (this.#destroyed || this.#cameraInteractionActive || this.#transitionStartPending) return;
+      if (this.#pendingSpatialModeSync) this.#syncSpatialMode();
+    }, WORLD_SPATIAL_MODE_QUIET_MS);
+  }
+
+  #cancelSpatialModeFlush(): void {
+    if (this.#spatialModeFlushTimer === null) return;
+    globalThis.clearTimeout(this.#spatialModeFlushTimer);
+    this.#spatialModeFlushTimer = null;
+  }
+
+  #markTransitionStartPending(): void {
+    this.#transitionStartPending = true;
+    if (this.#transitionStartTimer !== null) globalThis.clearTimeout(this.#transitionStartTimer);
+    // Safety net: a target that never starts moving must not strand a deferred swap.
+    this.#transitionStartTimer = globalThis.setTimeout(() => {
+      this.#transitionStartTimer = null;
+      this.#transitionStartPending = false;
+      if (this.#destroyed || this.#cameraInteractionActive) return;
+      if (this.#pendingSpatialModeSync) this.#scheduleSpatialModeFlush();
+    }, WORLD_TRANSITION_START_GRACE_MS);
+  }
+
+  #clearTransitionStartPending(): void {
+    this.#transitionStartPending = false;
+    if (this.#transitionStartTimer === null) return;
+    globalThis.clearTimeout(this.#transitionStartTimer);
+    this.#transitionStartTimer = null;
+  }
+
   #syncSpatialMode({
     deferDuringInteraction = false,
   }: {
@@ -5232,7 +5291,7 @@ export class DeckWorldSurface implements WorldSurface {
       this.#pendingSpatialModeSync = false;
       return;
     }
-    if (deferDuringInteraction && this.#cameraInteractionActive) {
+    if (deferDuringInteraction && (this.#cameraInteractionActive || this.#transitionStartPending)) {
       this.#pendingSpatialModeSync = true;
       return;
     }

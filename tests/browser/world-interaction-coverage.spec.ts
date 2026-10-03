@@ -134,11 +134,109 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
     ).toBeGreaterThan(slowHeldDistance);
     const initialReleaseTravel = cameraDistanceBetween(slow.held, slow.earlyRelease);
     const continuedReleaseTravel = cameraDistanceBetween(slow.earlyRelease, slow.inertial);
-    expect(initialReleaseTravel, "pointer-up should begin measurable release motion").toBeGreaterThan(0);
+    expect(
+      initialReleaseTravel,
+      "pointer-up should begin measurable release motion",
+    ).toBeGreaterThan(0);
     expect(
       continuedReleaseTravel,
       "globe momentum must continue for multiple frames instead of stopping immediately after release",
     ).toBeGreaterThan(initialReleaseTravel * 0.2);
+  });
+
+  test("a fast wheel zoom-out across the local/globe threshold keeps the World usable", async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, "Wheel zoom is a desktop/trackpad input.");
+    test.skip(!(await gotoHarness(page)), "WebGL2 unavailable in this environment.");
+
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    const viewport = page.viewportSize();
+    if (!viewport) throw new Error("WorldSurface wheel certification requires a viewport.");
+
+    const localZoom = DEFAULT_WORLD_SPATIAL_MODE_POLICY.enterLocalAtZoom + 2.5;
+    await page.evaluate(async (zoom) => {
+      window.__worldPerfHarness.surface.setCamera({
+        longitude: 8.3,
+        latitude: 49.99,
+        zoom,
+        bearing: 0,
+        pitch: 0,
+      });
+      await new Promise<void>((resolve) => setTimeout(resolve, 500));
+    }, localZoom);
+
+    await page.mouse.move(viewport.width / 2, viewport.height / 2);
+    for (let tick = 0; tick < 14; tick += 1) {
+      await page.mouse.wheel(0, 240);
+      await page.waitForTimeout(16);
+    }
+    await page.waitForTimeout(1_500);
+
+    expect(errors, "a fast zoom-out must not throw inside deck.gl").toEqual([]);
+
+    // The camera must still answer to later input instead of wedging.
+    const before = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera());
+    await page.mouse.wheel(0, -240);
+    await page.waitForTimeout(800);
+    const after = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera());
+    expect(after.zoom, "wheel input must still move the camera after the fast zoom-out").not.toBe(
+      before.zoom,
+    );
+  });
+
+  test("local map drag carries the same release inertia as the globe", async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(
+      isMobile,
+      "Mobile projects exercise the same controller through trusted touch swipes.",
+    );
+    test.skip(!(await gotoHarness(page)), "WebGL2 unavailable in this environment.");
+
+    const viewport = page.viewportSize();
+    if (!viewport) throw new Error("WorldSurface drag certification requires a viewport.");
+
+    const localZoom = DEFAULT_WORLD_SPATIAL_MODE_POLICY.enterLocalAtZoom + 1.5;
+    const camera = { longitude: 0, latitude: 20, zoom: localZoom, bearing: 0, pitch: 0 };
+    const start = {
+      x: Math.round(viewport.width * 0.42),
+      y: Math.round(viewport.height * 0.5),
+    };
+    const distance = Math.min(180, Math.round(viewport.width * 0.22));
+    const steps = 8;
+    const readCamera = () => page.evaluate(() => window.__worldPerfHarness.surface.getCamera());
+
+    await page.evaluate(async (nextCamera) => {
+      window.__worldPerfHarness.surface.setCamera(nextCamera);
+      await new Promise<void>((resolve) =>
+        setTimeout(() => requestAnimationFrame(() => resolve()), 400),
+      );
+    }, camera);
+
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    for (let step = 1; step <= steps; step += 1) {
+      await page.mouse.move(start.x + (distance * step) / steps, start.y);
+      if (step < steps) await page.waitForTimeout(24);
+    }
+    // Release straight out of the last move: a fling, not a drag that came to rest.
+    await page.mouse.up();
+    const released = await readCamera();
+    await page.waitForTimeout(500);
+    const settled = await readCamera();
+
+    const travel = (from: typeof camera, to: typeof camera) =>
+      Math.abs(to.longitude - from.longitude);
+    const dragTravel = travel(camera, released);
+    expect(dragTravel, "the local drag must move the camera").toBeGreaterThan(0);
+    expect(
+      travel(released, settled),
+      "local release momentum must keep travelling like the timeline and globe",
+    ).toBeGreaterThan(dragTravel * 0.25);
   });
 
   test("globe release inertia does not accelerate beyond the held drag velocity", async ({
