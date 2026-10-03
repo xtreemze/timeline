@@ -1325,10 +1325,9 @@ function deckControllerOptions(
     maxZoom: WORLD_CAMERA_MAX_ZOOM,
     dragPan: true,
     dragRotate: true,
-    // Keep wheel input direct under reduced motion. Otherwise let deck
-    // accumulate wheel deltas into a short smooth target so zoom carries the
-    // same weighted, non-stepped feel as timeline navigation.
-    scrollZoom: reducedMotion ? true : { smooth: true },
+    // Keep wheel input direct. Smooth accumulation conflicts with rapid wheel
+    // events, causing glitching. Direct wheel response is immediate and stable.
+    scrollZoom: true,
     touchZoom: true,
     multiTouchDrag: "rotate",
     keyboard: true,

@@ -1384,7 +1384,7 @@ test("hover semantic rebuilds coalesce to one animation frame", () => {
   surface.destroy();
 });
 
-test("deck controller uses timeline-weighted inertia and smooth pointer-anchored zoom", () => {
+test("deck controller uses timeline-weighted inertia and direct pointer-anchored wheel zoom", () => {
   const { calls, runtime } = harness();
   new DeckWorldSurface({}, runtime);
 
@@ -1393,7 +1393,7 @@ test("deck controller uses timeline-weighted inertia and smooth pointer-anchored
     maxZoom: WORLD_CAMERA_MAX_ZOOM,
     dragPan: true,
     dragRotate: true,
-    scrollZoom: { smooth: true },
+    scrollZoom: true,
     touchZoom: true,
     multiTouchDrag: "rotate",
     keyboard: true,

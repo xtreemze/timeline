@@ -514,6 +514,42 @@ test.describe("world interaction coverage (issue #445 Priority 8)", () => {
     ).toBeLessThan(1.5);
   });
 
+  test("rapid mousewheel zoom-in and zoom-out does not cause visual glitching", async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, "Mobile projects certify wheel/trackpad zoom separately.");
+    test.skip(!(await gotoHarness(page)), "WebGL2 unavailable in this environment.");
+
+    const viewport = page.viewportSize();
+    if (!viewport) {
+      throw new Error("WorldSurface rapid wheel certification requires a viewport.");
+    }
+
+    await page.mouse.move(Math.round(viewport.width / 2), Math.round(viewport.height / 2));
+
+    // Rapid scroll down (zoom in)
+    for (let i = 0; i < 5; i += 1) {
+      await page.mouse.wheel(0, -100);
+    }
+
+    const afterZoomIn = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera().zoom);
+    expect(afterZoomIn, "rapid wheel zoom-in should increase zoom").toBeGreaterThan(5);
+
+    await page.waitForTimeout(100);
+
+    // Rapid scroll up (zoom out)
+    for (let i = 0; i < 5; i += 1) {
+      await page.mouse.wheel(0, 100);
+    }
+
+    const afterZoomOut = await page.evaluate(() => window.__worldPerfHarness.surface.getCamera().zoom);
+    expect(afterZoomOut, "rapid wheel zoom-out should decrease zoom").toBeLessThan(afterZoomIn);
+
+    // Check that the zoom level is reasonable (not NaN or Infinity due to glitching)
+    expect(Number.isFinite(afterZoomOut), "zoom level should be a finite number").toBe(true);
+  });
+
   test("two-finger pinch changes the camera on mobile Chromium", async ({
     page,
     browserName,
