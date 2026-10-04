@@ -9,7 +9,7 @@ const viteManifest = JSON.parse(await readFile(viteManifestUrl, "utf8"));
 
 const files = new Set([
   "index.html",
-  "workspace.html",
+  "lum/index.html",
   "manifest.webmanifest",
   "pwa-icon-192.png",
   "pwa-icon-512.png",

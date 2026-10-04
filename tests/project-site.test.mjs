@@ -49,21 +49,42 @@ test("presentation page has a dedicated responsive stylesheet", async () => {
 });
 
 
-test("Lūm presentation is the primary Pages landing page and workspace remains a separate build entry", async () => {
+test("Lūm presentation is the primary Pages landing page and the application has a dedicated build entry", async () => {
   const index = await read("site/index.html");
-  const workspace = await read("site/workspace.html");
+  const lum = await read("site/lum/index.html");
   const vite = await read("vite.config.ts");
 
   assert.match(index, /id=["']history["']/);
   assert.match(index, /id=["']onboarding["']/);
-  assert.match(index, /href=["']\.\/workspace\.html["']/);
-  assert.match(workspace, /id=["']app-shell["']/);
-  assert.match(vite, /workspace:\s*new URL\("\.\/site\/workspace\.html"/);
+  assert.match(index, /href=["']\.\/lum\/["']/);
+  assert.match(lum, /id=["']app-shell["']/);
+  assert.match(vite, /lum:\s*new URL\("\.\/site\/lum\/index\.html"/);
 });
 
-test("Pages deploy certifies the workspace route while Lighthouse audits the root landing page", async () => {
+test("Pages deploy certifies the Lūm app route while Lighthouse audits the root landing page", async () => {
   const workflow = await read(".github/workflows/pages.yml");
-  assert.match(workflow, /test -s dist\/workspace\.html/);
-  assert.match(workflow, /LUM_DEPLOYED_URL:\s*["']?\$\{\{ needs\.deploy\.outputs\.page_url \}\}workspace\.html/);
+  assert.match(workflow, /test -s dist\/lum\/index\.html/);
+  assert.match(workflow, /LUM_DEPLOYED_URL:\s*["']?\$\{\{ needs\.deploy\.outputs\.page_url \}\}lum\//);
   assert.match(workflow, /LIGHTHOUSE_URL:\s*\$\{\{ needs\.deploy\.outputs\.page_url \}\}/);
+});
+
+
+test("GitHub Pages root is the Lūm landing page and points to the dedicated Lūm app route", async () => {
+  const index = await read("site/index.html");
+  const lum = await read("site/lum/index.html");
+
+  assert.match(index, /<title>Lūm — weave the threads, explore the continuum<\/title>/);
+  assert.match(index, /href=["']\.\/lum\/["'][^>]*>Open Lūm workspace<\/a>/);
+  assert.doesNotMatch(index, /id=["']app-shell["']/);
+  assert.match(lum, /id=["']app-shell["']/);
+
+  const landingScript = await read("site/landing.ts");
+  assert.match(landingScript, /getRegistrations/);
+  assert.match(landingScript, /unregister/);
+});
+
+test("legacy workspace route forwards to the canonical Lūm app route", async () => {
+  const workspace = await read("site/workspace.html");
+  assert.match(workspace, /url=\.\/lum\//i);
+  assert.match(workspace, /href=["']\.\/lum\/["']/);
 });
