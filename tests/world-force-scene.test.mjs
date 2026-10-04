@@ -214,6 +214,62 @@ test("invalid force policy values fail before reaching a backend", () => {
   );
 });
 
+test("force scene preserves automatic dense layout unless Sugiyama is explicitly requested", () => {
+  const count = 24;
+  const instances = Array.from({ length: count }, (_, index) =>
+    createProjectedWorldInstance({
+      id: worldInstanceId(`dense-force-${index}`, "dense-force"),
+      canonicalId: `dense-force-${index}`,
+      occurrenceId: "dense-force",
+      geographicAnchors: [
+        {
+          placeId: "stockholm",
+          longitude: 18.0686,
+          latitude: 59.3293,
+          influence: 1,
+        },
+      ],
+      temporalWeight: 1,
+      visualWeight: 0,
+      retained: false,
+    }),
+  );
+  const edges = [];
+  for (let source = 0; source < instances.length; source += 1) {
+    for (let target = source + 1; target < instances.length; target += 1) {
+      edges.push(
+        createProjectedWorldEdge({
+          id: `dense-force-${source}-${target}`,
+          sourceInstanceId: instances[source].id,
+          targetInstanceId: instances[target].id,
+          temporalWeight: 1,
+          visible: true,
+          retained: false,
+        }),
+      );
+    }
+  }
+  const projection = createWorldProjection({ instances, edges });
+
+  const automatic = createWorldForceScene(projection, undefined, { reorganizeDag: true });
+  const explicitSugiyama = createWorldForceScene(projection, undefined, {
+    reorganizeDag: true,
+    dagAlgorithm: "sugiyama",
+  });
+  const positions = (scene) =>
+    scene.nodes.map((node) => [
+      node.id,
+      Math.round(node.layoutTargetEastMeters ?? 0),
+      Math.round(node.layoutTargetNorthMeters ?? 0),
+    ]);
+
+  assert.notDeepEqual(
+    positions(automatic),
+    positions(explicitSugiyama),
+    "omitting dagAlgorithm must preserve automatic dense-family selection rather than forcing Sugiyama",
+  );
+});
+
 test("custom visible node size expands the force body instead of clipping through neighbours", () => {
   const id = worldInstanceId("large", "styled");
   const projection = createWorldProjection({
