@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 test("semantic chronology preserves canonical reading order and focus parity", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/lum/");
   await expect(page.locator("#timeline-view")).toBeVisible();
 
   await page.evaluate(async () => {
