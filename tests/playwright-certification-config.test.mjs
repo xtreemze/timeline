@@ -17,7 +17,6 @@ const pagesWorkflow = readFileSync(
   new URL("../.github/workflows/pages.yml", import.meta.url),
   "utf8",
 );
-const astroConfig = readFileSync(new URL("../astro.config.mjs", import.meta.url), "utf8");
 const buildPages = readFileSync(new URL("../scripts/build-pages.mjs", import.meta.url), "utf8");
 const workspaceHtml = readFileSync(
   new URL("../site/workspace.html", import.meta.url),
@@ -256,13 +255,8 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   );
   assert.doesNotMatch(workspaceHtml, /<link rel="canonical" href="\.\/lum\/">/);
   assert.equal(packageJson.devDependencies?.astro, "7.3.5");
-  assert.match(buildPages, /pnpm["'], \\["exec", "astro", "build"\\]/);
+  assert.match(buildPages, /run\("pnpm", \["exec", "astro", "build"\]\)/);
   assert.doesNotMatch(buildPages, /dlx.*astro/);
-  assert.doesNotMatch(
-    astroConfig,
-    /from\s+["']astro\/config["']/,
-    "dlx Astro config must not import a package that is absent from the project dependency graph",
-  );
 
   for (const formFactor of ["desktop", "mobile"]) {
     for (const asset of [
