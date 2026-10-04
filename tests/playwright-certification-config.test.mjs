@@ -255,7 +255,9 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
     "workspace canonical must be an absolute Pages URL so Vite does not read the lum directory as an asset",
   );
   assert.doesNotMatch(workspaceHtml, /<link rel="canonical" href="\.\/lum\/">/);
-  assert.match(buildPages, /pnpm["'], \["dlx", "astro@7\.3\.5", "build"\]/);
+  assert.equal(packageJson.devDependencies?.astro, "7.3.5");
+  assert.match(buildPages, /pnpm["'], \\["exec", "astro", "build"\\]/);
+  assert.doesNotMatch(buildPages, /dlx.*astro/);
   assert.doesNotMatch(
     astroConfig,
     /from\s+["']astro\/config["']/,
