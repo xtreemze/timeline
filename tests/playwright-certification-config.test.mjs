@@ -198,8 +198,11 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightRenderer, /mobile/);
 
   assert.match(mediaWorkflow, /Record source-native showcase media/);
-  assert.match(mediaWorkflow, /xvfb-run/);
-  assert.match(mediaWorkflow, /-screen 0 1920x1080x24/);
+  assert.match(mediaWorkflow, /xserver-xorg-video-dummy/);
+  assert.match(mediaWorkflow, /Xorg :99/);
+  assert.match(mediaWorkflow, /SHOWCASE_X11_WIDTH=1920/);
+  assert.match(mediaWorkflow, /SHOWCASE_X11_HEIGHT=1080/);
+  assert.doesNotMatch(mediaWorkflow, /continue-on-error:\s*true/);
   assert.match(mediaWorkflow, /pnpm test:e2e:showcase/);
   assert.match(mediaWorkflow, /pnpm render:e2e:showcase/);
   assert.match(mediaWorkflow, /raw\/desktop/);
@@ -217,7 +220,8 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
 
   assert.match(pagesWorkflow, /workflow_run:/);
   assert.match(pagesWorkflow, /workflows:\s*\["E2E media showcase"\]/);
-  assert.match(pagesWorkflow, /actions\/download-artifact@v4/);
+  assert.match(pagesWorkflow, /github\.event\.workflow_run\.conclusion == 'success'/);
+  assert.match(pagesWorkflow, /gh run download/);
   assert.doesNotMatch(pagesWorkflow, /pnpm test:e2e:showcase/);
   assert.match(pagesWorkflow, /dist\/showcase\/desktop/);
   assert.match(pagesWorkflow, /dist\/showcase\/mobile/);
