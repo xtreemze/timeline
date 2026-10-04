@@ -1,5 +1,5 @@
 const SERVICE_WORKER_URL = "./sw.js";
-const SERVICE_WORKER_SCOPE = "./";
+const SERVICE_WORKER_SCOPE = "./lum/";
 
 function registerServiceWorker(): void {
   if (!("serviceWorker" in navigator) || !window.isSecureContext) return;
