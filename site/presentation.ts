@@ -1,4 +1,4 @@
-type ExampleKind = "historical" | "incident" | "fiction" | "decision";
+type ExampleKind = "historical" | "incident" | "fiction" | "decision" | "corpus";
 
 interface Entity {
   id: string;
@@ -41,6 +41,109 @@ interface ExampleData {
   evidence: Evidence[];
   occurrences: Occurrence[];
   stories: Story[];
+}
+
+interface RepositorySample {
+  title?: string;
+  entities?: Array<{ id: string; name?: string; attributes?: { storyId?: string } }>;
+  places?: Array<{ id: string; name?: string; title?: string; label?: string }>;
+  evidence?: Array<{ id: string; title?: string; note?: string; sourceName?: string; publishedAt?: string }>;
+  items?: Array<{ id: string; title?: string; start?: string; evidenceIds?: string[] }>;
+  relationships?: Array<{
+    id: string;
+    subjectId?: string;
+    objectId?: string;
+    predicate?: string;
+    placeId?: string;
+    itemIds?: string[];
+    time?: { start?: { value?: string } };
+    attributes?: { storyId?: string };
+  }>;
+  stories?: Array<{ id: string; title?: string; itemIds?: string[] }>;
+}
+
+let repositoryExamplePromise: Promise<ExampleData> | undefined;
+
+async function loadRepositoryExample(): Promise<ExampleData> {
+  repositoryExamplePromise ??= import("./sample-case.ts").then(({ TimelineSampleCase }) => {
+    const sample = TimelineSampleCase as RepositorySample;
+    const storyId = "story-three-little-pigs";
+    const story = sample.stories?.find((entry) => entry.id === storyId);
+    const storyItemIds = new Set(story?.itemIds ?? []);
+    const entityById = new Map((sample.entities ?? []).map((entity) => [entity.id, entity]));
+    const placeById = new Map((sample.places ?? []).map((place) => [place.id, place]));
+    const evidenceById = new Map((sample.evidence ?? []).map((entry) => [entry.id, entry]));
+    const itemById = new Map((sample.items ?? []).map((item) => [item.id, item]));
+
+    const relationships = (sample.relationships ?? [])
+      .filter((relationship) => {
+        const linkedItem = relationship.itemIds?.some((id) => storyItemIds.has(id));
+        const linkedEntity =
+          entityById.get(relationship.subjectId ?? "")?.attributes?.storyId === storyId ||
+          entityById.get(relationship.objectId ?? "")?.attributes?.storyId === storyId;
+        return Boolean(linkedItem || linkedEntity || relationship.attributes?.storyId === storyId);
+      })
+      .filter((relationship) => relationship.subjectId && relationship.objectId && relationship.predicate)
+      .slice(0, 4);
+
+    const referencedEntityIds = new Set(
+      relationships.flatMap((relationship) => [relationship.subjectId ?? "", relationship.objectId ?? ""]).filter(Boolean),
+    );
+    const referencedPlaceIds = new Set(
+      relationships.map((relationship) => relationship.placeId ?? "").filter(Boolean),
+    );
+    const referencedEvidenceIds = new Set<string>();
+
+    const occurrences = relationships.map((relationship) => {
+      const item = relationship.itemIds?.map((id) => itemById.get(id)).find(Boolean);
+      for (const evidenceId of item?.evidenceIds ?? []) referencedEvidenceIds.add(evidenceId);
+      return {
+        id: relationship.id,
+        label: item?.title ?? `${entityById.get(relationship.subjectId ?? "")?.name ?? relationship.subjectId} ${relationship.predicate} ${entityById.get(relationship.objectId ?? "")?.name ?? relationship.objectId}`,
+        date: relationship.time?.start?.value ?? item?.start ?? "Story time",
+        subjectId: relationship.subjectId ?? "",
+        action: relationship.predicate ?? "relates to",
+        objectId: relationship.objectId ?? "",
+        placeId: relationship.placeId || undefined,
+        evidenceIds: [...(item?.evidenceIds ?? [])],
+      };
+    });
+
+    if (referencedEvidenceIds.size === 0 && evidenceById.has("src-pigs")) {
+      referencedEvidenceIds.add("src-pigs");
+    }
+
+    return {
+      title: story?.title ?? sample.title ?? "Repository example corpus",
+      entities: [...referencedEntityIds].map((id) => ({
+        id,
+        label: entityById.get(id)?.name ?? id,
+      })),
+      places: [...referencedPlaceIds].map((id) => {
+        const place = placeById.get(id);
+        return { id, label: place?.name ?? place?.title ?? place?.label ?? id };
+      }),
+      evidence: [...referencedEvidenceIds].map((id) => {
+        const entry = evidenceById.get(id);
+        return {
+          id,
+          label: entry?.title ?? id,
+          summary: entry?.note ?? "Repository-shipped source linked to this story.",
+          provenance: [entry?.sourceName, entry?.publishedAt].filter(Boolean).join(" · ") || "Repository sample",
+        };
+      }),
+      occurrences,
+      stories: [
+        {
+          id: storyId,
+          label: story?.title ?? "The Three Little Pigs",
+          occurrenceIds: occurrences.map((occurrence) => occurrence.id),
+        },
+      ],
+    };
+  });
+
+  return repositoryExamplePromise;
 }
 
 const conventionalExamples: Record<"historical" | "incident", ExampleData> = {
@@ -260,7 +363,7 @@ const unconventionalExamples: Record<"fiction" | "decision", ExampleData> = {
   },
 };
 
-const examples: Record<ExampleKind, ExampleData> = {
+const examples: Record<Exclude<ExampleKind, "corpus">, ExampleData> = {
   ...conventionalExamples,
   ...unconventionalExamples,
 };
@@ -379,8 +482,8 @@ function renderEvidence(data: ExampleData): void {
   );
 }
 
-function renderExample(kind: ExampleKind): void {
-  const data = examples[kind];
+async function renderExample(kind: ExampleKind): Promise<void> {
+  const data = kind === "corpus" ? await loadRepositoryExample() : examples[kind];
   renderTimeline(data);
   renderWorld(data);
   renderEvidence(data);
@@ -395,7 +498,7 @@ function renderExample(kind: ExampleKind): void {
 for (const button of buttons) {
   button.addEventListener("click", () => {
     const kind = button.dataset.example as ExampleKind | undefined;
-    if (kind && kind in examples) renderExample(kind);
+    if (kind && (kind === "corpus" || kind in examples)) void renderExample(kind);
   });
 
   button.addEventListener("keydown", (event) => {
@@ -409,4 +512,4 @@ for (const button of buttons) {
   });
 }
 
-renderExample("historical");
+void renderExample("historical");
