@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 test.beforeEach(async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/lum/");
   await expect(page.locator("#occurrence-composer .compact")).toBeVisible();
 });
 
