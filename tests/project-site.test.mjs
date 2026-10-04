@@ -22,7 +22,7 @@ test("presentation page explains history, onboarding, ambitions, and use cases",
     assert.match(html, new RegExp(`id=["']${id}["']`));
   }
   assert.match(html, /Weave the threads\. Explore the continuum\./);
-  assert.match(html, /Open Lūm workspace/);
+  assert.match(html, /Open Lūm/);
 });
 
 test("embedded examples use canonical Lūm concepts and remain inspectable without JavaScript", async () => {
@@ -74,7 +74,8 @@ test("GitHub Pages root is the Lūm landing page and points to the dedicated Lū
   const lum = await read("site/lum/index.html");
 
   assert.match(index, /<title>Lūm — weave the threads, explore the continuum<\/title>/);
-  assert.match(index, /href=["']\.\/lum\/["'][^>]*>Open Lūm workspace<\/a>/);
+  assert.match(index, /rel=["']canonical["'] href=["']https:\/\/xtreemze\.github\.io\/timeline\/["']/);
+  assert.match(index, /href=["']\.\/lum\/["'][^>]*>Open Lūm<\/a>/);
   assert.doesNotMatch(index, /id=["']app-shell["']/);
   assert.match(lum, /id=["']app-shell["']/);
 
