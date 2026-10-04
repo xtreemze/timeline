@@ -17,6 +17,10 @@ const pagesWorkflow = readFileSync(
   new URL("../.github/workflows/pages.yml", import.meta.url),
   "utf8",
 );
+const workspaceHtml = readFileSync(
+  new URL("../site/workspace.html", import.meta.url),
+  "utf8",
+);
 const highlightConfig = readFileSync(
   new URL("../playwright.highlight.config.ts", import.meta.url),
   "utf8",
@@ -243,6 +247,12 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
     /rm -rf site\/workspace\.html site\/presentation\.html/,
     "Pages must not delete Vite HTML entry points before the production build",
   );
+  assert.match(
+    workspaceHtml,
+    /<link rel="canonical" href="https:\/\/xtreemze\.github\.io\/timeline\/lum\/">/,
+    "workspace canonical must be an absolute Pages URL so Vite does not read the lum directory as an asset",
+  );
+  assert.doesNotMatch(workspaceHtml, /<link rel="canonical" href="\.\/lum\/">/);
 
   for (const formFactor of ["desktop", "mobile"]) {
     for (const asset of [
