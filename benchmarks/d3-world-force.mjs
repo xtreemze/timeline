@@ -7,8 +7,39 @@ function positiveInteger(value) {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
+const checkMode = process.argv.includes("--check");
 const requestedSizes = process.argv.slice(2).map(positiveInteger).filter(Boolean);
 const sizes = requestedSizes.length ? requestedSizes : [1_000, 10_000, 50_000];
+
+const CI_CEILINGS = Object.freeze({
+  1_000: Object.freeze({
+    setupP95Ms: 50,
+    topologyP95Ms: 100,
+    sustainedSixtyHzMs: 1_500,
+    changedSnapshotMs: 10,
+    dragAcquireMs: 20,
+    dragP95Ms: 5,
+    dragSnapshotMs: 5,
+  }),
+  10_000: Object.freeze({
+    setupP95Ms: 150,
+    topologyP95Ms: 150,
+    sustainedSixtyHzMs: 7_500,
+    changedSnapshotMs: 15,
+    dragAcquireMs: 25,
+    dragP95Ms: 5,
+    dragSnapshotMs: 5,
+  }),
+  50_000: Object.freeze({
+    setupP95Ms: 500,
+    topologyP95Ms: 500,
+    sustainedSixtyHzMs: 30_000,
+    changedSnapshotMs: 60,
+    dragAcquireMs: 30,
+    dragP95Ms: 8,
+    dragSnapshotMs: 10,
+  }),
+});
 
 function percentile(sorted, fraction) {
   if (!sorted.length) return 0;
@@ -176,6 +207,29 @@ for (const nodeCount of sizes) {
     dragChangedSnapshot,
     dragChangedNodes,
   });
+}
+
+if (checkMode) {
+  for (const result of results) {
+    const ceiling = CI_CEILINGS[result.worldInstances];
+    if (!ceiling) continue;
+    const checks = [
+      ["setup p95", result.setup.p95Ms, ceiling.setupP95Ms],
+      ["topology p95", result.topologyStep.p95Ms, ceiling.topologyP95Ms],
+      ["60-tick topology", result.sustainedSixtyHzMs, ceiling.sustainedSixtyHzMs],
+      ["changed snapshot", result.changedSnapshot.p95Ms, ceiling.changedSnapshotMs],
+      ["drag acquisition", result.dragAcquireMs, ceiling.dragAcquireMs],
+      ["drag p95", result.dragStep.p95Ms, ceiling.dragP95Ms],
+      ["drag snapshot", result.dragChangedSnapshot.p95Ms, ceiling.dragSnapshotMs],
+    ];
+    for (const [label, actual, maximum] of checks) {
+      if (actual > maximum) {
+        throw new Error(
+          `Production D3 ${result.worldInstances} ${label} exceeded CI ceiling: ${actual} ms > ${maximum} ms`,
+        );
+      }
+    }
+  }
 }
 
 // biome-ignore lint/suspicious/noConsole: benchmark emits machine-readable performance evidence.
