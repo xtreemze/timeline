@@ -560,7 +560,7 @@ async function renderFormFactor(formFactor, manifest) {
     verifyAnimatedWebp(webpOutput, publishedWebp, {
       width: video.width,
       height: video.height,
-      fps: manifest.captureFps,
+      fps: entry.captureVerification.decodedFps,
       durationSeconds,
     });
 
