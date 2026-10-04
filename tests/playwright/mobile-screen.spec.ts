@@ -37,7 +37,7 @@ test.describe("Narrow mobile screen contracts", () => {
     page.on("pageerror", (error) => pageErrors.push(error.message));
 
     await page.setViewportSize(NARROW_PORTRAIT);
-    await page.goto("/");
+    await page.goto("/lum/");
     await expect(page.locator("#timeline-view")).toBeVisible();
 
     const readTimelineCounts = () =>
@@ -100,7 +100,7 @@ test.describe("Narrow mobile screen contracts", () => {
       { viewport: NARROW_LANDSCAPE, orientation: "landscape" as const },
     ]) {
       await page.setViewportSize(viewport);
-      await page.goto("/");
+      await page.goto("/lum/");
       await ensureOrientation(page, orientation);
 
       const dock = page.locator(".app-tool-dock");
@@ -187,7 +187,7 @@ test.describe("Narrow mobile screen contracts", () => {
     page,
   }) => {
     await page.setViewportSize(NARROW_PORTRAIT);
-    await page.goto("/");
+    await page.goto("/lum/");
     await ensureOrientation(page, "portrait");
 
     const copies = page.locator(
@@ -236,7 +236,7 @@ test.describe("Narrow mobile screen contracts", () => {
     page,
   }) => {
     await page.setViewportSize(NARROW_PORTRAIT);
-    await page.goto("/");
+    await page.goto("/lum/");
     await ensureOrientation(page, "landscape");
 
     const surface = page.locator(".timeline-surface");
@@ -315,7 +315,7 @@ test.describe("Narrow mobile screen contracts", () => {
   }) => {
     const viewport = { width: 320, height: 568 };
     await page.setViewportSize(viewport);
-    await page.goto("/");
+    await page.goto("/lum/");
     await ensureOrientation(page, "portrait");
 
     const dock = page.locator(".app-tool-dock");
@@ -358,7 +358,7 @@ test.describe("Narrow mobile screen contracts", () => {
       page,
     }) => {
       await page.setViewportSize(viewport);
-      await page.goto("/");
+      await page.goto("/lum/");
       await ensureOrientation(page, orientation);
 
       const dock = page.locator(".app-tool-dock");
