@@ -47,3 +47,23 @@ test("presentation page has a dedicated responsive stylesheet", async () => {
   assert.match(css, /focus-visible/);
   assert.match(css, /@media/);
 });
+
+
+test("Lūm presentation is the primary Pages landing page and workspace remains a separate build entry", async () => {
+  const index = await read("site/index.html");
+  const workspace = await read("site/workspace.html");
+  const vite = await read("vite.config.ts");
+
+  assert.match(index, /id=["']history["']/);
+  assert.match(index, /id=["']onboarding["']/);
+  assert.match(index, /href=["']\.\/workspace\.html["']/);
+  assert.match(workspace, /id=["']app-shell["']/);
+  assert.match(vite, /workspace:\s*new URL\("\.\/site\/workspace\.html"/);
+});
+
+test("Pages deploy certifies the workspace route while Lighthouse audits the root landing page", async () => {
+  const workflow = await read(".github/workflows/pages.yml");
+  assert.match(workflow, /test -s dist\/workspace\.html/);
+  assert.match(workflow, /LUM_DEPLOYED_URL:\s*["']?\$\{\{ needs\.deploy\.outputs\.page_url \}\}workspace\.html/);
+  assert.match(workflow, /LIGHTHOUSE_URL:\s*\$\{\{ needs\.deploy\.outputs\.page_url \}\}/);
+});
