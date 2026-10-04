@@ -13,7 +13,7 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -42,6 +42,9 @@ jobs:
           test -s dist/index.html
           test -s dist/workspace.html
           test -s dist/presentation.html
+          grep -q 'Weave the threads' dist/index.html
+          grep -q 'id="history"' dist/index.html
+          grep -q 'id="app-shell"' dist/workspace.html
           test -d dist/assets
           test "$(find dist/assets -type f -name '*.js' | wc -l)" -gt 0
           test "$(find dist/assets -type f | wc -l)" -gt 1
@@ -86,8 +89,6 @@ jobs:
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       - name: Upload built site artifact
         uses: actions/upload-pages-artifact@v3
