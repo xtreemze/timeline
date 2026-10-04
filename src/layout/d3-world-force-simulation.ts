@@ -835,6 +835,21 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       else grouped.set(state.group, [state]);
     }
 
+    const linksByGroup = new Map<string, D3WorldLink[]>();
+    for (const edge of this.#scene.edges) {
+      const source = this.#states.get(edge.sourceId);
+      const target = this.#states.get(edge.targetId);
+      if (!source || !target || source.group !== target.group) continue;
+      const bucket = linksByGroup.get(source.group);
+      const link: D3WorldLink = {
+        edge,
+        source: edge.sourceId,
+        target: edge.targetId,
+      };
+      if (bucket) bucket.push(link);
+      else linksByGroup.set(source.group, [link]);
+    }
+
     const nextGroups = new Map<string, D3WorldGroup>();
     for (const [key, nodes] of grouped) {
       const placeId = nodes[0]?.placeId ?? null;
@@ -844,16 +859,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
         this.#globalTuning;
       const linksDetached = placeId !== null && this.#detachedLinkPlaces.has(String(placeId));
 
-      const memberIds = new Set(nodes.map((node) => node.id));
-      const links: D3WorldLink[] = linksDetached
-        ? []
-        : this.#scene.edges
-            .filter((edge) => memberIds.has(edge.sourceId) && memberIds.has(edge.targetId))
-            .map((edge) => ({
-              edge,
-              source: edge.sourceId,
-              target: edge.targetId,
-            }));
+      const links = linksDetached ? [] : (linksByGroup.get(key) ?? []);
 
       const maximumRadius = Math.max(1, ...nodes.map((node) => node.node.collisionRadiusMeters));
       const simulation = forceSimulation<D3WorldNodeState>(nodes as D3WorldNodeState[])
