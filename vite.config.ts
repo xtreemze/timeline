@@ -30,8 +30,11 @@ export default defineConfig({
         main: new URL("./site/index.html", import.meta.url).pathname,
         workspace: new URL("./site/workspace.html", import.meta.url).pathname,
         presentation: new URL("./site/presentation.html", import.meta.url).pathname,
+        embed: new URL("./site/embed-entry.ts", import.meta.url).pathname,
       },
       output: {
+        entryFileNames: (chunk) =>
+          chunk.name === "embed" ? "embed/luum-embed.js" : "assets/[name]-[hash].js",
         strictExecutionOrder: true,
         codeSplitting: {
           includeDependenciesRecursively: false,
