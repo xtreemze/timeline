@@ -717,30 +717,31 @@ test("force tuning can target a selected place without rebuilding the canonical 
   assert.equal(applyCall[1].reheat, true);
 });
 
-test("camera navigation never suspends world physics or layout readback", () => {
+test("camera navigation suspends passive world physics and resumes pending topology", () => {
   const { calls, controller } = harness();
   controller.setProjection(projection());
 
   calls.length = 0;
   assert.equal(controller.setCameraInteractionActive(true), true);
-  assert.deepEqual(calls, [], "camera ownership must not stop the force backend");
-  assert.equal(controller.state().simulationRunning, true);
+  assert.deepEqual(calls, [["force:stop"]]);
+  assert.equal(controller.state().cameraInteractionActive, true);
+  assert.equal(controller.state().simulationRunning, false);
   assert.equal(controller.state().simulationSettled, false);
 
+  calls.length = 0;
   controller.step(16);
-  assert.ok(
-    calls.some(([name]) => name === "force:step"),
-    "camera-owned frames still advance graph physics",
-  );
   assert.equal(
-    calls.some(([name]) => name === "force:stop"),
+    calls.some(([name]) => name === "force:step"),
     false,
-    "camera navigation cannot strand the graph in a stopped backend",
+    "camera-owned frames must not spend main-thread time advancing passive topology",
   );
 
   calls.length = 0;
   assert.equal(controller.setCameraInteractionActive(false), true);
-  assert.deepEqual(calls, [], "ending camera ownership does not need to reheat a suspended layout");
+  const applyCall = calls.find(([name]) => name === "force:apply");
+  assert.ok(applyCall, "ending camera ownership must resume the pending force request");
+  assert.equal(applyCall[1].reason, "projection-update");
+  assert.equal(controller.state().cameraInteractionActive, false);
   assert.equal(controller.state().simulationRunning, true);
 });
 
