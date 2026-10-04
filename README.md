@@ -16,9 +16,11 @@ Lūm is a local-first relational knowledge environment for work where **time, pl
 
 Loose facts, entities, occurrences, places, evidence, claims, and narrative fragments begin as threads. Lūm reconciles and relates them into one canonical **continuum**. Timeline, world/graph, map, evidence, analysis, and story are projections over that same continuum rather than separate data silos.
 
-**Live application:** https://xtreemze.github.io/timeline/
+**Project site:** https://xtreemze.github.io/timeline/
 
-**Presentation and onboarding:** https://xtreemze.github.io/timeline/presentation.html
+**Live workspace:** https://xtreemze.github.io/timeline/workspace.html
+
+**Presentation compatibility route:** https://xtreemze.github.io/timeline/presentation.html
 
 ## Product model
 
