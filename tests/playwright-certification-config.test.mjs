@@ -114,7 +114,7 @@ test("CI discovers core browser contracts and runs each browser lane fatally", (
 test("compiled Pages runtime is owned only by the production preview config", () => {
   assert.match(pagesConfig, /testMatch:\s*\[['"]pages-runtime\.spec\.ts['"]\]/);
   assert.match(pagesConfig, /baseURL:\s*['"]http:\/\/127\.0\.0\.1:4173\/timeline\/['"]/);
-  assert.match(pagesWorkflow, /playwright\.pages\.config\.ts/);
+  assert.match(workflow, /playwright\.pages\.config\.ts/);
   assert.match(pagesWorkflow, /path:\s*dist/);
   const developmentTestMatch = config.split("\n").find((line) => line.includes("testMatch:"));
   assert.ok(developmentTestMatch);
@@ -184,9 +184,9 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightRenderer, /verifyMeasuredCapture/);
   assert.match(highlightRenderer, /best_effort_timestamp_time/);
   assert.match(highlightRenderer, /probeFrameTimestamps/);
-  assert.match(highlightRenderer, /raw WebM decodes at only/);
-  assert.match(highlightRenderer, /browser animation clock is only/);
-  assert.match(highlightRenderer, /video\.codec !== "vp8"/);
+  assert.match(highlightRenderer, /raw Matroska decodes at/);
+  assert.match(highlightRenderer, /browser animation clock is/);
+  assert.match(highlightRenderer, /video\.codec !== "h264"/);
   assert.match(highlightRenderer, /minimumMeasuredCaptureFps/);
   assert.match(highlightRenderer, /libwebp_anim/);
   assert.match(highlightRenderer, /copyFile/);
