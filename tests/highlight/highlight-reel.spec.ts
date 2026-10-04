@@ -141,7 +141,7 @@ function projectSettings(testInfo: TestInfo) {
 }
 
 async function loadSample(page: Page) {
-  await page.goto("/");
+  await page.goto("./");
   await page.locator("#project-menu-toggle").click();
   await page.locator("#load-sample").click();
   await expect
