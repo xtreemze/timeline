@@ -67,3 +67,20 @@ test("Pages deploy certifies the workspace route while Lighthouse audits the roo
   assert.match(workflow, /LUM_DEPLOYED_URL:\s*["']?\$\{\{ needs\.deploy\.outputs\.page_url \}\}workspace\.html/);
   assert.match(workflow, /LIGHTHOUSE_URL:\s*\$\{\{ needs\.deploy\.outputs\.page_url \}\}/);
 });
+
+
+test("GitHub Pages root is the Lūm landing page and points to the dedicated Lūm app route", async () => {
+  const index = await read("site/index.html");
+  const lum = await read("site/lum/index.html");
+
+  assert.match(index, /<title>Lūm — weave the threads, explore the continuum<\/title>/);
+  assert.match(index, /href=["']\.\/lum\/["'][^>]*>Open Lūm workspace<\/a>/);
+  assert.doesNotMatch(index, /id=["']app-shell["']/);
+  assert.match(lum, /id=["']app-shell["']/);
+});
+
+test("legacy workspace route forwards to the canonical Lūm app route", async () => {
+  const workspace = await read("site/workspace.html");
+  assert.match(workspace, /url=\.\/lum\//i);
+  assert.match(workspace, /href=["']\.\/lum\/["']/);
+});
