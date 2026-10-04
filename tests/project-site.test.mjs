@@ -77,6 +77,10 @@ test("GitHub Pages root is the Lūm landing page and points to the dedicated Lū
   assert.match(index, /href=["']\.\/lum\/["'][^>]*>Open Lūm workspace<\/a>/);
   assert.doesNotMatch(index, /id=["']app-shell["']/);
   assert.match(lum, /id=["']app-shell["']/);
+
+  const landingScript = await read("site/landing.ts");
+  assert.match(landingScript, /getRegistrations/);
+  assert.match(landingScript, /unregister/);
 });
 
 test("legacy workspace route forwards to the canonical Lūm app route", async () => {
