@@ -114,7 +114,7 @@ test("CI discovers core browser contracts and runs each browser lane fatally", (
 test("compiled Pages runtime is owned only by the production preview config", () => {
   assert.match(pagesConfig, /testMatch:\s*\[['"]pages-runtime\.spec\.ts['"]\]/);
   assert.match(pagesConfig, /baseURL:\s*['"]http:\/\/127\.0\.0\.1:4173\/timeline\/['"]/);
-  assert.match(pagesWorkflow, /playwright\.pages\.config\.ts/);
+  assert.match(workflow, /playwright\.pages\.config\.ts/);
   assert.match(pagesWorkflow, /path:\s*dist/);
   const developmentTestMatch = config.split("\n").find((line) => line.includes("testMatch:"));
   assert.ok(developmentTestMatch);
@@ -155,7 +155,7 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightSpec, /x11grab/);
   assert.match(highlightSpec, /-fps_mode/);
   assert.match(highlightSpec, /passthrough/);
-  assert.match(highlightSpec, /libvpx/);
+  assert.match(highlightSpec, /libx264/);
   assert.match(highlightSpec, /best_effort_timestamp_time/);
   assert.match(highlightSpec, /requestAnimationFrame/);
   assert.match(highlightSpec, /CAPTURE_FPS\s*=\s*60/);
@@ -184,9 +184,9 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightRenderer, /verifyMeasuredCapture/);
   assert.match(highlightRenderer, /best_effort_timestamp_time/);
   assert.match(highlightRenderer, /probeFrameTimestamps/);
-  assert.match(highlightRenderer, /raw WebM decodes at only/);
-  assert.match(highlightRenderer, /browser animation clock is only/);
-  assert.match(highlightRenderer, /video\.codec !== "vp8"/);
+  assert.match(highlightRenderer, /raw Matroska decodes at/);
+  assert.match(highlightRenderer, /browser animation clock is/);
+  assert.match(highlightRenderer, /video\.codec !== "h264"/);
   assert.match(highlightRenderer, /minimumMeasuredCaptureFps/);
   assert.match(highlightRenderer, /libwebp_anim/);
   assert.match(highlightRenderer, /copyFile/);
@@ -198,8 +198,11 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(highlightRenderer, /mobile/);
 
   assert.match(mediaWorkflow, /Record source-native showcase media/);
-  assert.match(mediaWorkflow, /xvfb-run/);
-  assert.match(mediaWorkflow, /-screen 0 1920x1080x24/);
+  assert.match(mediaWorkflow, /xserver-xorg-video-dummy/);
+  assert.match(mediaWorkflow, /Xorg :99/);
+  assert.match(mediaWorkflow, /SHOWCASE_X11_WIDTH=1920/);
+  assert.match(mediaWorkflow, /SHOWCASE_X11_HEIGHT=1080/);
+  assert.doesNotMatch(mediaWorkflow, /continue-on-error:\s*true/);
   assert.match(mediaWorkflow, /pnpm test:e2e:showcase/);
   assert.match(mediaWorkflow, /pnpm render:e2e:showcase/);
   assert.match(mediaWorkflow, /raw\/desktop/);
@@ -217,7 +220,8 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
 
   assert.match(pagesWorkflow, /workflow_run:/);
   assert.match(pagesWorkflow, /workflows:\s*\["E2E media showcase"\]/);
-  assert.match(pagesWorkflow, /actions\/download-artifact@v4/);
+  assert.match(pagesWorkflow, /github\.event\.workflow_run\.conclusion == 'success'/);
+  assert.match(pagesWorkflow, /gh run download/);
   assert.doesNotMatch(pagesWorkflow, /pnpm test:e2e:showcase/);
   assert.match(pagesWorkflow, /dist\/showcase\/desktop/);
   assert.match(pagesWorkflow, /dist\/showcase\/mobile/);

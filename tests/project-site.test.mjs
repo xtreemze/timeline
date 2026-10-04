@@ -22,7 +22,7 @@ test("presentation page explains history, onboarding, ambitions, and use cases",
     assert.match(html, new RegExp(`id=["']${id}["']`));
   }
   assert.match(html, /Weave the threads\. Explore the continuum\./);
-  assert.match(html, /Open Lūm workspace/);
+  assert.match(html, /Open Lūm/);
 });
 
 test("embedded examples use canonical Lūm concepts and remain inspectable without JavaScript", async () => {
@@ -49,21 +49,76 @@ test("presentation page has a dedicated responsive stylesheet", async () => {
 });
 
 
-test("Lūm presentation is the primary Pages landing page and workspace remains a separate build entry", async () => {
+test("Lūm presentation is the primary Pages landing page and the application has a dedicated build entry", async () => {
   const index = await read("site/index.html");
-  const workspace = await read("site/workspace.html");
+  const lum = await read("site/lum/index.html");
   const vite = await read("vite.config.ts");
 
   assert.match(index, /id=["']history["']/);
   assert.match(index, /id=["']onboarding["']/);
-  assert.match(index, /href=["']\.\/workspace\.html["']/);
-  assert.match(workspace, /id=["']app-shell["']/);
-  assert.match(vite, /workspace:\s*new URL\("\.\/site\/workspace\.html"/);
+  assert.match(index, /href=["']\.\/lum\/["']/);
+  assert.match(lum, /id=["']app-shell["']/);
+  assert.match(vite, /lum:\s*new URL\("\.\/site\/lum\/index\.html"/);
 });
 
-test("Pages deploy certifies the workspace route while Lighthouse audits the root landing page", async () => {
+test("Pages deploy certifies the Lūm app route while Lighthouse audits the root landing page", async () => {
   const workflow = await read(".github/workflows/pages.yml");
-  assert.match(workflow, /test -s dist\/workspace\.html/);
-  assert.match(workflow, /LUM_DEPLOYED_URL:\s*["']?\$\{\{ needs\.deploy\.outputs\.page_url \}\}workspace\.html/);
+  assert.match(workflow, /test -s dist\/lum\/index\.html/);
+  assert.match(workflow, /LUM_DEPLOYED_URL:\s*["']?\$\{\{ needs\.deploy\.outputs\.page_url \}\}lum\//);
   assert.match(workflow, /LIGHTHOUSE_URL:\s*\$\{\{ needs\.deploy\.outputs\.page_url \}\}/);
+});
+
+
+test("GitHub Pages root is the Lūm landing page and points to the dedicated Lūm app route", async () => {
+  const index = await read("site/index.html");
+  const lum = await read("site/lum/index.html");
+
+  assert.match(index, /<title>Lūm — weave the threads, explore the continuum<\/title>/);
+  assert.match(index, /rel=["']canonical["'] href=["']https:\/\/xtreemze\.github\.io\/timeline\/["']/);
+  assert.match(index, /href=["']\.\/lum\/["'][^>]*>Open Lūm<\/a>/);
+  assert.doesNotMatch(index, /id=["']app-shell["']/);
+  assert.match(lum, /id=["']app-shell["']/);
+
+  const landingScript = await read("site/landing.ts");
+  assert.match(landingScript, /getRegistrations/);
+  assert.match(landingScript, /unregister/);
+});
+
+test("legacy workspace route forwards to the canonical Lūm app route", async () => {
+  const workspace = await read("site/workspace.html");
+  assert.match(workspace, /url=\.\/lum\//i);
+  assert.match(workspace, /href=["']\.\/lum\/["']/);
+});
+
+
+test("Pages deployment verifies the live root landing and Lūm application routes", async () => {
+  const workflow = await read(".github/workflows/pages.yml");
+  assert.match(workflow, /Certify deployed landing page/);
+  assert.match(workflow, /curl -fsSL "\$LANDING_URL"/);
+  assert.match(workflow, /Weave the threads/);
+  assert.match(workflow, /href="\.\/lum\/"/);
+  assert.match(workflow, /curl -fsSL "\$LUM_URL"/);
+  assert.match(workflow, /id="app-shell"/);
+});
+
+
+test("Pages deployment is gated by the deployable site artifact, not the broad migration type suite", async () => {
+  const workflow = await read(".github/workflows/pages.yml");
+
+  assert.doesNotMatch(workflow, /Check production TypeScript bindings/);
+  assert.doesNotMatch(workflow, /run:\s*pnpm types:migrated/);
+  assert.match(workflow, /pnpm build/);
+  assert.match(workflow, /data-site-generator="astro"/);
+  assert.match(workflow, /id="app-shell"/);
+});
+
+
+test("Lūm subroute uses Vite root-resolved source inputs while preserving browser base semantics", async () => {
+  const lum = await read("site/lum/index.html");
+
+  assert.match(lum, /<base href=["']\.\.\/["']>/);
+  assert.match(lum, /src=["']\/time-scale-shim\.ts["']/);
+  assert.match(lum, /src=["']\/app\.ts["']/);
+  assert.match(lum, /href=["']\/styles\.css["']/);
+  assert.doesNotMatch(lum, /src=["']\.\/time-scale-shim\.ts["']/);
 });

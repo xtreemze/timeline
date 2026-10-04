@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "vite",
     "preview": "vite preview",
-    "build": "vite build && node scripts/copy-schemas.mjs && node scripts/generate-service-worker.mjs && node scripts/check-bundle-budget.mjs",
+    "build": "node scripts/build-pages.mjs && node scripts/copy-schemas.mjs && node scripts/generate-service-worker.mjs && node scripts/check-bundle-budget.mjs",
     "check:bundle": "node scripts/check-bundle-budget.mjs",
     "test:bundle-entrypoints": "node --test tests/bundle-entrypoints.test.mjs",
     "test:pwa": "node --test tests/pwa-contract.test.mjs tests/pwa-platform-capabilities.test.mjs",

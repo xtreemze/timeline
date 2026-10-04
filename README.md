@@ -18,7 +18,9 @@ Loose facts, entities, occurrences, places, evidence, claims, and narrative frag
 
 **Project site:** https://xtreemze.github.io/timeline/
 
-**Live workspace:** https://xtreemze.github.io/timeline/workspace.html
+**Live Lūm application:** https://xtreemze.github.io/timeline/lum/
+
+**Legacy workspace redirect:** https://xtreemze.github.io/timeline/workspace.html
 
 **Presentation compatibility route:** https://xtreemze.github.io/timeline/presentation.html
 
