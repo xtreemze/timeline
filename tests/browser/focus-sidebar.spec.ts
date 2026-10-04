@@ -34,7 +34,7 @@ async function ensureOrientation(page: Page, orientation: "landscape" | "portrai
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/lum/");
   await expect(page.locator("#timeline-view")).toBeVisible();
 });
 
@@ -220,7 +220,7 @@ test("timeline and world geometry stay stable while composer owns occurrence det
   await page.setViewportSize({ width: 1280, height: 800 });
 
   for (const orientation of ["landscape", "portrait"] as const) {
-    await page.goto("/");
+    await page.goto("/lum/");
     await ensureOrientation(page, orientation);
     const [timelineBefore, graphBefore, stageBefore] = await Promise.all([
       page.locator(".timeline-surface").boundingBox(),

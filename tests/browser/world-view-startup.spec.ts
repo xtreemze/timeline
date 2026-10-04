@@ -19,7 +19,7 @@ test.describe("production world view startup", () => {
       }
     });
 
-    await page.goto("/");
+    await page.goto("/lum/");
     await page.waitForLoadState("load");
 
     const registration = await page.evaluate(() => {

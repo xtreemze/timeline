@@ -89,6 +89,89 @@ async function probeFrameTimestamps(filePath) {
     : [];
 }
 
+const readUint24LE = (buffer, offset) =>
+  buffer[offset] | (buffer[offset + 1] << 8) | (buffer[offset + 2] << 16);
+
+async function probeAnimatedWebp(filePath) {
+  const data = await readFile(filePath);
+  if (
+    data.length < 20 ||
+    data.toString("ascii", 0, 4) !== "RIFF" ||
+    data.toString("ascii", 8, 12) !== "WEBP"
+  ) {
+    throw new Error(`${filePath} is not a valid RIFF WebP file.`);
+  }
+
+  let width;
+  let height;
+  let frames = 0;
+  let durationMs = 0;
+  const frameDurationsMs = [];
+
+  for (let offset = 12; offset + 8 <= data.length; ) {
+    const chunkType = data.toString("ascii", offset, offset + 4);
+    const chunkSize = data.readUInt32LE(offset + 4);
+    const payload = offset + 8;
+    const chunkEnd = payload + chunkSize;
+    if (chunkEnd > data.length) {
+      throw new Error(`${filePath} contains a truncated ${chunkType} chunk.`);
+    }
+
+    if (chunkType === "VP8X") {
+      if (chunkSize < 10) throw new Error(`${filePath} has an invalid VP8X chunk.`);
+      width = readUint24LE(data, payload + 4) + 1;
+      height = readUint24LE(data, payload + 7) + 1;
+    } else if (chunkType === "ANMF") {
+      if (chunkSize < 16) throw new Error(`${filePath} has an invalid ANMF frame chunk.`);
+      const frameDurationMs = readUint24LE(data, payload + 12);
+      frames += 1;
+      durationMs += frameDurationMs;
+      frameDurationsMs.push(frameDurationMs);
+    }
+
+    offset = chunkEnd + (chunkSize % 2);
+  }
+
+  if (
+    !Number.isInteger(width) ||
+    width <= 0 ||
+    !Number.isInteger(height) ||
+    height <= 0 ||
+    frames < 2 ||
+    durationMs <= 0
+  ) {
+    throw new Error(`${filePath} does not contain usable animated WebP metadata.`);
+  }
+
+  return { width, height, frames, durationMs, frameDurationsMs };
+}
+
+function verifyAnimatedWebp(filePath, webp, expected) {
+  if (webp.width !== expected.width || webp.height !== expected.height) {
+    throw new Error(
+      `${filePath} is ${String(webp.width)}x${String(webp.height)}; expected ${String(expected.width)}x${String(expected.height)}.`,
+    );
+  }
+
+  const sourceFrameMs = 1000 / expected.fps;
+  for (const frameDurationMs of webp.frameDurationsMs) {
+    const representedFrames = Math.max(1, Math.round(frameDurationMs / sourceFrameMs));
+    const alignedDurationMs = representedFrames * sourceFrameMs;
+    if (Math.abs(frameDurationMs - alignedDurationMs) > 1.5) {
+      throw new Error(
+        `${filePath} contains a ${String(frameDurationMs)} ms frame that is not aligned to the ${String(expected.fps)} fps source timeline.`,
+      );
+    }
+  }
+
+  const durationSeconds = webp.durationMs / 1000;
+  if (Math.abs(durationSeconds - expected.durationSeconds) > 0.15) {
+    throw new Error(
+      `${filePath} animation duration is ${durationSeconds.toFixed(3)}s; expected ${expected.durationSeconds.toFixed(3)}s from the source clip.`,
+    );
+  }
+}
+
 function decodedFrameStats(
   timestamps,
   minimumPacedIntervalSeconds = 0.012,
@@ -415,7 +498,17 @@ async function renderFormFactor(formFactor, manifest) {
     }
 
     const startSeconds = segment.motionStartSeconds ?? 1.05;
-    const durationSeconds = segment.motionDurationSeconds ?? 4.8;
+    const requestedDurationSeconds = segment.motionDurationSeconds ?? 4.8;
+    const sourceDurationSeconds = await probeDuration(videoPath);
+    const durationSeconds = Math.min(
+      requestedDurationSeconds,
+      Math.max(0, sourceDurationSeconds - startSeconds),
+    );
+    if (durationSeconds <= 0) {
+      throw new Error(
+        `${videoPath} has no motion remaining after the requested ${startSeconds.toFixed(3)}s trim.`,
+      );
+    }
     const webpOutput = path.join(factorShowcaseDir, `${segment.name}.webp`);
     await run(ffmpeg, [
       "-y",
@@ -460,31 +553,16 @@ async function renderFormFactor(formFactor, manifest) {
       },
     });
 
-    const publishedWebpTimestamps = await probeFrameTimestamps(webpOutput);
-    const publishedWebp = decodedFrameStats(
-      publishedWebpTimestamps,
-      manifest.minimumPacedIntervalSeconds,
-      manifest.maximumPacedIntervalSeconds,
-    );
-    if (publishedWebp.nonIncreasingIntervals > 0) {
-      throw new Error(
-        `${webpOutput} contains ${String(publishedWebp.nonIncreasingIntervals)} duplicated or non-increasing presentation timestamps.`,
-      );
-    }
-    if (
-      !Number.isFinite(publishedWebp.fps) ||
-      publishedWebp.fps < manifest.minimumMeasuredCaptureFps ||
-      publishedWebp.fps > manifest.maximumMeasuredCaptureFps
-    ) {
-      throw new Error(
-        `${webpOutput} decodes at ${publishedWebp.fps.toFixed(2)} fps; expected source-paced 59-61 fps without publication retiming.`,
-      );
-    }
-    if (publishedWebp.pacedIntervalRatio < manifest.minimumPacedIntervalRatio) {
-      throw new Error(
-        `${webpOutput} has only ${(publishedWebp.pacedIntervalRatio * 100).toFixed(1)}% of frame intervals in the native pacing window.`,
-      );
-    }
+    // FFmpeg 6.1's ffprobe does not reliably expose animated WebP frames as a
+    // video timeline. Verify the RIFF VP8X/ANMF metadata directly instead of
+    // treating WebP as an ordinary video stream.
+    const publishedWebp = await probeAnimatedWebp(webpOutput);
+    verifyAnimatedWebp(webpOutput, publishedWebp, {
+      width: video.width,
+      height: video.height,
+      fps: entry.captureVerification.decodedFps,
+      durationSeconds,
+    });
 
     const clipOutput = path.join(factorWorkDir, `${stem}-motion.mp4`);
     await run(ffmpeg, [

@@ -124,7 +124,7 @@ async function installRetainedTimelineFixture(page) {
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/lum/");
   await installRetainedTimelineFixture(page);
   await expect(
     page

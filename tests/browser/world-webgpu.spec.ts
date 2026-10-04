@@ -26,7 +26,7 @@ test("the production world defaults to WebGL2 and renders on WebGPU when opted i
   page.on("pageerror", (error) => errors.push(error.message));
 
   // Default production baseline remains WebGL2 while WebGPU parity is certified.
-  await page.goto("/");
+  await page.goto("/lum/");
   await expect(page.locator(".temporal-graph-canvas").first()).toHaveAttribute(
     "data-world-renderer",
     "webgl",

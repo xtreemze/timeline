@@ -74,27 +74,63 @@ jobs:
             exit 1
           fi
 
-      - name: Restore latest showcase media when available
-        continue-on-error: true
+      - name: Restore certified showcase media
         env:
           GH_TOKEN: ${{ github.token }}
+          SHOWCASE_RUN_ID: ${{ github.event.workflow_run.id || '' }}
         run: |
-          run_id="$(gh run list             --repo "$GITHUB_REPOSITORY"             --workflow e2e-media.yml             --branch main             --status success             --limit 1             --json databaseId             --jq '.[0].databaseId // empty')"
+          set -euo pipefail
+
+          run_id="$SHOWCASE_RUN_ID"
+          require_current=false
+          if [ -n "$run_id" ]; then
+            require_current=true
+            echo "Using certified showcase artifact from triggering run $run_id."
+          else
+            run_id="$(gh run list \
+              --repo "$GITHUB_REPOSITORY" \
+              --workflow e2e-media.yml \
+              --branch main \
+              --status success \
+              --limit 1 \
+              --json databaseId \
+              --jq '.[0].databaseId // empty')"
+          fi
+
           if [ -z "$run_id" ]; then
-            echo "No completed showcase run is available; deploying without showcase media."
+            echo "No completed showcase run is available; deploying the Astro application without showcase media."
             exit 0
           fi
 
           rm -rf artifacts/e2e-media
-          gh run download "$run_id"             --repo "$GITHUB_REPOSITORY"             --name lum-e2e-showcase             --dir artifacts/e2e-media
-
-          if [ -d artifacts/e2e-media/showcase ]; then
-            rm -rf dist/showcase
-            mkdir -p dist/showcase
-            cp -R artifacts/e2e-media/showcase/. dist/showcase/
-          else
-            echo "Latest showcase artifact has no showcase directory; deploying without it."
+          mkdir -p artifacts/e2e-media
+          if ! gh run download "$run_id" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name lum-e2e-showcase \
+            --dir artifacts/e2e-media; then
+            if [ "$require_current" = true ]; then
+              echo "Successful triggering showcase run $run_id did not expose its certified artifact."
+              exit 1
+            fi
+            echo "Latest certified showcase artifact could not be restored; preserving the application-only Pages build."
+            rm -rf artifacts/e2e-media
+            exit 0
           fi
+
+          if [ ! -d artifacts/e2e-media/showcase/desktop ] || [ ! -d artifacts/e2e-media/showcase/mobile ]; then
+            if [ "$require_current" = true ]; then
+              echo "Certified showcase artifact is incomplete: desktop/mobile presentation directories are required."
+              exit 1
+            fi
+            echo "Restored showcase artifact is incomplete; preserving the application-only Pages build."
+            exit 0
+          fi
+
+          rm -rf dist/showcase
+          mkdir -p dist/showcase
+          cp -R artifacts/e2e-media/showcase/. dist/showcase/
+          test -d dist/showcase/desktop
+          test -d dist/showcase/mobile
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

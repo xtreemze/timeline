@@ -24,7 +24,7 @@ declare global {
 test("long-press touch moves an Orb node", async ({ page }, testInfo) => {
   test.skip(!testInfo.project.use.hasTouch, "touch-only graph interaction contract");
   expect(testInfo.project.use.hasTouch).toBe(true);
-  await page.goto("/");
+  await page.goto("/lum/");
   await page.setViewportSize({ width: 375, height: 812 });
   await page.evaluate(async () => {
     const moduleUrl = "/temporal-graph-view-shim.ts";

@@ -130,7 +130,7 @@ async function performPan(surface, testInfo) {
 
 test.describe("Timeline interaction contracts", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/lum/");
     await expect(page.locator("#timeline-view")).toBeVisible();
     await expect(page.locator(".timeline-surface")).toBeVisible();
     await installViewportRecorder(page);

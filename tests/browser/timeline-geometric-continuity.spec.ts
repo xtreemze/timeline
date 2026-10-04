@@ -161,7 +161,7 @@ async function dragAndSample(
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/lum/");
   await installContinuityFixture(page);
 });
 

@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 test("semantic place marker survives complete basemap tile failure", async ({ page }) => {
   await page.route("https://tile.openstreetmap.org/**", (route) => route.abort());
-  await page.goto("/");
+  await page.goto("/lum/");
 
   await page.evaluate(async () => {
     const container = document.createElement("div");
@@ -40,7 +40,7 @@ test("semantic place marker survives complete basemap tile failure", async ({ pa
 test("place without geometry exposes an explicit state instead of a blank map", async ({
   page,
 }) => {
-  await page.goto("/");
+  await page.goto("/lum/");
 
   await page.evaluate(async () => {
     const container = document.createElement("div");

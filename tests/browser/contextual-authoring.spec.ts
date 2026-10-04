@@ -5,7 +5,7 @@ import { touchscreen } from "../support/touch-gestures.ts";
 type FractionPoint = { readonly x: number; readonly y: number };
 
 async function certifyWebGlWorld(page: Page): Promise<boolean> {
-  await page.goto("/");
+  await page.goto("/lum/");
   const webgl2 = await page.evaluate(() => {
     try {
       return Boolean(document.createElement("canvas").getContext("webgl2"));
@@ -325,7 +325,7 @@ test.describe("contextual world authoring certification", () => {
   test("accepting an action advances the live combobox to object suggestions", async ({
     page,
   }, testInfo) => {
-    await page.goto("/");
+    await page.goto("/lum/");
     const entityIds = await page.evaluate(() => {
       const project = (
         window as typeof window & {
@@ -371,7 +371,7 @@ test.describe("contextual world authoring certification", () => {
   test("selected occurrence composition edits the canonical relationship in place", async ({
     page,
   }) => {
-    await page.goto("/");
+    await page.goto("/lum/");
     const [candidate] = await relationshipFocuses(page);
     const relationship = requireFixture(
       candidate,
@@ -451,7 +451,7 @@ test.describe("contextual world authoring certification", () => {
   });
 
   test("compatibility item links do not impose false canonical time equality", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/lum/");
     const validation = await page.evaluate(() => {
       const api = (
         window as typeof window & {
@@ -502,7 +502,7 @@ test.describe("contextual world authoring certification", () => {
   test("material occurrence edits surface semantic-support review and invalidate confidence", async ({
     page,
   }) => {
-    await page.goto("/");
+    await page.goto("/lum/");
     const [candidate] = await relationshipFocuses(page);
     const relationship = requireFixture(
       candidate,
@@ -573,7 +573,7 @@ test.describe("contextual world authoring certification", () => {
   test("editing canonical time from one timeline projection updates every linked projection", async ({
     page,
   }) => {
-    await page.goto("/");
+    await page.goto("/lum/");
 
     const fixture = await page.evaluate(() => {
       const api = (
@@ -691,7 +691,7 @@ test.describe("contextual world authoring certification", () => {
   test("dirty composer draft requires explicit adoption of a newly selected occurrence", async ({
     page,
   }) => {
-    await page.goto("/");
+    await page.goto("/lum/");
     const relationships = await relationshipFocuses(page);
     test.skip(relationships.length < 2, "Example project needs two focusable relationships.");
     const first = requireFixture(
@@ -799,7 +799,7 @@ test.describe("contextual world authoring certification", () => {
   test("live place and time defaults stay visible without restoring a duplicate context row", async ({
     page,
   }) => {
-    await page.goto("/");
+    await page.goto("/lum/");
     const composer = await openPersistentComposer(page);
     await composer.evaluate((element) => {
       const live = element as HTMLElement & {
@@ -824,7 +824,7 @@ test.describe("contextual world authoring certification", () => {
   test("visible Approve occurrence control commits a sentence edit without pressing Enter", async ({
     page,
   }) => {
-    await page.goto("/");
+    await page.goto("/lum/");
     const [candidate] = await relationshipFocuses(page);
     const relationship = requireFixture(
       candidate,
@@ -866,7 +866,7 @@ test.describe("contextual world authoring certification", () => {
   test("Ctrl+Enter finalizes the same sentence transaction without consuming a suggestion", async ({
     page,
   }) => {
-    await page.goto("/");
+    await page.goto("/lum/");
     const [candidate] = await relationshipFocuses(page);
     const relationship = requireFixture(
       candidate,
@@ -903,7 +903,7 @@ test.describe("contextual world authoring certification", () => {
   });
 
   test("selected occurrence context stays inside the promoted composer card", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/lum/");
     const [candidate] = await relationshipFocuses(page);
     const relationship = requireFixture(
       candidate,
@@ -927,7 +927,7 @@ test.describe("contextual world authoring certification", () => {
       testInfo.project.name !== "Mobile Chrome",
       "Touch parity is certified on Mobile Chrome.",
     );
-    await page.goto("/");
+    await page.goto("/lum/");
     const [candidate] = await relationshipFocuses(page);
     const relationship = requireFixture(
       candidate,
@@ -967,7 +967,7 @@ test.describe("contextual world authoring certification", () => {
   test("suggestion clicks compose subject action and object without erasing accepted components", async ({
     page,
   }) => {
-    await page.goto("/");
+    await page.goto("/lum/");
     const composer = await openPersistentComposer(page);
     const input = composer.locator("input");
     await input.fill("");
@@ -996,7 +996,7 @@ test.describe("contextual world authoring certification", () => {
   test("suggestion rows render semantic glyphs in the SVG namespace with their accent styling", async ({
     page,
   }) => {
-    await page.goto("/");
+    await page.goto("/lum/");
     const composer = await openPersistentComposer(page);
     const input = composer.locator("input");
 
@@ -1046,7 +1046,7 @@ test.describe("contextual world authoring certification", () => {
   test("promoted occurrence-card heading renders its semantic glyph in the SVG namespace", async ({
     page,
   }) => {
-    await page.goto("/");
+    await page.goto("/lum/");
     const composer = await openPersistentComposer(page);
 
     await page.evaluate(() => {
@@ -1167,7 +1167,7 @@ test.describe("contextual world authoring certification", () => {
       await expect(page.locator(".temporal-graph-canvas:focus-within")).toHaveCount(1);
 
       // Start the next orientation from a settled, closed authoring state.
-      await page.goto("/");
+      await page.goto("/lum/");
     }
   });
 });

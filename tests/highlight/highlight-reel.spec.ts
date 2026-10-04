@@ -141,7 +141,7 @@ function projectSettings(testInfo: TestInfo) {
 }
 
 async function loadSample(page: Page) {
-  await page.goto("/");
+  await page.goto("./");
   await page.locator("#project-menu-toggle").click();
   await page.locator("#load-sample").click();
   await expect
@@ -155,6 +155,42 @@ async function firstVisibleOccurrence(page: Page) {
     .first();
   await expect(occurrence).toBeVisible();
   return occurrence;
+}
+
+async function captureX11Png(screenshotPath: string, geometry: CaptureGeometry) {
+  const display = process.env.DISPLAY;
+  if (!display) throw new Error("DISPLAY is required for X11 showcase still capture");
+
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(
+      FFMPEG,
+      [
+        "-y",
+        "-hide_banner",
+        "-loglevel",
+        "warning",
+        "-f",
+        "x11grab",
+        "-video_size",
+        `${String(geometry.width)}x${String(geometry.height)}`,
+        "-draw_mouse",
+        "0",
+        "-i",
+        `${display}+${String(geometry.x)},${String(geometry.y)}`,
+        "-frames:v",
+        "1",
+        "-update",
+        "1",
+        screenshotPath,
+      ],
+      { stdio: ["ignore", "ignore", "inherit"], env: process.env },
+    );
+    child.once("error", reject);
+    child.once("exit", (code, signal) => {
+      if (code === 0) resolve();
+      else reject(new Error(`FFmpeg X11 still capture exited with ${String(code ?? signal)}`));
+    });
+  });
 }
 
 function captureText(command: string, args: string[]) {
@@ -194,6 +230,19 @@ async function probeFrameTimestamps(filePath: string) {
   return (parsed.frames ?? [])
     .map((frame) => Number(frame.best_effort_timestamp_time))
     .filter((value) => Number.isFinite(value));
+}
+
+function dedupeBrowserFrameTimestamps(timestamps: number[]) {
+  const deduped: number[] = [];
+  let previous: number | undefined;
+  for (const timestamp of timestamps) {
+    if (previous !== undefined && timestamp < previous) {
+      throw new Error("Showcase browser animation clock contains a decreasing timestamp");
+    }
+    if (timestamp !== previous) deduped.push(timestamp);
+    previous = timestamp;
+  }
+  return deduped;
 }
 
 function measureTimestamps(timestamps: number[], scale = 1, label = "Showcase motion capture") {
@@ -419,7 +468,12 @@ async function persistMeasuredCapture(
     );
   }
 
-  const browser = measureTimestamps(browserTimestamps, 1000, "Showcase browser animation clock");
+  const dedupedBrowserTimestamps = dedupeBrowserFrameTimestamps(browserTimestamps);
+  const browser = measureTimestamps(
+    dedupedBrowserTimestamps,
+    1000,
+    "Showcase browser animation clock",
+  );
   if (browser.fps < MIN_CAPTURE_FPS) {
     throw new Error(
       `Showcase browser scheduled ${String(browser.frames)} animation frames across ${browser.durationSeconds.toFixed(3)}s (${browser.fps.toFixed(2)} fps); expected at least ${MIN_CAPTURE_FPS.toFixed(2)} fps while recording.`,
@@ -449,7 +503,7 @@ async function persistMeasuredCapture(
     codec: "h264",
     geometry,
     timestamps,
-    browserTimestamps,
+    browserTimestamps: dedupedBrowserTimestamps,
   };
   await writeFile(`${videoPath}.frames.json`, JSON.stringify(stats, null, 2));
   return stats;
@@ -549,11 +603,7 @@ async function recordSegment(
       await page.waitForTimeout(1_100);
       await body();
       await page.waitForTimeout(450);
-      await page.screenshot({
-        path: screenshotPath,
-        animations: "disabled",
-        scale: "css",
-      });
+      await captureX11Png(screenshotPath, geometry);
     } finally {
       if (!page.isClosed()) browserTimestamps = await stopBrowserFrameClock(page).catch(() => []);
       await capture.stop();
@@ -565,11 +615,8 @@ async function recordSegment(
   } else {
     await body();
     await page.waitForTimeout(250);
-    await page.screenshot({
-      path: screenshotPath,
-      animations: "disabled",
-      scale: "css",
-    });
+    const geometry = await captureGeometry(page, captureSize);
+    await captureX11Png(screenshotPath, geometry);
   }
 
   return {
@@ -623,7 +670,9 @@ async function desktopRoutine(page: Page, sceneName: string) {
     const deck = composer.locator("luum-occurrence-deck.composer-context-deck");
     await expect(deck).toBeVisible();
     const next = deck.getByRole("button", { name: "Next frame" });
-    if (await next.isVisible()) await next.click();
+    if (await next.isVisible()) {
+      await next.evaluate((button) => (button as HTMLButtonElement).click());
+    }
     await expect(page.locator(".timeline-event-detail:visible")).toHaveCount(0);
     await page.waitForTimeout(700);
     return;
@@ -685,7 +734,9 @@ async function mobileRoutine(page: Page, sceneName: string) {
     const deck = composer.locator("luum-occurrence-deck.composer-context-deck");
     await expect(deck).toBeVisible();
     const next = deck.getByRole("button", { name: "Next frame" });
-    if (await next.isVisible()) await next.tap();
+    if (await next.isVisible()) {
+      await next.evaluate((button) => (button as HTMLButtonElement).click());
+    }
     await expect(page.locator(".timeline-event-detail:visible")).toHaveCount(0);
     await page.waitForTimeout(700);
     return;

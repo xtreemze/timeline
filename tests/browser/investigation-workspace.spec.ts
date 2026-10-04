@@ -10,7 +10,7 @@ async function openInvestigation(page) {
 }
 
 async function installReasoningFixture(page) {
-  await page.goto("/");
+  await page.goto("/lum/");
   await page.evaluate(() => {
     const raw = localStorage.getItem("timeline:v2");
     if (!raw) throw new Error("Timeline state was not initialized.");

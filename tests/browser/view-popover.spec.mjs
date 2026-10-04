@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 const viewControls = "#timeline-view-controls";
 
 test.beforeEach(async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/lum/");
   await expect(page.locator(".app-tool-dock")).toBeVisible();
   await expect(page.locator(viewControls)).toBeVisible();
 });
@@ -33,7 +33,7 @@ test("footer view-control groups keep intrinsic width instead of overlapping", a
     { width: 1440, height: 900 },
   ]) {
     await page.setViewportSize(viewport);
-    await page.goto("/");
+    await page.goto("/lum/");
 
     const view = page.locator(viewControls);
     await expect(view).toBeVisible();

@@ -76,7 +76,7 @@ test.describe("production WorldSurface in the app", () => {
       if (/WebGL: [A-Z_]+/.test(message.text())) glErrors.push(message.text());
     });
     page.on("pageerror", (error) => glErrors.push(error.message));
-    await page.goto("/");
+    await page.goto("/lum/");
     const webgl2 = await page.evaluate(() =>
       Boolean(document.createElement("canvas").getContext("webgl2")),
     );

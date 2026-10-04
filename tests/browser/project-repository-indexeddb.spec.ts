@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 test("IndexedDB ProjectRepository commits atomically and preserves recovery state", async ({
   page,
 }) => {
-  await page.goto("/");
+  await page.goto("/lum/");
 
   const result = await page.evaluate(async () => {
     const moduleUrl = new URL("/persistence/indexeddb-project-repository.ts", window.location.href)

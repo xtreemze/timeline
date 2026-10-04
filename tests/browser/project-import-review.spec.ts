@@ -63,7 +63,7 @@ async function uploadProposal(page: Page, value: Record<string, unknown>): Promi
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/lum/");
   await waitForAgentApi(page);
 });
 
