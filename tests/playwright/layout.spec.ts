@@ -115,7 +115,7 @@ test.describe("Mobile-first Timeline layout contracts", () => {
     page,
   }) => {
     await page.setViewportSize(PHONE_PORTRAIT);
-    await page.goto("/");
+    await page.goto("/lum/");
     await ensureTimelineOrientation(page, "landscape");
 
     const timeline = page.locator("#timeline-view");
@@ -159,7 +159,7 @@ test.describe("Mobile-first Timeline layout contracts", () => {
     page,
   }) => {
     await page.setViewportSize(PHONE_LANDSCAPE);
-    await page.goto("/");
+    await page.goto("/lum/");
 
     const timeline = page.locator("#timeline-view");
     const surface = page.locator(".timeline-surface");
@@ -185,7 +185,7 @@ test.describe("Mobile-first Timeline layout contracts", () => {
     page,
   }) => {
     await page.setViewportSize(PHONE_PORTRAIT);
-    await page.goto("/");
+    await page.goto("/lum/");
     await expect(page.locator("#timeline-view")).toBeVisible();
 
     for (const { viewport, orientation } of [
@@ -284,7 +284,7 @@ test.describe("Mobile-first Timeline layout contracts", () => {
   ] as const) {
     test(`utility sheets and Project popover stay reachable in ${label}`, async ({ page }) => {
       await page.setViewportSize(viewport);
-      await page.goto("/");
+      await page.goto("/lum/");
       await ensureTimelineOrientation(page, orientation);
 
       const stage = page.locator("#presentation-stage");
@@ -333,7 +333,7 @@ test.describe("Mobile-first Timeline layout contracts", () => {
     page,
   }) => {
     await page.setViewportSize(DESKTOP_LANDSCAPE);
-    await page.goto("/");
+    await page.goto("/lum/");
     await ensureTimelineOrientation(page, "landscape");
 
     const layoutButtons = page.locator(".world-layout-controls .world-layout-control");
@@ -384,7 +384,7 @@ test.describe("Mobile-first Timeline layout contracts", () => {
 
   test("desktop footer keeps primary and spatial controls on one toolbar", async ({ page }) => {
     await page.setViewportSize(DESKTOP_LANDSCAPE);
-    await page.goto("/");
+    await page.goto("/lum/");
     await ensureTimelineOrientation(page, "landscape");
 
     const dock = page.locator(".app-tool-dock.app-footer-bar");
@@ -431,7 +431,7 @@ test.describe("Mobile-first Timeline layout contracts", () => {
     page,
   }) => {
     await page.setViewportSize(PHONE_LANDSCAPE);
-    await page.goto("/");
+    await page.goto("/lum/");
 
     const root = page.locator("#timeline-view");
     const terminal = page
@@ -466,7 +466,7 @@ test.describe("Mobile-first Timeline layout contracts", () => {
 
   test("tablet landscape keeps timeline and graph simultaneously usable", async ({ page }) => {
     await page.setViewportSize(TABLET_LANDSCAPE);
-    await page.goto("/");
+    await page.goto("/lum/");
 
     const timeline = page.locator("#timeline-view");
     const surface = page.locator(".timeline-surface");
@@ -489,7 +489,7 @@ test.describe("Mobile-first Timeline layout contracts", () => {
   test("Project menu exposes every project action without entering Edit mode", async ({ page }) => {
     const viewport = { width: 390, height: 844 };
     await page.setViewportSize(viewport);
-    await page.goto("/");
+    await page.goto("/lum/");
 
     await expect(page.locator("#app-shell")).toHaveAttribute("data-mode", "view");
     await page.locator("#project-menu-toggle").click();
@@ -515,7 +515,7 @@ test.describe("Mobile-first Timeline layout contracts", () => {
   }) => {
     const viewport = { width: 390, height: 844 };
     await page.setViewportSize(viewport);
-    await page.goto("/");
+    await page.goto("/lum/");
     await ensureTimelineOrientation(page, "portrait");
 
     const toolDock = page.locator(".app-tool-dock");
@@ -567,7 +567,7 @@ test.describe("Mobile-first Timeline layout contracts", () => {
       { width: 390, height: 844 },
     ]) {
       await page.setViewportSize(viewport);
-      await page.goto("/");
+      await page.goto("/lum/");
       await ensureTimelineOrientation(page, "portrait");
 
       const toolDock = page.locator(".app-tool-dock");
@@ -599,7 +599,7 @@ test.describe("Mobile-first Timeline layout contracts", () => {
     page,
   }) => {
     await page.setViewportSize(TABLET_LANDSCAPE);
-    await page.goto("/");
+    await page.goto("/lum/");
 
     const graph = page.locator("#graph-lens");
     const graphCanvas = page.locator("#graph-lens .temporal-graph-canvas");
@@ -654,7 +654,7 @@ test.describe("Persistent footer and focus geometry", () => {
   ] as const) {
     test(`selected events preserve timeline geometry in ${label}`, async ({ page }) => {
       await page.setViewportSize(viewport);
-      await page.goto("/");
+      await page.goto("/lum/");
       await ensureTimelineOrientation(page, orientation);
 
       const timeline = page.locator("#timeline-view");
@@ -752,7 +752,7 @@ test.describe("Persistent footer and focus geometry", () => {
   ] as const) {
     test(`edit mode preserves the footer control inventory in ${label}`, async ({ page }) => {
       await page.setViewportSize(viewport);
-      await page.goto("/");
+      await page.goto("/lum/");
       await ensureTimelineOrientation(page, orientation);
 
       const footer = page.locator(".app-footer-bar");
@@ -784,7 +784,7 @@ test.describe("Persistent footer and focus geometry", () => {
     page,
   }) => {
     await page.setViewportSize(PHONE_PORTRAIT);
-    await page.goto("/");
+    await page.goto("/lum/");
 
     const dock = page.locator(".app-tool-dock");
     const baseline = await dock.boundingBox();
