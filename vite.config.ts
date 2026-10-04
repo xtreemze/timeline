@@ -28,6 +28,7 @@ export default defineConfig({
       preserveEntrySignatures: "allow-extension",
       input: {
         main: new URL("./site/index.html", import.meta.url).pathname,
+        lum: new URL("./site/lum/index.html", import.meta.url).pathname,
         workspace: new URL("./site/workspace.html", import.meta.url).pathname,
         presentation: new URL("./site/presentation.html", import.meta.url).pathname,
       },
