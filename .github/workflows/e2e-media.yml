@@ -124,7 +124,7 @@ jobs:
           du -sh artifacts/e2e-media/showcase
 
       - name: Upload E2E media evidence
-        if: always()
+        if: always() && hashFiles('artifacts/e2e-media/**') != ''
         uses: actions/upload-artifact@v4
         with:
           name: lum-e2e-showcase
