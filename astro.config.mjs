@@ -1,6 +1,4 @@
-import { defineConfig } from "astro/config";
-
-export default defineConfig({
+export default {
   site: "https://xtreemze.github.io",
   base: "/timeline",
   srcDir: "./landing/src",
@@ -8,4 +6,4 @@ export default defineConfig({
   outDir: "./dist-astro",
   output: "static",
   trailingSlash: "always",
-});
+};
