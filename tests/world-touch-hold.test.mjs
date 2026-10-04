@@ -354,7 +354,7 @@ test("owned long-press release reaches deck so its touch contact terminates", (t
   );
 });
 
-test("long-press pickup flashes and lifts only the actively dragged node", (t) => {
+test("long-press pickup flashes without changing the actively dragged node altitude", (t) => {
   t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: 10_000 });
   const h = surfaceHarness();
   h.setPickResult({ object: h.alice() });
@@ -378,9 +378,10 @@ test("long-press pickup flashes and lifts only the actively dragged node", (t) =
 
   const draggedLayer = h.entityIconLayer();
   const draggedPosition = draggedLayer.props.getPosition(h.aliceIcon());
-  assert.ok(
-    draggedPosition[2] > initialPosition[2],
-    "the active node should lift slightly while it is being dragged",
+  assert.equal(
+    draggedPosition[2],
+    initialPosition[2],
+    "the active node must keep its pre-gesture altitude while it is being dragged",
   );
 
   h.touch("pointerup", 4, 118, 259);
@@ -433,9 +434,10 @@ for (const ending of ["pointerup", "pointercancel"]) {
     assert.equal(h.dataset.worldTouchDrag, "active");
     assert.deepEqual(h.releases, []);
     assert.deepEqual(h.cancels, []);
-    assert.ok(
-      h.entityIconLayer().props.getPosition(h.aliceIcon())[2] > initialPosition[2],
-      "the owning node stays lifted while the original finger remains down",
+    assert.equal(
+      h.entityIconLayer().props.getPosition(h.aliceIcon())[2],
+      initialPosition[2],
+      "a later contact cannot change the owning node's stable drag altitude",
     );
 
     h.touch("pointermove", 4, 150, 275);
