@@ -212,6 +212,22 @@ test("Sugiyama flow follows viewport orientation", () => {
   );
 });
 
+test("deep DAG chains do not depend on the JavaScript recursion limit", () => {
+  const count = 5_000;
+  const nodes = Array.from({ length: count }, (_, index) => instance(`deep-${index}`));
+  const edges = Array.from({ length: count - 1 }, (_, index) =>
+    edge(`deep-edge-${index}`, nodes[index], nodes[index + 1]),
+  );
+  const projection = createWorldProjection({ instances: nodes, edges });
+
+  const layout = createWorldDagLayout(projection, {
+    reorganize: true,
+    algorithm: "grid",
+  });
+
+  assert.equal(layout.targets.length, count);
+});
+
 test("operator can select a bounded DAG strategy explicitly", () => {
   const source = instance("strategy-source");
   const middle = instance("strategy-middle");
