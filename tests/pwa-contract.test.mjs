@@ -11,7 +11,7 @@ test("web app manifest exposes an installable standalone Lūm app", async () => 
 
   assert.equal(manifest.id, "./");
   assert.equal(manifest.start_url, "./lum/");
-  assert.equal(manifest.scope, "./");
+  assert.equal(manifest.scope, "./lum/");
   assert.equal(manifest.display, "standalone");
   assert.equal(manifest.name, "Lūm");
   assert.equal(manifest.short_name, "Lūm");
