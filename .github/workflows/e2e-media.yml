@@ -51,7 +51,6 @@ permissions:
 
 jobs:
   showcase:
-    continue-on-error: true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -61,25 +60,20 @@ jobs:
           node-version: 24
 
       - name: Install dependencies
-        continue-on-error: true
         run: pnpm install --frozen-lockfile
 
       - name: Certify media-pipeline configuration
-        continue-on-error: true
         run: pnpm test:browser-certification-config
 
       - name: Install Chromium
-        continue-on-error: true
         run: pnpm exec playwright install --with-deps chromium
 
       - name: Install FFmpeg and native Xorg display
-        continue-on-error: true
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg xserver-xorg-core xserver-xorg-video-dummy x11-utils x11-xserver-utils
 
       - name: Start native 60 Hz virtual display
-        continue-on-error: true
         run: |
           sudo Xorg :99 -ac -noreset -nolisten tcp -config "$GITHUB_WORKSPACE/.github/xorg-dummy-60.conf" >"$RUNNER_TEMP/xorg-showcase.log" 2>&1 &
           for attempt in {1..30}; do
@@ -96,15 +90,12 @@ jobs:
           echo "SHOWCASE_X11_HEIGHT=1080" >> "$GITHUB_ENV"
 
       - name: Record source-native showcase media
-        continue-on-error: true
         run: pnpm test:e2e:showcase
 
       - name: Render desktop and mobile reels and showcase assets
-        continue-on-error: true
         run: pnpm render:e2e:showcase
 
       - name: Verify media evidence
-        continue-on-error: true
         run: |
           test -s artifacts/e2e-media/manifest.json
           test -s artifacts/e2e-media/README-showcase.md
@@ -122,7 +113,6 @@ jobs:
           test "$(find artifacts/e2e-media/showcase/mobile -type f -name '*.png' | wc -l)" -eq 3
 
       - name: Report showcase asset sizes
-        continue-on-error: true
         run: |
           echo "Desktop showcase"
           du -h artifacts/e2e-media/showcase/desktop/*
@@ -135,7 +125,6 @@ jobs:
 
       - name: Upload E2E media evidence
         if: always()
-        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: lum-e2e-showcase
