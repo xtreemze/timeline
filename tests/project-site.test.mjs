@@ -35,8 +35,12 @@ test("embedded examples use canonical Lūm concepts and remain inspectable witho
   }
 
   assert.match(html, /class="example-fallback"/);
+  assert.match(html, /data-example=["']corpus["']/);
   assert.match(script, /conventionalExamples/);
   assert.match(script, /unconventionalExamples/);
+  assert.match(script, /import\(["']\.\/sample-case\.ts["']\)/);
+  assert.match(script, /story-three-little-pigs/);
+  assert.match(script, /TimelineSampleCase/);
 });
 
 test("presentation page has a dedicated responsive stylesheet", async () => {
