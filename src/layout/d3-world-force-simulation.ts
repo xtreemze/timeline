@@ -628,6 +628,10 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     const nextInstanceId = pin?.instanceId ?? null;
 
     if (nextInstanceId !== null && previousInstanceId !== nextInstanceId) {
+      for (const groupKey of this.#interactionCollisionGroupKeys) {
+        const group = this.#groups.get(groupKey);
+        if (group) this.#refreshInteractionGroupLocalRadius(group);
+      }
       this.#interactionCollisionGroupKeys.clear();
     }
 
@@ -763,15 +767,8 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       if (interactionReason) this.#refreshGroupForceStrengths(group);
       group.simulation.tick(ticks);
       this.#stepAltitude(group.nodes, ticks);
-      let maximumLocalRadius = 0;
-      for (const state of group.nodes) {
-        this.#dirtyStateIds.add(state.id);
-        maximumLocalRadius = Math.max(
-          maximumLocalRadius,
-          Math.abs(state.x ?? 0) + Math.abs(state.y ?? 0),
-        );
-      }
-      this.#interactionGroupLocalRadius.set(group.key, maximumLocalRadius);
+      for (const state of group.nodes) this.#dirtyStateIds.add(state.id);
+      this.#refreshInteractionGroupLocalRadius(group);
       if (group.simulation.alpha() > group.simulation.alphaMin()) settled = false;
     }
 
@@ -1185,6 +1182,17 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
 
     this.#interactionGroupBounds = bounds;
     this.#interactionGroupLocalRadius = localRadii;
+  }
+
+  #refreshInteractionGroupLocalRadius(group: D3WorldGroup): void {
+    let maximumLocalRadius = 0;
+    for (const state of group.nodes) {
+      maximumLocalRadius = Math.max(
+        maximumLocalRadius,
+        Math.abs(state.x ?? 0) + Math.abs(state.y ?? 0),
+      );
+    }
+    this.#interactionGroupLocalRadius.set(group.key, maximumLocalRadius);
   }
 
   #interactionCandidates(
