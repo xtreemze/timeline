@@ -121,3 +121,12 @@ test("Vite keeps deck.gl layers splittable without disabling the WebGPU build", 
   assert.match(config, /@deck\.gl\/layers\/src\/index\.ts/);
   assert.doesNotMatch(config, /visgl:webgl-only/);
 });
+
+test("workspace redirect keeps canonical URL build-safe", async () => {
+  const workspace = await readFile(new URL("../site/workspace.html", import.meta.url), "utf8");
+  assert.match(
+    workspace,
+    /<link rel="canonical" href="https:\/\/xtreemze\.github\.io\/timeline\/lum\/">/,
+  );
+  assert.doesNotMatch(workspace, /<link rel="canonical" href="\.\/lum\/">/);
+});
