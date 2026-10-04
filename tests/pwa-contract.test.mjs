@@ -17,6 +17,8 @@ test("web app manifest exposes an installable standalone Lūm app", async () => 
   assert.equal(manifest.short_name, "Lūm");
   assert.equal(manifest.theme_color, "#111111");
   assert.equal(manifest.background_color, "#111111");
+  assert.equal(manifest.file_handlers?.[0]?.action, "./workspace.html");
+  assert.ok((manifest.shortcuts ?? []).every((shortcut) => String(shortcut.url).startsWith("./workspace.html")));
 
   const icons = manifest.icons ?? [];
   assert.ok(
@@ -40,7 +42,7 @@ test("web app manifest exposes an installable standalone Lūm app", async () => 
 
 test("application shell links the manifest and registers the scoped service worker", async () => {
   const [html, bootstrap] = await Promise.all([
-    readFile(new URL("site/index.html", root), "utf8"),
+    readFile(new URL("site/workspace.html", root), "utf8"),
     readFile(new URL("site/pwa.ts", root), "utf8"),
   ]);
 
