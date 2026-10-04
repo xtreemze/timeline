@@ -221,6 +221,16 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(pagesWorkflow, /workflow_run:/);
   assert.match(pagesWorkflow, /workflows:\s*\["E2E media showcase"\]/);
   assert.match(pagesWorkflow, /github\.event\.workflow_run\.conclusion == 'success'/);
+  assert.match(
+    pagesWorkflow,
+    /cancel-in-progress:\s*true/,
+    "stale Pages runs must not serialize newer deploys behind obsolete builds",
+  );
+  assert.match(
+    pagesWorkflow,
+    /ref:\s*\$\{\{\s*github\.event_name == 'workflow_run' && github\.event\.workflow_run\.head_sha \|\| github\.sha\s*\}\}/,
+    "showcase-triggered Pages builds must checkout the commit that produced the certified artifact",
+  );
   assert.match(pagesWorkflow, /gh run download/);
   assert.match(pagesWorkflow, /SHOWCASE_RUN_ID:/);
   assert.match(pagesWorkflow, /github\.event\.workflow_run\.id/);
