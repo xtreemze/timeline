@@ -344,7 +344,7 @@ jobs:
       - name: Benchmark production D3 world-force backend
         run: |
           set -o pipefail
-          pnpm benchmark:world-force:d3 | tee /tmp/production-d3-world-force.json
+          pnpm benchmark:world-force:d3 -- --check | tee /tmp/production-d3-world-force.json
         timeout-minutes: 5
       - name: Upload production D3 performance evidence
         if: always()
