@@ -166,7 +166,7 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.doesNotMatch(highlightSpec, /getDisplayMedia|MediaRecorder/);
   assert.match(highlightSpec, /page\.screencast\.showChapter/);
   assert.match(highlightSpec, /page\.screencast\.showOverlay/);
-  assert.match(highlightSpec, /Page\.captureScreenshot/);
+  assert.match(highlightSpec, /captureX11Png/);
   assert.match(highlightSpec, /touchDrag/);
   for (const scene of [
     "01-timeline-navigation",
