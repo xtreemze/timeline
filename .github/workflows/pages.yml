@@ -38,6 +38,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Clean up stale cached directories
+        run: rm -rf site/workspace.html site/presentation.html dist/workspace.html dist/presentation.html 2>/dev/null || true
+
       - name: Build native ESM site
         run: |
           pnpm build
