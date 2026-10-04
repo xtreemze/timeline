@@ -53,20 +53,16 @@ test("D3 primary anchor selection prefers influence then stable place identity",
     ],
   });
 
-  const snapshot = simulation.getSnapshot();
-  assert.equal(snapshot.length, 1);
-  const selected = snapshot[0];
-  assert.ok(selected);
+  simulation.setClusteredPlaceIds(["aarhus"]);
   simulation.apply(topologyRequest());
-  simulation.step(1000 / 60);
+  for (let index = 0; index < 120; index += 1) simulation.step(1000 / 60);
 
-  // Equal influence is resolved by stable place ID. This test protects the
-  // selection semantics while the implementation moves from repeated
-  // filter/sort scans to a one-pass primary-anchor index.
-  const after = simulation.getSnapshot()[0];
-  assert.ok(after);
-  assert.ok(Number.isFinite(after.eastMeters));
-  assert.ok(Number.isFinite(after.northMeters));
+  const selected = simulation.getSnapshot()[0];
+  assert.ok(selected);
+  assert.ok(
+    selected.visualAltitudeMeters < 100,
+    "equal-influence anchors must use stable place-ID ordering, selecting aarhus before copenhagen",
+  );
   simulation.destroy();
 });
 
