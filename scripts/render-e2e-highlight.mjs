@@ -498,7 +498,17 @@ async function renderFormFactor(formFactor, manifest) {
     }
 
     const startSeconds = segment.motionStartSeconds ?? 1.05;
-    const durationSeconds = segment.motionDurationSeconds ?? 4.8;
+    const requestedDurationSeconds = segment.motionDurationSeconds ?? 4.8;
+    const sourceDurationSeconds = await probeDuration(videoPath);
+    const durationSeconds = Math.min(
+      requestedDurationSeconds,
+      Math.max(0, sourceDurationSeconds - startSeconds),
+    );
+    if (durationSeconds <= 0) {
+      throw new Error(
+        `${videoPath} has no motion remaining after the requested ${startSeconds.toFixed(3)}s trim.`,
+      );
+    }
     const webpOutput = path.join(factorShowcaseDir, `${segment.name}.webp`);
     await run(ffmpeg, [
       "-y",
