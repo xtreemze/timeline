@@ -33,7 +33,9 @@ test("screen drag geometry unprojects at the node's current visual altitude", ()
       return {
         longitude: 18.0786,
         latitude: 59.3393,
-        altitudeMeters: targetAltitudeMeters,
+        // Viewport unprojection can report a depth-derived altitude that is
+        // not the node's authored/force altitude. Dragging must ignore it.
+        altitudeMeters: targetAltitudeMeters + 5_000,
       };
     },
   };
