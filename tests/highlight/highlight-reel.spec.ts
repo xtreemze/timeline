@@ -468,8 +468,9 @@ async function persistMeasuredCapture(
     );
   }
 
+  const dedupedBrowserTimestamps = dedupeBrowserFrameTimestamps(browserTimestamps);
   const browser = measureTimestamps(
-    dedupeBrowserFrameTimestamps(browserTimestamps),
+    dedupedBrowserTimestamps,
     1000,
     "Showcase browser animation clock",
   );
@@ -502,7 +503,7 @@ async function persistMeasuredCapture(
     codec: "h264",
     geometry,
     timestamps,
-    browserTimestamps,
+    browserTimestamps: dedupedBrowserTimestamps,
   };
   await writeFile(`${videoPath}.frames.json`, JSON.stringify(stats, null, 2));
   return stats;
