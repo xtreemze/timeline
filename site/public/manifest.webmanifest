@@ -3,13 +3,16 @@
   "name": "Lūm",
   "short_name": "Lūm",
   "description": "Weave people, places, actions, evidence, and stories into a navigable continuum.",
-  "start_url": "./",
+  "start_url": "./workspace.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#111111",
   "theme_color": "#111111",
   "orientation": "any",
-  "categories": ["productivity", "utilities"],
+  "categories": [
+    "productivity",
+    "utilities"
+  ],
   "icons": [
     {
       "src": "./pwa-icon-192.png",
@@ -47,9 +50,12 @@
   },
   "file_handlers": [
     {
-      "action": "./",
+      "action": "./workspace.html",
       "accept": {
-        "application/json": [".lum.json", ".luum"]
+        "application/json": [
+          ".lum.json",
+          ".luum"
+        ]
       }
     }
   ],
@@ -58,7 +64,7 @@
       "name": "Add occurrence",
       "short_name": "Add occurrence",
       "description": "Open the Lūm occurrence composer",
-      "url": "./?shortcut=new-event",
+      "url": "./workspace.html?shortcut=new-event",
       "icons": [
         {
           "src": "./pwa-icon-192.png",
@@ -71,7 +77,7 @@
       "name": "Browse timeline",
       "short_name": "Browse",
       "description": "Open the Lūm timeline browser",
-      "url": "./?shortcut=browse",
+      "url": "./workspace.html?shortcut=browse",
       "icons": [
         {
           "src": "./pwa-icon-192.png",
