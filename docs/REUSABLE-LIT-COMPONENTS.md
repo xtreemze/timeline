@@ -30,6 +30,14 @@ Register a project-specific subclass so the reusable module does not reserve a g
 
 That boundary is appropriate for Lūm's timeline because reactive rendering every event on every gesture frame would work against the retained-window architecture. Other projects can provide different controllers without importing Lūm.
 
+## Embeddable timeline and relationship graph
+
+`site/components/reusable/embed-timeline.ts` and `embed-graph.ts` provide compact presentation components for other project sites. They consume host-owned projected display records and emit `luum-embed-select` events containing the selected canonical id. They do not import the Lūm project model, occurrence grammar, evidence model, or application state.
+
+Branding is host-controlled through CSS custom properties including `--luum-embed-font`, `--luum-embed-ink`, `--luum-embed-paper`, `--luum-embed-panel`, `--luum-embed-line`, `--luum-embed-accent`, `--luum-embed-focus`, `--luum-embed-radius`, and `--luum-embed-shadow`. Node coordinates supplied to the graph are presentation-only and are never persisted by the component.
+
+The production build publishes a stable ES-module entry at `/timeline/embed/luum-embed.js`. This entry registers `<luum-embed-timeline>` and `<luum-embed-graph>`, allowing a host project to use the components without importing the Lūm application shell.
+
 ## Semantic hue
 
 `site/components/reusable/semantic-hue.ts` synchronizes range and numeric hue editing and emits portable input/change events. It intentionally exposes hue only. The consuming design system remains responsible for saturation, lightness/value, contrast, dark/light theme mapping, and interaction-state emphasis.

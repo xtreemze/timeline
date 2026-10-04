@@ -335,3 +335,33 @@ test("occurrence media deck uses native non-autoplay audio and video controls", 
   }, audioSource);
   expect(revoked).toBe(true);
 });
+
+
+test("embed projections accept host data, branding tokens, and emit canonical selection ids", async ({
+  page,
+}) => {
+  await page.goto("/component-lab.html");
+
+  const timeline = page.locator("luum-embed-timeline");
+  const graph = page.locator("luum-embed-graph");
+
+  await expect(timeline.getByRole("button")).toHaveCount(3);
+  await expect(graph.getByRole("button")).toHaveCount(3);
+
+  const timelineInk = await timeline.evaluate((element) =>
+    getComputedStyle(element).getPropertyValue("--luum-embed-ink").trim(),
+  );
+  const graphPaper = await graph.evaluate((element) =>
+    getComputedStyle(element).getPropertyValue("--luum-embed-paper").trim(),
+  );
+  expect(timelineInk).toBe("#211d14");
+  expect(graphPaper).toBe("#fff9e4");
+
+  const timelineSelection = page.locator("[data-embed-timeline-output]");
+  await timeline.getByRole("button", { name: /Apple II adaptation/ }).click();
+  await expect(timelineSelection).toHaveText("apple-ii");
+
+  const graphSelection = page.locator("[data-embed-graph-output]");
+  await graph.getByRole("button", { name: /Charlie Kellner/ }).click();
+  await expect(graphSelection).toHaveText("charlie-kellner");
+});
