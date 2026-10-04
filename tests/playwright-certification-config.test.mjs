@@ -222,9 +222,12 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(pagesWorkflow, /workflows:\s*\["E2E media showcase"\]/);
   assert.match(pagesWorkflow, /github\.event\.workflow_run\.conclusion == 'success'/);
   assert.match(pagesWorkflow, /gh run download/);
+  assert.match(pagesWorkflow, /SHOWCASE_RUN_ID:/);
+  assert.match(pagesWorkflow, /github\.event\.workflow_run\.id/);
+  assert.match(pagesWorkflow, /artifacts\/e2e-media\/showcase\/desktop/);
+  assert.match(pagesWorkflow, /artifacts\/e2e-media\/showcase\/mobile/);
+  assert.match(pagesWorkflow, /cp -R artifacts\/e2e-media\/showcase\/\. dist\/showcase\//);
   assert.doesNotMatch(pagesWorkflow, /pnpm test:e2e:showcase/);
-  assert.match(pagesWorkflow, /dist\/showcase\/desktop/);
-  assert.match(pagesWorkflow, /dist\/showcase\/mobile/);
 
   for (const formFactor of ["desktop", "mobile"]) {
     for (const asset of [
