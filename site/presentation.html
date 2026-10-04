@@ -1,14 +1,229 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Lūm presentation — redirect</title>
-    <script>
-      window.location.href = "/";
-    </script>
-  </head>
-  <body>
-    <p>Redirecting to <a href="/">Lūm presentation</a>...</p>
-  </body>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#111111">
+  <meta name="description" content="Presentation and onboarding for Lūm, a local-first relational knowledge environment for time, place, relationship, evidence, and provenance.">
+  <title>Lūm — presentation and onboarding</title>
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./presentation.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to presentation</a>
+
+  <header class="site-header">
+    <a class="brand" href="./" aria-label="Lūm home">
+      <img src="./icon.svg" alt="" width="38" height="38">
+      <span>Lūm</span>
+    </a>
+    <nav aria-label="Presentation">
+      <a href="#history">History</a>
+      <a href="#onboarding">Onboarding</a>
+      <a href="#uses">Uses</a>
+      <a href="#embedded-examples">Examples</a>
+      <a class="primary-link" href="./lum/">Open Lūm workspace</a>
+    </nav>
+  </header>
+
+  <main id="main">
+    <section class="hero section-shell" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <p class="eyebrow">Local-first relational knowledge environment</p>
+        <h1 id="hero-title">Weave the threads.<br>Explore the continuum.</h1>
+        <p class="lede">Lūm keeps time, place, relationship, evidence, provenance, and narrative connected as one canonical body of knowledge. Timeline, world, map, evidence, analysis, and story are different readings of the same continuum.</p>
+        <div class="hero-actions">
+          <a class="button primary" href="./lum/">Open Lūm workspace</a>
+          <a class="button" href="#onboarding">Start onboarding</a>
+        </div>
+        <dl class="hero-facts">
+          <div><dt>Data model</dt><dd>Entities, relationships, occurrences, places, evidence, stories</dd></div>
+          <div><dt>Architecture</dt><dd>Canonical domain → deterministic projections → renderers</dd></div>
+          <div><dt>Operating model</dt><dd>Browser-first, local-first, backend-free core</dd></div>
+        </dl>
+      </div>
+      <div class="continuum-diagram" aria-label="The Lūm continuum">
+        <span class="thread source">Sources</span>
+        <span class="thread entity">Entities</span>
+        <span class="thread occurrence">Occurrences</span>
+        <span class="thread place">Places</span>
+        <span class="thread evidence">Evidence</span>
+        <span class="thread story">Stories</span>
+        <div class="loom-core"><strong>Continuum</strong><small>one canonical state</small></div>
+        <span class="projection timeline">Timeline</span>
+        <span class="projection world">World</span>
+        <span class="projection map">Map</span>
+        <span class="projection analysis">Analysis</span>
+      </div>
+    </section>
+
+    <section id="history" class="section-shell section" aria-labelledby="history-title">
+      <div class="section-heading">
+        <p class="eyebrow">Project history</p>
+        <h2 id="history-title">From chronology to a woven knowledge environment</h2>
+        <p>Lūm began with a timeline problem and expanded as the project repeatedly encountered the same limitation: chronology alone could not faithfully express who acted, where something happened, why a claim was believed, or how one fact belonged to multiple stories.</p>
+      </div>
+      <ol class="history-rail">
+        <li>
+          <span class="history-index">01</span>
+          <div><h3>Timeline first</h3><p>The initial focus was temporal navigation: point events, ranges, zoom, retained context, and a mobile-first chronology that could remain readable while moving through large bodies of material.</p></div>
+        </li>
+        <li>
+          <span class="history-index">02</span>
+          <div><h3>Relationships become situated facts</h3><p>The graph model was tightened around durable entities and directed actions. Time and place moved onto occurrences instead of being treated as decorative metadata or graph nodes.</p></div>
+        </li>
+        <li>
+          <span class="history-index">03</span>
+          <div><h3>One continuum, many projections</h3><p>Timeline, relational world, geography, evidence, and stories converged around shared canonical identity. Renderer state, force positions, camera coordinates, and clustering became explicitly disposable.</p></div>
+        </li>
+        <li>
+          <span class="history-index">04</span>
+          <div><h3>Lūm</h3><p>The loom metaphor gave the project its mature identity: loose threads are reconciled into a coherent fabric, while each projection exposes a different structure in that same fabric. The metaphor explains the product; precise domain vocabulary still governs persistence.</p></div>
+        </li>
+        <li>
+          <span class="history-index">05</span>
+          <div><h3>Investigation and assisted authoring</h3><p>Evidence, provenance, candidate claims, import review, structured occurrence composition, local inference, and agent-assisted proposals extended Lūm beyond visualization into a controlled knowledge-work environment.</p></div>
+        </li>
+      </ol>
+
+      <div class="inspiration-grid">
+        <article><p class="eyebrow">Inspiration</p><h3>Textiles and looms</h3><p>Many independent threads can cross without losing their individual identity. Structure emerges from their relationships, not from flattening them into one list.</p></article>
+        <article><p class="eyebrow">Inspiration</p><h3>Investigative chronology</h3><p>A useful chronology must preserve uncertainty, provenance, competing explanations, and the ability to move from a claim to its source.</p></article>
+        <article><p class="eyebrow">Inspiration</p><h3>Maps and graph thinking</h3><p>Geographic position and relational topology are complementary. Lūm treats both as projections over canonical records rather than competing databases.</p></article>
+        <article><p class="eyebrow">Inspiration</p><h3>Local-first tools</h3><p>The project assumes the user should be able to keep core knowledge work in the browser without requiring a hosted backend to own the data.</p></article>
+      </div>
+    </section>
+
+    <section id="ambitions" class="section-shell section split-section" aria-labelledby="ambitions-title">
+      <div>
+        <p class="eyebrow">Ambition</p>
+        <h2 id="ambitions-title">A general environment for reasoning across time, place, relation, and evidence</h2>
+      </div>
+      <div class="ambition-list">
+        <p><strong>Preserve identity across every view.</strong> Selecting an occurrence in a timeline, map, graph, evidence dossier, or story should always resolve to the same canonical fact.</p>
+        <p><strong>Support inquiry before certainty.</strong> Questions, assumptions, candidate claims, conflicting evidence, and falsification paths should coexist without prematurely becoming accepted fact.</p>
+        <p><strong>Make scale navigable.</strong> Large chronologies and dense relational worlds should remain usable through deterministic projection, semantic zoom, filtering, and retained context.</p>
+        <p><strong>Remain modular.</strong> Timeline, world, composer, evidence, and diagnostic capabilities should be reusable without creating parallel state authority.</p>
+      </div>
+    </section>
+
+    <section id="onboarding" class="section-shell section" aria-labelledby="onboarding-title">
+      <div class="section-heading">
+        <p class="eyebrow">Onboarding</p>
+        <h2 id="onboarding-title">Understand Lūm in four moves</h2>
+      </div>
+      <div class="onboarding-grid">
+        <article>
+          <span>1</span><h3>Start with durable nouns</h3>
+          <p>Create entities for people, organizations, objects, concepts, or other things that need independent identity.</p>
+          <code>Entity: Ada Lovelace</code>
+        </article>
+        <article>
+          <span>2</span><h3>State what happened</h3>
+          <p>Relationships use directed actions. When a relationship is situated in time, it becomes an occurrence.</p>
+          <code>Ada → wrote → Notes</code>
+        </article>
+        <article>
+          <span>3</span><h3>Attach context, not duplicates</h3>
+          <p>Reuse canonical places and evidence. Time and place belong to the occurrence; provenance points back to the supporting source.</p>
+          <code>1843 · London · source page 12</code>
+        </article>
+        <article>
+          <span>4</span><h3>Change the projection</h3>
+          <p>Inspect the same records as chronology, relationship topology, geography, evidence, analysis, or authored story.</p>
+          <code>continuum → projection</code>
+        </article>
+      </div>
+      <aside class="onboarding-note">
+        <strong>Rule of thumb:</strong> if changing a view would change the meaning of the record, the data probably belongs in the canonical domain rather than the renderer.
+      </aside>
+    </section>
+
+    <section id="uses" class="section-shell section" aria-labelledby="uses-title">
+      <div class="section-heading">
+        <p class="eyebrow">Applications</p>
+        <h2 id="uses-title">Conventional and unconventional uses</h2>
+        <p>The model is intentionally general. The examples below differ in subject matter, but they all use the same entity → relationship → occurrence → place/evidence → projection structure.</p>
+      </div>
+
+      <div id="conventional-uses" class="use-section">
+        <h3>Conventional</h3>
+        <div class="use-grid">
+          <article><h4>Historical research</h4><p>Track actors, dated events, places, sources, and competing narratives across a long chronology.</p></article>
+          <article><h4>Investigations</h4><p>Connect claims to evidence, preserve provenance, expose contradictions, and distinguish accepted facts from unresolved candidates.</p></article>
+          <article><h4>Project and incident review</h4><p>Reconstruct decisions, dependencies, handoffs, failures, and remediation across teams and systems.</p></article>
+          <article><h4>Genealogy and biography</h4><p>Follow people across places, relationships, documents, life periods, and narrative threads without duplicating identity.</p></article>
+        </div>
+      </div>
+
+      <div id="unconventional-uses" class="use-section">
+        <h3>Unconventional</h3>
+        <div class="use-grid">
+          <article><h4>Scientific hypothesis history</h4><p>Represent experiments, observations, publications, rebuttals, and theory changes as evidence-linked occurrences.</p></article>
+          <article><h4>Fiction continuity</h4><p>Model characters, locations, artifacts, hidden knowledge, parallel timelines, and canonical story order while separating narrative order from chronology.</p></article>
+          <article><h4>Personal decision archaeology</h4><p>Trace major choices back to information available at the time, assumptions, alternatives, and later outcomes.</p></article>
+          <article><h4>Infrastructure dependency archaeology</h4><p>Relate services, vendors, hardware, outages, migrations, and operational decisions to see how today’s system accumulated.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="embedded-examples" class="section-shell section" aria-labelledby="examples-title">
+      <div class="section-heading">
+        <p class="eyebrow">Embedded examples</p>
+        <h2 id="examples-title">The same domain model, different questions</h2>
+        <p>Select a scenario. Each miniature projection below is generated from example canonical data embedded in this page.</p>
+      </div>
+
+      <div class="example-shell">
+        <div class="example-selector" role="tablist" aria-label="Example scenarios">
+          <button type="button" role="tab" aria-selected="true" data-example="historical">Historical research</button>
+          <button type="button" role="tab" aria-selected="false" data-example="incident">Incident review</button>
+          <button type="button" role="tab" aria-selected="false" data-example="fiction">Fiction continuity</button>
+          <button type="button" role="tab" aria-selected="false" data-example="decision">Decision archaeology</button>
+        </div>
+
+        <div class="example-stage" data-example-stage>
+          <section class="mini-projection" aria-labelledby="mini-timeline-title">
+            <header><span>Projection</span><h3 id="mini-timeline-title">Timeline</h3></header>
+            <div class="mini-timeline" data-example-timeline></div>
+          </section>
+          <section class="mini-projection" aria-labelledby="mini-world-title">
+            <header><span>Projection</span><h3 id="mini-world-title">Relations + place</h3></header>
+            <div class="mini-world" data-example-world></div>
+          </section>
+          <section class="mini-projection evidence-panel" aria-labelledby="mini-evidence-title">
+            <header><span>Projection</span><h3 id="mini-evidence-title">Evidence</h3></header>
+            <div data-example-evidence></div>
+          </section>
+        </div>
+
+        <noscript>
+          <div class="example-fallback">
+            <h3>Example: historical research</h3>
+            <p><strong>Entity:</strong> Ada Lovelace. <strong>Occurrence:</strong> wrote notes on the Analytical Engine, 1843. <strong>Place:</strong> London. <strong>Evidence:</strong> published notes. <strong>Story:</strong> early programmable computation.</p>
+          </div>
+        </noscript>
+        <div class="example-fallback js-fallback" aria-hidden="true">
+          <strong>Canonical example structure:</strong> entity → directed relationship → occurrence with time/place → evidence → story membership.
+        </div>
+      </div>
+    </section>
+
+    <section class="section-shell section final-cta" aria-labelledby="cta-title">
+      <p class="eyebrow">Continue</p>
+      <h2 id="cta-title">Move from the presentation into the continuum.</h2>
+      <p>The live workspace is the authoritative product surface. This page explains the model; the application lets you manipulate it.</p>
+      <a class="button primary" href="./lum/">Open Lūm workspace</a>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <span>Lūm</span>
+    <span>Weave the threads. Explore the continuum.</span>
+    <a href="https://github.com/xtreemze/timeline">Repository</a>
+  </footer>
+
+  <script type="module" src="./presentation.ts"></script>
+</body>
 </html>

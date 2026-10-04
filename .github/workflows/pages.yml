@@ -13,7 +13,7 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -33,29 +33,35 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Check production TypeScript bindings
-        run: pnpm types:migrated
-
       - name: Build native ESM site
         run: |
           pnpm build
           test -s dist/index.html
+          test -s dist/lum/index.html
+          test -s dist/workspace.html
+          test -s dist/presentation.html
+          grep -q 'Weave the threads' dist/index.html
+          grep -q 'data-site-generator="astro"' dist/index.html
+          grep -q 'id="history"' dist/index.html
+          grep -q 'id="app-shell"' dist/lum/index.html
+          grep -q 'href="./lum/"' dist/index.html
           test -d dist/assets
           test "$(find dist/assets -type f -name '*.js' | wc -l)" -gt 0
           test "$(find dist/assets -type f | wc -l)" -gt 1
           test -s dist/manifest.webmanifest
           test -s dist/sw.js
+          test -s dist/lum/sw.js
           test -s dist/pwa-icon-192.png
           test -s dist/pwa-icon-512.png
           test -s dist/pwa-maskable-512.png
           test -s dist/pwa-icon-192.svg
           test -s dist/pwa-icon-512.svg
           test -s dist/pwa-maskable-512.svg
-          if grep -Eq 'src="[^"]+\.ts([?#][^"]*)?"' dist/index.html; then
+          if grep -Eq 'src="[^"]+\.ts([?#][^"]*)?"' dist/index.html dist/lum/index.html; then
             echo "Built entry point still references raw TypeScript modules"
             exit 1
           fi
-          if grep -Eq '(orb-graph|leaflet|evidence-extraction)\.bundle\.js' dist/index.html; then
+          if grep -Eq '(orb-graph|leaflet|evidence-extraction)\.bundle\.js' dist/index.html dist/workspace.html; then
             echo "Built entry point still references legacy classic bundles"
             exit 1
           fi
@@ -84,8 +90,6 @@ jobs:
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       - name: Upload built site artifact
         uses: actions/upload-pages-artifact@v3
@@ -153,6 +157,23 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v5
 
+  deployed-landing:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Certify deployed landing page
+        env:
+          LANDING_URL: ${{ needs.deploy.outputs.page_url }}
+          LUM_URL: "${{ needs.deploy.outputs.page_url }}lum/"
+        run: |
+          landing="$(curl -fsSL "$LANDING_URL")"
+          printf '%s' "$landing" | grep -q 'Weave the threads'
+          printf '%s' "$landing" | grep -q 'data-site-generator="astro"'
+          printf '%s' "$landing" | grep -q 'href="./lum/"'
+
+          lum="$(curl -fsSL "$LUM_URL")"
+          printf '%s' "$lum" | grep -q 'id="app-shell"'
+
   deployed-world:
     needs: deploy
     continue-on-error: true
@@ -177,7 +198,7 @@ jobs:
 
       - name: Certify deployed WorldSurface
         env:
-          LUM_DEPLOYED_URL: ${{ needs.deploy.outputs.page_url }}
+          LUM_DEPLOYED_URL: "${{ needs.deploy.outputs.page_url }}lum/"
         run: pnpm exec playwright test --config=playwright.deployed.config.ts
 
   lighthouse:

@@ -3,12 +3,14 @@ import { access, readFile, writeFile } from "node:fs/promises";
 
 const distUrl = new URL("../dist/", import.meta.url);
 const viteManifestUrl = new URL("./.vite/manifest.json", distUrl);
-const outputUrl = new URL("./sw.js", distUrl);
+const outputUrl = new URL("./lum/sw.js", distUrl);
+const legacyOutputUrl = new URL("./sw.js", distUrl);
 
 const viteManifest = JSON.parse(await readFile(viteManifestUrl, "utf8"));
 
 const files = new Set([
   "index.html",
+  "lum/index.html",
   "manifest.webmanifest",
   "pwa-icon-192.png",
   "pwa-icon-512.png",
@@ -31,7 +33,7 @@ for (const record of Object.values(viteManifest)) {
 const sortedFiles = [...files].sort();
 await Promise.all(sortedFiles.map((file) => access(new URL(file, distUrl))));
 
-const precache = ["./", ...sortedFiles.map((file) => `./${file}`)];
+const precache = ["./", ...sortedFiles.map((file) => `../${file}`)];
 const contentRevisions = await Promise.all(
   sortedFiles.map(async (file) => {
     const bytes = await readFile(new URL(file, distUrl));
@@ -115,3 +117,25 @@ self.addEventListener("fetch", (event) => {
 `;
 
 await writeFile(outputUrl, source, "utf8");
+
+const retireLegacyRootWorker = `self.addEventListener("install", () => {
+  self.skipWaiting();
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    (async () => {
+      const scope = self.registration.scope;
+      await self.registration.unregister();
+      const clients = await self.clients.matchAll({ type: "window" });
+      await Promise.all(
+        clients
+          .filter((client) => client.url === scope || client.url === new URL("./index.html", scope).href)
+          .map((client) => client.navigate(client.url)),
+      );
+    })(),
+  );
+});
+`;
+
+await writeFile(legacyOutputUrl, retireLegacyRootWorker, "utf8");
