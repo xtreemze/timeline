@@ -21,7 +21,7 @@ async function ensureOrientation(page: Page, orientation: "landscape" | "portrai
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/lum/");
   await expect(page.locator("#timeline-view")).toBeVisible();
 });
 
@@ -94,7 +94,7 @@ test("composer-owned occurrence detail stays in the visual viewport in both chro
   await page.setViewportSize({ width: 412, height: 915 });
 
   for (const orientation of ["landscape", "portrait"] as const) {
-    await page.goto("/");
+    await page.goto("/lum/");
     await ensureOrientation(page, orientation);
     const terminal = await ensureSample(page);
 
