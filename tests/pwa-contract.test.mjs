@@ -65,6 +65,7 @@ test("production build generates an offline shell service worker", async () => {
   assert.match(generator, /createHash\("sha256"\)\.update\(bytes\)/);
   assert.match(generator, /cache\.addAll\(PRECACHE_URLS\)/);
   assert.match(generator, /request\.mode === "navigate"/);
+  assert.match(generator, /workspace\.html/);
   assert.match(generator, /navigationPreload/);
   assert.match(generator, /url\.origin !== self\.location\.origin/);
 });
