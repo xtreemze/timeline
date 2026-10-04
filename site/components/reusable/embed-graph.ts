@@ -107,10 +107,18 @@ export class LuumEmbedGraphElement extends LitElement {
     `,
   ];
 
-  nodes: readonly EmbedGraphNode[] = [];
-  edges: readonly EmbedGraphEdge[] = [];
-  selectedId = "";
-  ariaLabel = "Relationship graph";
+  declare nodes: readonly EmbedGraphNode[];
+  declare edges: readonly EmbedGraphEdge[];
+  declare selectedId: string;
+  declare ariaLabel: string;
+
+  constructor() {
+    super();
+    this.nodes = [];
+    this.edges = [];
+    this.selectedId = "";
+    this.ariaLabel = "Relationship graph";
+  }
 
   private resolvedPosition(node: EmbedGraphNode, index: number): Readonly<{ x: number; y: number }> {
     if (node.position) {
