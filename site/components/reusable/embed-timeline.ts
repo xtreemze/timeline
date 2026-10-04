@@ -112,9 +112,16 @@ export class LuumEmbedTimelineElement extends LitElement {
     `,
   ];
 
-  items: readonly EmbedTimelineItem[] = [];
-  selectedId = "";
-  ariaLabel = "Timeline";
+  declare items: readonly EmbedTimelineItem[];
+  declare selectedId: string;
+  declare ariaLabel: string;
+
+  constructor() {
+    super();
+    this.items = [];
+    this.selectedId = "";
+    this.ariaLabel = "Timeline";
+  }
 
   private selectItem(id: string): void {
     this.selectedId = id;
