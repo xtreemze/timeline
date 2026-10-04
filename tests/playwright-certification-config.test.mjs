@@ -238,6 +238,11 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(pagesWorkflow, /artifacts\/e2e-media\/showcase\/mobile/);
   assert.match(pagesWorkflow, /cp -R artifacts\/e2e-media\/showcase\/\. dist\/showcase\//);
   assert.doesNotMatch(pagesWorkflow, /pnpm test:e2e:showcase/);
+  assert.doesNotMatch(
+    pagesWorkflow,
+    /rm -rf site\/workspace\.html site\/presentation\.html/,
+    "Pages must not delete Vite HTML entry points before the production build",
+  );
 
   for (const formFactor of ["desktop", "mobile"]) {
     for (const asset of [
