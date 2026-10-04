@@ -44,6 +44,7 @@ jobs:
           test -s dist/workspace.html
           test -s dist/presentation.html
           grep -q 'Weave the threads' dist/index.html
+          grep -q 'data-site-generator="astro"' dist/index.html
           grep -q 'id="history"' dist/index.html
           grep -q 'id="app-shell"' dist/lum/index.html
           grep -q 'href="./lum/"' dist/index.html
@@ -170,6 +171,7 @@ jobs:
         run: |
           landing="$(curl -fsSL "$LANDING_URL")"
           printf '%s' "$landing" | grep -q 'Weave the threads'
+          printf '%s' "$landing" | grep -q 'data-site-generator="astro"'
           printf '%s' "$landing" | grep -q 'href="./lum/"'
 
           lum="$(curl -fsSL "$LUM_URL")"
