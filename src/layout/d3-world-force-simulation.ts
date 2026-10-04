@@ -120,6 +120,12 @@ interface D3WorldGroupBounds {
   readonly maxZ: number;
 }
 
+interface D3InteractionSpatialIndex {
+  readonly cellSizeMeters: number;
+  readonly maximumReachMeters: number;
+  readonly cells: ReadonlyMap<string, readonly D3WorldNodeState[]>;
+}
+
 export interface D3WorldForcePosition {
   readonly instanceId: WorldInstanceId;
   readonly eastMeters: number;
@@ -256,6 +262,31 @@ function stateNeighborhoodRadiusMeters(state: D3WorldNodeState, tuning: WorldFor
   const targetNorth = state.node.layoutTargetNorthMeters ?? 0;
   const targetRadius = Math.hypot(targetEast, targetNorth) + collisionRadius * 2;
   return Math.max(collisionRadius * 8, precisionRadius, targetRadius);
+}
+
+function stateInteractionReachMeters(
+  state: D3WorldNodeState,
+  tuning: WorldForceTuning,
+): number {
+  const preferredRadius = tunedPreferredRadiusMeters(state.node, tuning);
+  return Math.max(
+    stateNeighborhoodRadiusMeters(state, tuning),
+    state.node.collisionRadiusMeters * 4,
+    preferredRadius * 4,
+  );
+}
+
+function interactionSpatialCellKey(
+  x: number,
+  y: number,
+  z: number,
+  cellSizeMeters: number,
+): string {
+  return [
+    Math.floor(x / cellSizeMeters),
+    Math.floor(y / cellSizeMeters),
+    Math.floor(z / cellSizeMeters),
+  ].join(":");
 }
 
 function pairNeighborhoodRadiusMeters(
@@ -515,6 +546,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
   #interactionInstanceId: WorldInstanceId | null = null;
   #interactionGroupKey: string | null = null;
   #interactionCollisionGroupKeys = new Set<string>();
+  #interactionSpatialIndex: D3InteractionSpatialIndex | null = null;
   #requestReason: WorldSimulationRequest["reason"] = "idle";
   #dirtyStateIds = new Set<WorldInstanceId>();
   #running = false;
@@ -561,6 +593,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
 
     this.#scene = scene;
     this.#states = next;
+    this.#interactionSpatialIndex = null;
     this.#dirtyStateIds = new Set(next.keys());
     if (this.#pin && !this.#states.has(this.#pin.instanceId)) this.#pin = null;
     if (this.#pin) {
@@ -591,6 +624,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       this.#placeTunings.set(String(scope.placeId), validated);
     }
     this.#rebuildGroups(true);
+    this.#interactionSpatialIndex = null;
     this.#running = true;
     this.#settled = false;
     this.#iteration = 0;
@@ -610,6 +644,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
 
     if (nextInstanceId !== null && previousInstanceId !== nextInstanceId) {
       this.#interactionCollisionGroupKeys.clear();
+      this.#interactionSpatialIndex = this.#buildInteractionSpatialIndex(nextState?.group ?? null);
     }
 
     if (previousState && previousInstanceId !== nextInstanceId) {
@@ -682,6 +717,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     this.#clusteredPlaces = nextClustered;
     this.#detachedLinkPlaces = nextDetached;
     this.#rebuildGroups(true);
+    this.#interactionSpatialIndex = null;
     this.#running = true;
     this.#settled = false;
     this.#iteration = 0;
@@ -703,6 +739,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
         this.#interactionGroupKey = null;
       }
       this.#interactionCollisionGroupKeys.clear();
+      this.#interactionSpatialIndex = null;
     }
 
     if (request.reason === "idle") {
@@ -821,6 +858,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     this.#interactionInstanceId = null;
     this.#interactionGroupKey = null;
     this.#interactionCollisionGroupKeys.clear();
+    this.#interactionSpatialIndex = null;
     this.#requestReason = "idle";
     this.#destroyed = true;
   }
@@ -1111,6 +1149,125 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     return moved;
   }
 
+  #buildInteractionSpatialIndex(
+    focalGroupKey: string | null,
+  ): D3InteractionSpatialIndex | null {
+    const entries: Array<{
+      readonly state: D3WorldNodeState;
+      readonly position: readonly [number, number, number];
+      readonly reachMeters: number;
+    }> = [];
+    let maximumReachMeters = 1;
+
+    for (const state of this.#states.values()) {
+      if (state.group === focalGroupKey || !state.anchor) continue;
+      const geographic = geographicPosition(state);
+      if (!geographic) continue;
+      const reachMeters = stateInteractionReachMeters(state, this.#tuningForState(state));
+      maximumReachMeters = Math.max(maximumReachMeters, reachMeters);
+      entries.push({
+        state,
+        position: surfaceCartesianMeters(geographic),
+        reachMeters,
+      });
+    }
+    if (entries.length === 0) return null;
+
+    const cellSizeMeters = maximumReachMeters;
+    const mutableCells = new Map<string, D3WorldNodeState[]>();
+    for (const entry of entries) {
+      const key = interactionSpatialCellKey(
+        entry.position[0],
+        entry.position[1],
+        entry.position[2],
+        cellSizeMeters,
+      );
+      const bucket = mutableCells.get(key);
+      if (bucket) bucket.push(entry.state);
+      else mutableCells.set(key, [entry.state]);
+    }
+
+    return Object.freeze({
+      cellSizeMeters,
+      maximumReachMeters,
+      cells: new Map(
+        [...mutableCells].map(([key, states]) => [key, Object.freeze(states)] as const),
+      ),
+    });
+  }
+
+  #interactionCandidates(
+    focalState: D3WorldNodeState,
+    focalPosition: readonly [number, number],
+  ): readonly D3WorldNodeState[] {
+    const index = this.#interactionSpatialIndex;
+    if (!index) {
+      return [...this.#states.values()].filter(
+        (state) =>
+          state.id !== focalState.id &&
+          state.group !== focalState.group &&
+          state.anchor !== null,
+      );
+    }
+
+    const focalReach = stateInteractionReachMeters(
+      focalState,
+      this.#tuningForState(focalState),
+    );
+    const searchRadius = focalReach + index.maximumReachMeters;
+    const cellSize = index.cellSizeMeters;
+    const cellSpan = Math.ceil(searchRadius / cellSize);
+
+    // An unusually large precision/layout radius can cover a substantial part
+    // of the globe. In that case scanning is cheaper than probing thousands of
+    // empty sparse-grid cells and preserves the same exact-distance filter.
+    if (cellSpan > 6) {
+      return [...this.#states.values()].filter(
+        (state) =>
+          state.id !== focalState.id &&
+          state.group !== focalState.group &&
+          state.anchor !== null,
+      );
+    }
+
+    const [x, y, z] = surfaceCartesianMeters(focalPosition);
+    const centerX = Math.floor(x / cellSize);
+    const centerY = Math.floor(y / cellSize);
+    const centerZ = Math.floor(z / cellSize);
+    const candidates = new Map<WorldInstanceId, D3WorldNodeState>();
+
+    for (let dx = -cellSpan; dx <= cellSpan; dx += 1) {
+      for (let dy = -cellSpan; dy <= cellSpan; dy += 1) {
+        for (let dz = -cellSpan; dz <= cellSpan; dz += 1) {
+          const key = [centerX + dx, centerY + dy, centerZ + dz].join(":");
+          for (const state of index.cells.get(key) ?? []) {
+            if (
+              state.id === focalState.id ||
+              state.group === focalState.group ||
+              this.#interactionCollisionGroupKeys.has(state.group)
+            ) {
+              continue;
+            }
+            candidates.set(state.id, state);
+          }
+        }
+      }
+    }
+
+    // Once a foreign group has been woken by collision it is moving and its
+    // drag-start spatial-index entry is stale. Scan only those already-active
+    // groups from their live positions instead of rebuilding the whole index.
+    for (const groupKey of this.#interactionCollisionGroupKeys) {
+      const group = this.#groups.get(groupKey);
+      if (!group || group.key === focalState.group) continue;
+      for (const state of group.nodes) {
+        if (state.id !== focalState.id && state.anchor) candidates.set(state.id, state);
+      }
+    }
+
+    return [...candidates.values()];
+  }
+
   #stepCrossPlaceInteractionForces(): boolean {
     const interactionId = this.#pin?.instanceId ?? this.#interactionInstanceId;
     if (!interactionId) return false;
@@ -1118,13 +1275,11 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     if (!focalState?.anchor) return false;
     const focalPosition = geographicPosition(focalState);
     if (!focalPosition) return false;
+    const focalTuning = this.#tuningForState(focalState);
 
-    const partners = [...this.#states.values()].flatMap((state) => {
-      if (state.id === focalState.id || state.group === focalState.group || !state.anchor)
-        return [];
+    const partners = this.#interactionCandidates(focalState, focalPosition).flatMap((state) => {
       const position = geographicPosition(state);
       if (!position) return [];
-      const focalTuning = this.#tuningForState(focalState);
       const stateTuning = this.#tuningForState(state);
       const collisionDistance =
         focalState.node.collisionRadiusMeters + state.node.collisionRadiusMeters;
@@ -1145,7 +1300,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     const participants = [
       {
         state: focalState,
-        tuning: this.#tuningForState(focalState),
+        tuning: focalTuning,
         eastMeters: 0,
         northMeters: 0,
       },
