@@ -141,8 +141,10 @@ for (const nodeCount of sizes) {
   });
   drag.apply({ reason: "drag", excitation: 0.2, reheat: true });
   const dragStep = measure(() => drag.step(1000 / 60), stepIterations);
-  const dragChangedSnapshot = measure(() => drag.getChangedSnapshot(), 1);
-  const dragChangedNodes = drag.getChangedSnapshot().length;
+  let dragChangedNodes = 0;
+  const dragChangedSnapshot = measure(() => {
+    dragChangedNodes = drag.getChangedSnapshot().length;
+  }, 1);
   drag.destroy();
 
   results.push({
