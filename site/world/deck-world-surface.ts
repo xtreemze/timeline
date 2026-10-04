@@ -5101,17 +5101,21 @@ export class DeckWorldSurface implements WorldSurface {
 
     this.#activeDragPointerId = pointerId;
     this.#setActiveDragInstance(instanceId, { render: false });
+    // Establish camera ownership before the sink can synchronously reheat the
+    // force scene or publish a projection update. Otherwise deck can process one
+    // last controller frame between hold activation and the camera lock.
+    this.#dragCameraLock = this.#camera;
     const claimed = sink.begin(pointerId, instanceId, position);
     if (!claimed) {
       this.#activeDragPointerId = null;
       this.#setActiveDragInstance(null);
+      this.#dragCameraLock = null;
       return false;
     }
 
-    // A touch long-press has explicitly claimed direct manipulation. Lock the
-    // camera at every zoom for this gesture; capture-phase moves below keep
-    // deck's controller from accumulating more pan/zoom input.
-    this.#dragCameraLock = this.#camera;
+    // A touch long-press has explicitly claimed direct manipulation. Keep the
+    // camera locked at every zoom for this gesture; capture-phase moves below
+    // keep deck's controller from accumulating more pan/zoom input.
     this.#render();
     return true;
   }
