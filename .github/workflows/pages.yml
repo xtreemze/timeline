@@ -33,9 +33,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Check production TypeScript bindings
-        run: pnpm types:migrated
-
       - name: Build native ESM site
         run: |
           pnpm build

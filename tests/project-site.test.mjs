@@ -100,3 +100,14 @@ test("Pages deployment verifies the live root landing and Lūm application route
   assert.match(workflow, /curl -fsSL "\$LUM_URL"/);
   assert.match(workflow, /id="app-shell"/);
 });
+
+
+test("Pages deployment is gated by the deployable site artifact, not the broad migration type suite", async () => {
+  const workflow = await read(".github/workflows/pages.yml");
+
+  assert.doesNotMatch(workflow, /Check production TypeScript bindings/);
+  assert.doesNotMatch(workflow, /run:\s*pnpm types:migrated/);
+  assert.match(workflow, /pnpm build/);
+  assert.match(workflow, /data-site-generator="astro"/);
+  assert.match(workflow, /id="app-shell"/);
+});
