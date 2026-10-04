@@ -1,0 +1,36 @@
+name: Generate Astro lockfile
+
+on:
+  push:
+    branches: [fix/astro-project-install]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: generate-astro-lockfile
+  cancel-in-progress: true
+
+jobs:
+  lockfile:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Regenerate pnpm lockfile
+        run: pnpm install --lockfile-only --no-frozen-lockfile
+      - name: Commit generated lockfile
+        run: |
+          if git diff --quiet -- pnpm-lock.yaml; then
+            echo "Lockfile already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pnpm-lock.yaml
+          git commit -m "chore(deps): lock Astro 7.3.5"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
