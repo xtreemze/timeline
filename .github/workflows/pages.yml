@@ -40,6 +40,7 @@ jobs:
         run: |
           pnpm build
           test -s dist/index.html
+          test -s dist/workspace.html
           test -s dist/presentation.html
           test -d dist/assets
           test "$(find dist/assets -type f -name '*.js' | wc -l)" -gt 0
@@ -52,11 +53,11 @@ jobs:
           test -s dist/pwa-icon-192.svg
           test -s dist/pwa-icon-512.svg
           test -s dist/pwa-maskable-512.svg
-          if grep -Eq 'src="[^"]+\.ts([?#][^"]*)?"' dist/index.html; then
+          if grep -Eq 'src="[^"]+\.ts([?#][^"]*)?"' dist/index.html dist/workspace.html; then
             echo "Built entry point still references raw TypeScript modules"
             exit 1
           fi
-          if grep -Eq '(orb-graph|leaflet|evidence-extraction)\.bundle\.js' dist/index.html; then
+          if grep -Eq '(orb-graph|leaflet|evidence-extraction)\.bundle\.js' dist/index.html dist/workspace.html; then
             echo "Built entry point still references legacy classic bundles"
             exit 1
           fi
@@ -178,7 +179,7 @@ jobs:
 
       - name: Certify deployed WorldSurface
         env:
-          LUM_DEPLOYED_URL: ${{ needs.deploy.outputs.page_url }}
+          LUM_DEPLOYED_URL: "${{ needs.deploy.outputs.page_url }}workspace.html"
         run: pnpm exec playwright test --config=playwright.deployed.config.ts
 
   lighthouse:
