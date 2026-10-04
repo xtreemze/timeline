@@ -136,13 +136,12 @@ export class LuumEmbedTimelineElement extends LitElement {
         aria-label=${this.ariaLabel}
         style=${`--luum-embed-item-count:${String(count)}`}
       >
-        <div part="rail" role="list">
+        <div part="rail" role="group" aria-label="Timeline items">
           ${this.items.map(
             (item) => html`
               <button
                 part="item"
                 type="button"
-                role="listitem"
                 aria-current=${this.selectedId === item.id ? "true" : nothing}
                 style=${item.color ? `--item-color:${item.color}` : nothing}
                 @click=${() => this.selectItem(item.id)}
