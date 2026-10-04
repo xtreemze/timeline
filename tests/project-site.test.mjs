@@ -111,3 +111,14 @@ test("Pages deployment is gated by the deployable site artifact, not the broad m
   assert.match(workflow, /data-site-generator="astro"/);
   assert.match(workflow, /id="app-shell"/);
 });
+
+
+test("Lūm subroute uses Vite root-resolved source inputs while preserving browser base semantics", async () => {
+  const lum = await read("site/lum/index.html");
+
+  assert.match(lum, /<base href=["']\.\.\/["']>/);
+  assert.match(lum, /src=["']\/time-scale-shim\.ts["']/);
+  assert.match(lum, /src=["']\/app\.ts["']/);
+  assert.match(lum, /href=["']\/styles\.css["']/);
+  assert.doesNotMatch(lum, /src=["']\.\/time-scale-shim\.ts["']/);
+});
