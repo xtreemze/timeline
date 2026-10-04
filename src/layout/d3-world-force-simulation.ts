@@ -143,19 +143,22 @@ function seededOffset(id: WorldInstanceId): readonly [number, number] {
   return Object.freeze([Math.cos(angle) * radius, Math.sin(angle) * radius]);
 }
 
-function primaryAnchor(
-  instanceId: WorldInstanceId,
+function primaryAnchorsByInstance(
   anchors: readonly WorldForceAnchor[],
-): WorldForceAnchor | null {
-  return (
-    anchors
-      .filter((anchor) => anchor.instanceId === instanceId)
-      .sort(
-        (left, right) =>
-          right.influence - left.influence ||
-          String(left.placeId).localeCompare(String(right.placeId)),
-      )[0] ?? null
-  );
+): ReadonlyMap<WorldInstanceId, WorldForceAnchor> {
+  const primary = new Map<WorldInstanceId, WorldForceAnchor>();
+  for (const anchor of anchors) {
+    const current = primary.get(anchor.instanceId);
+    if (
+      !current ||
+      anchor.influence > current.influence ||
+      (anchor.influence === current.influence &&
+        String(anchor.placeId).localeCompare(String(current.placeId)) < 0)
+    ) {
+      primary.set(anchor.instanceId, anchor);
+    }
+  }
+  return primary;
 }
 
 function groupKey(anchor: WorldForceAnchor | null): string {
@@ -523,9 +526,10 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     this.#assertAlive();
     const previous = this.#states;
     const next = new Map<WorldInstanceId, D3WorldNodeState>();
+    const primaryAnchors = primaryAnchorsByInstance(scene.anchors);
 
     for (const node of scene.nodes) {
-      const anchor = primaryAnchor(node.id, scene.anchors);
+      const anchor = primaryAnchors.get(node.id) ?? null;
       const group = groupKey(anchor);
       const prior = previous.get(node.id);
       const explicit = node.initialEastMeters !== 0 || node.initialNorthMeters !== 0;
