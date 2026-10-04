@@ -146,6 +146,7 @@ for (const nodeCount of sizes) {
   drag.getChangedSnapshot();
   const dragged = scene.nodes[0];
   if (!dragged) throw new Error("Production D3 benchmark requires at least one node.");
+  const dragAcquireStart = performance.now();
   drag.setPin({
     instanceId: dragged.id,
     eastMeters: dragged.initialEastMeters + 20_000,
@@ -153,6 +154,7 @@ for (const nodeCount of sizes) {
     visualAltitudeMeters: dragged.targetVisualAltitudeMeters,
   });
   drag.apply({ reason: "drag", excitation: 0.2, reheat: true });
+  const dragAcquireMs = performance.now() - dragAcquireStart;
   const dragStep = measure(() => drag.step(1000 / 60), stepIterations);
   let dragChangedNodes = 0;
   const dragChangedSnapshot = measure(() => {
@@ -169,6 +171,7 @@ for (const nodeCount of sizes) {
     sustainedSixtyHzMs: Number(sustainedSixtyHzMs.toFixed(3)),
     changedSnapshot,
     topologyDiagnostics,
+    dragAcquireMs: Number(dragAcquireMs.toFixed(3)),
     dragStep,
     dragChangedSnapshot,
     dragChangedNodes,
