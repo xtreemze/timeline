@@ -9,7 +9,7 @@ test("web app manifest exposes an installable standalone Lūm app", async () => 
     await readFile(new URL("site/public/manifest.webmanifest", root), "utf8"),
   );
 
-  assert.equal(manifest.id, "./");
+  assert.equal(manifest.id, "./lum/");
   assert.equal(manifest.start_url, "./lum/");
   assert.equal(manifest.scope, "./lum/");
   assert.equal(manifest.display, "standalone");
