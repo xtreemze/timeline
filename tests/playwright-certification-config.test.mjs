@@ -17,6 +17,8 @@ const pagesWorkflow = readFileSync(
   new URL("../.github/workflows/pages.yml", import.meta.url),
   "utf8",
 );
+const astroConfig = readFileSync(new URL("../astro.config.mjs", import.meta.url), "utf8");
+const buildPages = readFileSync(new URL("../scripts/build-pages.mjs", import.meta.url), "utf8");
 const workspaceHtml = readFileSync(
   new URL("../site/workspace.html", import.meta.url),
   "utf8",
@@ -253,6 +255,12 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
     "workspace canonical must be an absolute Pages URL so Vite does not read the lum directory as an asset",
   );
   assert.doesNotMatch(workspaceHtml, /<link rel="canonical" href="\.\/lum\/">/);
+  assert.match(buildPages, /pnpm["'], \["dlx", "astro@7\.3\.5", "build"\]/);
+  assert.doesNotMatch(
+    astroConfig,
+    /from\s+["']astro\/config["']/,
+    "dlx Astro config must not import a package that is absent from the project dependency graph",
+  );
 
   for (const formFactor of ["desktop", "mobile"]) {
     for (const asset of [
