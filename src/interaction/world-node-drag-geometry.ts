@@ -19,9 +19,13 @@ export function resolveWorldNodeDragPosition(
   const worldPosition = surface.unproject(point, currentPosition[2]);
   if (!worldPosition) return null;
 
+  // Pointer interaction owns tangent-space X/Y only. Preserve the node's
+  // pre-gesture rendered altitude exactly: viewport unprojection may return a
+  // depth-derived Z that varies with camera/globe projection and would otherwise
+  // make a stationary long-press appear to lift or drop the node.
   return resolveWorldLocalLayoutPosition(
     instance,
-    [worldPosition.longitude, worldPosition.latitude, worldPosition.altitudeMeters],
+    [worldPosition.longitude, worldPosition.latitude, currentPosition[2]],
     offsetScale,
     floatMeters,
   );
