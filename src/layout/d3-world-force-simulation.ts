@@ -120,10 +120,9 @@ interface D3WorldGroupBounds {
   readonly maxZ: number;
 }
 
-interface D3InteractionSpatialIndex {
-  readonly cellSizeMeters: number;
-  readonly maximumReachMeters: number;
-  readonly cells: ReadonlyMap<string, readonly D3WorldNodeState[]>;
+interface D3InteractionGroupBound {
+  readonly center: readonly [x: number, y: number, z: number];
+  readonly staticReachMeters: number;
 }
 
 export interface D3WorldForcePosition {
@@ -274,19 +273,6 @@ function stateInteractionReachMeters(
     state.node.collisionRadiusMeters * 4,
     preferredRadius * 4,
   );
-}
-
-function interactionSpatialCellKey(
-  x: number,
-  y: number,
-  z: number,
-  cellSizeMeters: number,
-): string {
-  return [
-    Math.floor(x / cellSizeMeters),
-    Math.floor(y / cellSizeMeters),
-    Math.floor(z / cellSizeMeters),
-  ].join(":");
 }
 
 function pairNeighborhoodRadiusMeters(
@@ -546,7 +532,8 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
   #interactionInstanceId: WorldInstanceId | null = null;
   #interactionGroupKey: string | null = null;
   #interactionCollisionGroupKeys = new Set<string>();
-  #interactionSpatialIndex: D3InteractionSpatialIndex | null = null;
+  #interactionGroupBounds = new Map<string, D3InteractionGroupBound>();
+  #interactionGroupLocalRadius = new Map<string, number>();
   #requestReason: WorldSimulationRequest["reason"] = "idle";
   #dirtyStateIds = new Set<WorldInstanceId>();
   #running = false;
@@ -593,7 +580,6 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
 
     this.#scene = scene;
     this.#states = next;
-    this.#interactionSpatialIndex = null;
     this.#dirtyStateIds = new Set(next.keys());
     if (this.#pin && !this.#states.has(this.#pin.instanceId)) this.#pin = null;
     if (this.#pin) {
@@ -624,7 +610,6 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       this.#placeTunings.set(String(scope.placeId), validated);
     }
     this.#rebuildGroups(true);
-    this.#interactionSpatialIndex = null;
     this.#running = true;
     this.#settled = false;
     this.#iteration = 0;
@@ -644,7 +629,6 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
 
     if (nextInstanceId !== null && previousInstanceId !== nextInstanceId) {
       this.#interactionCollisionGroupKeys.clear();
-      this.#interactionSpatialIndex = this.#buildInteractionSpatialIndex(nextState?.group ?? null);
     }
 
     if (previousState && previousInstanceId !== nextInstanceId) {
@@ -717,7 +701,6 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     this.#clusteredPlaces = nextClustered;
     this.#detachedLinkPlaces = nextDetached;
     this.#rebuildGroups(true);
-    this.#interactionSpatialIndex = null;
     this.#running = true;
     this.#settled = false;
     this.#iteration = 0;
@@ -739,8 +722,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
         this.#interactionGroupKey = null;
       }
       this.#interactionCollisionGroupKeys.clear();
-      this.#interactionSpatialIndex = null;
-    }
+      }
 
     if (request.reason === "idle") {
       this.stop();
@@ -781,7 +763,15 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       if (interactionReason) this.#refreshGroupForceStrengths(group);
       group.simulation.tick(ticks);
       this.#stepAltitude(group.nodes, ticks);
-      for (const state of group.nodes) this.#dirtyStateIds.add(state.id);
+      let maximumLocalRadius = 0;
+      for (const state of group.nodes) {
+        this.#dirtyStateIds.add(state.id);
+        maximumLocalRadius = Math.max(
+          maximumLocalRadius,
+          Math.abs(state.x ?? 0) + Math.abs(state.y ?? 0),
+        );
+      }
+      this.#interactionGroupLocalRadius.set(group.key, maximumLocalRadius);
       if (group.simulation.alpha() > group.simulation.alphaMin()) settled = false;
     }
 
@@ -858,7 +848,8 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     this.#interactionInstanceId = null;
     this.#interactionGroupKey = null;
     this.#interactionCollisionGroupKeys.clear();
-    this.#interactionSpatialIndex = null;
+    this.#interactionGroupBounds.clear();
+    this.#interactionGroupLocalRadius.clear();
     this.#requestReason = "idle";
     this.#destroyed = true;
   }
@@ -997,6 +988,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     }
 
     this.#groups = nextGroups;
+    this.#rebuildInteractionGroupBounds();
     this.#interactionCollisionGroupKeys = new Set(
       [...this.#interactionCollisionGroupKeys].filter((groupKey) => nextGroups.has(groupKey)),
     );
@@ -1149,125 +1141,89 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     return moved;
   }
 
-  #buildInteractionSpatialIndex(
-    focalGroupKey: string | null,
-  ): D3InteractionSpatialIndex | null {
-    const entries: Array<{
-      readonly state: D3WorldNodeState;
-      readonly position: readonly [number, number, number];
-    }> = [];
-    let maximumReachMeters = 1;
+  #rebuildInteractionGroupBounds(): void {
+    const bounds = new Map<string, D3InteractionGroupBound>();
+    const localRadii = new Map<string, number>();
 
-    for (const state of this.#states.values()) {
-      if (state.group === focalGroupKey || !state.anchor) continue;
-      const geographic = geographicPosition(state);
-      if (!geographic) continue;
-      const reachMeters = stateInteractionReachMeters(state, this.#tuningForState(state));
-      maximumReachMeters = Math.max(maximumReachMeters, reachMeters);
-      entries.push({
-        state,
-        position: surfaceCartesianMeters(geographic),
-      });
-    }
-    if (entries.length === 0) return null;
+    for (const group of this.#groups.values()) {
+      const firstAnchored = group.nodes.find((state) => state.anchor !== null);
+      if (!firstAnchored?.anchor) continue;
+      const centerGeographic = Object.freeze([
+        firstAnchored.anchor.longitude,
+        firstAnchored.anchor.latitude,
+      ]) as readonly [number, number];
+      let staticReachMeters = 1;
+      let maximumLocalRadius = 0;
 
-    const cellSizeMeters = maximumReachMeters;
-    const mutableCells = new Map<string, D3WorldNodeState[]>();
-    for (const entry of entries) {
-      const key = interactionSpatialCellKey(
-        entry.position[0],
-        entry.position[1],
-        entry.position[2],
-        cellSizeMeters,
+      for (const state of group.nodes) {
+        if (!state.anchor) continue;
+        const anchorDistance = surfaceDistanceMeters(centerGeographic, [
+          state.anchor.longitude,
+          state.anchor.latitude,
+        ]);
+        staticReachMeters = Math.max(
+          staticReachMeters,
+          anchorDistance + stateInteractionReachMeters(state, this.#tuningForState(state)),
+        );
+        // Manhattan tangent distance is a conservative bound on the geographic
+        // displacement produced by the local east/north offsets.
+        maximumLocalRadius = Math.max(
+          maximumLocalRadius,
+          Math.abs(state.x ?? 0) + Math.abs(state.y ?? 0),
+        );
+      }
+
+      bounds.set(
+        group.key,
+        Object.freeze({
+          center: surfaceCartesianMeters(centerGeographic),
+          staticReachMeters,
+        }),
       );
-      const bucket = mutableCells.get(key);
-      if (bucket) bucket.push(entry.state);
-      else mutableCells.set(key, [entry.state]);
+      localRadii.set(group.key, maximumLocalRadius);
     }
 
-    return Object.freeze({
-      cellSizeMeters,
-      maximumReachMeters,
-      cells: new Map(
-        [...mutableCells].map(([key, states]) => [key, Object.freeze(states)] as const),
-      ),
-    });
+    this.#interactionGroupBounds = bounds;
+    this.#interactionGroupLocalRadius = localRadii;
   }
 
   #interactionCandidates(
     focalState: D3WorldNodeState,
     focalPosition: readonly [number, number],
   ): readonly D3WorldNodeState[] {
-    const index =
-      this.#interactionSpatialIndex ?? this.#buildInteractionSpatialIndex(focalState.group);
-    if (index && this.#interactionSpatialIndex === null) {
-      this.#interactionSpatialIndex = index;
-    }
-    if (!index) {
-      return [...this.#states.values()].filter(
-        (state) =>
-          state.id !== focalState.id &&
-          state.group !== focalState.group &&
-          state.anchor !== null,
-      );
-    }
-
     const focalReach = stateInteractionReachMeters(
       focalState,
       this.#tuningForState(focalState),
     );
-    const searchRadius = focalReach + index.maximumReachMeters;
-    const cellSize = index.cellSizeMeters;
-    const cellSpan = Math.ceil(searchRadius / cellSize);
+    const [focalX, focalY, focalZ] = surfaceCartesianMeters(focalPosition);
+    const candidates: D3WorldNodeState[] = [];
 
-    // An unusually large precision/layout radius can cover a substantial part
-    // of the globe. In that case scanning is cheaper than probing thousands of
-    // empty sparse-grid cells and preserves the same exact-distance filter.
-    if (cellSpan > 6) {
-      return [...this.#states.values()].filter(
-        (state) =>
-          state.id !== focalState.id &&
-          state.group !== focalState.group &&
-          state.anchor !== null,
-      );
-    }
+    for (const group of this.#groups.values()) {
+      if (group.key === focalState.group) continue;
 
-    const [x, y, z] = surfaceCartesianMeters(focalPosition);
-    const centerX = Math.floor(x / cellSize);
-    const centerY = Math.floor(y / cellSize);
-    const centerZ = Math.floor(z / cellSize);
-    const candidates = new Map<WorldInstanceId, D3WorldNodeState>();
-
-    for (let dx = -cellSpan; dx <= cellSpan; dx += 1) {
-      for (let dy = -cellSpan; dy <= cellSpan; dy += 1) {
-        for (let dz = -cellSpan; dz <= cellSpan; dz += 1) {
-          const key = [centerX + dx, centerY + dy, centerZ + dz].join(":");
-          for (const state of index.cells.get(key) ?? []) {
-            if (
-              state.id === focalState.id ||
-              state.group === focalState.group ||
-              this.#interactionCollisionGroupKeys.has(state.group)
-            ) {
-              continue;
-            }
-            candidates.set(state.id, state);
-          }
+      // Once a foreign group has been woken by an interaction its cached bound
+      // may be stale. It is already a small, explicitly active collision island,
+      // so inspect that group's live nodes directly.
+      if (!this.#interactionCollisionGroupKeys.has(group.key)) {
+        const bound = this.#interactionGroupBounds.get(group.key);
+        if (bound) {
+          const localRadius = this.#interactionGroupLocalRadius.get(group.key) ?? 0;
+          const reach = focalReach + bound.staticReachMeters + localRadius;
+          const dx = focalX - bound.center[0];
+          const dy = focalY - bound.center[1];
+          const dz = focalZ - bound.center[2];
+          // Chord distance never exceeds great-circle distance, so rejecting a
+          // group outside this conservative bound cannot discard a true partner.
+          if (dx * dx + dy * dy + dz * dz > reach * reach) continue;
         }
       }
-    }
 
-    // Once a foreign group has been woken by collision it is moving and its
-    // drag-start spatial-index entry is stale. Scan only those already-active
-    // groups from their live positions instead of rebuilding the whole index.
-    for (const groupKey of this.#interactionCollisionGroupKeys) {
-      const group = this.#groups.get(groupKey);
-      if (!group || group.key === focalState.group) continue;
       for (const state of group.nodes) {
-        if (state.id !== focalState.id && state.anchor) candidates.set(state.id, state);
+        if (state.id !== focalState.id && state.anchor) candidates.push(state);
       }
     }
 
-    return [...candidates.values()];
+    return candidates;
   }
 
   #stepCrossPlaceInteractionForces(): boolean {
