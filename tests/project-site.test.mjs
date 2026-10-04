@@ -88,3 +88,14 @@ test("legacy workspace route forwards to the canonical Lūm app route", async ()
   assert.match(workspace, /url=\.\/lum\//i);
   assert.match(workspace, /href=["']\.\/lum\/["']/);
 });
+
+
+test("Pages deployment verifies the live root landing and Lūm application routes", async () => {
+  const workflow = await read(".github/workflows/pages.yml");
+  assert.match(workflow, /Certify deployed landing page/);
+  assert.match(workflow, /curl -fsSL "\$LANDING_URL"/);
+  assert.match(workflow, /Weave the threads/);
+  assert.match(workflow, /href="\.\/lum\/"/);
+  assert.match(workflow, /curl -fsSL "\$LUM_URL"/);
+  assert.match(workflow, /id="app-shell"/);
+});

@@ -158,6 +158,22 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v5
 
+  deployed-landing:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Certify deployed landing page
+        env:
+          LANDING_URL: ${{ needs.deploy.outputs.page_url }}
+          LUM_URL: "${{ needs.deploy.outputs.page_url }}lum/"
+        run: |
+          landing="$(curl -fsSL "$LANDING_URL")"
+          printf '%s' "$landing" | grep -q 'Weave the threads'
+          printf '%s' "$landing" | grep -q 'href="./lum/"'
+
+          lum="$(curl -fsSL "$LUM_URL")"
+          printf '%s' "$lum" | grep -q 'id="app-shell"'
+
   deployed-world:
     needs: deploy
     continue-on-error: true
