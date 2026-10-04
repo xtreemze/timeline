@@ -89,7 +89,7 @@ self.addEventListener("fetch", (event) => {
         } catch {
           return (
             (await cache.match(request, { ignoreSearch: true })) ||
-            (await cache.match(new URL("./lum/index.html", self.registration.scope).href)) ||
+            (await cache.match(new URL("./index.html", self.registration.scope).href)) ||
             (await cache.match(new URL("./", self.registration.scope).href)) ||
             Response.error()
           );
