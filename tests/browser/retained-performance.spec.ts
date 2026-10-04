@@ -130,7 +130,7 @@ async function installPerformanceFixture(page) {
 test("retained renderer publishes phase-attributed performance evidence", async ({
   page,
 }, testInfo) => {
-  await page.goto("/");
+  await page.goto("/lum/");
   await installPerformanceFixture(page);
 
   const root = page.locator("#retained-performance-host");
