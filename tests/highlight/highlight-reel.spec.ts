@@ -157,6 +157,19 @@ async function firstVisibleOccurrence(page: Page) {
   return occurrence;
 }
 
+async function capturePagePng(page: Page, screenshotPath: string) {
+  const session = await page.context().newCDPSession(page);
+  try {
+    const result = await session.send("Page.captureScreenshot", {
+      format: "png",
+      fromSurface: true,
+    });
+    await writeFile(screenshotPath, Buffer.from(result.data, "base64"));
+  } finally {
+    await session.detach().catch(() => undefined);
+  }
+}
+
 function captureText(command: string, args: string[]) {
   return new Promise<string>((resolve, reject) => {
     const child = spawn(command, args, {
@@ -549,12 +562,7 @@ async function recordSegment(
       await page.waitForTimeout(1_100);
       await body();
       await page.waitForTimeout(450);
-      await page.screenshot({
-        path: screenshotPath,
-        animations: "disabled",
-        scale: "css",
-        timeout: 30_000,
-      });
+      await capturePagePng(page, screenshotPath);
     } finally {
       if (!page.isClosed()) browserTimestamps = await stopBrowserFrameClock(page).catch(() => []);
       await capture.stop();
@@ -566,12 +574,7 @@ async function recordSegment(
   } else {
     await body();
     await page.waitForTimeout(250);
-    await page.screenshot({
-      path: screenshotPath,
-      animations: "disabled",
-      scale: "css",
-      timeout: 30_000,
-    });
+    await capturePagePng(page, screenshotPath);
   }
 
   return {
