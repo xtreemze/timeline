@@ -4,6 +4,7 @@ import { ReusableMediaViewerElement } from "./components/reusable/media-viewer.t
 import { RetainedTimelineElement } from "./components/reusable/retained-timeline.ts";
 import { SemanticHueElement } from "./components/reusable/semantic-hue.ts";
 import "./components/occurrence-media-deck.ts";
+import "./embed-entry.ts";
 
 class LabComposerElement extends ReusableComposerElement {}
 customElements.define("component-lab-composer", LabComposerElement);
@@ -114,4 +115,87 @@ if (mediaViewer) {
   mediaViewer.src = `data:image/svg+xml,${encodeURIComponent(svg)}`;
   mediaViewer.alt = "Abstract landscape used to test pan and zoom";
   mediaViewer.caption = "Pinch, wheel, double-click, or use the keyboard and zoom controls.";
+}
+
+
+const embedTimeline = document.querySelector<
+  HTMLElement & { items: readonly unknown[] }
+>("luum-embed-timeline");
+if (embedTimeline) {
+  embedTimeline.items = Object.freeze([
+    Object.freeze({
+      id: "mainframe",
+      timeLabel: "1973",
+      label: "MECC mainframe original",
+      detail: "Bob Jamison creates the original educational business simulation.",
+      color: "#e3a538",
+    }),
+    Object.freeze({
+      id: "apple-ii",
+      timeLabel: "1979",
+      label: "Apple II adaptation",
+      detail: "Charlie Kellner adapts the program for Apple II classroom use.",
+      color: "#236f5e",
+    }),
+    Object.freeze({
+      id: "revival",
+      timeLabel: "2026",
+      label: "Modern revival",
+      detail: "A deterministic browser simulation makes the neighborhood visible.",
+      color: "#3f5944",
+    }),
+  ]);
+  embedTimeline.addEventListener("luum-embed-select", (event) => {
+    if (!(event instanceof CustomEvent)) return;
+    const output = document.querySelector<HTMLElement>("[data-embed-timeline-output]");
+    if (output) output.textContent = String(event.detail.id);
+  });
+}
+
+const embedGraph = document.querySelector<
+  HTMLElement & { nodes: readonly unknown[]; edges: readonly unknown[] }
+>("luum-embed-graph");
+if (embedGraph) {
+  embedGraph.nodes = Object.freeze([
+    Object.freeze({
+      id: "bob-jamison",
+      label: "Bob Jamison",
+      detail: "Original creator",
+      color: "#e3a538",
+      position: Object.freeze({ x: 20, y: 55 }),
+    }),
+    Object.freeze({
+      id: "mecc",
+      label: "MECC",
+      detail: "Educational computing",
+      color: "#3f5944",
+      position: Object.freeze({ x: 50, y: 22 }),
+    }),
+    Object.freeze({
+      id: "charlie-kellner",
+      label: "Charlie Kellner",
+      detail: "Apple II adapter",
+      color: "#236f5e",
+      position: Object.freeze({ x: 80, y: 55 }),
+    }),
+  ]);
+  embedGraph.edges = Object.freeze([
+    Object.freeze({
+      id: "created-at",
+      sourceId: "bob-jamison",
+      targetId: "mecc",
+      label: "created at",
+    }),
+    Object.freeze({
+      id: "adapted-from",
+      sourceId: "charlie-kellner",
+      targetId: "mecc",
+      label: "adapted work",
+    }),
+  ]);
+  embedGraph.addEventListener("luum-embed-select", (event) => {
+    if (!(event instanceof CustomEvent)) return;
+    const output = document.querySelector<HTMLElement>("[data-embed-graph-output]");
+    if (output) output.textContent = String(event.detail.id);
+  });
 }
