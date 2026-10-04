@@ -40,6 +40,7 @@ jobs:
         run: |
           pnpm build
           test -s dist/index.html
+          test -s dist/presentation.html
           test -d dist/assets
           test "$(find dist/assets -type f -name '*.js' | wc -l)" -gt 0
           test "$(find dist/assets -type f | wc -l)" -gt 1
