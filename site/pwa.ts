@@ -1,4 +1,4 @@
-const SERVICE_WORKER_URL = "./sw.js";
+const SERVICE_WORKER_URL = "./lum/sw.js";
 const SERVICE_WORKER_SCOPE = "./lum/";
 
 function registerServiceWorker(): void {

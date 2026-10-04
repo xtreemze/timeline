@@ -50,6 +50,7 @@ test("application shell links the manifest and registers the scoped service work
   assert.match(html, /src="\.\/pwa\.ts"/);
   assert.match(bootstrap, /serviceWorker/);
   assert.match(bootstrap, /register\(SERVICE_WORKER_URL/);
+  assert.match(bootstrap, /SERVICE_WORKER_URL = "\.\/lum\/sw\.js"/);
   assert.match(bootstrap, /SERVICE_WORKER_SCOPE = "\.\/lum\//);
   assert.match(bootstrap, /updateViaCache:\s*"none"/);
 });
@@ -67,6 +68,9 @@ test("production build generates an offline shell service worker", async () => {
   assert.match(generator, /cache\.addAll\(PRECACHE_URLS\)/);
   assert.match(generator, /request\.mode === "navigate"/);
   assert.match(generator, /lum\\/index\\.html/);
+  assert.match(generator, /lum\\/sw\\.js/);
+  assert.match(generator, /retireLegacyRootWorker/);
+  assert.match(generator, /registration\.unregister/);
   assert.match(generator, /navigationPreload/);
   assert.match(generator, /url\.origin !== self\.location\.origin/);
 });
