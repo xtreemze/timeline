@@ -157,17 +157,38 @@ async function firstVisibleOccurrence(page: Page) {
   return occurrence;
 }
 
-async function capturePagePng(page: Page, screenshotPath: string) {
-  const session = await page.context().newCDPSession(page);
-  try {
-    const result = await session.send("Page.captureScreenshot", {
-      format: "png",
-      fromSurface: true,
+async function captureX11Png(screenshotPath: string, geometry: CaptureGeometry) {
+  const display = process.env.DISPLAY;
+  if (!display) throw new Error("DISPLAY is required for X11 showcase still capture");
+
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(
+      FFMPEG,
+      [
+        "-y",
+        "-hide_banner",
+        "-loglevel",
+        "warning",
+        "-f",
+        "x11grab",
+        "-video_size",
+        `${String(geometry.width)}x${String(geometry.height)}`,
+        "-draw_mouse",
+        "0",
+        "-i",
+        `${display}+${String(geometry.x)},${String(geometry.y)}`,
+        "-frames:v",
+        "1",
+        screenshotPath,
+      ],
+      { stdio: ["ignore", "ignore", "inherit"], env: process.env },
+    );
+    child.once("error", reject);
+    child.once("exit", (code, signal) => {
+      if (code === 0) resolve();
+      else reject(new Error(`FFmpeg X11 still capture exited with ${String(code ?? signal)}`));
     });
-    await writeFile(screenshotPath, Buffer.from(result.data, "base64"));
-  } finally {
-    await session.detach().catch(() => undefined);
-  }
+  });
 }
 
 function captureText(command: string, args: string[]) {
@@ -562,7 +583,7 @@ async function recordSegment(
       await page.waitForTimeout(1_100);
       await body();
       await page.waitForTimeout(450);
-      await capturePagePng(page, screenshotPath);
+      await captureX11Png(screenshotPath, geometry);
     } finally {
       if (!page.isClosed()) browserTimestamps = await stopBrowserFrameClock(page).catch(() => []);
       await capture.stop();
@@ -574,7 +595,8 @@ async function recordSegment(
   } else {
     await body();
     await page.waitForTimeout(250);
-    await capturePagePng(page, screenshotPath);
+    const geometry = await captureGeometry(page, captureSize);
+    await captureX11Png(screenshotPath, geometry);
   }
 
   return {
