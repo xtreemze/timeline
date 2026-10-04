@@ -32,8 +32,8 @@ function percentile(sorted, fraction) {
   return sorted[index] ?? 0;
 }
 
-function measure(fn, iterations) {
-  fn();
+function measure(fn, iterations, { warmup = true } = {}) {
+  if (warmup) fn();
   const samples = [];
   for (let index = 0; index < iterations; index += 1) {
     const start = performance.now();
@@ -160,14 +160,22 @@ for (const nodeCount of sizes) {
         : 4;
 
   let forceScene;
-  const sceneBuild = measure(() => {
-    forceScene = createWorldForceScene(projection);
-    if (forceScene.nodes.length !== nodeCount || forceScene.anchors.length !== nodeCount) {
-      throw new Error(`Unexpected force scene size for ${nodeCount} world instances.`);
-    }
-  }, iterations);
+  const sceneBuild = measure(
+    () => {
+      // DAG quality and Sugiyama scaling are certified independently by
+      // benchmark:world-dag. Use the bounded grid family here only to provide
+      // deterministic disposable soft targets so this benchmark measures the
+      // force scene + solver rather than multiplying DAG cold-layout cost.
+      forceScene = createWorldForceScene(projection, undefined, { dagAlgorithm: "grid" });
+      if (forceScene.nodes.length !== nodeCount || forceScene.anchors.length !== nodeCount) {
+        throw new Error(`Unexpected force scene size for ${nodeCount} world instances.`);
+      }
+    },
+    iterations,
+    { warmup: false },
+  );
 
-  forceScene = createWorldForceScene(projection);
+  if (!forceScene) throw new Error("World force benchmark failed to construct its scene.");
   const solverSetup = measure(() => {
     const simulation = new ReferenceWorldForceSimulation();
     simulation.setScene(forceScene);
@@ -175,7 +183,7 @@ for (const nodeCount of sizes) {
       throw new Error(`Unexpected solver snapshot size for ${nodeCount} world instances.`);
     }
     simulation.destroy();
-  }, iterations);
+  }, iterations, { warmup: false });
 
   const stepIterations = denseMode
     ? nodeCount >= 5_000
