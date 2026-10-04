@@ -1155,7 +1155,6 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     const entries: Array<{
       readonly state: D3WorldNodeState;
       readonly position: readonly [number, number, number];
-      readonly reachMeters: number;
     }> = [];
     let maximumReachMeters = 1;
 
@@ -1168,7 +1167,6 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       entries.push({
         state,
         position: surfaceCartesianMeters(geographic),
-        reachMeters,
       });
     }
     if (entries.length === 0) return null;
@@ -1200,7 +1198,11 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     focalState: D3WorldNodeState,
     focalPosition: readonly [number, number],
   ): readonly D3WorldNodeState[] {
-    const index = this.#interactionSpatialIndex;
+    const index =
+      this.#interactionSpatialIndex ?? this.#buildInteractionSpatialIndex(focalState.group);
+    if (index && this.#interactionSpatialIndex === null) {
+      this.#interactionSpatialIndex = index;
+    }
     if (!index) {
       return [...this.#states.values()].filter(
         (state) =>
