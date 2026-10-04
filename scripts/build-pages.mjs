@@ -9,7 +9,7 @@ await rm("dist", { recursive: true, force: true });
 await rm("dist-astro", { recursive: true, force: true });
 
 run("pnpm", ["exec", "vite", "build"]);
-run("pnpm", ["dlx", "astro@7.3.5", "build"]);
+run("pnpm", ["exec", "astro", "build"]);
 
 await mkdir("dist", { recursive: true });
 for (const entry of await readdir("dist-astro")) {
