@@ -16,6 +16,21 @@ function percentile(sorted, fraction) {
   return sorted[index] ?? 0;
 }
 
+function summarize(samples) {
+  const sorted = [...samples].sort((left, right) => left - right);
+  const median =
+    sorted.length % 2
+      ? sorted[Math.floor(sorted.length / 2)]
+      : ((sorted[sorted.length / 2 - 1] ?? 0) + (sorted[sorted.length / 2] ?? 0)) / 2;
+  return {
+    iterations: samples.length,
+    medianMs: Number(median.toFixed(3)),
+    p95Ms: Number(percentile(sorted, 0.95).toFixed(3)),
+    minMs: Number((sorted[0] ?? 0).toFixed(3)),
+    maxMs: Number((sorted.at(-1) ?? 0).toFixed(3)),
+  };
+}
+
 function measure(fn, iterations) {
   const samples = [];
   for (let index = 0; index < iterations; index += 1) {
@@ -23,18 +38,22 @@ function measure(fn, iterations) {
     fn();
     samples.push(performance.now() - start);
   }
-  const sorted = [...samples].sort((left, right) => left - right);
-  const median =
-    sorted.length % 2
-      ? sorted[Math.floor(sorted.length / 2)]
-      : ((sorted[sorted.length / 2 - 1] ?? 0) + (sorted[sorted.length / 2] ?? 0)) / 2;
-  return {
-    iterations,
-    medianMs: Number(median.toFixed(3)),
-    p95Ms: Number(percentile(sorted, 0.95).toFixed(3)),
-    minMs: Number((sorted[0] ?? 0).toFixed(3)),
-    maxMs: Number((sorted.at(-1) ?? 0).toFixed(3)),
-  };
+  return summarize(samples);
+}
+
+function measureSetup(scene, nodeCount, iterations) {
+  const samples = [];
+  for (let index = 0; index < iterations; index += 1) {
+    const simulation = new D3WorldForceSimulation();
+    const start = performance.now();
+    simulation.setScene(scene);
+    samples.push(performance.now() - start);
+    if (simulation.getSnapshot().length !== nodeCount) {
+      throw new Error(`Unexpected production D3 snapshot size for ${nodeCount} nodes.`);
+    }
+    simulation.destroy();
+  }
+  return summarize(samples);
 }
 
 function sceneFixture(nodeCount, groupSize = 32) {
@@ -108,13 +127,7 @@ for (const nodeCount of sizes) {
   const setupIterations = nodeCount >= 50_000 ? 1 : nodeCount >= 10_000 ? 2 : 4;
   const stepIterations = nodeCount >= 50_000 ? 2 : nodeCount >= 10_000 ? 4 : 8;
 
-  const setup = measure(() => {
-    const simulation = createSimulation(scene);
-    if (simulation.getSnapshot().length !== nodeCount) {
-      throw new Error(`Unexpected production D3 snapshot size for ${nodeCount} nodes.`);
-    }
-    simulation.destroy();
-  }, setupIterations);
+  const setup = measureSetup(scene, nodeCount, setupIterations);
 
   const topology = createSimulation(scene);
   topology.getChangedSnapshot();
