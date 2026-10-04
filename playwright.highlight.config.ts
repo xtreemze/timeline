@@ -10,7 +10,7 @@ export default defineConfig({
   reporter: [["line"]],
   timeout: 240_000,
   use: {
-    baseURL: "http://localhost:5173",
+    baseURL: "http://localhost:5173/lum/",
     trace: "off",
     screenshot: "off",
     video: "off",
