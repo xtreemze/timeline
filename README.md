@@ -18,6 +18,8 @@ Loose facts, entities, occurrences, places, evidence, claims, and narrative frag
 
 **Live application:** https://xtreemze.github.io/timeline/
 
+**Presentation and onboarding:** https://xtreemze.github.io/timeline/presentation.html
+
 ## Product model
 
 Lūm deliberately separates durable meaning from the surfaces used to inspect it.
