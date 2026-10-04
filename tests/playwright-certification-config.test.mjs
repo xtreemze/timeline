@@ -18,6 +18,7 @@ const pagesWorkflow = readFileSync(
   "utf8",
 );
 const buildPages = readFileSync(new URL("../scripts/build-pages.mjs", import.meta.url), "utf8");
+const pnpmWorkspace = readFileSync(new URL("../pnpm-workspace.yaml", import.meta.url), "utf8");
 const workspaceHtml = readFileSync(
   new URL("../site/workspace.html", import.meta.url),
   "utf8",
@@ -233,6 +234,11 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   );
   assert.match(
     pagesWorkflow,
+    /group:\s*pages-\$\{\{\s*github\.event_name == 'workflow_run' && github\.event\.workflow_run\.conclusion != 'success' && github\.run_id \|\| 'deploy'\s*\}\}/,
+    "failed showcase completion runs must not cancel the real Pages deployment concurrency group",
+  );
+  assert.match(
+    pagesWorkflow,
     /ref:\s*\$\{\{\s*github\.event_name == 'workflow_run' && github\.event\.workflow_run\.head_sha \|\| github\.sha\s*\}\}/,
     "showcase-triggered Pages builds must checkout the commit that produced the certified artifact",
   );
@@ -255,6 +261,11 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   );
   assert.doesNotMatch(workspaceHtml, /<link rel="canonical" href="\.\/lum\/">/);
   assert.equal(packageJson.devDependencies?.astro, "7.3.5");
+  assert.match(
+    pnpmWorkspace,
+    /allowBuilds:\s*[\s\S]*esbuild:\s*true/,
+    "Astro's pinned esbuild install script must be explicitly allowed by pnpm policy",
+  );
   assert.match(buildPages, /run\("pnpm", \["exec", "astro", "build"\]\)/);
   assert.doesNotMatch(buildPages, /dlx.*astro/);
 
