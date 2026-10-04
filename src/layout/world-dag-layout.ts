@@ -141,6 +141,14 @@ const COMPARE_LAYERING_MAX_NODES = 24;
 const COMPARE_LAYERING_MAX_EDGES = 96;
 const SIMPLEX_LAYER_MAX_NODES = 128;
 const SIMPLEX_LAYER_MAX_EDGES = 384;
+/**
+ * Automatic Sugiyama remains the default for sparse/ordinary topology, but
+ * two-layer decrossing becomes disproportionately expensive once relationship
+ * density is high. Dense defaults use Zherebko; explicit operator choices are
+ * never rewritten.
+ */
+const DENSE_AUTO_MIN_EDGES = 96;
+const DENSE_AUTO_EDGES_PER_NODE = 4;
 const PAIRWISE_METRIC_MAX_NODES = 256;
 const ROUTE_METRIC_MAX_SEGMENTS = 512;
 const LAYOUT_HYSTERESIS_SCORE_RATIO = 1.12;
@@ -1497,6 +1505,18 @@ function preferPreviousCandidate(
     : best;
 }
 
+function automaticLayoutAlgorithm(
+  explicitAlgorithm: WorldDagLayoutAlgorithm | undefined,
+  nodeCount: number,
+  edgeCount: number,
+): WorldDagLayoutAlgorithm {
+  if (explicitAlgorithm) return explicitAlgorithm;
+  return edgeCount >= DENSE_AUTO_MIN_EDGES &&
+    edgeCount > Math.max(1, nodeCount) * DENSE_AUTO_EDGES_PER_NODE
+    ? "zherebko"
+    : "sugiyama";
+}
+
 function chooseCandidate(
   nodeIds: readonly WorldInstanceId[],
   edges: readonly LocalDagEdge[],
@@ -1626,7 +1646,7 @@ function layoutPlace(
 ): PlaceLayoutCache["result"] {
   const placeOverride = options.placeOverrides?.get(placeId);
   const orientation = placeOverride?.orientation ?? options.orientation ?? "top-to-bottom";
-  const algorithm = placeOverride?.algorithm ?? options.algorithm ?? "sugiyama";
+  const explicitAlgorithm = placeOverride?.algorithm ?? options.algorithm;
   const strategy = placeOverride?.strategy ?? options.strategy ?? "auto";
   const coordinate = placeOverride?.coordinate ?? options.coordinate ?? "greedy";
   const edgeStyle = placeOverride?.edgeStyle ?? options.edgeStyle ?? "routed";
@@ -1636,6 +1656,7 @@ function layoutPlace(
   const sizes = nodeSizeMap(nodeIds, options.nodeSizes);
   const placeSize = finitePositiveSize(options.placeSizes?.get(placeId));
   const edges = localAcyclicEdges(nodeIdSet, candidateEdges);
+  const algorithm = automaticLayoutAlgorithm(explicitAlgorithm, nodeIds.length, edges.length);
   // Every entity sharing a geographic layout domain participates in D3 DAG
   // spacing. Semantic edges still determine hierarchy; isolated entities enter
   // as roots so they reserve real layout territory instead of becoming force-only
@@ -1863,7 +1884,7 @@ function layoutCrossPlaceTopology(
       ? undefined
       : options.placeOverrides?.get(options.reorganizePlaceId);
   const orientation = selectedOverride?.orientation ?? options.orientation ?? "top-to-bottom";
-  const algorithm = selectedOverride?.algorithm ?? options.algorithm ?? "sugiyama";
+  const explicitAlgorithm = selectedOverride?.algorithm ?? options.algorithm;
   const strategy = selectedOverride?.strategy ?? options.strategy ?? "auto";
   const coordinate = selectedOverride?.coordinate ?? options.coordinate ?? "greedy";
   const edgeStyle = selectedOverride?.edgeStyle ?? options.edgeStyle ?? "routed";
@@ -1884,6 +1905,7 @@ function layoutCrossPlaceTopology(
     (edge) => nodeIdSet.has(edge.sourceInstanceId) && nodeIdSet.has(edge.targetInstanceId),
   );
   const edges = localAcyclicEdges(nodeIdSet, candidateEdges);
+  const algorithm = automaticLayoutAlgorithm(explicitAlgorithm, nodeIds.length, edges.length);
   const sizes = nodeSizeMap(nodeIds, options.nodeSizes);
   const placeIds = [
     ...new Set(
