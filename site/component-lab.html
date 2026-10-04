@@ -37,6 +37,19 @@
         min-block-size: 9rem;
         overflow: auto;
       }
+      luum-embed-timeline,
+      luum-embed-graph {
+        --luum-embed-font: "Avenir Next", "Segoe UI", system-ui, sans-serif;
+        --luum-embed-ink: #211d14;
+        --luum-embed-muted: #655f50;
+        --luum-embed-paper: #fff9e4;
+        --luum-embed-panel: #f6df8f;
+        --luum-embed-line: #211d14;
+        --luum-embed-accent: #236f5e;
+        --luum-embed-focus: #1d6d5d;
+        --luum-embed-radius: 0px;
+        --luum-embed-shadow: 5px 5px 0 #211d14;
+      }
       .demo-timeline-rail {
         position: relative;
         display: grid;
@@ -102,6 +115,18 @@
           Lit owns lifecycle; the supplied controller owns retained scene children and interaction geometry.
         </p>
         <component-lab-timeline></component-lab-timeline>
+      </section>
+      <section>
+        <h2>Embeddable timeline projection</h2>
+        <p>Host-owned records and CSS tokens project through a Lūm reusable component.</p>
+        <luum-embed-timeline aria-label="Lemonade history"></luum-embed-timeline>
+        <output data-embed-timeline-output>No selection</output>
+      </section>
+      <section>
+        <h2>Embeddable relationship graph</h2>
+        <p>Canonical ids stay with the host; layout coordinates are disposable presentation input.</p>
+        <luum-embed-graph aria-label="Lemonade creators and MECC"></luum-embed-graph>
+        <output data-embed-graph-output>No selection</output>
       </section>
     </main>
   </body>
