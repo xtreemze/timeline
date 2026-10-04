@@ -85,6 +85,8 @@ function surfaceHarness() {
   const scatter = [];
   const icons = [];
   let pickResult = null;
+  let deckProps = null;
+  let beginHook = null;
   const runtime = {
     createGlobeView: (props) => ({ props }),
     createScatterplotLayer(props) {
@@ -98,7 +100,8 @@ function surfaceHarness() {
       return layer;
     },
     createPathLayer: (props) => ({ props }),
-    createDeck() {
+    createDeck(props) {
+      deckProps = props;
       return {
         setProps() {},
         pickObject: () => pickResult,
@@ -141,6 +144,7 @@ function surfaceHarness() {
   surface.setNodeDragSink({
     begin(pointerId, instanceId) {
       begins.push([pointerId, instanceId]);
+      beginHook?.();
       return true;
     },
     update(pointerId, position) {
@@ -176,6 +180,12 @@ function surfaceHarness() {
     entityIconLayer,
     setPickResult(value) {
       pickResult = value;
+    },
+    setBeginHook(hook) {
+      beginHook = hook;
+    },
+    invokeViewStateChange(payload) {
+      deckProps?.onViewStateChange(payload);
     },
     touch(type, pointerId, x, y, timeStamp = Date.now()) {
       let defaultPrevented = false;
@@ -316,6 +326,31 @@ test("a long press on an entity then drag claims the node drag", (t) => {
   h.touch("pointerup", 4, 160, 280);
   assert.deepEqual(h.releases, [4]);
   assert.equal(h.dataset.worldTouchDrag, undefined);
+});
+
+test("touch hold locks the camera before handing the node to the drag sink", (t) => {
+  t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: 10_000 });
+  const h = surfaceHarness();
+  h.setPickResult({ object: h.alice() });
+  h.surface.setCamera({ longitude: 18, latitude: 59, zoom: 5, bearing: 0, pitch: 20 });
+  const before = h.surface.getCamera();
+
+  h.setBeginHook(() => {
+    h.invokeViewStateChange({
+      viewState: { longitude: 45, latitude: 10, zoom: 7, bearing: 35, pitch: 40 },
+      interactionState: { isPanning: true },
+    });
+  });
+
+  h.touch("pointerdown", 4, 118, 259);
+  t.mock.timers.tick(WORLD_TOUCH_HOLD_MS + 1);
+  t.mock.timers.tick(1);
+
+  assert.deepEqual(
+    h.surface.getCamera(),
+    before,
+    "a synchronous renderer camera frame cannot steal ownership during touch drag activation",
+  );
 });
 
 test("owned long-press release reaches deck so its touch contact terminates", (t) => {
