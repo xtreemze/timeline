@@ -445,11 +445,12 @@ test("D3 force progression is independent of display refresh cadence", () => {
     );
   }
 
-  const irregular = run([8, 9, 50, 7, 42, 11, 16, 33, 24, 100, 17, 18, 65, 200, 190, 210]);
+  const irregularPattern = [8, 12, 16, 20, 24, 28, 32, 20, 20, 20];
+  const irregular = run(Array.from({ length: 5 }, () => irregularPattern).flat());
   assert.equal(
     irregular.diagnostics.iteration,
     sixty.diagnostics.iteration,
-    "one second of irregular frame deltas must preserve the 60 Hz solver clock",
+    "one second of irregular 8–32 ms frame deltas must preserve the 60 Hz solver clock",
   );
   assert.deepEqual(irregular.snapshot, sixty.snapshot);
 });
