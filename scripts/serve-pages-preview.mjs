@@ -35,7 +35,11 @@ function resolveRequestPath(url) {
     return null;
   }
 
-  const candidate = resolve(distRoot, relativePath || "index.html");
+  const requestPath = relativePath || "index.html";
+  const candidate = resolve(
+    distRoot,
+    requestPath.endsWith("/") ? `${requestPath}index.html` : requestPath,
+  );
   if (candidate !== distRoot && !candidate.startsWith(`${distRoot}${sep}`)) return null;
   return candidate;
 }
