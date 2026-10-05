@@ -403,6 +403,57 @@ test("D3 DAG targets remain soft guidance outside collapsed clusters", () => {
   assert.ok(simulation.getSnapshot()[0].eastMeters > before);
 });
 
+test("D3 force progression is independent of display refresh cadence", () => {
+  const run = (frameDeltas) => {
+    const simulation = new D3WorldForceSimulation();
+    const alice = '["alice-refresh",null]';
+    const bob = '["bob-refresh",null]';
+    simulation.setScene({
+      nodes: [node(alice, -120, 180), node(bob, 120, 180)],
+      edges: [
+        {
+          id: "refresh-link",
+          sourceId: alice,
+          targetId: bob,
+          strength: 0.6,
+          restLengthMeters: 900,
+        },
+      ],
+      anchors: [anchor(alice, "stockholm", 0.4), anchor(bob, "stockholm", 0.4)],
+    });
+    simulation.apply(topologyRequest());
+    for (const deltaMs of frameDeltas) simulation.step(deltaMs);
+    return {
+      snapshot: simulation.getSnapshot(),
+      diagnostics: simulation.getDiagnostics(),
+    };
+  };
+
+  const cadence = (hz) => Array.from({ length: hz }, () => 1000 / hz);
+  const sixty = run(cadence(60));
+  for (const hz of [30, 40, 90, 120, 144]) {
+    const candidate = run(cadence(hz));
+    assert.equal(
+      candidate.diagnostics.iteration,
+      sixty.diagnostics.iteration,
+      `one second at ${hz} Hz must advance the same number of D3 solver ticks`,
+    );
+    assert.deepEqual(
+      candidate.snapshot,
+      sixty.snapshot,
+      `force positions after one second at ${hz} Hz must match the 60 Hz result`,
+    );
+  }
+
+  const irregular = run([8, 9, 50, 7, 42, 11, 16, 33, 24, 100, 17, 18, 65, 200, 190, 200]);
+  assert.equal(
+    irregular.diagnostics.iteration,
+    sixty.diagnostics.iteration,
+    "one second of irregular frame deltas must preserve the 60 Hz solver clock",
+  );
+  assert.deepEqual(irregular.snapshot, sixty.snapshot);
+});
+
 test("changed-place temporal handoffs converge without a first-frame teleport", () => {
   const simulation = new D3WorldForceSimulation();
   const id = '["alice",null]';
