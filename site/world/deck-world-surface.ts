@@ -107,7 +107,7 @@ import {
   type WorldProjectionDelta,
 } from "../../src/projection/world-projection-delta.ts";
 import { createIcon } from "../event-presentation.ts";
-import { pulseHaptic, releaseMomentumEasing, TimelineMotion } from "../timeline-motion.ts";
+import { pulseHaptic, TimelineMotion } from "../timeline-motion.ts";
 import { buildWorldAccessibleOutline, WorldAccessibleMirror } from "./world-accessible-mirror.ts";
 import {
   clipWorldLines,
@@ -3118,18 +3118,6 @@ export class DeckWorldSurface implements WorldSurface {
   #dragCameraLock: WorldCameraState | null = null;
   #hoverRenderFrame: number | null = null;
   #destroyed = false;
-  // Touch momentum: smooth inertial easing for globe rotate/drag on release
-  #touchMomentumFrameId: number | null = null;
-  #touchMomentumStartTime: number | null = null;
-  #touchMomentumStartBearing: number | null = null;
-  #touchMomentumStartPitch: number | null = null;
-  #touchMomentumEndBearing: number | null = null;
-  #touchMomentumEndPitch: number | null = null;
-  // Track bearing/pitch during drag to measure velocity
-  #dragStartBearing: number | null = null;
-  #dragStartPitch: number | null = null;
-  #dragLastBearing: number | null = null;
-  #dragLastPitch: number | null = null;
 
   // Priority 3 (issue #445): previous frame's datum-by-id maps, kept so
   // #render can reuse unchanged datum object references across frames.
@@ -3797,11 +3785,6 @@ export class DeckWorldSurface implements WorldSurface {
           this.#cameraOwned = true;
           this.#autoFitted = false;
           this.#camera = next;
-          // Track bearing/pitch during drag for momentum calculation
-          if (this.#cameraInteractionActive && this.#dragStartBearing !== null) {
-            this.#dragLastBearing = this.#camera.bearing;
-            this.#dragLastPitch = this.#camera.pitch;
-          }
           this.#publishCameraContext();
           // Replacing the deck view/controller while a pinch, wheel gesture,
           // pan, rotate, or inertia transition still owns input can strand the
@@ -3832,18 +3815,10 @@ export class DeckWorldSurface implements WorldSurface {
         }
       },
       onInteractionStateChange: (interactionState: DeckRuntimeInteractionState) => {
-        const wasActive = this.#cameraInteractionActive;
         this.#setCameraInteractionActive(deckCameraInteractionActive(interactionState));
         if (interactionState.inTransition === true) this.#clearTransitionStartPending();
         if (deckCameraInteractionActive(interactionState)) {
           this.#cancelSpatialModeFlush();
-          // Track drag start for momentum calculation
-          if (!wasActive) {
-            this.#dragStartBearing = this.#camera.bearing;
-            this.#dragStartPitch = this.#camera.pitch;
-            this.#dragLastBearing = this.#dragStartBearing;
-            this.#dragLastPitch = this.#dragStartPitch;
-          }
         }
         if (this.#startupFlightTarget) {
           // Transition state may settle before deck emits its final view-state
@@ -3853,10 +3828,6 @@ export class DeckWorldSurface implements WorldSurface {
           return;
         }
         if (!this.#cameraInteractionActive) {
-          // Touch drag released: apply smooth momentum easing if this is a rotate/drag
-          if (wasActive && !interactionState.inTransition) {
-            this.#startTouchMomentumEasing();
-          }
           if (this.#pendingSpatialModeSync && !this.#transitionStartPending) {
             this.#scheduleSpatialModeFlush();
           }
@@ -6816,105 +6787,6 @@ export class DeckWorldSurface implements WorldSurface {
   /** True when a position is at least partially visible on the camera-facing hemisphere. */
   #facesCamera(position: WorldRenderPosition): boolean {
     return this.#cameraFacingOpacity(position) > 0;
-  }
-
-  #startTouchMomentumEasing(): void {
-    // Cancel any in-flight momentum animation
-    if (this.#touchMomentumFrameId !== null) {
-      cancelAnimationFrame(this.#touchMomentumFrameId);
-      this.#touchMomentumFrameId = null;
-    }
-
-    // Calculate velocity from the drag
-    const bearingDelta =
-      this.#dragLastBearing !== null && this.#dragStartBearing !== null
-        ? this.#dragLastBearing - this.#dragStartBearing
-        : 0;
-    const pitchDelta =
-      this.#dragLastPitch !== null && this.#dragStartPitch !== null
-        ? this.#dragLastPitch - this.#dragStartPitch
-        : 0;
-
-    // If there's negligible motion, don't apply momentum
-    if (Math.abs(bearingDelta) < 0.1 && Math.abs(pitchDelta) < 0.1) {
-      this.#dragStartBearing = null;
-      this.#dragStartPitch = null;
-      this.#dragLastBearing = null;
-      this.#dragLastPitch = null;
-      return;
-    }
-
-    // Store the momentum endpoint (where the camera would be at the end of decay)
-    // Using 0.5 factor as in timeline momentum: velocity * duration * 0.5
-    this.#touchMomentumStartBearing = this.#camera.bearing;
-    this.#touchMomentumStartPitch = this.#camera.pitch;
-    this.#touchMomentumEndBearing = this.#touchMomentumStartBearing + bearingDelta * 0.5;
-    this.#touchMomentumEndPitch = Math.max(
-      -85,
-      Math.min(85, this.#touchMomentumStartPitch + pitchDelta * 0.5),
-    );
-
-    // Start momentum animation
-    this.#touchMomentumStartTime = performance.now();
-    this.#applyTouchMomentumFrame();
-
-    // Clear drag tracking
-    this.#dragStartBearing = null;
-    this.#dragStartPitch = null;
-    this.#dragLastBearing = null;
-    this.#dragLastPitch = null;
-  }
-
-  #applyTouchMomentumFrame(): void {
-    if (
-      !this.#touchMomentumStartTime ||
-      this.#touchMomentumStartBearing === null ||
-      this.#touchMomentumEndBearing === null
-    ) {
-      return;
-    }
-
-    const now = performance.now();
-    const elapsed = now - this.#touchMomentumStartTime;
-    const duration = TimelineMotion.INERTIA_TAU_MS;
-    const progress = Math.min(1, elapsed / duration);
-
-    // Smooth easing: t * (2 - t) begins at velocity 2 and ends at 0
-    const easing = releaseMomentumEasing(progress);
-
-    // Interpolate from start to end position using smooth easing
-    const bearing =
-      this.#touchMomentumStartBearing +
-      (this.#touchMomentumEndBearing - this.#touchMomentumStartBearing) * easing;
-    const pitch =
-      (this.#touchMomentumStartPitch || 0) +
-      ((this.#touchMomentumEndPitch || 0) - (this.#touchMomentumStartPitch || 0)) * easing;
-
-    const nextCamera: WorldCameraState = {
-      ...this.#camera,
-      bearing: (bearing + 360) % 360,
-      pitch: Math.max(-85, Math.min(85, pitch)),
-    };
-
-    this.#camera = boundedWorldCamera(nextCamera);
-    this.#publishCameraContext();
-    this.#syncClusterLifecycle();
-    if (this.#zoomNeedsRender()) this.#render();
-
-    if (progress < 1) {
-      // Continue momentum easing
-      this.#touchMomentumFrameId = requestAnimationFrame(() => {
-        this.#applyTouchMomentumFrame();
-      });
-    } else {
-      // Momentum complete
-      this.#touchMomentumFrameId = null;
-      this.#touchMomentumStartTime = null;
-      this.#touchMomentumStartBearing = null;
-      this.#touchMomentumStartPitch = null;
-      this.#touchMomentumEndBearing = null;
-      this.#touchMomentumEndPitch = null;
-    }
   }
 
   #assertAlive(): void {
