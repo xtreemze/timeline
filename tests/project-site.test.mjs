@@ -108,7 +108,7 @@ test("Pages deployment is gated by the deployable site artifact, not the broad m
   assert.doesNotMatch(workflow, /Check production TypeScript bindings/);
   assert.doesNotMatch(workflow, /run:\s*pnpm types:migrated/);
   assert.match(workflow, /pnpm build/);
-  assert.match(workflow, /data-site-generator="astro"/);
+  assert.match(workflow, /data-site-generator="vite"/);
   assert.match(workflow, /id="app-shell"/);
 });
 

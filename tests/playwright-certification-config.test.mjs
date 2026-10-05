@@ -19,6 +19,7 @@ const pagesWorkflow = readFileSync(
 );
 const buildPages = readFileSync(new URL("../scripts/build-pages.mjs", import.meta.url), "utf8");
 const pnpmWorkspace = readFileSync(new URL("../pnpm-workspace.yaml", import.meta.url), "utf8");
+const pnpmLock = readFileSync(new URL("../pnpm-lock.yaml", import.meta.url), "utf8");
 const workspaceHtml = readFileSync(
   new URL("../site/workspace.html", import.meta.url),
   "utf8",
@@ -260,14 +261,24 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
     "workspace canonical must be an absolute Pages URL so Vite does not read the lum directory as an asset",
   );
   assert.doesNotMatch(workspaceHtml, /<link rel="canonical" href="\.\/lum\/">/);
-  assert.equal(packageJson.devDependencies?.astro, "7.3.5");
-  assert.match(
+  assert.equal(packageJson.devDependencies?.astro, undefined);
+  assert.doesNotMatch(
     pnpmWorkspace,
-    /allowBuilds:\s*[\s\S]*esbuild:\s*true/,
-    "Astro's pinned esbuild install script must be explicitly allowed by pnpm policy",
+    /\besbuild\b/,
+    "Vite 8 uses Rolldown/Oxc; project policy must not enable esbuild lifecycle scripts",
   );
-  assert.match(buildPages, /run\("pnpm", \["exec", "astro", "build"\]\)/);
-  assert.doesNotMatch(buildPages, /dlx.*astro/);
+  assert.match(buildPages, /run\("pnpm", \["exec", "vite", "build"\]\)/);
+  assert.doesNotMatch(buildPages, /astro|esbuild/i);
+  assert.doesNotMatch(
+    pnpmLock,
+    /^  (?:'@esbuild\/|esbuild@)/m,
+    "the frozen dependency graph must not resolve or install esbuild",
+  );
+  assert.doesNotMatch(
+    pnpmLock,
+    /vite@8\.3\.0\([^)]*\)\(esbuild@/,
+    "Vite must not resolve its optional esbuild compatibility peer",
+  );
 
   for (const formFactor of ["desktop", "mobile"]) {
     for (const asset of [
