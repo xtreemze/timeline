@@ -445,7 +445,7 @@ test("D3 force progression is independent of display refresh cadence", () => {
     );
   }
 
-  const irregular = run([8, 9, 50, 7, 42, 11, 16, 33, 24, 100, 17, 18, 65, 200, 190, 200]);
+  const irregular = run([8, 9, 50, 7, 42, 11, 16, 33, 24, 100, 17, 18, 65, 200, 190, 210]);
   assert.equal(
     irregular.diagnostics.iteration,
     sixty.diagnostics.iteration,
