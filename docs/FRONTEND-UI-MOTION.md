@@ -56,11 +56,15 @@ The responsive architecture test prevents those `max-width` counts from increasi
 
 ## Motion hierarchy
 
-Use the smallest native primitive that fits the interaction:
+Use one motion authority for each physical state and the smallest native primitive that fits the interaction.
 
-1. Pointer Events + `requestAnimationFrame` for continuous user-driven simulations such as timeline pan/zoom inertia and graph/map camera motion.
-2. Web Animations API (`Element.animate()`) for discrete, cancelable/reversible local motion where an explicit `Animation` handle is useful.
-3. View Transition API for structural state-to-state changes, shared-element continuity, focus/open/close transitions, and layout morphs.
+- **Interaction ownership is Lūm-owned.** The shared interaction coordinator owns acquisition, classification, exclusivity, cancellation, settling, and completion across Timeline and World surfaces. It does not calculate renderer camera geometry or graph forces.
+- **Timeline camera physics are Lūm-owned.** Pointer/wheel/touch adapters feed the retained temporal camera, which owns weighted direct response, recent-sample velocity estimation, zoom anchoring, and bounded release inertia.
+- **World camera physics are renderer-owned.** deck.gl 9.4/mjolnir owns globe/local pan, rotate, pinch, wheel, keyboard navigation, geographic constraints, release inertia, rebound, and transition lifecycle. Lūm may shape input before deck consumes it and may impose renderer-neutral product constraints, but it must not start a second camera-motion loop after deck has claimed the gesture.
+- **World graph physics are D3-owned.** Relationship springs, geographic attraction, repulsion, collision, connectivity clearance, DAG target attraction, node pins, and post-drop settling stay inside the force backend. d3-dag supplies disposable soft targets; it does not move the camera or authored geography.
+- **Display cadence is not a physics clock.** D3 force advances on a fixed solver timestep accumulated from wall-clock frame deltas, with bounded backlog and bounded per-frame catch-up, so common 30/40/60/90/120/144 Hz display cadences do not change graph cooling or settling speed. Rendering may occur more frequently than physics publication.
+
+Use Pointer Events for Lūm-owned direct manipulation, renderer-native input/controller APIs when a renderer owns camera mechanics, and `requestAnimationFrame` to schedule visual work rather than to define physical time. Use Web Animations API (`Element.animate()`) for discrete, cancelable/reversible local motion where an explicit `Animation` handle is useful. Use View Transition API for structural state-to-state changes, shared-element continuity, focus/open/close transitions, and layout morphs.
 
 Timeline already uses typed document View Transitions and reduced-motion gating. Because the project targets modern Chromium, capability-gated `Element.startViewTransition()` is encouraged for localized transitions so unrelated surfaces can remain interactive. Document-level transitions remain appropriate for genuinely whole-workspace changes.
 
