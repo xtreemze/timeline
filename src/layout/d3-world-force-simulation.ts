@@ -742,8 +742,8 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     finiteNonNegative(deltaMs, "D3 world force delta");
 
     // d3-force advances in discrete unit ticks. Retain fractional and short
-    // jank backlog so display cadence does not change cooling/settling speed,
-    // while bounding both stored debt and work performed by one visual frame.
+    // jank backlog so display cadence does not change cooling/settling speed.
+    // Stored debt and solver work per visual frame remain independently bounded.
     this.#stepAccumulatorMs = Math.min(
       this.#stepAccumulatorMs + deltaMs,
       FORCE_STEP_MS * MAX_FORCE_BACKLOG_STEPS,
