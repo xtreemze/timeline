@@ -113,12 +113,17 @@ test("Pages deployment is gated by the deployable site artifact, not the broad m
 });
 
 
-test("Lūm subroute uses Vite root-resolved source inputs while preserving browser base semantics", async () => {
+test("Lūm subroute keeps Vite inputs root-resolved without rewriting deployed asset URLs through a base tag", async () => {
   const lum = await read("site/lum/index.html");
+  const pwa = await read("site/pwa.ts");
 
-  assert.match(lum, /<base href=["']\.\.\/["']>/);
+  assert.doesNotMatch(lum, /<base\b/i);
   assert.match(lum, /src=["']\/time-scale-shim\.ts["']/);
   assert.match(lum, /src=["']\/app\.ts["']/);
   assert.match(lum, /href=["']\/styles\.css["']/);
-  assert.doesNotMatch(lum, /src=["']\.\/time-scale-shim\.ts["']/);
+  assert.match(lum, /rel=["']manifest["'] href=["']\.\.\/manifest\.webmanifest["']/);
+  assert.match(lum, /rel=["']apple-touch-icon["'] href=["']\.\.\/pwa-icon-192\.png["']/);
+  assert.match(lum, /rel=["']icon["'] href=["']\.\.\/icon\.svg["']/);
+  assert.match(pwa, /SERVICE_WORKER_URL\s*=\s*["']\.\/sw\.js["']/);
+  assert.match(pwa, /SERVICE_WORKER_SCOPE\s*=\s*["']\.\/["']/);
 });

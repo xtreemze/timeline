@@ -46,12 +46,13 @@ test("application shell links the manifest and registers the scoped service work
     readFile(new URL("site/pwa.ts", root), "utf8"),
   ]);
 
-  assert.match(html, /rel="manifest" href="\.\/manifest\.webmanifest"/);
-  assert.match(html, /src="\.\/pwa\.ts"/);
+  assert.doesNotMatch(html, /<base\b/i);
+  assert.match(html, /rel="manifest" href="\.\.\/manifest\.webmanifest"/);
+  assert.match(html, /src="\/pwa\.ts"/);
   assert.match(bootstrap, /serviceWorker/);
   assert.match(bootstrap, /register\(SERVICE_WORKER_URL/);
-  assert.match(bootstrap, /SERVICE_WORKER_URL = "\.\/lum\/sw\.js"/);
-  assert.match(bootstrap, /SERVICE_WORKER_SCOPE = "\.\/lum\//);
+  assert.match(bootstrap, /SERVICE_WORKER_URL = "\.\/sw\.js"/);
+  assert.match(bootstrap, /SERVICE_WORKER_SCOPE = "\.\//);
   assert.match(bootstrap, /updateViaCache:\s*"none"/);
 });
 
