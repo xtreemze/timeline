@@ -122,6 +122,14 @@ test("compiled Pages runtime is owned only by the production preview config", ()
   assert.match(pagesConfig, /testMatch:\s*\[['"]pages-runtime\.spec\.ts['"]\]/);
   assert.match(pagesConfig, /baseURL:\s*['"]http:\/\/127\.0\.0\.1:4173\/timeline\/['"]/);
   assert.match(workflow, /playwright\.pages\.config\.ts/);
+  const pagesRuntimeLane =
+    workflow.match(/pages-runtime-browser:[\s\S]*?(?=\n {2}[a-z][a-z0-9-]+:|$)/)?.[0] ?? "";
+  assert.ok(pagesRuntimeLane, "missing Pages runtime browser lane");
+  assert.doesNotMatch(
+    pagesRuntimeLane,
+    /continue-on-error:\s*true/,
+    "Pages runtime certification must fail CI when the built Lūm route is broken",
+  );
   assert.match(pagesWorkflow, /path:\s*dist/);
   const developmentTestMatch = config.split("\n").find((line) => line.includes("testMatch:"));
   assert.ok(developmentTestMatch);
