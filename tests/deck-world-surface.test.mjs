@@ -1198,6 +1198,51 @@ test("inertial globe release settles before globe-to-local controller handoff", 
   assert.equal(swap.viewState.zoom, 11.6);
 });
 
+test("world camera release does not start a second surface-owned momentum animation", (t) => {
+  const originalRequestAnimationFrame = globalThis.requestAnimationFrame;
+  const originalCancelAnimationFrame = globalThis.cancelAnimationFrame;
+  const scheduledFrames = [];
+  globalThis.requestAnimationFrame = (callback) => {
+    scheduledFrames.push(callback);
+    return scheduledFrames.length;
+  };
+  globalThis.cancelAnimationFrame = () => {};
+  t.after(() => {
+    globalThis.requestAnimationFrame = originalRequestAnimationFrame;
+    globalThis.cancelAnimationFrame = originalCancelAnimationFrame;
+  });
+
+  const camera = {
+    longitude: 18.0686,
+    latitude: 59.3293,
+    zoom: 6,
+    bearing: 0,
+    pitch: 20,
+  };
+  const { calls, runtime } = harness();
+  const surface = new DeckWorldSurface({}, runtime, camera);
+
+  calls.deckProps.onInteractionStateChange({
+    isRotating: true,
+    inTransition: false,
+  });
+  calls.deckProps.onViewStateChange({
+    viewState: { ...camera, bearing: 18, pitch: 24 },
+    interactionState: { isRotating: true, inTransition: false },
+  });
+  calls.deckProps.onInteractionStateChange({
+    isRotating: false,
+    inTransition: false,
+  });
+
+  assert.equal(
+    scheduledFrames.length,
+    0,
+    "deck.gl owns release inertia; WorldSurface must not start a second rAF camera animation",
+  );
+  surface.destroy();
+});
+
 test("relationships are hidden when either endpoint node marker is not rendered", () => {
   const { calls, runtime } = harness();
   const markerRuntime = {
@@ -1431,7 +1476,7 @@ test("real globe keyboard transition reuses the timeline weighted motion horizon
   assert.match(source, /1 - Math\.exp\(-WEIGHTED_GLOBE_DECAY \* t\)/);
 });
 
-test("real globe direct pan applies the shared timeline-weighted response", async () => {
+test("real globe direct pan shapes pointer input but leaves release physics to deck.gl", async () => {
   const source = await readFile(
     new URL("../site/world/deck-world-bindings.ts", import.meta.url),
     "utf8",
@@ -1447,26 +1492,10 @@ test("real globe direct pan applies the shared timeline-weighted response", asyn
   assert.match(source, /current\[1\] \+ \(raw\[1\] - current\[1\]\) \* response/);
   assert.match(source, /event\.type === "panend"\) this\.#clearWeightedPan\(\)/);
   assert.match(source, /event\.type === "pinchstart" \|\| event\.type === "multipanstart"/);
-  assert.doesNotMatch(source, /function velocityContinuousGlobeInertiaEasing/);
-  assert.match(source, /TimelineMotion\.releaseMomentumEasing/);
-  assert.match(source, /interactionState\.isDragging === false/);
-  assert.match(source, /interactionState\.isPanning === true/);
-  assert.match(source, /transitionEasing: TimelineMotion\.releaseMomentumEasing/);
-  assert.match(source, /override _onPanMoveEnd\(event: GlobeControllerCenterEvent\)/);
-  assert.match(source, /#appendWeightedPanSample\(center, releaseTime\)/);
-  assert.match(
-    source,
-    /TimelineMotion\.estimatePointerVectorVelocity\(this\.#weightedPanSamples\)/,
-  );
-  assert.match(source, /velocity\.magnitude >= TimelineMotion\.STOP_VELOCITY_PX_PER_MS/);
-  assert.match(
-    source,
-    /center\[0\] \+ TimelineMotion\.releaseMomentumDistance\(velocity\.x, this\.inertia\)/,
-  );
-  assert.match(
-    source,
-    /center\[1\] \+ TimelineMotion\.releaseMomentumDistance\(velocity\.y, this\.inertia\)/,
-  );
+  assert.doesNotMatch(source, /override _onPanMove\(/);
+  assert.doesNotMatch(source, /override _onPanMoveEnd\(/);
+  assert.doesNotMatch(source, /protected override updateViewport\(/);
+  assert.doesNotMatch(source, /#weightedPanSamples/);
 });
 
 test("world surface advertises and releases focused keyboard camera ownership", () => {
