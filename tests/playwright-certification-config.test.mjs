@@ -19,6 +19,7 @@ const pagesWorkflow = readFileSync(
 );
 const buildPages = readFileSync(new URL("../scripts/build-pages.mjs", import.meta.url), "utf8");
 const pnpmWorkspace = readFileSync(new URL("../pnpm-workspace.yaml", import.meta.url), "utf8");
+const pnpmLock = readFileSync(new URL("../pnpm-lock.yaml", import.meta.url), "utf8");
 const workspaceHtml = readFileSync(
   new URL("../site/workspace.html", import.meta.url),
   "utf8",
@@ -268,6 +269,16 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   );
   assert.match(buildPages, /run\("pnpm", \["exec", "vite", "build"\]\)/);
   assert.doesNotMatch(buildPages, /astro|esbuild/i);
+  assert.doesNotMatch(
+    pnpmLock,
+    /^  (?:'@esbuild\/|esbuild@)/m,
+    "the frozen dependency graph must not resolve or install esbuild",
+  );
+  assert.doesNotMatch(
+    pnpmLock,
+    /vite@8\.3\.0\([^)]*\)\(esbuild@/,
+    "Vite must not resolve its optional esbuild compatibility peer",
+  );
 
   for (const formFactor of ["desktop", "mobile"]) {
     for (const asset of [
