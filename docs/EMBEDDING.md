@@ -83,4 +83,9 @@ Public parts are `surface`, `rail`, `item`, `time`, `label`, `detail` for the ti
 
 ## Compatibility contract
 
-The v0.3 embed contract is framework-neutral, browser-native, and read-only with respect to canonical Lūm data. Selection is communicated with the bubbling/composed `luum-embed-select` event. Minor releases may add optional fields, CSS variables, parts, or elements; removing or changing existing public fields/events requires a major version.
+The v0.4 embed contract is framework-neutral, browser-native, and read-only with respect to canonical Lūm data. Selection is communicated with the bubbling/composed `luum-embed-select` event. Minor releases may add optional fields, CSS variables, parts, or elements; removing or changing existing public fields/events requires a major version.
+
+
+## Generic project-site aliases
+
+The same release bundle also contains the framework-neutral project-site aliases `<xt-project-timeline>`, `<xt-project-graph>`, and `<xt-project-media-viewer>`. They are documented as a separate presentation-site contract in [PROJECT-SITE-KIT.md](./PROJECT-SITE-KIT.md); Lūm-specific names remain stable for existing consumers.

@@ -7,10 +7,18 @@ on:
     paths:
       - "site/embed-entry.ts"
       - "site/embed-public.d.ts"
+      - "site/project-site-entry.ts"
+      - "site/project-site-public.d.ts"
+      - "site/project-site.css"
       - "site/components/reusable/embed-*.ts"
+      - "site/components/reusable/media-viewer.ts"
       - "docs/EMBEDDING.md"
+      - "docs/PROJECT-SITE-KIT.md"
       - "tests/embed-release-contract.test.mjs"
+      - "tests/project-site-kit.test.mjs"
       - "package.json"
+      - "vite.config.ts"
+      - "vite.project-site.config.ts"
       - ".github/workflows/release-embed.yml"
     tags:
       - "v*"
@@ -34,8 +42,18 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm test:embed-release
+      - run: pnpm test:embed-release && pnpm test:project-site-kit
       - run: pnpm build
+      - run: pnpm build:project-site
+      - name: Verify standalone project-site bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s dist-project-site/xtreemze-project-site.js
+          if grep -Eq 'from[[:space:]]+["\x27]\\./|import[[:space:]]*\\(["\x27]\\./' dist-project-site/xtreemze-project-site.js; then
+            echo "project-site bundle contains unresolved relative imports"
+            exit 1
+          fi
       - name: Resolve release version
         id: version
         shell: bash
@@ -81,6 +99,21 @@ jobs:
             cd release
             zip -qr "luum-embed-$VERSION.zip" "luum-embed-$VERSION"
           )
+          site_stage="release/xtreemze-project-site-$VERSION"
+          mkdir -p "$site_stage"
+          cp dist-project-site/xtreemze-project-site.js "$site_stage/xtreemze-project-site.js"
+          cp site/project-site-public.d.ts "$site_stage/xtreemze-project-site.d.ts"
+          cp site/project-site.css "$site_stage/project-site.css"
+          cp docs/PROJECT-SITE-KIT.md "$site_stage/README.md"
+          (
+            cd "$site_stage"
+            sha256sum xtreemze-project-site.js xtreemze-project-site.d.ts project-site.css README.md > SHA256SUMS
+          )
+          tar -C release -czf "release/xtreemze-project-site-$VERSION.tar.gz" "xtreemze-project-site-$VERSION"
+          (
+            cd release
+            zip -qr "xtreemze-project-site-$VERSION.zip" "xtreemze-project-site-$VERSION"
+          )
       - name: Publish GitHub release
         if: steps.existing.outputs.published != 'true'
         env:
@@ -90,4 +123,11 @@ jobs:
         run: |
           git tag "$TAG" "$GITHUB_SHA" 2>/dev/null || true
           git push origin "$TAG" 2>/dev/null || true
-          gh release create "$TAG"             "release/luum-embed-$VERSION.zip"             "release/luum-embed-$VERSION.tar.gz"             --target "$GITHUB_SHA"             --title "Lūm $TAG — Embed SDK"             --notes-file docs/EMBEDDING.md
+          gh release create "$TAG" \
+            "release/luum-embed-$VERSION.zip" \
+            "release/luum-embed-$VERSION.tar.gz" \
+            "release/xtreemze-project-site-$VERSION.zip" \
+            "release/xtreemze-project-site-$VERSION.tar.gz" \
+            --target "$GITHUB_SHA" \
+            --title "Lūm $TAG — Embed SDK + Project Site Kit" \
+            --notes-file docs/PROJECT-SITE-KIT.md

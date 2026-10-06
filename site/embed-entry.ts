@@ -1,4 +1,4 @@
-export const LUUM_EMBED_VERSION = "0.3.0" as const;
+export const LUUM_EMBED_VERSION = "0.4.0" as const;
 
 import { LuumEmbedGraphElement } from "./components/reusable/embed-graph.ts";
 import { LuumEmbedTimelineElement } from "./components/reusable/embed-timeline.ts";
@@ -17,3 +17,11 @@ export {
 };
 export type { EmbedGraphEdge, EmbedGraphNode } from "./components/reusable/embed-graph.ts";
 export type { EmbedTimelineItem } from "./components/reusable/embed-timeline.ts";
+
+export {
+  PROJECT_SITE_KIT_VERSION,
+  ProjectGraphElement,
+  ProjectMediaViewerElement,
+  ProjectTimelineElement,
+  runProjectViewTransition,
+} from "./project-site-entry.ts";

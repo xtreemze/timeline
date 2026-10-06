@@ -1,4 +1,4 @@
-export interface EmbedTimelineItem {
+export interface ProjectTimelineItem {
   readonly id: string;
   readonly label: string;
   readonly timeLabel: string;
@@ -6,7 +6,7 @@ export interface EmbedTimelineItem {
   readonly color?: string;
 }
 
-export interface EmbedGraphNode {
+export interface ProjectGraphNode {
   readonly id: string;
   readonly label: string;
   readonly detail?: string;
@@ -14,7 +14,7 @@ export interface EmbedGraphNode {
   readonly position?: Readonly<{ x: number; y: number }>;
 }
 
-export interface EmbedGraphEdge {
+export interface ProjectGraphEdge {
   readonly id: string;
   readonly sourceId: string;
   readonly targetId: string;
@@ -22,38 +22,25 @@ export interface EmbedGraphEdge {
   readonly color?: string;
 }
 
-export interface LuumEmbedSelectDetail {
-  readonly kind: "timeline" | "graph";
-  readonly id: string;
+export interface ProjectMediaViewerZoomDetail {
+  readonly zoom: number;
 }
-
-export declare const LUUM_EMBED_VERSION: "0.4.0";
-
-export declare class LuumEmbedTimelineElement extends HTMLElement {
-  items: readonly EmbedTimelineItem[];
-  selectedId: string;
-  ariaLabel: string;
-}
-
-export declare class LuumEmbedGraphElement extends HTMLElement {
-  nodes: readonly EmbedGraphNode[];
-  edges: readonly EmbedGraphEdge[];
-  selectedId: string;
-  ariaLabel: string;
-}
-
-declare global {
-  interface HTMLElementTagNameMap {
-    "luum-embed-timeline": LuumEmbedTimelineElement;
-    "luum-embed-graph": LuumEmbedGraphElement;
-  }
-}
-
 
 export declare const PROJECT_SITE_KIT_VERSION: "0.4.0";
 
-export declare class ProjectTimelineElement extends LuumEmbedTimelineElement {}
-export declare class ProjectGraphElement extends LuumEmbedGraphElement {}
+export declare class ProjectTimelineElement extends HTMLElement {
+  items: readonly ProjectTimelineItem[];
+  selectedId: string;
+  ariaLabel: string;
+}
+
+export declare class ProjectGraphElement extends HTMLElement {
+  nodes: readonly ProjectGraphNode[];
+  edges: readonly ProjectGraphEdge[];
+  selectedId: string;
+  ariaLabel: string;
+}
+
 export declare class ProjectMediaViewerElement extends HTMLElement {
   src: string;
   alt: string;
@@ -63,6 +50,7 @@ export declare class ProjectMediaViewerElement extends HTMLElement {
   zoom: number;
   resetView(): void;
 }
+
 export declare function runProjectViewTransition(
   update: () => void | Promise<void>,
 ): Promise<void>;

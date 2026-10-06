@@ -1,0 +1,50 @@
+@view-transition {
+  navigation: auto;
+}
+
+/*
+ * Cross-document navigation is progressively enhanced by the browser. Hosts
+ * may assign their own unique view-transition-name values to stable identity,
+ * media, or title elements when continuity materially helps orientation.
+ */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 180ms;
+  animation-timing-function: ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 1ms;
+  }
+}
+
+
+xt-project-timeline,
+xt-project-graph {
+  --luum-embed-font: var(--xt-project-font, system-ui, sans-serif);
+  --luum-embed-paper: var(--xt-project-paper, Canvas);
+  --luum-embed-panel: var(--xt-project-panel, color-mix(in srgb, CanvasText 4%, Canvas));
+  --luum-embed-ink: var(--xt-project-ink, CanvasText);
+  --luum-embed-muted: var(--xt-project-muted, GrayText);
+  --luum-embed-line: var(--xt-project-line, color-mix(in srgb, CanvasText 22%, transparent));
+  --luum-embed-accent: var(--xt-project-accent, Highlight);
+  --luum-embed-focus: var(--xt-project-focus, Highlight);
+  --luum-embed-radius: var(--xt-project-radius, 0.5rem);
+  --luum-embed-shadow: var(--xt-project-shadow, none);
+}
+
+xt-project-media-viewer {
+  --media-viewer-radius: var(--xt-project-radius, 0.5rem);
+  --media-viewer-surface: var(
+    --xt-project-panel,
+    color-mix(in srgb, CanvasText 5%, Canvas)
+  );
+  --media-viewer-focus: var(--xt-project-focus, Highlight);
+  --media-viewer-muted: var(--xt-project-muted, GrayText);
+}
