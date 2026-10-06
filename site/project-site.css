@@ -39,6 +39,10 @@ xt-project-graph {
   --luum-embed-shadow: var(--xt-project-shadow, none);
 }
 
+xt-project-graph {
+  --luum-embed-graph-height: var(--xt-project-graph-height, 20rem);
+}
+
 xt-project-media-viewer {
   --media-viewer-radius: var(--xt-project-radius, 0.5rem);
   --media-viewer-surface: var(
