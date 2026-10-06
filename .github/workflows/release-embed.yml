@@ -1,0 +1,52 @@
+name: Embed release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: github.repository == 'xtreemze/timeline'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v5
+        with:
+          run_install: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:embed-release
+      - run: pnpm build
+      - name: Assemble embed SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          test "$version" = "$(node -p "require('./package.json').version")"
+          stage="release/luum-embed-$version"
+          mkdir -p "$stage"
+          cp dist/embed/luum-embed.js "$stage/luum-embed.js"
+          cp site/embed-public.d.ts "$stage/luum-embed.d.ts"
+          cp docs/EMBEDDING.md "$stage/README.md"
+          (
+            cd "$stage"
+            sha256sum luum-embed.js luum-embed.d.ts README.md > SHA256SUMS
+          )
+          tar -C release -czf "release/luum-embed-$version.tar.gz" "luum-embed-$version"
+          (
+            cd release
+            zip -qr "luum-embed-$version.zip" "luum-embed-$version"
+          )
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          gh release create "$GITHUB_REF_NAME"             "release/luum-embed-$version.zip"             "release/luum-embed-$version.tar.gz"             --title "Lūm $GITHUB_REF_NAME"             --notes-file docs/EMBEDDING.md
