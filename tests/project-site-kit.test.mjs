@@ -43,6 +43,7 @@ test("project site kit is framework-neutral, Vite 8+, and native-first", async (
   assert.match(motion, /prefers-reduced-motion/);
   assert.match(motion, /--xt-project-font/);
   assert.match(motion, /--xt-project-accent/);
+  assert.match(motion, /--xt-project-graph-height/);
 
   assert.match(config, /lib:\s*\{/);
   assert.match(config, /xtreemze-project-site/);
