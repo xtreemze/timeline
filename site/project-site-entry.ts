@@ -1,8 +1,15 @@
+import {
+  ProjectCapabilityHostElement,
+  type ProjectCapabilityAdapter,
+  type ProjectCapabilityCleanup,
+  type ProjectCapabilityContext,
+  type ProjectCapabilityErrorDetail,
+} from "./components/reusable/capability-host.ts";
 import { LuumEmbedGraphElement } from "./components/reusable/embed-graph.ts";
 import { LuumEmbedTimelineElement } from "./components/reusable/embed-timeline.ts";
 import { ReusableMediaViewerElement } from "./components/reusable/media-viewer.ts";
 
-export const PROJECT_SITE_KIT_VERSION = "0.4.0" as const;
+export const PROJECT_SITE_KIT_VERSION = "0.5.0" as const;
 
 export class ProjectTimelineElement extends LuumEmbedTimelineElement {}
 export class ProjectGraphElement extends LuumEmbedGraphElement {}
@@ -18,6 +25,10 @@ if (typeof customElements !== "undefined" && !customElements.get("xt-project-gra
 
 if (typeof customElements !== "undefined" && !customElements.get("xt-project-media-viewer")) {
   customElements.define("xt-project-media-viewer", ProjectMediaViewerElement);
+}
+
+if (typeof customElements !== "undefined" && !customElements.get("xt-project-capability")) {
+  customElements.define("xt-project-capability", ProjectCapabilityHostElement);
 }
 
 type ProjectViewTransition = Readonly<{
@@ -65,3 +76,13 @@ export async function runProjectViewTransition(
 export type { EmbedGraphEdge, EmbedGraphNode } from "./components/reusable/embed-graph.ts";
 export type { EmbedTimelineItem } from "./components/reusable/embed-timeline.ts";
 export type { MediaViewerZoomDetail } from "./components/reusable/media-viewer.ts";
+
+export {
+  ProjectCapabilityHostElement,
+};
+export type {
+  ProjectCapabilityAdapter,
+  ProjectCapabilityCleanup,
+  ProjectCapabilityContext,
+  ProjectCapabilityErrorDetail,
+};
