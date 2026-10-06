@@ -89,7 +89,7 @@ jobs:
           )
           site_stage="release/xtreemze-project-site-$VERSION"
           mkdir -p "$site_stage"
-          cp dist/embed/luum-embed.js "$site_stage/xtreemze-project-site.js"
+          cp dist/project-site/xtreemze-project-site.js "$site_stage/xtreemze-project-site.js"
           cp site/project-site-public.d.ts "$site_stage/xtreemze-project-site.d.ts"
           cp site/project-site.css "$site_stage/project-site.css"
           cp docs/PROJECT-SITE-KIT.md "$site_stage/README.md"
