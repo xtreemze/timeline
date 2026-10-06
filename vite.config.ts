@@ -32,12 +32,10 @@ export default defineConfig({
         workspace: new URL("./site/workspace.html", import.meta.url).pathname,
         presentation: new URL("./site/presentation.html", import.meta.url).pathname,
         embed: new URL("./site/embed-entry.ts", import.meta.url).pathname,
-        projectSite: new URL("./site/project-site-entry.ts", import.meta.url).pathname,
       },
       output: {
         entryFileNames: (chunk) => {
           if (chunk.name === "embed") return "embed/luum-embed.js";
-          if (chunk.name === "projectSite") return "project-site/xtreemze-project-site.js";
           return "assets/[name]-[hash].js";
         },
         strictExecutionOrder: true,
