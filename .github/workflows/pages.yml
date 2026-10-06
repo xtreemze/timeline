@@ -64,6 +64,13 @@ jobs:
           test -s dist/pwa-icon-192.svg
           test -s dist/pwa-icon-512.svg
           test -s dist/pwa-maskable-512.svg
+          test -s dist/project-site/xtreemze-project-site.js
+          test -s dist/project-site/project-site.css
+          test -s dist/project-site/xtreemze-project-site.d.ts
+          if grep -Eq 'from[[:space:]]+["'\''"]\\./|import[[:space:]]*\\(["'\''"]\\./' dist/project-site/xtreemze-project-site.js; then
+            echo "Published project-site bundle contains unresolved relative imports"
+            exit 1
+          fi
           if grep -Eq 'src="[^"]+\.ts([?#][^"]*)?"' dist/index.html dist/lum/index.html; then
             echo "Built entry point still references raw TypeScript modules"
             exit 1

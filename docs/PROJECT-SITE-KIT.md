@@ -84,6 +84,18 @@ Upload that single tree with the GitHub Pages artifact action. Presentation and 
 
 For project Pages hosted below `/<repo>/`, use a correct Vite base or relative asset strategy and certify nested routes.
 
+## Browser import
+
+GitHub Pages publishes the standalone browser module at:
+
+`https://xtreemze.github.io/timeline/project-site/xtreemze-project-site.js`
+
+and its shared presentation CSS at:
+
+`https://xtreemze.github.io/timeline/project-site/project-site.css`
+
+This neutral URL is the preferred progressive-enhancement surface for browser consumers such as project presentation sites. The versioned GitHub Release archives remain the reproducible distribution surface.
+
 ## Release artifact
 
 Lūm currently publishes the transitional kit alongside its embed SDK. The project-site archive contains:
