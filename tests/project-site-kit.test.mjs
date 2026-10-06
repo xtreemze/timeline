@@ -39,8 +39,11 @@ test("project site kit is framework-neutral, Vite 8+, and native-first", async (
   assert.match(motion, /@view-transition/);
   assert.match(motion, /navigation:\s*auto/);
   assert.match(motion, /prefers-reduced-motion/);
+  assert.match(motion, /--xt-project-font/);
+  assert.match(motion, /--xt-project-accent/);
 
   assert.match(config, /embed\/luum-embed\.js/);
+  assert.match(config, /project-site\/xtreemze-project-site\.js/);
   assert.match(docs, /semantic HTML/i);
   assert.match(docs, /Vite 8/i);
   assert.match(docs, /esbuild/i);
@@ -54,6 +57,7 @@ test("project site kit is framework-neutral, Vite 8+, and native-first", async (
   assert.match(release, /xtreemze-project-site\.js/);
   assert.match(release, /project-site\.css/);
   assert.match(release, /project-site-public\.d\.ts/);
+  assert.match(release, /dist\/project-site\/xtreemze-project-site\.js/);
 });
 
 test("Lūm presentation consumes the shared timeline and graph elements", async () => {
