@@ -145,16 +145,16 @@ xt-project-timeline,
 xt-project-graph {
   display: block;
   min-inline-size: 0;
-  --luum-embed-font: inherit;
-  --luum-embed-paper: var(--paper);
-  --luum-embed-panel: var(--paper-2);
-  --luum-embed-ink: var(--ink);
-  --luum-embed-muted: var(--muted);
-  --luum-embed-line: var(--line);
-  --luum-embed-accent: var(--accent);
-  --luum-embed-focus: var(--focus);
-  --luum-embed-radius: .6rem;
-  --luum-embed-shadow: none;
+  --xt-project-font: inherit;
+  --xt-project-paper: var(--paper);
+  --xt-project-panel: var(--paper-2);
+  --xt-project-ink: var(--ink);
+  --xt-project-muted: var(--muted);
+  --xt-project-line: var(--line);
+  --xt-project-accent: var(--accent);
+  --xt-project-focus: var(--focus);
+  --xt-project-radius: .6rem;
+  --xt-project-shadow: none;
 }
 
 xt-project-timeline {
