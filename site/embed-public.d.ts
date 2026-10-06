@@ -27,7 +27,7 @@ export interface LuumEmbedSelectDetail {
   readonly id: string;
 }
 
-export declare const LUUM_EMBED_VERSION: "0.4.0";
+export declare const LUUM_EMBED_VERSION: "0.5.0";
 
 export declare class LuumEmbedTimelineElement extends HTMLElement {
   items: readonly EmbedTimelineItem[];
@@ -50,10 +50,30 @@ declare global {
 }
 
 
-export declare const PROJECT_SITE_KIT_VERSION: "0.4.0";
+export declare const PROJECT_SITE_KIT_VERSION: "0.5.0";
 
 export declare class ProjectTimelineElement extends LuumEmbedTimelineElement {}
 export declare class ProjectGraphElement extends LuumEmbedGraphElement {}
+export type ProjectCapabilityCleanup = () => void | Promise<void>;
+export interface ProjectCapabilityContext {
+  readonly host: ProjectCapabilityHostElement;
+  readonly signal: AbortSignal;
+}
+export interface ProjectCapabilityAdapter {
+  mount(
+    context: ProjectCapabilityContext,
+  ):
+    | void
+    | ProjectCapabilityCleanup
+    | Promise<void | ProjectCapabilityCleanup>;
+}
+export interface ProjectCapabilityErrorDetail {
+  readonly error: unknown;
+}
+export declare class ProjectCapabilityHostElement extends HTMLElement {
+  adapter: ProjectCapabilityAdapter | null;
+}
+
 export declare class ProjectMediaViewerElement extends HTMLElement {
   src: string;
   alt: string;
@@ -72,5 +92,6 @@ declare global {
     "xt-project-timeline": ProjectTimelineElement;
     "xt-project-graph": ProjectGraphElement;
     "xt-project-media-viewer": ProjectMediaViewerElement;
+    "xt-project-capability": ProjectCapabilityHostElement;
   }
 }
