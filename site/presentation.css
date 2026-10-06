@@ -1,3 +1,5 @@
+@import "./project-site.css";
+
 :root {
   color-scheme: light dark;
   --paper: light-dark(#f3f0e9, #121212);
@@ -139,23 +141,34 @@ h4 { margin: 0 0 .4rem; font-size: 1rem; }
 .mini-projection header span { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; }
 .mini-projection header h3 { font-size: .9rem; margin: 0; }
 
-.mini-timeline { position: relative; display: grid; gap: 1.2rem; padding: 1.5rem .5rem; }
-.mini-timeline::before { content: ""; position: absolute; top: 1rem; bottom: 1rem; left: 5.7rem; width: 1px; background: var(--line); }
-.timeline-row { position: relative; display: grid; grid-template-columns: 4.5rem 1fr; gap: 1.5rem; align-items: start; }
-.timeline-row time { color: var(--muted); font-size: .78rem; text-align: right; }
-.timeline-card { position: relative; padding: .8rem; border: 1px solid var(--line); border-radius: .6rem; background: var(--paper-2); }
-.timeline-card::before { content: ""; position: absolute; top: .9rem; left: -1.58rem; width: .45rem; height: .45rem; border-radius: 50%; background: var(--accent); }
-.timeline-card strong { display: block; }
-.timeline-card small { color: var(--muted); }
-
-.mini-world { position: relative; min-height: 330px; margin-top: 1rem; background: radial-gradient(circle at 50% 50%, var(--accent-soft), transparent 50%); }
-.world-edge { position: absolute; height: 1px; background: var(--line); transform-origin: left center; }
-.world-node {
-  position: absolute; display: grid; place-items: center; width: 5.5rem; min-height: 3rem; padding: .45rem;
-  border: 1px solid var(--line); border-radius: .75rem; background: var(--paper); text-align: center; font-size: .72rem;
+xt-project-timeline,
+xt-project-graph {
+  display: block;
+  min-inline-size: 0;
+  --luum-embed-font: inherit;
+  --luum-embed-paper: var(--paper);
+  --luum-embed-panel: var(--paper-2);
+  --luum-embed-ink: var(--ink);
+  --luum-embed-muted: var(--muted);
+  --luum-embed-line: var(--line);
+  --luum-embed-accent: var(--accent);
+  --luum-embed-focus: var(--focus);
+  --luum-embed-radius: .6rem;
+  --luum-embed-shadow: none;
 }
-.world-node[data-kind="place"] { border-style: dashed; color: var(--muted); }
-.world-node[data-kind="entity"] { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
+
+xt-project-timeline {
+  margin-top: 1rem;
+}
+
+xt-project-graph {
+  margin-top: 1rem;
+  --luum-embed-graph-height: 330px;
+}
+
+.example-stage {
+  view-transition-name: project-example-stage;
+}
 
 .evidence-item { padding: 1rem 0; border-bottom: 1px solid var(--line); }
 .evidence-item:last-child { border-bottom: 0; }
