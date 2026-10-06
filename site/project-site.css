@@ -1,0 +1,25 @@
+@view-transition {
+  navigation: auto;
+}
+
+/*
+ * Cross-document navigation is progressively enhanced by the browser. Hosts
+ * may assign their own unique view-transition-name values to stable identity,
+ * media, or title elements when continuity materially helps orientation.
+ */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 180ms;
+  animation-timing-function: ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 1ms;
+  }
+}
