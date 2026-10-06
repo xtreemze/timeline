@@ -48,3 +48,9 @@ xt-project-media-viewer {
   --media-viewer-focus: var(--xt-project-focus, Highlight);
   --media-viewer-muted: var(--xt-project-muted, GrayText);
 }
+
+
+xt-project-capability {
+  display: block;
+  min-inline-size: 0;
+}
