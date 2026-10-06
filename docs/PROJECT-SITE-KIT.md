@@ -22,7 +22,7 @@ small Lit custom elements for stateful reusable UI
 host adapters for product-specific state
 ```
 
-Lit is an implementation detail of the reusable custom elements, not an application framework requirement. React, Solid, Vue, plain HTML, or another host can consume the elements through properties, DOM events, CSS custom properties, and CSS parts.
+Lit is an implementation detail of the reusable custom elements, not an application framework requirement. React, Solid, Vue, plain HTML, or another host can consume the elements through properties, DOM events, CSS custom properties, and CSS parts. Presentation theming uses `--xt-project-*` variables such as `--xt-project-font`, `--xt-project-paper`, `--xt-project-ink`, `--xt-project-accent`, and `--xt-project-focus`.
 
 The kit currently registers:
 
@@ -31,7 +31,7 @@ The kit currently registers:
 - `<xt-project-media-viewer>` — domain-neutral image pan/zoom viewer.
 - `runProjectViewTransition(update)` — progressive enhancement for same-document state changes.
 
-The Lūm-specific aliases remain available from the same browser bundle for compatibility.
+The standalone project-site bundle registers only the `xt-project-*` names. The separate Lūm embed bundle keeps its existing `luum-embed-*` names and also re-exports the generic API for compatibility.
 
 ## Canonical state and adapters
 
