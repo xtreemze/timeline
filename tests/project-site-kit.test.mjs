@@ -9,7 +9,7 @@ test("project site kit is framework-neutral, Vite 8+, and native-first", async (
     readFile(new URL("../docs/PROJECT-SITE-KIT.md", import.meta.url), "utf8"),
     readFile(new URL("../site/project-site.css", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
-    readFile(new URL("../vite.config.ts", import.meta.url), "utf8"),
+    readFile(new URL("../vite.project-site.config.ts", import.meta.url), "utf8"),
     readFile(new URL("../.github/workflows/release-embed.yml", import.meta.url), "utf8"),
   ]);
 
@@ -43,8 +43,9 @@ test("project site kit is framework-neutral, Vite 8+, and native-first", async (
   assert.match(motion, /--xt-project-font/);
   assert.match(motion, /--xt-project-accent/);
 
-  assert.match(config, /embed\/luum-embed\.js/);
-  assert.match(config, /project-site\/xtreemze-project-site\.js/);
+  assert.match(config, /lib:\s*\{/);
+  assert.match(config, /xtreemze-project-site/);
+  assert.match(config, /inlineDynamicImports:\s*true/);
   assert.match(docs, /semantic HTML/i);
   assert.match(docs, /Vite 8/i);
   assert.match(docs, /esbuild/i);
@@ -58,7 +59,9 @@ test("project site kit is framework-neutral, Vite 8+, and native-first", async (
   assert.match(release, /xtreemze-project-site\.js/);
   assert.match(release, /project-site\.css/);
   assert.match(release, /project-site-public\.d\.ts/);
-  assert.match(release, /dist\/project-site\/xtreemze-project-site\.js/);
+  assert.match(release, /dist-project-site\/xtreemze-project-site\.js/);
+  assert.match(release, /pnpm build:project-site/);
+  assert.match(release, /project-site bundle contains unresolved relative imports/);
 });
 
 test("Lūm presentation consumes the shared timeline and graph elements", async () => {
