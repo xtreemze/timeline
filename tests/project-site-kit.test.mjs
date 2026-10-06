@@ -88,3 +88,20 @@ test("Lūm presentation consumes the shared timeline and graph elements", async 
   assert.match(styles, /xt-project-timeline/);
   assert.match(styles, /xt-project-graph/);
 });
+
+
+test("Pages publishes the project-site kit at a neutral browser URL", async () => {
+  const [buildPages, pagesWorkflow, docs] = await Promise.all([
+    readFile(new URL("../scripts/build-pages.mjs", import.meta.url), "utf8"),
+    readFile(new URL("../.github/workflows/pages.yml", import.meta.url), "utf8"),
+    readFile(new URL("../docs/PROJECT-SITE-KIT.md", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(buildPages, /vite\.project-site\.config\.ts/);
+  assert.match(buildPages, /dist-project-site\/xtreemze-project-site\.js/);
+  assert.match(buildPages, /dist\/project-site\/xtreemze-project-site\.js/);
+  assert.match(buildPages, /dist\/project-site\/project-site\.css/);
+  assert.match(buildPages, /dist\/project-site\/xtreemze-project-site\.d\.ts/);
+  assert.match(pagesWorkflow, /dist\/project-site\/xtreemze-project-site\.js/);
+  assert.match(docs, /https:\/\/xtreemze\.github\.io\/timeline\/project-site\/xtreemze-project-site\.js/);
+});
