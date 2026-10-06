@@ -26,6 +26,7 @@ test("project site kit is framework-neutral, Vite 8+, and native-first", async (
   assert.match(entry, /runProjectViewTransition/);
   assert.match(entry, /prefers-reduced-motion/);
   assert.match(entry, /activeViewTransition/);
+  assert.doesNotMatch(entry, /luum-embed-timeline|luum-embed-graph/);
   assert.doesNotMatch(
     entry,
     /src\/domain|src\/application|project-repository|occurrence-composer|playbackManagerBridge/,
