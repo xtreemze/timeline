@@ -10,7 +10,7 @@ test("embed entry is a versioned, framework-neutral public custom-element surfac
     readFile(new URL("../vite.config.ts", import.meta.url), "utf8"),
   ]);
 
-  assert.match(entry, /LUUM_EMBED_VERSION\s*=\s*"0\.3\.0"/);
+  assert.match(entry, /LUUM_EMBED_VERSION\s*=\s*"0\.4\.0"/);
   assert.match(entry, /customElements\.define\("luum-embed-timeline"/);
   assert.match(entry, /customElements\.define\("luum-embed-graph"/);
   assert.match(config, /embed\/luum-embed\.js/);
