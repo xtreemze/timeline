@@ -18,6 +18,7 @@ on:
       - "tests/project-site-kit.test.mjs"
       - "package.json"
       - "vite.config.ts"
+      - "vite.project-site.config.ts"
       - ".github/workflows/release-embed.yml"
     tags:
       - "v*"
@@ -43,6 +44,16 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm test:embed-release && pnpm test:project-site-kit
       - run: pnpm build
+      - run: pnpm build:project-site
+      - name: Verify standalone project-site bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s dist-project-site/xtreemze-project-site.js
+          if grep -Eq 'from[[:space:]]+["\x27]\\./|import[[:space:]]*\\(["\x27]\\./' dist-project-site/xtreemze-project-site.js; then
+            echo "project-site bundle contains unresolved relative imports"
+            exit 1
+          fi
       - name: Resolve release version
         id: version
         shell: bash
@@ -90,7 +101,7 @@ jobs:
           )
           site_stage="release/xtreemze-project-site-$VERSION"
           mkdir -p "$site_stage"
-          cp dist/project-site/xtreemze-project-site.js "$site_stage/xtreemze-project-site.js"
+          cp dist-project-site/xtreemze-project-site.js "$site_stage/xtreemze-project-site.js"
           cp site/project-site-public.d.ts "$site_stage/xtreemze-project-site.d.ts"
           cp site/project-site.css "$site_stage/project-site.css"
           cp docs/PROJECT-SITE-KIT.md "$site_stage/README.md"
