@@ -27,7 +27,7 @@ export interface LuumEmbedSelectDetail {
   readonly id: string;
 }
 
-export declare const LUUM_EMBED_VERSION: "0.5.0";
+export declare const LUUM_EMBED_VERSION: "0.4.0";
 
 export declare class LuumEmbedTimelineElement extends HTMLElement {
   items: readonly EmbedTimelineItem[];
