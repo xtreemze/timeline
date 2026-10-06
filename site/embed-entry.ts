@@ -1,3 +1,5 @@
+export const LUUM_EMBED_VERSION = "0.3.0" as const;
+
 import { LuumEmbedGraphElement } from "./components/reusable/embed-graph.ts";
 import { LuumEmbedTimelineElement } from "./components/reusable/embed-timeline.ts";
 
