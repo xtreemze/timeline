@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 test("project site kit is framework-neutral, Vite 8+, and native-first", async () => {
-  const [entry, declarations, docs, motion, packageJson, config, release] = await Promise.all([
+  const [entry, declarations, docs, motion, packageJson, config, release, ci] = await Promise.all([
     readFile(new URL("../site/project-site-entry.ts", import.meta.url), "utf8"),
     readFile(new URL("../site/project-site-public.d.ts", import.meta.url), "utf8"),
     readFile(new URL("../docs/PROJECT-SITE-KIT.md", import.meta.url), "utf8"),
@@ -11,6 +11,7 @@ test("project site kit is framework-neutral, Vite 8+, and native-first", async (
     readFile(new URL("../package.json", import.meta.url), "utf8"),
     readFile(new URL("../vite.project-site.config.ts", import.meta.url), "utf8"),
     readFile(new URL("../.github/workflows/release-embed.yml", import.meta.url), "utf8"),
+    readFile(new URL("../.github/workflows/timeline-view.yml", import.meta.url), "utf8"),
   ]);
 
   const pkg = JSON.parse(packageJson);
@@ -62,6 +63,7 @@ test("project site kit is framework-neutral, Vite 8+, and native-first", async (
   assert.match(release, /dist-project-site\/xtreemze-project-site\.js/);
   assert.match(release, /pnpm build:project-site/);
   assert.match(release, /project-site bundle contains unresolved relative imports/);
+  assert.match(ci, /pnpm build:project-site/);
 });
 
 test("Lūm presentation consumes the shared timeline and graph elements", async () => {
