@@ -127,3 +127,29 @@ test("Lūm subroute keeps Vite inputs root-resolved without rewriting deployed a
   assert.match(pwa, /SERVICE_WORKER_URL\s*=\s*["']\.\/sw\.js["']/);
   assert.match(pwa, /SERVICE_WORKER_SCOPE\s*=\s*["']\.\/["']/);
 });
+
+test("presentation examples consume Lūm embed components instead of parallel mini renderers", async () => {
+  const html = await read("site/presentation.html");
+  const script = await read("site/presentation.ts");
+
+  assert.match(html, /<luum-embed-timeline\b[^>]*data-example-timeline/);
+  assert.match(html, /<luum-embed-graph\b[^>]*data-example-world/);
+  assert.match(script, /import\s+["']\.\/embed-entry\.ts["']/);
+  assert.match(script, /EmbedTimelineItem/);
+  assert.match(script, /EmbedGraphNode/);
+  assert.match(script, /EmbedGraphEdge/);
+  assert.doesNotMatch(script, /timeline-row|timeline-card|world-node|world-edge/);
+});
+
+test("presentation scenario changes progressively enhance with View Transitions", async () => {
+  const [script, css] = await Promise.all([
+    read("site/presentation.ts"),
+    read("site/presentation.css"),
+  ]);
+
+  assert.match(script, /startViewTransition/);
+  assert.match(script, /prefers-reduced-motion:\s*reduce/);
+  assert.match(css, /view-transition-name:\s*example-stage/);
+  assert.match(css, /::view-transition-old\(example-stage\)|::view-transition-new\(example-stage\)/);
+  assert.match(css, /prefers-reduced-motion:\s*reduce/);
+});
