@@ -11,6 +11,7 @@ on:
       - "site/project-site-public.d.ts"
       - "site/project-site.css"
       - "site/components/reusable/embed-*.ts"
+      - "site/components/reusable/media-viewer.ts"
       - "docs/EMBEDDING.md"
       - "docs/PROJECT-SITE-KIT.md"
       - "tests/embed-release-contract.test.mjs"
