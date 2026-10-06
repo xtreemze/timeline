@@ -17,6 +17,7 @@ on:
       - "tests/embed-release-contract.test.mjs"
       - "tests/project-site-kit.test.mjs"
       - "package.json"
+      - "vite.config.ts"
       - ".github/workflows/release-embed.yml"
     tags:
       - "v*"
