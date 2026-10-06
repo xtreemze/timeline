@@ -1,5 +1,6 @@
 import { css, html, LitElement, nothing } from "lit";
 import { embedThemeStyles } from "./embed-theme.ts";
+import { runScopedViewTransition } from "./project-site-motion.ts";
 
 export interface EmbedTimelineItem {
   readonly id: string;
@@ -65,6 +66,7 @@ export class LuumEmbedTimelineElement extends LitElement {
         box-shadow: var(--_luum-shadow);
         text-align: start;
         cursor: pointer;
+        view-transition-name: match-element;
       }
 
       [part="item"]::before {
@@ -124,14 +126,18 @@ export class LuumEmbedTimelineElement extends LitElement {
   }
 
   private selectItem(id: string): void {
-    this.selectedId = id;
-    this.dispatchEvent(
-      new CustomEvent("luum-embed-select", {
-        bubbles: true,
-        composed: true,
-        detail: Object.freeze({ kind: "timeline", id }),
-      }),
-    );
+    const surface = this.renderRoot.querySelector<HTMLElement>('[part="surface"]');
+    void runScopedViewTransition(surface, async () => {
+      this.selectedId = id;
+      this.dispatchEvent(
+        new CustomEvent("luum-embed-select", {
+          bubbles: true,
+          composed: true,
+          detail: Object.freeze({ kind: "timeline", id }),
+        }),
+      );
+      await this.updateComplete;
+    });
   }
 
   protected override render() {

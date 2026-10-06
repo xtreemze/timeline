@@ -36,7 +36,11 @@ That boundary is appropriate for Lūm's timeline because reactive rendering ever
 
 Branding is host-controlled through CSS custom properties including `--luum-embed-font`, `--luum-embed-ink`, `--luum-embed-paper`, `--luum-embed-panel`, `--luum-embed-line`, `--luum-embed-accent`, `--luum-embed-focus`, `--luum-embed-radius`, and `--luum-embed-shadow`. Node coordinates supplied to the graph are presentation-only and are never persisted by the component.
 
-The production build publishes a stable ES-module entry at `/timeline/embed/luum-embed.js`. This entry registers `<luum-embed-timeline>` and `<luum-embed-graph>`, allowing a host project to use the components without importing the Lūm application shell.
+The production build publishes a stable ES-module entry at `/timeline/embed/luum-embed.js`. This entry registers `<luum-embed-timeline>`, `<luum-embed-graph>`, and the domain-neutral `<luum-embed-media-viewer>`, allowing a host project to use bounded presentation components without importing the Lūm application shell.
+
+Timeline and graph selection progressively enhance with element-scoped View Transitions on Chromium 147+ while preserving the same state/event path when unsupported or when `prefers-reduced-motion` is active. The transition is presentation-only: host state and canonical identity remain authoritative.
+
+Project sites should keep semantic HTML fallback for cross-project embeds. The embed module may enhance a history, relationship, or evidence surface, but a presentation page must remain understandable if the module is unavailable.
 
 ## Semantic hue
 
@@ -44,7 +48,9 @@ The production build publishes a stable ES-module entry at `/timeline/embed/luum
 
 ## Media viewer
 
-`site/components/reusable/media-viewer.ts` owns single-image pan and zoom interaction: pointer drag, pinch, wheel zoom, double-click/double-tap, keyboard panning, zoom steps, reset, caption and accessibility semantics. It has no occurrence, timeline, graph, or persistence dependencies. The Lūm occurrence deck can migrate onto this primitive once its existing slideshow CSS and swipe contract are preserved by an adapter.
+`site/components/reusable/media-viewer.ts` owns single-image pan and zoom interaction: pointer drag, pinch, wheel zoom, double-click/double-tap, keyboard panning, zoom steps, reset, caption and accessibility semantics. It has no occurrence, timeline, graph, slideshow, playback, provider, or persistence dependencies. The stable embed bundle exposes it as `<luum-embed-media-viewer>`.
+
+This component deliberately does **not** grow slideshow sequencing, playback, sharing, or download authority. Slipmat's pure slideshow model already owns deterministic slide sequencing/capability decisions; cross-project slideshow extraction should adapt that model rather than reimplement it here.
 
 ## Component lab instead of Storybook
 
