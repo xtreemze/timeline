@@ -29,8 +29,16 @@ export type { EmbedTimelineItem } from "./components/reusable/embed-timeline.ts"
 
 export {
   PROJECT_SITE_KIT_VERSION,
+  ProjectCapabilityHostElement,
   ProjectGraphElement,
   ProjectMediaViewerElement,
   ProjectTimelineElement,
   runProjectViewTransition,
+} from "./project-site-entry.ts";
+
+export type {
+  ProjectCapabilityAdapter,
+  ProjectCapabilityCleanup,
+  ProjectCapabilityContext,
+  ProjectCapabilityErrorDetail,
 } from "./project-site-entry.ts";
