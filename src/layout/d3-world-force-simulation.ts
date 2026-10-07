@@ -1323,13 +1323,10 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       : NORMAL_ANCHOR_STRENGTH *
         tuning.anchorStrengthScale *
         Math.max(0, Math.min(1, state.anchor.influence));
-    const postDropLimited =
+    const postDropSettling =
       this.#requestReason === "post-drop" && this.#interactionGroupKey === groupKey;
-    if (!postDropLimited) return baseStrength;
-
-    const error = Math.hypot(state.x ?? 0, state.y ?? 0);
-    if (error <= INTERACTION_FORCE_MAX_ERROR_METERS) return baseStrength;
-    return baseStrength * (INTERACTION_FORCE_MAX_ERROR_METERS / error);
+    if (postDropSettling) return 0;
+    return baseStrength;
   }
 
   #dagStrength(
@@ -1341,15 +1338,10 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     if (collapsed) return 0;
     const baseStrength =
       Math.max(0, state.node.layoutTargetStrength ?? 0) * tuning.dagStrengthScale;
-    const postDropLimited =
+    const postDropSettling =
       this.#requestReason === "post-drop" && this.#interactionGroupKey === groupKey;
-    if (!postDropLimited || baseStrength === 0) return baseStrength;
-
-    const targetX = state.node.layoutTargetEastMeters ?? state.x ?? 0;
-    const targetY = state.node.layoutTargetNorthMeters ?? state.y ?? 0;
-    const error = Math.hypot(targetX - (state.x ?? 0), targetY - (state.y ?? 0));
-    if (error <= INTERACTION_FORCE_MAX_ERROR_METERS) return baseStrength;
-    return baseStrength * (INTERACTION_FORCE_MAX_ERROR_METERS / error);
+    if (postDropSettling) return 0;
+    return baseStrength;
   }
 
   #refreshGroupForceStrengths(group: D3WorldGroup): void {
