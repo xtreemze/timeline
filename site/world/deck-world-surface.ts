@@ -1330,7 +1330,7 @@ function deckControllerOptions(
     scrollZoom: true,
     touchZoom: true,
     multiTouchDrag: "rotate",
-    keyboard: true,
+    keyboard: { zoomSpeed: 0.5 },
     doubleClickZoom: false,
     // Production local mode supplies an explicit MapController, so precise
     // pointer anchoring is safe after the settled globe->local handoff. Keep
