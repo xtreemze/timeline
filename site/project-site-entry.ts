@@ -9,7 +9,48 @@ import { LuumEmbedGraphElement } from "./components/reusable/embed-graph.ts";
 import { LuumEmbedTimelineElement } from "./components/reusable/embed-timeline.ts";
 import { ReusableMediaViewerElement } from "./components/reusable/media-viewer.ts";
 
-export const PROJECT_SITE_KIT_VERSION = "0.5.0" as const;
+export const PROJECT_SITE_KIT_VERSION = "0.6.0" as const;
+
+export interface ProjectSiteLink {
+  readonly label: string;
+  readonly href: string;
+}
+
+export interface ProjectSiteCapabilityDescriptor {
+  readonly id: string;
+  readonly label: string;
+  readonly summary: string;
+  readonly kind?: string;
+  readonly href?: string;
+  readonly status?: "available" | "experimental" | "planned";
+}
+
+export interface ProjectShowcaseAsset {
+  readonly id: string;
+  readonly kind: "image" | "video";
+  readonly src: string;
+  readonly alt: string;
+  readonly poster?: string;
+  readonly caption?: string;
+}
+
+export interface ProjectSiteDefinition {
+  readonly id: string;
+  readonly name: string;
+  readonly summary: string;
+  readonly repositoryUrl: string;
+  readonly links?: readonly ProjectSiteLink[];
+  readonly capabilities?: readonly ProjectSiteCapabilityDescriptor[];
+  readonly showcase?: readonly ProjectShowcaseAsset[];
+}
+
+/**
+ * Type-preserving helper for static presentation metadata. The returned object
+ * is descriptive configuration only; it does not own product or runtime state.
+ */
+export function defineProjectSite<const T extends ProjectSiteDefinition>(definition: T): T {
+  return definition;
+}
 
 export class ProjectTimelineElement extends LuumEmbedTimelineElement {}
 export class ProjectGraphElement extends LuumEmbedGraphElement {}
