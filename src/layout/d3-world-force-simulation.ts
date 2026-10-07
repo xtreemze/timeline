@@ -64,8 +64,6 @@ const MAX_FORCE_BACKLOG_STEPS = 8;
 const FORCE_STEP_EPSILON_MS = 1e-7;
 /** Match the reference solver's bounded long-link interaction contract. */
 const INTERACTION_EDGE_MAX_STRETCH_SCALE = 8;
-/** Bound post-drop target error so a distant release cannot inject a one-frame force spike. */
-const INTERACTION_FORCE_MAX_ERROR_METERS = 6_000;
 const DRAG_MOVE_ALPHA_FLOOR = 0.04;
 /**
  * A committed temporal re-anchor can preserve a visible pose far from its new
