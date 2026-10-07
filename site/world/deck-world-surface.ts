@@ -3053,6 +3053,7 @@ export class DeckWorldSurface implements WorldSurface {
     instances: Object.freeze([]),
     edges: Object.freeze([]),
   });
+  #temporalPreviewActive = false;
   readonly #topologyIndex = new WorldRenderTopologyIndex(this.#projection);
   #relationshipRouteHints: ReadonlyMap<RelationshipId, WorldRelationshipRouteHint> = new Map();
   #selection: WorldSelection | null = null;
@@ -4440,6 +4441,7 @@ export class DeckWorldSurface implements WorldSurface {
 
   setProjection(projection: WorldProjection): void {
     this.#assertAlive();
+    this.#temporalPreviewActive = false;
     this.#projection = projection;
     this.#topologyIndex.replace(projection);
     this.#pruneRevealedClusterPlaces();
@@ -4451,6 +4453,7 @@ export class DeckWorldSurface implements WorldSurface {
 
   previewProjection(projection: WorldProjection): void {
     this.#assertAlive();
+    this.#temporalPreviewActive = true;
     // Timeline travel owns only transient presentation here. Keep camera fit,
     // clustering/force coordination and projection-handoff convergence on the
     // last committed projection until the timeline settles.
@@ -5773,12 +5776,14 @@ export class DeckWorldSurface implements WorldSurface {
     const clusterPlaces = new Set(this.#clusterPlaceIds);
     const placeReveal = placeInteractionReveal(this.#projection, this.#selection);
     const candidateMemberIds = new Set<WorldInstanceId>(
-      this.#projection.instances
-        .filter((instance) => {
-          const placeId = instance.geographicAnchors[0]?.placeId;
-          return placeId !== undefined && clusterPlaces.has(placeId);
-        })
-        .map((instance) => instance.id),
+      this.#temporalPreviewActive
+        ? []
+        : this.#projection.instances
+            .filter((instance) => {
+              const placeId = instance.geographicAnchors[0]?.placeId;
+              return placeId !== undefined && clusterPlaces.has(placeId);
+            })
+            .map((instance) => instance.id),
     );
 
     // Relationship geometry always consumes the exact force-resolved positions.
@@ -5857,7 +5862,9 @@ export class DeckWorldSurface implements WorldSurface {
         )
       : Object.freeze([] as DeckWorldRelationshipDatum[]);
     const placeMarkerClusters =
-      clusterPhase !== "collapsed" && presentationZoom < WORLD_CLUSTER_DETAIL_ZOOM_CEILING
+      !this.#temporalPreviewActive &&
+      clusterPhase !== "collapsed" &&
+      presentationZoom < WORLD_CLUSTER_DETAIL_ZOOM_CEILING
         ? Object.freeze(
             clusterEntityDatumsByPlace(
               entityResult.datums,
