@@ -332,7 +332,8 @@ export function createWorldLayoutControls(
     ["left-to-right", "Left → right"],
   ]);
   const strategy = selectRow(doc, "Sugiyama strategy", [
-    ["longest-auto-greedy", "Longest path + auto decross"],\n    ["auto", "Auto / compare layering families"],
+    ["longest-auto-greedy", "Longest path + auto decross"],
+    ["auto", "Auto / compare layering families"],
     ["longest-opt-greedy", "Longest path + optimal decross"],
     ["longest-two-layer-greedy", "Longest path + two-layer"],
     ["simplex-two-layer-greedy", "Simplex + two-layer"],
