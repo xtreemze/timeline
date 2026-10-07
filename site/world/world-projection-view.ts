@@ -445,6 +445,7 @@ export class WorldProjectionView {
   #timelessIds: readonly CanonicalOccurrenceId[] = Object.freeze([]);
   #viewport: WorldTemporalWindow | null = null;
   #sharedActiveIds: readonly string[] | null = null;
+  #previewActiveIds: readonly string[] | null = null;
   #focusId: string | null = null;
   #presentationMode = false;
   #entityIds = new Set<string>();
@@ -648,9 +649,16 @@ export class WorldProjectionView {
     if (next) this.#runtime.setTemporalWindow(next);
     if (!this.#runtime.previewProjection) return;
 
-    const nextActiveIds = Array.isArray(viewport?.activeOccurrenceIds)
+    const requestedActiveIds = Array.isArray(viewport?.activeOccurrenceIds)
       ? Object.freeze(viewport.activeOccurrenceIds.map(String))
       : null;
+    const nextActiveIds =
+      requestedActiveIds !== null && requestedActiveIds.length === 0
+        ? (this.#previewActiveIds ?? this.#sharedActiveIds ?? requestedActiveIds)
+        : requestedActiveIds;
+    if (requestedActiveIds !== null && requestedActiveIds.length > 0) {
+      this.#previewActiveIds = requestedActiveIds;
+    }
     this.#runtime.previewProjection(this.#projectionFor(next, nextActiveIds).projection);
   }
 
@@ -677,6 +685,8 @@ export class WorldProjectionView {
     }
     this.#viewport = next;
     this.#sharedActiveIds = nextActiveIds;
+    this.#previewActiveIds =
+      nextActiveIds !== null && nextActiveIds.length > 0 ? nextActiveIds : null;
     this.#render();
     return true;
   }
