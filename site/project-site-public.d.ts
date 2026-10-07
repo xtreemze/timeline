@@ -26,6 +26,39 @@ export interface ProjectMediaViewerZoomDetail {
   readonly zoom: number;
 }
 
+export interface ProjectSiteLink {
+  readonly label: string;
+  readonly href: string;
+}
+
+export interface ProjectSiteCapabilityDescriptor {
+  readonly id: string;
+  readonly label: string;
+  readonly summary: string;
+  readonly kind?: string;
+  readonly href?: string;
+  readonly status?: "available" | "experimental" | "planned";
+}
+
+export interface ProjectShowcaseAsset {
+  readonly id: string;
+  readonly kind: "image" | "video";
+  readonly src: string;
+  readonly alt: string;
+  readonly poster?: string;
+  readonly caption?: string;
+}
+
+export interface ProjectSiteDefinition {
+  readonly id: string;
+  readonly name: string;
+  readonly summary: string;
+  readonly repositoryUrl: string;
+  readonly links?: readonly ProjectSiteLink[];
+  readonly capabilities?: readonly ProjectSiteCapabilityDescriptor[];
+  readonly showcase?: readonly ProjectShowcaseAsset[];
+}
+
 export type ProjectCapabilityCleanup = () => void | Promise<void>;
 
 export interface ProjectCapabilityContext {
@@ -46,7 +79,11 @@ export interface ProjectCapabilityErrorDetail {
   readonly error: unknown;
 }
 
-export declare const PROJECT_SITE_KIT_VERSION: "0.5.0";
+export declare const PROJECT_SITE_KIT_VERSION: "0.6.0";
+
+export declare function defineProjectSite<const T extends ProjectSiteDefinition>(
+  definition: T,
+): T;
 
 export declare class ProjectTimelineElement extends HTMLElement {
   items: readonly ProjectTimelineItem[];
