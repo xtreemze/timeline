@@ -1305,7 +1305,7 @@ function prefersReducedMotion(): boolean {
  * Explicit deck.gl `Controller` options (issue #445 Priority 4). deck.gl's
  * own `GlobeController`/`MapController` already implements orbit/rotate,
  * pointer-anchored wheel/pinch zoom (`zoomAround: "pointer"` is deck.gl's
- * default), and keyboard pan/zoom (`keyboard: true` is deck.gl's default) —
+ * default), and keyboard pan/zoom (using deck.gl's native controller with a finer zoom step) —
  * this file does not reimplement that gesture handling. What deck.gl
  * does *not* default to "on" is inertia, so it is set explicitly here and
  * tied to the platform's reduced-motion preference. `doubleClickZoom` is
