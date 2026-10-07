@@ -2202,22 +2202,24 @@ test("overview clusters drill into their members instead of selecting an arbitra
   assert.ok(cluster);
 
   calls.deckProps.onHover({ object: cluster });
-  assert.equal(calls.deckProps.getCursor({ isDragging: false, isHovering: true }), "zoom-in");
+  assert.equal(calls.deckProps.getCursor({ isDragging: false, isHovering: true }), "pointer");
   assert.equal(surface.getAccessibleSnapshot().selection, null);
 
+  const cameraBefore = surface.getCamera();
   calls.deckProps.onClick({ object: cluster });
-  const camera = surface.getCamera();
-  assert.ok(camera.zoom > CLUSTER_ZOOM_THRESHOLD);
-  assert.equal(camera.longitude, cluster.position[0]);
-  assert.equal(camera.latitude, cluster.position[1]);
+  assert.deepEqual(
+    surface.getCamera(),
+    cameraBefore,
+    "cluster activation scatters members without moving or zooming the camera",
+  );
   assert.equal(
     surface.getAccessibleSnapshot().selection,
     null,
-    "drilling into a cluster must not choose a hidden member",
+    "expanding a cluster must not choose a hidden member",
   );
 });
 
-test("multi-place cluster drill-in reveals nodes on a 360px viewport and overview zoom restores clustering", () => {
+test("multi-place cluster activation reveals nodes in place and remains disengaged during camera movement", () => {
   const originalSetTimeout = globalThis.setTimeout;
   try {
     globalThis.setTimeout = (callback) => {
@@ -2257,14 +2259,14 @@ test("multi-place cluster drill-in reveals nodes on a 360px viewport and overvie
       mobileProjection.instances.length,
       "explicit aggregate drill-in exposes canonical member nodes instead of zooming a permanent cluster",
     );
-    assert.ok(surface.getCamera().zoom > 6);
+    assert.equal(surface.getCamera().zoom, 3);
     assert.equal(surface.getAccessibleSnapshot().selection, null);
 
-    surface.setCamera({ ...surface.getCamera(), zoom: 3 });
-    const reclusteredLayer = renderedLayer(calls, DECK_WORLD_LAYER_IDS.entities);
+    surface.setCamera({ ...surface.getCamera(), longitude: 20 });
+    const stillExpandedLayer = renderedLayer(calls, DECK_WORLD_LAYER_IDS.entities);
     assert.ok(
-      reclusteredLayer.props.data.some((datum) => datum.kind === "cluster"),
-      "returning to overview clears the temporary drill-in escape and restores semantic clustering",
+      stillExpandedLayer.props.data.every((datum) => datum.kind !== "cluster"),
+      "camera movement must not immediately recreate a cluster the user explicitly expanded",
     );
   } finally {
     globalThis.setTimeout = originalSetTimeout;
