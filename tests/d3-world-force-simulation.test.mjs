@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { D3WorldForceSimulation } from "../src/layout/d3-world-force-simulation.ts";
+import { DEFAULT_D3_WORLD_FORCE_TUNING, D3WorldForceSimulation } from "../src/layout/d3-world-force-simulation.ts";
 
 function node(id, east, collisionRadiusMeters = 300, overrides = {}) {
   return {
@@ -580,6 +580,46 @@ test("D3 drag and post-drop stay local and publish sparse changed positions", ()
     .getSnapshot()
     .filter((entry) => entry.instanceId === remoteA || entry.instanceId === remoteB);
   assert.deepEqual(remoteAfter, remoteBefore);
+});
+
+test("post-drop settling does not re-center untouched peers on their geographic anchor", () => {
+  const simulation = new D3WorldForceSimulation();
+  const dragged = '["dragged-stable","stockholm"]';
+  const peer = '["peer-stable","stockholm"]';
+
+  simulation.setTuning({
+    ...DEFAULT_D3_WORLD_FORCE_TUNING,
+    manyBodyStrength: 0,
+    centerStrength: 0,
+    collisionStrength: 1,
+    collisionIterations: 6,
+  });
+  simulation.setScene({
+    nodes: [node(dragged, 2_000, 180), node(peer, 1_200, 180)],
+    edges: [],
+    anchors: [anchor(dragged, "stockholm", 1), anchor(peer, "stockholm", 1)],
+  });
+
+  simulation.setPin({
+    instanceId: dragged,
+    eastMeters: 3_000,
+    northMeters: 0,
+    visualAltitudeMeters: 1_000,
+  });
+  simulation.apply({ reason: "drag", excitation: 0.2, reheat: true });
+  simulation.step(1000 / 60);
+  simulation.setPin(null);
+
+  const peerBefore = simulation.getSnapshot().find((entry) => entry.instanceId === peer);
+  assert.ok(peerBefore);
+  simulation.apply({ reason: "post-drop", excitation: 0.035, reheat: true });
+  for (let index = 0; index < 120; index += 1) simulation.step(1000 / 60);
+  const peerAfter = simulation.getSnapshot().find((entry) => entry.instanceId === peer);
+  assert.ok(peerAfter);
+  assert.ok(
+    Math.abs(peerAfter.eastMeters - peerBefore.eastMeters) < 1,
+    "post-drop must not pull an untouched peer back toward the place center",
+  );
 });
 
 test("D3 topology collision spans distinct place groups regardless of relationship", () => {
