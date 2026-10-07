@@ -34,6 +34,47 @@ The kit currently registers:
 
 The standalone project-site bundle registers only the `xt-project-*` names. The separate Lūm embed bundle keeps its existing `luum-embed-*` names and also re-exports the generic API for compatibility.
 
+## Static project definition
+
+Presentation metadata can use the exported `ProjectSiteDefinition` contract and
+`defineProjectSite()` helper. This is descriptive configuration only: it can
+describe links, capability cards, and certified showcase assets, but it never
+becomes product state or a runtime service registry.
+
+```ts
+const site = defineProjectSite({
+  id: "verge",
+  name: "Verge",
+  summary: "Peer-to-peer conferencing at the edge.",
+  repositoryUrl: "https://github.com/xtreemze/verge",
+  capabilities: [
+    {
+      id: "conference",
+      label: "Conference",
+      summary: "Camera, audio, screen sharing, chat, and verified files.",
+      kind: "conference",
+      status: "available",
+    },
+  ],
+  showcase: [
+    {
+      id: "room",
+      kind: "video",
+      src: "./showcase/room.webm",
+      poster: "./showcase/room.avif",
+      alt: "A Verge room with four participants.",
+    },
+  ],
+});
+```
+
+The `kind` field on a capability is intentionally open-ended. It is presentation
+metadata, not a central capability enum. Verge, Slipmat, Lūm, booking, and future
+projects keep their own domain vocabulary and runtime ownership.
+
+Showcase descriptors point only at already-certified build artifacts. They do not
+capture, render, verify, or mutate showcase media at runtime.
+
 ## Canonical state and adapters
 
 The kit never owns product state. It receives projected display records from the host.

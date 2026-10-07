@@ -21,7 +21,7 @@ test("project site kit is framework-neutral, Vite 8+, and native-first", async (
   assert.equal(pkg.devDependencies?.esbuild, undefined);
   assert.equal(pkg.dependencies?.esbuild, undefined);
 
-  assert.match(entry, /PROJECT_SITE_KIT_VERSION\s*=\s*"0\.5\.0"/);
+  assert.match(entry, /PROJECT_SITE_KIT_VERSION\s*=\s*"0\.6\.0"/);
   assert.match(entry, /customElements\.define\("xt-project-timeline"/);
   assert.match(entry, /customElements\.define\("xt-project-graph"/);
   assert.match(entry, /customElements\.define\("xt-project-media-viewer"/);
@@ -34,6 +34,10 @@ test("project site kit is framework-neutral, Vite 8+, and native-first", async (
     capabilityHost,
     /playbackManager|RTCPeerConnection|slideshowService|ServerConnections|src\/domain/,
   );
+  assert.match(entry, /interface ProjectSiteDefinition/);
+  assert.match(entry, /interface ProjectShowcaseAsset/);
+  assert.match(entry, /interface ProjectSiteCapabilityDescriptor/);
+  assert.match(entry, /defineProjectSite/);
   assert.match(entry, /runProjectViewTransition/);
   assert.match(entry, /prefers-reduced-motion/);
   assert.match(entry, /activeViewTransition/);
@@ -46,6 +50,9 @@ test("project site kit is framework-neutral, Vite 8+, and native-first", async (
   assert.match(declarations, /interface ProjectTimelineItem/);
   assert.match(declarations, /interface ProjectGraphNode/);
   assert.match(declarations, /class ProjectMediaViewerElement/);
+  assert.match(declarations, /interface ProjectSiteDefinition/);
+  assert.match(declarations, /interface ProjectShowcaseAsset/);
+  assert.match(declarations, /defineProjectSite/);
   assert.match(declarations, /interface ProjectCapabilityAdapter/);
   assert.match(declarations, /class ProjectCapabilityHostElement/);
   assert.match(declarations, /runProjectViewTransition/);
@@ -68,6 +75,8 @@ test("project site kit is framework-neutral, Vite 8+, and native-first", async (
   assert.match(docs, /Slipmat/i);
   assert.match(docs, /Verge/i);
   assert.match(docs, /showcase/i);
+  assert.match(docs, /ProjectSiteDefinition/);
+  assert.match(docs, /descriptive configuration/i);
 
   assert.match(release, /xtreemze-project-site-\$VERSION/);
   assert.match(release, /xtreemze-project-site\.js/);
