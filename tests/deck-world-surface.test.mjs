@@ -1441,7 +1441,7 @@ test("deck controller uses timeline-weighted inertia and direct pointer-anchored
     scrollZoom: true,
     touchZoom: true,
     multiTouchDrag: "rotate",
-    keyboard: true,
+    keyboard: { zoomSpeed: 0.5 },
     doubleClickZoom: false,
     zoomAround: "pointer",
     inertia: TimelineMotion.INERTIA_TAU_MS,
