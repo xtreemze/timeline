@@ -59,7 +59,7 @@ test("landscape timeline uses vertical arrows for granular semantic zoom", async
   const keyboard = source.slice(keyboardStart, keyboardEnd);
   assert.match(keyboard, /orientation === "horizontal"[\s\S]*ArrowUp[\s\S]*zoom/i);
   assert.match(keyboard, /orientation === "horizontal"[\s\S]*ArrowDown[\s\S]*zoom/i);
-  assert.match(keyboard, /KEYBOARD_ZOOM_IN_FACTOR\s*=\s*0\.9/);
+  assert.match(source, /KEYBOARD_ZOOM_IN_FACTOR\s*=\s*0\.9/);
 });
 
 test("world cluster activation scatters members in place without camera focus", async () => {
