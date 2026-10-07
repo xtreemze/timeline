@@ -3596,6 +3596,12 @@ export class DeckWorldSurface implements WorldSurface {
     this.#scheduleHoverRender();
   };
 
+  #togglePickedSelection(info: DeckRuntimePickingInfo): boolean {
+    const next = this.#selectionFromPickingInfo(info);
+    const toggled = next !== null && selectionEquals(next, this.#selection) ? null : next;
+    return this.#setUserSelection(toggled);
+  }
+
   readonly #handleDeckClick = (info: DeckRuntimePickingInfo): void => {
     if (this.#activeDragPointerId !== null) return;
     if (this.#suppressNextDeckClick) {
@@ -3609,20 +3615,15 @@ export class DeckWorldSurface implements WorldSurface {
         object && Array.isArray(object.placeIds)
           ? object.placeIds.filter((value): value is PlaceId => typeof value === "string")
           : [];
-      const [placeId] = placeIds;
-      if (placeIds.length === 1 && placeId) {
-        const next = { kind: "place", id: placeId } as const;
-        this.#setUserSelection(selectionEquals(next, this.#selection) ? null : next);
-      } else {
-        this.#revealClusterPlaces(placeIds);
-        this.#focusCluster(cluster, clusterMemberCountFromPicking(info));
-      }
+      // Cluster activation is presentation-only: keep the camera and canonical
+      // selection stable, release the represented places from aggregation, and
+      // let the existing D3 scatter phase expose their retained members.
+      this.#revealClusterPlaces(placeIds);
+      this.#syncClusterLifecycle();
       void pulseHaptic("selection");
       return;
     }
-    const next = this.#selectionFromPickingInfo(info);
-    const toggled = next !== null && selectionEquals(next, this.#selection) ? null : next;
-    const changed = this.#setUserSelection(toggled);
+    const changed = this.#togglePickedSelection(info);
     if (changed) void pulseHaptic("selection");
   };
 
@@ -4399,18 +4400,9 @@ export class DeckWorldSurface implements WorldSurface {
     }
     this.#pendingClusterLifecycleSync = false;
 
-    // Explicit drill-in persists through local pan/zoom, but returning to the
-    // overview tier restores normal semantic clustering.
-    if (
-      this.#revealedClusterPlaceIds.size > 0 &&
-      shouldClusterEntityDatums(
-        this.#projection.instances.length,
-        this.#camera.zoom,
-        this.#clusterEntityFootprintRadiusPx(),
-      )
-    ) {
-      this.#revealedClusterPlaceIds = new Set();
-    }
+    // Explicit cluster expansion is sticky presentation state. Camera movement
+    // must not immediately recreate a cluster the user just asked to inspect;
+    // membership is pruned only when the projected places leave the scene.
     const placeIds = this.#clusterTargetPlaceIds();
     if (placeIds.length === 0) {
       if (this.#clusterPhase !== "expanded") this.#beginClusterExpansion();
