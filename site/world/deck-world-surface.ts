@@ -1305,7 +1305,7 @@ function prefersReducedMotion(): boolean {
  * Explicit deck.gl `Controller` options (issue #445 Priority 4). deck.gl's
  * own `GlobeController`/`MapController` already implements orbit/rotate,
  * pointer-anchored wheel/pinch zoom (`zoomAround: "pointer"` is deck.gl's
- * default), and keyboard pan/zoom (`keyboard: true` is deck.gl's default) —
+ * default), and keyboard pan/zoom (using deck.gl's native controller with a finer zoom step) —
  * this file does not reimplement that gesture handling. What deck.gl
  * does *not* default to "on" is inertia, so it is set explicitly here and
  * tied to the platform's reduced-motion preference. `doubleClickZoom` is
@@ -1330,7 +1330,7 @@ function deckControllerOptions(
     scrollZoom: true,
     touchZoom: true,
     multiTouchDrag: "rotate",
-    keyboard: true,
+    keyboard: { zoomSpeed: 0.5 },
     doubleClickZoom: false,
     // Production local mode supplies an explicit MapController, so precise
     // pointer anchoring is safe after the settled globe->local handoff. Keep
@@ -3053,6 +3053,7 @@ export class DeckWorldSurface implements WorldSurface {
     instances: Object.freeze([]),
     edges: Object.freeze([]),
   });
+  #temporalPreviewActive = false;
   readonly #topologyIndex = new WorldRenderTopologyIndex(this.#projection);
   #relationshipRouteHints: ReadonlyMap<RelationshipId, WorldRelationshipRouteHint> = new Map();
   #selection: WorldSelection | null = null;
@@ -3596,6 +3597,12 @@ export class DeckWorldSurface implements WorldSurface {
     this.#scheduleHoverRender();
   };
 
+  #togglePickedSelection(info: DeckRuntimePickingInfo): boolean {
+    const next = this.#selectionFromPickingInfo(info);
+    const toggled = next !== null && selectionEquals(next, this.#selection) ? null : next;
+    return this.#setUserSelection(toggled);
+  }
+
   readonly #handleDeckClick = (info: DeckRuntimePickingInfo): void => {
     if (this.#activeDragPointerId !== null) return;
     if (this.#suppressNextDeckClick) {
@@ -3609,20 +3616,15 @@ export class DeckWorldSurface implements WorldSurface {
         object && Array.isArray(object.placeIds)
           ? object.placeIds.filter((value): value is PlaceId => typeof value === "string")
           : [];
-      const [placeId] = placeIds;
-      if (placeIds.length === 1 && placeId) {
-        const next = { kind: "place", id: placeId } as const;
-        this.#setUserSelection(selectionEquals(next, this.#selection) ? null : next);
-      } else {
-        this.#revealClusterPlaces(placeIds);
-        this.#focusCluster(cluster, clusterMemberCountFromPicking(info));
-      }
+      // Cluster activation is presentation-only: keep the camera and canonical
+      // selection stable, release the represented places from aggregation, and
+      // let the existing D3 scatter phase expose their retained members.
+      this.#revealClusterPlaces(placeIds);
+      this.#syncClusterLifecycle();
       void pulseHaptic("selection");
       return;
     }
-    const next = this.#selectionFromPickingInfo(info);
-    const toggled = next !== null && selectionEquals(next, this.#selection) ? null : next;
-    const changed = this.#setUserSelection(toggled);
+    const changed = this.#togglePickedSelection(info);
     if (changed) void pulseHaptic("selection");
   };
 
@@ -4399,18 +4401,9 @@ export class DeckWorldSurface implements WorldSurface {
     }
     this.#pendingClusterLifecycleSync = false;
 
-    // Explicit drill-in persists through local pan/zoom, but returning to the
-    // overview tier restores normal semantic clustering.
-    if (
-      this.#revealedClusterPlaceIds.size > 0 &&
-      shouldClusterEntityDatums(
-        this.#projection.instances.length,
-        this.#camera.zoom,
-        this.#clusterEntityFootprintRadiusPx(),
-      )
-    ) {
-      this.#revealedClusterPlaceIds = new Set();
-    }
+    // Explicit cluster expansion is sticky presentation state. Camera movement
+    // must not immediately recreate a cluster the user just asked to inspect;
+    // membership is pruned only when the projected places leave the scene.
     const placeIds = this.#clusterTargetPlaceIds();
     if (placeIds.length === 0) {
       if (this.#clusterPhase !== "expanded") this.#beginClusterExpansion();
@@ -4448,6 +4441,7 @@ export class DeckWorldSurface implements WorldSurface {
 
   setProjection(projection: WorldProjection): void {
     this.#assertAlive();
+    this.#temporalPreviewActive = false;
     this.#projection = projection;
     this.#topologyIndex.replace(projection);
     this.#pruneRevealedClusterPlaces();
@@ -4459,6 +4453,7 @@ export class DeckWorldSurface implements WorldSurface {
 
   previewProjection(projection: WorldProjection): void {
     this.#assertAlive();
+    this.#temporalPreviewActive = true;
     // Timeline travel owns only transient presentation here. Keep camera fit,
     // clustering/force coordination and projection-handoff convergence on the
     // last committed projection until the timeline settles.
@@ -5781,12 +5776,14 @@ export class DeckWorldSurface implements WorldSurface {
     const clusterPlaces = new Set(this.#clusterPlaceIds);
     const placeReveal = placeInteractionReveal(this.#projection, this.#selection);
     const candidateMemberIds = new Set<WorldInstanceId>(
-      this.#projection.instances
-        .filter((instance) => {
-          const placeId = instance.geographicAnchors[0]?.placeId;
-          return placeId !== undefined && clusterPlaces.has(placeId);
-        })
-        .map((instance) => instance.id),
+      this.#temporalPreviewActive
+        ? []
+        : this.#projection.instances
+            .filter((instance) => {
+              const placeId = instance.geographicAnchors[0]?.placeId;
+              return placeId !== undefined && clusterPlaces.has(placeId);
+            })
+            .map((instance) => instance.id),
     );
 
     // Relationship geometry always consumes the exact force-resolved positions.
@@ -5865,7 +5862,9 @@ export class DeckWorldSurface implements WorldSurface {
         )
       : Object.freeze([] as DeckWorldRelationshipDatum[]);
     const placeMarkerClusters =
-      clusterPhase !== "collapsed" && presentationZoom < WORLD_CLUSTER_DETAIL_ZOOM_CEILING
+      !this.#temporalPreviewActive &&
+      clusterPhase !== "collapsed" &&
+      presentationZoom < WORLD_CLUSTER_DETAIL_ZOOM_CEILING
         ? Object.freeze(
             clusterEntityDatumsByPlace(
               entityResult.datums,

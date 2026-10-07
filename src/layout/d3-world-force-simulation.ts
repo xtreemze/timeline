@@ -32,10 +32,10 @@ import type {
 
 const NORMAL_MANY_BODY_STRENGTH = -2_600;
 const COLLAPSE_MANY_BODY_STRENGTH = -1_400;
-const NORMAL_ANCHOR_STRENGTH = 0.006;
+const NORMAL_ANCHOR_STRENGTH = 0.004;
 const COLLAPSE_ANCHOR_STRENGTH = 0.08;
-const COLLISION_STRENGTH = 0.82;
-const COLLISION_ITERATIONS = 3;
+const COLLISION_STRENGTH = 1;
+const COLLISION_ITERATIONS = 6;
 const CONNECTIVITY_SPACING_STRENGTH = 0.35;
 
 export const DEFAULT_D3_WORLD_FORCE_TUNING: WorldForceTuning = Object.freeze({
@@ -64,8 +64,6 @@ const MAX_FORCE_BACKLOG_STEPS = 8;
 const FORCE_STEP_EPSILON_MS = 1e-7;
 /** Match the reference solver's bounded long-link interaction contract. */
 const INTERACTION_EDGE_MAX_STRETCH_SCALE = 8;
-/** Bound post-drop target error so a distant release cannot inject a one-frame force spike. */
-const INTERACTION_FORCE_MAX_ERROR_METERS = 6_000;
 const DRAG_MOVE_ALPHA_FLOOR = 0.04;
 /**
  * A committed temporal re-anchor can preserve a visible pose far from its new
@@ -1323,13 +1321,10 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       : NORMAL_ANCHOR_STRENGTH *
         tuning.anchorStrengthScale *
         Math.max(0, Math.min(1, state.anchor.influence));
-    const postDropLimited =
+    const postDropSettling =
       this.#requestReason === "post-drop" && this.#interactionGroupKey === groupKey;
-    if (!postDropLimited) return baseStrength;
-
-    const error = Math.hypot(state.x ?? 0, state.y ?? 0);
-    if (error <= INTERACTION_FORCE_MAX_ERROR_METERS) return baseStrength;
-    return baseStrength * (INTERACTION_FORCE_MAX_ERROR_METERS / error);
+    if (postDropSettling) return 0;
+    return baseStrength;
   }
 
   #dagStrength(
@@ -1341,15 +1336,10 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     if (collapsed) return 0;
     const baseStrength =
       Math.max(0, state.node.layoutTargetStrength ?? 0) * tuning.dagStrengthScale;
-    const postDropLimited =
+    const postDropSettling =
       this.#requestReason === "post-drop" && this.#interactionGroupKey === groupKey;
-    if (!postDropLimited || baseStrength === 0) return baseStrength;
-
-    const targetX = state.node.layoutTargetEastMeters ?? state.x ?? 0;
-    const targetY = state.node.layoutTargetNorthMeters ?? state.y ?? 0;
-    const error = Math.hypot(targetX - (state.x ?? 0), targetY - (state.y ?? 0));
-    if (error <= INTERACTION_FORCE_MAX_ERROR_METERS) return baseStrength;
-    return baseStrength * (INTERACTION_FORCE_MAX_ERROR_METERS / error);
+    if (postDropSettling) return 0;
+    return baseStrength;
   }
 
   #refreshGroupForceStrengths(group: D3WorldGroup): void {
