@@ -2273,6 +2273,56 @@ test("multi-place cluster activation reveals nodes in place and remains disengag
   }
 });
 
+test("transient timeline previews expose individual nodes instead of introducing a new cluster", () => {
+  const originalSetTimeout = globalThis.setTimeout;
+  try {
+    globalThis.setTimeout = (callback) => {
+      callback();
+      return 0;
+    };
+
+    const { calls, runtime } = harness();
+    const surface = new DeckWorldSurface(
+      { style: {}, clientWidth: 360, clientHeight: 780 },
+      runtime,
+      {
+        longitude: 18.0686,
+        latitude: 59.3293,
+        zoom: 3,
+        bearing: 0,
+        pitch: 20,
+      },
+    );
+    const mobileProjection = narrowMobileMultiPlaceProjection();
+    surface.setProjection(mobileProjection);
+    assert.ok(
+      renderedLayer(calls, DECK_WORLD_LAYER_IDS.entities).props.data.some(
+        (datum) => datum.kind === "cluster",
+      ),
+      "the committed overview may use semantic clustering",
+    );
+
+    surface.previewProjection(mobileProjection);
+    const preview = renderedLayer(calls, DECK_WORLD_LAYER_IDS.entities).props.data;
+    assert.equal(
+      preview.filter((datum) => datum.kind === "entity").length,
+      mobileProjection.instances.length,
+      "timeline travel shows individual nodes so temporal progression remains legible",
+    );
+    assert.ok(preview.every((datum) => datum.kind !== "cluster"));
+
+    surface.setProjection(mobileProjection);
+    assert.ok(
+      renderedLayer(calls, DECK_WORLD_LAYER_IDS.entities).props.data.some(
+        (datum) => datum.kind === "cluster",
+      ),
+      "committing the timeline window returns clustering to the ordinary lifecycle",
+    );
+  } finally {
+    globalThis.setTimeout = originalSetTimeout;
+  }
+});
+
 test("canonical focus crosses the active cluster threshold before framing an entity", async () => {
   const { calls, runtime } = harness();
   const surface = new DeckWorldSurface({}, runtime, {
