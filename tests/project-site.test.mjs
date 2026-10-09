@@ -84,10 +84,15 @@ test("GitHub Pages root is the Lūm landing page and points to the dedicated Lū
   assert.match(landingScript, /unregister/);
 });
 
-test("legacy workspace route forwards to the canonical Lūm app route", async () => {
+test("legacy workspace route forwards to the canonical Lūm app route without Vite treating the route as an asset", async () => {
   const workspace = await read("site/workspace.html");
   assert.match(workspace, /url=\.\/lum\//i);
-  assert.match(workspace, /href=["']\.\/lum\/["']/);
+  assert.match(workspace, /<a href=["']\.\/lum\/["']/);
+  assert.match(
+    workspace,
+    /rel=["']canonical["'] href=["']https:\/\/xtreemze\.github\.io\/timeline\/lum\/["']/,
+  );
+  assert.doesNotMatch(workspace, /<link rel=["']canonical["'] href=["']\.\/lum\/["']/);
 });
 
 
