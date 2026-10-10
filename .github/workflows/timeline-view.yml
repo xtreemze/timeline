@@ -393,7 +393,6 @@ jobs:
         run: pnpm exec playwright test --config=playwright.config.ts tests/browser/focus-sidebar.spec.ts --project="Desktop Chrome" --project="Mobile Chrome" --project="Mobile Chrome Landscape"
 
   pages-runtime-browser:
-    continue-on-error: true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -401,15 +400,11 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 24
-      - continue-on-error: true
-        run: pnpm install --frozen-lockfile
-      - continue-on-error: true
-        run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
       - name: Build production site
-        continue-on-error: true
         run: pnpm build
       - name: Certify built Pages runtime
-        continue-on-error: true
         run: pnpm exec playwright test --config=playwright.pages.config.ts
 
   application-shell-browser:

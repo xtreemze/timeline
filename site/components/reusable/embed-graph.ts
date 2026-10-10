@@ -1,5 +1,6 @@
 import { css, html, LitElement, nothing, svg } from "lit";
 import { embedThemeStyles } from "./embed-theme.ts";
+import { runScopedViewTransition } from "./project-site-motion.ts";
 
 export interface EmbedGraphNode {
   readonly id: string;
@@ -84,6 +85,7 @@ export class LuumEmbedGraphElement extends LitElement {
         box-shadow: 3px 3px 0 color-mix(in srgb, var(--_luum-line) 75%, transparent);
         text-align: center;
         cursor: pointer;
+        view-transition-name: match-element;
       }
 
       [part="node"][aria-pressed="true"] {
@@ -136,14 +138,18 @@ export class LuumEmbedGraphElement extends LitElement {
   }
 
   private selectNode(id: string): void {
-    this.selectedId = id;
-    this.dispatchEvent(
-      new CustomEvent("luum-embed-select", {
-        bubbles: true,
-        composed: true,
-        detail: Object.freeze({ kind: "graph", id }),
-      }),
-    );
+    const surface = this.renderRoot.querySelector<HTMLElement>('[part="surface"]');
+    void runScopedViewTransition(surface, async () => {
+      this.selectedId = id;
+      this.dispatchEvent(
+        new CustomEvent("luum-embed-select", {
+          bubbles: true,
+          composed: true,
+          detail: Object.freeze({ kind: "graph", id }),
+        }),
+      );
+      await this.updateComplete;
+    });
   }
 
   protected override render() {

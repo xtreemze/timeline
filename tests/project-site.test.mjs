@@ -84,10 +84,15 @@ test("GitHub Pages root is the Lūm landing page and points to the dedicated Lū
   assert.match(landingScript, /unregister/);
 });
 
-test("legacy workspace route forwards to the canonical Lūm app route", async () => {
+test("legacy workspace route forwards to the canonical Lūm app route without Vite treating the route as an asset", async () => {
   const workspace = await read("site/workspace.html");
   assert.match(workspace, /url=\.\/lum\//i);
-  assert.match(workspace, /href=["']\.\/lum\/["']/);
+  assert.match(workspace, /<a href=["']\.\/lum\/["']/);
+  assert.match(
+    workspace,
+    /rel=["']canonical["'] href=["']https:\/\/xtreemze\.github\.io\/timeline\/lum\/["']/,
+  );
+  assert.doesNotMatch(workspace, /<link rel=["']canonical["'] href=["']\.\/lum\/["']/);
 });
 
 
@@ -108,17 +113,22 @@ test("Pages deployment is gated by the deployable site artifact, not the broad m
   assert.doesNotMatch(workflow, /Check production TypeScript bindings/);
   assert.doesNotMatch(workflow, /run:\s*pnpm types:migrated/);
   assert.match(workflow, /pnpm build/);
-  assert.match(workflow, /data-site-generator="astro"/);
+  assert.match(workflow, /data-site-generator="vite"/);
   assert.match(workflow, /id="app-shell"/);
 });
 
 
-test("Lūm subroute uses Vite root-resolved source inputs while preserving browser base semantics", async () => {
+test("Lūm subroute keeps Vite inputs root-resolved without rewriting deployed asset URLs through a base tag", async () => {
   const lum = await read("site/lum/index.html");
+  const pwa = await read("site/pwa.ts");
 
-  assert.match(lum, /<base href=["']\.\.\/["']>/);
+  assert.doesNotMatch(lum, /<base\b/i);
   assert.match(lum, /src=["']\/time-scale-shim\.ts["']/);
   assert.match(lum, /src=["']\/app\.ts["']/);
   assert.match(lum, /href=["']\/styles\.css["']/);
-  assert.doesNotMatch(lum, /src=["']\.\/time-scale-shim\.ts["']/);
+  assert.match(lum, /rel=["']manifest["'] href=["']\.\.\/manifest\.webmanifest["']/);
+  assert.match(lum, /rel=["']apple-touch-icon["'] href=["']\.\.\/pwa-icon-192\.png["']/);
+  assert.match(lum, /rel=["']icon["'] href=["']\.\.\/icon\.svg["']/);
+  assert.match(pwa, /SERVICE_WORKER_URL\s*=\s*["']\.\/sw\.js["']/);
+  assert.match(pwa, /SERVICE_WORKER_SCOPE\s*=\s*["']\.\/["']/);
 });

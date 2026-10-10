@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { D3WorldForceSimulation } from "../src/layout/d3-world-force-simulation.ts";
+import { DEFAULT_D3_WORLD_FORCE_TUNING, D3WorldForceSimulation } from "../src/layout/d3-world-force-simulation.ts";
 
 function node(id, east, collisionRadiusMeters = 300, overrides = {}) {
   return {
@@ -429,6 +429,58 @@ test("D3 DAG targets remain soft guidance outside collapsed clusters", () => {
   assert.ok(simulation.getSnapshot()[0].eastMeters > before);
 });
 
+test("D3 force progression is independent of display refresh cadence", () => {
+  const run = (frameDeltas) => {
+    const simulation = new D3WorldForceSimulation();
+    const alice = '["alice-refresh",null]';
+    const bob = '["bob-refresh",null]';
+    simulation.setScene({
+      nodes: [node(alice, -120, 180), node(bob, 120, 180)],
+      edges: [
+        {
+          id: "refresh-link",
+          sourceId: alice,
+          targetId: bob,
+          strength: 0.6,
+          restLengthMeters: 900,
+        },
+      ],
+      anchors: [anchor(alice, "stockholm", 0.4), anchor(bob, "stockholm", 0.4)],
+    });
+    simulation.apply(topologyRequest());
+    for (const deltaMs of frameDeltas) simulation.step(deltaMs);
+    return {
+      snapshot: simulation.getSnapshot(),
+      diagnostics: simulation.getDiagnostics(),
+    };
+  };
+
+  const cadence = (hz) => Array.from({ length: hz }, () => 1000 / hz);
+  const sixty = run(cadence(60));
+  for (const hz of [30, 40, 90, 120, 144]) {
+    const candidate = run(cadence(hz));
+    assert.equal(
+      candidate.diagnostics.iteration,
+      sixty.diagnostics.iteration,
+      `one second at ${hz} Hz must advance the same number of D3 solver ticks`,
+    );
+    assert.deepEqual(
+      candidate.snapshot,
+      sixty.snapshot,
+      `force positions after one second at ${hz} Hz must match the 60 Hz result`,
+    );
+  }
+
+  const irregularPattern = [8, 12, 16, 20, 24, 28, 32, 20, 20, 20];
+  const irregular = run(Array.from({ length: 5 }, () => irregularPattern).flat());
+  assert.equal(
+    irregular.diagnostics.iteration,
+    sixty.diagnostics.iteration,
+    "one second of irregular 8–32 ms frame deltas must preserve the 60 Hz solver clock",
+  );
+  assert.deepEqual(irregular.snapshot, sixty.snapshot);
+});
+
 test("changed-place temporal handoffs converge without a first-frame teleport", () => {
   const simulation = new D3WorldForceSimulation();
   const id = '["alice",null]';
@@ -554,6 +606,46 @@ test("D3 drag and post-drop stay local and publish sparse changed positions", ()
     .getSnapshot()
     .filter((entry) => entry.instanceId === remoteA || entry.instanceId === remoteB);
   assert.deepEqual(remoteAfter, remoteBefore);
+});
+
+test("post-drop settling does not re-center untouched peers on their geographic anchor", () => {
+  const simulation = new D3WorldForceSimulation();
+  const dragged = '["dragged-stable","stockholm"]';
+  const peer = '["peer-stable","stockholm"]';
+
+  simulation.setTuning({
+    ...DEFAULT_D3_WORLD_FORCE_TUNING,
+    manyBodyStrength: 0,
+    centerStrength: 0,
+    collisionStrength: 1,
+    collisionIterations: 6,
+  });
+  simulation.setScene({
+    nodes: [node(dragged, 2_000, 180), node(peer, 1_200, 180)],
+    edges: [],
+    anchors: [anchor(dragged, "stockholm", 1), anchor(peer, "stockholm", 1)],
+  });
+
+  simulation.setPin({
+    instanceId: dragged,
+    eastMeters: 3_000,
+    northMeters: 0,
+    visualAltitudeMeters: 1_000,
+  });
+  simulation.apply({ reason: "drag", excitation: 0.2, reheat: true });
+  simulation.step(1000 / 60);
+  simulation.setPin(null);
+
+  const peerBefore = simulation.getSnapshot().find((entry) => entry.instanceId === peer);
+  assert.ok(peerBefore);
+  simulation.apply({ reason: "post-drop", excitation: 0.035, reheat: true });
+  for (let index = 0; index < 120; index += 1) simulation.step(1000 / 60);
+  const peerAfter = simulation.getSnapshot().find((entry) => entry.instanceId === peer);
+  assert.ok(peerAfter);
+  assert.ok(
+    Math.abs(peerAfter.eastMeters - peerBefore.eastMeters) < 1,
+    "post-drop must not pull an untouched peer back toward the place center",
+  );
 });
 
 test("D3 topology collision spans distinct place groups regardless of relationship", () => {

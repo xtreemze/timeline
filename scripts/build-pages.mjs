@@ -1,21 +1,19 @@
 import { execFileSync } from "node:child_process";
-import { cp, mkdir, readdir, rm } from "node:fs/promises";
-import { join } from "node:path";
+import { cp, mkdir } from "node:fs/promises";
 
 const run = (command, args) =>
   execFileSync(command, args, { stdio: "inherit", env: process.env });
 
-await rm("dist", { recursive: true, force: true });
-await rm("dist-astro", { recursive: true, force: true });
-
 run("pnpm", ["exec", "vite", "build"]);
-run("pnpm", ["dlx", "astro@7.3.5", "build"]);
+run("pnpm", ["exec", "vite", "build", "--config", "vite.project-site.config.ts"]);
 
-await mkdir("dist", { recursive: true });
-for (const entry of await readdir("dist-astro")) {
-  await cp(join("dist-astro", entry), join("dist", entry), {
-    recursive: true,
-    force: true,
-  });
-}
-await rm("dist-astro", { recursive: true, force: true });
+await mkdir("dist/project-site", { recursive: true });
+await cp(
+  "dist-project-site/xtreemze-project-site.js",
+  "dist/project-site/xtreemze-project-site.js",
+);
+await cp("site/project-site.css", "dist/project-site/project-site.css");
+await cp(
+  "site/project-site-public.d.ts",
+  "dist/project-site/xtreemze-project-site.d.ts",
+);

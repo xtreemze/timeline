@@ -32,10 +32,10 @@ import type {
 
 const NORMAL_MANY_BODY_STRENGTH = -2_600;
 const COLLAPSE_MANY_BODY_STRENGTH = -1_400;
-const NORMAL_ANCHOR_STRENGTH = 0.006;
+const NORMAL_ANCHOR_STRENGTH = 0.004;
 const COLLAPSE_ANCHOR_STRENGTH = 0.08;
-const COLLISION_STRENGTH = 0.82;
-const COLLISION_ITERATIONS = 3;
+const COLLISION_STRENGTH = 1;
+const COLLISION_ITERATIONS = 6;
 const CONNECTIVITY_SPACING_STRENGTH = 0.35;
 
 export const DEFAULT_D3_WORLD_FORCE_TUNING: WorldForceTuning = Object.freeze({
@@ -58,10 +58,12 @@ const ALTITUDE_DAMPING = 0.82;
 const DEFAULT_ALPHA = 0.14;
 const ALPHA_MIN = 0.003;
 const ALPHA_DECAY = 0.018;
+const FORCE_STEP_MS = 1000 / 60;
+const MAX_FORCE_SUBSTEPS = 2;
+const MAX_FORCE_BACKLOG_STEPS = 8;
+const FORCE_STEP_EPSILON_MS = 1e-7;
 /** Match the reference solver's bounded long-link interaction contract. */
 const INTERACTION_EDGE_MAX_STRETCH_SCALE = 8;
-/** Bound post-drop target error so a distant release cannot inject a one-frame force spike. */
-const INTERACTION_FORCE_MAX_ERROR_METERS = 6_000;
 const DRAG_MOVE_ALPHA_FLOOR = 0.04;
 /**
  * A committed temporal re-anchor can preserve a visible pose far from its new
@@ -539,6 +541,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
   #running = false;
   #settled = true;
   #iteration = 0;
+  #stepAccumulatorMs = 0;
   #destroyed = false;
 
   setScene(scene: WorldForceScene): void {
@@ -599,6 +602,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     this.#rebuildGroups(true);
     this.#settled = false;
     this.#iteration = 0;
+    this.#stepAccumulatorMs = 0;
   }
 
   setTuning(tuning: WorldForceTuning, scope: WorldForceTuningScope = {}): void {
@@ -613,6 +617,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     this.#running = true;
     this.#settled = false;
     this.#iteration = 0;
+    this.#stepAccumulatorMs = 0;
   }
 
   setPin(pin: WorldForcePin | null): void {
@@ -708,6 +713,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     this.#running = true;
     this.#settled = false;
     this.#iteration = 0;
+    this.#stepAccumulatorMs = 0;
   }
 
   apply(request: WorldSimulationRequest): void {
@@ -734,6 +740,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       return;
     }
 
+    if (!this.#running) this.#stepAccumulatorMs = 0;
     this.#running = true;
     this.#settled = false;
     const alpha = Math.max(
@@ -750,6 +757,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
   stop(): void {
     this.#assertAlive();
     this.#running = false;
+    this.#stepAccumulatorMs = 0;
     for (const group of this.#groups.values()) group.simulation.stop();
   }
 
@@ -758,28 +766,51 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     if (!this.#running || this.#groups.size === 0) return;
     finiteNonNegative(deltaMs, "D3 world force delta");
 
-    const ticks = Math.max(1, Math.min(2, Math.round(deltaMs / (1000 / 60)) || 1));
+    // d3-force advances in discrete unit ticks. Retain fractional and short
+    // jank backlog so display cadence does not change cooling/settling speed.
+    // Stored debt and solver work per rendered frame remain independently bounded.
+    this.#stepAccumulatorMs = Math.min(
+      this.#stepAccumulatorMs + deltaMs,
+      FORCE_STEP_MS * MAX_FORCE_BACKLOG_STEPS,
+    );
+    const ticks = Math.min(
+      MAX_FORCE_SUBSTEPS,
+      Math.floor((this.#stepAccumulatorMs + FORCE_STEP_EPSILON_MS) / FORCE_STEP_MS),
+    );
+    if (ticks <= 0) return;
+    this.#stepAccumulatorMs = Math.max(0, this.#stepAccumulatorMs - ticks * FORCE_STEP_MS);
+
     const interactionReason = this.#requestReason === "drag" || this.#requestReason === "post-drop";
     const groups = this.#groupsForRequest(interactionReason);
-
-    let settled = true;
-    for (const group of groups) {
-      if (interactionReason) this.#refreshGroupForceStrengths(group);
-      group.simulation.tick(ticks);
-      this.#stepAltitude(group.nodes, ticks);
-      for (const state of group.nodes) this.#dirtyStateIds.add(state.id);
-      this.#refreshInteractionGroupLocalRadius(group);
-      if (group.simulation.alpha() > group.simulation.alphaMin()) settled = false;
+    if (interactionReason) {
+      for (const group of groups) this.#refreshGroupForceStrengths(group);
     }
 
-    const crossPlaceMoved = interactionReason
-      ? this.#stepCrossPlaceInteractionForces()
-      : this.#stepCrossPlaceTopologyForces();
-    if (crossPlaceMoved) settled = false;
+    let settled = false;
+    for (let tick = 0; tick < ticks; tick += 1) {
+      settled = true;
+      for (const group of groups) {
+        group.simulation.tick(1);
+        this.#stepAltitude(group.nodes, 1);
+        for (const state of group.nodes) this.#dirtyStateIds.add(state.id);
+        this.#refreshInteractionGroupLocalRadius(group);
+        if (group.simulation.alpha() > group.simulation.alphaMin()) settled = false;
+      }
 
-    this.#iteration += ticks;
+      const crossPlaceMoved = interactionReason
+        ? this.#stepCrossPlaceInteractionForces()
+        : this.#stepCrossPlaceTopologyForces();
+      if (crossPlaceMoved) settled = false;
+
+      this.#iteration += 1;
+      if (settled) break;
+    }
+
     this.#settled = settled;
-    if (settled) this.#running = false;
+    if (settled) {
+      this.#running = false;
+      this.#stepAccumulatorMs = 0;
+    }
   }
 
   getSnapshot(): readonly D3WorldForcePosition[] {
@@ -1421,13 +1452,10 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       : NORMAL_ANCHOR_STRENGTH *
         tuning.anchorStrengthScale *
         Math.max(0, Math.min(1, state.anchor.influence));
-    const postDropLimited =
+    const postDropSettling =
       this.#requestReason === "post-drop" && this.#interactionGroupKey === groupKey;
-    if (!postDropLimited) return baseStrength;
-
-    const error = Math.hypot(state.x ?? 0, state.y ?? 0);
-    if (error <= INTERACTION_FORCE_MAX_ERROR_METERS) return baseStrength;
-    return baseStrength * (INTERACTION_FORCE_MAX_ERROR_METERS / error);
+    if (postDropSettling) return 0;
+    return baseStrength;
   }
 
   #dagStrength(
@@ -1439,15 +1467,10 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     if (collapsed) return 0;
     const baseStrength =
       Math.max(0, state.node.layoutTargetStrength ?? 0) * tuning.dagStrengthScale;
-    const postDropLimited =
+    const postDropSettling =
       this.#requestReason === "post-drop" && this.#interactionGroupKey === groupKey;
-    if (!postDropLimited || baseStrength === 0) return baseStrength;
-
-    const targetX = state.node.layoutTargetEastMeters ?? state.x ?? 0;
-    const targetY = state.node.layoutTargetNorthMeters ?? state.y ?? 0;
-    const error = Math.hypot(targetX - (state.x ?? 0), targetY - (state.y ?? 0));
-    if (error <= INTERACTION_FORCE_MAX_ERROR_METERS) return baseStrength;
-    return baseStrength * (INTERACTION_FORCE_MAX_ERROR_METERS / error);
+    if (postDropSettling) return 0;
+    return baseStrength;
   }
 
   #refreshGroupForceStrengths(group: D3WorldGroup): void {

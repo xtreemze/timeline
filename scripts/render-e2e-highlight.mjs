@@ -598,8 +598,13 @@ async function renderFormFactor(formFactor, manifest) {
 
   const args = ["-y"];
   for (const input of sequence) args.push("-i", input);
+  // xfade requires every input to share the same frame rate as well as the
+  // same time base. Raw motion capture and published scene assets retain their
+  // measured source timestamps; only these disposable reel intermediates are
+  // normalized to the manifest's 60 fps presentation clock.
   const filters = sequence.map(
-    (_, index) => `[${index}:v]settb=AVTB,setpts=PTS-STARTPTS[v${index}]`,
+    (_, index) =>
+      `[${index}:v]fps=${reelProfile.fps},settb=AVTB,setpts=PTS-STARTPTS[v${index}]`,
   );
   let currentLabel = "v0";
   let cumulativeDuration = durations[0];
