@@ -58,3 +58,33 @@ test("production build exposes a stable cross-project embed module entry", async
   assert.match(vite, /embed:\s*new URL\("\.\/site\/embed-entry\.ts"/);
   assert.match(vite, /embed\/luum-embed\.js/);
 });
+
+
+test("embed bundle exposes domain-neutral media viewing without duplicating slideshow authority", async () => {
+  const [entry, viewer] = await Promise.all([
+    readFile(new URL("../site/embed-entry.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/components/reusable/media-viewer.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(entry, /ReusableMediaViewerElement/);
+  assert.match(entry, /luum-embed-media-viewer/);
+  assert.match(entry, /export \{[\s\S]*ReusableMediaViewerElement/);
+  assert.match(viewer, /extends LitElement/);
+  assert.doesNotMatch(viewer, /slideshow|playback|jellyfin|occurrence|timeline-view/);
+});
+
+test("embed selection uses capability-gated element-scoped view transitions", async () => {
+  const [timeline, graph, motion] = await Promise.all([
+    readFile(new URL("../site/components/reusable/embed-timeline.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/components/reusable/embed-graph.ts", import.meta.url), "utf8"),
+    readFile(new URL("../site/components/reusable/project-site-motion.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(motion, /startViewTransition/);
+  assert.match(motion, /prefers-reduced-motion/);
+  assert.match(motion, /runScopedViewTransition/);
+  assert.match(timeline, /runScopedViewTransition/);
+  assert.match(graph, /runScopedViewTransition/);
+  assert.match(timeline, /view-transition-name:\s*match-element/);
+  assert.match(graph, /view-transition-name:\s*match-element/);
+});

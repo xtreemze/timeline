@@ -332,7 +332,8 @@ export function createWorldLayoutControls(
     ["left-to-right", "Left → right"],
   ]);
   const strategy = selectRow(doc, "Sugiyama strategy", [
-    ["auto", "Auto / best bounded candidate"],
+    ["longest-auto-greedy", "Longest path + auto decross"],
+    ["auto", "Auto / compare layering families"],
     ["longest-opt-greedy", "Longest path + optimal decross"],
     ["longest-two-layer-greedy", "Longest path + two-layer"],
     ["simplex-two-layer-greedy", "Simplex + two-layer"],
@@ -387,7 +388,7 @@ export function createWorldLayoutControls(
   const dagReset = (): void => {
     algorithm.select.value = "sugiyama";
     direction.select.value = "auto";
-    strategy.select.value = "auto";
+    strategy.select.value = "longest-auto-greedy";
     coordinate.select.value = "greedy";
     edgeStyle.select.value = "routed";
     syncDagControls();

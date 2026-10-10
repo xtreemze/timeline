@@ -486,7 +486,7 @@ test("layout quality keeps greedy coordinate assignment across neighborhood size
       .map((item, index) => edge(`large-edge-${index}`, largeInstances[index], item)),
   });
   const largeLayout = createWorldDagLayout(large);
-  assert.equal(largeLayout.metrics.algorithmCounts["simplex-two-layer-greedy"], 1);
+  assert.equal(largeLayout.metrics.algorithmCounts["longest-two-layer-greedy"], 1);
   assert.equal(largeLayout.targets.length, largeInstances.length);
 
   const hugeInstances = Array.from({ length: 160 }, (_, index) => instance(`huge-${index}`));

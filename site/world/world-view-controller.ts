@@ -118,7 +118,7 @@ export class WorldViewRuntimeController {
   #viewportDagOrientation: WorldDagLayoutOrientation = "top-to-bottom";
   #globalDagOrientation: WorldDagLayoutOrientation | null = null;
   #globalDagAlgorithm: WorldDagLayoutAlgorithm | undefined;
-  #globalDagStrategy: WorldDagLayoutStrategy = "auto";
+  #globalDagStrategy: WorldDagLayoutStrategy = "longest-auto-greedy";
   #globalDagCoordinate: WorldDagCoordinateStrategy = "greedy";
   #globalDagEdgeStyle: WorldDagEdgeStyle = "routed";
   #dagPlaceOverrides = new Map<PlaceId, WorldDagLayoutPlaceOverride>();

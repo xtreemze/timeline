@@ -192,6 +192,37 @@ test("world temporal previews activate the visible node/edge set without committ
   assert.deepEqual(edgeIds(getProjection()), ["later"]);
 });
 
+test("empty transient timeline windows retain the last visible preview until the gesture commits", () => {
+  const { view, getProjection, getCommittedProjection } = harness();
+  view.setModel(model);
+  view.setWindow({ ...window, activeOccurrenceIds: ["meeting"] });
+
+  const later = {
+    start: Date.parse("2026-09-24T09:00:00Z"),
+    end: Date.parse("2026-09-24T11:00:00Z"),
+    activeOccurrenceIds: ["later"],
+  };
+  view.previewWindow(later);
+  assert.deepEqual(edgeIds(getProjection()), ["later"]);
+
+  const gap = {
+    start: Date.parse("2026-09-24T20:00:00Z"),
+    end: Date.parse("2026-09-24T21:00:00Z"),
+    activeOccurrenceIds: [],
+  };
+  view.previewWindow(gap);
+  assert.deepEqual(
+    edgeIds(getProjection()),
+    ["later"],
+    "presentation continuity keeps the most recent preview topology through an empty interval",
+  );
+  assert.deepEqual(edgeIds(getCommittedProjection()), ["meeting"]);
+
+  view.setWindow(gap);
+  assert.deepEqual(getCommittedProjection().edges, []);
+  assert.deepEqual(getProjection().instances, []);
+});
+
 test("without a shared active set the world keeps its standalone temporal query", () => {
   const { view, getProjection } = harness();
   view.setModel(model);

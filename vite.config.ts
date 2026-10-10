@@ -34,8 +34,10 @@ export default defineConfig({
         embed: new URL("./site/embed-entry.ts", import.meta.url).pathname,
       },
       output: {
-        entryFileNames: (chunk) =>
-          chunk.name === "embed" ? "embed/luum-embed.js" : "assets/[name]-[hash].js",
+        entryFileNames: (chunk) => {
+          if (chunk.name === "embed") return "embed/luum-embed.js";
+          return "assets/[name]-[hash].js";
+        },
         strictExecutionOrder: true,
         codeSplitting: {
           includeDependenciesRecursively: false,

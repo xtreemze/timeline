@@ -16,8 +16,8 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: pages-${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion != 'success' && github.run_id || 'deploy' }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -26,6 +26,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v6
@@ -38,9 +40,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Clean up stale cached directories
-        run: rm -rf site/workspace.html site/presentation.html dist/workspace.html dist/presentation.html 2>/dev/null || true
-
       - name: Build native ESM site
         run: |
           pnpm build
@@ -49,7 +48,7 @@ jobs:
           test -s dist/workspace.html
           test -s dist/presentation.html
           grep -q 'Weave the threads' dist/index.html
-          grep -q 'data-site-generator="astro"' dist/index.html
+          grep -q 'data-site-generator="vite"' dist/index.html
           grep -q 'id="history"' dist/index.html
           grep -q 'id="app-shell"' dist/lum/index.html
           grep -q 'href="./lum/"' dist/index.html
@@ -65,6 +64,13 @@ jobs:
           test -s dist/pwa-icon-192.svg
           test -s dist/pwa-icon-512.svg
           test -s dist/pwa-maskable-512.svg
+          test -s dist/project-site/xtreemze-project-site.js
+          test -s dist/project-site/project-site.css
+          test -s dist/project-site/xtreemze-project-site.d.ts
+          if grep -Eq 'from[[:space:]]+["'\''"]\\./|import[[:space:]]*\\(["'\''"]\\./' dist/project-site/xtreemze-project-site.js; then
+            echo "Published project-site bundle contains unresolved relative imports"
+            exit 1
+          fi
           if grep -Eq 'src="[^"]+\.ts([?#][^"]*)?"' dist/index.html dist/lum/index.html; then
             echo "Built entry point still references raw TypeScript modules"
             exit 1
@@ -98,7 +104,7 @@ jobs:
           fi
 
           if [ -z "$run_id" ]; then
-            echo "No completed showcase run is available; deploying the Astro application without showcase media."
+            echo "No completed showcase run is available; deploying the Vite application without showcase media."
             exit 0
           fi
 
@@ -212,7 +218,7 @@ jobs:
         run: |
           landing="$(curl -fsSL "$LANDING_URL")"
           printf '%s' "$landing" | grep -q 'Weave the threads'
-          printf '%s' "$landing" | grep -q 'data-site-generator="astro"'
+          printf '%s' "$landing" | grep -q 'data-site-generator="vite"'
           printf '%s' "$landing" | grep -q 'href="./lum/"'
 
           lum="$(curl -fsSL "$LUM_URL")"

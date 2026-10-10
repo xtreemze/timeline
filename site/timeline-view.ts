@@ -67,6 +67,8 @@ const presentation = TimelinePresentation;
 const VIEW_STORAGE_KEY = "timeline:view:v1";
 const DEFAULT_SPAN_MS = 86_400_000;
 const MIN_SPAN_MS = 1;
+const KEYBOARD_ZOOM_IN_FACTOR = 0.9;
+const KEYBOARD_ZOOM_OUT_FACTOR = 1 / KEYBOARD_ZOOM_IN_FACTOR;
 const MAX_WHEEL_EXPONENT = 0.045;
 const WHEEL_ZOOM_SENSITIVITY = 0.00065;
 const OVERSCAN_RATIO = 0.6;
@@ -1247,13 +1249,24 @@ export class TimelineViewController {
         event.shiftKey ? this.fitAll() : this.fitVisible();
         return;
       }
-      if (event.key === "+" || event.key === "=" || event.key === "-") {
-        event.preventDefault();
-        const factor = event.key === "-" ? 1.25 : 0.8;
+      const applyKeyboardZoom = (zoomIn: boolean): void => {
+        const factor = zoomIn ? KEYBOARD_ZOOM_IN_FACTOR : KEYBOARD_ZOOM_OUT_FACTOR;
         const center = (this.viewport.start + this.viewport.end) / 2;
         const span = Math.max(MIN_SPAN_MS, (this.viewport.end - this.viewport.start) * factor);
         this.viewport = { start: center - span / 2, end: center + span / 2 };
         this.commitInteraction();
+      };
+      if (event.key === "+" || event.key === "=" || event.key === "-") {
+        event.preventDefault();
+        applyKeyboardZoom(event.key !== "-");
+        return;
+      }
+      if (
+        this.orientation === "horizontal" &&
+        (event.key === "ArrowUp" || event.key === "ArrowDown")
+      ) {
+        event.preventDefault();
+        applyKeyboardZoom(event.key === "ArrowUp");
         return;
       }
       if (
