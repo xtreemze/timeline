@@ -17,6 +17,13 @@ const pagesWorkflow = readFileSync(
   new URL("../.github/workflows/pages.yml", import.meta.url),
   "utf8",
 );
+const buildPages = readFileSync(new URL("../scripts/build-pages.mjs", import.meta.url), "utf8");
+const pnpmWorkspace = readFileSync(new URL("../pnpm-workspace.yaml", import.meta.url), "utf8");
+const pnpmLock = readFileSync(new URL("../pnpm-lock.yaml", import.meta.url), "utf8");
+const workspaceHtml = readFileSync(
+  new URL("../site/workspace.html", import.meta.url),
+  "utf8",
+);
 const highlightConfig = readFileSync(
   new URL("../playwright.highlight.config.ts", import.meta.url),
   "utf8",
@@ -115,6 +122,14 @@ test("compiled Pages runtime is owned only by the production preview config", ()
   assert.match(pagesConfig, /testMatch:\s*\[['"]pages-runtime\.spec\.ts['"]\]/);
   assert.match(pagesConfig, /baseURL:\s*['"]http:\/\/127\.0\.0\.1:4173\/timeline\/['"]/);
   assert.match(workflow, /playwright\.pages\.config\.ts/);
+  const pagesRuntimeLane =
+    workflow.match(/pages-runtime-browser:[\s\S]*?(?=\n {2}[a-z][a-z0-9-]+:|$)/)?.[0] ?? "";
+  assert.ok(pagesRuntimeLane, "missing Pages runtime browser lane");
+  assert.doesNotMatch(
+    pagesRuntimeLane,
+    /continue-on-error:\s*true/,
+    "Pages runtime certification must fail CI when the built Lūm route is broken",
+  );
   assert.match(pagesWorkflow, /path:\s*dist/);
   const developmentTestMatch = config.split("\n").find((line) => line.includes("testMatch:"));
   assert.ok(developmentTestMatch);
@@ -221,6 +236,21 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(pagesWorkflow, /workflow_run:/);
   assert.match(pagesWorkflow, /workflows:\s*\["E2E media showcase"\]/);
   assert.match(pagesWorkflow, /github\.event\.workflow_run\.conclusion == 'success'/);
+  assert.match(
+    pagesWorkflow,
+    /cancel-in-progress:\s*true/,
+    "stale Pages runs must not serialize newer deploys behind obsolete builds",
+  );
+  assert.match(
+    pagesWorkflow,
+    /group:\s*pages-\$\{\{\s*github\.event_name == 'workflow_run' && github\.event\.workflow_run\.conclusion != 'success' && github\.run_id \|\| 'deploy'\s*\}\}/,
+    "failed showcase completion runs must not cancel the real Pages deployment concurrency group",
+  );
+  assert.match(
+    pagesWorkflow,
+    /ref:\s*\$\{\{\s*github\.event_name == 'workflow_run' && github\.event\.workflow_run\.head_sha \|\| github\.sha\s*\}\}/,
+    "showcase-triggered Pages builds must checkout the commit that produced the certified artifact",
+  );
   assert.match(pagesWorkflow, /gh run download/);
   assert.match(pagesWorkflow, /SHOWCASE_RUN_ID:/);
   assert.match(pagesWorkflow, /github\.event\.workflow_run\.id/);
@@ -228,6 +258,35 @@ test("CI produces separate desktop and mobile visual showcase evidence", () => {
   assert.match(pagesWorkflow, /artifacts\/e2e-media\/showcase\/mobile/);
   assert.match(pagesWorkflow, /cp -R artifacts\/e2e-media\/showcase\/\. dist\/showcase\//);
   assert.doesNotMatch(pagesWorkflow, /pnpm test:e2e:showcase/);
+  assert.doesNotMatch(
+    pagesWorkflow,
+    /rm -rf site\/workspace\.html site\/presentation\.html/,
+    "Pages must not delete Vite HTML entry points before the production build",
+  );
+  assert.match(
+    workspaceHtml,
+    /<link rel="canonical" href="https:\/\/xtreemze\.github\.io\/timeline\/lum\/">/,
+    "workspace canonical must be an absolute Pages URL so Vite does not read the lum directory as an asset",
+  );
+  assert.doesNotMatch(workspaceHtml, /<link rel="canonical" href="\.\/lum\/">/);
+  assert.equal(packageJson.devDependencies?.astro, undefined);
+  assert.doesNotMatch(
+    pnpmWorkspace,
+    /\besbuild\b/,
+    "Vite 8 uses Rolldown/Oxc; project policy must not enable esbuild lifecycle scripts",
+  );
+  assert.match(buildPages, /run\("pnpm", \["exec", "vite", "build"\]\)/);
+  assert.doesNotMatch(buildPages, /astro|esbuild/i);
+  assert.doesNotMatch(
+    pnpmLock,
+    /^  (?:'@esbuild\/|esbuild@)/m,
+    "the frozen dependency graph must not resolve or install esbuild",
+  );
+  assert.doesNotMatch(
+    pnpmLock,
+    /vite@8\.3\.0\([^)]*\)\(esbuild@/,
+    "Vite must not resolve its optional esbuild compatibility peer",
+  );
 
   for (const formFactor of ["desktop", "mobile"]) {
     for (const asset of [

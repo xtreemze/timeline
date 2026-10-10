@@ -1,3 +1,12 @@
+import {
+  ProjectGraphElement,
+  ProjectTimelineElement,
+  runProjectViewTransition,
+  type EmbedGraphEdge,
+  type EmbedGraphNode,
+  type EmbedTimelineItem,
+} from "./project-site-entry.ts";
+
 type ExampleKind = "historical" | "incident" | "fiction" | "decision";
 
 interface Entity {
@@ -266,8 +275,8 @@ const examples: Record<ExampleKind, ExampleData> = {
 };
 
 const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-example]"));
-const timeline = document.querySelector<HTMLElement>("[data-example-timeline]");
-const world = document.querySelector<HTMLElement>("[data-example-world]");
+const timeline = document.querySelector<ProjectTimelineElement>("[data-example-timeline]");
+const graph = document.querySelector<ProjectGraphElement>("[data-example-world]");
 const evidence = document.querySelector<HTMLElement>("[data-example-evidence]");
 
 function entityLabel(data: ExampleData, id: string): string {
@@ -281,77 +290,38 @@ function placeLabel(data: ExampleData, id?: string): string {
 
 function renderTimeline(data: ExampleData): void {
   if (!timeline) return;
-  timeline.replaceChildren(
-    ...data.occurrences.map((occurrence) => {
-      const row = document.createElement("div");
-      row.className = "timeline-row";
-
-      const time = document.createElement("time");
-      time.textContent = occurrence.date;
-
-      const card = document.createElement("div");
-      card.className = "timeline-card";
-      const title = document.createElement("strong");
-      title.textContent = occurrence.label;
-      const detail = document.createElement("small");
-      detail.textContent = `${entityLabel(data, occurrence.subjectId)} ${occurrence.action} ${entityLabel(data, occurrence.objectId)} · ${placeLabel(data, occurrence.placeId)}`;
-
-      card.append(title, detail);
-      row.append(time, card);
-      return row;
-    }),
-  );
+  const items: readonly EmbedTimelineItem[] = data.occurrences.map((occurrence) => ({
+    id: occurrence.id,
+    timeLabel: occurrence.date,
+    label: occurrence.label,
+    detail: `${entityLabel(data, occurrence.subjectId)} ${occurrence.action} ${entityLabel(
+      data,
+      occurrence.objectId,
+    )} · ${placeLabel(data, occurrence.placeId)}`,
+  }));
+  timeline.items = items;
+  timeline.selectedId = "";
+  timeline.ariaLabel = `${data.title} timeline`;
 }
 
-function renderWorld(data: ExampleData): void {
-  if (!world) return;
-  world.replaceChildren();
+function renderGraph(data: ExampleData): void {
+  if (!graph) return;
+  const nodes: readonly EmbedGraphNode[] = data.entities.map((entity) => ({
+    id: entity.id,
+    label: entity.label,
+    detail: "Entity",
+  }));
+  const edges: readonly EmbedGraphEdge[] = data.occurrences.map((occurrence) => ({
+    id: occurrence.id,
+    sourceId: occurrence.subjectId,
+    targetId: occurrence.objectId,
+    label: `${occurrence.action} · ${placeLabel(data, occurrence.placeId)}`,
+  }));
 
-  const nodes = [
-    ...data.entities.map((entity, index) => ({
-      id: entity.id,
-      label: entity.label,
-      kind: "entity",
-      x: 18 + ((index * 31) % 68),
-      y: 20 + ((index * 37) % 56),
-    })),
-    ...data.places.map((place, index) => ({
-      id: place.id,
-      label: place.label,
-      kind: "place",
-      x: 58 + ((index * 18) % 22),
-      y: 68 - ((index * 23) % 30),
-    })),
-  ];
-
-  const byId = new Map(nodes.map((node) => [node.id, node]));
-
-  for (const occurrence of data.occurrences) {
-    const subject = byId.get(occurrence.subjectId);
-    const object = byId.get(occurrence.objectId);
-    if (subject && object) {
-      const dx = object.x - subject.x;
-      const dy = object.y - subject.y;
-      const edge = document.createElement("div");
-      edge.className = "world-edge";
-      edge.style.left = `${subject.x}%`;
-      edge.style.top = `${subject.y}%`;
-      edge.style.width = `${Math.hypot(dx, dy)}%`;
-      edge.style.transform = `rotate(${Math.atan2(dy, dx) * (180 / Math.PI)}deg)`;
-      edge.title = occurrence.action;
-      world.append(edge);
-    }
-  }
-
-  for (const node of nodes) {
-    const element = document.createElement("div");
-    element.className = "world-node";
-    element.dataset.kind = node.kind;
-    element.style.left = `calc(${node.x}% - 2.75rem)`;
-    element.style.top = `calc(${node.y}% - 1.5rem)`;
-    element.textContent = node.label;
-    world.append(element);
-  }
+  graph.nodes = nodes;
+  graph.edges = edges;
+  graph.selectedId = "";
+  graph.ariaLabel = `${data.title} relationship graph`;
 }
 
 function renderEvidence(data: ExampleData): void {
@@ -382,7 +352,7 @@ function renderEvidence(data: ExampleData): void {
 function renderExample(kind: ExampleKind): void {
   const data = examples[kind];
   renderTimeline(data);
-  renderWorld(data);
+  renderGraph(data);
   renderEvidence(data);
 
   for (const button of buttons) {
@@ -392,10 +362,14 @@ function renderExample(kind: ExampleKind): void {
   }
 }
 
+async function activateExample(kind: ExampleKind): Promise<void> {
+  await runProjectViewTransition(() => renderExample(kind));
+}
+
 for (const button of buttons) {
   button.addEventListener("click", () => {
     const kind = button.dataset.example as ExampleKind | undefined;
-    if (kind && kind in examples) renderExample(kind);
+    if (kind && kind in examples) void activateExample(kind);
   });
 
   button.addEventListener("keydown", (event) => {
@@ -404,8 +378,9 @@ for (const button of buttons) {
     const index = buttons.indexOf(button);
     const delta = event.key === "ArrowRight" ? 1 : -1;
     const next = buttons[(index + delta + buttons.length) % buttons.length];
+    const kind = next?.dataset.example as ExampleKind | undefined;
     next?.focus();
-    next?.click();
+    if (kind && kind in examples) void activateExample(kind);
   });
 }
 

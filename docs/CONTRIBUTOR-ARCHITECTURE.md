@@ -75,7 +75,7 @@ Pointer Events are the baseline direct-manipulation model. The shared acquisitio
 
 Across surfaces:
 - primary mouse, pen, and touch are first-class; Ctrl-modified and secondary-button gestures are not captured for direct manipulation;
-- background direct manipulation uses `grab`/`grabbing`; actionable objects use `pointer`; expandable clusters use `zoom-in`;
+- background direct manipulation uses `grab`/`grabbing`; actionable objects and expandable clusters use `pointer`; cluster activation expands/scatters members in place without changing canonical selection or camera zoom;
 - click/tap selects or activates the surface object; Enter and Space are equivalent object-activation keys when the surface itself owns activation;
 - Tab/Shift+Tab remain native and must never be trapped by a camera surface;
 - arrow keys and +/- stay with the active renderer/navigation controller rather than being reinterpreted by a parallel listener;

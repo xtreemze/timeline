@@ -37,6 +37,7 @@ export type WorldDagEdgeStyle = "routed" | "curved" | "straight" | "orthogonal";
 
 export type WorldDagLayoutStrategy =
   | "auto"
+  | "longest-auto-greedy"
   | "longest-opt-greedy"
   | "longest-two-layer-greedy"
   | "simplex-two-layer-greedy";
@@ -58,7 +59,11 @@ export interface WorldDagLayoutOptions {
   readonly orientation?: WorldDagLayoutOrientation;
   /** Layout family. Sugiyama remains the default layered relationship layout. */
   readonly algorithm?: WorldDagLayoutAlgorithm;
-  /** Automatic selection is the default; explicit strategies are operator exploration state. */
+  /**
+   * Longest-path layering with bounded automatic decross is the default.
+   * The broader "auto" strategy remains available for operator comparison
+   * across layering families.
+   */
   readonly strategy?: WorldDagLayoutStrategy;
   /** Horizontal coordinate assignment used by Sugiyama. */
   readonly coordinate?: WorldDagCoordinateStrategy;
@@ -129,10 +134,10 @@ export interface WorldDagLayoutResult {
 export const WORLD_DAG_TARGET_STRENGTH = 0.00125;
 
 const DAG_FALLBACK_NODE_SIZE_METERS = 720;
-const DAG_MIN_GAP_METERS = 180;
-const DAG_MAX_GAP_METERS = 900;
-const DAG_TARGET_BASE_RADIUS_METERS = 1_500;
-const DAG_TARGET_RADIUS_PER_SQRT_NODE_METERS = 900;
+const DAG_MIN_GAP_METERS = 320;
+const DAG_MAX_GAP_METERS = 1_400;
+const DAG_TARGET_BASE_RADIUS_METERS = 2_000;
+const DAG_TARGET_RADIUS_PER_SQRT_NODE_METERS = 1_100;
 const DAG_EARTH_RADIUS_METERS = 6_371_008.8;
 const DAG_CACHE_RETENTION_REVISIONS = 8;
 const EXACT_DECROSS_MAX_NODES = 8;
@@ -563,7 +568,7 @@ function layoutGap(
     .map(([width, height]) => Math.max(width, height))
     .sort((left, right) => left - right);
   const median = diameters[Math.floor(diameters.length / 2)] ?? DAG_FALLBACK_NODE_SIZE_METERS;
-  const horizontal = Math.max(DAG_MIN_GAP_METERS, Math.min(DAG_MAX_GAP_METERS, median * 0.45));
+  const horizontal = Math.max(DAG_MIN_GAP_METERS, Math.min(DAG_MAX_GAP_METERS, median * 0.65));
   return Object.freeze([horizontal, horizontal * 1.15]);
 }
 
@@ -1504,7 +1509,7 @@ function chooseCandidate(
   previousTargets: ReadonlyMap<string, WorldDagLayoutTarget>,
   orientation: WorldDagLayoutOrientation,
   algorithm: WorldDagLayoutAlgorithm = "sugiyama",
-  strategy: WorldDagLayoutStrategy = "auto",
+  strategy: WorldDagLayoutStrategy = "longest-auto-greedy",
   coordinate: WorldDagCoordinateStrategy = "greedy",
   edgeStyle: WorldDagEdgeStyle = "routed",
   previousAlgorithm?: string,
@@ -1554,6 +1559,19 @@ function chooseCandidate(
 
   if (algorithm !== "sugiyama") {
     return run(algorithm, "longest", "two-layer");
+  }
+
+  if (strategy === "longest-auto-greedy") {
+    const candidates: CandidateLayout[] = [];
+    if (nodeIds.length <= EXACT_DECROSS_MAX_NODES && edges.length <= EXACT_DECROSS_MAX_EDGES) {
+      try {
+        candidates.push(run("longest-opt-greedy", "longest", "opt"));
+      } catch {
+        // Exact decross is optional; the bounded two-layer pass is always available.
+      }
+    }
+    candidates.push(run("longest-two-layer-greedy", "longest", "two-layer"));
+    return preferPreviousCandidate(previousAlgorithm, candidates);
   }
 
   if (strategy !== "auto") {
@@ -1627,7 +1645,7 @@ function layoutPlace(
   const placeOverride = options.placeOverrides?.get(placeId);
   const orientation = placeOverride?.orientation ?? options.orientation ?? "top-to-bottom";
   const algorithm = placeOverride?.algorithm ?? options.algorithm ?? "sugiyama";
-  const strategy = placeOverride?.strategy ?? options.strategy ?? "auto";
+  const strategy = placeOverride?.strategy ?? options.strategy ?? "longest-auto-greedy";
   const coordinate = placeOverride?.coordinate ?? options.coordinate ?? "greedy";
   const edgeStyle = placeOverride?.edgeStyle ?? options.edgeStyle ?? "routed";
   const reorganize = options.reorganize === true || options.reorganizePlaceId === placeId;
@@ -1864,7 +1882,7 @@ function layoutCrossPlaceTopology(
       : options.placeOverrides?.get(options.reorganizePlaceId);
   const orientation = selectedOverride?.orientation ?? options.orientation ?? "top-to-bottom";
   const algorithm = selectedOverride?.algorithm ?? options.algorithm ?? "sugiyama";
-  const strategy = selectedOverride?.strategy ?? options.strategy ?? "auto";
+  const strategy = selectedOverride?.strategy ?? options.strategy ?? "longest-auto-greedy";
   const coordinate = selectedOverride?.coordinate ?? options.coordinate ?? "greedy";
   const edgeStyle = selectedOverride?.edgeStyle ?? options.edgeStyle ?? "routed";
   const reorganize = options.reorganize === true || options.reorganizePlaceId !== undefined;

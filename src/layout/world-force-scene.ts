@@ -61,7 +61,7 @@ export interface WorldForceSceneBuildOptions {
  * Physical graph spacing is deliberately independent from screen marker scale.
  * Compact markers must not collapse the force layout or DAG target geometry.
  */
-const WORLD_FORCE_LAYOUT_SCALE = 2;
+const WORLD_FORCE_LAYOUT_SCALE = 2.4;
 /** Nodes with one or two incident relationships keep only their physical footprint. */
 const CONNECTIVITY_CLEARANCE_FREE_DEGREE = 2;
 /** Square-root growth gives hubs more room without allowing degree to explode layout size. */
@@ -263,7 +263,7 @@ export function createWorldForceScene(
     placeSizes,
     orientation: options.dagOrientation ?? "top-to-bottom",
     algorithm: options.dagAlgorithm ?? "sugiyama",
-    strategy: options.dagStrategy ?? "auto",
+    strategy: options.dagStrategy ?? "longest-auto-greedy",
     coordinate: options.dagCoordinate ?? "greedy",
     edgeStyle: options.dagEdgeStyle ?? "routed",
     placeOverrides: options.dagPlaceOverrides,

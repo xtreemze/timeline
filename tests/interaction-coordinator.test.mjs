@@ -137,7 +137,7 @@ test("surface cursors use one direct-manipulation vocabulary", () => {
   assert.equal(surfaceCursor("background"), "grab");
   assert.equal(surfaceCursor("draggable"), "grab");
   assert.equal(surfaceCursor("action"), "pointer");
-  assert.equal(surfaceCursor("cluster"), "zoom-in");
+  assert.equal(surfaceCursor("cluster"), "pointer");
   assert.equal(surfaceCursor("draggable", { dragging: true }), "grabbing");
 });
 

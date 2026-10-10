@@ -1,0 +1,129 @@
+import {
+  ProjectCapabilityHostElement,
+  type ProjectCapabilityAdapter,
+  type ProjectCapabilityCleanup,
+  type ProjectCapabilityContext,
+  type ProjectCapabilityErrorDetail,
+} from "./components/reusable/capability-host.ts";
+import { LuumEmbedGraphElement } from "./components/reusable/embed-graph.ts";
+import { LuumEmbedTimelineElement } from "./components/reusable/embed-timeline.ts";
+import { ReusableMediaViewerElement } from "./components/reusable/media-viewer.ts";
+
+export const PROJECT_SITE_KIT_VERSION = "0.6.0" as const;
+
+export interface ProjectSiteLink {
+  readonly label: string;
+  readonly href: string;
+}
+
+export interface ProjectSiteCapabilityDescriptor {
+  readonly id: string;
+  readonly label: string;
+  readonly summary: string;
+  readonly kind?: string;
+  readonly href?: string;
+  readonly status?: "available" | "experimental" | "planned";
+}
+
+export interface ProjectShowcaseAsset {
+  readonly id: string;
+  readonly kind: "image" | "video";
+  readonly src: string;
+  readonly alt: string;
+  readonly poster?: string;
+  readonly caption?: string;
+}
+
+export interface ProjectSiteDefinition {
+  readonly id: string;
+  readonly name: string;
+  readonly summary: string;
+  readonly repositoryUrl: string;
+  readonly links?: readonly ProjectSiteLink[];
+  readonly capabilities?: readonly ProjectSiteCapabilityDescriptor[];
+  readonly showcase?: readonly ProjectShowcaseAsset[];
+}
+
+/**
+ * Type-preserving helper for static presentation metadata. The returned object
+ * is descriptive configuration only; it does not own product or runtime state.
+ */
+export function defineProjectSite<const T extends ProjectSiteDefinition>(definition: T): T {
+  return definition;
+}
+
+export class ProjectTimelineElement extends LuumEmbedTimelineElement {}
+export class ProjectGraphElement extends LuumEmbedGraphElement {}
+export class ProjectMediaViewerElement extends ReusableMediaViewerElement {}
+
+if (typeof customElements !== "undefined" && !customElements.get("xt-project-timeline")) {
+  customElements.define("xt-project-timeline", ProjectTimelineElement);
+}
+
+if (typeof customElements !== "undefined" && !customElements.get("xt-project-graph")) {
+  customElements.define("xt-project-graph", ProjectGraphElement);
+}
+
+if (typeof customElements !== "undefined" && !customElements.get("xt-project-media-viewer")) {
+  customElements.define("xt-project-media-viewer", ProjectMediaViewerElement);
+}
+
+if (typeof customElements !== "undefined" && !customElements.get("xt-project-capability")) {
+  customElements.define("xt-project-capability", ProjectCapabilityHostElement);
+}
+
+type ProjectViewTransition = Readonly<{
+  updateCallbackDone: Promise<void>;
+}>;
+
+type ProjectTransitionDocument = Document & {
+  readonly activeViewTransition?: unknown;
+  startViewTransition?: (
+    update: () => void | Promise<void>,
+  ) => ProjectViewTransition;
+};
+
+/**
+ * Run a presentation-only DOM update with the native View Transitions API when
+ * it can improve continuity. The host's state update remains authoritative;
+ * animation is skipped for reduced motion, unsupported browsers, or when a
+ * transition is already active.
+ */
+export async function runProjectViewTransition(
+  update: () => void | Promise<void>,
+): Promise<void> {
+  if (typeof document === "undefined") {
+    await update();
+    return;
+  }
+
+  const reducedMotion =
+    typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const transitionDocument = document as ProjectTransitionDocument;
+
+  if (
+    reducedMotion ||
+    typeof transitionDocument.startViewTransition !== "function" ||
+    transitionDocument.activeViewTransition
+  ) {
+    await update();
+    return;
+  }
+
+  const transition = transitionDocument.startViewTransition(update);
+  await transition.updateCallbackDone;
+}
+
+export type { EmbedGraphEdge, EmbedGraphNode } from "./components/reusable/embed-graph.ts";
+export type { EmbedTimelineItem } from "./components/reusable/embed-timeline.ts";
+export type { MediaViewerZoomDetail } from "./components/reusable/media-viewer.ts";
+
+export {
+  ProjectCapabilityHostElement,
+};
+export type {
+  ProjectCapabilityAdapter,
+  ProjectCapabilityCleanup,
+  ProjectCapabilityContext,
+  ProjectCapabilityErrorDetail,
+};

@@ -198,7 +198,7 @@ export function surfaceCursor(
   options: Readonly<{ dragging?: boolean }> = {},
 ): "grab" | "grabbing" | "pointer" | "zoom-in" {
   if (options.dragging) return "grabbing";
-  if (intent === "cluster") return "zoom-in";
+  if (intent === "cluster") return "pointer";
   if (intent === "action") return "pointer";
   return "grab";
 }
