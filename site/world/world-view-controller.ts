@@ -117,7 +117,7 @@ export class WorldViewRuntimeController {
   #projectionRevision = 0;
   #viewportDagOrientation: WorldDagLayoutOrientation = "top-to-bottom";
   #globalDagOrientation: WorldDagLayoutOrientation | null = null;
-  #globalDagAlgorithm: WorldDagLayoutAlgorithm = "sugiyama";
+  #globalDagAlgorithm: WorldDagLayoutAlgorithm | undefined;
   #globalDagStrategy: WorldDagLayoutStrategy = "longest-auto-greedy";
   #globalDagCoordinate: WorldDagCoordinateStrategy = "greedy";
   #globalDagEdgeStyle: WorldDagEdgeStyle = "routed";

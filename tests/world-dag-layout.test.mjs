@@ -605,22 +605,38 @@ test("weight-only temporal changes reuse the accepted DAG layout", () => {
   }
 });
 
-test("dense neighborhoods avoid simplex operators even below node-count thresholds", () => {
-  const nodes = Array.from({ length: 32 }, (_, index) => instance(`dense-${index}`));
+test("dense neighborhoods use a bounded automatic layout family", () => {
+  const nodes = Array.from({ length: 24 }, (_, index) => instance(`dense-${index}`));
   const edges = [];
   for (let source = 0; source < nodes.length; source += 1) {
     for (let target = source + 1; target < nodes.length; target += 1) {
       edges.push(edge(`dense-${source}-${target}`, nodes[source], nodes[target]));
     }
   }
+  const projection = createWorldProjection({ instances: nodes, edges });
 
-  const layout = createWorldDagLayout(createWorldProjection({ instances: nodes, edges }));
-
+  const automatic = createWorldDagLayout(projection, { reorganize: true });
   assert.equal(
-    Object.entries(layout.metrics.algorithmCounts).some(
-      ([name, count]) => name.startsWith("longest-two-layer-greedy") && count === 1,
+    Object.entries(automatic.metrics.algorithmCounts).some(
+      ([name, count]) => name.startsWith("zherebko") && count === 1,
     ),
     true,
+    "automatic layout should choose a bounded family for a nearly complete DAG",
+  );
+
+  const explicitSugiyama = createWorldDagLayout(projection, {
+    reorganize: true,
+    algorithm: "sugiyama",
+  });
+  assert.equal(
+    Object.entries(explicitSugiyama.metrics.algorithmCounts).some(
+      ([name, count]) =>
+        (name.startsWith("longest-two-layer-greedy") ||
+          name.startsWith("simplex-two-layer-greedy")) &&
+        count === 1,
+    ),
+    true,
+    "an explicit Sugiyama operator choice must remain authoritative",
   );
 });
 

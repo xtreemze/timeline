@@ -262,7 +262,7 @@ export function createWorldForceScene(
     nodeSizes,
     placeSizes,
     orientation: options.dagOrientation ?? "top-to-bottom",
-    algorithm: options.dagAlgorithm ?? "sugiyama",
+    ...(options.dagAlgorithm === undefined ? {} : { algorithm: options.dagAlgorithm }),
     strategy: options.dagStrategy ?? "longest-auto-greedy",
     coordinate: options.dagCoordinate ?? "greedy",
     edgeStyle: options.dagEdgeStyle ?? "routed",
