@@ -1,0 +1,32 @@
+name: Temporary dependency lockfile refresh
+on:
+  push:
+    branches:
+      - chore/refresh-dependencies-2026-11-01
+
+permissions:
+  contents: write
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: true
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - run: pnpm install --lockfile-only --no-frozen-lockfile
+      - name: Commit regenerated lockfile
+        run: |
+          git add pnpm-lock.yaml
+          if git diff --cached --quiet; then
+            echo "Lockfile already matches package.json"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore(deps): regenerate pnpm lockfile"
+          git push origin HEAD
