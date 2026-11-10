@@ -1,5 +1,11 @@
 packages:
   - .
 
+# Rolldown 1.2.16 regroups deck.gl/luma.gl into an oversized tiny-sdf chunk
+# (611,665 bytes > 500,000-byte production budget). Preserve the last known
+# good bundler until a deterministic code-splitting fix is validated.
+overrides:
+  rolldown: 1.2.10
+
 allowBuilds:
   core-js: false
