@@ -277,7 +277,8 @@ class ScheduledWorldProjectionView implements WorldApplicationView {
 
     const state = this.#runtime.step(deltaMs);
     const wantsFrames =
-      state.simulationRunning || !state.simulationSettled || state.dragging || state.settlingDrag;
+      !state.cameraInteractionActive &&
+      (state.simulationRunning || !state.simulationSettled || state.dragging || state.settlingDrag);
     if (!wantsFrames) return;
 
     // Dropping a node starts a fresh run so its neighbours keep relaxing

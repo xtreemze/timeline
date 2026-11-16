@@ -89,6 +89,7 @@ export interface WorldViewRuntimeState {
   readonly hasProjection: boolean;
   readonly simulationRunning: boolean;
   readonly simulationSettled: boolean;
+  readonly cameraInteractionActive: boolean;
   readonly dragging: boolean;
   readonly settlingDrag: boolean;
 }
@@ -433,15 +434,20 @@ export class WorldViewRuntimeController {
   }
 
   /**
-   * Camera navigation is presentation state only. The surface uses this signal
-   * to defer camera-dependent mode/cluster changes, but world physics and
-   * layout readback must keep advancing so camera gestures cannot strand the
-   * rendered graph in a suspended state.
+   * Camera navigation is presentation state only, but passive force solving is
+   * substantial main-thread work at large scales. Suspend the pending force
+   * request while deck.gl owns the camera and let the simulation coordinator
+   * resume that exact request after the gesture/transition settles.
+   *
+   * Node drag does not use this path: drag remains force-active because its
+   * local collision response is part of the direct manipulation itself.
    */
   setCameraInteractionActive(active: boolean): boolean {
     this.#assertAlive();
     if (this.#cameraInteractionActive === active) return false;
     this.#cameraInteractionActive = active;
+    if (active) this.#simulation.suspend("world-camera");
+    else this.#simulation.resume("world-camera");
     return true;
   }
 
@@ -471,6 +477,10 @@ export class WorldViewRuntimeController {
 
   step(deltaMs: number): WorldViewRuntimeState {
     this.#assertAlive();
+
+    // deck.gl owns direct camera manipulation and inertial camera transitions.
+    // Do not let passive topology compete for the same main-thread frame.
+    if (this.#cameraInteractionActive) return this.state();
 
     this.#forceBackend.step?.(deltaMs);
 
@@ -595,6 +605,7 @@ export class WorldViewRuntimeController {
       hasProjection: this.#sourceProjection !== null,
       simulationRunning: diagnostics.running,
       simulationSettled: diagnostics.settled,
+      cameraInteractionActive: this.#cameraInteractionActive,
       dragging: drag.active,
       settlingDrag: drag.settling,
     });

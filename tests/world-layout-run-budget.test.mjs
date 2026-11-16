@@ -13,6 +13,7 @@ function harness() {
   let running = false;
   let stops = 0;
   const deckCalls = [];
+  let initialDeckProps = null;
   const deck = {
     setProps(props) {
       deckCalls.push(props);
@@ -23,7 +24,10 @@ function harness() {
     finalize() {},
   };
   const bindings = {
-    deck: () => deck,
+    deck: (props) => {
+      initialDeckProps = props;
+      return deck;
+    },
     globeView: (props) => ({ props }),
     scatterplotLayer: (props) => ({ props }),
     pathLayer: (props) => ({ props }),
@@ -76,6 +80,7 @@ function harness() {
     runFrames,
     scheduled,
     deckCalls,
+    initialDeckProps: () => initialDeckProps,
     stops: () => stops,
   };
 }
@@ -136,4 +141,32 @@ test("layout pushes to the surface are throttled while the layout drifts", () =>
   built.runFrames(30, 16); // ~480 ms of 16 ms frames
   const renders = built.deckCalls.filter((props) => props.layers).length - before;
   assert.ok(renders <= 6, `rendered ${renders} times in 30 frames`);
+});
+
+
+test("camera ownership pauses the force frame budget and release resumes it", () => {
+  const built = harness();
+  const view = createWorldViewFactory({
+    bindings: built.bindings,
+    scheduler: built.scheduler,
+    createForceBackend: () => built.forceBackend,
+  }).create(built.root);
+  view.setModel(model());
+
+  const deckProps = built.initialDeckProps();
+  assert.ok(deckProps?.onInteractionStateChange);
+
+  deckProps.onInteractionStateChange({ isPanning: true, inTransition: false });
+  assert.ok(built.stops() >= 1, "camera acquisition suspends the force backend");
+
+  built.runFrames(1, 16);
+  assert.equal(
+    built.scheduled.size,
+    0,
+    "camera-owned presentation must not keep consuming the force run budget",
+  );
+
+  deckProps.onInteractionStateChange({ isPanning: false, inTransition: false });
+  assert.ok(built.scheduled.size > 0, "camera release schedules the resumed force request");
+  assert.ok(built.runFrames(2, 16) >= 1);
 });
