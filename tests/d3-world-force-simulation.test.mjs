@@ -40,6 +40,32 @@ function distance(snapshot, leftId, rightId) {
   return Math.hypot(left.eastMeters - right.eastMeters, left.northMeters - right.northMeters);
 }
 
+test("D3 primary anchor selection prefers influence then stable place identity", () => {
+  const simulation = new D3WorldForceSimulation();
+  const entity = '["multi-anchor",null]';
+  simulation.setScene({
+    nodes: [node(entity, 0)],
+    edges: [],
+    anchors: [
+      anchor(entity, "stockholm", 0.4),
+      anchor(entity, "copenhagen", 0.8),
+      anchor(entity, "aarhus", 0.8, { longitude: 10.2039, latitude: 56.1629 }),
+    ],
+  });
+
+  simulation.setClusteredPlaceIds(["aarhus"]);
+  simulation.apply(topologyRequest());
+  for (let index = 0; index < 120; index += 1) simulation.step(1000 / 60);
+
+  const selected = simulation.getSnapshot()[0];
+  assert.ok(selected);
+  assert.ok(
+    selected.visualAltitudeMeters < 100,
+    "equal-influence anchors must use stable place-ID ordering, selecting aarhus before copenhagen",
+  );
+  simulation.destroy();
+});
+
 test("D3 collision and rejection reserve the full visible force-node footprint", () => {
   const simulation = new D3WorldForceSimulation();
   const alice = '["alice",null]';
@@ -730,6 +756,44 @@ test("D3 topology collision resolves multiple nearby places without waking remot
     remoteBefore,
     "remote unrelated geography must remain outside the cross-place collision broad phase",
   );
+});
+
+test("D3 drag broad phase follows current floating positions rather than anchor proximity", () => {
+  const simulation = new D3WorldForceSimulation();
+  const dragged = '["dragged-floating","origin"]';
+  const floating = '["floating-remote","remote"]';
+
+  simulation.setScene({
+    nodes: [
+      node(dragged, 0, 180),
+      node(floating, -28_700, 180),
+    ],
+    edges: [],
+    anchors: [
+      anchor(dragged, "origin", 0, { longitude: 18, latitude: 59 }),
+      anchor(floating, "remote", 0, { longitude: 18.5, latitude: 59 }),
+    ],
+  });
+  simulation.getChangedSnapshot();
+  const before = simulation.getSnapshot().find((entry) => entry.instanceId === floating);
+  assert.ok(before);
+
+  simulation.setPin({
+    instanceId: dragged,
+    eastMeters: 0,
+    northMeters: 0,
+    visualAltitudeMeters: 1_000,
+  });
+  simulation.apply({ reason: "drag", excitation: 0.2, reheat: true });
+  simulation.step(1000 / 60);
+
+  const after = simulation.getSnapshot().find((entry) => entry.instanceId === floating);
+  assert.ok(after);
+  assert.ok(
+    Math.hypot(after.eastMeters - before.eastMeters, after.northMeters - before.northMeters) > 0,
+    "a remote-anchor node already floating near the drag must participate in rejection",
+  );
+  simulation.destroy();
 });
 
 test("D3 drag rejects nearby nodes across different geographic anchors before collision", () => {

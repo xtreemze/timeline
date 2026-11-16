@@ -122,6 +122,11 @@ interface D3WorldGroupBounds {
   readonly maxZ: number;
 }
 
+interface D3InteractionGroupBound {
+  readonly center: readonly [x: number, y: number, z: number];
+  readonly staticReachMeters: number;
+}
+
 export interface D3WorldForcePosition {
   readonly instanceId: WorldInstanceId;
   readonly eastMeters: number;
@@ -145,19 +150,22 @@ function seededOffset(id: WorldInstanceId): readonly [number, number] {
   return Object.freeze([Math.cos(angle) * radius, Math.sin(angle) * radius]);
 }
 
-function primaryAnchor(
-  instanceId: WorldInstanceId,
+function primaryAnchorsByInstance(
   anchors: readonly WorldForceAnchor[],
-): WorldForceAnchor | null {
-  return (
-    anchors
-      .filter((anchor) => anchor.instanceId === instanceId)
-      .sort(
-        (left, right) =>
-          right.influence - left.influence ||
-          String(left.placeId).localeCompare(String(right.placeId)),
-      )[0] ?? null
-  );
+): ReadonlyMap<WorldInstanceId, WorldForceAnchor> {
+  const primary = new Map<WorldInstanceId, WorldForceAnchor>();
+  for (const anchor of anchors) {
+    const current = primary.get(anchor.instanceId);
+    if (
+      !current ||
+      anchor.influence > current.influence ||
+      (anchor.influence === current.influence &&
+        String(anchor.placeId).localeCompare(String(current.placeId)) < 0)
+    ) {
+      primary.set(anchor.instanceId, anchor);
+    }
+  }
+  return primary;
 }
 
 function groupKey(anchor: WorldForceAnchor | null): string {
@@ -255,6 +263,18 @@ function stateNeighborhoodRadiusMeters(state: D3WorldNodeState, tuning: WorldFor
   const targetNorth = state.node.layoutTargetNorthMeters ?? 0;
   const targetRadius = Math.hypot(targetEast, targetNorth) + collisionRadius * 2;
   return Math.max(collisionRadius * 8, precisionRadius, targetRadius);
+}
+
+function stateInteractionReachMeters(
+  state: D3WorldNodeState,
+  tuning: WorldForceTuning,
+): number {
+  const preferredRadius = tunedPreferredRadiusMeters(state.node, tuning);
+  return Math.max(
+    stateNeighborhoodRadiusMeters(state, tuning),
+    state.node.collisionRadiusMeters * 4,
+    preferredRadius * 4,
+  );
 }
 
 function pairNeighborhoodRadiusMeters(
@@ -514,6 +534,8 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
   #interactionInstanceId: WorldInstanceId | null = null;
   #interactionGroupKey: string | null = null;
   #interactionCollisionGroupKeys = new Set<string>();
+  #interactionGroupBounds = new Map<string, D3InteractionGroupBound>();
+  #interactionGroupLocalRadius = new Map<string, number>();
   #requestReason: WorldSimulationRequest["reason"] = "idle";
   #dirtyStateIds = new Set<WorldInstanceId>();
   #running = false;
@@ -526,9 +548,10 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     this.#assertAlive();
     const previous = this.#states;
     const next = new Map<WorldInstanceId, D3WorldNodeState>();
+    const primaryAnchors = primaryAnchorsByInstance(scene.anchors);
 
     for (const node of scene.nodes) {
-      const anchor = primaryAnchor(node.id, scene.anchors);
+      const anchor = primaryAnchors.get(node.id) ?? null;
       const group = groupKey(anchor);
       const prior = previous.get(node.id);
       const explicit = node.initialEastMeters !== 0 || node.initialNorthMeters !== 0;
@@ -610,6 +633,10 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     const nextInstanceId = pin?.instanceId ?? null;
 
     if (nextInstanceId !== null && previousInstanceId !== nextInstanceId) {
+      for (const groupKey of this.#interactionCollisionGroupKeys) {
+        const group = this.#groups.get(groupKey);
+        if (group) this.#refreshInteractionGroupLocalRadius(group);
+      }
       this.#interactionCollisionGroupKeys.clear();
     }
 
@@ -705,7 +732,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
         this.#interactionGroupKey = null;
       }
       this.#interactionCollisionGroupKeys.clear();
-    }
+      }
 
     if (request.reason === "idle") {
       this.stop();
@@ -766,6 +793,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
         group.simulation.tick(1);
         this.#stepAltitude(group.nodes, 1);
         for (const state of group.nodes) this.#dirtyStateIds.add(state.id);
+        this.#refreshInteractionGroupLocalRadius(group);
         if (group.simulation.alpha() > group.simulation.alphaMin()) settled = false;
       }
 
@@ -848,6 +876,8 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     this.#interactionInstanceId = null;
     this.#interactionGroupKey = null;
     this.#interactionCollisionGroupKeys.clear();
+    this.#interactionGroupBounds.clear();
+    this.#interactionGroupLocalRadius.clear();
     this.#requestReason = "idle";
     this.#destroyed = true;
   }
@@ -862,6 +892,21 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
       else grouped.set(state.group, [state]);
     }
 
+    const linksByGroup = new Map<string, D3WorldLink[]>();
+    for (const edge of this.#scene.edges) {
+      const source = this.#states.get(edge.sourceId);
+      const target = this.#states.get(edge.targetId);
+      if (!source || !target || source.group !== target.group) continue;
+      const bucket = linksByGroup.get(source.group);
+      const link: D3WorldLink = {
+        edge,
+        source: edge.sourceId,
+        target: edge.targetId,
+      };
+      if (bucket) bucket.push(link);
+      else linksByGroup.set(source.group, [link]);
+    }
+
     const nextGroups = new Map<string, D3WorldGroup>();
     for (const [key, nodes] of grouped) {
       const placeId = nodes[0]?.placeId ?? null;
@@ -871,16 +916,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
         this.#globalTuning;
       const linksDetached = placeId !== null && this.#detachedLinkPlaces.has(String(placeId));
 
-      const memberIds = new Set(nodes.map((node) => node.id));
-      const links: D3WorldLink[] = linksDetached
-        ? []
-        : this.#scene.edges
-            .filter((edge) => memberIds.has(edge.sourceId) && memberIds.has(edge.targetId))
-            .map((edge) => ({
-              edge,
-              source: edge.sourceId,
-              target: edge.targetId,
-            }));
+      const links = linksDetached ? [] : (linksByGroup.get(key) ?? []);
 
       const maximumRadius = Math.max(1, ...nodes.map((node) => node.node.collisionRadiusMeters));
       const simulation = forceSimulation<D3WorldNodeState>(nodes as D3WorldNodeState[])
@@ -980,6 +1016,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     }
 
     this.#groups = nextGroups;
+    this.#rebuildInteractionGroupBounds();
     this.#interactionCollisionGroupKeys = new Set(
       [...this.#interactionCollisionGroupKeys].filter((groupKey) => nextGroups.has(groupKey)),
     );
@@ -1132,6 +1169,102 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     return moved;
   }
 
+  #rebuildInteractionGroupBounds(): void {
+    const bounds = new Map<string, D3InteractionGroupBound>();
+    const localRadii = new Map<string, number>();
+
+    for (const group of this.#groups.values()) {
+      const firstAnchored = group.nodes.find((state) => state.anchor !== null);
+      if (!firstAnchored?.anchor) continue;
+      const centerGeographic = Object.freeze([
+        firstAnchored.anchor.longitude,
+        firstAnchored.anchor.latitude,
+      ]) as readonly [number, number];
+      let staticReachMeters = 1;
+      let maximumLocalRadius = 0;
+
+      for (const state of group.nodes) {
+        if (!state.anchor) continue;
+        const anchorDistance = surfaceDistanceMeters(centerGeographic, [
+          state.anchor.longitude,
+          state.anchor.latitude,
+        ]);
+        staticReachMeters = Math.max(
+          staticReachMeters,
+          anchorDistance + stateInteractionReachMeters(state, this.#tuningForState(state)),
+        );
+        // Manhattan tangent distance is a conservative bound on the geographic
+        // displacement produced by the local east/north offsets.
+        maximumLocalRadius = Math.max(
+          maximumLocalRadius,
+          Math.abs(state.x ?? 0) + Math.abs(state.y ?? 0),
+        );
+      }
+
+      bounds.set(
+        group.key,
+        Object.freeze({
+          center: surfaceCartesianMeters(centerGeographic),
+          staticReachMeters,
+        }),
+      );
+      localRadii.set(group.key, maximumLocalRadius);
+    }
+
+    this.#interactionGroupBounds = bounds;
+    this.#interactionGroupLocalRadius = localRadii;
+  }
+
+  #refreshInteractionGroupLocalRadius(group: D3WorldGroup): void {
+    let maximumLocalRadius = 0;
+    for (const state of group.nodes) {
+      maximumLocalRadius = Math.max(
+        maximumLocalRadius,
+        Math.abs(state.x ?? 0) + Math.abs(state.y ?? 0),
+      );
+    }
+    this.#interactionGroupLocalRadius.set(group.key, maximumLocalRadius);
+  }
+
+  #interactionCandidates(
+    focalState: D3WorldNodeState,
+    focalPosition: readonly [number, number],
+  ): readonly D3WorldNodeState[] {
+    const focalReach = stateInteractionReachMeters(
+      focalState,
+      this.#tuningForState(focalState),
+    );
+    const [focalX, focalY, focalZ] = surfaceCartesianMeters(focalPosition);
+    const candidates: D3WorldNodeState[] = [];
+
+    for (const group of this.#groups.values()) {
+      if (group.key === focalState.group) continue;
+
+      // Once a foreign group has been woken by an interaction its cached bound
+      // may be stale. It is already a small, explicitly active collision island,
+      // so inspect that group's live nodes directly.
+      if (!this.#interactionCollisionGroupKeys.has(group.key)) {
+        const bound = this.#interactionGroupBounds.get(group.key);
+        if (bound) {
+          const localRadius = this.#interactionGroupLocalRadius.get(group.key) ?? 0;
+          const reach = focalReach + bound.staticReachMeters + localRadius;
+          const dx = focalX - bound.center[0];
+          const dy = focalY - bound.center[1];
+          const dz = focalZ - bound.center[2];
+          // Chord distance never exceeds great-circle distance, so rejecting a
+          // group outside this conservative bound cannot discard a true partner.
+          if (dx * dx + dy * dy + dz * dz > reach * reach) continue;
+        }
+      }
+
+      for (const state of group.nodes) {
+        if (state.id !== focalState.id && state.anchor) candidates.push(state);
+      }
+    }
+
+    return candidates;
+  }
+
   #stepCrossPlaceInteractionForces(): boolean {
     const interactionId = this.#pin?.instanceId ?? this.#interactionInstanceId;
     if (!interactionId) return false;
@@ -1139,13 +1272,11 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     if (!focalState?.anchor) return false;
     const focalPosition = geographicPosition(focalState);
     if (!focalPosition) return false;
+    const focalTuning = this.#tuningForState(focalState);
 
-    const partners = [...this.#states.values()].flatMap((state) => {
-      if (state.id === focalState.id || state.group === focalState.group || !state.anchor)
-        return [];
+    const partners = this.#interactionCandidates(focalState, focalPosition).flatMap((state) => {
       const position = geographicPosition(state);
       if (!position) return [];
-      const focalTuning = this.#tuningForState(focalState);
       const stateTuning = this.#tuningForState(state);
       const collisionDistance =
         focalState.node.collisionRadiusMeters + state.node.collisionRadiusMeters;
@@ -1166,7 +1297,7 @@ export class D3WorldForceSimulation implements WorldForceSimulationBackend {
     const participants = [
       {
         state: focalState,
-        tuning: this.#tuningForState(focalState),
+        tuning: focalTuning,
         eastMeters: 0,
         northMeters: 0,
       },
